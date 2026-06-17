@@ -1,25 +1,27 @@
 package datadog.trace.api.openfeature;
 
+import dev.openfeature.sdk.Structure;
+import dev.openfeature.sdk.Value;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Per-local-root-span accumulator for APM feature-flag span enrichment (JAVA-01).
+ * Per-local-root-span accumulator for APM feature-flag span enrichment.
  *
  * <p>Holds the serial ids, hashed subjects, and runtime defaults captured during flag evaluation
  * for a single local trace fragment. The limits, dedupe semantics, truncation, and output tag
  * shapes are FROZEN against the Node reference ({@code dd-trace-js#8343}) — see {@link
  * ULeb128Encoder}.
  *
- * <p>Instances are created lazily and held in a per-provider {@link SpanEnrichmentStates} store,
- * keyed by the local-root span's trace id. The capture hook ({@link SpanEnrichmentHook}) writes;
- * the write interceptor ({@link SpanEnrichmentInterceptor}) reads and clears. When the
- * span-enrichment gate is off, no store and no accumulator are ever created, so there is no idle
- * per-span overhead (DG-005).
+ * <p>Instances are created lazily and held in a {@link SpanEnrichmentStates} store, keyed by the
+ * local-root span's full trace id. The capture hook ({@link SpanEnrichmentHook}) writes; the write
+ * interceptor ({@link SpanEnrichmentInterceptor}) reads and clears. When the span-enrichment gate
+ * is off, no store and no accumulator are ever created, so there is no idle per-span overhead.
  *
- * <p>Output tag shapes (Pattern F):
+ * <p>Output tag shapes:
  *
  * <ul>
  *   <li>{@code ffe_flags_enc} — a bare base64 string (delta-varint of the serial ids)
@@ -139,22 +141,87 @@ final class SpanEnrichmentAccumulator {
   // ---- helpers (visible for tests) ----
 
   /**
-   * Mirrors the Node {@code (typeof object && !null) ? JSON.stringify(value) : String(value)} rule:
-   * structured values (maps, lists) are JSON-stringified, scalars use their string form, null
-   * becomes the JSON literal {@code null}.
+   * Mirrors the Node {@code (typeof value === 'object' && value !== null) ? JSON.stringify(value) :
+   * String(value)} rule: structured values (objects, arrays) are JSON-stringified; scalars use
+   * their string form; {@code null} becomes the bare {@code null}.
+   *
+   * <p>On the real OpenFeature object-evaluation path the runtime-default arrives wrapped in a
+   * {@link Value}; we unwrap it to its native representation first so a structured default
+   * serializes to JSON (matching Node's {@code JSON.stringify} of the equivalent JS object) instead
+   * of {@code Value.toString()} (which is {@code "Value(innerObject=...)"}). The scalar cases
+   * ({@code String}/{@code Boolean}/number) collapse to the same string form Node produces.
    */
   static String stringifyDefault(final Object value) {
-    if (value == null) {
+    final Object unwrapped = value instanceof Value ? unwrapValue((Value) value) : value;
+    if (unwrapped == null) {
       return "null";
     }
-    if (value instanceof Map || value instanceof Iterable || value.getClass().isArray()) {
-      return toJsonValue(value);
+    if (unwrapped instanceof Map
+        || unwrapped instanceof Iterable
+        || unwrapped.getClass().isArray()) {
+      return toJsonValue(unwrapped);
     }
-    if (value instanceof CharSequence || value instanceof Character) {
-      return value.toString();
+    if (unwrapped instanceof CharSequence || unwrapped instanceof Character) {
+      return unwrapped.toString();
     }
-    // Numbers / booleans — their string form matches JSON for these scalar cases.
-    return String.valueOf(value);
+    // Numbers / booleans / Instant — their string form matches what Node's String(value) emits for
+    // these scalar cases.
+    return String.valueOf(unwrapped);
+  }
+
+  /**
+   * Recursively unwraps an OpenFeature {@link Value} into its native Java representation:
+   * structures become {@code Map<String, Object>}, lists become {@code List<Object>}, and scalars
+   * become their boxed value (or {@code null}). Nested {@link Value}s are unwrapped at every level
+   * so a structure containing further structures/lists serializes correctly.
+   */
+  private static Object unwrapValue(final Value value) {
+    if (value == null || value.isNull()) {
+      return null;
+    }
+    if (value.isStructure()) {
+      final Structure structure = value.asStructure();
+      final Map<String, Object> map = new LinkedHashMap<>();
+      if (structure != null) {
+        for (final String key : structure.keySet()) {
+          map.put(key, unwrapValue(structure.getValue(key)));
+        }
+      }
+      return map;
+    }
+    if (value.isList()) {
+      final java.util.List<Value> list = value.asList();
+      final java.util.List<Object> out = new java.util.ArrayList<>(list == null ? 0 : list.size());
+      if (list != null) {
+        for (final Value element : list) {
+          out.add(unwrapValue(element));
+        }
+      }
+      return out;
+    }
+    if (value.isBoolean()) {
+      return value.asBoolean();
+    }
+    if (value.isString()) {
+      return value.asString();
+    }
+    if (value.isNumber()) {
+      // Preserve integral vs fractional so the rendered JSON number matches Node.
+      final Double d = value.asDouble();
+      if (d != null && d == Math.rint(d) && !Double.isInfinite(d)) {
+        final Integer i = value.asInteger();
+        if (i != null) {
+          return i;
+        }
+      }
+      return d;
+    }
+    final Instant instant = value.asInstant();
+    if (instant != null) {
+      return instant.toString();
+    }
+    // Unknown shape: fall back to the wrapped object's own representation.
+    return value.asObject();
   }
 
   /** UTF-8-safe truncation: never split a surrogate pair at the {@code maxChars} boundary. */
@@ -194,7 +261,10 @@ final class SpanEnrichmentAccumulator {
   }
 
   @SuppressWarnings("unchecked")
-  private static void appendJsonValue(final StringBuilder sb, final Object value) {
+  private static void appendJsonValue(final StringBuilder sb, final Object rawValue) {
+    // Unwrap any OpenFeature Value to its native representation first so nested structures/lists
+    // serialize as JSON rather than via Value.toString().
+    final Object value = rawValue instanceof Value ? unwrapValue((Value) rawValue) : rawValue;
     if (value == null) {
       sb.append("null");
     } else if (value instanceof Map) {

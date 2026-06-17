@@ -47,9 +47,12 @@ public class Provider extends EventProvider implements Metadata {
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
   private final FlagEvalHook flagEvalHook;
-  // Span enrichment (JAVA-01): both are null unless the gate is on (DG-005 — no idle overhead).
+  // Span enrichment: null unless the gate is on, so the feature has no idle overhead when off.
   private final SpanEnrichmentHook spanEnrichmentHook;
-  private final SpanEnrichmentInterceptor spanEnrichmentInterceptor;
+  private final SpanEnrichmentStates spanEnrichmentStates;
+  // Precomputed hook list returned by getProviderHooks() on every evaluation. Immutable and built
+  // once so gate-off evaluation allocates nothing on this hot path.
+  private final List<Hook> providerHooks;
 
   public Provider() {
     this(DEFAULT_OPTIONS, null);
@@ -65,10 +68,10 @@ public class Provider extends EventProvider implements Metadata {
 
   /**
    * Registers a {@link SpanEnrichmentInterceptor} with the running tracer, returning {@code true}
-   * when it was added and {@code false} when the tracer rejected it (e.g. a duplicate-priority
-   * interceptor from an earlier provider is already registered). Injectable so tests can drive the
-   * success and rejected-registration (reconfiguration) paths deterministically without mutating
-   * the global tracer (mirrors the {@code spanEnrichmentEnabledOverride} seam).
+   * when it was added and {@code false} when the tracer rejected it (e.g. the interceptor is
+   * already registered, or the global tracer is the no-op placeholder). Injectable so tests can
+   * drive registration deterministically without mutating the global tracer (mirrors the {@code
+   * spanEnrichmentEnabledOverride} seam).
    */
   interface TraceInterceptorRegistrar {
     boolean register(SpanEnrichmentInterceptor interceptor);
@@ -113,49 +116,46 @@ public class Provider extends EventProvider implements Metadata {
     this.flagEvalMetrics = metrics;
     this.flagEvalHook = hook;
 
-    // Gate-gated span enrichment: construct + register ONLY when the gate is on. When off, nothing
-    // is constructed and no interceptor/state exists (DG-005 zero-idle-overhead negative control).
+    // Span enrichment is wired ONLY when the gate is on. When off, no hook/state is constructed and
+    // there is no idle per-evaluation or per-span overhead.
     final boolean spanEnrichmentEnabled =
         spanEnrichmentEnabledOverride != null
             ? spanEnrichmentEnabledOverride
             : isSpanEnrichmentEnabled();
     SpanEnrichmentHook seHook = null;
-    SpanEnrichmentInterceptor seInterceptor = null;
+    SpanEnrichmentStates seStates = null;
     if (spanEnrichmentEnabled) {
       try {
-        // Per-provider state store (NOT a global static): owned by the interceptor, shared with the
-        // hook, so this provider's shutdown can never clear another provider's state (CR-03), and a
-        // never-completing trace cannot leak unboundedly (CR-02, bounded inside the store).
-        final SpanEnrichmentStates seStates = new SpanEnrichmentStates();
-        final SpanEnrichmentInterceptor candidate = new SpanEnrichmentInterceptor(seStates);
-        // HONOR the registration result (CR-03): the tracer rejects an interceptor whose priority
-        // is
-        // already taken (e.g. a SECOND gate-on provider after reconfiguration) and returns false.
-        // If
-        // we ignored it, this provider would still wire a hook into shared state yet never have its
-        // interceptor invoked, and its shutdown() would clear the FIRST provider's live state. So
-        // we
-        // only wire the hook+interceptor when registration actually succeeded.
-        if (registrar.register(candidate)) {
-          seInterceptor = candidate;
-          seHook = new SpanEnrichmentHook(seStates);
-        } else {
-          // Duplicate registration (active interceptor already owns priority 4). Leave hook +
-          // interceptor null so this provider neither accumulates orphan state nor clears the
-          // active provider's state on shutdown. Its own seStates is unreferenced and GC'd.
-          log.warn(
-              "Span enrichment interceptor already registered (duplicate provider); "
-                  + "skipping duplicate registration to avoid corrupting active provider state");
-        }
+        // Per-provider state store, shared with this provider's capture hook. The single,
+        // process-wide interceptor is registered once (reconfiguration-safe) and rebound to this
+        // provider's store. A later gate-on provider rebinds it to its own store; this provider's
+        // shutdown only unbinds if it is still the active provider, so reconfiguration never
+        // permanently disables enrichment and providers never clobber each other's live state.
+        seStates = new SpanEnrichmentStates();
+        SpanEnrichmentInterceptor.ensureRegistered(registrar);
+        SpanEnrichmentInterceptor.INSTANCE.bind(seStates);
+        seHook = new SpanEnrichmentHook(seStates);
       } catch (LinkageError | Exception e) {
         // Tracer classes absent (e.g. API-only classpath): degrade to no span enrichment.
         log.warn("Span enrichment unavailable — tracer classes not on classpath", e);
         seHook = null;
-        seInterceptor = null;
+        seStates = null;
       }
     }
     this.spanEnrichmentHook = seHook;
-    this.spanEnrichmentInterceptor = seInterceptor;
+    this.spanEnrichmentStates = seStates;
+
+    // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
+    // allocates nothing, including when the gate is off.
+    final List<Hook> hooks = new ArrayList<>(2);
+    if (flagEvalHook != null) {
+      hooks.add(flagEvalHook);
+    }
+    if (seHook != null) {
+      hooks.add(seHook);
+    }
+    this.providerHooks =
+        hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
   }
 
   private static boolean isSpanEnrichmentEnabled() {
@@ -274,14 +274,7 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public List<Hook> getProviderHooks() {
-    final List<Hook> hooks = new ArrayList<>(2);
-    if (flagEvalHook != null) {
-      hooks.add(flagEvalHook);
-    }
-    if (spanEnrichmentHook != null) {
-      hooks.add(spanEnrichmentHook);
-    }
-    return hooks.isEmpty() ? Collections.emptyList() : hooks;
+    return providerHooks;
   }
 
   @Override
@@ -289,14 +282,13 @@ public class Provider extends EventProvider implements Metadata {
     if (flagEvalMetrics != null) {
       flagEvalMetrics.shutdown();
     }
-    // Provider-close cleanup for span enrichment (Pitfall 3): the tracer has no interceptor-removal
-    // API, so disable the interceptor (it then no-ops + drains its OWN residual state). Because the
-    // state store is instance-owned, this clears only this provider's state and can never wipe an
-    // active second provider's in-flight state (CR-03). When this provider's registration was
-    // rejected as a duplicate, spanEnrichmentInterceptor is null here, so shutdown is a no-op and
-    // the active provider's state is untouched.
-    if (spanEnrichmentInterceptor != null) {
-      spanEnrichmentInterceptor.disable();
+    // Provider-close cleanup for span enrichment: the tracer has no interceptor-removal API, so we
+    // unbind this provider's store from the process-wide interceptor (which clears the store and
+    // makes the interceptor inert until a new provider rebinds it). The unbind is a no-op if a
+    // newer provider has already rebound the interceptor, so we never wipe another provider's
+    // in-flight state.
+    if (spanEnrichmentStates != null) {
+      SpanEnrichmentInterceptor.INSTANCE.unbind(spanEnrichmentStates);
     }
     if (evaluator != null) {
       evaluator.shutdown();
@@ -308,8 +300,8 @@ public class Provider extends EventProvider implements Metadata {
     return spanEnrichmentHook;
   }
 
-  SpanEnrichmentInterceptor spanEnrichmentInterceptor() {
-    return spanEnrichmentInterceptor;
+  SpanEnrichmentStates spanEnrichmentStates() {
+    return spanEnrichmentStates;
   }
 
   @Override

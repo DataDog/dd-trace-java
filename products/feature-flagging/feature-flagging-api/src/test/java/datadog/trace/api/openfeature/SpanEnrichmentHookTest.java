@@ -20,7 +20,11 @@ import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableContext;
 import dev.openfeature.sdk.ImmutableMetadata;
+import dev.openfeature.sdk.ImmutableStructure;
+import dev.openfeature.sdk.Value;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
@@ -30,16 +34,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * L0 unit suite for APM feature-flag span enrichment (JAVA-01).
+ * Unit suite for APM feature-flag span enrichment.
  *
- * <p>Covers the seven required VALIDATION.md cases plus the explicit max-200 case and the codec
+ * <p>Covers the seven required validation cases plus the explicit max-200 case and the codec
  * golden-vector round-trip. The contract (encoding, limits, tag shapes) is FROZEN against the Node
  * reference ({@code dd-trace-js#8343}).
  */
 class SpanEnrichmentHookTest {
 
-  // Per-test instance-owned state store (replaces the former global static). The hook and the
-  // interceptor under test share this one, mirroring how a single Provider wires them (CR-03).
+  // Instance-owned state store shared by the hook and interceptor under test, mirroring how a
+  // single
+  // Provider wires them.
   private SpanEnrichmentStates states;
 
   @BeforeEach
@@ -50,9 +55,16 @@ class SpanEnrichmentHookTest {
   @AfterEach
   void clearState() {
     states.clear();
+    // The interceptor is a process-wide singleton; leave it inert for the next test.
+    SpanEnrichmentInterceptor.INSTANCE.unbind(SpanEnrichmentInterceptor.INSTANCE.activeStates());
   }
 
   // ---- helpers ----
+
+  /** The store key the production code derives from a trace id (full hex). */
+  private static String key(final long traceId) {
+    return DDTraceId.from(traceId).toHexString();
+  }
 
   private static FlagEvaluationDetails<Object> details(
       final String flagKey,
@@ -86,10 +98,10 @@ class SpanEnrichmentHookTest {
         "default");
   }
 
-  /** Drives the capture branch directly (no static tracer) for a fixed trace key. */
+  /** Drives the capture branch directly (no static tracer) for a fixed trace id. */
   private static void capture(
       final SpanEnrichmentHook hook,
-      final long traceKey,
+      final long traceId,
       final String flagKey,
       final String targetingKey,
       final String variant,
@@ -97,7 +109,7 @@ class SpanEnrichmentHookTest {
       final Integer serialId,
       final boolean doLog) {
     hook.capture(
-        traceKey,
+        key(traceId),
         ctx(flagKey, targetingKey),
         details(flagKey, variant, value, metadata(serialId, doLog)));
   }
@@ -105,12 +117,18 @@ class SpanEnrichmentHookTest {
   /**
    * Configures a mock root span to report itself as its own local root with the given trace id. The
    * returned span, passed in a singleton collection, models a FINAL flush (the root is present in
-   * the fragment), so the interceptor flushes + removes state (CR-01 final-write path).
+   * the fragment), so the interceptor flushes + removes state.
    */
   private static AgentSpan rootSpanCollection(final long traceId, final AgentSpan rootSpan) {
     when(rootSpan.getLocalRootSpan()).thenReturn(rootSpan);
     when(rootSpan.getTraceId()).thenReturn(DDTraceId.from(traceId));
     return rootSpan;
+  }
+
+  /** Binds a fresh interceptor to the given store, models a final flush, and returns it. */
+  private static SpanEnrichmentInterceptor boundInterceptor(final SpanEnrichmentStates states) {
+    SpanEnrichmentInterceptor.INSTANCE.bind(states);
+    return SpanEnrichmentInterceptor.INSTANCE;
   }
 
   // ---- 1. codec golden-vector round-trip ----
@@ -158,7 +176,7 @@ class SpanEnrichmentHookTest {
         ctx("flag", "user-1"),
         details("flag", "on", "v", metadata(42, true)),
         Collections.emptyMap());
-    final SpanEnrichmentAccumulator state = states.peek(0x77L);
+    final SpanEnrichmentAccumulator state = states.peek(key(0x77L));
     assertTrue(state != null && state.serialIdsView().contains(42));
     assertEquals(1, state.subjectCount(), "doLog=true + targeting key => subject recorded");
   }
@@ -178,9 +196,7 @@ class SpanEnrichmentHookTest {
 
     final AgentSpan root = mock(AgentSpan.class);
     rootSpanCollection(traceId, root);
-    final SpanEnrichmentInterceptor interceptor = new SpanEnrichmentInterceptor(states);
-
-    interceptor.onTraceComplete(Collections.singletonList(root));
+    boundInterceptor(states).onTraceComplete(Collections.singletonList(root));
 
     verify(root).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "ZAgUAg==");
     // state cleared after flush
@@ -196,7 +212,7 @@ class SpanEnrichmentHookTest {
     // no serial id + null variant => runtime default; object value must be JSON-stringified
     final Map<String, Object> objectValue = Collections.singletonMap("k", "val");
     hook.capture(
-        traceId,
+        key(traceId),
         ctx("obj-flag", "user-1"),
         FlagEvaluationDetails.builder()
             .flagKey("obj-flag")
@@ -207,7 +223,7 @@ class SpanEnrichmentHookTest {
 
     final AgentSpan root = mock(AgentSpan.class);
     rootSpanCollection(traceId, root);
-    new SpanEnrichmentInterceptor(states).onTraceComplete(Collections.singletonList(root));
+    boundInterceptor(states).onTraceComplete(Collections.singletonList(root));
 
     // ffe_runtime_defaults is a JSON object string, NOT [object Object]/toString.
     verify(root)
@@ -216,6 +232,80 @@ class SpanEnrichmentHookTest {
             "{\"obj-flag\":\"{\\\"k\\\":\\\"val\\\"}\"}");
     // no flags tag when there are no serial ids
     verify(root, never()).setTag(eq(SpanEnrichmentAccumulator.TAG_FLAGS_ENC), anyString());
+  }
+
+  // ---- 4b. real OpenFeature object path: a Value structure default must serialize to JSON ----
+
+  /**
+   * The real object-evaluation path hands the runtime default in as a {@code
+   * dev.openfeature.sdk.Value}, not a raw {@code Map}. The accumulator must unwrap the {@code
+   * Value} and emit JSON (matching Node's {@code JSON.stringify}), never {@code Value.toString()}
+   * (which is {@code "Value(innerObject=...)"}).
+   */
+  @Test
+  void runtimeDefaultStructureValueSerializesAsJsonNotToString() {
+    final SpanEnrichmentHook hook = new SpanEnrichmentHook(states);
+    final long traceId = 0x2468L;
+
+    // Single-key structure so the exact-string assertion does not depend on the OpenFeature SDK's
+    // internal key ordering. (The multi-key / nesting behaviour is covered by the direct
+    // stringifyDefault assertions below.)
+    final Map<String, Value> inner = new LinkedHashMap<>();
+    inner.put("enabled", new Value(true));
+    final Value structureDefault = new Value(new ImmutableStructure(inner));
+
+    hook.capture(
+        key(traceId),
+        ctx("struct-flag", "user-1"),
+        FlagEvaluationDetails.builder()
+            .flagKey("struct-flag")
+            .variant(null)
+            .value(structureDefault)
+            .flagMetadata(ImmutableMetadata.builder().build())
+            .build());
+
+    final AgentSpan root = mock(AgentSpan.class);
+    rootSpanCollection(traceId, root);
+    boundInterceptor(states).onTraceComplete(Collections.singletonList(root));
+
+    // {"struct-flag":"{\"enabled\":true}"}  — note: NO "Value(innerObject=...)".
+    verify(root)
+        .setTag(
+            SpanEnrichmentAccumulator.TAG_RUNTIME_DEFAULTS,
+            "{\"struct-flag\":\"{\\\"enabled\\\":true}\"}");
+  }
+
+  /**
+   * Direct stringify of a structured {@code Value}: asserts the value is JSON (objects + nested
+   * scalars), not {@code Value.toString()}. The structure is single-key to keep ordering
+   * deterministic across OpenFeature SDK versions.
+   */
+  @Test
+  void stringifyDefaultUnwrapsValueStructureToJson() {
+    final Map<String, Value> inner = new LinkedHashMap<>();
+    inner.put("count", new Value(42));
+    final Value structureDefault = new Value(new ImmutableStructure(inner));
+    assertEquals("{\"count\":42}", SpanEnrichmentAccumulator.stringifyDefault(structureDefault));
+  }
+
+  /**
+   * A list-valued {@code Value} default serializes to a JSON array, with nested Values unwrapped.
+   */
+  @Test
+  void runtimeDefaultListValueSerializesAsJsonArray() {
+    final Value listDefault =
+        new Value(Arrays.asList(new Value("a"), new Value(2), new Value(true)));
+    // direct stringify assertion (exact bytes)
+    assertEquals("[\"a\",2,true]", SpanEnrichmentAccumulator.stringifyDefault(listDefault));
+  }
+
+  /** Scalar Values collapse to the same string form Node's String(value) produces. */
+  @Test
+  void scalarValueDefaultsMatchNodeStringForm() {
+    assertEquals("hello", SpanEnrichmentAccumulator.stringifyDefault(new Value("hello")));
+    assertEquals("true", SpanEnrichmentAccumulator.stringifyDefault(new Value(true)));
+    assertEquals("7", SpanEnrichmentAccumulator.stringifyDefault(new Value(7)));
+    assertEquals("null", SpanEnrichmentAccumulator.stringifyDefault(new Value()));
   }
 
   // ---- 5. per-subject cap (10 subjects / 20 experiments / doLog gating) ----
@@ -228,9 +318,10 @@ class SpanEnrichmentHookTest {
     final SpanEnrichmentHook hook = new SpanEnrichmentHook(states);
     final long traceId = 0x5L;
     capture(hook, traceId, "f", "user-A", "on", "v", 1, false); // doLog=false => no subject
-    assertEquals(0, states.peek(traceId).subjectCount(), "doLog=false must not record a subject");
+    assertEquals(
+        0, states.peek(key(traceId)).subjectCount(), "doLog=false must not record a subject");
     capture(hook, traceId, "f", "user-A", "on", "v", 2, true); // doLog=true => subject recorded
-    assertEquals(1, states.peek(traceId).subjectCount());
+    assertEquals(1, states.peek(key(traceId)).subjectCount());
 
     // per-subject experiment cap: 20 max
     for (int i = 0; i < 25; i++) {
@@ -298,42 +389,54 @@ class SpanEnrichmentHookTest {
     assertEquals(1, acc.defaultCount());
   }
 
-  // ---- gate-off negative control (no ffe_*, no hook/interceptor, no state) (DG-005) ----
+  // ---- gate-off negative control (no ffe_*, no hook, no state) ----
 
   @Test
   void gateOffConstructsNothingAndAccumulatesNoState() {
     // Gate OFF via the injectable override (no static config mocking).
     final Provider provider = new Provider(new Provider.Options(), null, Boolean.FALSE);
 
-    // No hook, no interceptor constructed (DG-005 zero-idle-overhead).
+    // No hook, no state store constructed (zero idle overhead).
     assertNull(provider.spanEnrichmentHook(), "gate off => no span-enrichment hook");
-    assertNull(provider.spanEnrichmentInterceptor(), "gate off => no span-enrichment interceptor");
+    assertNull(provider.spanEnrichmentStates(), "gate off => no span-enrichment state store");
     // getProviderHooks must not contain a SpanEnrichmentHook.
     final List<Hook> hooks = provider.getProviderHooks();
     for (final Hook hook : hooks) {
       assertFalse(
           hook instanceof SpanEnrichmentHook, "gate off => SpanEnrichmentHook never registered");
     }
-    // No state store is created at all when the gate is off: the per-provider store lives only
-    // inside the gate-on branch, so a null interceptor means no store and no idle overhead
-    // (DG-005).
-    assertNull(
-        provider.spanEnrichmentInterceptor(),
-        "gate off => no interceptor, hence no state store and no accumulator state");
+  }
+
+  /**
+   * getProviderHooks() is called on every evaluation; it must return the SAME precomputed list
+   * (allocating nothing) regardless of gate state.
+   */
+  @Test
+  void getProviderHooksReturnsSameInstanceEachCall() {
+    final Provider gateOff = new Provider(new Provider.Options(), null, Boolean.FALSE);
+    assertTrue(
+        gateOff.getProviderHooks() == gateOff.getProviderHooks(),
+        "gate off => getProviderHooks allocates nothing (same instance)");
+
+    final Provider gateOn =
+        new Provider(new Provider.Options(), null, Boolean.TRUE, interceptor -> true);
+    assertTrue(
+        gateOn.getProviderHooks() == gateOn.getProviderHooks(),
+        "gate on => getProviderHooks allocates nothing (same instance)");
   }
 
   // ---- gate-on construction + provider-close cleanup ----
 
   @Test
-  void gateOnConstructsHookAndInterceptorThenShutdownDisables() {
-    // Gate ON via the injectable override; registration succeeds (injected registrar returns true)
-    // so we don't mutate the global tracer (the Noop tracer rejects, which is the CR-03 path tested
-    // separately in secondProviderRejectedRegistrationDoesNotClearFirstProviderState).
+  void gateOnConstructsHookAndStateThenShutdownUnbinds() {
     final Provider provider =
         new Provider(new Provider.Options(), null, Boolean.TRUE, interceptor -> true);
     assertTrue(provider.spanEnrichmentHook() != null, "gate on => hook constructed");
-    assertTrue(provider.spanEnrichmentInterceptor() != null, "gate on => interceptor constructed");
-    assertTrue(provider.spanEnrichmentInterceptor().isEnabled());
+    assertTrue(provider.spanEnrichmentStates() != null, "gate on => state store constructed");
+    // the process-wide interceptor is bound to this provider's store
+    assertTrue(
+        SpanEnrichmentInterceptor.INSTANCE.activeStates() == provider.spanEnrichmentStates(),
+        "gate on => interceptor bound to this provider's store");
     // hook registered in provider hooks
     boolean registered = false;
     for (final Hook hook : provider.getProviderHooks()) {
@@ -343,12 +446,13 @@ class SpanEnrichmentHookTest {
     }
     assertTrue(registered, "gate on => SpanEnrichmentHook registered in getProviderHooks");
 
-    // provider close disables the interceptor (provider-close cleanup) and drains ITS OWN state.
-    final SpanEnrichmentStates providerStates = provider.spanEnrichmentInterceptor().states();
-    providerStates.getOrCreate(1L);
+    // provider close unbinds + drains ITS OWN state.
+    final SpanEnrichmentStates providerStates = provider.spanEnrichmentStates();
+    providerStates.getOrCreate(key(1L));
     assertFalse(providerStates.isEmpty());
     provider.shutdown();
-    assertFalse(provider.spanEnrichmentInterceptor().isEnabled(), "shutdown disables interceptor");
+    assertNull(
+        SpanEnrichmentInterceptor.INSTANCE.activeStates(), "shutdown unbinds the active store");
     assertTrue(providerStates.isEmpty(), "shutdown drains residual state");
   }
 
@@ -362,18 +466,19 @@ class SpanEnrichmentHookTest {
     assertTrue(states.isEmpty());
   }
 
-  // ---- interceptor gate-off / empty trace robustness ----
+  // ---- interceptor inert when unbound / empty trace robustness ----
 
   @Test
-  void interceptorNoOpsWhenDisabledOrEmpty() {
-    final SpanEnrichmentInterceptor interceptor = new SpanEnrichmentInterceptor(states);
+  void interceptorNoOpsWhenUnboundOrEmpty() {
     // empty trace
-    assertTrue(interceptor.onTraceComplete(Collections.emptyList()).isEmpty());
-    // disabled
-    interceptor.disable();
+    SpanEnrichmentInterceptor.INSTANCE.bind(states);
+    assertTrue(
+        SpanEnrichmentInterceptor.INSTANCE.onTraceComplete(Collections.emptyList()).isEmpty());
+    // unbound (inert)
+    SpanEnrichmentInterceptor.INSTANCE.unbind(states);
     final AgentSpan root = mock(AgentSpan.class);
     final List<MutableSpan> trace = Collections.singletonList(root);
-    interceptor.onTraceComplete(trace);
+    SpanEnrichmentInterceptor.INSTANCE.onTraceComplete(trace);
     verify(root, never()).setTag(anyString(), anyString());
   }
 
@@ -382,6 +487,6 @@ class SpanEnrichmentHookTest {
   @Test
   void interceptorPriorityIsUnique() {
     // Distinct from AbstractTraceInterceptor.Priority values (0,1,2,3, MAX-2, MAX-1, MAX).
-    assertEquals(4, new SpanEnrichmentInterceptor(states).priority());
+    assertEquals(4, SpanEnrichmentInterceptor.INSTANCE.priority());
   }
 }

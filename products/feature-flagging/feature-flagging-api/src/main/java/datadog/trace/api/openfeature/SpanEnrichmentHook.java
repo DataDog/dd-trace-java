@@ -11,17 +11,17 @@ import java.util.Map;
 
 /**
  * OpenFeature {@code finally} hook that captures feature-flag evaluation metadata into
- * per-local-root span state for APM span enrichment (JAVA-01). This is the CAPTURE half of the
+ * per-local-root span state for APM span enrichment. This is the CAPTURE half of the
  * capture-vs-write split — the WRITE half is {@link SpanEnrichmentInterceptor}, which flushes the
  * accumulated tags onto the local root span when the trace completes.
  *
  * <p>Mirrors {@link FlagEvalHook}: registered via {@link Provider#getProviderHooks()} (only when
  * the span-enrichment gate is on) and reading {@code details.getFlagMetadata()}. It resolves the
- * active local-root span via {@link AgentTracer#activeSpan()} and keys the per-provider {@link
- * SpanEnrichmentStates} store (shared with this provider's {@link SpanEnrichmentInterceptor}) by
- * that root's trace id, so the interceptor running later on the write thread can recover the same
- * state from the completed span collection. The store is owned by the interceptor (not a global
- * static), so a second provider can never clear this one's state (CR-03).
+ * active local-root span via {@link AgentTracer#activeSpan()} and keys the {@link
+ * SpanEnrichmentStates} store (shared with the {@link SpanEnrichmentInterceptor}) by that root's
+ * full trace id (hex), so the interceptor running later on the write thread can recover the same
+ * state from the completed span collection. The full hex key avoids merging two distinct 128-bit
+ * traces that happen to share their low-order 64 bits.
  *
  * <p>Capture branch (frozen Node reference):
  *
@@ -31,7 +31,7 @@ import java.util.Map;
  *   <li>else variant missing (runtime default) → addDefault(flagKey, value)
  * </ul>
  *
- * <p>All work is wrapped in try/catch — enrichment must NEVER break flag evaluation (Pattern D).
+ * <p>All work is wrapped in try/catch — enrichment must NEVER break flag evaluation.
  */
 class SpanEnrichmentHook implements Hook<Object> {
 
@@ -56,9 +56,7 @@ class SpanEnrichmentHook implements Hook<Object> {
       };
 
   private final RootSpanResolver rootSpanResolver;
-  // Per-provider state store, shared with this provider's interceptor (NOT a global static). The
-  // hook writes here; the interceptor reads + removes. Owning the store on the interceptor is what
-  // makes one provider's shutdown unable to clear another's in-flight state (CR-03).
+  // State store shared with the interceptor. The hook writes here; the interceptor reads + removes.
   private final SpanEnrichmentStates states;
 
   SpanEnrichmentHook(final SpanEnrichmentStates states) {
@@ -83,7 +81,9 @@ class SpanEnrichmentHook implements Hook<Object> {
       if (root == null || root.getTraceId() == null) {
         return; // no active span → nothing to enrich
       }
-      final long traceKey = root.getTraceId().toLong();
+      // Key by the full trace id (hex), not toLong(): the low-order 64 bits alone would merge two
+      // distinct 128-bit traces that share their low bits.
+      final String traceKey = root.getTraceId().toHexString();
       capture(traceKey, ctx, details);
     } catch (final Throwable t) {
       // Never let span enrichment break flag evaluation.
@@ -95,7 +95,7 @@ class SpanEnrichmentHook implements Hook<Object> {
    * private so it can be driven deterministically in tests without stubbing the static tracer.
    */
   void capture(
-      final long traceKey,
+      final String traceKey,
       final HookContext<Object> ctx,
       final FlagEvaluationDetails<Object> details) {
     final ImmutableMetadata metadata = details.getFlagMetadata();

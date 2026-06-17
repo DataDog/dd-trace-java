@@ -8,21 +8,24 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Bounded, instance-owned store of per-trace {@link SpanEnrichmentAccumulator} state, keyed by the
- * local-root span's trace id ({@code DDTraceId.toLong()}).
+ * local-root span's full trace id (the lower-case zero-padded hex string).
  *
- * <p>This replaces the previous global {@code static} map (review IN-03 / CR-02 / CR-03). Each
- * {@link SpanEnrichmentInterceptor} owns exactly one instance and shares it with the {@link
- * SpanEnrichmentHook} for the same provider, so:
+ * <p>The full hex key matters for 128-bit trace ids: keying by {@code DDTraceId.toLong()} (the
+ * low-order 64 bits only) would merge two distinct 128-bit traces that share their low bits into a
+ * single accumulator, cross-contaminating enrichment between unrelated traces. The full hex string
+ * is unique across all 128 bits and is cached on the id, so it is cheap to obtain.
+ *
+ * <p>Each {@link SpanEnrichmentHook}/{@link SpanEnrichmentInterceptor} pair shares one store
+ * instance, so:
  *
  * <ul>
- *   <li><b>CR-02 (unbounded leak):</b> the store is hard-capped at {@link #MAX_TRACES}. A trace
- *       that never reaches the interceptor (dropped, Noop tracer, never-finishing root) can no
- *       longer leak unboundedly — once the cap is reached, the <em>oldest</em> in-flight entry is
- *       evicted (FIFO by insertion order) so the map size is strictly bounded regardless of trace
- *       completion. This is the exact #4844 leak class.
- *   <li><b>CR-03 (reconfiguration corruption):</b> because the store is per-interceptor rather than
- *       a shared static, one provider's {@code shutdown()} clears only its own state and can never
- *       wipe another (still-active) provider's in-flight entries.
+ *   <li><b>Unbounded leak:</b> the store is hard-capped at {@link #MAX_TRACES}. A trace that never
+ *       reaches the interceptor (dropped, Noop tracer, never-finishing root) can no longer leak
+ *       unboundedly — once the cap is reached, the <em>oldest</em> in-flight entry is evicted (FIFO
+ *       by insertion order) so the map size is strictly bounded regardless of trace completion.
+ *   <li><b>Isolation:</b> because the store is instance-owned rather than a shared static, one
+ *       provider's cleanup clears only its own state and can never wipe another (still-active)
+ *       provider's in-flight entries.
  * </ul>
  *
  * <p>Bounded eviction is intentionally lossy under pathological pressure: dropping the oldest
@@ -40,14 +43,14 @@ final class SpanEnrichmentStates {
   /**
    * Hard cap on the number of concurrently-tracked traces. Sized well above any realistic count of
    * simultaneously in-flight traces with active flag evaluations on a single JVM, so the live path
-   * never evicts; the cap exists purely to bound a leak of never-completing traces (CR-02).
+   * never evicts; the cap exists purely to bound a leak of never-completing traces.
    */
   static final int MAX_TRACES = 4096;
 
   // Insertion-ordered so the eldest entry is the natural eviction victim (FIFO). accessOrder=false
   // (the default) — we evict by age of creation, not by recency of use, so a long-running but
   // never-completing trace cannot pin the map by being repeatedly touched.
-  private final LinkedHashMap<Long, SpanEnrichmentAccumulator> states = new LinkedHashMap<>();
+  private final LinkedHashMap<String, SpanEnrichmentAccumulator> states = new LinkedHashMap<>();
 
   // One-shot guard so a sustained leak logs once at WARN rather than on every eviction.
   private boolean evictionWarned = false;
@@ -55,9 +58,9 @@ final class SpanEnrichmentStates {
   /**
    * Returns the accumulator for {@code traceKey}, creating (and inserting) it if absent. When
    * insertion would exceed {@link #MAX_TRACES}, the eldest entry is evicted first so the store
-   * stays bounded (CR-02).
+   * stays bounded.
    */
-  synchronized SpanEnrichmentAccumulator getOrCreate(final long traceKey) {
+  synchronized SpanEnrichmentAccumulator getOrCreate(final String traceKey) {
     SpanEnrichmentAccumulator existing = states.get(traceKey);
     if (existing != null) {
       return existing;
@@ -71,11 +74,11 @@ final class SpanEnrichmentStates {
   }
 
   /** Removes and returns the accumulator for {@code traceKey}, or {@code null} if absent. */
-  synchronized SpanEnrichmentAccumulator remove(final long traceKey) {
+  synchronized SpanEnrichmentAccumulator remove(final String traceKey) {
     return states.remove(traceKey);
   }
 
-  /** Clears all tracked state (provider-close cleanup). Scoped to this instance only (CR-03). */
+  /** Clears all tracked state (cleanup on provider close / unbind). */
   synchronized void clear() {
     states.clear();
   }
@@ -90,12 +93,12 @@ final class SpanEnrichmentStates {
 
   // ---- test-only accessor ----
 
-  synchronized SpanEnrichmentAccumulator peek(final long traceKey) {
+  synchronized SpanEnrichmentAccumulator peek(final String traceKey) {
     return states.get(traceKey);
   }
 
   private void evictEldest() {
-    final Iterator<Map.Entry<Long, SpanEnrichmentAccumulator>> it = states.entrySet().iterator();
+    final Iterator<Map.Entry<String, SpanEnrichmentAccumulator>> it = states.entrySet().iterator();
     if (it.hasNext()) {
       it.next();
       it.remove();
