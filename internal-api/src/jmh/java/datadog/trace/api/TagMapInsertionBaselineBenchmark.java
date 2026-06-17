@@ -29,7 +29,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(1)
 @Warmup(iterations = 3)
 @Measurement(iterations = 5)
-@Threads(1)
+@Threads(8)
 @State(Scope.Benchmark)
 public class TagMapInsertionBaselineBenchmark {
   // same tag set as TagMapInsertionBenchmark for an apples-to-apples comparison

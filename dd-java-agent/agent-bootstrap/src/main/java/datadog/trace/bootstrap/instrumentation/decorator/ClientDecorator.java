@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import datadog.trace.api.KnownTagIds;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -22,7 +23,7 @@ public abstract class ClientDecorator extends BaseDecorator {
     // decided to be cautious here, too.
     TagMap.Entry kindEntry = cachedSpanKindEntry;
     if (kindEntry == null) {
-      cachedSpanKindEntry = kindEntry = TagMap.Entry.create(Tags.SPAN_KIND, spanKind());
+      cachedSpanKindEntry = kindEntry = TagMap.Entry.create(KnownTagIds.SPAN_KIND, spanKind());
     }
     return kindEntry;
   }

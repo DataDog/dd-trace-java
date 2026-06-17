@@ -1,43 +1,41 @@
-# Tag conventions — span-type inheritance + product mixins (draft)
+# Tag conventions — structural inheritance + mixins (pull via include / push via applies)
 # ---------------------------------------------------------------------------
-# Source: the OTel-convention prototype (DatadogBase / Http / Client / DataSource
-# hierarchy in TracerProto) reconciled with the tags Spring PetClinic emits.
 # Language-agnostic spec the code generator consumes to emit per-language tag-id
-# constants, the id<->name resolver, and the slot layout.
+# constants, the id<->name resolver, and the slot layout. Reconciled from the
+# OTel-convention prototype + the tags Spring PetClinic emits.
 #
-# TWO COMPOSITION MECHANISMS
-#   inheritance (`extends`) — the structural "is-a" chain of span types that
-#       carries COMMON tags down to specific types. The root (`base`) is implicitly
-#       in every span. `extends` may list MULTIPLE parents (e.g. an http client span
-#       is both `http` and `client`). This is core tracing structure.
+# THREE COMPOSITION MECHANISMS (we use all three; each models a different relationship)
+#   extends  — STRUCTURAL "is-a" inheritance between span types (single concept, may be
+#              multiple). `http.server` is-a `http` is-a `base`. The root `base` is
+#              implicitly in every span. Abstract layers (`abstract: true`) exist only to
+#              be extended. Carries the common tags down the chain.
 #
-#   mixins (`mixins: [..]`) — PRODUCT / enrichment overlays composed ON THE SIDE,
-#       orthogonal to the span-type chain: CI Visibility, AppSec (ASM), Data Streams
-#       (DSM), profiling, etc. Each is gated by its product being enabled and may
-#       apply to all spans (implicitly) or to specific span types.
+#   mixins are reusable tag bundles attached TWO ways — BOTH are needed:
+#     include: a span type PULLS a mixin in (`include: [peer]`). Use for a bundle that is
+#              intrinsic to that type and declared locally on it; core-owned. (has-a)
+#     applies: a mixin PUSHES itself onto span types (`applies: all | [types]`). Use for
+#              cross-cutting / product bundles (profiling, appsec, dsm, ci) that attach
+#              without the span type knowing — so a product team owns its own attachment
+#              and never edits the core span_types. Gated by `enabled_by`.
 #
 #   resolved tags(span_type) = own tags
-#                            + tags inherited up every `extends` parent (incl. base)
-#                            + tags from product mixins whose `applies` matches
+#                            + tags up the `extends` chain (incl. base)
+#                            + tags of every mixin the type `include`s
+#                            + tags of every mixin whose `applies` matches the type
 #
-# `abstract: true` marks a structural layer that is never a span on its own
-# (base, client, http) — it exists only to be extended.
+#   When to choose: extends = identity; include = a capability the type intrinsically has
+#   (pull, core-owned, local to the type); applies = orthogonal/optional enrichment a
+#   bundle projects onto spans (push, product-owned, config-gated).
 #
-# tag fields:
-#   tag        canonical tag name written to the span
-#   type       string | int | long | boolean | double            (language-agnostic)
-#   required   required | conditional | recommended | optional | opt_in
-#   aliases    other names resolving to the same tag (e.g. OTel semconv names)
-#   -- tracer-implementation hints (layered out of the shared spec cross-language) --
-#   slot       true (default) = fast positional slot; false = id-only, lives in buckets
-#   intercepted true = setting it triggers tracer side-effects (must run the interceptor)
-#   source     core (tracer sets once per span) | inst (instrumentation)   [default inst]
+# tag fields: tag | type (string|int|long|boolean|double) | required (req|conditional|
+#   recommended|optional|opt_in) | aliases. Impl hints (split out cross-language):
+#   slot (true default; false = id-only, lives in buckets) | intercepted | source (core|inst).
 # ---------------------------------------------------------------------------
 
-# ===== Structural span types (inheritance) ==================================
+# ===== Structural span types (extends) =====================================
 span_types:
 
-  # ---- root: common tags, implicitly in EVERY span ----
+  # root: common tags, implicitly in EVERY span
   base:
     abstract: true
     tags:
@@ -56,22 +54,6 @@ span_types:
       - { tag: error.message, type: string, required: recommended, slot: false }
       - { tag: error.stack,   type: string, required: recommended, slot: false }
 
-  # ---- client/outbound: anything that calls a remote peer (proto: Client) ----
-  # OPEN QUESTION: is "peer" best as this structural abstract type (an outbound span
-  # is-a client), or folded directly into db.client/http.client, or something else?
-  # Kept as a structural layer for now; revisit.
-  client:
-    abstract: true
-    extends: base
-    tags:
-      - { tag: peer.service,            type: string, required: recommended, intercepted: true }
-      - { tag: _dd.peer.service.source, type: string, required: recommended }
-      - { tag: peer.hostname,           type: string, required: recommended }
-      - { tag: peer.ipv4,               type: string }
-      - { tag: peer.ipv6,               type: string }
-      - { tag: peer.port,               type: int }
-
-  # ---- HTTP family ----
   http:
     abstract: true
     extends: base
@@ -92,14 +74,15 @@ span_types:
       - { tag: servlet.context,    type: string, required: optional,    slot: false, intercepted: true }
 
   http.client:
-    extends: [ http, client ]        # multiple inheritance: an http span AND a peer client
+    extends: http
+    include: [ peer ]                # PULL: an http client intrinsically has a remote peer
     tags:
       - { tag: http.url,           type: string, required: required,    intercepted: true, aliases: [url.full] }
       - { tag: http.resend_count,  type: int,    required: recommended, slot: false }
 
-  # ---- Database client (h2.query, jdbc) ----
-  db.client:
-    extends: client
+  db.client:                         # h2.query / jdbc
+    extends: base
+    include: [ peer ]                # PULL
     tags:
       - { tag: db.type,      type: string, required: required, aliases: [db.system] }
       - { tag: db.instance,  type: string, required: recommended }
@@ -108,18 +91,27 @@ span_types:
       - { tag: db.pool.name, type: string, required: optional }
       - { tag: db.statement, type: string, required: recommended, slot: false, intercepted: true, aliases: [db.query.text] }
 
-  # ---- View render (response.render) ----
-  view.render:
+  view.render:                       # response.render
     extends: base
     tags:
       - { tag: view.name, type: string, required: recommended, slot: false }
 
-# ===== Product / enrichment mixins (on the side) ============================
-# Composed orthogonally when the product is enabled. `applies: all` => overlaid on
-# every span (implicitly); `applies: [types]` => only those span types.
-# Tag lists below are ILLUSTRATIVE — each product team owns the authoritative set.
+# ===== Mixins (reusable bundles) ===========================================
+# Attached by include (pull, on a span type above) and/or by applies (push, here).
 mixins:
 
+  # peer — outbound/remote-peer capability. PULLED via `include` by client span types
+  # (it's intrinsic to them, core-owned), so no `applies`.
+  peer:
+    tags:
+      - { tag: peer.service,            type: string, required: recommended, intercepted: true }
+      - { tag: _dd.peer.service.source, type: string, required: recommended }
+      - { tag: peer.hostname,           type: string, required: recommended }
+      - { tag: peer.ipv4,               type: string }
+      - { tag: peer.ipv6,               type: string }
+      - { tag: peer.port,               type: int }
+
+  # products — PUSH via applies, gated by enabled_by; owned by the product teams.
   profiling:
     enabled_by: dd.profiling.enabled
     applies: all
@@ -131,18 +123,16 @@ mixins:
     applies: all
     tags:
       - { tag: _dd.dsm.enabled, type: boolean, source: core }
-      # + pathway / checkpoint tags on messaging spans (owned by DSM)
 
-  appsec:                            # ASM
+  appsec:                            # ASM — entry/web spans
     enabled_by: dd.appsec.enabled
     applies: [ http.server ]
     tags:
       - { tag: _dd.appsec.enabled, type: boolean, source: core, slot: false }
-      # + appsec event / threat tags (owned by AppSec)
 
-  ci_visibility:                     # CI Visibility (test spans)
+  ci_visibility:                     # test spans (a `test` span type, not modeled here yet)
     enabled_by: dd.civisibility.enabled
-    applies: [ test ]                # a `test` span type (not modeled here yet)
+    applies: [ test ]
     tags:
       - { tag: test.name,      type: string, slot: false }
       - { tag: test.suite,     type: string, slot: false }
@@ -151,9 +141,10 @@ mixins:
 
 # ---------------------------------------------------------------------------
 # Notes
+# - A mixin may be both included AND applied (different span types reach it different ways);
+#   the resolver de-dups so a tag pulled in twice is one slot.
 # - `span.kind` enumerates: server | client | producer | consumer | internal | broker.
-# - "virtual" tags (sampling.priority, resource.name, service, manual.keep/drop,
-#   span.type, measured, origin, analytics.sample_rate, error flag) are handled
-#   entirely by the interceptor / span fields and are NOT stored; they'd be declared
-#   with `virtual: true` (reserved-tier id, no slot). Omitted here for now.
+# - "virtual" tags (sampling.priority, resource.name, service, manual.keep/drop, span.type,
+#   measured, origin, analytics.sample_rate) are interceptor/span-field handled, NOT stored;
+#   they'd carry `virtual: true` (reserved-tier id, no slot). Omitted here.
 # ---------------------------------------------------------------------------

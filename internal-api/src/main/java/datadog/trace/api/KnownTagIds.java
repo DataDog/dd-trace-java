@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.TagSet;
 
 /**
  * Hand-assigned tag-id constants for well-known tags, plus the {@link KnownTags.Resolver} that
@@ -135,6 +136,84 @@ public final class KnownTagIds {
   public static final long DB_POOL_NAME =
       KnownTags.tagId(DB_POOL_NAME_SERIAL, 25, Tags.DB_POOL_NAME);
 
+  // Open-addressed name -> id table backing keyOf (data, not a switch): scales flat as the known
+  // set grows, where a generated switch eventually falls off the inline threshold. KEYOF_NAMES and
+  // KEYOF_VALUES are parallel; the table places names by hash and a parallel ids[] by slot.
+  private static final String[] KEYOF_NAMES = {
+    Tags.ERROR,
+    DDTags.PARENT_ID,
+    DDTags.BASE_SERVICE,
+    Tags.VERSION,
+    ENV,
+    DDTags.DJM_ENABLED,
+    DDTags.DSM_ENABLED,
+    DDTags.TRACER_HOST,
+    DDTags.DD_INTEGRATION,
+    DDTags.DD_SVC_SRC,
+    Tags.PEER_SERVICE,
+    DDTags.PEER_SERVICE_REMAPPED_FROM,
+    Tags.HTTP_METHOD,
+    Tags.HTTP_ROUTE,
+    Tags.HTTP_URL,
+    Tags.PEER_HOSTNAME,
+    Tags.PEER_HOST_IPV4,
+    Tags.PEER_HOST_IPV6,
+    Tags.PEER_PORT,
+    Tags.COMPONENT,
+    Tags.SPAN_KIND,
+    DDTags.LANGUAGE_TAG_KEY,
+    Tags.DB_TYPE,
+    Tags.DB_INSTANCE,
+    Tags.DB_USER,
+    Tags.DB_OPERATION,
+    Tags.DB_POOL_NAME,
+  };
+
+  private static final long[] KEYOF_VALUES = {
+    ERROR,
+    PARENT_ID,
+    BASE_SERVICE,
+    VERSION,
+    ENV_ID,
+    DJM_ENABLED,
+    DSM_ENABLED,
+    TRACER_HOST_ID,
+    INTEGRATION_ID,
+    SVC_SRC_ID,
+    PEER_SERVICE,
+    PEER_SERVICE_REMAPPED_FROM,
+    HTTP_METHOD,
+    HTTP_ROUTE,
+    HTTP_URL,
+    PEER_HOSTNAME,
+    PEER_HOST_IPV4,
+    PEER_HOST_IPV6,
+    PEER_PORT,
+    COMPONENT,
+    SPAN_KIND,
+    LANGUAGE,
+    DB_TYPE,
+    DB_INSTANCE,
+    DB_USER,
+    DB_OPERATION,
+    DB_POOL_NAME,
+  };
+
+  private static final int[] KEYOF_HASHES;
+  private static final String[] KEYOF_KEYS;
+  private static final long[] KEYOF_IDS;
+
+  static {
+    TagSet.Data data = TagSet.Support.create(KEYOF_NAMES);
+    long[] ids = new long[data.names.length];
+    for (int j = 0; j < KEYOF_NAMES.length; j++) {
+      ids[TagSet.Support.indexOf(data.hashes, data.names, KEYOF_NAMES[j])] = KEYOF_VALUES[j];
+    }
+    KEYOF_HASHES = data.hashes;
+    KEYOF_KEYS = data.names;
+    KEYOF_IDS = ids;
+  }
+
   static final KnownTags.Resolver RESOLVER =
       new KnownTags.Resolver() {
         @Override
@@ -206,64 +285,8 @@ public final class KnownTagIds {
 
         @Override
         public long keyOf(String name) {
-          switch (name) {
-            case Tags.ERROR:
-              return ERROR;
-            case DDTags.PARENT_ID:
-              return PARENT_ID;
-            case DDTags.BASE_SERVICE:
-              return BASE_SERVICE;
-            case Tags.VERSION:
-              return VERSION;
-            case ENV:
-              return ENV_ID;
-            case DDTags.DJM_ENABLED:
-              return DJM_ENABLED;
-            case DDTags.DSM_ENABLED:
-              return DSM_ENABLED;
-            case DDTags.TRACER_HOST:
-              return TRACER_HOST_ID;
-            case DDTags.DD_INTEGRATION:
-              return INTEGRATION_ID;
-            case DDTags.DD_SVC_SRC:
-              return SVC_SRC_ID;
-            case Tags.PEER_SERVICE:
-              return PEER_SERVICE;
-            case DDTags.PEER_SERVICE_REMAPPED_FROM:
-              return PEER_SERVICE_REMAPPED_FROM;
-            case Tags.HTTP_METHOD:
-              return HTTP_METHOD;
-            case Tags.HTTP_ROUTE:
-              return HTTP_ROUTE;
-            case Tags.HTTP_URL:
-              return HTTP_URL;
-            case Tags.PEER_HOSTNAME:
-              return PEER_HOSTNAME;
-            case Tags.PEER_HOST_IPV4:
-              return PEER_HOST_IPV4;
-            case Tags.PEER_HOST_IPV6:
-              return PEER_HOST_IPV6;
-            case Tags.PEER_PORT:
-              return PEER_PORT;
-            case Tags.COMPONENT:
-              return COMPONENT;
-            case Tags.SPAN_KIND:
-              return SPAN_KIND;
-            case DDTags.LANGUAGE_TAG_KEY:
-              return LANGUAGE;
-            case Tags.DB_TYPE:
-              return DB_TYPE;
-            case Tags.DB_INSTANCE:
-              return DB_INSTANCE;
-            case Tags.DB_USER:
-              return DB_USER;
-            case Tags.DB_OPERATION:
-              return DB_OPERATION;
-            case Tags.DB_POOL_NAME:
-              return DB_POOL_NAME;
-            default:
-              return 0L;
-          }
+          int slot = TagSet.Support.indexOf(KEYOF_HASHES, KEYOF_KEYS, name);
+          return slot < 0 ? 0L : KEYOF_IDS[slot];
         }
       };
 

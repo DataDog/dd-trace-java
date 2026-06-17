@@ -11,6 +11,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTagIds;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.telemetry.LogCollector;
@@ -277,7 +278,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       span.setResourceName(DB_QUERY);
     }
     span.context().setIntegrationName(component);
-    return span.setTag(Tags.COMPONENT, component);
+    return span.setTag(KnownTagIds.COMPONENT, component);
   }
 
   public boolean isOracle(final DBInfo dbInfo) {

@@ -13,7 +13,6 @@ import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -82,7 +81,8 @@ public abstract class BaseDecorator {
     // This approach while more complicated doesn't have any field initialization ordering issues.
     TagMap.Entry componentEntry = cachedComponentEntry;
     if (componentEntry == null) {
-      cachedComponentEntry = componentEntry = TagMap.Entry.create(Tags.COMPONENT, component());
+      cachedComponentEntry =
+          componentEntry = TagMap.Entry.create(KnownTagIds.COMPONENT, component());
     }
     return componentEntry;
   }

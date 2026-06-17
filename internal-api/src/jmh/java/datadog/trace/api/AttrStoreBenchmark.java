@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import datadog.trace.util.TagSet;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -16,16 +17,24 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Phase-1 validation: store a span's known tags three ways and measure throughput + allocation
- * ({@code -prof gc}). Models the real lifecycle — set N tags, then iterate once (serialize).
+ * How much headroom is left in the dense known-tag store? Builds a span's known tags three ways and
+ * measures throughput (+ allocation via {@code -prof gc}). Models the real lifecycle — set N tags,
+ * then iterate once (serialize).
+ *
+ * <p>Phase 1 (dense storage inside {@code OptimizedTagMap}) has already landed, so {@code current}
+ * below is the LIVE dense store, NOT the old Entry-per-tag design. The Entry[]-&gt;dense win is
+ * evidenced elsewhere (petclinic CPU/req, JFR); this benchmark now isolates what's LEFT to chase:
  *
  * <ol>
- *   <li>{@code current}: today's {@link TagMap} (OptimizedTagMap, Entry[] knownEntries) — one
- *       {@code Entry} allocated per tag.
- *   <li>{@code dense}: dense {@code long[] ids + Object[] values} — no per-tag Entry (boxes the one
- *       int tag). The phase-1 design.
- *   <li>{@code pojo}: a hand-written class with typed fields — the phase-2 codegen endgame (no
- *       Entry, no boxing, no arrays-per-tag).
+ *   <li>{@code current}: the live {@link TagMap} ({@code OptimizedTagMap}) — already dense ({@code
+ *       long[] knownIds + Object[] knownValues}, no per-tag {@code Entry}), plus the full TagMap
+ *       machinery (size bookkeeping, lazy buckets, keyOf upgrade path).
+ *   <li>{@code dense}: a bare {@code long[] ids + Object[] values} store — strips the TagMap
+ *       machinery, so {@code current} vs {@code dense} measures that overhead. Both box the one
+ *       int.
+ *   <li>{@code pojo}: a hand-written class with typed fields — the codegen endgame (no {@code
+ *       Entry}, no boxing, no arrays-per-tag); shows the ceiling {@code dense}-&gt;{@code pojo}
+ *       buys.
  * </ol>
  *
  * Tag set is db.client-like (the dominant PetClinic span): 11 strings + 1 int.
@@ -35,7 +44,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(1)
 @Warmup(iterations = 3)
 @Measurement(iterations = 5)
-@Threads(1)
+@Threads(8)
 @State(Scope.Benchmark)
 public class AttrStoreBenchmark {
   static final String[] NAMES = {
@@ -64,9 +73,10 @@ public class AttrStoreBenchmark {
       IDS[i] = KnownTags.tagId(i + 1, i, NAMES[i]); // serial=i+1, fieldPos=i
       VALUES[i] = (i == PORT_IDX) ? Integer.valueOf(5432) : ("value-" + i);
     }
-    final java.util.HashMap<String, Long> nameToId = new java.util.HashMap<>(N * 2);
+    final TagSet.Data nameTable = TagSet.Support.create(NAMES);
+    final long[] slotIds = new long[nameTable.names.length];
     for (int i = 0; i < N; ++i) {
-      nameToId.put(NAMES[i], IDS[i]);
+      slotIds[TagSet.Support.indexOf(nameTable.hashes, nameTable.names, NAMES[i])] = IDS[i];
     }
     KnownTags.register(
         new KnownTags.Resolver() {
@@ -78,8 +88,8 @@ public class AttrStoreBenchmark {
 
           @Override
           public long keyOf(String name) {
-            Long id = nameToId.get(name);
-            return id == null ? 0L : id;
+            int slot = TagSet.Support.indexOf(nameTable.hashes, nameTable.names, name);
+            return slot < 0 ? 0L : slotIds[slot];
           }
 
           @Override

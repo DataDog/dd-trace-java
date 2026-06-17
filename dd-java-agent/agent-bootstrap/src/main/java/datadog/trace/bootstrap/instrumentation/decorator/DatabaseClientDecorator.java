@@ -2,10 +2,10 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.DB_CLIENT_SPLIT_BY_HOST;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
+import datadog.trace.api.KnownTagIds;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -16,7 +16,6 @@ import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -70,11 +69,11 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
    */
   public AgentSpan onConnection(final AgentSpan span, final CONNECTION connection) {
     if (connection != null) {
-      span.setTag(Tags.DB_USER, dbUser(connection));
+      span.setTag(KnownTagIds.DB_USER, dbUser(connection));
       onInstance(span, dbInstance(connection));
       CharSequence hostName = dbHostname(connection);
       if (hostName != null) {
-        span.setTag(Tags.PEER_HOSTNAME, hostName);
+        span.setTag(KnownTagIds.PEER_HOSTNAME, hostName);
 
         if (Config.get().isDbClientSplitByHost()) {
           span.setServiceName(hostName.toString(), DB_CLIENT_SPLIT_BY_HOST);
@@ -86,7 +85,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
 
   protected AgentSpan onInstance(final AgentSpan span, final String dbInstance) {
     if (dbInstance != null) {
-      span.setTag(Tags.DB_INSTANCE, dbInstance);
+      span.setTag(KnownTagIds.DB_INSTANCE, dbInstance);
       String serviceName = dbClientService(dbInstance);
       if (null != serviceName) {
         span.setServiceName(serviceName, component());
@@ -149,7 +148,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
 
   protected void processDatabaseType(AgentSpan span, String dbType) {
     final NamingEntry namingEntry = CACHE.computeIfAbsent(dbType, NamingEntry::new);
-    span.setTag(DB_TYPE, namingEntry.dbType);
+    span.setTag(KnownTagIds.DB_TYPE, namingEntry.dbType);
     postProcessServiceAndOperationName(span, namingEntry);
 
     if (Config.get().isAppSecRaspEnabled() && dbType != null) {
