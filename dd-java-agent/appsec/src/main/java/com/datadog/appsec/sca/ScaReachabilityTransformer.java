@@ -71,8 +71,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * transitive dependency JARs). Only non-null results are cached; null means "not yet found" and
    * will be retried on the next periodic retransform.
    */
-  private final ConcurrentHashMap<String, String> classpathArtifactCache =
-      new ConcurrentHashMap<>();
+  @VisibleForTesting
+  final ConcurrentHashMap<String, String> classpathArtifactCache = new ConcurrentHashMap<>();
 
   /**
    * Classes whose bytecode needs (re)transformation for method-level symbol injection:
@@ -310,18 +310,29 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       return;
     }
 
-    // Pre-warm jarCache on the telemetry thread BEFORE acquiring JVM retransform locks.
-    // processClass() calls resolveDependencies() inside the retransform callback; if the cache is
-    // already populated, no JAR I/O occurs under JVM locks (avoids deadlock with libraries that
-    // trigger class loading during JAR resolution, e.g. snakeyaml).
+    // Pre-warm caches before retransformClasses() acquires JVM locks — no JAR I/O inside the
+    // callback.
+    // Two paths in processClass() can trigger fresh JAR I/O under locks:
+    //   1. resolveDependenciesFromCache() — safe only if jarCache is already populated.
+    //   2. resolveVersionForArtifact() → findArtifactVersionInClasspath() for aggregator artifacts
+    //      (e.g., spring-boot-starter-web) whose pom.properties is not in the class's own JAR.
+    //      Without pre-warming classpathArtifactCache, this scans all java.class.path JARs via
+    //      resolveDependencies() under JVM locks, reintroducing the snakeyaml deadlock.
     for (Class<?> c : toRetransform) {
       ProtectionDomain pd = c.getProtectionDomain();
       if (pd == null) continue;
       CodeSource cs = pd.getCodeSource();
       if (cs == null) continue;
       URL loc = cs.getLocation();
-      if (loc != null) {
-        resolveDependencies(loc);
+      if (loc == null) continue;
+      resolveDependencies(loc);
+      String internalName = c.getName().replace('.', '/');
+      List<ScaEntry> dbEntries = database.entriesForClass(internalName);
+      if (dbEntries != null) {
+        List<Dependency> classJarDeps = resolveDependenciesFromCache(loc);
+        for (ScaEntry entry : dbEntries) {
+          resolveVersionForArtifact(entry.artifact(), classJarDeps);
+        }
       }
     }
 

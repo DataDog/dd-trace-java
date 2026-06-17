@@ -180,6 +180,55 @@ class ScaReachabilityTransformerJava9Test {
             + " means the pre-warm loop was not executed");
   }
 
+  /**
+   * Regression test for the aggregator-artifact deadlock gap (Codex P1 on PR #11614):
+   *
+   * <p>When the entry's artifact is not in the class's own JAR (aggregator/starter case, e.g.,
+   * {@code spring-boot-starter-web} whose watched classes live in {@code spring-context.jar}),
+   * {@code resolveVersionForArtifact()} falls through to {@code findArtifactVersionInClasspath()},
+   * which calls {@code resolveDependencies()} for every {@code java.class.path} entry — fresh JAR
+   * I/O that would deadlock if it ran inside the retransform callback.
+   *
+   * <p>The pre-warm step must also populate {@code classpathArtifactCache} before {@code
+   * retransformClasses()} acquires JVM locks. With a mock {@code Instrumentation} the callback
+   * never fires, so the only way {@code classpathArtifactCache} can be populated is via the
+   * pre-warm loop. {@code ObjectMapper} lives in {@code jackson-databind.jar}; the entry's artifact
+   * is {@code jackson-core} (a different JAR that is a transitive test dependency), so {@code
+   * matchVersion} fails on the class JAR and the classpath fallback must run during pre-warm.
+   */
+  @Test
+  void performPendingRetransforms_prewarms_classpathArtifactCache_for_aggregator_artifacts()
+      throws Exception {
+    // Entry artifact is jackson-core, but ObjectMapper is in jackson-databind.jar.
+    // matchVersion() returns null on classJarDeps → triggers findArtifactVersionInClasspath().
+    String crossJarJson =
+        "{\"version\":1,\"entries\":[{"
+            + "\"vuln_id\":\"GHSA-test-cross-jar\","
+            + "\"artifact\":\"com.fasterxml.jackson.core:jackson-core\","
+            + "\"version_ranges\":[\"< 999.0.0\"],"
+            + "\"symbols\":[{\"class\":\"com/fasterxml/jackson/databind/ObjectMapper\","
+            + "\"method\":\"readValue\"}]}]}";
+
+    Instrumentation mockInstr = mock(Instrumentation.class);
+    when(mockInstr.isModifiableClass(any())).thenReturn(true);
+    when(mockInstr.getAllLoadedClasses()).thenReturn(new Class<?>[0]);
+
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(crossJarJson));
+    ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, mockInstr);
+
+    transformer.pendingRetransform.add(com.fasterxml.jackson.databind.ObjectMapper.class);
+    transformer.performPendingRetransforms();
+
+    // jackson-core is on the test classpath (transitive dependency of jackson-databind).
+    // classpathArtifactCache must be populated during pre-warm — not by the callback (which never
+    // fires with a mock Instrumentation). An empty cache means findArtifactVersionInClasspath()
+    // would run under JVM retransform locks and risk the snakeyaml-style deadlock.
+    assertNotNull(
+        transformer.classpathArtifactCache.get("com.fasterxml.jackson.core:jackson-core"),
+        "classpathArtifactCache must be populated during pre-warm for aggregator artifacts; "
+            + "if empty, findArtifactVersionInClasspath() would run under JVM retransform locks");
+  }
+
   @Test
   void matchVersion_nullDepNameDoesNotThrow() {
     // guessFallbackNoPom can produce Dependency(name=null, ...) for JARs with unrecognizable names.
