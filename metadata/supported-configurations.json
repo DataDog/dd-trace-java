@@ -2425,14 +2425,6 @@
         "aliases": []
       }
     ],
-    "DD_OPTIMIZED_MAP_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
-        "aliases": []
-      }
-    ],
     "DD_OTLP_METRICS_ENDPOINT": [
       {
         "version": "A",
