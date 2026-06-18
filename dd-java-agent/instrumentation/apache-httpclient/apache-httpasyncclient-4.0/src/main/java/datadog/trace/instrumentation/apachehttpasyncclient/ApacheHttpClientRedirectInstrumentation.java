@@ -64,17 +64,24 @@ public class ApacheHttpClientRedirectInstrumentation
       // to HttpClient. Preserve that header-copy behavior only for same-origin redirects;
       // cross-origin redirects must not receive application headers such as Authorization or
       // Cookie.
-      if (!redirect.headerIterator().hasNext()
-          && RedirectHelper.isSameOrigin(context, original, redirect)) {
+      boolean emptyRedirect = !redirect.headerIterator().hasNext();
+      if (emptyRedirect && RedirectHelper.isSameOrigin(context, original, redirect)) {
         redirect.setHeaders(((HttpRequestWrapper) original).getOriginal().getAllHeaders());
       } else {
+        boolean copiedPropagationHeader = false;
         for (final Header header : original.getAllHeaders()) {
           if (PropagationUtils.KNOWN_PROPAGATION_HEADERS.contains(
               header.getName().toLowerCase(Locale.ROOT))) {
             if (!redirect.containsHeader(header.getName())) {
               redirect.setHeader(header.getName(), header.getValue());
+              copiedPropagationHeader = true;
             }
           }
+        }
+        if (emptyRedirect && !copiedPropagationHeader) {
+          // When there are no propagation headers to copy, add a harmless header to keep HttpClient
+          // from treating the redirect as empty and copying application headers later.
+          redirect.setHeader("x-datadog-redirect", "true");
         }
       }
     }

@@ -32,6 +32,22 @@ class ApacheHttpClientRedirectInstrumentationTest {
   }
 
   @Test
+  void preventsApacheHeaderCopyWhenCrossOriginRedirectHasNoPropagationHeaders() throws Exception {
+    HttpGet original = originalRequest("http://example.com/request");
+    original.addHeader("Authorization", "Bearer secret");
+    original.addHeader("Cookie", "session=secret");
+
+    HttpGet redirect = new HttpGet("http://attacker.example/redirect");
+
+    ApacheHttpClientRedirectInstrumentation.ClientRedirectAdvice.onAfterExecute(
+        contextWith(original), redirect);
+
+    assertFalse(redirect.containsHeader("Authorization"));
+    assertFalse(redirect.containsHeader("Cookie"));
+    assertEquals("true", redirect.getFirstHeader("x-datadog-redirect").getValue());
+  }
+
+  @Test
   void copiesApplicationHeadersToSameOriginRedirects() throws Exception {
     HttpGet original = originalRequest("https://example.com/request");
     original.addHeader("Authorization", "Bearer secret");
