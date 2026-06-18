@@ -25,7 +25,7 @@ apply {
 }
 
 dependencies {
-  compileOnly("com.google.code.findbugs", "jsr305", "3.0.2")
+  compileOnly(libs.jsr305)
 
   implementation("org.freemarker", "freemarker", "2.3.30")
   implementation(libs.asm)

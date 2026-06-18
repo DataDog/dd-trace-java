@@ -61,6 +61,7 @@ tasks.matching { it.name.startsWith('spotbugs') }.configureEach {
 dependencies {
   compileOnly(libs.spotbugs.annotations)
 
+  testImplementation(libs.jsr305)
   testImplementation(libs.spotbugs.annotations) {
     // Only the annotation classes are needed; drop transitive deps to avoid pulling in
     // conflicting JUnit5 / logback / log4j (and junit-bom 6.x, which requires JVM 17).
