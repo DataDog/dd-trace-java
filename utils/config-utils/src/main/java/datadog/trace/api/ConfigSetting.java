@@ -38,6 +38,7 @@ public final class ConfigSetting {
     return new ConfigSetting(key, value, origin, seqId, configId);
   }
 
+  // Redact values of configs flagged "sensitive": true in metadata/supported-configurations.json.
   private ConfigSetting(String key, Object value, ConfigOrigin origin, int seqId, String configId) {
     this.key = key;
     this.value =
