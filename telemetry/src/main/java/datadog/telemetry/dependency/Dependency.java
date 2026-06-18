@@ -1,5 +1,6 @@
 package datadog.telemetry.dependency;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
@@ -129,6 +130,18 @@ public final class Dependency {
     return dependencies;
   }
 
+  // SpotBugs USO_UNSAFE_METHOD_SYNCHRONIZATION / USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false
+  // positive, can be suppressed.
+  // The lock is the Dependency.class monitor, used to serialize access to the static MessageDigest
+  // md and static byte[] buf scratch buffers (md.reset()/read into buf/md.digest()). No application
+  // code locks on this internal telemetry class, and these statics never escape; the
+  // synchronization
+  // simply guards shared dependency-resolution state.
+  @SuppressFBWarnings(
+      value = {"USO_UNSAFE_METHOD_SYNCHRONIZATION", "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION"},
+      justification =
+          "Static synchronized method guards the shared static MessageDigest and byte[] buffer; the"
+              + " Dependency.class lock is internal and not exposed to application code.")
   public static synchronized Dependency guessFallbackNoPom(
       Attributes manifest, String source, InputStream is) throws IOException {
     final int slashIndex = source.lastIndexOf('/');

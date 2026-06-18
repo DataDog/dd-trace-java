@@ -14,6 +14,7 @@ import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.util.FNV64Hash;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.concurrent.TimeUnit;
@@ -74,7 +75,16 @@ public class DefaultPathwayContext implements PathwayContext {
     return hash;
   }
 
+  // SpotBugs USO_UNSAFE_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
+  // DefaultPathwayContext is an agent-internal data-streams object reached only through internal
+  // abstractions (PathwayContext lives in internal-api and is attached to AgentSpanContext);
+  // instances are not handed to application or third-party code that could lock on the monitor.
+  // The lock guards mutable internal pathway state (hash, started, nano ticks) and outputBuffer.
   @Override
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal pathway object; instances do not escape to application code that could synchronize on the monitor.")
   public synchronized void setCheckpoint(
       DataStreamsContext context, Consumer<StatsPoint> pointConsumer) {
     long startNanos = timeSource.getCurrentTimeNanos();
@@ -148,7 +158,15 @@ public class DefaultPathwayContext implements PathwayContext {
     return this.savedStats;
   }
 
+  // SpotBugs USO_UNSAFE_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
+  // Same rationale as setCheckpoint: instances stay agent-internal and never reach application or
+  // third-party code that could lock on the monitor. The lock here is needed to safely read the
+  // mutable hash/nano-tick fields and to guard the shared outputBuffer it writes into.
   @Override
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal pathway object; instances do not escape to application code that could synchronize on the monitor.")
   public synchronized String encode() throws IOException {
     if (!started) {
       throw new IllegalStateException("Context must be started to encode");
@@ -169,7 +187,15 @@ public class DefaultPathwayContext implements PathwayContext {
     return new String(base64, ISO_8859_1);
   }
 
+  // SpotBugs USO_UNSAFE_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
+  // toString only reads the mutable state under the same monitor for a consistent snapshot; the
+  // object is agent-internal (used in debug logging) and never exposed to application code that
+  // could synchronize on it.
   @Override
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal pathway object; instances do not escape to application code that could synchronize on the monitor.")
   public synchronized String toString() {
     if (started) {
       return "PathwayContext[ Hash "

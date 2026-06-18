@@ -37,7 +37,9 @@ dependencies {
   testRuntimeOnly(libs.junit.platform.launcher)
   testImplementation(libs.bundles.mockito)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
-  testImplementation(libs.spotbugs.annotations)
+  // Only the annotation classes are needed; exclude transitive deps to avoid
+  // spotbugs-annotations pulling in junit-bom 6.x (requires JVM 17, this plugin targets JVM 8).
+  testImplementation(libs.spotbugs.annotations) { isTransitive = false }
 }
 
 sourceSets {

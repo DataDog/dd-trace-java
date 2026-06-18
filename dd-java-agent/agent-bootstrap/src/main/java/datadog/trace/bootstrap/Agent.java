@@ -533,6 +533,14 @@ public class Agent {
     }
   }
 
+  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
+  // Agent is an agent-internal bootstrap class whose Class object is loaded in the isolated agent
+  // context; application code cannot realistically acquire the same lock, and the lock only guards
+  // the internal AGENT_CLASSLOADER state. A private static lock object would be cleaner but is not
+  // required here.
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Agent-internal class; Class lock does not escape to application code")
   public static synchronized Class<?> installAgentCLI() throws Exception {
     if (null == AGENT_CLASSLOADER) {
       // in CLI mode we skip installation of instrumentation because we're not running as an agent

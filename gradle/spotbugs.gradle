@@ -62,13 +62,8 @@ dependencies {
   compileOnly(libs.spotbugs.annotations)
 
   testImplementation(libs.spotbugs.annotations) {
-    // Exclude conflicting JUnit5.
-    exclude group: 'org.junit'
-    exclude group: 'org.junit.jupiter'
-    exclude group: 'org.junit.platform'
-    // Exclude conflicting logback.
-    exclude group: 'ch.qos.logback'
-    // Exclude conflicting log4j.
-    exclude group: 'org.apache.logging.log4j'
+    // Only the annotation classes are needed; drop transitive deps to avoid pulling in
+    // conflicting JUnit5 / logback / log4j (and junit-bom 6.x, which requires JVM 17).
+    transitive = false
   }
 }

@@ -3,6 +3,7 @@ package com.datadog.debugger.util;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
 import datadog.trace.api.Config;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /** implements a StatsD client for internal debugger agent metrics */
 public class DebuggerMetrics implements StatsDClient {
@@ -29,6 +30,15 @@ public class DebuggerMetrics implements StatsDClient {
     }
   }
 
+  // SpotBugs USO_UNSAFE_METHOD_SYNCHRONIZATION, USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false
+  // positive, can be suppressed.
+  // This is a static synchronized singleton accessor in an agent-internal class loaded by the
+  // agent's isolated classloader. The lock guards only the lazy INSTANCE initialization; neither
+  // the DebuggerMetrics Class object nor the returned instance's monitor is exposed to or locked on
+  // by application/third-party code, and no instance synchronized methods lock on `this`.
+  @SuppressFBWarnings(
+      value = {"USO_UNSAFE_METHOD_SYNCHRONIZATION", "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION"},
+      justification = "Agent-internal singleton; neither Class object nor instance monitor escapes")
   public static synchronized DebuggerMetrics getInstance(Config config) {
     if (INSTANCE == null) {
       INSTANCE = new DebuggerMetrics(config);

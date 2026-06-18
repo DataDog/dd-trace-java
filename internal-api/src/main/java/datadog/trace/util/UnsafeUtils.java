@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import org.slf4j.Logger;
@@ -36,6 +37,13 @@ public abstract class UnsafeUtils {
    * @return A shallow clone
    * @param <T> Type of the object being cloned
    */
+  // SpotBugs UNS_UNSAFE_CALL: false positive, can be suppressed.
+  // This class is a deliberate wrapper around sun.misc.Unsafe to allocate an instance without
+  // running constructors for shallow cloning; the Unsafe usage is intentional and necessary, and
+  // already guarded by a null check with a safe fallback to the original object.
+  @SuppressFBWarnings(
+      value = "UNS_UNSAFE_CALL",
+      justification = "Intentional sun.misc.Unsafe wrapper for shallow cloning")
   @SuppressWarnings("unchecked")
   public static <T> T tryShallowClone(T original) {
     if (UNSAFE == null) {

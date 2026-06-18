@@ -1,6 +1,7 @@
 package datadog.trace.api.debugger;
 
 import datadog.trace.api.Config;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +12,12 @@ public final class DebuggerConfigBridge {
   private static DebuggerConfigUpdate DEFERRED_UPDATE;
   private static volatile DebuggerConfigUpdater UPDATER;
 
+  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
+  // Agent-internal final bridge class; the lock guards the private static UPDATER/DEFERRED_UPDATE
+  // holder state and is not a lock external app code would acquire on this class.
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Agent-internal static holder; class lock guards private static fields")
   public static synchronized void updateConfig(DebuggerConfigUpdate update) {
     if (!update.hasUpdates()) {
       LOGGER.debug("No config update detected, skipping");
@@ -25,6 +32,12 @@ public final class DebuggerConfigBridge {
     }
   }
 
+  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
+  // Agent-internal final bridge class; the lock guards the private static UPDATER/DEFERRED_UPDATE
+  // holder state and is not a lock external app code would acquire on this class.
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Agent-internal static holder; class lock guards private static fields")
   public static synchronized void setUpdater(@Nonnull DebuggerConfigUpdater updater) {
     UPDATER = updater;
     if (DEFERRED_UPDATE != null && DEFERRED_UPDATE.hasUpdates()) {
