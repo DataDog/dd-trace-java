@@ -1,8 +1,6 @@
 package datadog.trace.api;
 
-import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
 import static datadog.trace.util.ConfigStrings.toCanonicalEnvVar;
-import static datadog.trace.util.ConfigStrings.toEnvVar;
 
 import datadog.trace.config.inversion.GeneratedSupportedConfigurations;
 import java.util.BitSet;
@@ -59,11 +57,7 @@ public final class ConfigSetting {
   }
 
   public String normalizedKey() {
-    // OTel configurations should not be normalized with DD_
-    if (key.startsWith("otel.") || key.startsWith("OTEL_")) {
-      return toEnvVar(key);
-    }
-    return propertyNameToEnvironmentVariableName(key);
+    return toCanonicalEnvVar(key);
   }
 
   public String stringValue() {

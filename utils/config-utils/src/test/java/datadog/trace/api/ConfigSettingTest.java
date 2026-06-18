@@ -62,6 +62,19 @@ public class ConfigSettingTest {
     assertEquals(filteredValue, ConfigSetting.of(key, value, ConfigOrigin.DEFAULT).stringValue());
   }
 
+  // The telemetry-reported key name is the canonical env-var form; a key already in DD_ env-var
+  // form
+  // (e.g. collected via getEnv) is not double-prefixed into DD_DD_*.
+  @TableTest({
+    "scenario      | key                  | normalized          ",
+    "property name | api-key              | DD_API_KEY          ",
+    "dd env var    | DD_PROFILING_API_KEY | DD_PROFILING_API_KEY",
+    "otel env var  | OTEL_SERVICE_NAME    | OTEL_SERVICE_NAME   "
+  })
+  void normalizesKeyName(String key, String normalized) {
+    assertEquals(normalized, ConfigSetting.of(key, "v", ConfigOrigin.DEFAULT).normalizedKey());
+  }
+
   @TableTest({
     "scenario | value  | rendered",
     "null     |        |         ",
