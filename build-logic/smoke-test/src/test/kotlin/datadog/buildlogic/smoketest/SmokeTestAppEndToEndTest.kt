@@ -3,6 +3,7 @@ package datadog.buildlogic.smoketest
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
+import org.gradle.tooling.internal.consumer.DefaultGradleConnector
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -10,6 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
 
 /**
@@ -28,6 +30,7 @@ class SmokeTestAppEndToEndTest {
   private val outerSettings get() = projectDir.resolve("settings.gradle.kts").toFile()
   private val outerBuild get() = projectDir.resolve("build.gradle.kts").toFile()
   private val applicationDir get() = projectDir.resolve("application").toFile()
+  private val applicationBuildDir get() = projectDir.resolve("build/application").toFile()
 
   @BeforeEach
   fun setUp() {
@@ -35,54 +38,14 @@ class SmokeTestAppEndToEndTest {
   }
 
   @Test
-  fun `application block registers a NestedGradleBuild task with the configured name`() {
-    writeOuterSettings()
-    outerBuild.writeText(
-      """
-      plugins {
-        java
-        id("dd-trace-java.smoke-test-app")
-      }
-
-      smokeTestApp {
-        javaLauncher.set(
-          javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(${currentMajorJdk()})) }
-        )
-        application {
-          taskName.set("packageApp")
-          artifactPath.set("libs/test.jar")
-          sysProperty.set("test.path")
-        }
-      }
-      """.trimIndent(),
-    )
-
-    val result = runner("tasks", "--all").build()
-
-    assertThat(result.output).contains("packageApp")
-  }
-
-  @Test
   fun `nested build produces the configured artifact`() {
     writeOuterSettings()
-    outerBuild.writeText(
-      """
-      plugins {
-        java
-        id("dd-trace-java.smoke-test-app")
-      }
-
-      smokeTestApp {
-        javaLauncher.set(
-          javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(${currentMajorJdk()})) }
-        )
-        application {
-          taskName.set("buildJar")
-          artifactPath.set("libs/sample.jar")
-          sysProperty.set("sample.path")
-        }
-      }
-      """.trimIndent(),
+    writeSmokeTestAppBuild(
+      smokeTestApplication(
+        taskName = "buildJar",
+        artifactPath = "libs/sample.jar",
+        sysProperty = "sample.path",
+      ),
     )
     writeInnerSettings()
     writeInnerBuild(
@@ -99,68 +62,208 @@ class SmokeTestAppEndToEndTest {
     val result = runner("buildJar").build()
 
     assertThat(result.task(":buildJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(File(projectDir.toFile(), "build/application/libs/sample.jar")).exists()
+    assertThat(applicationOutput("libs/sample.jar")).exists()
   }
 
   @Test
-  fun `plugin is a no-op when the application block is never called`() {
+  fun `nested build clears inherited Gradle launcher environment`() {
     writeOuterSettings()
-    outerBuild.writeText(
-      """
-      plugins {
-        java
-        id("dd-trace-java.smoke-test-app")
-      }
-
-      smokeTestApp {
-        // No application block, no javaLauncher — should not blow up.
-      }
-      """.trimIndent(),
-    )
-
-    val result = runner("help").build()
-
-    assertThat(result.output).contains("BUILD SUCCESSFUL")
-  }
-
-  @Test
-  fun `manual NestedGradleBuild task registration works without the application block`() {
-    writeOuterSettings()
-    outerBuild.writeText(
-      """
-      import datadog.buildlogic.smoketest.NestedGradleBuild
-
-      plugins {
-        java
-        id("dd-trace-java.smoke-test-app")
-      }
-
-      tasks.register<NestedGradleBuild>("customBuild") {
-        applicationDir.set(layout.projectDirectory.dir("application"))
-        applicationBuildDir.set(layout.buildDirectory.dir("application"))
-        gradleVersion.set(gradle.gradleVersion)
-        javaLauncher.set(
-          javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(${currentMajorJdk()})) }
-        )
-        tasksToRun.set(listOf("buildJar"))
-      }
-      """.trimIndent(),
+    val inheritedGradleUserHome = projectDir.resolve("inherited-gradle-user-home").toFile()
+    inheritedGradleUserHome.mkdirs()
+    writeSmokeTestAppBuild(
+      smokeTestApplication(
+        taskName = "recordGradleEnvironment",
+        artifactPath = "gradle-env.txt",
+        sysProperty = "gradle.env.path",
+      ),
     )
     writeInnerSettings()
     writeInnerBuild(
       """
-      tasks.register<Jar>("buildJar") {
-        archiveFileName.set("custom.jar")
-        from(file("src"))
+      tasks.register("recordGradleEnvironment") {
+        val out = layout.buildDirectory.file("gradle-env.txt")
+        outputs.file(out)
+        doLast {
+          out.get().asFile.writeText(
+            listOf(
+              "GRADLE_ARGS=${'$'}{System.getenv("GRADLE_ARGS") ?: "<null>"}",
+              "GRADLE_OPTS=${'$'}{System.getenv("GRADLE_OPTS") ?: "<null>"}",
+              "GRADLE_USER_HOME=${'$'}{System.getenv("GRADLE_USER_HOME") ?: "<null>"}",
+              "gradleUserHomeDir=${'$'}{gradle.gradleUserHomeDir.absolutePath}",
+            ).joinToString(System.lineSeparator())
+          )
+        }
       }
       """.trimIndent(),
     )
-    File(applicationDir, "src").mkdir()
-    File(applicationDir, "src/hello.txt").writeText("hi")
 
-    val result = runner("customBuild").build()
+    val result = runner(
+      "recordGradleEnvironment",
+      environment = mapOf(
+        "GRADLE_ARGS" to "--info",
+        "GRADLE_OPTS" to "-Ddd.test.gradle.opts=inherited",
+        "GRADLE_USER_HOME" to inheritedGradleUserHome.absolutePath,
+      ),
+    ).build()
 
-    assertThat(result.task(":customBuild")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(result.task(":recordGradleEnvironment")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    val envFile = applicationOutput("gradle-env.txt")
+    assertThat(envFile).exists()
+    val lines = envFile.readLines()
+    assertThat(lines).contains(
+      "GRADLE_ARGS=",
+      "GRADLE_OPTS=",
+    )
+    val gradleUserHomeEnv = lines.single { it.startsWith("GRADLE_USER_HOME=") }
+      .substringAfter("=")
+    val gradleUserHomeDir = lines.single { it.startsWith("gradleUserHomeDir=") }
+      .substringAfter("=")
+    assertThat(gradleUserHomeEnv).isEqualTo(gradleUserHomeDir)
+    assertThat(gradleUserHomeDir).isNotEqualTo(inheritedGradleUserHome.absolutePath)
+    assertThat(File(gradleUserHomeDir)).doesNotExist()
+  }
+
+  @Test
+  fun `nested build receives native app environment and provider backed file inputs`() {
+    writeOuterSettings()
+    File(projectDir.toFile(), "agent.jar").writeText("agent")
+    writeSmokeTestAppBuild(
+      """
+      ${smokeTestApplication(
+        taskName = "recordNativeInputs",
+        artifactPath = "native-inputs.txt",
+        sysProperty = "native.inputs.path",
+        additionalConfig = """
+        buildArguments.add("-Dnative.enabled=true")
+        environment.put("GRAALVM_HOME", providers.provider { "test-graalvm" })
+        """,
+      )}
+      projectJar("agentPath", providers.provider { layout.projectDirectory.file("agent.jar") })
+      """,
+    )
+    writeInnerSettings()
+    writeInnerBuild(
+      """
+      tasks.register("recordNativeInputs") {
+        val out = layout.buildDirectory.file("native-inputs.txt")
+        outputs.file(out)
+        doLast {
+          out.get().asFile.writeText(
+            listOf(
+              "graalvm=" + System.getenv("GRAALVM_HOME"),
+              "agentPath=" + project.findProperty("agentPath"),
+              "nativeEnabled=" + System.getProperty("native.enabled"),
+            ).joinToString(System.lineSeparator())
+          )
+        }
+      }
+      """.trimIndent(),
+    )
+
+    val result = runner("recordNativeInputs").build()
+
+    assertThat(result.task(":recordNativeInputs")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    val inputsFile = applicationOutput("native-inputs.txt")
+    assertThat(inputsFile).exists()
+    assertThat(inputsFile.readLines()).contains(
+      "graalvm=test-graalvm",
+      "agentPath=${projectDir.resolve("agent.jar").toFile().canonicalPath}",
+      "nativeEnabled=true",
+    )
+  }
+
+  @Test
+  fun `init scripts are not added outside CI`() {
+    writeOuterSettings()
+    writeSmokeTestAppBuild(
+      smokeTestApplication(
+        taskName = "recordInitScripts",
+        artifactPath = "init-script-count.txt",
+        sysProperty = "init.script.count.path",
+      ),
+    )
+    writeInnerSettings()
+    writeInnerBuild(
+      """
+      tasks.register("recordInitScripts") {
+        val out = layout.buildDirectory.file("init-script-count.txt")
+        outputs.file(out)
+        val initScriptCount = gradle.startParameter.initScripts.size
+        doLast {
+          out.get().asFile.writeText(initScriptCount.toString())
+        }
+      }
+      """.trimIndent(),
+    )
+
+    val result = runner(
+      "recordInitScripts",
+      environment = mapOf("CI" to "false"),
+    ).build()
+
+    assertThat(result.task(":recordInitScripts")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    val countFile = applicationOutput("init-script-count.txt")
+    assertThat(countFile).exists()
+    assertThat(countFile.readText()).isEqualTo("0")
+  }
+
+  @Test
+  fun `init script prepends Maven proxy repositories without overriding project repositories`() {
+    writeOuterSettings()
+    val proxyRepository = projectDir.resolve("proxy-maven-repo").toFile()
+    val projectRepository = projectDir.resolve("project-maven-repo").toFile()
+    writeMavenArtifact(proxyRepository, "com.example", "shared", "1.0", "proxy")
+    writeMavenArtifact(projectRepository, "com.example", "shared", "1.0", "project")
+    writeMavenArtifact(projectRepository, "com.example", "project-only", "1.0", "project-only")
+    writeSmokeTestAppBuild(
+      smokeTestApplication(
+        taskName = "resolveRepositories",
+        artifactPath = "resolved-repositories.txt",
+        sysProperty = "resolved.repositories.path",
+      ),
+    )
+    writeInnerSettings()
+    writeInnerBuild(
+      """
+      repositories {
+        maven {
+          url = uri("${projectRepository.toURI()}")
+        }
+      }
+
+      dependencies {
+        implementation("com.example:shared:1.0")
+        implementation("com.example:project-only:1.0")
+      }
+
+      tasks.register("resolveRepositories") {
+        val resolved = layout.buildDirectory.file("resolved-repositories.txt")
+        inputs.files(configurations.compileClasspath)
+        outputs.file(resolved)
+        doLast {
+          resolved.get().asFile.writeText(
+            configurations.compileClasspath.get()
+              .sortedBy { it.name }
+              .joinToString(System.lineSeparator()) { it.name + "=" + it.readText() }
+          )
+        }
+      }
+      """.trimIndent(),
+    )
+
+    val result = runner(
+      "resolveRepositories",
+      "-PmavenRepositoryProxy=${proxyRepository.toURI()}",
+      environment = mapOf("CI" to "true"),
+    ).build()
+
+    assertThat(result.task(":resolveRepositories")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    val resolvedFile = applicationOutput("resolved-repositories.txt")
+    assertThat(resolvedFile).exists()
+    assertThat(resolvedFile.readLines()).containsExactly(
+      "project-only-1.0.jar=project-only",
+      "shared-1.0.jar=proxy",
+    )
   }
 
   /**
@@ -177,25 +280,13 @@ class SmokeTestAppEndToEndTest {
     expectedFlag: String,
   ) {
     writeOuterSettings()
-    outerBuild.writeText(
-      """
-      plugins {
-        java
-        id("dd-trace-java.smoke-test-app")
-      }
-
-      smokeTestApp {
-        javaLauncher.set(
-          javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(${currentMajorJdk()})) }
-        )
-        application {
-          taskName.set("recordCacheFlag")
-          artifactPath.set("cache-flag.txt")
-          sysProperty.set("cache.flag.path")
-          $dslLine
-        }
-      }
-      """.trimIndent(),
+    writeSmokeTestAppBuild(
+      smokeTestApplication(
+        taskName = "recordCacheFlag",
+        artifactPath = "cache-flag.txt",
+        sysProperty = "cache.flag.path",
+        additionalConfig = dslLine,
+      ),
     )
     writeInnerSettings()
     writeInnerBuild(
@@ -214,7 +305,7 @@ class SmokeTestAppEndToEndTest {
     val result = runner("recordCacheFlag").build()
 
     assertThat(result.task(":recordCacheFlag")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    val flagFile = File(projectDir.toFile(), "build/application/cache-flag.txt")
+    val flagFile = applicationOutput("cache-flag.txt")
     assertThat(flagFile).exists()
     assertThat(flagFile.readText().trim()).isEqualTo(expectedFlag)
   }
@@ -239,28 +330,15 @@ class SmokeTestAppEndToEndTest {
     expectedSecondOutcome: TaskOutcome,
   ) {
     writeOuterSettings(withLocalBuildCache = true)
-    outerBuild.writeText(
-      """
-      $extraOuterImports
-      plugins {
-        java
-        id("dd-trace-java.smoke-test-app")
-      }
-
-      $extraOuterPreamble
-
-      smokeTestApp {
-        javaLauncher.set(
-          javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(${currentMajorJdk()})) }
-        )
-        application {
-          taskName.set("buildJar")
-          artifactPath.set("libs/sample.jar")
-          sysProperty.set("sample.path")
-          $envDslLine
-        }
-      }
-      """.trimIndent(),
+    writeSmokeTestAppBuild(
+      smokeTestApplication(
+        taskName = "buildJar",
+        artifactPath = "libs/sample.jar",
+        sysProperty = "sample.path",
+        additionalConfig = envDslLine,
+      ),
+      extraImports = extraOuterImports,
+      extraPreamble = extraOuterPreamble,
     )
     writeInnerSettings()
     writeInnerBuild(
@@ -283,7 +361,7 @@ class SmokeTestAppEndToEndTest {
     assertThat(first.task(":buildJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
 
     // Wipe the output dir so the cache must serve it on the next run.
-    File(projectDir.toFile(), "build/application").deleteRecursively()
+    applicationBuildDir.deleteRecursively()
 
     val secondArgs = listOfNotNull(
       "buildJar",
@@ -314,6 +392,66 @@ class SmokeTestAppEndToEndTest {
     )
   }
 
+  private fun writeOuterBuild(buildScript: String) {
+    outerBuild.writeText(buildScript.trimIndent())
+  }
+
+  private fun writeSmokeTestAppBuild(
+    smokeTestAppBody: String,
+    extraImports: String = "",
+    extraPreamble: String = "",
+  ) {
+    val imports = extraImports.trimIndent()
+    val preamble = extraPreamble.trimIndent()
+    val body = smokeTestAppBody.trimIndent()
+    writeOuterBuild(
+      buildString {
+        if (imports.isNotBlank()) {
+          appendLine(imports)
+          appendLine()
+        }
+        appendLine("plugins {")
+        appendLine("  java")
+        appendLine("  id(\"dd-trace-java.smoke-test-app\")")
+        appendLine("}")
+        appendLine()
+        if (preamble.isNotBlank()) {
+          appendLine(preamble)
+          appendLine()
+        }
+        appendLine("smokeTestApp {")
+        appendLine("  javaLauncher.set(")
+        appendLine("    javaToolchains.launcherFor {")
+        appendLine("      languageVersion.set(JavaLanguageVersion.of(${currentMajorJdk()}))")
+        appendLine("    }")
+        appendLine("  )")
+        if (body.isNotBlank()) {
+          appendLine(body.prependIndent("  "))
+        }
+        appendLine("}")
+      },
+    )
+  }
+
+  private fun smokeTestApplication(
+    taskName: String,
+    artifactPath: String,
+    sysProperty: String,
+    additionalConfig: String = "",
+  ): String {
+    val config = additionalConfig.trimIndent()
+    return buildString {
+      appendLine("application {")
+      appendLine("  taskName.set(\"$taskName\")")
+      appendLine("  artifactPath.set(\"$artifactPath\")")
+      appendLine("  sysProperty.set(\"$sysProperty\")")
+      if (config.isNotBlank()) {
+        appendLine(config.prependIndent("  "))
+      }
+      appendLine("}")
+    }
+  }
+
   private fun writeInnerSettings() {
     File(applicationDir, "settings.gradle.kts").writeText(
       """
@@ -336,12 +474,52 @@ class SmokeTestAppEndToEndTest {
     )
   }
 
-  private fun runner(vararg args: String): GradleRunner =
+  private fun applicationOutput(relativePath: String): File =
+    applicationBuildDir.resolve(relativePath)
+
+  private fun writeMavenArtifact(
+    repository: File,
+    groupId: String,
+    artifactId: String,
+    version: String,
+    jarContent: String,
+  ) {
+    val artifactDir = File(repository, "${groupId.replace('.', '/')}/$artifactId/$version")
+    artifactDir.mkdirs()
+    File(artifactDir, "$artifactId-$version.pom").writeText(
+      """
+      <project>
+        <modelVersion>4.0.0</modelVersion>
+        <groupId>$groupId</groupId>
+        <artifactId>$artifactId</artifactId>
+        <version>$version</version>
+      </project>
+      """.trimIndent(),
+    )
+    File(artifactDir, "$artifactId-$version.jar").writeText(jarContent)
+  }
+
+  private fun runner(
+    vararg args: String,
+    environment: Map<String, String>? = null,
+  ): GradleRunner =
     GradleRunner.create()
       .withProjectDir(projectDir.toFile())
       .withPluginClasspath()
       .withArguments(*args, "--stacktrace")
+      .withEnvironment(sanitizedGradleEnvironment(environment))
       .forwardOutput()
+
+  private fun sanitizedGradleEnvironment(
+    overrides: Map<String, String>? = null,
+  ): Map<String, String> =
+    System.getenv() +
+      mapOf(
+        "GRADLE_ARGS" to "",
+        "GRADLE_OPTS" to "",
+        "GRADLE_USER_HOME" to outerGradleUserHome.absolutePath,
+      ) +
+      (overrides ?: emptyMap())
 
   private fun currentMajorJdk(): Int =
     System.getProperty("java.specification.version").let {
@@ -349,6 +527,19 @@ class SmokeTestAppEndToEndTest {
     }
 
   companion object {
+    private val outerGradleUserHome: File by lazy {
+      Files.createTempDirectory("smoke-test-app-gradle-user-home-").toFile().also { dir ->
+        Runtime.getRuntime().addShutdownHook(Thread {
+          try {
+            DefaultGradleConnector.close()
+          } catch (_: Exception) {
+            // best effort
+          }
+          dir.deleteRecursively()
+        })
+      }
+    }
+
     @JvmStatic
     fun buildCacheFlagCases(): List<Arguments> = listOf(
       // (scenario name, DSL line added to the `application { … }` block, expected

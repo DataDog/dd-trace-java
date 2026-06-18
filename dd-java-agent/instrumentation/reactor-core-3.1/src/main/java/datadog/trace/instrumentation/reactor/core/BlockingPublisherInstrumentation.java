@@ -41,11 +41,8 @@ public class BlockingPublisherInstrumentation
   public static class BlockingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope before(@Advice.This final Publisher self) {
-      final Context context = InstrumentationContext.get(Publisher.class, Context.class).get(self);
-      if (context == null) {
-        return null;
-      }
-      return context.attach();
+      return ReactorContextBridge.activateForBlocking(
+          self, InstrumentationContext.get(Publisher.class, Context.class));
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
