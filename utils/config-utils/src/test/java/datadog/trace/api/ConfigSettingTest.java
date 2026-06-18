@@ -43,10 +43,6 @@ public class ConfigSettingTest {
     }
   }
 
-  // Sensitive values are redacted regardless of which form the key was collected under -- property
-  // name, dd.* system property, raw env var, or alias env var all canonicalize to the same key. The
-  // full set is generated from the "sensitive": true entries in
-  // metadata/supported-configurations.json.
   @TableTest({
     "scenario            | key                      | value     | filteredValue",
     "api key property    | api-key                  | somevalue | <hidden>     ",
@@ -62,9 +58,6 @@ public class ConfigSettingTest {
     assertEquals(filteredValue, ConfigSetting.of(key, value, ConfigOrigin.DEFAULT).stringValue());
   }
 
-  // The telemetry-reported key name is the canonical env-var form; a key already in DD_ env-var
-  // form
-  // (e.g. collected via getEnv) is not double-prefixed into DD_DD_*.
   @TableTest({
     "scenario      | key                  | normalized          ",
     "property name | api-key              | DD_API_KEY          ",

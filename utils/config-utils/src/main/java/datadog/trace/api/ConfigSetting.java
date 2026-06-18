@@ -40,12 +40,6 @@ public final class ConfigSetting {
 
   private ConfigSetting(String key, Object value, ConfigOrigin origin, int seqId, String configId) {
     this.key = key;
-    // Redact values of configs flagged "sensitive": true in metadata/supported-configurations.json.
-    // The flags (canonical keys plus their aliases) are compiled into
-    // GeneratedSupportedConfigurations.SENSITIVE_KEYS in env-var form by the supported-config
-    // generator, so the registry is the single source of truth for what gets hidden. The collected
-    // key is canonicalized to the same env-var form before lookup, regardless of which form it was
-    // collected under (property name, dd.* system property, alias, or raw env var).
     this.value =
         (value != null
                 && GeneratedSupportedConfigurations.SENSITIVE_KEYS.contains(toCanonicalEnvVar(key)))

@@ -82,10 +82,6 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       }
     }.toMap()
 
-    // Every key of every config flagged "sensitive": true -- the canonical key plus its aliases.
-    // Values collected under any of these are redacted in configuration telemetry (see
-    // ConfigSetting), so this is the single source of truth for the redaction list. Aliases are
-    // included so a value collected under an alias env-var (e.g. DD_APP_KEY) is redacted too.
     val sensitiveKeys: Set<String> = supported.flatMap { (canonical, configList) ->
       configList.filter { it.sensitive }.flatMap { listOf(canonical) + it.aliases }
     }.toSet()

@@ -6,8 +6,6 @@ import org.tabletest.junit.TableTest;
 
 public class ConfigStringsTest {
 
-  // Every spelling of a config key canonicalizes to the same DD_ env-var name, and an already-DD_
-  // key is not double-prefixed. otel.*/OTEL_* keys keep their own namespace.
   @TableTest({
     "scenario           | key                        | canonical                  ",
     "property name      | api-key                    | DD_API_KEY                 ",
