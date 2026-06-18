@@ -129,13 +129,16 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       out.println("package $packageName;")
       out.println()
       out.println("import java.util.HashMap;")
+      out.println("import java.util.HashSet;")
       out.println("import java.util.List;")
       out.println("import java.util.Map;")
+      out.println("import java.util.Set;")
       out.println("import static java.util.Arrays.asList;")
       out.println("import static java.util.Collections.emptyList;")
       out.println("import static java.util.Collections.singletonList;")
       out.println("import static java.util.Collections.unmodifiableList;")
       out.println("import static java.util.Collections.unmodifiableMap;")
+      out.println("import static java.util.Collections.unmodifiableSet;")
       out.println()
       out.println("public final class $className {")
       out.println()
@@ -240,7 +243,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       for (key in sensitiveKeys.toSortedSet()) {
         out.printf("    sensitiveKeys.add(\"%s\");\n", esc(key))
       }
-      out.println("    return Collections.unmodifiableSet(sensitiveKeys);")
+      out.println("    return unmodifiableSet(sensitiveKeys);")
       out.println("  }")
       out.println("}")
     }
