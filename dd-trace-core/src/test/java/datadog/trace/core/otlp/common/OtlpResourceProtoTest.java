@@ -7,6 +7,7 @@ import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.protobuf.CodedInputStream;
@@ -17,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -156,6 +158,30 @@ class OtlpResourceProtoTest {
 
     Map<String, String> actualAttributes = parseResourceAttributes(bytes);
     assertEquals(expectedAttributes, actualAttributes, "For case: " + caseName);
+  }
+
+  /**
+   * The datadog-attrs variant ({@code buildResourceMessage(config, true)}) carries {@code
+   * datadog.runtime_id}; the plain variant omits it. (Process tags are emitted only when the
+   * experimental process-tag propagation is enabled, so they aren't asserted here.)
+   */
+  @Test
+  void datadogResourceAttributesVariantCarriesRuntimeId() throws IOException {
+    Config config = Config.get(props(SERVICE_NAME, "my-service"));
+
+    Map<String, String> withDatadog =
+        parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, true));
+    Map<String, String> plain =
+        parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, false));
+
+    assertTrue(
+        withDatadog.containsKey("datadog.runtime_id"),
+        "datadog-attrs variant carries datadog.runtime_id");
+    assertEquals(
+        config.getRuntimeId(),
+        withDatadog.get("datadog.runtime_id"),
+        "runtime id matches the config value");
+    assertFalse(plain.containsKey("datadog.runtime_id"), "plain variant omits datadog.runtime_id");
   }
 
   // ── parsing helpers ───────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.common.metrics.AggregateEntry;
 import datadog.trace.common.metrics.MetricWriter;
 import datadog.trace.core.otlp.common.OtlpPayload;
+import datadog.trace.core.otlp.common.OtlpResourceProto;
 import datadog.trace.core.otlp.common.OtlpSender;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,9 +57,9 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   @Nullable private final OtlpSender sender;
   private final boolean otelSemanticsMode;
 
-  // own single-thread collector; forced to DELTA since trace-stats buckets are per-interval deltas
-  private final OtlpMetricsProtoCollector collector =
-      new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE, true);
+  // own single-thread collector; forced to DELTA since trace-stats buckets are per-interval deltas.
+  // Initialized in the constructor so the resource chunk can be chosen per semantics mode.
+  private final OtlpMetricsProtoCollector collector;
 
   // data points snapshotted during add(), replayed through the visitor in finishBucket()
   private final List<PendingPoint> pending = new ArrayList<>();
@@ -98,6 +99,14 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   OtlpStatsMetricWriter(@Nullable OtlpSender sender, boolean otelSemanticsMode) {
     this.sender = sender;
     this.otelSemanticsMode = otelSemanticsMode;
+    // Default mode carries datadog.runtime_id / process tags on the Resource; OTel-semantics mode
+    // uses the plain vendor-neutral resource (no datadog.*).
+    byte[] resourceMessage =
+        otelSemanticsMode
+            ? OtlpResourceProto.RESOURCE_MESSAGE
+            : OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS;
+    this.collector =
+        new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE, true, resourceMessage);
   }
 
   @Override
