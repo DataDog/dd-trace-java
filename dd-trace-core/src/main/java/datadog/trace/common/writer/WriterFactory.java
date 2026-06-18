@@ -187,7 +187,7 @@ public class WriterFactory {
               commObjects.agentUrl,
               featuresDiscovery,
               commObjects.monitoring,
-              config.isTracerMetricsEnabled());
+              config.isTracerMetricsEnabled() || config.isTracesSpanMetricsEnabled());
 
       if (sampler instanceof RemoteResponseListener) {
         ddAgentApi.addResponseListener((RemoteResponseListener) sampler);

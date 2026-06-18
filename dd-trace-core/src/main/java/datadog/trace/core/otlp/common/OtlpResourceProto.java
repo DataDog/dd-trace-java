@@ -36,8 +36,14 @@ public final class OtlpResourceProto {
   /** Prefix applied to {@code datadog.runtime_id} and process-tag resource attributes. */
   private static final String DATADOG_PREFIX = "datadog.";
 
-  /** Vendor-neutral resource (no {@code datadog.*}). Used by the OTLP trace/metric export. */
-  public static final byte[] RESOURCE_MESSAGE = buildResourceMessage(Config.get());
+  /**
+   * Resource attribute added to OTLP trace metrics to ensure calculations are not re-computed in
+   * the Agent
+   */
+  private static final String STATS_COMPUTED_KEY = "_dd.stats_computed";
+
+  /** Vendor-neutral resource (no {@code datadog.*}). Used by the OTLP metric export. */
+  public static final byte[] RESOURCE_MESSAGE = buildResourceMessage(Config.get(), false, false);
 
   /**
    * Resource that additionally carries {@code datadog.runtime_id} and process tags (each prefixed
@@ -45,13 +51,18 @@ public final class OtlpResourceProto {
    * mode.
    */
   public static final byte[] RESOURCE_MESSAGE_WITH_DATADOG_ATTRS =
-      buildResourceMessage(Config.get(), true);
+      buildResourceMessage(Config.get(), true, false);
 
-  static byte[] buildResourceMessage(Config config) {
-    return buildResourceMessage(config, false);
-  }
+  /**
+   * Resource used by the OTLP trace export. Identical to {@link #RESOURCE_MESSAGE} but adds the
+   * {@code _dd.stats_computed} marker when the SDK is computing OTLP span metrics, so a downstream
+   * Agent does not recompute them from the exported spans.
+   */
+  public static final byte[] TRACE_RESOURCE_MESSAGE =
+      buildResourceMessage(Config.get(), false, Config.get().isTracesSpanMetricsEnabled());
 
-  static byte[] buildResourceMessage(Config config, boolean includeDatadogResourceAttributes) {
+  static byte[] buildResourceMessage(
+      Config config, boolean includeDatadogResourceAttributes, boolean includeStatsComputed) {
     GrowableBuffer buf = new GrowableBuffer(512);
 
     String serviceName = config.getServiceName();
@@ -87,6 +98,10 @@ public final class OtlpResourceProto {
 
     if (includeDatadogResourceAttributes) {
       writeDatadogResourceAttributes(buf, config);
+    }
+
+    if (includeStatsComputed) {
+      writeResourceAttribute(buf, STATS_COMPUTED_KEY, "true");
     }
 
     OtlpProtoBuffer protobuf = new OtlpProtoBuffer(buf.capacity());

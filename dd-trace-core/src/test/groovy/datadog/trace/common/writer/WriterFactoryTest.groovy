@@ -207,6 +207,51 @@ class WriterFactoryTest extends DDSpecification {
     OtlpConfig.Protocol.GRPC          | OtlpConfig.Compression.NONE  | "http://otel-collector:4317"            | OtlpGrpcSender      | "http://otel-collector:4317/opentelemetry.proto.collector.trace.v1.TraceService/Export" | false
   }
 
+  def "DDAgentApi marks client-computed stats when either stats pipeline is enabled (spanMetrics=#spanMetrics, nativeStats=#nativeStats)"() {
+    setup:
+    // metricsEnabled gates the Datadog-Client-Computed-Stats header on the native trace transport.
+    // It must be true whenever the SDK computes stats by EITHER pipeline: native msgpack stats
+    // (isTracerMetricsEnabled) or OTLP span metrics (isTracesSpanMetricsEnabled). The OTLP-stats
+    // case arises when OTEL_TRACES_SPAN_METRICS_ENABLED is set while traces still export natively;
+    // without the header the Agent would recompute stats from spans already exported via OTLP.
+    def config = Mock(Config)
+    config.apiKey >> "my-api-key"
+    config.agentUrl >> "http://my-agent.url"
+    config.getEnumValue(PRIORITIZATION_TYPE, _, _) >> Prioritization.FAST_LANE
+    config.tracerMetricsEnabled >> nativeStats
+    config.tracesSpanMetricsEnabled >> spanMetrics
+
+    def mockCall = Mock(Call)
+    def mockHttpClient = Mock(OkHttpClient)
+    // advertise only v0.4 (no EVP proxy) so "DDAgentWriter" resolves to a real DDAgentWriter
+    mockCall.execute() >> { buildHttpResponse(false, false, HttpUrl.parse(config.agentUrl + "/info")) }
+    mockHttpClient.newCall(_ as Request) >> mockCall
+
+    def sharedComm = new SharedCommunicationObjects()
+    sharedComm.agentHttpClient = mockHttpClient
+    sharedComm.agentUrl = HttpUrl.parse(config.agentUrl)
+    sharedComm.createRemaining(config)
+
+    def sampler = Mock(Sampler)
+
+    when:
+    def writer = WriterFactory.createWriter(config, sharedComm, sampler, null, HealthMetrics.NO_OP, "DDAgentWriter")
+    def api = ((RemoteWriter) writer).apis.find { it instanceof DDAgentApi }
+    def metricsEnabledField = DDAgentApi.getDeclaredField("metricsEnabled")
+    metricsEnabledField.setAccessible(true)
+
+    then:
+    writer instanceof DDAgentWriter
+    metricsEnabledField.getBoolean(api) == expectedComputesStats
+
+    where:
+    spanMetrics | nativeStats | expectedComputesStats
+    true        | false       | true  // gap case: OTLP span metrics on, native stats off
+    false       | false       | false // neither pipeline computes stats
+    false       | true        | true  // native stats on (regression guard)
+    true        | true        | true  // both on
+  }
+
   Response buildHttpResponse(boolean hasEvpProxy, boolean evpProxySupportsCompression, HttpUrl agentUrl) {
     def endpoints = []
     if (hasEvpProxy && evpProxySupportsCompression) {
