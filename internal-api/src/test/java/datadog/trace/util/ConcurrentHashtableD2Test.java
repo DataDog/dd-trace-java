@@ -129,6 +129,66 @@ class ConcurrentHashtableD2Test {
     assertEquals(1, createCount.get());
   }
 
+  @Test
+  void chainedEntriesInSameBucketAreAllReachable() {
+    // 2 buckets: 4 entries guarantees at least 2 share a bucket by pigeonhole.
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(2);
+    PairEntry e1 = table.getOrCreate("a", 1, PairEntry::new);
+    PairEntry e2 = table.getOrCreate("a", 2, PairEntry::new);
+    PairEntry e3 = table.getOrCreate("b", 1, PairEntry::new);
+    PairEntry e4 = table.getOrCreate("b", 2, PairEntry::new);
+    assertEquals(4, table.size());
+    assertSame(e1, table.get("a", 1));
+    assertSame(e2, table.get("a", 2));
+    assertSame(e3, table.get("b", 1));
+    assertSame(e4, table.get("b", 2));
+    assertNull(table.get("a", 3));
+  }
+
+  @Test
+  void concurrentDistinctKeyInsertionsAreAllRetained() throws InterruptedException {
+    int threads = 16;
+    String[] k1s = new String[threads];
+    Integer[] k2s = new Integer[threads];
+    for (int i = 0; i < threads; i++) {
+      k1s[i] = "key-" + i;
+      k2s[i] = i;
+    }
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        new ConcurrentHashtable.D2<>(threads * 2);
+    CountDownLatch ready = new CountDownLatch(threads);
+    CountDownLatch go = new CountDownLatch(1);
+
+    Thread[] workers = new Thread[threads];
+    for (int i = 0; i < threads; i++) {
+      final String k1 = k1s[i];
+      final Integer k2 = k2s[i];
+      workers[i] =
+          new Thread(
+              () -> {
+                ready.countDown();
+                try {
+                  go.await();
+                } catch (InterruptedException ex) {
+                  Thread.currentThread().interrupt();
+                  return;
+                }
+                table.getOrCreate(k1, k2, PairEntry::new);
+              });
+      workers[i].start();
+    }
+    ready.await();
+    go.countDown();
+    for (Thread w : workers) {
+      w.join();
+    }
+
+    assertEquals(threads, table.size());
+    for (int i = 0; i < threads; i++) {
+      assertNotNull(table.get(k1s[i], k2s[i]));
+    }
+  }
+
   private static final class PairEntry extends Hashtable.D2.Entry<String, Integer> {
     PairEntry(String key1, Integer key2) {
       super(key1, key2);
