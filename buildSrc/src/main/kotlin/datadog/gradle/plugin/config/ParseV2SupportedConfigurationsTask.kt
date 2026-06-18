@@ -59,7 +59,8 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
           configMap["type"] as? String,
           configMap["default"] as? String,
           (configMap["aliases"] as? List<String>) ?: emptyList(),
-          (configMap["propertyKeys"] as? List<String>) ?: emptyList()
+          (configMap["propertyKeys"] as? List<String>) ?: emptyList(),
+          configMap["sensitive"] as? Boolean ?: false
         )
       }
     }
@@ -81,6 +82,14 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       }
     }.toMap()
 
+    // Every key of every config flagged "sensitive": true -- the canonical key plus its aliases.
+    // Values collected under any of these are redacted in configuration telemetry (see
+    // ConfigSetting), so this is the single source of truth for the redaction list. Aliases are
+    // included so a value collected under an alias env-var (e.g. DD_APP_KEY) is redacted too.
+    val sensitiveKeys: Set<String> = supported.flatMap { (canonical, configList) ->
+      configList.filter { it.sensitive }.flatMap { listOf(canonical) + it.aliases }
+    }.toSet()
+
     // Build the output .java path from the fully-qualified class name
     val pkgName = finalClassName.substringBeforeLast('.', "")
     val pkgPath = pkgName.replace('.', File.separatorChar)
@@ -97,7 +106,8 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       aliases,
       aliasMapping,
       deprecated,
-      reversePropertyKeysMap
+      reversePropertyKeysMap,
+      sensitiveKeys
     )
   }
 
@@ -109,7 +119,8 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     aliases: Map<String, List<String>>,
     aliasMapping: Map<String, String>,
     deprecated: Map<String, String>,
-    reversePropertyKeysMap: Map<String, String>
+    reversePropertyKeysMap: Map<String, String>,
+    sensitiveKeys: Set<String>
   ) {
     val outFile = File(outputPath)
     outFile.parentFile?.mkdirs()
@@ -131,12 +142,15 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       out.println()
       out.println("  public static final Map<String, String> REVERSE_PROPERTY_KEYS_MAP;")
       out.println()
+      out.println("  public static final Set<String> SENSITIVE_KEYS;")
+      out.println()
       out.println("  static {")
       out.println("    SUPPORTED = initSupported();")
       out.println("    ALIASES = initAliases();")
       out.println("    ALIAS_MAPPING = initAliasMapping();")
       out.println("    DEPRECATED = initDeprecated();")
       out.println("    REVERSE_PROPERTY_KEYS_MAP = initReversePropertyKeysMap();")
+      out.println("    SENSITIVE_KEYS = initSensitiveKeys();")
       out.println("  }")
       out.println()
 
@@ -237,6 +251,16 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       }
       out.println("    return Collections.unmodifiableMap(reversePropertyKeysMapping);")
       out.println("  }")
+      out.println()
+
+      // initSensitiveKeys()
+      out.println("  private static Set<String> initSensitiveKeys() {")
+      out.println("    Set<String> sensitiveKeys = new HashSet<>();")
+      for (key in sensitiveKeys.toSortedSet()) {
+        out.printf("    sensitiveKeys.add(\"%s\");\n", esc(key))
+      }
+      out.println("    return Collections.unmodifiableSet(sensitiveKeys);")
+      out.println("  }")
       out.println("}")
     }
   }
@@ -256,5 +280,6 @@ private data class SupportedConfigurationItem(
   val type: String?,
   val default: String?,
   val aliases: List<String>,
-  val propertyKeys: List<String>
+  val propertyKeys: List<String>,
+  val sensitive: Boolean
 )

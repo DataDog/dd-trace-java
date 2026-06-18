@@ -3,12 +3,10 @@ package datadog.trace.api;
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
 import static datadog.trace.util.ConfigStrings.toEnvVar;
 
-import java.util.Arrays;
+import datadog.trace.config.inversion.GeneratedSupportedConfigurations;
 import java.util.BitSet;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 public final class ConfigSetting {
   public static final int DEFAULT_SEQ_ID = 1;
@@ -22,23 +20,6 @@ public final class ConfigSetting {
 
   /** The config ID associated with this setting, or {@code null} if not applicable. */
   public final String configId;
-
-  // Configuration property names whose values are excluded from configuration telemetry by
-  // replacing them with "<hidden>". These are the keys under which the values are collected (the
-  // property-name form used by ConfigProvider); every sensitive setting is collected under one of
-  // these regardless of which env-var/alias the user set. Keep in sync with the "sensitive": true
-  // entries in metadata/supported-configurations.json.
-  private static final Set<String> CONFIG_FILTER_LIST =
-      new HashSet<>(
-          Arrays.asList(
-              "api-key",
-              "application-key",
-              "crashtracking.proxy.password",
-              "otlp.logs.headers",
-              "otlp.metrics.headers",
-              "otlp.traces.headers",
-              "profiling.proxy.password",
-              "rum.client.token"));
 
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin) {
     return new ConfigSetting(key, value, origin, ABSENT_SEQ_ID, null);
@@ -60,7 +41,17 @@ public final class ConfigSetting {
 
   private ConfigSetting(String key, Object value, ConfigOrigin origin, int seqId, String configId) {
     this.key = key;
-    this.value = (value != null && CONFIG_FILTER_LIST.contains(key)) ? "<hidden>" : value;
+    // Redact values of configs flagged "sensitive": true in metadata/supported-configurations.json.
+    // The flags (canonical keys plus their aliases) are compiled into
+    // GeneratedSupportedConfigurations.SENSITIVE_KEYS in env-var form by the supported-config
+    // generator, so the registry is the single source of truth for what gets hidden. The collected
+    // key is canonicalized to the same env-var form before lookup, regardless of which form it was
+    // collected under (property name, dd.* system property, alias, or raw env var).
+    this.value =
+        (value != null
+                && GeneratedSupportedConfigurations.SENSITIVE_KEYS.contains(redactionKey(key)))
+            ? "<hidden>"
+            : value;
     this.origin = origin;
     this.seqId = seqId;
     this.configId = configId;
@@ -72,6 +63,18 @@ public final class ConfigSetting {
       return toEnvVar(key);
     }
     return propertyNameToEnvironmentVariableName(key);
+  }
+
+  // Canonical env-var form used to match a collected key against SENSITIVE_KEYS. Unlike
+  // normalizedKey(), this never double-prefixes a key already in DD_ env-var form: the api-key
+  // property name, the dd.api-key system property, and a raw DD_API_KEY env var all canonicalize to
+  // DD_API_KEY, so redaction matches whichever form the value arrived in.
+  private static String redactionKey(String key) {
+    if (key.startsWith("otel.") || key.startsWith("OTEL_")) {
+      return toEnvVar(key);
+    }
+    String env = toEnvVar(key);
+    return env.startsWith("DD_") ? env : "DD_" + env;
   }
 
   public String stringValue() {

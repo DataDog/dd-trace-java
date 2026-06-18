@@ -41,12 +41,17 @@ public class ConfigSettingTest {
     }
   }
 
-  // Sensitive values are redacted by the property-name key under which they are collected. A couple
-  // of representative sensitive keys plus a non-sensitive control; the full filter list is kept in
-  // sync with the registry by SensitiveConfigRedactionTest.
+  // Sensitive values are redacted regardless of which form the key was collected under -- property
+  // name, dd.* system property, raw env var, or alias env var all canonicalize to the same key. The
+  // full set is generated from the "sensitive": true entries in
+  // metadata/supported-configurations.json.
   @TableTest({
     "scenario            | key                      | value     | filteredValue",
-    "api key             | api-key                  | somevalue | <hidden>     ",
+    "api key property    | api-key                  | somevalue | <hidden>     ",
+    "api key system prop | dd.api-key               | somevalue | <hidden>     ",
+    "api key env var     | DD_API_KEY               | somevalue | <hidden>     ",
+    "application key     | application-key          | somevalue | <hidden>     ",
+    "application alias   | DD_APP_KEY               | somevalue | <hidden>     ",
     "otlp traces headers | otlp.traces.headers      | somevalue | <hidden>     ",
     "proxy password      | profiling.proxy.password | somevalue | <hidden>     ",
     "non-sensitive key   | some.other.key           | somevalue | somevalue    "
