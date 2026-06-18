@@ -23,10 +23,10 @@ import java.util.function.Function;
  * scalar replacement.
  *
  * <p><b>Memory model.</b> Bucket slots are held in an {@link AtomicReferenceArray}, so each {@link
- * #get} begins with a volatile read of the slot. Entries are inserted at the bucket head: the
- * new entry's {@code next} pointer is set before the volatile slot write, so any subsequent
- * volatile read of that slot carries happens-before over the full chain — chain {@code next}
- * fields do not need to be volatile.
+ * #get} begins with a volatile read of the slot. Entries are inserted at the bucket head: the new
+ * entry's {@code next} pointer is set before the volatile slot write, so any subsequent volatile
+ * read of that slot carries happens-before over the full chain — chain {@code next} fields do not
+ * need to be volatile.
  */
 public final class ConcurrentHashtable {
   private ConcurrentHashtable() {}
@@ -53,7 +53,9 @@ public final class ConcurrentHashtable {
     @SuppressWarnings("unchecked")
     public TEntry get(K key) {
       long keyHash = Hashtable.D1.Entry.hash(key);
-      for (TEntry te = (TEntry) buckets.get(bucketIndex(keyHash)); te != null; te = te.next()) {
+      for (TEntry te = (TEntry) buckets.get(Support.bucketIndex(buckets, keyHash));
+          te != null;
+          te = te.next()) {
         if (te.keyHash == keyHash && te.matches(key)) {
           return te;
         }
@@ -63,13 +65,13 @@ public final class ConcurrentHashtable {
 
     /**
      * Returns the entry for {@code key}, creating one via {@code creator} if absent. Lock-free on
-     * hit; acquires a table-level lock on miss. Re-checks under the lock to avoid duplicate
-     * entries under concurrent misses.
+     * hit; acquires a table-level lock on miss. Re-checks under the lock to avoid duplicate entries
+     * under concurrent misses.
      */
     @SuppressWarnings("unchecked")
     public TEntry getOrCreate(K key, Function<? super K, ? extends TEntry> creator) {
       long keyHash = Hashtable.D1.Entry.hash(key);
-      int index = bucketIndex(keyHash);
+      int index = Support.bucketIndex(buckets, keyHash);
       for (TEntry te = (TEntry) buckets.get(index); te != null; te = te.next()) {
         if (te.keyHash == keyHash && te.matches(key)) {
           return te;
@@ -89,30 +91,16 @@ public final class ConcurrentHashtable {
       }
     }
 
-    @SuppressWarnings("unchecked")
     public void forEach(Consumer<? super TEntry> consumer) {
-      for (int i = 0; i < buckets.length(); i++) {
-        for (TEntry te = (TEntry) buckets.get(i); te != null; te = te.next()) {
-          consumer.accept(te);
-        }
-      }
+      Support.forEach(buckets, consumer);
     }
 
     /**
      * Context-passing forEach. Avoids a capturing-lambda allocation — pass a non-capturing {@link
      * BiConsumer} (typically a {@code static final}) plus whatever side-band state it needs.
      */
-    @SuppressWarnings("unchecked")
     public <T> void forEach(T context, BiConsumer<? super T, ? super TEntry> consumer) {
-      for (int i = 0; i < buckets.length(); i++) {
-        for (TEntry te = (TEntry) buckets.get(i); te != null; te = te.next()) {
-          consumer.accept(context, te);
-        }
-      }
-    }
-
-    private int bucketIndex(long keyHash) {
-      return (int) (keyHash & (buckets.length() - 1));
+      Support.forEach(buckets, context, consumer);
     }
   }
 
@@ -143,7 +131,9 @@ public final class ConcurrentHashtable {
     @SuppressWarnings("unchecked")
     public TEntry get(K1 key1, K2 key2) {
       long keyHash = Hashtable.D2.Entry.hash(key1, key2);
-      for (TEntry te = (TEntry) buckets.get(bucketIndex(keyHash)); te != null; te = te.next()) {
+      for (TEntry te = (TEntry) buckets.get(Support.bucketIndex(buckets, keyHash));
+          te != null;
+          te = te.next()) {
         if (te.keyHash == keyHash && te.matches(key1, key2)) {
           return te;
         }
@@ -163,7 +153,7 @@ public final class ConcurrentHashtable {
     public TEntry getOrCreate(
         K1 key1, K2 key2, BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
       long keyHash = Hashtable.D2.Entry.hash(key1, key2);
-      int index = bucketIndex(keyHash);
+      int index = Support.bucketIndex(buckets, keyHash);
       for (TEntry te = (TEntry) buckets.get(index); te != null; te = te.next()) {
         if (te.keyHash == keyHash && te.matches(key1, key2)) {
           return te;
@@ -183,8 +173,30 @@ public final class ConcurrentHashtable {
       }
     }
 
-    @SuppressWarnings("unchecked")
     public void forEach(Consumer<? super TEntry> consumer) {
+      Support.forEach(buckets, consumer);
+    }
+
+    /**
+     * Context-passing forEach. Avoids a capturing-lambda allocation — pass a non-capturing {@link
+     * BiConsumer} (typically a {@code static final}) plus whatever side-band state it needs.
+     */
+    public <T> void forEach(T context, BiConsumer<? super T, ? super TEntry> consumer) {
+      Support.forEach(buckets, context, consumer);
+    }
+  }
+
+  /** Building blocks for concurrent hash-table operations, mirroring {@link Hashtable.Support}. */
+  public static final class Support {
+    private Support() {}
+
+    public static int bucketIndex(AtomicReferenceArray<Hashtable.Entry> buckets, long keyHash) {
+      return (int) (keyHash & (buckets.length() - 1));
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <TEntry extends Hashtable.Entry> void forEach(
+        AtomicReferenceArray<Hashtable.Entry> buckets, Consumer<? super TEntry> consumer) {
       for (int i = 0; i < buckets.length(); i++) {
         for (TEntry te = (TEntry) buckets.get(i); te != null; te = te.next()) {
           consumer.accept(te);
@@ -192,21 +204,16 @@ public final class ConcurrentHashtable {
       }
     }
 
-    /**
-     * Context-passing forEach. Avoids a capturing-lambda allocation — pass a non-capturing {@link
-     * BiConsumer} (typically a {@code static final}) plus whatever side-band state it needs.
-     */
     @SuppressWarnings("unchecked")
-    public <T> void forEach(T context, BiConsumer<? super T, ? super TEntry> consumer) {
+    public static <T, TEntry extends Hashtable.Entry> void forEach(
+        AtomicReferenceArray<Hashtable.Entry> buckets,
+        T context,
+        BiConsumer<? super T, ? super TEntry> consumer) {
       for (int i = 0; i < buckets.length(); i++) {
         for (TEntry te = (TEntry) buckets.get(i); te != null; te = te.next()) {
           consumer.accept(context, te);
         }
       }
-    }
-
-    private int bucketIndex(long keyHash) {
-      return (int) (keyHash & (buckets.length() - 1));
     }
   }
 }
