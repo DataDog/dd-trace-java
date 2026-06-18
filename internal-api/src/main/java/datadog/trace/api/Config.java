@@ -16,7 +16,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_B
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_STACK_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
@@ -233,8 +232,6 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_MAX_TRACKED_DEPENDENCIES;
@@ -1071,10 +1068,7 @@ public class Config {
 
   private final boolean clientIpEnabled;
 
-  private final boolean appSecReportingInband;
   private final String appSecRulesFile;
-  private final int appSecReportMinTimeout;
-  private final int appSecReportMaxTimeout;
   private final int appSecTraceRateLimit;
   private final boolean appSecWafMetrics;
   private final int appSecWafTimeout;
@@ -2463,13 +2457,7 @@ public class Config {
             DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE);
     clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
-    appSecReportingInband =
-        configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
-
-    // Default AppSec report timeout min=5, max=60
-    appSecReportMaxTimeout = configProvider.getInteger(APPSEC_REPORT_TIMEOUT_SEC, 60);
-    appSecReportMinTimeout = Math.min(appSecReportMaxTimeout, 5);
 
     appSecTraceRateLimit =
         configProvider.getInteger(APPSEC_TRACE_RATE_LIMIT, DEFAULT_APPSEC_TRACE_RATE_LIMIT);
@@ -4096,18 +4084,6 @@ public class Config {
 
   public ProductActivation getAppSecActivation() {
     return instrumenterConfig.getAppSecActivation();
-  }
-
-  public boolean isAppSecReportingInband() {
-    return appSecReportingInband;
-  }
-
-  public int getAppSecReportMinTimeout() {
-    return appSecReportMinTimeout;
-  }
-
-  public int getAppSecReportMaxTimeout() {
-    return appSecReportMaxTimeout;
   }
 
   public int getAppSecTraceRateLimit() {
@@ -6570,8 +6546,6 @@ public class Config {
         + grpcClientErrorStatuses
         + ", clientIpEnabled="
         + clientIpEnabled
-        + ", appSecReportingInband="
-        + appSecReportingInband
         + ", appSecRulesFile='"
         + appSecRulesFile
         + "'"
