@@ -524,6 +524,23 @@ class OtlpStatsMetricWriterTest {
     assertTrue(attrs.containsKey("span.name"), "span.name present even in otel-semantics mode");
   }
 
+  @Test
+  void defaultModePassesFullOriginThrough() throws IOException {
+    // A non-synthetics origin must be emitted verbatim, not collapsed to a synthetics flag.
+    CapturingSender sender = new CapturingSender();
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
+    writer.startBucket(1, SECONDS.toNanos(1_700_000_000L), SECONDS.toNanos(10));
+    AggregateEntry e =
+        AggregateEntryTestUtils.ofOrigin(
+            "servlet.request", "web", "servlet.request", "web", "server", "ciapp-test");
+    e.recordOneDuration(SECONDS.toNanos(1));
+    writer.add(e);
+    writer.finishBucket();
+
+    Map<String, Object> attrs = decode(sender.lastPayload).dataPoints.get(0).attributes;
+    assertEquals("ciapp-test", attrs.get("datadog.origin"), "full origin emitted verbatim");
+  }
+
   private static long sumBuckets(DataPoint dp) {
     long total = 0;
     for (long c : dp.bucketCounts) {

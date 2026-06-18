@@ -63,8 +63,13 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private static final String RPC_RESPONSE_STATUS_CODE = "rpc.response.status_code";
   private static final String STATUS_CODE = "status.code";
   private static final String STATUS_CODE_ERROR = "ERROR";
+  private static final String DATADOG_OPERATION_NAME = "datadog.operation.name";
+  private static final String DATADOG_SPAN_TYPE = "datadog.span.type";
+  private static final String DATADOG_SPAN_TOP_LEVEL = "datadog.span.top_level";
+  private static final String DATADOG_ORIGIN = "datadog.origin";
 
   @Nullable private final OtlpSender sender;
+  private final boolean otelSemanticsMode;
 
   private final GrowableBuffer buf = new GrowableBuffer(512);
   private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
@@ -77,12 +82,18 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private int metricBytes;
 
   public OtlpStatsMetricWriter(Config config) {
-    this(createSender(config));
+    this(createSender(config), config.isTraceOtelSemanticsEnabled());
   }
 
   // visible for testing: lets tests inject a capturing sender to decode the emitted protobuf
   OtlpStatsMetricWriter(@Nullable OtlpSender sender) {
+    this(sender, false);
+  }
+
+  // visible for testing: lets tests inject a capturing sender and control the semantics mode
+  OtlpStatsMetricWriter(@Nullable OtlpSender sender, boolean otelSemanticsMode) {
     this.sender = sender;
+    this.otelSemanticsMode = otelSemanticsMode;
   }
 
   @Nullable
@@ -147,12 +158,10 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   }
 
   private void writeDataPointAttributes(AggregateEntry entry, boolean error) {
-    // TODO(step 4): branch on isTraceOtelSemanticsEnabled() to add the datadog.* attribute set in
-    // default mode and to omit it in OTel-semantics mode. The OTel-semconv attributes below are
-    // emitted in both modes.
     if (error) {
       writeStringAttribute(STATUS_CODE, STATUS_CODE_ERROR);
     }
+    // OTel semconv attrs are emitted in both modes
     writeStringAttribute(SPAN_NAME, entry.getResource());
     writeStringAttribute(SPAN_KIND, entry.getSpanKind());
     if (entry.getHttpMethod() != null) {
@@ -166,6 +175,16 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     }
     if (entry.getGrpcStatusCode() != null) {
       writeStringAttribute(RPC_RESPONSE_STATUS_CODE, entry.getGrpcStatusCode());
+    }
+    // Default (Datadog) mode: emit datadog.* per-point attributes
+    if (!otelSemanticsMode) {
+      writeStringAttribute(DATADOG_OPERATION_NAME, entry.getOperationName());
+      writeStringAttribute(DATADOG_SPAN_TYPE, entry.getType());
+      writeLongAttribute(
+          DATADOG_SPAN_TOP_LEVEL, entry.getTopLevelCount() == entry.getHitCount() ? 1L : 0L);
+      // Emit the full origin (synthetics, synthetics-browser, rum, ciapp-test, lambda, ...) when
+      // present; writeStringAttribute no-ops on a null value.
+      writeStringAttribute(DATADOG_ORIGIN, entry.getOrigin());
     }
   }
 
