@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
+import static datadog.trace.util.ConfigStrings.toCanonicalEnvVar;
 import static datadog.trace.util.ConfigStrings.toEnvVar;
 
 import datadog.trace.config.inversion.GeneratedSupportedConfigurations;
@@ -49,7 +50,7 @@ public final class ConfigSetting {
     // collected under (property name, dd.* system property, alias, or raw env var).
     this.value =
         (value != null
-                && GeneratedSupportedConfigurations.SENSITIVE_KEYS.contains(redactionKey(key)))
+                && GeneratedSupportedConfigurations.SENSITIVE_KEYS.contains(toCanonicalEnvVar(key)))
             ? "<hidden>"
             : value;
     this.origin = origin;
@@ -63,18 +64,6 @@ public final class ConfigSetting {
       return toEnvVar(key);
     }
     return propertyNameToEnvironmentVariableName(key);
-  }
-
-  // Canonical env-var form used to match a collected key against SENSITIVE_KEYS. Unlike
-  // normalizedKey(), this never double-prefixes a key already in DD_ env-var form: the api-key
-  // property name, the dd.api-key system property, and a raw DD_API_KEY env var all canonicalize to
-  // DD_API_KEY, so redaction matches whichever form the value arrived in.
-  private static String redactionKey(String key) {
-    if (key.startsWith("otel.") || key.startsWith("OTEL_")) {
-      return toEnvVar(key);
-    }
-    String env = toEnvVar(key);
-    return env.startsWith("DD_") ? env : "DD_" + env;
   }
 
   public String stringValue() {

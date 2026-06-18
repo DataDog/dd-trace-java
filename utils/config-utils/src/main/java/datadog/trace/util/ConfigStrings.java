@@ -39,6 +39,26 @@ public final class ConfigStrings {
   }
 
   /**
+   * Converts a config key in any form into its canonical environment variable name, regardless of
+   * whether it arrived as a property name ({@code api-key}), a {@code dd.} system property ({@code
+   * dd.api-key}), or a raw environment variable ({@code DD_API_KEY}) -- all canonicalize to {@code
+   * DD_API_KEY}. Unlike {@link #propertyNameToEnvironmentVariableName(String)}, the {@code DD_}
+   * namespace is added only when not already present, so a key already in env-var form is not
+   * double-prefixed. {@code otel.}/{@code OTEL_} keys keep their own namespace.
+   *
+   * @param key The config key in any form
+   * @return The canonical environment variable name
+   */
+  @Nonnull
+  public static String toCanonicalEnvVar(final String key) {
+    if (key.startsWith("otel.") || key.startsWith("OTEL_")) {
+      return toEnvVar(key);
+    }
+    final String env = toEnvVar(key);
+    return env.startsWith("DD_") ? env : "DD_" + env;
+  }
+
+  /**
    * Converts the property name, e.g. 'service.name' into a public system property name, e.g.
    * `dd.service.name`.
    *
