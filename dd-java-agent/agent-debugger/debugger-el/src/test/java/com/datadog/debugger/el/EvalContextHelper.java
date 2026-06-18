@@ -1,11 +1,27 @@
 package com.datadog.debugger.el;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.Redaction;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import java.time.Duration;
 import java.util.*;
 
-public class RefResolverHelper {
+public class EvalContextHelper {
+
+  public static final Duration TEST_TIMEOUT = Duration.ofMillis(1000);
+
+  public static EvalContext createEvalContext(Object instance) {
+    // create a higher timeout for test to avoid flakiness
+    return new EvalContext(
+        createResolver(instance), TimeoutChecker.create(Config.get(), TEST_TIMEOUT));
+  }
+
+  // specify lower timeout to test timeout checker
+  public static EvalContext createEvalContext(Object instance, Duration timeout) {
+    return new EvalContext(createResolver(instance), TimeoutChecker.create(Config.get(), timeout));
+  }
 
   public static ValueReferenceResolver createResolver(Object instance) {
     CapturedContext.CapturedValue thisValue =

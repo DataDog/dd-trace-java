@@ -44,6 +44,8 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
     List<String> commandParams = getDebuggerCommandParams();
     commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
+    // increase eval timeout for decoration evaluations
+    commandParams.add("-Ddd.dynamic.instrumentation.evaluation.timeout=100");
     return ProcessBuilderHelper.createProcessBuilder(
         commandParams, logFilePath, getAppClass(), params);
   }

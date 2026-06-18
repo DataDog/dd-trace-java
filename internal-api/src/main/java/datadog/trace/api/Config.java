@@ -72,10 +72,12 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_C
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT;
@@ -328,6 +330,7 @@ import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CA
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_INCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD;
@@ -340,6 +343,7 @@ import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_RE
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTED_TYPES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL;
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS;
@@ -1229,7 +1233,9 @@ public class Config {
   private final String dynamicInstrumentationInstrumentTheWorld;
   private final String dynamicInstrumentationExcludeFiles;
   private final String dynamicInstrumentationIncludeFiles;
+  private final String dynamicInstrumentationTimeoutCheckerMode;
   private final int dynamicInstrumentationCaptureTimeout;
+  private final int dynamicInstrumentationEvaluationTimeout;
   private final String dynamicInstrumentationRedactedIdentifiers;
   private final Set<String> dynamicInstrumentationRedactionExcludedIdentifiers;
   private final String dynamicInstrumentationRedactedTypes;
@@ -2886,10 +2892,17 @@ public class Config {
         configProvider.getString(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES);
     dynamicInstrumentationIncludeFiles =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_INCLUDE_FILES);
+    dynamicInstrumentationTimeoutCheckerMode =
+        configProvider.getString(
+            DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE);
     dynamicInstrumentationCaptureTimeout =
         configProvider.getInteger(
             DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
             DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT);
+    dynamicInstrumentationEvaluationTimeout =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT, DEFAULT_DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT);
     dynamicInstrumentationRedactedIdentifiers =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, null);
     dynamicInstrumentationRedactionExcludedIdentifiers =
@@ -4689,8 +4702,16 @@ public class Config {
     return dynamicInstrumentationIncludeFiles;
   }
 
+  public String getDynamicInstrumentationTimeoutCheckerMode() {
+    return dynamicInstrumentationTimeoutCheckerMode;
+  }
+
   public int getDynamicInstrumentationCaptureTimeout() {
     return dynamicInstrumentationCaptureTimeout;
+  }
+
+  public int getDynamicInstrumentationEvalTimeout() {
+    return dynamicInstrumentationEvaluationTimeout;
   }
 
   public boolean isSymbolDatabaseEnabled() {

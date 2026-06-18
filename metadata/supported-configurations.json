@@ -1217,11 +1217,27 @@
         "aliases": ["DD_JMXFETCH_START_DELAY"]
       }
     ],
+    "DD_INTERNAL_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "WALL",
+        "aliases": []
+      }
+    ],
     "DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT": [
       {
         "version": "A",
         "type": "int",
         "default": "100",
+        "aliases": []
+      }
+    ],
+    "DD_DYNAMIC_INSTRUMENTATION_EVALUATION_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "50",
         "aliases": []
       }
     ],
