@@ -12,6 +12,7 @@ import static datadog.trace.common.metrics.SignalItem.StopSignal.STOP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.common.queue.Queues;
@@ -111,6 +112,30 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             DEFAULT_HEADERS),
         config.getTracerMetricsMaxAggregates(),
         config.getTracerMetricsMaxPending(),
+        config.isTraceResourceRenamingEnabled());
+  }
+
+  /**
+   * OTLP span-metrics export variant. Reuses the same span selection + DDSketch aggregation as the
+   * native path, but emits via the injected {@link OtlpStatsMetricWriter} instead of msgpack to. No
+   * agent {@link Sink} is needed, so a {@link NoOpSink} satisfies the register()/backpressure
+   * contract, and the reporting interval comes from {@code trace.stats.interval} (milliseconds).
+   */
+  public ClientStatsAggregator(
+      Config config,
+      SharedCommunicationObjects sharedCommunicationObjects,
+      HealthMetrics healthMetrics,
+      OtlpStatsMetricWriter metricWriter) {
+    this(
+        config.getMetricsIgnoredResources(),
+        sharedCommunicationObjects.featuresDiscovery(config),
+        healthMetrics,
+        NoOpSink.INSTANCE,
+        metricWriter,
+        config.getTracerMetricsMaxAggregates(),
+        config.getTracerMetricsMaxPending(),
+        config.getTraceStatsInterval(),
+        MILLISECONDS,
         config.isTraceResourceRenamingEnabled());
   }
 

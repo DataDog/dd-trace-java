@@ -149,14 +149,14 @@ class OtlpResourceProtoTest {
       String caseName, Properties properties, Map<String, String> expectedAttributes)
       throws IOException {
     Config config = Config.get(properties);
-    byte[] bytes = OtlpResourceProto.buildResourceMessage(config);
+    byte[] bytes = OtlpResourceProto.buildResourceMessage(config, false, false);
 
     Map<String, String> actualAttributes = parseResourceAttributes(bytes);
     assertEquals(expectedAttributes, actualAttributes, "For case: " + caseName);
   }
 
   /**
-   * The datadog-attrs variant ({@code buildResourceMessage(config, true)}) carries {@code
+   * The datadog-attrs variant ({@code buildResourceMessage(config, true, false)}) carries {@code
    * datadog.runtime_id}; the plain variant omits it. (Process tags are emitted only when the
    * experimental process-tag propagation is enabled, so they aren't asserted here.)
    */
@@ -165,9 +165,9 @@ class OtlpResourceProtoTest {
     Config config = Config.get(props(SERVICE_NAME, "my-service"));
 
     Map<String, String> withDatadog =
-        parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, true));
+        parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, true, false));
     Map<String, String> plain =
-        parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, false));
+        parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, false, false));
 
     assertTrue(
         withDatadog.containsKey("datadog.runtime_id"),
@@ -177,6 +177,24 @@ class OtlpResourceProtoTest {
         withDatadog.get("datadog.runtime_id"),
         "runtime id matches the config value");
     assertFalse(plain.containsKey("datadog.runtime_id"), "plain variant omits datadog.runtime_id");
+  }
+
+  /**
+   * FR15: the {@code includeStatsComputed} variant adds the {@code _dd.stats_computed=true} marker
+   * (used on the OTLP trace payload so a downstream Agent skips recompute); the default omits it.
+   */
+  @Test
+  void statsComputedVariantCarriesMarker() throws IOException {
+    Config config = Config.get(props(SERVICE_NAME, "my-service"));
+
+    Map<String, String> withMarker =
+        parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, false, true));
+    Map<String, String> without =
+        parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, false, false));
+
+    assertEquals(
+        "true", withMarker.get("_dd.stats_computed"), "marker present when stats computed");
+    assertFalse(without.containsKey("_dd.stats_computed"), "marker absent when stats not computed");
   }
 
   // ── parsing helpers ───────────────────────────────────────────────────────

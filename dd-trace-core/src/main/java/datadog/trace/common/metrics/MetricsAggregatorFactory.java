@@ -13,6 +13,14 @@ public class MetricsAggregatorFactory {
       Config config,
       SharedCommunicationObjects sharedCommunicationObjects,
       HealthMetrics healthMetrics) {
+    // OTLP span-metrics export and native msgpack stats are mutually exclusive (XOR): both hang off
+    // the same ClientStatsAggregator span selection + DDSketch aggregation, differing only in
+    // the injected MetricWriter.
+    if (config.isTracesSpanMetricsEnabled()) {
+      log.debug("OTLP trace span metrics enabled");
+      return new ClientStatsAggregator(
+          config, sharedCommunicationObjects, healthMetrics, new OtlpStatsMetricWriter(config));
+    }
     if (config.isTracerMetricsEnabled()) {
       log.debug("tracer metrics enabled");
       return new ClientStatsAggregator(config, sharedCommunicationObjects, healthMetrics);
