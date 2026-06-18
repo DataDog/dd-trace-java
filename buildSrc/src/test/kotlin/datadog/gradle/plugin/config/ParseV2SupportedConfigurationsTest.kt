@@ -66,8 +66,8 @@ class ParseV2SupportedConfigurationsTest : GradleFixture() {
       aliases = listOf("DD_ALIAS")
     )
 
-    assertTrue(content.contains("""aliasesMap.put("DD_ACTION_EXECUTION_ID", Collections.unmodifiableList(Arrays.asList("DD_LEGACY_ACTION_EXECUTION_ID")))"""))
-    assertTrue(content.contains("""aliasesMap.put("DD_AGENTLESS_LOG_SUBMISSION_ENABLED", Collections.unmodifiableList(Arrays.asList("DD_ALIAS")))"""))
+    assertTrue(content.contains("""aliasesMap.put("DD_ACTION_EXECUTION_ID", singletonList("DD_LEGACY_ACTION_EXECUTION_ID"))"""))
+    assertTrue(content.contains("""aliasesMap.put("DD_AGENTLESS_LOG_SUBMISSION_ENABLED", singletonList("DD_ALIAS"))"""))
 
     assertTrue(content.contains("""aliasMappingMap.put("DD_ALIAS", "DD_AGENTLESS_LOG_SUBMISSION_ENABLED")"""))
 
@@ -167,9 +167,6 @@ class ParseV2SupportedConfigurationsTest : GradleFixture() {
     aliases: List<String>,
     propertyKeys: List<String> = emptyList()
   ) {
-    val aliasesArray = aliases.joinToString(", ") { "\"$it\"" }
-    val propertyKeysArray = propertyKeys.joinToString(", ") { "\"$it\"" }
-
     assertTrue(
       content.contains("""supportedMap.put("$key""""),
       "Should contain supportedMap.put for key: $key"
@@ -181,9 +178,9 @@ class ParseV2SupportedConfigurationsTest : GradleFixture() {
       append("\"$type\", ")
       append(if (default == "null") "null" else "\"$default\"")
       append(", ")
-      append("Arrays.asList($aliasesArray)")
+      append(listExpr(aliases))
       append(", ")
-      append("Arrays.asList($propertyKeysArray)")
+      append(listExpr(propertyKeys))
       append(")")
     }
 
@@ -191,5 +188,11 @@ class ParseV2SupportedConfigurationsTest : GradleFixture() {
       content.contains(expectedPattern),
       "Should contain SupportedConfiguration: $expectedPattern"
     )
+  }
+
+  private fun listExpr(items: List<String>): String = when (items.size) {
+    0 -> "emptyList()"
+    1 -> """singletonList("${items[0]}")"""
+    else -> """asList(${items.joinToString(", ") { "\"$it\"" }})"""
   }
 }
