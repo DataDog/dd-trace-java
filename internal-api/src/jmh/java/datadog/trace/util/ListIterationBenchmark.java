@@ -21,16 +21,18 @@ import org.openjdk.jmh.annotations.Warmup;
  *
  * <ul>
  *   Compares...
- *   <li>(RECOMMENDED) enhanced for loop / iterator - usually most performant, since escape analysis
- *       usually eliminates iterator allocation
- *   <li>(SITUATIONAL) List.forEach - good when using a non-capturing lambda, when escape analysis
- *       fails to eliminate iterator allocation - good alternative
- *   <li>(SITUATIONAL) c-style i=0; i < list.size() - usually worse than enhanced for - might be
- *       useful with complicated loop body when escape analysis fails to eliminate the iterator
- *   <li>(DISCOURAGED) List.stream - always incurs allocation overhead - usually unnecessary
- *   <li>(DISCOURAGED) List.parallelStream - heavy allocation overhead - only beneficial when
- *       working with sets (uncommon in the java agent)
- *   <li>
+ *   <li>(RECOMMENDED) enhanced for loop / iterator - zero allocation; escape analysis eliminates
+ *       the iterator object in practice; throughput competitive with c-style across all list sizes
+ *   <li>(RECOMMENDED) c-style i=0; i &lt; list.size() - zero allocation; throughput on par with
+ *       enhanced for; useful when index arithmetic is needed or escape analysis fails on the
+ *       iterator
+ *   <li>(SITUATIONAL) List.forEach - zero allocation (no iterator); good alternative when using a
+ *       non-capturing lambda and either style above is awkward
+ *   <li>(DISCOURAGED) List.stream - always incurs allocation overhead (56-88 B/op) at roughly 1/3
+ *       the throughput of a plain loop; avoid on hot paths
+ *   <li>(DISCOURAGED) List.parallelStream - heavy allocation overhead (128+ B/op, scaling with
+ *       list size); only worthwhile for CPU-bound work over large collections, which is uncommon
+ *       in the java agent
  * </ul>
  *
  * <code>Java 17 - MacBook M1 - 8 threads - Fork 2
