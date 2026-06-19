@@ -501,6 +501,12 @@ def is_instrumentation_path(relative_path: str) -> bool:
 # build summary of reverted/downgraded dependencies for PR descriptions
 # path_filter restricts the summary to lockfiles whose relative path matches,
 # so each PR (core vs instrumentation) only lists the dependencies it actually changes
+#
+# The summary is split into three on-screen sections, ordered by how urgently a human
+# must act on them:
+#   1. "Cannot verify age, reverted" — age could not be checked at all, needs manual resolution
+#   2. "<N>h cooldown, reverted" — too new and no older eligible version exists, so reverted to baseline
+#   3. "<N>h cooldown, updated to the previous version" — too new, downgraded to an older eligible version
 def build_validation_summary(
     *,
     violations_by_file: dict[str, list[tuple[str, str, int]]],
@@ -509,34 +515,60 @@ def build_validation_summary(
     min_age_hours: int,
     path_filter: Callable[[str], bool],
 ) -> str:
-    header = ["## Dependency age policy", ""]
-    lines = list(header)
+    unverified: list[str] = []
+    cooldown_reverted: list[str] = []
+    cooldown_updated: list[str] = []
     seen: set[str] = set()
+
     for relative_path, replacements in replacements_by_file.items():
         if not path_filter(relative_path):
             continue
         baseline_coords = baseline_lockfiles.get(relative_path, set())
         for old_gav, (new_gav, hours_remaining) in replacements.items():
-            if old_gav not in seen:
-                seen.add(old_gav)
-                if new_gav in baseline_coords:
-                    lines.append(f"- `{old_gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, reverted")
-                else:
-                    new_version = new_gav.rsplit(":", 1)[1]
-                    lines.append(f"- `{old_gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, updated to `{new_version}`")
+            if old_gav in seen:
+                continue
+            seen.add(old_gav)
+            if new_gav in baseline_coords:
+                # the only eligible version was the baseline, so this is effectively a revert
+                cooldown_reverted.append(f"- `{old_gav}` is {hours_remaining}h away from meeting cooldown")
+            else:
+                new_version = new_gav.rsplit(":", 1)[1]
+                cooldown_updated.append(f"- `{old_gav}` is {hours_remaining}h away from meeting cooldown, updated to `{new_version}`")
     for relative_path, entries in violations_by_file.items():
         if not path_filter(relative_path):
             continue
         for gav, kind, hours_remaining in entries:
-            if gav not in seen:
-                seen.add(gav)
-                if kind == "unverified":
-                    lines.append(f"- `{gav}` — cannot verify age, reverted")
-                else:
-                    lines.append(f"- `{gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, reverted")
-    if len(lines) == len(header):  # nothing matched the filter
+            if gav in seen:
+                continue
+            seen.add(gav)
+            if kind == "unverified":
+                unverified.append(f"- `{gav}`")
+            else:
+                cooldown_reverted.append(f"- `{gav}` is {hours_remaining}h away from meeting cooldown")
+
+    blocks: list[str] = []
+    if unverified:
+        blocks.append(
+            "### :warning: Cannot verify age, reverted\n\n"
+            "The age of these dependencies could not be verified, so the lockfiles were reverted. "
+            "**This needs to be resolved manually.**\n\n"
+            + "\n".join(sorted(unverified))
+        )
+    if cooldown_reverted:
+        blocks.append(
+            f"### {min_age_hours}h cooldown, reverted\n\n"
+            "Too new and no older eligible version exists, so the lockfiles were reverted to the baseline.\n\n"
+            + "\n".join(sorted(cooldown_reverted))
+        )
+    if cooldown_updated:
+        blocks.append(
+            f"### {min_age_hours}h cooldown, updated to the previous version\n\n"
+            "Too new, so an older eligible version was used instead.\n\n"
+            + "\n".join(sorted(cooldown_updated))
+        )
+    if not blocks:  # nothing matched the filter
         return ""
-    return "\n".join(lines)
+    return "## Dependency age policy\n\n" + "\n\n".join(blocks)
 
 
 # replace specific coordinates in lockfiles (for version downgrades)
