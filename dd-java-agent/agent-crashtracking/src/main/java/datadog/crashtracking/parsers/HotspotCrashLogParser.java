@@ -550,9 +550,12 @@ public final class HotspotCrashLogParser {
     if (oomMessage != null) {
       kind = "OutOfMemory";
       message = oomMessage;
-    } else {
-      kind = sigInfo != null && sigInfo.name != null ? sigInfo.name : "UNKNOWN";
+    } else if (sigInfo != null && sigInfo.name != null) {
+      kind = sigInfo.name;
       message = "Process terminated by signal " + kind;
+    } else {
+      kind = "InternalError";
+      message = "Process terminated by Internal error";
     }
 
     final List<StackFrame> enrichedFrames = new ArrayList<>(frames.size());
