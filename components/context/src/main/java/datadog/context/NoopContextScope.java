@@ -68,6 +68,7 @@ final class NoopContextScope extends WeakReference<Context> implements ContextSc
   public void close() {}
 
   private static int rehash(int oldHash) {
+    // scatter in both directions using value close to golden ratio
     return Integer.reverseBytes(oldHash * 0x9e3775cd) * 0x9e3775cd;
   }
 }
