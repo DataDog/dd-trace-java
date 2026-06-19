@@ -33,264 +33,264 @@ import org.openjdk.jmh.annotations.Warmup;
  *   <li>
  * </ul>
  *
- * <code>Java 17 - MacBook M1 - 8 threads
+ * <code>Java 17 - MacBook M1 - 8 threads - Fork 2
  * Benchmark                                                                          (listSpec)   Mode  Cnt           Score             Error   Units
- * ListIterationBenchmark.cstyleFor_inline                                COLLECTIONS_EMPTY_LIST  thrpt    3  9066154714.207 ±  3993855570.335   ops/s
- * ListIterationBenchmark.cstyleFor:gc.alloc.rate.norm                    COLLECTIONS_EMPTY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.cstyleFor_inline                                COLLECTIONS_EMPTY_LIST  thrpt    6  3441846811.051 ±  165799496.772   ops/s
+ * ListIterationBenchmark.cstyleFor_inline:gc.alloc.rate.norm             COLLECTIONS_EMPTY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.cstyleFor_dont_inline                           COLLECTIONS_EMPTY_LIST  thrpt    3  9307532101.544 ±  3600114064.312   ops/s
- * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm        COLLECTIONS_EMPTY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.cstyleFor_dont_inline                           COLLECTIONS_EMPTY_LIST  thrpt    6  4693760384.130 ±  460489203.723   ops/s
+ * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm        COLLECTIONS_EMPTY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.cstyleFor_inline                                      EMPTY_ARRAY_LIST  thrpt    3  8553022013.203 ±  4941170671.582   ops/s
- * ListIterationBenchmark.cstyleFor_inline :gc.alloc.rate.norm                  EMPTY_ARRAY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.cstyleFor_inline                                      EMPTY_ARRAY_LIST  thrpt    6  3207300169.295 ±  133897191.487   ops/s
+ * ListIterationBenchmark.cstyleFor_inline:gc.alloc.rate.norm                   EMPTY_ARRAY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.cstyleFor_dont_inline                                 EMPTY_ARRAY_LIST  thrpt    3  8096029334.875 ±  3735770834.739   ops/s
- * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm              EMPTY_ARRAY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.cstyleFor_dont_inline                                 EMPTY_ARRAY_LIST  thrpt    6  4579930434.661 ±  197651384.556   ops/s
+ * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm              EMPTY_ARRAY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.cstyleFor_inline                                        SINGLETON_LIST  thrpt    3   579968267.534 ±   480993460.419   ops/s
- * ListIterationBenchmark.cstyleFor_inline :gc.alloc.rate.norm                    SINGLETON_LIST  thrpt    3          ≈ 10⁻⁶                      B/op
+ * ListIterationBenchmark.cstyleFor_inline                                        SINGLETON_LIST  thrpt    6   321884630.577 ±   65533091.652   ops/s
+ * ListIterationBenchmark.cstyleFor_inline:gc.alloc.rate.norm                     SINGLETON_LIST  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.cstyleFor_dont_inline                                   SINGLETON_LIST  thrpt    3   219512282.514 ±    10114065.364   ops/s
- * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm                SINGLETON_LIST  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.cstyleFor_dont_inline                                   SINGLETON_LIST  thrpt    6   278928689.529 ±  136125824.149   ops/s
+ * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm                SINGLETON_LIST  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.cstyleFor_inline                                          ARRAY_LIST_1  thrpt    3   445550609.183 ±   430016640.001   ops/s
- * ListIterationBenchmark.cstyleFor_inline :gc.alloc.rate.norm                      ARRAY_LIST_1  thrpt    3          ≈ 10⁻⁶                      B/op
+ * ListIterationBenchmark.cstyleFor_inline                                          ARRAY_LIST_1  thrpt    6   239566270.808 ±   57510999.361   ops/s
+ * ListIterationBenchmark.cstyleFor_inline:gc.alloc.rate.norm                       ARRAY_LIST_1  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.cstyleFor_dont_inline                                     ARRAY_LIST_1  thrpt    3   257920434.103 ±   499635383.643   ops/s
- * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm                  ARRAY_LIST_1  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.cstyleFor_dont_inline                                     ARRAY_LIST_1  thrpt    6   247272946.887 ±  163358527.661   ops/s
+ * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm                  ARRAY_LIST_1  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.cstyleFor_inline                                          ARRAY_LIST_5  thrpt    3    75497912.945 ±    30020599.171   ops/s
- * ListIterationBenchmark.cstyleFor_inline :gc.alloc.rate.norm                      ARRAY_LIST_5  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.cstyleFor_inline                                          ARRAY_LIST_5  thrpt    6    82032733.693 ±    5895792.103   ops/s
+ * ListIterationBenchmark.cstyleFor_inline:gc.alloc.rate.norm                       ARRAY_LIST_5  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.cstyleFor_dont_inline                                     ARRAY_LIST_5  thrpt    3    28476601.001 ±     1230275.296   ops/s
- * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm                  ARRAY_LIST_5  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.cstyleFor_dont_inline                                     ARRAY_LIST_5  thrpt    6    61087304.985 ±   19150181.071   ops/s
+ * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm                  ARRAY_LIST_5  thrpt    6          ≈ 10⁻⁵                      B/op
  *
+ * ListIterationBenchmark.cstyleFor_inline                                         ARRAY_LIST_10  thrpt    6    40031225.068 ±    4972953.693   ops/s
+ * ListIterationBenchmark.cstyleFor_inline:gc.alloc.rate.norm                      ARRAY_LIST_10  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.cstyleFor_inline                                         ARRAY_LIST_10  thrpt    3    29817752.733 ±    20822258.640   ops/s
- * ListIterationBenchmark.cstyleFor_inline :gc.alloc.rate.norm                     ARRAY_LIST_10  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.cstyleFor_dont_inline                                    ARRAY_LIST_10  thrpt    6    36037195.765 ±    5131727.309   ops/s
+ * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm                 ARRAY_LIST_10  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.cstyleFor_dont_inline                                    ARRAY_LIST_10  thrpt    3    10586304.137 ±      694080.794   ops/s
- * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm                 ARRAY_LIST_10  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.cstyleFor_inline                                        ARRAY_LIST_100  thrpt    6     4716494.077 ±     175625.330   ops/s
+ * ListIterationBenchmark.cstyleFor_inline:gc.alloc.rate.norm                     ARRAY_LIST_100  thrpt    6          ≈ 10⁻⁴                      B/op
  *
- * ListIterationBenchmark.cstyleFor_inline                                        ARRAY_LIST_100  thrpt    3     5189749.889 ±      182890.132   ops/s
- * ListIterationBenchmark.cstyleFor_inline :gc.alloc.rate.norm                    ARRAY_LIST_100  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.cstyleFor_dont_inline                                   ARRAY_LIST_100  thrpt    6     4669066.176 ±     382309.794   ops/s
+ * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm                ARRAY_LIST_100  thrpt    6          ≈ 10⁻⁴                      B/op
  *
- * ListIterationBenchmark.cstyleFor_dont_inline                                   ARRAY_LIST_100  thrpt    3     5574779.347 ±     3138942.124   ops/s
- * ListIterationBenchmark.cstyleFor_dont_inline:gc.alloc.rate.norm                ARRAY_LIST_100  thrpt    3          ≈ 10⁻⁴                      B/op
  *
- * ListIterationBenchmark.enhancedFor_inline                              COLLECTIONS_EMPTY_LIST  thrpt    3  9207677799.793 ±  1391109060.707   ops/s
- * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm           COLLECTIONS_EMPTY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.enhancedFor_inline                              COLLECTIONS_EMPTY_LIST  thrpt    6  2791971679.099 ±  111873232.841   ops/s
+ * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm           COLLECTIONS_EMPTY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.enhancedFor_dont_inline                         COLLECTIONS_EMPTY_LIST  thrpt    3  9223840664.732 ±  3042465993.695   ops/s
- * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm      COLLECTIONS_EMPTY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.enhancedFor_dont_inline                         COLLECTIONS_EMPTY_LIST  thrpt    6  2719830885.462 ±  118403637.971   ops/s
+ * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm      COLLECTIONS_EMPTY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.enhancedFor_inline                                    EMPTY_ARRAY_LIST  thrpt    3  8395252508.254 ±  3316954375.722   ops/s
- * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm                 EMPTY_ARRAY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.enhancedFor_inline                                    EMPTY_ARRAY_LIST  thrpt    6  2928950733.208 ±  860575152.461   ops/s
+ * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm                 EMPTY_ARRAY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.enhancedFor_dont_inline                               EMPTY_ARRAY_LIST  thrpt    3  8749632223.603 ±  5103144323.039   ops/s
- * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm            EMPTY_ARRAY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.enhancedFor_dont_inline                               EMPTY_ARRAY_LIST  thrpt    6  2511906662.257 ±  115828875.854   ops/s
+ * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm            EMPTY_ARRAY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.enhancedFor_inline                                      SINGLETON_LIST  thrpt    3   585380967.338 ±   150306592.315   ops/s
- * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm                   SINGLETON_LIST  thrpt    3          ≈ 10⁻⁶                      B/op
+ * ListIterationBenchmark.enhancedFor_inline                                      SINGLETON_LIST  thrpt    6   319417005.925 ±   66392316.641   ops/s
+ * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm                   SINGLETON_LIST  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.enhancedFor_dont_inline                                 SINGLETON_LIST  thrpt    3   401275107.625 ±  1875412135.090   ops/s
- * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm              SINGLETON_LIST  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.enhancedFor_dont_inline                                 SINGLETON_LIST  thrpt    6   372974563.302 ±   72936400.165   ops/s
+ * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm              SINGLETON_LIST  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.enhancedFor_inline                                        ARRAY_LIST_1  thrpt    3   239663416.496 ±     9797263.026   ops/s
- * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm                     ARRAY_LIST_1  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.enhancedFor_inline                                        ARRAY_LIST_1  thrpt    6   253470787.790 ±   45149043.464   ops/s
+ * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm                     ARRAY_LIST_1  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.enhancedFor_dont_inline                                   ARRAY_LIST_1  thrpt    3   292347248.552 ±   402874274.980   ops/s
- * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm                ARRAY_LIST_1  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.enhancedFor_dont_inline                                   ARRAY_LIST_1  thrpt    6   275479917.244 ±  134785506.568   ops/s
+ * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm                ARRAY_LIST_1  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.enhancedFor_inline                                        ARRAY_LIST_5  thrpt    3   114233676.386 ±    17033961.163   ops/s
- * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm                     ARRAY_LIST_5  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.enhancedFor_inline                                        ARRAY_LIST_5  thrpt    6    77307523.480 ±   21655027.849   ops/s
+ * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm                     ARRAY_LIST_5  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.enhancedFor_dont_inline                                   ARRAY_LIST_5  thrpt    3    17788070.719 ±      185801.986   ops/s
- * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm                ARRAY_LIST_5  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.enhancedFor_dont_inline                                   ARRAY_LIST_5  thrpt    6    87757982.720 ±   11646913.156   ops/s
+ * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm                ARRAY_LIST_5  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.enhancedFor_inline                                       ARRAY_LIST_10  thrpt    3    36526081.949 ±     5409614.800   ops/s
- * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm                    ARRAY_LIST_10  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.enhancedFor_inline                                       ARRAY_LIST_10  thrpt    6    34582795.172 ±    2277582.826   ops/s
+ * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm                    ARRAY_LIST_10  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.enhancedFor_dont_inline                                  ARRAY_LIST_10  thrpt    3     9952121.906 ±      541730.002   ops/s
- * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm               ARRAY_LIST_10  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.enhancedFor_dont_inline                                  ARRAY_LIST_10  thrpt    6    42658734.741 ±    1565239.588   ops/s
+ * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm               ARRAY_LIST_10  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.enhancedFor_inline                                      ARRAY_LIST_100  thrpt    3     5021433.149 ±      189172.874   ops/s
- * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm                   ARRAY_LIST_100  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.enhancedFor_inline                                      ARRAY_LIST_100  thrpt    6     4500662.619 ±     458804.727   ops/s
+ * ListIterationBenchmark.enhancedFor_inline:gc.alloc.rate.norm                   ARRAY_LIST_100  thrpt    6          ≈ 10⁻⁴                      B/op
  *
- * ListIterationBenchmark.enhancedFor_dont_inline                                 ARRAY_LIST_100  thrpt    3     3787184.732 ±      122019.171   ops/s
- * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm              ARRAY_LIST_100  thrpt    3          ≈ 10⁻³                      B/op
+ * ListIterationBenchmark.enhancedFor_dont_inline                                 ARRAY_LIST_100  thrpt    6     5364328.724 ±     796373.387   ops/s
+ * ListIterationBenchmark.enhancedFor_dont_inline:gc.alloc.rate.norm              ARRAY_LIST_100  thrpt    6          ≈ 10⁻⁴                      B/op
  *
  *
- * ListIterationBenchmark.forEach_dont_inline                             COLLECTIONS_EMPTY_LIST  thrpt    3  9087818339.363 ±  4682854417.372   ops/s
- * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm          COLLECTIONS_EMPTY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.forEach_dont_inline                             COLLECTIONS_EMPTY_LIST  thrpt    6  3427531516.621 ±  136844953.098   ops/s
+ * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm          COLLECTIONS_EMPTY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.forEach_inline                                  COLLECTIONS_EMPTY_LIST  thrpt    3  9236676927.205 ±  8654546805.544   ops/s
- * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm               COLLECTIONS_EMPTY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.forEach_inline                                  COLLECTIONS_EMPTY_LIST  thrpt    6  3401640098.513 ±  133456586.319   ops/s
+ * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm               COLLECTIONS_EMPTY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.forEach_dont_inline                                   EMPTY_ARRAY_LIST  thrpt    3  9067901137.791 ±   658593480.822   ops/s
- * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm                EMPTY_ARRAY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.forEach_dont_inline                                   EMPTY_ARRAY_LIST  thrpt    6  3200703797.201 ±  211068414.587   ops/s
+ * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm                EMPTY_ARRAY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.forEach_inline                                        EMPTY_ARRAY_LIST  thrpt    3  8338589922.946 ±  2762463965.925   ops/s
- * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm                     EMPTY_ARRAY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.forEach_inline                                        EMPTY_ARRAY_LIST  thrpt    6  3215780693.079 ±   83146708.893   ops/s
+ * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm                     EMPTY_ARRAY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.forEach_inline                                          SINGLETON_LIST  thrpt    3   273193041.510 ±   232676409.952   ops/s
- * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm                       SINGLETON_LIST  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.forEach_inline                                          SINGLETON_LIST  thrpt    6   333466633.365 ±   88901288.443   ops/s
+ * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm                       SINGLETON_LIST  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.forEach_dont_inline                                     SINGLETON_LIST  thrpt    3   429048764.107 ±   122641686.349   ops/s
- * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm                  SINGLETON_LIST  thrpt    3          ≈ 10⁻⁶                      B/op
+ * ListIterationBenchmark.forEach_dont_inline                                     SINGLETON_LIST  thrpt    6   321163415.952 ±   86007051.008   ops/s
+ * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm                  SINGLETON_LIST  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.forEach_inline                                            ARRAY_LIST_1  thrpt    3   191331395.539 ±    21424694.743   ops/s
- * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm                         ARRAY_LIST_1  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.forEach_inline                                            ARRAY_LIST_1  thrpt    6   276172673.167 ±   77908134.118   ops/s
+ * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm                         ARRAY_LIST_1  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.forEach_dont_inline                                       ARRAY_LIST_1  thrpt    3   131771385.351 ±     5791600.995   ops/s
- * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm                    ARRAY_LIST_1  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.forEach_dont_inline                                       ARRAY_LIST_1  thrpt    6   246624762.016 ±   15306125.645   ops/s
+ * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm                    ARRAY_LIST_1  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.forEach_inline                                            ARRAY_LIST_5  thrpt    3    61657233.796 ±    22827021.020   ops/s
- * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm                         ARRAY_LIST_5  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.forEach_inline                                            ARRAY_LIST_5  thrpt    6    87720014.120 ±   27715027.106   ops/s
+ * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm                         ARRAY_LIST_5  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.forEach_dont_inline                                       ARRAY_LIST_5  thrpt    3    27739644.723 ±     2168701.924   ops/s
- * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm                    ARRAY_LIST_5  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.forEach_dont_inline                                       ARRAY_LIST_5  thrpt    6    85158415.126 ±    3496971.118   ops/s
+ * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm                    ARRAY_LIST_5  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.forEach_inline                                           ARRAY_LIST_10  thrpt    3    28127208.294 ±    26550020.011   ops/s
- * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm                        ARRAY_LIST_10  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.forEach_inline                                           ARRAY_LIST_10  thrpt    6    34553504.978 ±    6862692.219   ops/s
+ * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm                        ARRAY_LIST_10  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.forEach_dont_inline                                      ARRAY_LIST_10  thrpt    3    12826780.510 ±     1545440.613   ops/s
- * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm                   ARRAY_LIST_10  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.forEach_dont_inline                                      ARRAY_LIST_10  thrpt    6    34842477.542 ±    3814763.538   ops/s
+ * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm                   ARRAY_LIST_10  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.forEach_inline                                          ARRAY_LIST_100  thrpt    3     4919956.616 ±     2482616.871   ops/s
- * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm                       ARRAY_LIST_100  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.forEach_inline                                          ARRAY_LIST_100  thrpt    6     4811830.148 ±    1340605.559   ops/s
+ * ListIterationBenchmark.forEach_inline:gc.alloc.rate.norm                       ARRAY_LIST_100  thrpt    6          ≈ 10⁻⁴                      B/op
  *
- * ListIterationBenchmark.forEach_dont_inline                                     ARRAY_LIST_100  thrpt    3     3631999.182 ±     2290995.458   ops/s
- * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm                  ARRAY_LIST_100  thrpt    3          ≈ 10⁻³                      B/op
+ * ListIterationBenchmark.forEach_dont_inline                                     ARRAY_LIST_100  thrpt    6     4544904.068 ±     324694.949   ops/s
+ * ListIterationBenchmark.forEach_dont_inline:gc.alloc.rate.norm                  ARRAY_LIST_100  thrpt    6          ≈ 10⁻⁴                      B/op
  *
  *
- * ListIterationBenchmark.iterator_inline                                 COLLECTIONS_EMPTY_LIST  thrpt    3  8782837307.595 ±  9193909313.868   ops/s
- * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm              COLLECTIONS_EMPTY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.iterator_inline                                 COLLECTIONS_EMPTY_LIST  thrpt    6  3359558430.152 ±  404383428.668   ops/s
+ * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm              COLLECTIONS_EMPTY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.iterator_dont_inline                            COLLECTIONS_EMPTY_LIST  thrpt    3  9077833391.678 ±  9363495032.329   ops/s
- * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm         COLLECTIONS_EMPTY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.iterator_dont_inline                            COLLECTIONS_EMPTY_LIST  thrpt    6  3433230085.533 ±  168311857.573   ops/s
+ * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm         COLLECTIONS_EMPTY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.iterator_inline                                       EMPTY_ARRAY_LIST  thrpt    3  7577428097.018 ± 17869599838.589   ops/s
- * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm                    EMPTY_ARRAY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.iterator_inline                                       EMPTY_ARRAY_LIST  thrpt    6  3261054045.617 ±  230129899.469   ops/s
+ * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm                    EMPTY_ARRAY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.iterator_dont_inline                                  EMPTY_ARRAY_LIST  thrpt    3  8905180606.486 ±  1278759944.669   ops/s
- * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm               EMPTY_ARRAY_LIST  thrpt    3          ≈ 10⁻⁷                      B/op
+ * ListIterationBenchmark.iterator_dont_inline                                  EMPTY_ARRAY_LIST  thrpt    6  3206102591.326 ±  162666444.955   ops/s
+ * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm               EMPTY_ARRAY_LIST  thrpt    6          ≈ 10⁻⁷                      B/op
  *
- * ListIterationBenchmark.iterator_inline                                         SINGLETON_LIST  thrpt    3   545492858.104 ±   288175308.591   ops/s
- * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm                      SINGLETON_LIST  thrpt    3          ≈ 10⁻⁶                      B/op
+ * ListIterationBenchmark.iterator_inline                                         SINGLETON_LIST  thrpt    6   331489476.477 ±   83900966.078   ops/s
+ * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm                      SINGLETON_LIST  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.iterator_dont_inline                                    SINGLETON_LIST  thrpt    3   227010872.669 ±    23119526.801   ops/s
- * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm                 SINGLETON_LIST  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.iterator_dont_inline                                    SINGLETON_LIST  thrpt    6   377189128.976 ±  107802563.668   ops/s
+ * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm                 SINGLETON_LIST  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.iterator_inline                                           ARRAY_LIST_1  thrpt    3   228450106.295 ±   118964448.603   ops/s
- * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm                        ARRAY_LIST_1  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.iterator_inline                                           ARRAY_LIST_1  thrpt    6   344624730.754 ±   16714262.973   ops/s
+ * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm                        ARRAY_LIST_1  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.iterator_dont_inline                                      ARRAY_LIST_1  thrpt    3   137387128.594 ±    25909582.512   ops/s
- * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm                   ARRAY_LIST_1  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.iterator_dont_inline                                      ARRAY_LIST_1  thrpt    6   265191798.107 ±   50433283.246   ops/s
+ * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm                   ARRAY_LIST_1  thrpt    6          ≈ 10⁻⁶                      B/op
  *
- * ListIterationBenchmark.iterator_inline                                           ARRAY_LIST_5  thrpt    3    76164387.317 ±     8753181.873   ops/s
- * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm                        ARRAY_LIST_5  thrpt    3          ≈ 10⁻⁵                      B/op
+ * ListIterationBenchmark.iterator_inline                                           ARRAY_LIST_5  thrpt    6    83638808.579 ±   28683758.671   ops/s
+ * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm                        ARRAY_LIST_5  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.iterator_dont_inline                                      ARRAY_LIST_5  thrpt    3    23222672.053 ±    14620774.912   ops/s
- * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm                   ARRAY_LIST_5  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.iterator_dont_inline                                      ARRAY_LIST_5  thrpt    6    80787244.289 ±   13548825.106   ops/s
+ * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm                   ARRAY_LIST_5  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.iterator_inline                                          ARRAY_LIST_10  thrpt    3    32207574.764 ±     8935430.248   ops/s
- * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm                       ARRAY_LIST_10  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.iterator_inline                                          ARRAY_LIST_10  thrpt    6    51870395.372 ±    6285601.386   ops/s
+ * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm                       ARRAY_LIST_10  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.iterator_dont_inline                                     ARRAY_LIST_10  thrpt    3     7744943.832 ±     4007932.991   ops/s
- * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm                  ARRAY_LIST_10  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.iterator_dont_inline                                     ARRAY_LIST_10  thrpt    6    36344588.246 ±    7084099.030   ops/s
+ * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm                  ARRAY_LIST_10  thrpt    6          ≈ 10⁻⁵                      B/op
  *
- * ListIterationBenchmark.iterator_inline                                         ARRAY_LIST_100  thrpt    3     4858523.049 ±     1169051.166   ops/s
- * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm                      ARRAY_LIST_100  thrpt    3          ≈ 10⁻⁴                      B/op
+ * ListIterationBenchmark.iterator_inline                                         ARRAY_LIST_100  thrpt    6     6307755.121 ±     557388.178   ops/s
+ * ListIterationBenchmark.iterator_inline:gc.alloc.rate.norm                      ARRAY_LIST_100  thrpt    6          ≈ 10⁻⁴                      B/op
  *
- * ListIterationBenchmark.iterator_dont_inline                                    ARRAY_LIST_100  thrpt    3     3573806.058 ±     1033738.003   ops/s
- * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm                 ARRAY_LIST_100  thrpt    3          ≈ 10⁻³                      B/op
+ * ListIterationBenchmark.iterator_dont_inline                                    ARRAY_LIST_100  thrpt    6     4780011.396 ±     987345.508   ops/s
+ * ListIterationBenchmark.iterator_dont_inline:gc.alloc.rate.norm                 ARRAY_LIST_100  thrpt    6          ≈ 10⁻⁴                      B/op
  *
  *
- * ListIterationBenchmark.parallelStreams_inline                          COLLECTIONS_EMPTY_LIST  thrpt    3   378041146.558 ±   143697638.943   ops/s
- * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm       COLLECTIONS_EMPTY_LIST  thrpt    3         128.000 ±           0.001    B/op
+ * ListIterationBenchmark.parallelStreams_inline                          COLLECTIONS_EMPTY_LIST  thrpt    6   120936524.095 ±   27406664.594   ops/s
+ * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm       COLLECTIONS_EMPTY_LIST  thrpt    6         128.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.parallelStreams_dont_inline                     COLLECTIONS_EMPTY_LIST  thrpt    3   350864577.375 ±   117736321.914   ops/s
- * ListIterationBenchmark.parallelStreams_dont_inline:gc.alloc.rate.norm  COLLECTIONS_EMPTY_LIST  thrpt    3         128.000 ±           0.001    B/op
+ * ListIterationBenchmark.parallelStreams_dont_inline                     COLLECTIONS_EMPTY_LIST  thrpt    6   117725319.706 ±   17140950.267   ops/s
+ * ListIterationBenchmark.parallelStreams_dont_inline:gc.alloc.rate.norm  COLLECTIONS_EMPTY_LIST  thrpt    6         128.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.parallelStreams_inline                                EMPTY_ARRAY_LIST  thrpt    3   324256295.000 ±    62831502.030   ops/s
- * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm             EMPTY_ARRAY_LIST  thrpt    3         160.000 ±           0.001    B/op
+ * ListIterationBenchmark.parallelStreams_inline                                EMPTY_ARRAY_LIST  thrpt    6   126621266.650 ±    6027180.747   ops/s
+ * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm             EMPTY_ARRAY_LIST  thrpt    6         160.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.parallelStreams_dont_inline                           EMPTY_ARRAY_LIST  thrpt    3  1044022834.772 ±  4619766802.708   ops/s
- * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm             EMPTY_ARRAY_LIST  thrpt    3         160.000 ±           0.001    B/op
+ * ListIterationBenchmark.parallelStreams_dont_inline                           EMPTY_ARRAY_LIST  thrpt    6   104930321.022 ±   34783325.818   ops/s
+ * ListIterationBenchmark.parallelStreams_dont_inline:gc.alloc.rate.norm        EMPTY_ARRAY_LIST  thrpt    6         160.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.parallelStreams_inline                                  SINGLETON_LIST  thrpt    3    18501339.741 ±     1654479.836   ops/s
- * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm               SINGLETON_LIST  thrpt    3         152.000 ±           0.001    B/op
+ * ListIterationBenchmark.parallelStreams_inline                                  SINGLETON_LIST  thrpt    6    16774561.421 ±      582072.172   ops/s
+ * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm               SINGLETON_LIST  thrpt    6         152.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.parallelStreams_dont_inline                             SINGLETON_LIST  thrpt    3    21809861.051 ±      350120.124   ops/s
- * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm               SINGLETON_LIST  thrpt    3         152.000 ±           0.001    B/op
+ * ListIterationBenchmark.parallelStreams_dont_inline                             SINGLETON_LIST  thrpt    6    16119756.297 ±      313920.576   ops/s
+ * ListIterationBenchmark.parallelStreams_dont_inline:gc.alloc.rate.norm          SINGLETON_LIST  thrpt    6         152.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.parallelStreams_inline                                    ARRAY_LIST_1  thrpt    3    18012814.959 ±     1696186.799   ops/s
- * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm                 ARRAY_LIST_1  thrpt    3         160.000 ±           0.001    B/op
+ * ListIterationBenchmark.parallelStreams_inline                                    ARRAY_LIST_1  thrpt    6    21404468.390 ±    1052683.393   ops/s
+ * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm                 ARRAY_LIST_1  thrpt    6         160.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.parallelStreams_dont_inline                               ARRAY_LIST_1  thrpt    3   111167193.920 ±    22996298.573   ops/s
- * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm                 ARRAY_LIST_1  thrpt    3         160.000 ±           0.001    B/op
+ * ListIterationBenchmark.parallelStreams_dont_inline                               ARRAY_LIST_1  thrpt    6    21321342.506 ±    1871460.083   ops/s
+ * ListIterationBenchmark.parallelStreams_dont_inline:gc.alloc.rate.norm            ARRAY_LIST_1  thrpt    6         160.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.parallelStreams_inline                                    ARRAY_LIST_5  thrpt    3     2012388.452 ±      949228.198   ops/s
- * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm                 ARRAY_LIST_5  thrpt    3         480.299 ±           0.347    B/op
+ * ListIterationBenchmark.parallelStreams_inline                                    ARRAY_LIST_5  thrpt    6     2504163.930 ±     263550.892   ops/s
+ * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm                 ARRAY_LIST_5  thrpt    6         480.063 ±           0.017    B/op
  *
- * ListIterationBenchmark.parallelStreams_dont_inline                               ARRAY_LIST_5  thrpt    3     2128440.686 ±      511599.227   ops/s
- * ListIterationBenchmark.parallelStreams_dont_inline:gc.alloc.rate.norm            ARRAY_LIST_5  thrpt    3         480.254 ±           0.357    B/op
+ * ListIterationBenchmark.parallelStreams_dont_inline                               ARRAY_LIST_5  thrpt    6     2289397.508 ±     565554.783   ops/s
+ * ListIterationBenchmark.parallelStreams_dont_inline:gc.alloc.rate.norm            ARRAY_LIST_5  thrpt    6         480.089 ±           0.041    B/op
  *
- * ListIterationBenchmark.parallelStreams_inline                                   ARRAY_LIST_10  thrpt    3     1303577.389 ±      929027.756   ops/s
- * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm                ARRAY_LIST_10  thrpt    3         880.359 ±           0.262    B/op
+ * ListIterationBenchmark.parallelStreams_inline                                   ARRAY_LIST_10  thrpt    6     1346887.163 ±     373998.298   ops/s
+ * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm                ARRAY_LIST_10  thrpt    6         880.110 ±           0.045    B/op
  *
- * ListIterationBenchmark.parallelStreams_dont_inline                              ARRAY_LIST_10  thrpt    3     1311148.884 ±      126593.404   ops/s
- * ListIterationBenchmark.parallelStreams_dont_inline:gc.alloc.rate.norm           ARRAY_LIST_10  thrpt    3         880.457 ±           0.052    B/op
+ * ListIterationBenchmark.parallelStreams_dont_inline                              ARRAY_LIST_10  thrpt    6     1140354.960 ±     189575.120   ops/s
+ * ListIterationBenchmark.parallelStreams_dont_inline:gc.alloc.rate.norm           ARRAY_LIST_10  thrpt    6         880.177 ±           0.091    B/op
  *
- * ListIterationBenchmark.parallelStreams_inline                                  ARRAY_LIST_100  thrpt    3      581725.185 ±       79053.756   ops/s
- * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm               ARRAY_LIST_100  thrpt    3        5200.204 ±           0.339    B/op
+ * ListIterationBenchmark.parallelStreams_inline                                  ARRAY_LIST_100  thrpt    6      285244.550 ±     138634.195   ops/s
+ * ListIterationBenchmark.parallelStreams_inline:gc.alloc.rate.norm               ARRAY_LIST_100  thrpt    6        5201.037 ±           1.468    B/op
  *
- * ListIterationBenchmark.parallelStreams_dont_inline                             ARRAY_LIST_100  thrpt    3      535792.621 ±      171447.687   ops/s
- * ListIterationBenchmark.parallelStreams_dont_inline:gc.alloc.rate.norm          ARRAY_LIST_100  thrpt    3        5200.636 ±          2.516     B/op
+ * ListIterationBenchmark.parallelStreams_dont_inline                             ARRAY_LIST_100  thrpt    6      253984.999 ±      25333.775   ops/s
+ * ListIterationBenchmark.parallelStreams_dont_inline:gc.alloc.rate.norm          ARRAY_LIST_100  thrpt    6        5200.636 ±           0.278    B/op
  *
  *
- * ListIterationBenchmark.streams_inline                                  COLLECTIONS_EMPTY_LIST  thrpt    3  1908867078.365 ±   457707512.391   ops/s
- * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm               COLLECTIONS_EMPTY_LIST  thrpt    3          56.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_inline                                  COLLECTIONS_EMPTY_LIST  thrpt    6  1001084687.071 ±  437785554.745   ops/s
+ * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm               COLLECTIONS_EMPTY_LIST  thrpt    6          56.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.streams_dont_inline                             COLLECTIONS_EMPTY_LIST  thrpt    3  1921592196.919 ±   244634653.490   ops/s
- * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm          COLLECTIONS_EMPTY_LIST  thrpt    3          56.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_dont_inline                             COLLECTIONS_EMPTY_LIST  thrpt    6   929213084.624 ±  142946810.333   ops/s
+ * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm          COLLECTIONS_EMPTY_LIST  thrpt    6          56.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.streams_inline                                        EMPTY_ARRAY_LIST  thrpt    3  1214862597.257 ±   135140736.401   ops/s
- * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm                     EMPTY_ARRAY_LIST  thrpt    3          88.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_inline                                        EMPTY_ARRAY_LIST  thrpt    6   584212874.954 ±  209743095.690   ops/s
+ * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm                     EMPTY_ARRAY_LIST  thrpt    6          88.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.streams_dont_inline                                   EMPTY_ARRAY_LIST  thrpt    3  1224109308.819 ±   128448610.019   ops/s
- * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm                EMPTY_ARRAY_LIST  thrpt    3          88.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_dont_inline                                   EMPTY_ARRAY_LIST  thrpt    6   270680135.068 ±   12934279.122   ops/s
+ * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm                EMPTY_ARRAY_LIST  thrpt    6          88.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.streams_inline                                          SINGLETON_LIST  thrpt    3    38323049.906 ±    12454289.128   ops/s
- * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm                       SINGLETON_LIST  thrpt    3          80.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_inline                                          SINGLETON_LIST  thrpt    6    41450495.098 ±   15155978.655   ops/s
+ * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm                       SINGLETON_LIST  thrpt    6          80.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.streams_dont_inline                                     SINGLETON_LIST  thrpt    3    23491667.001 ±     7585146.466   ops/s
- * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm                  SINGLETON_LIST  thrpt    3          80.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_dont_inline                                     SINGLETON_LIST  thrpt    6    32201013.051 ±    3839804.719   ops/s
+ * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm                  SINGLETON_LIST  thrpt    6          80.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.streams_inline                                            ARRAY_LIST_1  thrpt    3   196494080.731 ±   111300975.392   ops/s
- * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm                         ARRAY_LIST_1  thrpt    3          88.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_inline                                            ARRAY_LIST_1  thrpt    6    34861920.999 ±    6424967.299   ops/s
+ * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm                         ARRAY_LIST_1  thrpt    6          88.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.streams_dont_inline                                       ARRAY_LIST_1  thrpt    3   118268890.253 ±    13653144.114   ops/s
- * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm                    ARRAY_LIST_1  thrpt    3          88.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_dont_inline                                       ARRAY_LIST_1  thrpt    6    32473385.005 ±    8663289.921   ops/s
+ * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm                    ARRAY_LIST_1  thrpt    6          88.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.streams_inline                                            ARRAY_LIST_5  thrpt    3    69135875.825 ±     3742040.817   ops/s
- * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm                         ARRAY_LIST_5  thrpt    3          88.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_inline                                            ARRAY_LIST_5  thrpt    6    24922696.394 ±    3309353.634   ops/s
+ * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm                         ARRAY_LIST_5  thrpt    6          88.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.streams_dont_inline                                       ARRAY_LIST_5  thrpt    3    46099259.535 ±    29749609.625   ops/s
- * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm                    ARRAY_LIST_5  thrpt    3          88.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_dont_inline                                       ARRAY_LIST_5  thrpt    6    21741745.391 ±    5026648.521   ops/s
+ * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm                    ARRAY_LIST_5  thrpt    6          88.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.streams_inline                                           ARRAY_LIST_10  thrpt    3    14923107.542 ±     5663775.999   ops/s
- * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm                        ARRAY_LIST_10  thrpt    3          88.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_inline                                           ARRAY_LIST_10  thrpt    6    12766807.560 ±    7128658.860   ops/s
+ * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm                        ARRAY_LIST_10  thrpt    6          88.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.streams_dont_inline                                      ARRAY_LIST_10  thrpt    3    17238302.629 ±     3449711.016   ops/s
- * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm                   ARRAY_LIST_10  thrpt    3          88.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_dont_inline                                      ARRAY_LIST_10  thrpt    6    12683336.048 ±    2867751.497   ops/s
+ * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm                   ARRAY_LIST_10  thrpt    6          88.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.streams_inline                                          ARRAY_LIST_100  thrpt    3     4974152.515 ±     1040136.146   ops/s
- * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm                       ARRAY_LIST_100  thrpt    3          88.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_inline                                          ARRAY_LIST_100  thrpt    6     3900281.683 ±     471999.748   ops/s
+ * ListIterationBenchmark.streams_inline:gc.alloc.rate.norm                       ARRAY_LIST_100  thrpt    6          88.000 ±           0.001    B/op
  *
- * ListIterationBenchmark.streams_dont_inline                                     ARRAY_LIST_100  thrpt    3     5781143.104 ±     2907139.961   ops/s
- * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm                  ARRAY_LIST_100  thrpt    3          88.000 ±           0.001    B/op
+ * ListIterationBenchmark.streams_dont_inline                                     ARRAY_LIST_100  thrpt    6     5049831.655 ±    1023034.564   ops/s
+ * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm                  ARRAY_LIST_100  thrpt    6          88.000 ±           0.001    B/op
  * </code>
  */
 @Fork(2)
