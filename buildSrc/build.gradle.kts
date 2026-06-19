@@ -76,9 +76,7 @@ gradlePlugin {
   }
 }
 
-apply {
-  from("$rootDir/../gradle/repositories.gradle")
-}
+apply(from = "$rootDir/../gradle/repositories.gradle")
 
 repositories {
   gradlePluginPortal()
@@ -117,7 +115,7 @@ tasks.compileKotlin {
 testing {
   @Suppress("UnstableApiUsage")
   suites {
-    val test by getting(JvmTestSuite::class) {
+    named<JvmTestSuite>("test") {
       dependencies {
         implementation(libs.assertj.core)
       }
