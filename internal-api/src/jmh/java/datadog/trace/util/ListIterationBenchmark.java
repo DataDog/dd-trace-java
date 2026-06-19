@@ -2,6 +2,7 @@ package datadog.trace.util;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.CompilerControl;
@@ -292,7 +293,7 @@ import org.openjdk.jmh.annotations.Warmup;
  * ListIterationBenchmark.streams_dont_inline:gc.alloc.rate.norm                  ARRAY_LIST_100  thrpt    3          88.000 ±           0.001    B/op
  * </code>
  */
-@Fork(1)
+@Fork(2)
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @Threads(8)
@@ -404,7 +405,7 @@ public class ListIterationBenchmark {
 
   @Benchmark
   public void parallelStreams_inline() {
-    listSpec.list.parallelStream().forEach(Element::manipulate_dont_inline);
+    listSpec.list.parallelStream().forEach(Element::manipulate_inline);
   }
 
   @Benchmark
