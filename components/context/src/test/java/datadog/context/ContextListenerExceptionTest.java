@@ -7,8 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import javax.annotation.ParametersAreNonnullByDefault;
 import org.junit.jupiter.api.Test;
 
+@ParametersAreNonnullByDefault
 class ContextListenerExceptionTest extends ContextTestBase {
   @Test
   void testListenerExceptionSwallowed() {

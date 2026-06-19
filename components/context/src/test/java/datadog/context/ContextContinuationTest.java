@@ -15,8 +15,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import javax.annotation.ParametersAreNonnullByDefault;
 import org.junit.jupiter.api.Test;
 
+@ParametersAreNonnullByDefault
 class ContextContinuationTest extends ContextTestBase {
   private static final ContextKey<String> CONTINUATION_KEY = ContextKey.named("continuation-key");
 
