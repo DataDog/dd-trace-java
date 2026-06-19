@@ -318,6 +318,10 @@ abstract class SynapseTest extends VersionedNamingTestBase {
 
 class SynapseV0ForkedTest extends SynapseTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
+  @Override
+  String operation() {
+    return "synapse-client.request"
+  }
 
   @Override
   String expectedServerOperation() {

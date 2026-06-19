@@ -36,6 +36,7 @@ public class ClientNamingV0 implements NamingSchema.ForClient {
       case "java-http-client":
       case "grizzly-http-async-client":
       case "spring-webflux-client":
+      case "synapse-client":
       case "jetty-client":
         return component + ".request";
       case "apache-httpclient":

@@ -35,6 +35,7 @@ class ClientNamingV0OperationNameTest extends DDSpecification {
     "java-http-client"         | "java-http-client.request"
     "grizzly-http-async-client"| "grizzly-http-async-client.request"
     "spring-webflux-client"    | "spring-webflux-client.request"
+    "synapse-client"           | "synapse-client.request"
     "jetty-client"             | "jetty-client.request"
   }
 
@@ -83,6 +84,7 @@ class ClientNamingV0OperationNameTest extends DDSpecification {
       "java-http-client",
       "grizzly-http-async-client",
       "spring-webflux-client",
+      "synapse-client",
       "jetty-client",
     ]
   }
@@ -105,6 +107,7 @@ class ClientNamingV0OperationNameTest extends DDSpecification {
       "java-http-client",
       "grizzly-http-async-client",
       "spring-webflux-client",
+      "synapse-client",
       "jetty-client",
     ]
   }
@@ -127,6 +130,7 @@ class ClientNamingV0OperationNameTest extends DDSpecification {
       "java-http-client",
       "grizzly-http-async-client",
       "spring-webflux-client",
+      "synapse-client",
       "jetty-client",
     ]
   }
