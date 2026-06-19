@@ -147,7 +147,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.FieldValue("_contentParameters") final MultiMap<String> contentParameters,
         @Advice.FieldValue(value = "_multiParts", typing = Assigner.Typing.DYNAMIC)
             final Object multiParts) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MultipartHelper.class);
       return callDepth == 0 && contentParameters == null && multiParts == null;
     }
 
@@ -157,7 +157,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.Return Collection<Part> parts,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      CallDepthThreadLocalMap.decrementCallDepth(Collection.class);
+      CallDepthThreadLocalMap.decrementCallDepth(MultipartHelper.class);
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
@@ -174,7 +174,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   public static class GetFilenamesFromMultiPartAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before() {
-      return CallDepthThreadLocalMap.incrementCallDepth(Collection.class) == 0;
+      return CallDepthThreadLocalMap.incrementCallDepth(MultipartHelper.class) == 0;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
@@ -183,7 +183,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.Return Collection<Part> parts,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      CallDepthThreadLocalMap.decrementCallDepth(Collection.class);
+      CallDepthThreadLocalMap.decrementCallDepth(MultipartHelper.class);
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
