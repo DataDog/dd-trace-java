@@ -4,7 +4,7 @@ import java.lang.ref.WeakReference;
 
 /** {@link ContextScope} that has no effect on execution units. */
 final class NoopContextScope extends WeakReference<Context> implements ContextScope {
-  private static final ContextScope ROOT_SCOPE = new NoopContextScope(Context.root());
+  static final ContextScope ROOT_SCOPE = new NoopContextScope(Context.root());
 
   private static final int CACHE_SIZE = 32; // must be power of 2
   private static final int SLOT_MASK = CACHE_SIZE - 1;

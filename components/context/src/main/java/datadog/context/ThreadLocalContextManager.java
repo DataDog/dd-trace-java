@@ -9,7 +9,7 @@ final class ThreadLocalContextManager implements ContextManager {
   static final ThreadLocalContextManager INSTANCE = new ThreadLocalContextManager();
 
   private static final ThreadLocal<Context[]> CURRENT_HOLDER =
-      ThreadLocal.withInitial(() -> new Context[] {EmptyContext.INSTANCE});
+      ThreadLocal.withInitial(() -> new Context[] {Context.root()});
 
   private final Object listenersWriteLock = new Object();
   private volatile ContextListener[] listeners = {};
@@ -68,7 +68,7 @@ final class ThreadLocalContextManager implements ContextManager {
   @Override
   public ContextContinuation capture(Context context) {
     if (context == Context.root()) {
-      return EmptyContextContinuation.INSTANCE;
+      return NoopContextContinuation.ROOT_CONTINUATION;
     } else {
       return new ContextContinuationImpl(context);
     }
