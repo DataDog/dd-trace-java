@@ -7,12 +7,10 @@ apply(from = "$rootDir/gradle/java.gradle")
 
 description = "Feature flagging remote config and exposure handling"
 
-val excludedClassesCoverage by extra(
-  listOf(
-    // POJOs
-    "com.datadog.featureflag.ExposureCache.Key",
-    "com.datadog.featureflag.ExposureCache.Value"
-  )
+extra["excludedClassesCoverage"] = listOf(
+  // POJOs
+  "com.datadog.featureflag.ExposureCache.Key",
+  "com.datadog.featureflag.ExposureCache.Value"
 )
 
 dependencies {
