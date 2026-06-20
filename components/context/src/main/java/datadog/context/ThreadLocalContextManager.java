@@ -8,15 +8,15 @@ import javax.annotation.Nullable;
 final class ThreadLocalContextManager implements ContextManager {
   static final ThreadLocalContextManager INSTANCE = new ThreadLocalContextManager();
 
-  private static final ThreadLocal<Context[]> CURRENT_HOLDER =
-      ThreadLocal.withInitial(() -> new Context[] {Context.root()});
+  private static final ThreadLocal<ContextHolder> CONTEXT_HOLDER =
+      ThreadLocal.withInitial(ContextHolder::new);
 
   private final Object listenersWriteLock = new Object();
-  private volatile ContextListener[] listeners = {};
+  volatile ContextListener[] listeners = {};
 
   @Override
   public Context current() {
-    return CURRENT_HOLDER.get()[0];
+    return CONTEXT_HOLDER.get().current;
   }
 
   @Override
@@ -25,9 +25,9 @@ final class ThreadLocalContextManager implements ContextManager {
   }
 
   ContextScope doAttach(Context context, @Nullable ContextContinuationImpl continuation) {
-    Context[] holder = CURRENT_HOLDER.get();
+    ContextHolder holder = CONTEXT_HOLDER.get();
 
-    Context previous = holder[0];
+    Context previous = holder.current;
     if (context == previous) {
       if (continuation != null) {
         // already attached, safe to release early to avoid resource leak
@@ -38,7 +38,7 @@ final class ThreadLocalContextManager implements ContextManager {
 
     ContextListener[] ls = listeners;
     notifyDetach(previous, ls);
-    holder[0] = context;
+    holder.current = context;
     notifyAttach(context, ls);
 
     if (continuation == null) {
@@ -50,16 +50,16 @@ final class ThreadLocalContextManager implements ContextManager {
 
   @Override
   public Context swap(Context context) {
-    Context[] holder = CURRENT_HOLDER.get();
+    ContextHolder holder = CONTEXT_HOLDER.get();
 
-    Context previous = holder[0];
+    Context previous = holder.current;
     if (context == previous) {
       return previous;
     }
 
     ContextListener[] ls = listeners;
     notifyDetach(previous, ls);
-    holder[0] = context;
+    holder.current = context;
     notifyAttach(context, ls);
 
     return previous;
@@ -142,12 +142,12 @@ final class ThreadLocalContextManager implements ContextManager {
   private static class ContextScopeImpl implements ContextScope {
 
     private final Context context;
-    private final Context[] holder;
+    private final ContextHolder holder;
     private final Context previous;
 
     private boolean closed;
 
-    ContextScopeImpl(Context context, Context[] holder, Context previous) {
+    ContextScopeImpl(Context context, ContextHolder holder, Context previous) {
       this.context = context;
       this.holder = holder;
       this.previous = previous;
@@ -162,10 +162,10 @@ final class ThreadLocalContextManager implements ContextManager {
     public void close() {
       if (!closed) {
         // check for out-of-order close to avoid corrupting the current state
-        if (context == holder[0]) {
+        if (context == holder.current) {
           ContextListener[] ls = INSTANCE.listeners;
           notifyDetach(context, ls);
-          holder[0] = previous;
+          holder.current = previous;
           notifyAttach(previous, ls);
           closed = true;
         }
@@ -178,7 +178,7 @@ final class ThreadLocalContextManager implements ContextManager {
 
     ResumedScopeImpl(
         Context context,
-        Context[] holder,
+        ContextHolder holder,
         Context previous,
         @Nullable ContextContinuationImpl continuation) {
       super(context, holder, previous);
@@ -284,5 +284,9 @@ final class ThreadLocalContextManager implements ContextManager {
         release();
       } /* else there are outstanding resumes or hold is in place */
     }
+  }
+
+  private static final class ContextHolder {
+    Context current = Context.root();
   }
 }
