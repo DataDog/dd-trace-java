@@ -87,6 +87,11 @@ abstract class ArmeriaGrpcTest extends VersionedNamingTestBase {
     injectSysConfig(GRPC_SERVER_ERROR_STATUSES, "2-14", true)
   }
 
+  @Override
+  boolean useStrictTraceWrites() {
+    false
+  }
+
   def setupSpec() {
     ig = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC)
   }
