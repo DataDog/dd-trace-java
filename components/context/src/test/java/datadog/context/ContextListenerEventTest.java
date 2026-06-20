@@ -28,6 +28,8 @@ class ContextListenerEventTest extends ContextTestBase {
   void testListenersNotNotifiedForRootContext() {
     List<String> events = new ArrayList<>();
     ContextManager.register(trackingListener(events));
+    root().attach(); // current is already root, no events
+    assertTrue(events.isEmpty(), "root attach should not trigger listeners");
     root().swap(); // current is already root, no events
     assertTrue(events.isEmpty(), "root swap should not trigger listeners");
     Context context = root().with(STRING_KEY, "value");
@@ -42,14 +44,14 @@ class ContextListenerEventTest extends ContextTestBase {
     List<String> events = new ArrayList<>();
     ContextManager.register(trackingListener(events));
     Context context = root().with(STRING_KEY, "same");
-    ContextScope outer = context.attach();
-    assertEquals(asList("attach"), events);
-    try (ContextScope noop = context.attach()) {
-      assertEquals(context, current());
-      assertEquals(asList("attach"), events); // no new events on same-context attach
+    try (ContextScope outer = context.attach()) {
+      assertEquals(asList("attach"), events);
+      try (ContextScope noop = context.attach()) {
+        assertEquals(context, current());
+        assertEquals(asList("attach"), events); // no new events on same-context attach
+      }
+      assertEquals(asList("attach"), events); // noop close fires no events either
     }
-    assertEquals(asList("attach"), events); // noop close fires no events either
-    outer.close();
     assertEquals(asList("attach", "detach"), events);
   }
 

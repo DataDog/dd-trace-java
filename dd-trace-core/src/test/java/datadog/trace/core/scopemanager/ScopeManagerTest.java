@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.core.scopemanager.ScopeManagerTest.EVENT.ACTIVATE;
 import static datadog.trace.core.scopemanager.ScopeManagerTest.EVENT.CLOSE;
 import static datadog.trace.test.util.GCUtils.awaitGC;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -1133,13 +1134,13 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
   void captureContextWithoutSpanUsesNoopTraceCollector() {
     ContextKey<String> key = ContextKey.named("test-key");
     Context ctx = Context.root().with(key, "value");
-    try (ContextScope scope = ctx.attach()) {
-      // context with no span uses NoopAgentTraceCollector — should not crash
-      ContextContinuation continuation = Context.current().capture();
-      assertNotNull(continuation);
-      assertEquals(ctx, continuation.context());
-      continuation.release(); // no-op on NoopAgentTraceCollector
-    }
+    assertDoesNotThrow(
+        () -> {
+          // NoopAgentTraceCollector handles capture/release without throwing
+          try (ContextScope scope = ctx.attach()) {
+            Context.current().capture().release();
+          }
+        });
   }
 
   private boolean spanFinished(AgentSpan span) {

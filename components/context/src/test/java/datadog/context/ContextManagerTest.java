@@ -66,8 +66,8 @@ class ContextManagerTest extends ContextTestBase {
     Context context = root().with(STRING_KEY, "value");
     try (ContextScope outer = context.attach()) {
       // two consecutive noop scopes for the same context should be the same cached instance
-      ContextScope noop1 = context.attach();
-      try (ContextScope noop2 = context.attach()) {
+      try (ContextScope noop1 = context.attach();
+          ContextScope noop2 = context.attach()) {
         assertSame(noop1, noop2);
       }
     }
@@ -127,15 +127,16 @@ class ContextManagerTest extends ContextTestBase {
     Context context1 = root().with(STRING_KEY, "value1");
     try (ContextScope ignored = context1.attach()) {
       Context context2 = context1.with(STRING_KEY, "value2");
-      ContextScope scope = context2.attach();
-      // Test current context
-      assertEquals(context2, current());
-      // Test current context deactivation
-      scope.close();
-      assertEquals(context1, current());
-      // Test multiple context deactivations don’t change current context
-      scope.close();
-      assertEquals(context1, current());
+      try (ContextScope scope = context2.attach()) {
+        // Test current context
+        assertEquals(context2, current());
+        // Test current context deactivation
+        scope.close();
+        assertEquals(context1, current());
+        // Test multiple context deactivations don’t change current context
+        scope.close();
+        assertEquals(context1, current());
+      }
     }
   }
 

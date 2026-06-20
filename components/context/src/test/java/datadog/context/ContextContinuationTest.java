@@ -255,16 +255,15 @@ class ContextContinuationTest extends ContextTestBase {
     Context contextD = root().with(CONTINUATION_KEY, "D");
     try (ContextScope scopeR = continuation.resume()) {
       assertEquals(contextC, current());
-      ContextScope scopeD = contextD.attach(); // attaching D fires detach:C, attach:D
-      assertEquals(contextD, current());
+      try (ContextScope scopeD = contextD.attach()) { // attaching D fires detach:C, attach:D
+        assertEquals(contextD, current());
 
-      // close the resume scope out-of-order while D is still nested on top;
-      // release fires immediately, but detach:C does not (C is not current)
-      scopeR.close();
-      assertEquals(asList("attach:C", "detach:C", "attach:D", "release:C"), events);
-      assertEquals(contextD, current()); // D is still current
-
-      scopeD.close(); // unwind D normally, restores C
+        // close the resume scope out-of-order while D is still nested on top;
+        // release fires immediately, but detach:C does not (C is not current)
+        scopeR.close();
+        assertEquals(asList("attach:C", "detach:C", "attach:D", "release:C"), events);
+        assertEquals(contextD, current()); // D is still current
+      } // scopeD closes here: unwind D normally, restores C
       assertEquals(
           asList("attach:C", "detach:C", "attach:D", "release:C", "detach:D", "attach:C"), events);
     } // try-with-resources closes scopeR again; no second release, C unwinds to root
@@ -292,14 +291,13 @@ class ContextContinuationTest extends ContextTestBase {
     Context contextD = root().with(CONTINUATION_KEY, "D");
     try (ContextScope scopeR = continuation.resume()) {
       assertEquals(contextC, current());
-      ContextScope scopeD = contextD.attach(); // detach:C, attach:D
-      assertEquals(contextD, current());
+      try (ContextScope scopeD = contextD.attach()) { // detach:C, attach:D
+        assertEquals(contextD, current());
 
-      scopeR.close(); // out-of-order close while D is still on top; hold prevents auto-release
-      assertEquals(asList("attach:C", "detach:C", "attach:D"), events);
-      assertEquals(contextD, current());
-
-      scopeD.close(); // unwind D, restores C
+        scopeR.close(); // out-of-order close while D is still on top; hold prevents auto-release
+        assertEquals(asList("attach:C", "detach:C", "attach:D"), events);
+        assertEquals(contextD, current());
+      } // scopeD closes here: unwind D, restores C
     } // TWR closes scopeR again (now in-order); detach:C, no release yet (hold is active)
 
     assertEquals(root(), current());
@@ -310,6 +308,46 @@ class ContextContinuationTest extends ContextTestBase {
     assertEquals(
         asList("attach:C", "detach:C", "attach:D", "detach:D", "attach:C", "detach:C", "release:C"),
         events);
+  }
+
+  @Test
+  void testMultipleHoldCallsAreIdempotent() {
+    // Calling hold() more than once should not require more than one explicit release().
+    List<String> events = new ArrayList<>();
+    ContextManager.register(trackingListener(events));
+    Context context = root().with(CONTINUATION_KEY, "value");
+    ContextContinuation continuation;
+    try (ContextScope scope = context.attach()) {
+      continuation = context.capture();
+      continuation.hold();
+      continuation.hold(); // second hold must be a no-op
+    }
+    // One explicit release() is enough — no extra releases needed for the second hold().
+    continuation.release();
+    assertEquals(asList("attach", "capture", "detach", "release"), events);
+    continuation.release(); // still idempotent after the final release
+    assertEquals(asList("attach", "capture", "detach", "release"), events);
+  }
+
+  @Test
+  void testHoldAfterReleaseIsIgnored() {
+    // hold() on an already-released continuation must not resurrect it.
+    List<String> events = new ArrayList<>();
+    ContextManager.register(trackingListener(events));
+    Context context = root().with(CONTINUATION_KEY, "value");
+    ContextContinuation continuation;
+    try (ContextScope scope = context.attach()) {
+      continuation = context.capture();
+    }
+    continuation.release();
+    assertEquals(asList("attach", "capture", "detach", "release"), events);
+    continuation.hold(); // must be silently ignored
+    // resume() after release is already a noop, even with the spurious hold()
+    try (ContextScope scope = continuation.resume()) {
+      assertEquals(root(), current());
+    }
+    continuation.release(); // must not fire a second release event
+    assertEquals(asList("attach", "capture", "detach", "release"), events);
   }
 
   @Test
