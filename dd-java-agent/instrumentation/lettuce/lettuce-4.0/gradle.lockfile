@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:lettuce:lettuce-4.0:dependencies --write-locks
 biz.paluch.redis:lettuce:4.0.Final=compileClasspath,testCompileClasspath,testRuntimeClasspath
 biz.paluch.redis:lettuce:4.5.0.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,testRuntimeClasspath

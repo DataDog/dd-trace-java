@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:tinylog-2.0:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath

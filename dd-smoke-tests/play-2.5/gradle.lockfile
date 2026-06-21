@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-smoke-tests:play-2.5:dependencies --write-locks
 aopalliance:aopalliance:1.0=compileClasspath,play,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 args4j:args4j:2.0.26=javaScriptCompiler
 cafe.cryptography:curve25519-elisabeth:0.1.0=testRuntimeClasspath

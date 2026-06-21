@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:scala:scala-concurrent-2.8:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=latest11TestRuntimeClasspath,latest12TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latest11TestRuntimeClasspath,latest12TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=latest11TestCompileClasspath,latest11TestRuntimeClasspath,latest12TestCompileClasspath,latest12TestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath

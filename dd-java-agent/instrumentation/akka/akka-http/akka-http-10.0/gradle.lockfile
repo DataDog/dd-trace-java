@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:akka:akka-http:akka-http-10.0:dependencies --write-locks
 aopalliance:aopalliance:1.0=lagomTestCompileClasspath,lagomTestRuntimeClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=baseForkedTestRuntimeClasspath,baseTestRuntimeClasspath,iastTestRuntimeClasspath,lagomTestRuntimeClasspath,latestDepIastTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath,version101ForkedTestRuntimeClasspath,version101IastTestRuntimeClasspath,version101TestRuntimeClasspath,version102IastTestRuntimeClasspath,version102Scala213TestRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=baseForkedTestRuntimeClasspath,baseTestRuntimeClasspath,iastTestRuntimeClasspath,lagomTestRuntimeClasspath,latestDepIastTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath,version101ForkedTestRuntimeClasspath,version101IastTestRuntimeClasspath,version101TestRuntimeClasspath,version102IastTestRuntimeClasspath,version102Scala213TestRuntimeClasspath

@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:rabbitmq-amqp-2.7:dependencies --write-locks
 aopalliance:aopalliance:1.0=latestReactorTestCompileClasspath,latestReactorTestRuntimeClasspath,reactorTestCompileClasspath,reactorTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,latestReactorTestRuntimeClasspath,reactorTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,latestReactorTestRuntimeClasspath,reactorTestRuntimeClasspath,testRuntimeClasspath
@@ -45,7 +46,7 @@ com.google.re2j:re2j:1.7=latestDepTestRuntimeClasspath,latestReactorTestRuntimeC
 com.rabbitmq:amqp-client:2.7.0=compileClasspath
 com.rabbitmq:amqp-client:2.8.1=testCompileClasspath,testRuntimeClasspath
 com.rabbitmq:amqp-client:5.14.2=latestReactorTestCompileClasspath,latestReactorTestRuntimeClasspath
-com.rabbitmq:amqp-client:5.31.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+com.rabbitmq:amqp-client:5.32.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 com.rabbitmq:amqp-client:5.5.1=reactorTestCompileClasspath,reactorTestRuntimeClasspath
 com.squareup.moshi:moshi:1.11.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,latestReactorTestCompileClasspath,latestReactorTestRuntimeClasspath,reactorTestCompileClasspath,reactorTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.squareup.okhttp3:logging-interceptor:3.12.12=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,latestReactorTestCompileClasspath,latestReactorTestRuntimeClasspath,reactorTestCompileClasspath,reactorTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
@@ -60,17 +61,17 @@ commons-io:commons-io:2.20.0=spotbugs
 commons-logging:commons-logging:1.1.1=latestReactorTestCompileClasspath,latestReactorTestRuntimeClasspath,reactorTestCompileClasspath,reactorTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 de.thetaphi:forbiddenapis:3.10=compileClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,latestReactorTestCompileClasspath,latestReactorTestRuntimeClasspath,reactorTestCompileClasspath,reactorTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.leangen.geantyref:geantyref:1.3.16=latestDepTestRuntimeClasspath,latestReactorTestRuntimeClasspath,reactorTestRuntimeClasspath,testRuntimeClasspath
-io.netty:netty-buffer:4.2.14.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-io.netty:netty-codec-base:4.2.14.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-io.netty:netty-codec-compression:4.2.14.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-io.netty:netty-codec-marshalling:4.2.14.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-io.netty:netty-codec-protobuf:4.2.14.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-io.netty:netty-codec:4.2.14.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-io.netty:netty-common:4.2.14.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-io.netty:netty-handler:4.2.14.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-io.netty:netty-resolver:4.2.14.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-io.netty:netty-transport-native-unix-common:4.2.14.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-io.netty:netty-transport:4.2.14.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+io.netty:netty-buffer:4.2.15.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+io.netty:netty-codec-base:4.2.15.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+io.netty:netty-codec-compression:4.2.15.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+io.netty:netty-codec-marshalling:4.2.15.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+io.netty:netty-codec-protobuf:4.2.15.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+io.netty:netty-codec:4.2.15.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+io.netty:netty-common:4.2.15.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+io.netty:netty-handler:4.2.15.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+io.netty:netty-resolver:4.2.15.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+io.netty:netty-transport-native-unix-common:4.2.15.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+io.netty:netty-transport:4.2.15.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 io.projectreactor.rabbitmq:reactor-rabbitmq:1.0.0.RELEASE=reactorTestCompileClasspath,reactorTestRuntimeClasspath
 io.projectreactor.rabbitmq:reactor-rabbitmq:1.5.6=latestReactorTestCompileClasspath,latestReactorTestRuntimeClasspath
 io.projectreactor:reactor-core:3.2.3.RELEASE=reactorTestCompileClasspath,reactorTestRuntimeClasspath

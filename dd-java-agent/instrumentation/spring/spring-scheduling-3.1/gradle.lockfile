@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:spring:spring-scheduling-3.1:dependencies --write-locks
 antlr:antlr:2.7.7=latestSpring5TestCompileClasspath,latestSpring5TestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepForkedTestRuntimeClasspath,latestDepTestRuntimeClasspath,latestSpring5TestRuntimeClasspath,spring6TestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latestDepForkedTestRuntimeClasspath,latestDepTestRuntimeClasspath,latestSpring5TestRuntimeClasspath,spring6TestRuntimeClasspath,testRuntimeClasspath

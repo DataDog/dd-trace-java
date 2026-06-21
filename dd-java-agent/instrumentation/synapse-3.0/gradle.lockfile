@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:synapse-3.0:dependencies --write-locks
 c3p0:c3p0:0.9.1.1=testCompileClasspath,testRuntimeClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,testRuntimeClasspath

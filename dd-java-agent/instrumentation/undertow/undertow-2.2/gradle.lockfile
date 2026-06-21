@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:undertow:undertow-2.2:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=latest22ForkedTestRuntimeClasspath,latest22TestRuntimeClasspath,latestDepForkedTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latest22ForkedTestRuntimeClasspath,latest22TestRuntimeClasspath,latestDepForkedTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=latest22ForkedTestCompileClasspath,latest22ForkedTestRuntimeClasspath,latest22TestCompileClasspath,latest22TestRuntimeClasspath,latestDepForkedTestCompileClasspath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath

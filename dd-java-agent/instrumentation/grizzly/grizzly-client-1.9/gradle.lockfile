@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:grizzly:grizzly-client-1.9:dependencies --write-locks
 biz.aQute.bnd:biz.aQute.bnd.annotation:7.1.0=latest5DepTestCompileClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=latest5DepTestRuntimeClasspath,latestDepTestRuntimeClasspath,muleLatestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latest5DepTestRuntimeClasspath,latestDepTestRuntimeClasspath,muleLatestDepTestRuntimeClasspath,testRuntimeClasspath

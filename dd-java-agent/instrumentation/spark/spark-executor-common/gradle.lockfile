@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:spark:spark-executor-common:dependencies --write-locks
 aopalliance:aopalliance:1.0=baseTestCompileClasspath,baseTestRuntimeClasspath,compileClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=baseTestRuntimeClasspath,latest212DepTestRuntimeClasspath,latest213DepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=baseTestRuntimeClasspath,latest212DepTestRuntimeClasspath,latest213DepTestRuntimeClasspath,testRuntimeClasspath

@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:netty:netty-4.1:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
@@ -111,9 +112,9 @@ org.apache.logging.log4j:log4j-api:2.25.2=spotbugs
 org.apache.logging.log4j:log4j-core:2.25.2=spotbugs
 org.apiguardian:apiguardian-api:1.1.2=latestDepTestCompileClasspath,testCompileClasspath
 org.asynchttpclient:async-http-client-netty-utils:2.1.0=testCompileClasspath,testRuntimeClasspath
-org.asynchttpclient:async-http-client-netty-utils:2.15.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+org.asynchttpclient:async-http-client-netty-utils:2.16.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 org.asynchttpclient:async-http-client:2.1.0=testCompileClasspath,testRuntimeClasspath
-org.asynchttpclient:async-http-client:2.15.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+org.asynchttpclient:async-http-client:2.16.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 org.checkerframework:checker-qual:3.33.0=annotationProcessor,latestDepTestAnnotationProcessor,testAnnotationProcessor
 org.codehaus.groovy:groovy-ant:3.0.23=codenarc
 org.codehaus.groovy:groovy-docgenerator:3.0.23=codenarc

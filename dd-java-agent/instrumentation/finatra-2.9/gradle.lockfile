@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:finatra-2.9:dependencies --write-locks
 aopalliance:aopalliance:1.0=compileClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,latestPre207TestCompileClasspath,latestPre207TestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,latestPre207TestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,latestPre207TestRuntimeClasspath,testRuntimeClasspath
