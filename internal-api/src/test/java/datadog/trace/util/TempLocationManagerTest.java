@@ -139,7 +139,9 @@ public class TempLocationManagerTest {
 
     Path fakeTempDir =
         baseDir.resolve(TempLocationManager.getBaseTempDirName() + "/pid_fake/scratch");
-    Files.createDirectories(fakeTempDir);
+    Files.createDirectories(
+        fakeTempDir,
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
     Path fakeTempFile = fakeTempDir.resolve("libxxx.so");
     Files.createFile(fakeTempFile);
 

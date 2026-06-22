@@ -74,8 +74,13 @@ jobs:
         run: |
           mkdir -p /tmp/instrumentation-lockfiles
           find dd-smoke-tests dd-java-agent/instrumentation -name 'gradle.lockfile' -exec cp --parents {} /tmp/instrumentation-lockfiles/ \;
-          # Restore instrumentation dirs to original state (keep only core changes)
+          # Restore instrumentation dirs to original state (keep only core changes).
+          # git restore only reverts tracked files; brand-new lock files are untracked
+          # and would otherwise leak into the core PR, so delete the untracked ones too.
           git restore -- 'dd-smoke-tests/' 'dd-java-agent/instrumentation/'
+          git ls-files --others --exclude-standard -- \
+            'dd-smoke-tests/*gradle.lockfile' 'dd-java-agent/instrumentation/*gradle.lockfile' \
+            | xargs -r rm -f
 
       # ==================== Core modules PR ====================
       - name: Check if core changes exist
@@ -108,7 +113,7 @@ jobs:
         if: steps.check-core-changes.outputs.commit_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
-          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary }}
+          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary_core }}
         run: |
           gh pr create --title "Update Gradle dependencies" \
             --base master \
@@ -168,7 +173,7 @@ jobs:
         if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
-          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary }}
+          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary_instrumentation }}
         run: |
           gh pr create --title "Update instrumentation Gradle dependencies" \
             --base master \

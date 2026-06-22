@@ -1,0 +1,61 @@
+import datadog.gradle.plugin.HostPlatform
+
+// Fix for JVM crashes (SIGSEGV / SIGABRT, exit 134) when the
+// org.gradle.playframework `compilePlayRoutes` Worker Daemon starts up on Linux arm64.
+// No-op on every other host/arch combination.
+if (HostPlatform.isLinuxArm64()) {
+  tasks.named("compilePlayRoutes").configure { task ->
+    // Find the class in the hierarchy that declares the private `workerExecutor` field.
+    def workerExecutorField = null
+    def declaringClass = task.getClass()
+    while (declaringClass != null && workerExecutorField == null) {
+      try {
+        workerExecutorField = declaringClass.getDeclaredField("workerExecutor")
+      } catch (NoSuchFieldException ignored) {
+        declaringClass = declaringClass.getSuperclass()
+      }
+    }
+    if (workerExecutorField == null) {
+      throw new GradleException(
+        "compilePlayRoutes task class ${task.getClass().name} has no workerExecutor field; " +
+        "fix-play-linux-arm64 needs to be updated for this version of the play plugin.")
+    }
+    workerExecutorField.accessible = true
+
+    def cl = declaringClass.getClassLoader()
+    def specClass = cl.loadClass('org.gradle.playframework.tools.internal.routes.DefaultRoutesCompileSpec')
+    def workActionClass = cl.loadClass('org.gradle.playframework.tasks.internal.RoutesCompileWorkAction')
+    def factoryClass = cl.loadClass('org.gradle.playframework.tools.internal.routes.RoutesCompilerFactory')
+    // The `platform` value at runtime is `PlayPlatform_Decorated` (Gradle's generated subclass).
+    // `Class.getMethod` requires an exact parameter-type match, so look up the undecorated type.
+    def platformClass = cl.loadClass('org.gradle.playframework.extensions.PlayPlatform')
+
+    task.actions.clear()
+    task.doLast {
+      def spec = specClass.getConstructors()[0].newInstance(
+        task.source.files,
+        task.outputDirectory.get().asFile,
+        task.javaProject,
+        task.namespaceReverseRouter.get(),
+        task.generateReverseRoutes.get(),
+        task.injectedRoutesGenerator.get(),
+        task.additionalImports.get(),
+        projectDir
+        )
+
+      def workerExecutor = workerExecutorField.get(task)
+      def platform = task.platform.get()
+      def compiler = factoryClass.getMethod('create', platformClass).invoke(null, platform)
+
+      workerExecutor.processIsolation { workerSpec ->
+        workerSpec.forkOptions { options ->
+          options.jvmArgs("-XX:MaxMetaspaceSize=256m", "-Xshare:off")
+        }
+        workerSpec.classpath.from(task.routesCompilerClasspath)
+      }.submit(workActionClass) { parameters ->
+        parameters.compiler.set(compiler)
+        parameters.spec.set(spec)
+      }
+    }
+  }
+}

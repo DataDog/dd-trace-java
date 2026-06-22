@@ -140,7 +140,6 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APP_LOGS_COLLECTION_ENABLED = false;
 
   static final String DEFAULT_APPSEC_ENABLED = "inactive";
-  static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
   static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
@@ -158,6 +157,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT = 10_000_000;
   static final int DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES = 4096;
   static final int DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT = 25;
+  static final int DEFAULT_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES = 1_000;
   static final String DEFAULT_IAST_ENABLED = "false";
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;

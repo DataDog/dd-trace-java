@@ -361,22 +361,6 @@
         "aliases": []
       }
     ],
-    "DD_APPSEC_REPORTING_INBAND": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
-        "aliases": []
-      }
-    ],
-    "DD_APPSEC_REPORT_TIMEOUT": [
-      {
-        "version": "A",
-        "type": "int",
-        "default": "60",
-        "aliases": []
-      }
-    ],
     "DD_APPSEC_RULES": [
       {
         "version": "C",
@@ -390,6 +374,14 @@
         "version": "B",
         "type": "boolean",
         "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1000",
         "aliases": []
       }
     ],
@@ -5767,6 +5759,22 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_FREEMARKER_ENABLED", "DD_INTEGRATION_FREEMARKER_ENABLED"]
+      }
+    ],
+    "DD_TRACE_GAX_1_4_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_GAX_1_4_ENABLED", "DD_INTEGRATION_GAX_1_4_ENABLED"]
+      }
+    ],
+    "DD_TRACE_GAX_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_GAX_ENABLED", "DD_INTEGRATION_GAX_ENABLED"]
       }
     ],
     "DD_TRACE_GIT_METADATA_ENABLED": [

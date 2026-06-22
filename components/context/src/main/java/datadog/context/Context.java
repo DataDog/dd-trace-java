@@ -155,7 +155,7 @@ public interface Context {
    */
   default Context with(@Nullable ImplicitContextKeyed value) {
     if (value == null) {
-      return root();
+      return this;
     }
     return value.storeInto(this);
   }
