@@ -22,6 +22,8 @@ import datadog.trace.api.Trace;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import io.reactivex.rxjava3.core.BackpressureStrategy;
+import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Observable;
@@ -122,10 +124,18 @@ class RxJava3Test extends AbstractInstrumentationTest {
       publisherParentId = span.getSpanId();
       AgentScope scope = activateSpan(span);
 
+      // Normalize every reactive type to a Flowable so a single Subscriber can cancel the
+      // subscription right away, exercising the cancellation path of each instrumentation.
       Object publisher = publisherSupplier.get();
       Flowable<?> flowable;
       if (publisher instanceof Maybe) {
         flowable = ((Maybe<?>) publisher).toFlowable();
+      } else if (publisher instanceof Single) {
+        flowable = ((Single<?>) publisher).toFlowable();
+      } else if (publisher instanceof Observable) {
+        flowable = ((Observable<?>) publisher).toFlowable(BackpressureStrategy.BUFFER);
+      } else if (publisher instanceof Completable) {
+        flowable = ((Completable) publisher).toFlowable();
       } else {
         flowable = (Flowable<?>) publisher;
       }
@@ -368,7 +378,12 @@ class RxJava3Test extends AbstractInstrumentationTest {
     return Arrays.asList(
         Arguments.of("basic maybe", (Supplier<Object>) () -> Maybe.just(1)),
         Arguments.of(
-            "basic flowable", (Supplier<Object>) () -> Flowable.fromIterable(Arrays.asList(5, 6))));
+            "basic flowable", (Supplier<Object>) () -> Flowable.fromIterable(Arrays.asList(5, 6))),
+        Arguments.of("basic single", (Supplier<Object>) () -> Single.just(1)),
+        Arguments.of(
+            "basic observable",
+            (Supplier<Object>) () -> Observable.fromIterable(Arrays.asList(5, 6))),
+        Arguments.of("basic completable", (Supplier<Object>) Completable::complete));
   }
 
   @ParameterizedTest(name = "Publisher ''{0}'' cancel")
