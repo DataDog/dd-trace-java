@@ -594,10 +594,21 @@ tasks.register('verifyAgentJarIntegrations', JavaExec) {
   classpath = objects.fileCollection().from(jarProvider)
   args = ['--list-integrations']
 
+  // Capture both stdout and stderr: InstrumenterIndex.buildModule() logs ERROR and returns null when a module
+  // fails to load, while the process exits with status 0.
   def capturedOutput = new ByteArrayOutputStream()
+  def capturedError  = new ByteArrayOutputStream()
   standardOutput = capturedOutput
+  errorOutput = capturedError
 
   doLast {
+    def stderr = capturedError.toString()
+    if (!stderr.isBlank()) {
+      throw new GradleException(
+      "--list-integrations produced unexpected stderr output " +
+      "(likely a module load failure; see InstrumenterIndex.buildModule):\n${stderr}")
+    }
+
     if (!integrationsGoldenFile.exists()) {
       throw new GradleException(
       "${integrationsGoldenFile.name} not found. " +
@@ -623,7 +634,7 @@ tasks.register('verifyAgentJarIntegrations', JavaExec) {
   }
 }
 
-// Run after adding/removing integrations to update expected-integrations.txt, then commit the diff.
+// Manual run after adding/removing integrations to update expected-integrations.txt, then add with the new integration.
 tasks.register('updateAgentJarIntegrationsGolden', JavaExec) {
   group = LifecycleBasePlugin.VERIFICATION_GROUP
   description = 'Regenerate expected-integrations.txt from the current agent jar'
