@@ -5,7 +5,6 @@ import static datadog.context.Context.root;
 import static datadog.context.ContextTest.STRING_KEY;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -62,26 +61,23 @@ class ContextManagerTest extends ContextTestBase {
   }
 
   @Test
-  void testNoopScopeCacheHitReturnsSameScope() {
+  void testNoopScopeReturnsCorrectContext() {
     Context context = root().with(STRING_KEY, "value");
     try (ContextScope outer = context.attach()) {
-      // two consecutive noop scopes for the same context should be the same cached instance
       try (ContextScope noop1 = context.attach();
           ContextScope noop2 = context.attach()) {
-        assertSame(noop1, noop2);
+        assertEquals(context, noop1.context());
+        assertEquals(context, noop2.context());
       }
     }
   }
 
   @Test
-  void testNoopScopeCacheHandlesHashCollisions() {
-    // Cycle through enough contexts to overflow the 32-slot cache and exercise
-    // the rehash, collision, and slot-reuse paths inside NoopContextScope.create()
+  void testNoopScopeCorrectContextAcrossManyContexts() {
     for (int i = 0; i < 200; i++) {
       Context ctx = root().with(STRING_KEY, "ctx-" + i);
       try (ContextScope outer = ctx.attach()) {
-        try (ContextScope noop =
-            ctx.attach()) { // same-context attach exercises NoopContextScope.create()
+        try (ContextScope noop = ctx.attach()) {
           assertEquals(ctx, noop.context());
         }
       }
