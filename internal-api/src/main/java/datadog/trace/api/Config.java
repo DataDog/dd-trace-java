@@ -3863,6 +3863,17 @@ public class Config {
     return traceStatsInterval;
   }
 
+  /**
+   * Returns the per-cycle cardinality limit for the named stats field, following the RFC naming
+   * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
+   * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
+   * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
+   */
+  public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
+    return configProvider.getInteger(
+        "trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+  }
+
   public boolean isLogsInjectionEnabled() {
     return logsInjectionEnabled;
   }

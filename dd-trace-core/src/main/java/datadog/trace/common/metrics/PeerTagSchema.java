@@ -3,6 +3,7 @@ package datadog.trace.common.metrics;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Set;
@@ -79,7 +80,10 @@ final class PeerTagSchema {
     for (int i = 0; i < names.length; i++) {
       this.handlers[i] =
           new TagCardinalityHandler(
-              names[i], MetricCardinalityLimits.PEER_TAG_VALUE, AggregateEntry.LIMITS_ENABLED);
+              names[i],
+              Config.get()
+                  .getTraceStatsCardinalityLimit(
+                      "peer_tag", MetricCardinalityLimits.PEER_TAG_VALUE));
     }
   }
 

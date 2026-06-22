@@ -83,10 +83,10 @@ final class AggregateTable {
    * {@code onStatsAggregateDropped}) rather than evicting an established one. Cap is sized to the
    * steady-state working set, so eviction is rare in the common case.
    *
-   * <p>How often this fires depends on {@link AggregateEntry#LIMITS_ENABLED}. With limits enabled,
-   * over-cap values for a given field collapse into a shared {@code blocked_by_tracer} bucket, so
-   * the table itself rarely reaches {@code maxAggregates}. With limits disabled (the default),
-   * over-cap values flow to distinct buckets and {@code maxAggregates} becomes the load-bearing
+   * <p>With per-field cardinality limits enabled, over-cap values for a given field collapse into a
+   * shared {@code tracer_blocked_value} bucket, so the table itself rarely reaches {@code
+   * maxAggregates}. Without per-field limits, over-cap values flow to distinct buckets and {@code
+   * maxAggregates} becomes the load-bearing
    * backstop -- the cursor-resumed scan was added specifically for this regime.
    */
   private boolean evictOneStale() {
