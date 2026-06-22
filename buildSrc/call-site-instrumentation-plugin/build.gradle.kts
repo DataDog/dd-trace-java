@@ -25,7 +25,7 @@ apply {
 }
 
 dependencies {
-  compileOnly("com.google.code.findbugs", "jsr305", "3.0.2")
+  compileOnly(libs.jsr305)
 
   implementation("org.freemarker", "freemarker", "2.3.30")
   implementation(libs.asm)
@@ -37,7 +37,6 @@ dependencies {
   testRuntimeOnly(libs.junit.platform.launcher)
   testImplementation(libs.bundles.mockito)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
-  testImplementation(libs.spotbugs.annotations)
 }
 
 sourceSets {

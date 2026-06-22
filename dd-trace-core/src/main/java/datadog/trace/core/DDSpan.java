@@ -32,7 +32,6 @@ import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.core.util.StackTraces;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.List;
@@ -876,7 +875,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
-  public void attachWrapper(@NonNull SpanWrapper wrapper) {
+  public void attachWrapper(@Nonnull SpanWrapper wrapper) {
     WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
   }
 
