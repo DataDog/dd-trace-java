@@ -15,6 +15,12 @@ if (hasProperty('appBuildDir')) {
 
 version = ""
 
+// Match native-image build threads to the CPUs the CI pod requested: the container sets a CPU
+// request but no limit, so native-image would otherwise size to the whole host and its off-heap
+// would exhaust memory. Falls back to 4 if the request is absent.
+def isCI = providers.environmentVariable("CI").isPresent()
+def ciBuildCpuCount = providers.environmentVariable("KUBERNETES_CPU_REQUEST").getOrElse("4")
+
 dependencies {
   implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
   implementation 'io.quarkus:quarkus-resteasy'
@@ -36,11 +42,15 @@ if (hasProperty('agentJar')) {
   // are not properly tracked by this nested gradle build cache, it needs to be tracked
   // from the outside (see smokeTestApp).
   final agentJar = property('agentJar')
-  System.setProperty(
-    'quarkus.native.additional-build-args',
-    "-J-javaagent:${agentJar}," +
-    "-J-Ddatadog.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ss.SSS'Z [dd.trace]'," +
-    "-J-Ddd.profiling.enabled=true," +
-    "-march=native"
-    )
+  def nativeBuildArgs = [
+    "-J-javaagent:${agentJar}",
+    "-J-Ddatadog.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ss.SSS'Z [dd.trace]'",
+    "-J-Ddd.profiling.enabled=true",
+    "-march=native",
+  ]
+  if (isCI) {
+    nativeBuildArgs.add("-H:NumberOfThreads=$ciBuildCpuCount")
+    nativeBuildArgs.add("-J-XX:ActiveProcessorCount=$ciBuildCpuCount")
+  }
+  System.setProperty('quarkus.native.additional-build-args', nativeBuildArgs.join(','))
 }
