@@ -49,6 +49,8 @@ public class HotspotCrashLogParserTest {
     assertNotNull(crashLog.error.stack);
     assertNotNull(crashLog.error.stack.frames);
     assertEquals(0, crashLog.error.stack.frames.length);
+    assertEquals("InternalError", crashLog.error.kind);
+    assertEquals("Process terminated by Internal error", crashLog.error.message);
   }
 
   /** macOS aarch64 uses lowercase register names: x0-x28, fp, lr, sp, pc, cpsr */
@@ -333,6 +335,25 @@ public class HotspotCrashLogParserTest {
     assertEquals(
         "null".equals(expected) ? null : expected,
         HotspotCrashLogParser.parseCurrentThreadName(line));
+  }
+
+  @Test
+  public void testNoSignalProducesInternalError() throws Exception {
+    // A crash log that reaches the PROCESS section but has no siginfo line
+    String crashLog =
+        "# A fatal error has been detected by the Java Runtime Environment:\n"
+            + "#\n"
+            + "# Core dump will be written.\n"
+            + "---------------  T H R E A D  ---------------\n"
+            + "Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)\n"
+            + "---------------  P R O C E S S  ---------------\n";
+
+    CrashLog result = new HotspotCrashLogParser().parse(UUID.randomUUID().toString(), crashLog);
+
+    assertNotNull(result);
+    assertFalse(result.incomplete);
+    assertEquals("InternalError", result.error.kind);
+    assertEquals("Process terminated by Internal error", result.error.message);
   }
 
   private String readFileAsString(String resource) throws IOException {

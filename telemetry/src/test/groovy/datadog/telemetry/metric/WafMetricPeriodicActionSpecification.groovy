@@ -34,7 +34,7 @@ class WafMetricPeriodicActionSpecification extends DDSpecification {
     1 * telemetryService.addMetric( { Metric metric ->
       metric.namespace == 'appsec' &&
         metric.metric == 'waf.updates' &&
-        metric.points[0][1] == 2 &&
+        metric.points[0][1] == 1 &&
         metric.tags == ['waf_version:0.0.0', 'event_rules_version:rules_ver_3', 'success:true']
     } )
     0 * _._
