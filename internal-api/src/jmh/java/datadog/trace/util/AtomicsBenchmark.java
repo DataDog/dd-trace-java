@@ -12,20 +12,20 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
+ * The choice between {@link AtomicInteger} and {@link AtomicIntegerFieldUpdater} depends on the
+ * access pattern:
+ *
  * <ul>
- * <li>(RECOMMENDED) AtomicFieldUpdater - especially, when containing object is frequently constructed
- * <li>Atomic - usually, performs similarly to AtomicFieldUpdater - worse inside commonly constructed objects
+ * <li><b>Frequently constructed objects</b>: prefer AtomicFieldUpdater. It saves 16 B/op at
+ *     construction (one fewer object) — the GC impact of that allocation compounds over the
+ *     lifetime of the application.
+ * <li><b>Long-lived objects with heavy incrementAndGet use</b>: AtomicInteger is ~33% faster for
+ *     incrementAndGet (121M vs 91M ops/s). AtomicIntegerFieldUpdater carries overhead from its
+ *     reflective field-access path that C2 cannot intrinsify as cleanly.
+ * <li><b>Read-heavy paths</b>: essentially a wash (both ~2 B ops/s).
  * </ul>
  *
- * Instead of introducing an Atomic field into a class, a volatile field with an AtomicFieldUpdater is preferred when possible.
- * <ul>Types with AtomicFieldUpdaters are...
- * <li>int
- * <li>long
- * <li>reference (e.g. Object types)
- * </ul>
- *
- * While the performance of Atomic is on par with AtomicFieldUpdater (and sometimes slightly better) inside a frequently
- * constructed object, the impact of the extra allocation on garbage collection is detrimental to the application as a whole.
+ * AtomicFieldUpdater supports {@code int}, {@code long}, and reference types.
  *
  * <code> Java 17 - MacBook M1 - 8 threads
  * Benchmark                                                                Mode  Cnt           Score           Error   Units
