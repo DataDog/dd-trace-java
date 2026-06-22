@@ -404,7 +404,7 @@ public class ListIterationBenchmark {
 
   @Benchmark
   public void parallelStreams_inline() {
-    listSpec.list.parallelStream().forEach(Element::manipulate_dont_inline);
+    listSpec.list.parallelStream().forEach(Element::manipulate_inline);
   }
 
   @Benchmark
