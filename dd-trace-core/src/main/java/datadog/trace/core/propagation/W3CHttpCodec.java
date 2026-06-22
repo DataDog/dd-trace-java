@@ -80,8 +80,11 @@ class W3CHttpCodec {
 
     private <C> void injectTraceState(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
       PropagationTags propagationTags = context.getPropagationTags();
-      propagationTags.updateLastParentId(DDSpanId.toHexStringPadded(context.getSpanId()));
-      String tracestate = propagationTags.headerValue(W3C);
+      // Supply the injecting span's id for the W3C `p:` as a parameter rather than mutating it into
+      // the (possibly trace-level, shared) tags — keeps transient per-injection identity out of
+      // shared state, so concurrent sibling injects can't race on it.
+      String tracestate =
+          propagationTags.headerValue(W3C, DDSpanId.toHexStringPadded(context.getSpanId()));
       if (tracestate != null && !tracestate.isEmpty()) {
         setter.set(carrier, TRACE_STATE_KEY, tracestate);
       }
