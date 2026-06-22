@@ -140,25 +140,27 @@ class RxJava3Test extends AbstractInstrumentationTest {
         flowable = (Flowable<?>) publisher;
       }
 
-      flowable.subscribe(
-          new Subscriber<Object>() {
-            @Override
-            public void onSubscribe(Subscription subscription) {
-              subscription.cancel();
-            }
+      try {
+        flowable.subscribe(
+            new Subscriber<Object>() {
+              @Override
+              public void onSubscribe(Subscription subscription) {
+                subscription.cancel();
+              }
 
-            @Override
-            public void onNext(Object t) {}
+              @Override
+              public void onNext(Object t) {}
 
-            @Override
-            public void onError(Throwable error) {}
+              @Override
+              public void onError(Throwable error) {}
 
-            @Override
-            public void onComplete() {}
-          });
-
-      scope.close();
-      span.finish();
+              @Override
+              public void onComplete() {}
+            });
+      } finally {
+        scope.close();
+        span.finish();
+      }
     }
 
     @Trace(operationName = "trace-parent", resourceName = "trace-parent")
