@@ -8,7 +8,7 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
-import datadog.trace.junit.utils.tabletest.DDTagsConverter;
+import datadog.trace.junit.utils.converter.TagsConverter;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Timeout;
@@ -32,7 +32,7 @@ class LatencyTraceInterceptorTest extends DDCoreJavaSpecification {
   void testSetSamplingPriorityAccordingToLatency(
       String partialFlushEnabled,
       String latencyThreshold,
-      @ConvertWith(DDTagsConverter.class) String priorityTag,
+      @ConvertWith(TagsConverter.class) String priorityTag,
       long minDuration,
       int expected)
       throws InterruptedException {

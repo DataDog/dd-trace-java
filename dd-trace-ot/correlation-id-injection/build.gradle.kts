@@ -4,13 +4,11 @@ plugins {
 
 apply(from = "$rootDir/gradle/java.gradle")
 
-val minimumBranchCoverage by extra(0.8)
+extra["minimumBranchCoverage"] = 0.8
 
-val excludedClassesCoverage by extra(
-  listOf(
-    "datadog.trace.correlation.CorrelationIdInjectors",
-    "datadog.trace.correlation.CorrelationIdInjectors.InjectorType"
-  )
+extra["excludedClassesCoverage"] = listOf(
+  "datadog.trace.correlation.CorrelationIdInjectors",
+  "datadog.trace.correlation.CorrelationIdInjectors.InjectorType"
 )
 
 description = "correlation-id-injection"
