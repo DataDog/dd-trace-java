@@ -472,7 +472,7 @@ final class AggregateEntry extends Hashtable.Entry {
      * own. Zero allocation on the hit path. Sized lazily to the schema's tag count; resized if the
      * schema grows.
      */
-    UTF8BytesString[] peerTagsBuffer = null;
+    UTF8BytesString[] peerTagsBuffer = EMPTY_TAGS;
 
     int peerTagsSize = 0;
 
@@ -507,7 +507,7 @@ final class AggregateEntry extends Hashtable.Entry {
               httpStatusCode,
               synthetic,
               traceRoot,
-              peerTagsBuffer != null ? peerTagsBuffer : EMPTY_TAGS,
+              peerTagsBuffer,
               peerTagsSize);
     }
 
@@ -524,7 +524,7 @@ final class AggregateEntry extends Hashtable.Entry {
         return;
       }
       int n = Math.min(schema.size(), values.length);
-      if (peerTagsBuffer == null || peerTagsBuffer.length < n) {
+      if (peerTagsBuffer.length < n) {
         peerTagsBuffer = new UTF8BytesString[n];
       }
       for (int i = 0; i < n; i++) {

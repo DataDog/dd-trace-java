@@ -334,7 +334,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     long tagAndDuration =
         span.getDurationNano() | (error ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
 
-    PeerTagSchema spanPeerTagSchema = peerTagSchemaFor(span, peerTagSchema);
+    PeerTagSchema spanPeerTagSchema = peerTagSchemaFor(spanKind, peerTagSchema);
     String[] peerTagValues =
         spanPeerTagSchema == null ? null : capturePeerTagValues(span, spanPeerTagSchema);
     if (peerTagValues == null) {
@@ -457,11 +457,11 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * window) -- always non-null but possibly empty when peer tags are unconfigured. For
    * internal-kind spans the static {@link PeerTagSchema#INTERNAL} schema is used regardless.
    */
-  private static PeerTagSchema peerTagSchemaFor(CoreSpan<?> span, PeerTagSchema peerTagSchema) {
-    if (peerTagSchema.size() > 0 && span.isKind(PEER_AGGREGATION_KINDS)) {
+  private static PeerTagSchema peerTagSchemaFor(String spanKind, PeerTagSchema peerTagSchema) {
+    if (peerTagSchema.size() > 0 && PEER_AGGREGATION_KINDS.matches(spanKind)) {
       return peerTagSchema;
     }
-    if (span.isKind(INTERNAL_KIND)) {
+    if (INTERNAL_KIND.matches(spanKind)) {
       return PeerTagSchema.INTERNAL;
     }
     return null;
