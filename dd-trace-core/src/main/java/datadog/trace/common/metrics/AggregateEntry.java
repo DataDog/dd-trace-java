@@ -1,7 +1,6 @@
 package datadog.trace.common.metrics;
 
 import datadog.metrics.api.Histogram;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Hashtable;
@@ -30,9 +29,9 @@ final class AggregateEntry extends Hashtable.Entry {
 
   private static final UTF8BytesString[] EMPTY_TAGS = new UTF8BytesString[0];
 
-  // Frozen at first AggregateEntry class-load; construct handlers with explicit useBlockedSentinel
-  // args in tests rather than trying to flip this via Config.
-  static final boolean LIMITS_ENABLED = Config.get().isTraceStatsCardinalityLimitsEnabled();
+  // Sentinel substitution is disabled until per-component config is wired in a follow-up PR.
+  // Tests that need sentinel mode should pass useBlockedSentinel=true explicitly.
+  static final boolean LIMITS_ENABLED = false;
 
   // Per-field cardinality handlers. Limits live on MetricCardinalityLimits -- see that class for
   // per-field rationale.

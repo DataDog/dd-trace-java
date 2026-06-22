@@ -10641,14 +10641,6 @@
         "aliases": ["DD_TRACE_TRACER_METRICS_ENABLED"]
       }
     ],
-    "DD_TRACE_STATS_CARDINALITY_LIMITS_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
-        "aliases": []
-      }
-    ],
     "DD_TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION": [
       {
         "version": "A",
