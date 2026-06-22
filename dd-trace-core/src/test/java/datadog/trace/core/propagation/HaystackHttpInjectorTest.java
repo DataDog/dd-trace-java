@@ -14,38 +14,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.datastreams.NoopPathwayContext;
-import datadog.trace.common.writer.ListWriter;
-import datadog.trace.core.CoreTracer;
-import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
-class HaystackHttpInjectorTest extends DDCoreJavaSpecification {
+class HaystackHttpInjectorTest extends AbstractHttpInjectorTest {
   // UUID representation of DDSpanId.ZERO
   private static final String ZERO_UUID = "44617461-646f-6721-0000-000000000000";
 
-  private HttpCodec.Injector injector;
-  private CoreTracer tracer;
-
-  @BeforeEach
-  void setup() {
-    Map<String, String> baggageMap = singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER");
-    this.injector = HaystackHttpCodec.newInjector(baggageMap);
-
-    ListWriter writer = new ListWriter();
-    this.tracer = tracerBuilder().writer(writer).build();
-  }
-
-  @AfterEach
-  void tearDown() {
-    this.tracer.close();
+  @Override
+  protected HttpCodec.Injector newInjector() {
+    return HaystackHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
   }
 
   @TableTest({
@@ -101,7 +83,7 @@ class HaystackHttpInjectorTest extends DDCoreJavaSpecification {
     DDSpanContext spanContext = mockSpanContext(traceId, spanId, baggage);
     Map<String, String> carrier = new HashMap<>();
 
-    injector.inject(spanContext, carrier, Map::put);
+    this.injector.inject(spanContext, carrier, Map::put);
 
     assertEquals(traceUuid, carrier.get(TRACE_ID_KEY));
     assertEquals(traceUuid, spanContext.unsafeGetTag(HAYSTACK_TRACE_ID_BAGGAGE_KEY));
@@ -118,25 +100,7 @@ class HaystackHttpInjectorTest extends DDCoreJavaSpecification {
 
   private DDSpanContext mockSpanContext(
       String traceId, String spanId, Map<String, String> baggage) {
-    return new DDSpanContext(
-        DDTraceId.from(traceId),
-        DDSpanId.from(spanId),
-        DDSpanId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        SAMPLER_KEEP,
-        null,
-        baggage,
-        false,
-        "fakeType",
-        0,
-        this.tracer.createTraceCollector(DDTraceId.ONE),
-        null,
-        null,
-        NoopPathwayContext.INSTANCE,
-        false,
-        null);
+    return mockSpanContext(
+        DDTraceId.from(traceId), DDSpanId.from(spanId), SAMPLER_KEEP, null, baggage, null);
   }
 }
