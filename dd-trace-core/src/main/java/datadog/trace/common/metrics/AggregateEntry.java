@@ -18,8 +18,8 @@ import org.slf4j.LoggerFactory;
  * canonicalization so overflow values collapse to a shared sentinel bucket rather than fragmenting.
  * Not thread-safe — all mutation is on the aggregator thread. Tests must call {@link
  * #resetCardinalityHandlers()} in setup to avoid cross-test handler pollution (handlers are
- * static); tests using {@link AdditionalTagsSchema} must also call {@link
- * AdditionalTagsSchema#resetHandlers()} on the schema instance.
+ * static); tests using {@link PeerTagSchema} must also call {@link
+ * PeerTagSchema#resetHandlers(HealthMetrics)} on the schema instance.
  */
 final class AggregateEntry extends Hashtable.Entry {
 
@@ -286,7 +286,7 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   /**
-   * Resets the static per-field cardinality handlers. Does not cover {@link AdditionalTagsSchema}.
+   * Resets the static per-field cardinality handlers. Does not cover {@link PeerTagSchema}.
    */
   static void resetCardinalityHandlers() {
     resetCardinalityHandlers(HealthMetrics.NO_OP);
