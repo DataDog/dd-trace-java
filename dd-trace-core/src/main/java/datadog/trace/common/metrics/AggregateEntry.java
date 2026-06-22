@@ -61,6 +61,21 @@ final class AggregateEntry extends Hashtable.Entry {
       new PropertyCardinalityHandler(
           "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE, LIMITS_ENABLED);
 
+  // Single authoritative list used by resetCardinalityHandlers(). populate() and hashOf() keep
+  // named access for readability and to avoid per-span iteration overhead; this array ensures the
+  // reset site stays in sync even if a new field is added without updating the loop by name.
+  private static final PropertyCardinalityHandler[] FIELD_HANDLERS = {
+    RESOURCE_HANDLER,
+    SERVICE_HANDLER,
+    OPERATION_HANDLER,
+    SERVICE_SOURCE_HANDLER,
+    TYPE_HANDLER,
+    SPAN_KIND_HANDLER,
+    HTTP_METHOD_HANDLER,
+    HTTP_ENDPOINT_HANDLER,
+    GRPC_STATUS_CODE_HANDLER,
+  };
+
   final UTF8BytesString resource;
   final UTF8BytesString service;
   final UTF8BytesString operationName;
@@ -278,15 +293,9 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   static void resetCardinalityHandlers(HealthMetrics healthMetrics) {
-    reportIfBlocked(healthMetrics, RESOURCE_HANDLER);
-    reportIfBlocked(healthMetrics, SERVICE_HANDLER);
-    reportIfBlocked(healthMetrics, OPERATION_HANDLER);
-    reportIfBlocked(healthMetrics, SERVICE_SOURCE_HANDLER);
-    reportIfBlocked(healthMetrics, TYPE_HANDLER);
-    reportIfBlocked(healthMetrics, SPAN_KIND_HANDLER);
-    reportIfBlocked(healthMetrics, HTTP_METHOD_HANDLER);
-    reportIfBlocked(healthMetrics, HTTP_ENDPOINT_HANDLER);
-    reportIfBlocked(healthMetrics, GRPC_STATUS_CODE_HANDLER);
+    for (PropertyCardinalityHandler handler : FIELD_HANDLERS) {
+      reportIfBlocked(healthMetrics, handler);
+    }
     PeerTagSchema.INTERNAL.resetHandlers(healthMetrics);
   }
 
