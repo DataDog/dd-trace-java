@@ -421,7 +421,6 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGAT
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
-import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_CARDINALITY_LIMITS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
@@ -2230,12 +2229,8 @@ public class Config {
     final int defaultMaxAggregates = tightHeap ? 256 : 2048;
     final int defaultMaxPending = tightHeap ? 64 : 128;
 
-    // TRACE_STATS_CARDINALITY_LIMIT is the RFC-specified config name; TRACER_METRICS_MAX_AGGREGATES
-    // is the legacy internal name. The RFC name takes precedence when both are set.
-    final int legacyMaxAggregates =
-        configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, defaultMaxAggregates);
     tracerMetricsMaxAggregates =
-        configProvider.getInteger(TRACE_STATS_CARDINALITY_LIMIT, legacyMaxAggregates);
+        configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, defaultMaxAggregates);
     /*
      * TRACER_METRICS_MAX_PENDING historically counted conflating Batch slots (~64 spans per batch
      * via Batch.MAX_BATCH_SIZE). The inbox now holds 1 SpanSnapshot per metrics-eligible span, so
