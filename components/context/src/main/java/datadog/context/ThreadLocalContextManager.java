@@ -40,10 +40,7 @@ final class ThreadLocalContextManager implements ContextManager {
       return context.asScope(); // convert to scope without attaching
     }
 
-    ContextListener[] ls = listeners;
-    notifyDetach(beforeAttach, ls);
-    holder.current = context;
-    notifyAttach(context, ls);
+    doSwap(holder, beforeAttach, context);
 
     if (continuation == null) {
       return new ContextScopeImpl(context, holder, beforeAttach);
@@ -61,10 +58,7 @@ final class ThreadLocalContextManager implements ContextManager {
       return beforeSwap;
     }
 
-    ContextListener[] ls = listeners;
-    notifyDetach(beforeSwap, ls);
-    holder.current = context;
-    notifyAttach(context, ls);
+    doSwap(holder, beforeSwap, context);
 
     return beforeSwap;
   }
@@ -143,6 +137,14 @@ final class ThreadLocalContextManager implements ContextManager {
     }
   }
 
+  private static void doSwap(ContextHolder holder, Context before, Context after) {
+    // Snapshot listeners so same listeners will get the two events
+    ContextListener[] ls = INSTANCE.listeners;
+    notifyDetach(before, ls);
+    holder.current = after;
+    notifyAttach(after, ls);
+  }
+
   private static class ContextScopeImpl implements ContextScope {
 
     private final Context context;
@@ -166,10 +168,7 @@ final class ThreadLocalContextManager implements ContextManager {
     public void close() {
       // check for out-of-order close to avoid corrupting the current state
       if (!closed && context == holder.current) {
-        ContextListener[] ls = INSTANCE.listeners;
-        notifyDetach(context, ls);
-        holder.current = beforeAttach;
-        notifyAttach(beforeAttach, ls);
+        doSwap(holder, context, beforeAttach);
         closed = true;
       }
     }
