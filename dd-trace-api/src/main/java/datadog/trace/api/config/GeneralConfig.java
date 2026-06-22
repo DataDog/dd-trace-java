@@ -78,6 +78,8 @@ public final class GeneralConfig {
       "trace.tracer.metrics.ignored.resources";
   public static final String TRACE_STATS_CARDINALITY_LIMITS_ENABLED =
       "trace.stats.cardinality.limits.enabled";
+  /** RFC-specified name for tuning the whole-key aggregate table cardinality limit. */
+  public static final String TRACE_STATS_CARDINALITY_LIMIT = "trace.stats.cardinality.limit";
 
   public static final String AZURE_APP_SERVICES = "azure.app.services";
   public static final String INTERNAL_EXIT_ON_FAILURE = "trace.internal.exit.on.failure";
