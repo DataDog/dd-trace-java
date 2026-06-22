@@ -15,7 +15,6 @@ import datadog.trace.plugin.csi.impl.CallSiteSpecification.AllArgsSpecification;
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AroundSpecification;
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.BeforeSpecification;
 import datadog.trace.plugin.csi.util.Types;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -558,7 +557,6 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     @CallSite.Around("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.Object)")
     @CallSite.Around("java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.Object)")
     @Nonnull
-    @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
     static Appendable aroundAppend(
         @CallSite.This @Nullable Appendable self, @CallSite.Argument(0) @Nullable Object param)
         throws Throwable {
