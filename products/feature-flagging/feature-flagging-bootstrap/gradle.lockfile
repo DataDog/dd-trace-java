@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :products:feature-flagging:feature-flagging-bootstrap:dependencies --write-locks
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
 ch.qos.logback:logback-core:1.2.13=testCompileClasspath,testRuntimeClasspath
 com.datadoghq:dd-javac-plugin-client:0.2.2=testRuntimeClasspath
