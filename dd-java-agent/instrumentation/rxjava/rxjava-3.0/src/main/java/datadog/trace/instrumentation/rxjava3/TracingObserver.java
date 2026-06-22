@@ -4,13 +4,14 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import io.reactivex.rxjava3.core.Observer;
 import io.reactivex.rxjava3.disposables.Disposable;
+import javax.annotation.Nonnull;
 
 /** Wrapper that makes sure spans from observer events treat the captured span as their parent. */
 public final class TracingObserver<T> implements Observer<T> {
   private final Observer<T> observer;
   private final Context parentContext;
 
-  public TracingObserver(final Observer<T> observer, final Context parentContext) {
+  public TracingObserver(@Nonnull final Observer<T> observer, @Nonnull final Context parentContext) {
     this.observer = observer;
     this.parentContext = parentContext;
   }
