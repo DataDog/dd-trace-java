@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 
 /**
@@ -25,7 +26,12 @@ public final class RunnableWrapper implements Runnable {
   }
 
   public static Runnable wrapIfNeeded(final Runnable task) {
-    if (!(task instanceof RunnableWrapper) && !ExcludeFilter.exclude(ExcludeType.RUNNABLE, task)) {
+    // If the lambda class was field-injected (via the metafactory instrumentation) it carries its
+    // own context-store field and is instrumented directly, so wrapping is unnecessary and would
+    // needlessly change the task's identity.
+    if (!(task instanceof RunnableWrapper)
+        && !(task instanceof FieldBackedContextAccessor)
+        && !ExcludeFilter.exclude(ExcludeType.RUNNABLE, task)) {
       // We wrap only lambdas' anonymous classes and if given object has not already been wrapped.
       // Anonymous classes have '/' in class name which is not allowed in 'normal' classes.
       final String className = task.getClass().getName();

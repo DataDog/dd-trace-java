@@ -7785,6 +7785,14 @@
         "aliases": ["DD_LEGACY_E2E_DURATION_ENABLED"]
       }
     ],
+    "DD_TRACE_LAMBDA_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_LAMBDA_ENABLED", "DD_INTEGRATION_LAMBDA_ENABLED"]
+      }
+    ],
     "DD_TRACE_LETTUCE_4_ASYNC_ENABLED": [
       {
         "version": "A",

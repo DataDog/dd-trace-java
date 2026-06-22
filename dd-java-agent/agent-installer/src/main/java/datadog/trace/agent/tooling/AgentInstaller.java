@@ -19,6 +19,9 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.api.telemetry.IntegrationsCollector;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformer;
+import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformerHelper;
+import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformerHolder;
 import datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper;
 import datadog.trace.util.AgentTaskScheduler;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -147,7 +150,7 @@ public class AgentInstaller {
     agentBuilder =
         agentBuilder
             .disableClassFormatChanges()
-            .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
+            .assureReadEdgeTo(inst, FieldBackedContextAccessor.class, LambdaTransformerHelper.class)
             .with(AgentStrategies.transformerDecorator())
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(AgentStrategies.rediscoveryStrategy())
@@ -253,10 +256,37 @@ public class AgentInstaller {
 
     InstrumenterState.resetDefaultState();
     try {
-      return transformerBuilder.installOn(inst);
+      ClassFileTransformer classFileTransformer = transformerBuilder.installOn(inst);
+      registerLambdaTransformer(classFileTransformer);
+      return classFileTransformer;
     } finally {
       SharedTypePools.endInstall();
     }
+  }
+
+  /**
+   * Exposes the installed transformer to the {@code InnerClassLambdaMetafactory} instrumentation so
+   * generated lambda classes can be run through the same matching + field-injection pipeline before
+   * they are defined. Uses an anonymous class (not a lambda) so this bootstrapping code does not
+   * itself depend on the metafactory we just instrumented.
+   */
+  private static void registerLambdaTransformer(final ClassFileTransformer classFileTransformer) {
+    LambdaTransformerHolder.set(
+        new LambdaTransformer() {
+          @Override
+          public byte[] transform(String slashClassName, Class<?> targetClass, byte[] classBytes) {
+            try {
+              return classFileTransformer.transform(
+                  targetClass.getClassLoader(),
+                  slashClassName,
+                  null,
+                  targetClass.getProtectionDomain(),
+                  classBytes);
+            } catch (Throwable ignored) {
+              return null;
+            }
+          }
+        });
   }
 
   /** Returns an iterable that combines the original sequence with any discovered extensions. */

@@ -397,6 +397,7 @@ include(
   ":dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-21.0",
   ":dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-25.0",
   ":dd-java-agent:instrumentation:java:java-io-1.8",
+  ":dd-java-agent:instrumentation:java:java-lambda:java-lambda-1.8",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-1.8",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-11.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-15.0",
