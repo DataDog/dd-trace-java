@@ -41,7 +41,7 @@ class SmokeTestAppEndToEndTest {
   fun `nested build produces the configured artifact`() {
     writeOuterSettings()
     writeSmokeTestAppBuild(
-      smokeTestApplication(
+      smokeTestGradleApplication(
         taskName = "buildJar",
         artifactPath = "libs/sample.jar",
         sysProperty = "sample.path",
@@ -66,12 +66,42 @@ class SmokeTestAppEndToEndTest {
   }
 
   @Test
+  fun `nested Maven build produces the configured artifact`() {
+    writeOuterSettings()
+    writeFakeMavenWrapper()
+    writeSmokeTestAppBuild(
+      smokeTestMavenApplication(
+        taskName = "packageApp",
+        artifactPath = "target/sample.jar",
+        sysProperty = "sample.path",
+        additionalConfig = """
+        mavenExecutable.set(layout.projectDirectory.file("${fakeMavenWrapperName()}"))
+        mavenOpts.set("-Xmx512M")
+        """,
+      ),
+    )
+    File(applicationDir, "pom.xml").writeText("<project />")
+
+    val result = runner(
+      "packageApp",
+      environment = mapOf("MAVEN_REPOSITORY_PROXY" to "https://repo.example/maven2/"),
+    ).build()
+
+    assertThat(result.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(applicationOutput("target/sample.jar")).exists()
+    assertThat(applicationOutput("target/maven-env.txt").readLines()).contains(
+      "MAVEN_OPTS=-Xmx512M",
+      "MVNW_REPOURL=https://repo.example/maven2",
+    )
+  }
+
+  @Test
   fun `nested build clears inherited Gradle launcher environment`() {
     writeOuterSettings()
     val inheritedGradleUserHome = projectDir.resolve("inherited-gradle-user-home").toFile()
     inheritedGradleUserHome.mkdirs()
     writeSmokeTestAppBuild(
-      smokeTestApplication(
+      smokeTestGradleApplication(
         taskName = "recordGradleEnvironment",
         artifactPath = "gradle-env.txt",
         sysProperty = "gradle.env.path",
@@ -129,7 +159,7 @@ class SmokeTestAppEndToEndTest {
     File(projectDir.toFile(), "agent.jar").writeText("agent")
     writeSmokeTestAppBuild(
       """
-      ${smokeTestApplication(
+      ${smokeTestGradleApplication(
         taskName = "recordNativeInputs",
         artifactPath = "native-inputs.txt",
         sysProperty = "native.inputs.path",
@@ -176,7 +206,7 @@ class SmokeTestAppEndToEndTest {
   fun `init scripts are not added outside CI`() {
     writeOuterSettings()
     writeSmokeTestAppBuild(
-      smokeTestApplication(
+      smokeTestGradleApplication(
         taskName = "recordInitScripts",
         artifactPath = "init-script-count.txt",
         sysProperty = "init.script.count.path",
@@ -216,7 +246,7 @@ class SmokeTestAppEndToEndTest {
     writeMavenArtifact(projectRepository, "com.example", "shared", "1.0", "project")
     writeMavenArtifact(projectRepository, "com.example", "project-only", "1.0", "project-only")
     writeSmokeTestAppBuild(
-      smokeTestApplication(
+      smokeTestGradleApplication(
         taskName = "resolveRepositories",
         artifactPath = "resolved-repositories.txt",
         sysProperty = "resolved.repositories.path",
@@ -281,7 +311,7 @@ class SmokeTestAppEndToEndTest {
   ) {
     writeOuterSettings()
     writeSmokeTestAppBuild(
-      smokeTestApplication(
+      smokeTestGradleApplication(
         taskName = "recordCacheFlag",
         artifactPath = "cache-flag.txt",
         sysProperty = "cache.flag.path",
@@ -331,7 +361,7 @@ class SmokeTestAppEndToEndTest {
   ) {
     writeOuterSettings(withLocalBuildCache = true)
     writeSmokeTestAppBuild(
-      smokeTestApplication(
+      smokeTestGradleApplication(
         taskName = "buildJar",
         artifactPath = "libs/sample.jar",
         sysProperty = "sample.path",
@@ -433,7 +463,7 @@ class SmokeTestAppEndToEndTest {
     )
   }
 
-  private fun smokeTestApplication(
+  private fun smokeTestGradleApplication(
     taskName: String,
     artifactPath: String,
     sysProperty: String,
@@ -441,7 +471,7 @@ class SmokeTestAppEndToEndTest {
   ): String {
     val config = additionalConfig.trimIndent()
     return buildString {
-      appendLine("application {")
+      appendLine("gradleApp {")
       appendLine("  taskName.set(\"$taskName\")")
       appendLine("  artifactPath.set(\"$artifactPath\")")
       appendLine("  sysProperty.set(\"$sysProperty\")")
@@ -451,6 +481,52 @@ class SmokeTestAppEndToEndTest {
       appendLine("}")
     }
   }
+
+  private fun smokeTestMavenApplication(
+    taskName: String,
+    artifactPath: String,
+    sysProperty: String,
+    additionalConfig: String = "",
+  ): String {
+    val config = additionalConfig.trimIndent()
+    return buildString {
+      appendLine("mavenApp {")
+      appendLine("  taskName.set(\"$taskName\")")
+      appendLine("  artifactPath.set(\"$artifactPath\")")
+      appendLine("  sysProperty.set(\"$sysProperty\")")
+      if (config.isNotBlank()) {
+        appendLine(config.prependIndent("  "))
+      }
+      appendLine("}")
+    }
+  }
+
+  private fun writeFakeMavenWrapper() {
+    val wrapper = File(projectDir.toFile(), fakeMavenWrapperName())
+    wrapper.writeText(
+      """
+      #!/bin/sh
+      set -eu
+      target=""
+      while [ "${'$'}#" -gt 0 ]; do
+        case "${'$'}1" in
+          -Dtarget.dir=*) target="${'$'}{1#-Dtarget.dir=}" ;;
+        esac
+        shift
+      done
+      [ -n "${'$'}target" ] || exit 2
+      mkdir -p "${'$'}target"
+      printf "jar" > "${'$'}target/sample.jar"
+      {
+        printf "MAVEN_OPTS=%s\n" "${'$'}{MAVEN_OPTS:-}"
+        printf "MVNW_REPOURL=%s\n" "${'$'}{MVNW_REPOURL:-}"
+      } > "${'$'}target/maven-env.txt"
+      """.trimIndent(),
+    )
+    wrapper.setExecutable(true)
+  }
+
+  private fun fakeMavenWrapperName(): String = "fake-mvnw"
 
   private fun writeInnerSettings() {
     File(applicationDir, "settings.gradle.kts").writeText(
@@ -542,7 +618,7 @@ class SmokeTestAppEndToEndTest {
 
     @JvmStatic
     fun buildCacheFlagCases(): List<Arguments> = listOf(
-      // (scenario name, DSL line added to the `application { … }` block, expected
+      // (scenario name, DSL line added to the `gradleApp { … }` block, expected
       // `gradle.startParameter.isBuildCacheEnabled` value seen by the nested daemon)
       Arguments.of("default off", "", "false"),
       Arguments.of("explicit true", "buildCacheEnabled.set(true)", "true"),
