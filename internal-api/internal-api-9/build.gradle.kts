@@ -6,7 +6,7 @@ plugins {
   id("de.thetaphi.forbiddenapis") version "3.10"
   id("me.champeau.jmh")
   idea
-  id("dd-trace-java.module.internal-component")
+  id("dd-trace-java.module.internal-library")
 }
 
 extensions.getByName("tracerJava").withGroovyBuilder {

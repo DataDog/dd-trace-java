@@ -1,7 +1,7 @@
 plugins {
   id("me.champeau.jmh")
   id("java-library")
-  id("dd-trace-java.module.internal-component")
+  id("dd-trace-java.module.internal-library")
 }
 
 val minimumBranchCoverage by extra(0.6)

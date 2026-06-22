@@ -4,7 +4,7 @@ import org.gradle.kotlin.dsl.extra
 plugins {
   `java-library`
   idea
-  id("dd-trace-java.module.internal-component")
+  id("dd-trace-java.module.internal-library")
 }
 
 extensions.getByName("tracerJava").withGroovyBuilder {

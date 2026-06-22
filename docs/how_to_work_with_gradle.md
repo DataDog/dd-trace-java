@@ -978,7 +978,7 @@ Manages multi-version Java source sets, allowing a single project to compile cod
 ```Gradle Kotlin DSL
 // In build.gradle.kts
 plugins {
-    id("dd-trace-java.module.internal-component")
+    id("dd-trace-java.module.internal-library")
 }
 
 tracerJava {
@@ -1112,9 +1112,17 @@ Use the most specific module plugin instead of applying `gradle/java.gradle` dir
 | Bootstrap components            | `dd-trace-java.module.bootstrap-component` |
 | Published APIs                  | `dd-trace-java.module.distributable.api` |
 | Instrumentation modules         | `dd-trace-java.module.instrumentation`   |
-| Internal shared components      | `dd-trace-java.module.internal-component` |
+| Internal API modules            | `dd-trace-java.module.internal-api`      |
+| Internal implementation libraries | `dd-trace-java.module.internal-library` |
+| Internal platform components    | `dd-trace-java.module.internal-platform-component` |
 | Smoke-test modules              | `dd-trace-java.module.smoke-test`        |
 | Testing support modules         | `dd-trace-java.module.testing-support`   |
+
+Use `internal-api` for internal API surfaces such as product `*-api` modules or `remote-config-api`. Use
+`internal-library` for internal implementation modules such as product `*-lib` modules, `:communication`, `:telemetry`,
+`:utils:*`, and similar shared libraries. Use `internal-platform-component` only for platform modules under
+`:components`; those modules are kept separate because they can grow stricter dependency and testing constraints than
+general internal libraries.
 
 For example:
 

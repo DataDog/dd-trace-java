@@ -4,7 +4,7 @@ import groovy.lang.Closure
 plugins {
   `java-library`
   id("me.champeau.jmh")
-  id("dd-trace-java.module.internal-component")
+  id("dd-trace-java.module.internal-library")
 }
 
 java {
