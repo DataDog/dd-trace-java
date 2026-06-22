@@ -9,6 +9,8 @@ import java.util.function.Supplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
@@ -111,18 +113,18 @@ public class UnsynchronizedMapBenchmark {
             return keys;
           });
 
-  static int sharedLookupIndex = 0;
+  @State(Scope.Thread)
+  public static class BenchmarkState {
+    int index = 0;
 
-  static String nextLookupKey() {
-    return nextLookupKey(EQUAL_KEYS);
-  }
-
-  static String nextLookupKey(String[] keys) {
-    int localIndex = ++sharedLookupIndex;
-    if (localIndex >= keys.length) {
-      sharedLookupIndex = localIndex = 0;
+    String nextLookupKey() {
+      return nextLookupKey(EQUAL_KEYS);
     }
-    return keys[localIndex];
+
+    String nextLookupKey(String[] keys) {
+      if (++index >= keys.length) index = 0;
+      return keys[index];
+    }
   }
 
   static <T> T init(Supplier<T> supplier) {
@@ -154,8 +156,8 @@ public class UnsynchronizedMapBenchmark {
   static final HashMap<String, Integer> HASH_MAP = _create_hashMap();
 
   @Benchmark
-  public Integer get_hashMap() {
-    return HASH_MAP.get(nextLookupKey());
+  public Integer get_hashMap(BenchmarkState state) {
+    return HASH_MAP.get(state.nextLookupKey());
   }
 
   @Benchmark
@@ -167,8 +169,8 @@ public class UnsynchronizedMapBenchmark {
   }
 
   @Benchmark
-  public Integer get_hashMap_sameKey() {
-    return HASH_MAP.get(nextLookupKey(INSERTION_KEYS));
+  public Integer get_hashMap_sameKey(BenchmarkState state) {
+    return HASH_MAP.get(state.nextLookupKey(INSERTION_KEYS));
   }
 
   @Benchmark
@@ -198,8 +200,8 @@ public class UnsynchronizedMapBenchmark {
   static final TreeMap<String, Integer> TREE_MAP = _create_treeMap();
 
   @Benchmark
-  public Integer get_treeMap() {
-    return TREE_MAP.get(nextLookupKey());
+  public Integer get_treeMap(BenchmarkState state) {
+    return TREE_MAP.get(state.nextLookupKey());
   }
 
   @Benchmark
@@ -231,8 +233,8 @@ public class UnsynchronizedMapBenchmark {
   static final LinkedHashMap<String, Integer> LINKED_HASH_MAP = _create_linkedHashMap();
 
   @Benchmark
-  public Integer get_linkedHashMap() {
-    return LINKED_HASH_MAP.get(nextLookupKey());
+  public Integer get_linkedHashMap(BenchmarkState state) {
+    return LINKED_HASH_MAP.get(state.nextLookupKey());
   }
 
   @Benchmark
@@ -273,13 +275,13 @@ public class UnsynchronizedMapBenchmark {
   static final TagMap TAG_MAP = _create_tagMap();
 
   @Benchmark
-  public int get_tagMap() {
-    return TAG_MAP.getInt(nextLookupKey());
+  public int get_tagMap(BenchmarkState state) {
+    return TAG_MAP.getInt(state.nextLookupKey());
   }
 
   @Benchmark
-  public int get_tagMap_sameKey() {
-    return TAG_MAP.getInt(nextLookupKey(INSERTION_KEYS));
+  public int get_tagMap_sameKey(BenchmarkState state) {
+    return TAG_MAP.getInt(state.nextLookupKey(INSERTION_KEYS));
   }
 
   @Benchmark
