@@ -530,7 +530,7 @@ tasks.register('verifyAgentJarContents') {
 
     // Sanity check on the minimum number of classes; update as needed. Set to about 98% of that number.
     def classCount = entries.keySet().count { it.endsWith('.class') || it.endsWith('.classdata') }
-    def classFloor = 17_000 // a bit moe than 98% of 17,279 at time of writing
+    def classFloor = 17_000 // a bit more than 98% of 17,279 at time of writing
     if (classCount < classFloor) {
       failures << "Class count ${classCount} is below floor ${classFloor}"
     }
@@ -577,6 +577,74 @@ tasks.register('verifyAgentJarContents') {
   }
 }
 
+def integrationsGoldenFile = project.file('expected-integrations.txt')
+
+tasks.register('verifyAgentJarIntegrations', JavaExec) {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
+  description = 'Verify the agent jar lists exactly the integrations in expected-integrations.txt'
+
+  def jarProvider = tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile }
+  inputs.file(jarProvider)
+  inputs.file(integrationsGoldenFile)
+  outputs.file(project.layout.buildDirectory.file("tmp/${it.name}/.verified"))
+
+  // Run the assembled agent jar directly — this exercises dd-java-agent.index,
+  // inst/instrumenter.index, and instrumentation class loading end-to-end.
+  mainClass = 'datadog.trace.bootstrap.AgentBootstrap'
+  classpath = objects.fileCollection().from(jarProvider)
+  args = ['--list-integrations']
+
+  def capturedOutput = new ByteArrayOutputStream()
+  standardOutput = capturedOutput
+
+  doLast {
+    if (!integrationsGoldenFile.exists()) {
+      throw new GradleException(
+      "${integrationsGoldenFile.name} not found. " +
+      "Run './gradlew :dd-java-agent:updateAgentJarIntegrationsGolden' to create it.")
+    }
+
+    def actual   = capturedOutput.toString().readLines().findAll { !it.isBlank() }.toSorted()
+    def expected = integrationsGoldenFile.readLines().findAll { !it.isBlank() }.toSorted()
+    def added    = actual - expected
+    def removed  = expected - actual
+
+    if (added || removed) {
+      def msg = new StringBuilder("Integration list differs from ${integrationsGoldenFile.name}.")
+      msg.append(" Run './gradlew :dd-java-agent:updateAgentJarIntegrationsGolden' to update it.\n")
+      added.each   { msg.append("  + ${it}\n") }
+      removed.each { msg.append("  - ${it}\n") }
+      throw new GradleException(msg.toString())
+    }
+
+    def marker = outputs.files.singleFile
+    marker.parentFile.mkdirs()
+    marker.text = 'verified'
+  }
+}
+
+// Run after adding/removing integrations to update expected-integrations.txt, then commit the diff.
+tasks.register('updateAgentJarIntegrationsGolden', JavaExec) {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
+  description = 'Regenerate expected-integrations.txt from the current agent jar'
+
+  def jarProvider = tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile }
+  inputs.file(jarProvider)
+
+  mainClass = 'datadog.trace.bootstrap.AgentBootstrap'
+  classpath = objects.fileCollection().from(jarProvider)
+  args = ['--list-integrations']
+
+  def capturedOutput = new ByteArrayOutputStream()
+  standardOutput = capturedOutput
+
+  doLast {
+    def integrations = capturedOutput.toString().readLines().findAll { !it.isBlank() }.toSorted()
+    integrationsGoldenFile.text = integrations.join('\n') + '\n'
+    logger.lifecycle("Updated ${integrationsGoldenFile.name} with ${integrations.size()} integrations")
+  }
+}
+
 tasks.named('check') {
-  dependsOn 'verifyAgentJarContents'
+  dependsOn 'verifyAgentJarContents', 'verifyAgentJarIntegrations'
 }
