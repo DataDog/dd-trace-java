@@ -1,0 +1,17 @@
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+tasks.named("compileJava") {
+  configureCompiler(it, 8)
+}
+
+dependencies {
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+  // executor context propagation across the field-injected lambda
+  testRuntimeOnly project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
+}
