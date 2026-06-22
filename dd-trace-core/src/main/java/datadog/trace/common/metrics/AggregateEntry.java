@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics;
 
 import datadog.metrics.api.Histogram;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
@@ -28,36 +29,54 @@ final class AggregateEntry extends Hashtable.Entry {
 
   private static final UTF8BytesString[] EMPTY_TAGS = new UTF8BytesString[0];
 
-  // Sentinel substitution is disabled until per-component config is wired in a follow-up PR.
-  // Tests that need sentinel mode should pass useBlockedSentinel=true explicitly.
-  static final boolean LIMITS_ENABLED = false;
-
-  // Per-field cardinality handlers. Limits live on MetricCardinalityLimits -- see that class for
-  // per-field rationale.
+  // Per-field cardinality handlers. Limits are tunable via DD_TRACE_STATS_{field}_CARDINALITY_LIMIT
+  // (e.g. DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT). Defaults live on MetricCardinalityLimits.
+  // Frozen at first class-load from Config.
   static final PropertyCardinalityHandler RESOURCE_HANDLER =
-      new PropertyCardinalityHandler("resource", MetricCardinalityLimits.RESOURCE, LIMITS_ENABLED);
+      new PropertyCardinalityHandler(
+          "resource",
+          Config.get().getTraceStatsCardinalityLimit("resource", MetricCardinalityLimits.RESOURCE));
   static final PropertyCardinalityHandler SERVICE_HANDLER =
-      new PropertyCardinalityHandler("service", MetricCardinalityLimits.SERVICE, LIMITS_ENABLED);
+      new PropertyCardinalityHandler(
+          "service",
+          Config.get().getTraceStatsCardinalityLimit("service", MetricCardinalityLimits.SERVICE));
   static final PropertyCardinalityHandler OPERATION_HANDLER =
       new PropertyCardinalityHandler(
-          "operation", MetricCardinalityLimits.OPERATION, LIMITS_ENABLED);
+          "operation",
+          Config.get()
+              .getTraceStatsCardinalityLimit("operation", MetricCardinalityLimits.OPERATION));
   static final PropertyCardinalityHandler SERVICE_SOURCE_HANDLER =
       new PropertyCardinalityHandler(
-          "service_source", MetricCardinalityLimits.SERVICE_SOURCE, LIMITS_ENABLED);
+          "service_source",
+          Config.get()
+              .getTraceStatsCardinalityLimit(
+                  "service_source", MetricCardinalityLimits.SERVICE_SOURCE));
   static final PropertyCardinalityHandler TYPE_HANDLER =
-      new PropertyCardinalityHandler("type", MetricCardinalityLimits.TYPE, LIMITS_ENABLED);
+      new PropertyCardinalityHandler(
+          "type",
+          Config.get().getTraceStatsCardinalityLimit("type", MetricCardinalityLimits.TYPE));
   static final PropertyCardinalityHandler SPAN_KIND_HANDLER =
       new PropertyCardinalityHandler(
-          "span_kind", MetricCardinalityLimits.SPAN_KIND, LIMITS_ENABLED);
+          "span_kind",
+          Config.get()
+              .getTraceStatsCardinalityLimit("span_kind", MetricCardinalityLimits.SPAN_KIND));
   static final PropertyCardinalityHandler HTTP_METHOD_HANDLER =
       new PropertyCardinalityHandler(
-          "http_method", MetricCardinalityLimits.HTTP_METHOD, LIMITS_ENABLED);
+          "http_method",
+          Config.get()
+              .getTraceStatsCardinalityLimit("http_method", MetricCardinalityLimits.HTTP_METHOD));
   static final PropertyCardinalityHandler HTTP_ENDPOINT_HANDLER =
       new PropertyCardinalityHandler(
-          "http_endpoint", MetricCardinalityLimits.HTTP_ENDPOINT, LIMITS_ENABLED);
+          "http_endpoint",
+          Config.get()
+              .getTraceStatsCardinalityLimit(
+                  "http_endpoint", MetricCardinalityLimits.HTTP_ENDPOINT));
   static final PropertyCardinalityHandler GRPC_STATUS_CODE_HANDLER =
       new PropertyCardinalityHandler(
-          "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE, LIMITS_ENABLED);
+          "grpc_status_code",
+          Config.get()
+              .getTraceStatsCardinalityLimit(
+                  "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE));
 
   // Single authoritative list used by resetCardinalityHandlers(). populateFrom() and hashOf() keep
   // named access for readability and to avoid per-span iteration overhead; this array ensures the
