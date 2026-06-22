@@ -15,59 +15,40 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TracePropagationStyle;
-import datadog.trace.api.datastreams.NoopPathwayContext;
-import datadog.trace.common.writer.ListWriter;
-import datadog.trace.core.CoreTracer;
-import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
+import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
-class HttpInjectorTest extends DDCoreJavaSpecification {
-  private CoreTracer tracer;
-
-  @BeforeEach
-  void setup() {
-    ListWriter writer = new ListWriter();
-    tracer = tracerBuilder().writer(writer).build();
-  }
-
-  @AfterEach
-  void tearDown() {
-    tracer.close();
-  }
+class HttpInjectorTest extends AbstractHttpInjectorTest {
 
   protected boolean tracePropagationB3Padding() {
     return DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
   }
 
   @TableTest({
-    "scenario                       | styles                       | samplingPriority              | origin  ",
-    "DATADOG,B3SINGLE unset         | [DATADOG, B3SINGLE]          | PrioritySampling.UNSET        |         ",
-    "DATADOG,B3SINGLE keep saipan   | [DATADOG, B3SINGLE]          | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "DATADOG only unset             | [DATADOG]                    | PrioritySampling.UNSET        |         ",
-    "DATADOG only keep saipan       | [DATADOG]                    | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "B3SINGLE only unset            | [B3SINGLE]                   | PrioritySampling.UNSET        |         ",
-    "B3SINGLE only keep saipan      | [B3SINGLE]                   | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "B3SINGLE,DATADOG keep saipan   | [B3SINGLE, DATADOG]          | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "DATADOG,B3MULTI,B3SINGLE unset | [DATADOG, B3MULTI, B3SINGLE] | PrioritySampling.UNSET        |         ",
-    "DATADOG,B3MULTI,B3SINGLE keep  | [DATADOG, B3MULTI, B3SINGLE] | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "DATADOG,B3MULTI unset          | [DATADOG, B3MULTI]           | PrioritySampling.UNSET        |         ",
-    "DATADOG,B3MULTI keep saipan    | [DATADOG, B3MULTI]           | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "B3MULTI only unset             | [B3MULTI]                    | PrioritySampling.UNSET        |         ",
-    "B3MULTI only keep saipan       | [B3MULTI]                    | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "B3MULTI,DATADOG keep saipan    | [B3MULTI, DATADOG]           | PrioritySampling.SAMPLER_KEEP | 'saipan'"
+    "scenario                       | styles                       | samplingPriority | origin  ",
+    "DATADOG,B3SINGLE unset         | [DATADOG, B3SINGLE]          | UNSET            |         ",
+    "DATADOG,B3SINGLE keep saipan   | [DATADOG, B3SINGLE]          | SAMPLER_KEEP     | 'saipan'",
+    "DATADOG only unset             | [DATADOG]                    | UNSET            |         ",
+    "DATADOG only keep saipan       | [DATADOG]                    | SAMPLER_KEEP     | 'saipan'",
+    "B3SINGLE only unset            | [B3SINGLE]                   | UNSET            |         ",
+    "B3SINGLE only keep saipan      | [B3SINGLE]                   | SAMPLER_KEEP     | 'saipan'",
+    "B3SINGLE,DATADOG keep saipan   | [B3SINGLE, DATADOG]          | SAMPLER_KEEP     | 'saipan'",
+    "DATADOG,B3MULTI,B3SINGLE unset | [DATADOG, B3MULTI, B3SINGLE] | UNSET            |         ",
+    "DATADOG,B3MULTI,B3SINGLE keep  | [DATADOG, B3MULTI, B3SINGLE] | SAMPLER_KEEP     | 'saipan'",
+    "DATADOG,B3MULTI unset          | [DATADOG, B3MULTI]           | UNSET            |         ",
+    "DATADOG,B3MULTI keep saipan    | [DATADOG, B3MULTI]           | SAMPLER_KEEP     | 'saipan'",
+    "B3MULTI only unset             | [B3MULTI]                    | UNSET            |         ",
+    "B3MULTI only keep saipan       | [B3MULTI]                    | SAMPLER_KEEP     | 'saipan'",
+    "B3MULTI,DATADOG keep saipan    | [B3MULTI, DATADOG]           | SAMPLER_KEEP     | 'saipan'"
   })
   void injectHttpHeadersUsingStyles(
       List<TracePropagationStyle> styles,
@@ -127,16 +108,16 @@ class HttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario               | style    | samplingPriority              | origin  ",
-    "DATADOG unset          | DATADOG  | PrioritySampling.UNSET        |         ",
-    "DATADOG keep no origin | DATADOG  | PrioritySampling.SAMPLER_KEEP |         ",
-    "DATADOG keep saipan    | DATADOG  | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "B3SINGLE unset         | B3SINGLE | PrioritySampling.UNSET        |         ",
-    "B3SINGLE keep no orig  | B3SINGLE | PrioritySampling.SAMPLER_KEEP |         ",
-    "B3SINGLE keep saipan   | B3SINGLE | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "B3MULTI unset          | B3MULTI  | PrioritySampling.UNSET        |         ",
-    "B3MULTI keep no origin | B3MULTI  | PrioritySampling.SAMPLER_KEEP |         ",
-    "B3MULTI keep saipan    | B3MULTI  | PrioritySampling.SAMPLER_KEEP | 'saipan'"
+    "scenario               | style    | samplingPriority | origin  ",
+    "DATADOG unset          | DATADOG  | UNSET            |         ",
+    "DATADOG keep no origin | DATADOG  | SAMPLER_KEEP     |         ",
+    "DATADOG keep saipan    | DATADOG  | SAMPLER_KEEP     | 'saipan'",
+    "B3SINGLE unset         | B3SINGLE | UNSET            |         ",
+    "B3SINGLE keep no orig  | B3SINGLE | SAMPLER_KEEP     |         ",
+    "B3SINGLE keep saipan   | B3SINGLE | SAMPLER_KEEP     | 'saipan'",
+    "B3MULTI unset          | B3MULTI  | UNSET            |         ",
+    "B3MULTI keep no origin | B3MULTI  | SAMPLER_KEEP     |         ",
+    "B3MULTI keep saipan    | B3MULTI  | SAMPLER_KEEP     | 'saipan'"
   })
   void injectHttpHeadersUsingStyle(
       TracePropagationStyle style,
@@ -246,25 +227,12 @@ class HttpInjectorTest extends DDCoreJavaSpecification {
       int samplingPriority,
       String origin,
       Map<String, String> baggage) {
-    return new DDSpanContext(
+    return mockSpanContext(
         traceId,
         spanId,
-        DDSpanId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
         samplingPriority,
         origin,
         baggage,
-        false,
-        "fakeType",
-        0,
-        this.tracer.createTraceCollector(DDTraceId.ONE),
-        null,
-        null,
-        NoopPathwayContext.INSTANCE,
-        false,
         PropagationTags.factory().fromHeaderValue(DATADOG, "_dd.p.usr=123"));
   }
 

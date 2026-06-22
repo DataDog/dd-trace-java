@@ -5,6 +5,7 @@
 develocity = "4.4.1"
 forbiddenapis = "3.10"
 gradle-tooling-api = "8.14.5"
+jsr305 = "3.0.2"
 spotbugs_annotations = "4.9.8"
 
 # DataDog libs and forks
@@ -42,7 +43,7 @@ jmc = "8.1.0"
 jafar = "0.16.0"
 
 # Web & Network
-jnr-unixsocket = "0.38.24"
+jnr-unixsocket = "0.38.25"
 okhttp-legacy = "[3.0,3.12.12]" # 3.12.x is last version to support Java7
 okio = "1.17.6" # Datadog fork
 
@@ -80,6 +81,7 @@ testcontainers = "1.21.4"
 develocity = { module = "com.gradle:develocity-gradle-plugin", version.ref = "develocity" }
 forbiddenapis = { module = "de.thetaphi:forbiddenapis", version.ref = "forbiddenapis" }
 gradle-tooling-api = { module = "org.gradle:gradle-tooling-api", version.ref = "gradle-tooling-api" }
+jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs_annotations" }
 
 # DataDog libs and forks
