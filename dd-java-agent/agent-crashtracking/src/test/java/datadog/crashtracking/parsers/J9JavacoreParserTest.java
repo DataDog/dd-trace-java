@@ -212,6 +212,24 @@ public class J9JavacoreParserTest {
         "Expected ISO-8601 format, got: " + crashLog.timestamp);
   }
 
+  @Test
+  public void testNoSignalProducesInternalError() throws Exception {
+    // A javacore with a THREADS section but no 1TISIGINFO line
+    String javacoreContent =
+        "0SECTION       TITLE subcomponent dump routine\n"
+            + "NULL           ===============================\n"
+            + "1TICHARSET     UTF-8\n"
+            + "NULL           ------------------------------------------------------------------------\n"
+            + "0SECTION       THREADS subcomponent dump routine\n"
+            + "NULL           =================================\n";
+
+    CrashLog result = new J9JavacoreParser().parse(UUID.randomUUID().toString(), javacoreContent);
+
+    assertNotNull(result);
+    assertEquals("InternalError", result.error.kind);
+    assertEquals("Process terminated by Internal error", result.error.message);
+  }
+
   private String readFileAsString(String resource) throws IOException {
     try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resource)) {
       return new BufferedReader(

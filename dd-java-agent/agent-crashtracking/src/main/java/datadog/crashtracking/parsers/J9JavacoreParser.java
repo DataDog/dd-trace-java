@@ -257,8 +257,8 @@ public final class J9JavacoreParser {
               : eventType.toUpperCase(Locale.ROOT);
       message = "Process terminated by signal " + kind;
     } else {
-      kind = "UNKNOWN";
-      message = "Unknown crash event";
+      kind = "InternalError";
+      message = "Process terminated by Internal error";
     }
 
     // Enrich frames with build IDs (best effort)

@@ -15,50 +15,27 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
-import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.common.writer.ListWriter;
-import datadog.trace.core.CoreTracer;
-import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
-class B3HttpInjectorTest extends DDCoreJavaSpecification {
+class B3HttpInjectorTest extends AbstractHttpInjectorTest {
 
   private static final CarrierSetter<Map<String, String>> MAP_SETTER = Map::put;
-
-  private HttpCodec.Injector injector;
-  private HttpCodec.Extractor extractor;
-  private CoreTracer tracer;
 
   protected boolean tracePropagationB3Padding() {
     return DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
   }
 
-  @BeforeEach
-  void setup() {
-    this.injector = B3HttpCodec.newCombinedInjector(tracePropagationB3Padding());
-
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create().setHeaderTags(emptyMap()).setBaggageMapping(emptyMap()).apply();
-    this.extractor = B3HttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
-
-    ListWriter writer = new ListWriter();
-    this.tracer = tracerBuilder().writer(writer).build();
-  }
-
-  @AfterEach
-  void tearDown() {
-    this.tracer.close();
+  @Override
+  protected HttpCodec.Injector newInjector() {
+    return B3HttpCodec.newCombinedInjector(tracePropagationB3Padding());
   }
 
   @TableTest({
@@ -113,7 +90,11 @@ class B3HttpInjectorTest extends DDCoreJavaSpecification {
     Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
     headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
-    TagContext context = this.extractor.extract(headers, stringValuesMap());
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
+        DynamicConfig.create().setHeaderTags(emptyMap()).setBaggageMapping(emptyMap()).apply();
+    HttpCodec.Extractor extractor =
+        B3HttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+    TagContext context = extractor.extract(headers, stringValuesMap());
 
     DDSpanContext mockedContext = mockedSpanContext(context);
     Map<String, String> carrier = new HashMap<>();
@@ -135,25 +116,12 @@ class B3HttpInjectorTest extends DDCoreJavaSpecification {
     Map<String, String> baggage = new HashMap<>();
     baggage.put("k1", "v1");
     baggage.put("k2", "v2");
-    return new DDSpanContext(
+    return mockSpanContext(
         traceId,
         spanId,
-        DDSpanId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
         samplingPriority,
         "fakeOrigin",
         baggage,
-        false,
-        "fakeType",
-        0,
-        this.tracer.createTraceCollector(DDTraceId.ONE),
-        null,
-        null,
-        NoopPathwayContext.INSTANCE,
-        false,
         PropagationTags.factory().empty());
   }
 
