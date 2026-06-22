@@ -32,8 +32,9 @@ final class ThreadLocalContextManager implements ContextManager {
       if (continuation != null) {
         // already attached, safe to release early to avoid resource leak
         continuation.releaseOnScopeClose();
+        return continuation; // acts as no-op scope, avoiding allocation
       }
-      return NoopContextScope.create(previous);
+      return holder; // acts as no-op scope, avoiding allocation
     }
 
     ContextListener[] ls = listeners;
@@ -196,7 +197,7 @@ final class ThreadLocalContextManager implements ContextManager {
     }
   }
 
-  private static final class ContextContinuationImpl implements ContextContinuation {
+  private static final class ContextContinuationImpl implements ContextContinuation, ContextScope {
 
     private static final AtomicIntegerFieldUpdater<ContextContinuationImpl> COUNT =
         AtomicIntegerFieldUpdater.newUpdater(ContextContinuationImpl.class, "count");
@@ -253,7 +254,7 @@ final class ThreadLocalContextManager implements ContextManager {
       } else {
         // continuation released or too many resumes; rollback count
         COUNT.decrementAndGet(this);
-        return NoopContextScope.create(context);
+        return this; // acts as no-op scope, avoiding allocation
       }
     }
 
@@ -284,9 +285,20 @@ final class ThreadLocalContextManager implements ContextManager {
         release();
       } /* else there are outstanding resumes or hold is in place */
     }
+
+    @Override
+    public void close() {}
   }
 
-  private static final class ContextHolder {
+  private static final class ContextHolder implements ContextScope {
     Context current = Context.root();
+
+    @Override
+    public Context context() {
+      return current;
+    }
+
+    @Override
+    public void close() {}
   }
 }
