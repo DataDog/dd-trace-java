@@ -11,7 +11,8 @@ public final class TracingObserver<T> implements Observer<T> {
   private final Observer<T> observer;
   private final Context parentContext;
 
-  public TracingObserver(@Nonnull final Observer<T> observer, @Nonnull final Context parentContext) {
+  public TracingObserver(
+      @Nonnull final Observer<T> observer, @Nonnull final Context parentContext) {
     this.observer = observer;
     this.parentContext = parentContext;
   }
