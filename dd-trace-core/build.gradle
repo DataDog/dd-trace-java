@@ -115,4 +115,15 @@ dependencies {
 jmh {
   jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  if (project.hasProperty('jmhIncludes')) {
+    includes = [project.jmhIncludes]
+  }
+  if (project.hasProperty('jmhProfilers')) {
+    profilers = [project.jmhProfilers]
+  }
+  if (project.hasProperty('jmhJvm')) {
+    jvm = project.javaToolchains.launcherFor {
+      languageVersion = JavaLanguageVersion.of(project.jmhJvm as int)
+    }.map { it.executablePath.asFile.absolutePath }
+  }
 }
