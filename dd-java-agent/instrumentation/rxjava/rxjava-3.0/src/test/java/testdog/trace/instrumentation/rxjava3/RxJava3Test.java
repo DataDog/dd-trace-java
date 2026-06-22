@@ -492,9 +492,10 @@ class RxJava3Test extends AbstractInstrumentationTest {
   void correctParentsFromSubscriptionTime(String name, int workItems, Supplier<Object> supplier) {
     Worker.assemblePublisherUnderTrace(
         () -> {
-          // The "add one" operations in the publisher created here should be children of the
-          // publisher-parent, while the "add two" operations should be children of the
-          // intermediate.
+          // The "add one" operations are assembled under publisher-parent and stay its children.
+          // The "add two" operations are assembled under intermediate, but intermediate is finished
+          // before subscription, so re-activating its context at delivery time is a no-op and
+          // addTwo falls back to the still-active publisher-parent as well.
           Object publisher = supplier.get();
 
           AgentSpan intermediate = startSpan("test", "intermediate");
