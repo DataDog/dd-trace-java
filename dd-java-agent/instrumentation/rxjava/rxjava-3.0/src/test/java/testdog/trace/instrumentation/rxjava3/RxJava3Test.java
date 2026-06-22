@@ -24,7 +24,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.core.Maybe;
+import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Scheduler;
+import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import java.util.Arrays;
 import java.util.List;
@@ -574,5 +576,81 @@ class RxJava3Test extends AbstractInstrumentationTest {
             .blockingGet();
 
     assertEquals(4, values.size());
+
+    // No trace-parent span is active while the chain is assembled, so the instrumentation must be
+    // non-intrusive: parallel scheduler hops must not synthesize any trace. Flushing makes sure
+    // any span that the instrumentation might have wrongly created on the scheduler threads is
+    // reported before we assert the writer is empty.
+    tracer.flush();
+    assertEquals(
+        0,
+        writer.getTraceCount(),
+        () -> "Unexpected traces emitted without active trace: " + writer);
+  }
+
+  @ParameterizedTest(name = "Flowable propagates context on ''{0}'' scheduler")
+  @MethodSource("schedulerArgs")
+  void flowableParallelContextPropagation(String schedulerName, Scheduler scheduler) {
+    Worker.assemblePublisherUnderTrace(
+        () ->
+            Flowable.fromIterable(Arrays.asList(1, 2, 3, 4))
+                .parallel()
+                .runOn(scheduler)
+                .flatMap(num -> Maybe.just(num).map(Worker::addOne).toFlowable())
+                .sequential());
+
+    SpanMatcher[] matchers = new SpanMatcher[6];
+    matchers[0] =
+        span()
+            .root()
+            .operationName("trace-parent")
+            .resourceName("trace-parent")
+            .tags(componentTrace(), defaultTags());
+    matchers[1] =
+        span()
+            .id(Worker.publisherParentId)
+            .childOf(Worker.traceParentId)
+            .operationName("publisher-parent")
+            .resourceName("publisher-parent")
+            .tags(defaultTags());
+    for (int i = 0; i < 4; i++) {
+      matchers[2 + i] =
+          span()
+              .childOf(Worker.publisherParentId)
+              .operationName("addOne")
+              .resourceName("addOne")
+              .tags(componentTrace(), defaultTags());
+    }
+
+    assertTraces(trace(SORT_BY_START_TIME, matchers));
+  }
+
+  // --- No spurious traces outside active trace --------------------------------
+
+  // Verifies that CaptureParentSpanAdvice and PropagateParentSpanAdvice are no-ops when there is
+  // no active trace: the instrumentation must not synthesize any spans of its own.
+  static List<Arguments> noSpuriousTracesArgs() {
+    return Arrays.asList(
+        Arguments.of(
+            "observable",
+            (Supplier<Object>)
+                () ->
+                    Observable.fromIterable(Arrays.asList(1, 2, 3, 4))
+                        .map(i -> i + 1)
+                        .toList()
+                        .blockingGet()),
+        Arguments.of(
+            "single", (Supplier<Object>) () -> Single.just(1).map(i -> i + 1).blockingGet()));
+  }
+
+  @ParameterizedTest(name = "No spurious traces for ''{0}'' assembled outside active trace")
+  @MethodSource("noSpuriousTracesArgs")
+  void noSpuriousTracesWhenAssembledOutsideTrace(String name, Supplier<Object> supplier) {
+    supplier.get();
+    tracer.flush();
+    assertEquals(
+        0,
+        writer.getTraceCount(),
+        () -> "Unexpected traces emitted without active trace: " + writer);
   }
 }
