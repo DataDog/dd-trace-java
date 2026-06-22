@@ -96,7 +96,7 @@ final class TagCardinalityHandler {
     boolean capExhausted = this.curSize >= this.cardinalityLimit;
     if (capExhausted && this.useBlockedSentinel) {
       this.blockedCount++;
-      return this.blockedByTracer();
+      return this.tracerBlockedValue();
     }
     int priorSlot = start;
     String priorKey;
@@ -117,11 +117,11 @@ final class TagCardinalityHandler {
     return utf8;
   }
 
-  private UTF8BytesString blockedByTracer() {
+  private UTF8BytesString tracerBlockedValue() {
     UTF8BytesString cacheBlocked = this.cacheBlocked;
     if (cacheBlocked != null) return cacheBlocked;
 
-    this.cacheBlocked = cacheBlocked = UTF8BytesString.create(this.tag + ":blocked_by_tracer");
+    this.cacheBlocked = cacheBlocked = UTF8BytesString.create(this.tag + ":tracer_blocked_value");
     return cacheBlocked;
   }
 

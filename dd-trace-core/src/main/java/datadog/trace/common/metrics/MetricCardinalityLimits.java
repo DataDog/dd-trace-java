@@ -2,7 +2,7 @@ package datadog.trace.common.metrics;
 
 /**
  * Per-field caps on the number of distinct values canonicalized per reporting cycle. Overflow
- * values collapse to a {@code blocked_by_tracer} sentinel so they merge into one aggregate row
+ * values collapse to a {@code tracer_blocked_value} sentinel so they merge into one aggregate row
  * instead of fragmenting the table.
  *
  * <p>Values are sized to the typical-service workload with headroom; "typical" estimates are noted

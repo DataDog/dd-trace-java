@@ -107,7 +107,7 @@ final class PeerTagSchema {
 
   /**
    * Canonicalizes the peer-tag value at slot {@code i}. Returns {@link UTF8BytesString#EMPTY} for
-   * null inputs and the handler's {@code "<tag>:blocked_by_tracer"} sentinel when the per-tag
+   * null inputs and the handler's {@code "<tag>:tracer_blocked_value"} sentinel when the per-tag
    * cardinality budget is exhausted.
    */
   UTF8BytesString register(int i, String value) {
@@ -125,7 +125,7 @@ final class PeerTagSchema {
       if (blocked > 0) {
         log.warn(
             "Cardinality limit reached for peer tag '{}'; further values are reported as"
-                + " 'blocked_by_tracer' until the next reporting cycle",
+                + " 'tracer_blocked_value' until the next reporting cycle",
             names[i]);
         healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), blocked);
       }

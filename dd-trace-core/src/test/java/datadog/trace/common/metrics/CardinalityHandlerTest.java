@@ -26,7 +26,7 @@ class CardinalityHandlerTest {
     UTF8BytesString blocked1 = h.register("c");
     UTF8BytesString blocked2 = h.register("d");
 
-    assertEquals("blocked_by_tracer", blocked1.toString());
+    assertEquals("tracer_blocked_value", blocked1.toString());
     assertSame(blocked1, blocked2); // same sentinel for all overflow values
     assertNotSame(blocked1, a);
     assertNotSame(blocked1, b);
@@ -38,7 +38,7 @@ class CardinalityHandlerTest {
     h.register("a");
     h.register("b");
     UTF8BytesString blocked = h.register("c");
-    assertEquals("blocked_by_tracer", blocked.toString());
+    assertEquals("tracer_blocked_value", blocked.toString());
 
     h.reset();
 
@@ -52,7 +52,7 @@ class CardinalityHandlerTest {
     assertEquals("c", c.toString());
     UTF8BytesString blockedAgain = h.register("d");
     UTF8BytesString blockedYetAgain = h.register("e");
-    assertEquals("blocked_by_tracer", blockedAgain.toString());
+    assertEquals("tracer_blocked_value", blockedAgain.toString());
     assertSame(blockedAgain, blockedYetAgain);
   }
 
@@ -107,7 +107,7 @@ class CardinalityHandlerTest {
     TagCardinalityHandler h = new TagCardinalityHandler("peer.service", 1);
     h.register("svc-1");
     UTF8BytesString blocked = h.register("svc-2");
-    assertEquals("peer.service:blocked_by_tracer", blocked.toString());
+    assertEquals("peer.service:tracer_blocked_value", blocked.toString());
   }
 
   @Test
@@ -155,7 +155,7 @@ class CardinalityHandlerTest {
     assertEquals("a", h.register("a").toString());
     assertEquals("b", h.register("b").toString());
     // Third real value spills to the blocked sentinel (limit = 2).
-    assertEquals("blocked_by_tracer", h.register("c").toString());
+    assertEquals("tracer_blocked_value", h.register("c").toString());
   }
 
   @Test
@@ -177,7 +177,7 @@ class CardinalityHandlerTest {
     UTF8BytesString c = h.register("c");
     UTF8BytesString d = h.register("d");
 
-    // Real values (not the "blocked_by_tracer" sentinel) so the wire format carries them.
+    // Real values (not the "tracer_blocked_value" sentinel) so the wire format carries them.
     assertEquals("c", c.toString());
     assertEquals("d", d.toString());
     // The first two stay cached and identity-stable.

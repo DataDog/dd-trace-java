@@ -31,7 +31,7 @@ import java.util.Arrays;
  * <ul>
  *   <li>The current table tracks which values have consumed a slot of the cardinality budget this
  *       reporting cycle. Once {@link #cardinalityLimit} distinct values are present, further
- *       first-time values get the {@code blocked_by_tracer} sentinel.
+ *       first-time values get the {@code tracer_blocked_value} sentinel.
  *   <li>The prior table holds the previous cycle's entries verbatim. A first-time-this-cycle value
  *       that hits in the prior table reuses its {@link UTF8BytesString} instance -- no
  *       re-allocation -- and stores that reference in the current table.
@@ -48,7 +48,7 @@ final class PropertyCardinalityHandler {
   private final int capacityMask;
 
   /**
-   * Whether to substitute the {@code blocked_by_tracer} sentinel when the per-cycle budget is
+   * Whether to substitute the {@code tracer_blocked_value} sentinel when the per-cycle budget is
    * exhausted. With limits enabled (sentinel mode), overflow values collapse to one bucket; with
    * limits disabled, the cache size is still bounded by {@link #cardinalityLimit} but over-budget
    * values get freshly-allocated {@link UTF8BytesString}s instead, so the wire format carries the
@@ -128,7 +128,7 @@ final class PropertyCardinalityHandler {
     boolean capExhausted = this.curSize >= this.cardinalityLimit;
     if (capExhausted && this.useBlockedSentinel) {
       this.blockedCount++;
-      return this.blockedByTracer();
+      return this.tracerBlockedValue();
     }
     // Reuse from the prior cycle if possible to avoid re-allocation -- runs whether or not the
     // current budget is exhausted, so persistent values keep their UTF8 instance across cycles.
@@ -151,11 +151,11 @@ final class PropertyCardinalityHandler {
     return utf8;
   }
 
-  private UTF8BytesString blockedByTracer() {
+  private UTF8BytesString tracerBlockedValue() {
     UTF8BytesString cacheBlocked = this.cacheBlocked;
     if (cacheBlocked != null) return cacheBlocked;
 
-    this.cacheBlocked = cacheBlocked = UTF8BytesString.create("blocked_by_tracer");
+    this.cacheBlocked = cacheBlocked = UTF8BytesString.create("tracer_blocked_value");
     return cacheBlocked;
   }
 

@@ -295,7 +295,7 @@ final class AggregateEntry extends Hashtable.Entry {
     long blocked = handler.reset();
     if (blocked > 0) {
       log.warn(
-          "Cardinality limit reached for stats field '{}'; further values will be reported as blocked_by_tracer",
+          "Cardinality limit reached for stats field '{}'; further values will be reported as tracer_blocked_value",
           handler.name);
       healthMetrics.onTagCardinalityBlocked(handler.statsDTag(), blocked);
     }
