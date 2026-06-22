@@ -29,25 +29,25 @@ import org.openjdk.jmh.annotations.Warmup;
  *
  * <code> Java 17 - MacBook M1 - 8 threads
  * Benchmark                                                                Mode  Cnt           Score           Error   Units
- * AtomicsBenchmark.atomicFieldUpdater_construction                        thrpt    6  4442811623.924 ± 293568588.782   ops/s
+ * AtomicsBenchmark.atomicFieldUpdater_construction                        thrpt    6  2215272588.708 ±  88556141.052   ops/s
  * AtomicsBenchmark.atomicFieldUpdater_construction:gc.alloc.rate.norm     thrpt    6          16.000 ±         0.001    B/op
  *
- * AtomicsBenchmark.atomicFieldUpdater_get                                 thrpt    6  1849238178.083 ±  29719143.488   ops/s
+ * AtomicsBenchmark.atomicFieldUpdater_get                                 thrpt    6  2174739788.040 ±  56980971.014   ops/s
  * AtomicsBenchmark.atomicFieldUpdater_get:gc.alloc.rate.norm              thrpt    6          ≈ 10⁻⁶                    B/op
  *
- * AtomicsBenchmark.atomicFieldUpdater_getVolatile                         thrpt    6  1814698391.230 ±  54378746.492   ops/s
+ * AtomicsBenchmark.atomicFieldUpdater_getVolatile                         thrpt    6  2157331061.707 ± 136900932.336   ops/s
  * AtomicsBenchmark.atomicFieldUpdater_getVolatile:gc.alloc.rate.norm      thrpt    6          ≈ 10⁻⁶                    B/op
  *
- * AtomicsBenchmark.atomicFieldUpdater_incrementAndGet                     thrpt    6    15871753.651 ±    432451.444   ops/s
+ * AtomicsBenchmark.atomicFieldUpdater_incrementAndGet                     thrpt    6    90785783.320 ±   7650837.727   ops/s
  * AtomicsBenchmark.atomicFieldUpdater_incrementAndGet:gc.alloc.rate.norm  thrpt    6          ≈ 10⁻⁴                    B/op
  *
- * AtomicsBenchmark.atomic_construction                                    thrpt    6  2532095943.171 ±  87644803.894   ops/s
+ * AtomicsBenchmark.atomic_construction                                    thrpt    6  1872153219.594 ±  83252749.463   ops/s
  * AtomicsBenchmark.atomic_construction:gc.alloc.rate.norm                 thrpt    6          32.000 ±         0.001    B/op
  *
- * AtomicsBenchmark.atomic_incrementAndGet                                 thrpt    6    16416635.546 ±    751137.083   ops/s
+ * AtomicsBenchmark.atomic_incrementAndGet                                 thrpt    6   120835704.294 ±  23025991.947   ops/s
  * AtomicsBenchmark.atomic_incrementAndGet:gc.alloc.rate.norm              thrpt    6          ≈ 10⁻⁴                    B/op
  *
- * AtomicsBenchmark.atomic_read                                            thrpt    6  1943297600.062 ±  43802387.143   ops/s
+ * AtomicsBenchmark.atomic_read                                            thrpt    6  1968266961.596 ±  57765039.412   ops/s
  * AtomicsBenchmark.atomic_read:gc.alloc.rate.norm                         thrpt    6          ≈ 10⁻⁶                    B/op
  */
 @Fork(2)
