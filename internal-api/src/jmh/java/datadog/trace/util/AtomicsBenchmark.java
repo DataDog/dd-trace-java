@@ -6,6 +6,8 @@ import java.util.function.Supplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
@@ -118,14 +120,14 @@ public class AtomicsBenchmark {
     return supplier.get();
   }
 
-  static int sharedLookupIndex = 0;
+  @State(Scope.Thread)
+  public static class BenchmarkState {
+    int index = 0;
 
-  static <T> T next(T[] holders) {
-    int localIndex = ++sharedLookupIndex;
-    if (localIndex >= holders.length) {
-      sharedLookupIndex = localIndex = 0;
+    <T> T next(T[] holders) {
+      if (++index >= holders.length) index = 0;
+      return holders[index];
     }
-    return holders[localIndex];
   }
 
   @Benchmark
@@ -134,13 +136,13 @@ public class AtomicsBenchmark {
   }
 
   @Benchmark
-  public int atomic_incrementAndGet() {
-    return next(atomicHolders).incrementAndGet();
+  public int atomic_incrementAndGet(BenchmarkState state) {
+    return state.next(atomicHolders).incrementAndGet();
   }
 
   @Benchmark
-  public Object atomic_read() {
-    return next(atomicHolders).get();
+  public Object atomic_read(BenchmarkState state) {
+    return state.next(atomicHolders).get();
   }
 
   @Benchmark
@@ -149,17 +151,17 @@ public class AtomicsBenchmark {
   }
 
   @Benchmark
-  public Object atomicFieldUpdater_getVolatile() {
-    return next(fieldHolders).getVolatile();
+  public Object atomicFieldUpdater_getVolatile(BenchmarkState state) {
+    return state.next(fieldHolders).getVolatile();
   }
 
   @Benchmark
-  public Object atomicFieldUpdater_get() {
-    return next(fieldHolders).get();
+  public Object atomicFieldUpdater_get(BenchmarkState state) {
+    return state.next(fieldHolders).get();
   }
 
   @Benchmark
-  public int atomicFieldUpdater_incrementAndGet() {
-    return next(fieldHolders).incrementAndGet();
+  public int atomicFieldUpdater_incrementAndGet(BenchmarkState state) {
+    return state.next(fieldHolders).incrementAndGet();
   }
 }
