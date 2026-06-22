@@ -37,7 +37,7 @@ public final class ObservableInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onConstruct(@Advice.This final Observable<?> observable) {
       Context parentContext = Java8BytecodeBridge.getCurrentContext();
-      if (parentContext != null) {
+      if (parentContext != null && parentContext != Java8BytecodeBridge.getRootContext()) {
         InstrumentationContext.get(Observable.class, Context.class).put(observable, parentContext);
       }
     }
