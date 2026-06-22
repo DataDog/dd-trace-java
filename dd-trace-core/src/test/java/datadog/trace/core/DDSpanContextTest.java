@@ -20,7 +20,6 @@ import static datadog.trace.core.DDSpanContext.SPAN_KIND_VALUES;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG;
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -69,26 +68,6 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
             .writer(writer)
             .profilingContextIntegration(profilingContextIntegration)
             .build();
-  }
-
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void httpStatusKeyFollowsOtelSemanticsFlag(boolean otelEnabled) {
-    injectSysConfig("dd.trace.otel.semantics.enabled", String.valueOf(otelEnabled));
-    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
-    span.setHttpStatusCode(200);
-
-    Metadata[] captured = new Metadata[1];
-    ((DDSpan) span).processTagsAndBaggage(md -> captured[0] = md);
-
-    // The status value always lives in the dedicated field (so trace stats keep their status
-    // dimension); only the serialized attribute key changes under OTel semantics.
-    assertEquals("200", captured[0].getHttpStatusCode().toString());
-    assertEquals(
-        otelEnabled ? "http.response.status_code" : "http.status_code",
-        captured[0].getHttpStatusKey().toString());
-
-    span.finish();
   }
 
   @ParameterizedTest

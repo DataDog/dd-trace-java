@@ -74,6 +74,12 @@ public class DDSpanContext
   private static final DDCache<String, UTF8BytesString> THREAD_NAMES =
       DDCaches.newFixedSizeCache(256);
 
+  // When OpenTelemetry HTTP semantics are enabled, the status code is emitted as the
+  // http.response.status_code tag by HttpOtelSemanticsTagsPostProcessor; the dedicated
+  // http.status_code serialization (fed by this field) is suppressed so only the OTel name is on
+  // the wire. The field itself is still populated, so trace stats keep their status dimension.
+  private static final boolean OTEL_SEMANTICS_ENABLED = Config.get().isTraceOtelSemanticsEnabled();
+
   private static final Map<String, String> EMPTY_BAGGAGE = Collections.emptyMap();
   private static final Map<String, Object> EMPTY_META_STRUCT = Collections.emptyMap();
 
@@ -1243,10 +1249,9 @@ public class DDSpanContext
               samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
               measured,
               topLevel,
-              httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
-              Config.get().isTraceOtelSemanticsEnabled()
-                  ? Metadata.HTTP_RESPONSE_STATUS_CODE_KEY
-                  : Metadata.HTTP_STATUS_KEY,
+              (OTEL_SEMANTICS_ENABLED || httpStatusCode == 0)
+                  ? null
+                  : HTTP_STATUSES.get(httpStatusCode),
               // Get origin from rootSpan.context
               getOrigin(),
               longRunningVersion,

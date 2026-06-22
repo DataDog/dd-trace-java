@@ -389,7 +389,7 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
         }
       }
       if (metadata.getHttpStatusCode() != null) {
-        w.name(metadata.getHttpStatusKey().toString())
+        w.name(Tags.HTTP_STATUS)
             .value(truncate(metadata.getHttpStatusCode().toString(), MAX_META_STRING_VALUE_LENGTH));
       }
       for (Map.Entry<String, Object> entry : tags.entrySet()) {

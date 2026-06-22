@@ -23,6 +23,7 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.OtelHttpMethods;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
@@ -49,6 +50,8 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   private static final boolean CLIENT_TAG_HEADERS = Config.get().isHttpClientTagHeaders();
 
   private static final boolean APPSEC_RASP_ENABLED = Config.get().isAppSecRaspEnabled();
+
+  private static final boolean OTEL_SEMANTICS_ENABLED = Config.get().isTraceOtelSemanticsEnabled();
 
   protected abstract String method(REQUEST request);
 
@@ -103,13 +106,8 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
               request,
               DSM_TRANSACTION_SOURCE_READER);
 
-      final boolean otelSemantics = Config.get().isTraceOtelSemanticsEnabled();
       String method = method(request);
-      if (otelSemantics) {
-        OtelHttpSemantics.setRequestMethod(span, method);
-      } else {
-        span.setTag(Tags.HTTP_METHOD, method);
-      }
+      span.setTag(Tags.HTTP_METHOD, method);
 
       if (CLIENT_TAG_HEADERS) {
         for (Map.Entry<String, String> headerTag :
@@ -126,38 +124,19 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         final URI url = url(request);
         if (url != null) {
           onURI(span, url);
-          if (otelSemantics) {
-            // OTel client: the absolute URL goes in url.full only. Clients don't use the decomposed
-            // url.path/url.query, and url.scheme is opt-in (already contained in url.full), so we
-            // don't emit it. Target is server.address/port; span is named by method only.
-            String urlFull = OtelHttpSemantics.redactedUrl(url);
-            if (!Config.get().isHttpClientTagQueryString()) {
-              // honor the query-string opt-out (privacy/PII) just like the Datadog http.url path
-              urlFull = OtelHttpSemantics.withoutQueryAndFragment(urlFull);
-            }
-            span.setTag(Tags.URL_FULL, urlFull);
-            if (url.getHost() != null) {
-              span.setTag(Tags.SERVER_ADDRESS, url.getHost());
-            }
-            int serverPort = OtelHttpSemantics.serverPort(url);
-            if (serverPort > 0) {
-              span.setTag(Tags.SERVER_PORT, serverPort);
-            }
-            if (shouldSetResourceName()) {
+          span.setTag(
+              Tags.HTTP_URL,
+              URIUtils.lazyValidURL(url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
+          if (Config.get().isHttpClientTagQueryString()) {
+            span.setTag(DDTags.HTTP_QUERY, url.getQuery());
+            span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
+          }
+          if (shouldSetResourceName()) {
+            if (OTEL_SEMANTICS_ENABLED) {
+              // OTel client span name is "{method}" ("HTTP" for unknown verbs), never the URL path.
               span.setResourceName(
-                  OtelHttpSemantics.spanNameMethod(method),
-                  ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
-            }
-          } else {
-            span.setTag(
-                Tags.HTTP_URL,
-                URIUtils.lazyValidURL(
-                    url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
-            if (Config.get().isHttpClientTagQueryString()) {
-              span.setTag(DDTags.HTTP_QUERY, url.getQuery());
-              span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
-            }
-            if (shouldSetResourceName()) {
+                  OtelHttpMethods.spanName(method), ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+            } else {
               HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
             }
           }
@@ -180,17 +159,10 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);
-      final boolean otelSemantics = Config.get().isTraceOtelSemanticsEnabled();
       if (status > UNSET_STATUS) {
-        // Status stays in the dedicated field; the serializer renames the key under OTel semantics.
         span.setHttpStatusCode(status);
-        // OTel treats client 4xx and 5xx as errors; the Datadog default only marks the configured
-        // client error range (4xx). Keep error flag and error.type consistent under OTel.
-        if (CLIENT_ERROR_STATUSES.get(status) || (otelSemantics && status >= 400)) {
+        if (CLIENT_ERROR_STATUSES.get(status)) {
           span.setError(true);
-        }
-        if (otelSemantics && status >= 400) {
-          OtelHttpSemantics.setErrorType(span, status);
         }
       }
 

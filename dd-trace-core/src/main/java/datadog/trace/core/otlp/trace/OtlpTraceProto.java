@@ -12,6 +12,7 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_A
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
+import static datadog.trace.common.writer.RemoteMapper.HTTP_STATUS;
 import static datadog.trace.common.writer.ddagent.TraceMapper.ORIGIN_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
@@ -302,7 +303,7 @@ public final class OtlpTraceProto {
       writeSpanTag(buf, THREAD_ID, metadata.getThreadId());
       writeSpanTag(buf, THREAD_NAME, metadata.getThreadName());
       if (metadata.getHttpStatusCode() != null) {
-        writeSpanTag(buf, metadata.getHttpStatusKey(), metadata.getHttpStatusCode());
+        writeSpanTag(buf, HTTP_STATUS, metadata.getHttpStatusCode());
       }
       if (metadata.getOrigin() != null) {
         writeSpanTag(buf, ORIGIN_KEY, metadata.getOrigin());

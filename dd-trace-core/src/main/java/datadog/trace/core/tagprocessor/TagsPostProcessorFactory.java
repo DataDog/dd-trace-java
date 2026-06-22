@@ -49,6 +49,12 @@ public final class TagsPostProcessorFactory {
       }
       processors.add(new IntegrationAdder());
       processors.add(new ServiceNameSourceAdder());
+      if (Config.get().isTraceOtelSemanticsEnabled()) {
+        // Must run last: rename HTTP attributes to their OpenTelemetry names only after
+        // QueryObfuscator (so the query is obfuscated) and after metrics/peer.service have read the
+        // Datadog names. See HttpOtelSemanticsTagsPostProcessor.
+        processors.add(new HttpOtelSemanticsTagsPostProcessor());
+      }
       return new PostProcessorChain(
           processors.toArray(processors.toArray(new TagsPostProcessor[0])));
     }

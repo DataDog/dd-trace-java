@@ -259,7 +259,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
       writeDictionaryEncoded(writable, THREAD_NAME);
       writeDictionaryEncoded(writable, metadata.getThreadName());
       if (null != metadata.getHttpStatusCode()) {
-        writeDictionaryEncoded(writable, metadata.getHttpStatusKey());
+        writeDictionaryEncoded(writable, HTTP_STATUS);
         writeDictionaryEncoded(writable, metadata.getHttpStatusCode());
       }
       if (null != metadata.getOrigin()) {
