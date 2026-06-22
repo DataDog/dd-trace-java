@@ -2,6 +2,7 @@ package datadog.context;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 
 /** {@link ContextManager} that uses a {@link ThreadLocal} to track context per thread. */
@@ -97,41 +98,31 @@ final class ThreadLocalContextManager implements ContextManager {
     if (context == Context.root()) {
       return; // don't emit attach events for the default "no context" case
     }
-    for (ContextListener l : listeners) {
-      try {
-        l.onAttach(context);
-      } catch (Throwable ignore) {
-      }
-    }
+    dispatch(context, listeners, ContextListener::onAttach);
   }
 
   static void notifyDetach(Context context, ContextListener[] listeners) {
     if (context == Context.root()) {
       return; // don't emit detach events for the default "no context" case
     }
-    for (ContextListener l : listeners) {
-      try {
-        l.onDetach(context);
-      } catch (Throwable ignore) {
-      }
-    }
+    dispatch(context, listeners, ContextListener::onDetach);
   }
 
   static void notifyCapture(Context context, ContextListener[] listeners) {
     // only called for non-empty continuations
-    for (ContextListener l : listeners) {
-      try {
-        l.onCapture(context);
-      } catch (Throwable ignore) {
-      }
-    }
+    dispatch(context, listeners, ContextListener::onCapture);
   }
 
   static void notifyRelease(Context context, ContextListener[] listeners) {
     // only called for non-empty continuations
+    dispatch(context, listeners, ContextListener::onRelease);
+  }
+
+  private static void dispatch(
+      Context context, ContextListener[] listeners, BiConsumer<ContextListener, Context> event) {
     for (ContextListener l : listeners) {
       try {
-        l.onRelease(context);
+        event.accept(l, context);
       } catch (Throwable ignore) {
       }
     }
