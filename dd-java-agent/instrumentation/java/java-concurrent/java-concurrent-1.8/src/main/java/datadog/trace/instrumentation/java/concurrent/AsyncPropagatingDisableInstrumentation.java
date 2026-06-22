@@ -47,6 +47,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask");
   private static final ElementMatcher<TypeDescription> RXJAVA2_DISABLED_TYPE_INITIALIZERS =
       named("io.reactivex.internal.schedulers.AbstractDirectTask");
+
   /**
    * RxJava 3's AbstractDirectTask creates FINISHED/DISPOSED sentinel FutureTask instances in its
    * static initializer. If that initializer runs while a trace is active (e.g. the first scheduled
@@ -56,6 +57,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
    */
   private static final ElementMatcher<TypeDescription> RXJAVA3_DISABLED_TYPE_INITIALIZERS =
       named("io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask");
+
   private static final ElementMatcher<TypeDescription> NETTY_GLOBAL_EVENT_EXECUTOR =
       namedOneOf(
           "io.netty.util.concurrent.GlobalEventExecutor",
