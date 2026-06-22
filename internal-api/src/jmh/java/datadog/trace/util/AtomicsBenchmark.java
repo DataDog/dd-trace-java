@@ -15,7 +15,7 @@ import org.openjdk.jmh.annotations.Warmup;
  * <li>Atomic - usually, performs similarly to AtomicFieldUpdater - worse inside commonly constructed objects
  * </ul>
  *
- * Instead of introucing an Atomic field into a class, a volatile field with an AtomicFieldUpdater is preferred when possible.
+ * Instead of introducing an Atomic field into a class, a volatile field with an AtomicFieldUpdater is preferred when possible.
  * <ul>Types with AtomicFieldUpdaters are...
  * <li>int
  * <li>long
