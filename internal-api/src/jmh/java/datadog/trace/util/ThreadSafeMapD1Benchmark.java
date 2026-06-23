@@ -41,6 +41,12 @@ import org.openjdk.jmh.annotations.Warmup;
  *       operation. Establishes the coarse-locking baseline.
  * </ul>
  *
+ * <p><b>Key identity.</b> Lookups reuse the same interned {@code KEYS} instances used to populate
+ * the table, so they hit the {@code ==} identity fast path rather than {@code equals()}. This is
+ * deliberate and realistic for the tracer, whose map keys are typically interned string literals
+ * (tag-name constants); it is <i>not</i> an oversight. ({@code ImmutableMapBenchmark} covers the
+ * distinct-instance {@code equals()} path explicitly via its {@code _sameKey} vs default variants.)
+ *
  * <p>Java 17 results ({@code @Fork(2)}, {@code @Threads(8)}, 64 pre-populated keys):
  *
  * <pre>{@code

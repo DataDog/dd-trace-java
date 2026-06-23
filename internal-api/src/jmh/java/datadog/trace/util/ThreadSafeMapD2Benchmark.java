@@ -48,6 +48,12 @@ import org.openjdk.jmh.annotations.Warmup;
  *       operation; allocates {@link Key2} per lookup. Establishes the coarse-locking baseline.
  * </ul>
  *
+ * <p><b>Key identity.</b> Lookups reuse the same interned {@code SOURCE_K1} strings and cached
+ * {@code SOURCE_K2} Integers used to populate the table, so the key-part comparisons hit the {@code
+ * ==} identity fast path rather than {@code equals()}. This is deliberate and realistic for the
+ * tracer, whose keys are typically interned literals (tag-name constants) and small boxed ints; it
+ * is <i>not</i> an oversight.
+ *
  * <p>Java 17 results ({@code @Fork(2)}, {@code @Threads(8)}, 64 pre-populated keys):
  *
  * <pre>{@code

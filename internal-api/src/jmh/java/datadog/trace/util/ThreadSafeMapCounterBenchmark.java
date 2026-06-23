@@ -40,6 +40,11 @@ import org.openjdk.jmh.annotations.Warmup;
  *       slightly higher memory and a more expensive {@code sum()}.
  * </ul>
  *
+ * <p><b>Key identity.</b> Lookups reuse the same interned {@code KEYS} instances used to populate
+ * the table, so they hit the {@code ==} identity fast path rather than {@code equals()}. This is
+ * deliberate and realistic for the tracer, whose keys are typically interned string literals
+ * (tag-name constants); it is <i>not</i> an oversight.
+ *
  * <p>Java 17 results ({@code @Fork(2)}, {@code @Threads(8)}, 64 pre-populated keys):
  *
  * <pre>{@code
