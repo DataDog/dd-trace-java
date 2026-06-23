@@ -38,6 +38,7 @@ dependencies {
 
   testImplementation libs.bundles.jmc
   testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
 }
 
 

@@ -91,6 +91,10 @@ class TestProfilingContextIntegration implements ProfilingContextIntegration {
     }
 
     @Override
+    void setActivationStartNano(long activationStartNano) {
+    }
+
+    @Override
     void setTask(Object task) {
       this.task = TaskWrapper.getUnwrappedType(task)
     }

@@ -34,6 +34,68 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
     return 0;
   }
 
+  /** Returns the current TSC tick count for the calling thread. */
+  default long getCurrentTicks() {
+    return 0L;
+  }
+
+  /**
+   * Emits a TaskBlock event covering a blocking interval on the current thread.
+   *
+   * @param startTicks TSC tick at block entry (obtained from {@link #getCurrentTicks()})
+   * @param spanId the span ID active when blocking began
+   * @param rootSpanId the local root span ID active when blocking began
+   * @param blocker identity hash code of the blocking object, or 0 if none
+   * @param unblockingSpanId the span ID of the thread that unblocked this thread, or 0 if unknown
+   */
+  default void recordTaskBlock(
+      long startTicks, long spanId, long rootSpanId, long blocker, long unblockingSpanId) {}
+
+  /**
+   * Called when the current thread is about to park (LockSupport.park* entry). Implementations set
+   * an atomic flag in ProfiledThread to suppress wall-clock signals during the park interval, and
+   * record the start tick for off-CPU interval emission.
+   *
+   * @param spanId the span ID active at park entry, or 0 if no active span
+   * @param rootSpanId the local root span ID active at park entry, or 0 if no active span
+   */
+  default void parkEnter(long spanId, long rootSpanId) {}
+
+  /**
+   * Called when the current thread has returned from park (LockSupport.park* exit). Implementations
+   * clear the park flag and emit a TaskBlock JFR event if the park duration exceeds the configured
+   * threshold and a span context was active.
+   *
+   * @param blocker identity hash code of the blocking object, or 0 if none
+   * @param unblockingSpanId the span ID of the thread that called unpark(), or 0 if unknown
+   */
+  default void parkExit(long blocker, long unblockingSpanId) {}
+
+  /**
+   * Emits a SpanNode event when a span finishes, recording its identity, timing, and encoding.
+   *
+   * @param span the finished span
+   */
+  default void onSpanFinished(AgentSpan span) {}
+
+  /**
+   * Called when a span context continuation activates on a worker thread (task execution start).
+   * Implementations record the start time so a synthetic SpanNode can be emitted at deactivation.
+   *
+   * @param profilerContext the activated span context
+   * @param startNano wall-clock nanoseconds at activation ({@code System.nanoTime()})
+   */
+  default void onTaskActivation(ProfilerContext profilerContext, long startNano) {}
+
+  /**
+   * Called when a span context continuation deactivates on a worker thread (task execution end).
+   * Implementations emit a lightweight synthetic SpanNode covering the worker thread interval.
+   *
+   * @param profilerContext the deactivated span context
+   * @param startNano wall-clock nanoseconds recorded at {@link #onTaskActivation}
+   */
+  default void onTaskDeactivation(ProfilerContext profilerContext, long startNano) {}
+
   String name();
 
   final class NoOp implements ProfilingContextIntegration {

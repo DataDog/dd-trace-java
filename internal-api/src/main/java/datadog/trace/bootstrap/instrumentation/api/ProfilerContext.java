@@ -10,6 +10,11 @@ public interface ProfilerContext {
   long getRootSpanId();
 
   /**
+   * @return the span id of the parent span, or 0 if this is the root
+   */
+  long getParentSpanId();
+
+  /**
    * @return upper 64 bits of the 128-bit trace id, or 0 if not available
    */
   default long getTraceIdHigh() {
@@ -30,4 +35,32 @@ public interface ProfilerContext {
   int getEncodedResourceName();
 
   CharSequence getResourceName();
+
+  /** Java thread ID of the thread that finished this span (captured at span finish time). */
+  default long getExecutionThreadId() {
+    return 0;
+  }
+
+  /** Name of the thread that finished this span (captured at span finish time). */
+  default String getExecutionThreadName() {
+    return "";
+  }
+
+  /**
+   * Records the execution thread for this span. First-write-wins: once set by a worker thread (via
+   * {@code onTaskActivation}), subsequent calls from e.g. a Netty event loop callback are ignored.
+   */
+  default void captureExecutionThread(long threadId, String threadName) {}
+
+  /**
+   * Synthetic span id for the per-activation work segment of this context on the current thread.
+   * Must match {@code DatadogProfilingIntegration#onTaskDeactivation} so that {@code TaskBlock} /
+   * {@code datadog.QueueTime} edges and {@code SpanNode} for the work window share the same id.
+   *
+   * @param activationStartNano {@link System#nanoTime()} at task activation
+   * @return xor mix of base span, thread, and start time; never 0
+   */
+  default long getSyntheticWorkSpanIdForActivation(long activationStartNano) {
+    return getSpanId() ^ (Thread.currentThread().getId() << 32) ^ activationStartNano;
+  }
 }
