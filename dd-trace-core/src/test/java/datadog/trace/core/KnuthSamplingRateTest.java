@@ -83,7 +83,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
                 .start();
     serviceSampler.setSamplingPriority(span);
 
-    Map<String, String> propagationMap = span.context().getPropagationTags().createTagMap();
+    Map<String, String> propagationMap = span.spanContext().getPropagationTags().createTagMap();
     String ksr = propagationMap.get("_dd.p.ksr");
 
     assertEquals(expectedKsr, ksr);
@@ -114,7 +114,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
                 .start();
     ((PrioritySampler) sampler).setSamplingPriority(span);
 
-    Map<String, String> propagationMap = span.context().getPropagationTags().createTagMap();
+    Map<String, String> propagationMap = span.spanContext().getPropagationTags().createTagMap();
     String ksr = propagationMap.get("_dd.p.ksr");
 
     assertEquals(expectedKsr, ksr);
@@ -141,7 +141,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
                 .start();
     ((PrioritySampler) sampler).setSamplingPriority(span);
 
-    Map<String, String> propagationMap = span.context().getPropagationTags().createTagMap();
+    Map<String, String> propagationMap = span.spanContext().getPropagationTags().createTagMap();
     String ksr = propagationMap.get("_dd.p.ksr");
     // When falling back to agent sampler, ksr should still be set (agent rate = 1.0 by default)
     assertEquals("1", ksr);
@@ -167,7 +167,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
                 .start();
     ((PrioritySampler) sampler).setSamplingPriority(span);
 
-    Map<String, String> propagationMap = span.context().getPropagationTags().createTagMap();
+    Map<String, String> propagationMap = span.spanContext().getPropagationTags().createTagMap();
     String ksr = propagationMap.get("_dd.p.ksr");
 
     assertEquals("0.75", ksr);
@@ -192,7 +192,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
                 .start();
     ((PrioritySampler) sampler).setSamplingPriority(span);
 
-    Map<String, String> propagationMap = span.context().getPropagationTags().createTagMap();
+    Map<String, String> propagationMap = span.spanContext().getPropagationTags().createTagMap();
     String ksr = propagationMap.get("_dd.p.ksr");
 
     assertEquals("0.25", ksr);
@@ -221,7 +221,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     serviceSampler.setSamplingPriority(span);
 
     String headerValue =
-        span.context().getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG);
+        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG);
 
     assertNotNull(headerValue);
     assertTrue(headerValue.contains("_dd.p.ksr=0.5"));
