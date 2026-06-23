@@ -68,6 +68,9 @@ jobs:
             --min-age-hours "${MIN_DEPENDENCY_AGE_HOURS}" \
             --repo-url "https://repo1.maven.org/maven2" \
             --repo-url "https://repo.akka.io/${AKKA_REPO_TOKEN}/secure" \
+            --repo-url "https://packages.confluent.io/maven" \
+            --repo-url "https://repository.mulesoft.org/releases" \
+            --repo-url "https://repository.mulesoft.org/nexus/content/repositories/public" \
             --github-output "$GITHUB_OUTPUT"
 
       - name: Save instrumentation lock files
