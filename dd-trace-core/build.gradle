@@ -82,8 +82,7 @@ dependencies {
   implementation libs.slf4j
   implementation libs.moshi
   implementation libs.jctools
-
-  implementation group: 'com.google.re2j', name: 're2j', version: '1.7'
+  implementation libs.re2j
 
   // sketches-java is shared
   compileOnly group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'

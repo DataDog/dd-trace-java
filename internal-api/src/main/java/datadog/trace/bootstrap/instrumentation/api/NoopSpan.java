@@ -104,7 +104,7 @@ class NoopSpan extends ImmutableSpan implements AgentSpan {
   }
 
   @Override
-  public AgentSpanContext context() {
+  public AgentSpanContext spanContext() {
     return NoopSpanContext.INSTANCE;
   }
 

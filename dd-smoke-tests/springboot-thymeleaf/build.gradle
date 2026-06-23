@@ -7,7 +7,7 @@ plugins {
 description = 'SpringBoot thymeleaf 3 Smoke Tests.'
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'bootJar'
     artifactPath = 'libs/springboot-thymeleaf-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'

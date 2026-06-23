@@ -94,7 +94,7 @@ class OrgGuardEndToEndTest {
     Context extracted = propagator.extract(Context.root(), headers, stringValuesMap());
     AgentSpan span = AgentSpan.fromContext(extracted);
     assertNotNull(span, "extracted span missing");
-    ExtractedContext ec = (ExtractedContext) span.context();
+    ExtractedContext ec = (ExtractedContext) span.spanContext();
     assertEquals(DDTraceId.from(123L), ec.getTraceId());
     assertEquals(456L, ec.getSpanId());
     assertEquals(UNSET, ec.getSamplingPriority());
@@ -116,7 +116,7 @@ class OrgGuardEndToEndTest {
     headers.put(DatadogHttpCodec.DATADOG_TAGS_KEY, "_dd.p.opm=TRUSTED1,_dd.p.dm=-4");
 
     Context extracted = propagator.extract(Context.root(), headers, stringValuesMap());
-    ExtractedContext ec = (ExtractedContext) AgentSpan.fromContext(extracted).context();
+    ExtractedContext ec = (ExtractedContext) AgentSpan.fromContext(extracted).spanContext();
     assertEquals(2, ec.getSamplingPriority());
     assertEquals("TRUSTED1", ec.getPropagationTags().getOrgPropagationMarker().toString());
   }
@@ -133,7 +133,7 @@ class OrgGuardEndToEndTest {
     headers.put("tracestate", "dd=s:2;o:foo;t.opm:upstream-X;t.dm:-4,vendor1=abc,vendor2=def");
 
     Context extracted = propagator.extract(Context.root(), headers, stringValuesMap());
-    ExtractedContext ec = (ExtractedContext) AgentSpan.fromContext(extracted).context();
+    ExtractedContext ec = (ExtractedContext) AgentSpan.fromContext(extracted).spanContext();
     assertEquals(UNSET, ec.getSamplingPriority(), "should be stripped");
 
     String reEncoded = ec.getPropagationTags().headerValue(W3C);

@@ -7,7 +7,7 @@ plugins {
 description = 'Kafka 2.x Smoke Tests.'
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'bootJar'
     artifactPath = 'libs/kafka-2-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'

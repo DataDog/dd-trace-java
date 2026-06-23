@@ -624,7 +624,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
     if (span instanceof DDSpan) {
-      def traceCollector = ((DDSpan) span).context().getTraceCollector()
+      def traceCollector = ((DDSpan) span).spanContext().getTraceCollector()
       if (!(traceCollector instanceof PendingTrace)) {
         throw new IllegalStateException("Expected $PendingTrace.name trace collector, got $traceCollector.class.name")
       }

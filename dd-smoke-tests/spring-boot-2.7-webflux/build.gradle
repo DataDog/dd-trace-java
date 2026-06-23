@@ -6,7 +6,7 @@ plugins {
 description = 'Spring Boot 2.7 Webflux Smoke Tests.'
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'webfluxBuild'
     nestedTasks = ['bootJar']
     artifactPath = 'libs/webflux-2.7-smoketest.jar'

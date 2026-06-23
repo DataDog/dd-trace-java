@@ -7,7 +7,7 @@ plugins {
 description = 'SpringBoot Freemarker Smoke Tests.'
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'bootJar'
     artifactPath = 'libs/springboot-freemarker-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'

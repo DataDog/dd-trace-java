@@ -7,7 +7,7 @@ plugins {
 description = 'SpringBoot Velocity Smoke Tests.'
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'bootJar'
     artifactPath = 'libs/springboot-velocity-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'

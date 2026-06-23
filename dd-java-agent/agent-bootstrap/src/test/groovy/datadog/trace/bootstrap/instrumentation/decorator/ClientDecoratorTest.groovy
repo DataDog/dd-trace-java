@@ -24,7 +24,7 @@ class ClientDecoratorTest extends BaseDecoratorTest {
     }
     1 * span.setMeasured(true)
     1 * span.setTag(TagMap.Entry.create(Tags.COMPONENT, "test-component"))
-    1 * span.context() >> spanContext
+    1 * span.spanContext() >> spanContext
     1 * spanContext.setIntegrationName("test-component")
     1 * span.setTag(TagMap.Entry.create(Tags.SPAN_KIND, "client"))
     1 * span.setSpanType(decorator.spanType())
