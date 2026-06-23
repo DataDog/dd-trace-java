@@ -33,9 +33,6 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final BlockingQueue<WafMetric> rawMetricsQueue =
       new ArrayBlockingQueue<>(RAW_QUEUE_SIZE);
 
-  private static final AtomicInteger wafInitCounter = new AtomicInteger();
-  private static final AtomicInteger wafUpdatesCounter = new AtomicInteger();
-
   private static final int WAF_REQUEST_COMBINATIONS = 128; // 2^7
   private final AtomicLongArray wafRequestCounter = new AtomicLongArray(WAF_REQUEST_COMBINATIONS);
 
@@ -80,14 +77,11 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   public void wafInit(final String wafVersion, final String rulesVersion, final boolean success) {
     WafMetricCollector.wafVersion = wafVersion;
     WafMetricCollector.rulesVersion = rulesVersion;
-    rawMetricsQueue.offer(
-        new WafInitRawMetric(wafInitCounter.incrementAndGet(), wafVersion, rulesVersion, success));
+    rawMetricsQueue.offer(new WafInitRawMetric(1L, wafVersion, rulesVersion, success));
   }
 
   public void wafUpdates(final String rulesVersion, final boolean success) {
-    rawMetricsQueue.offer(
-        new WafUpdatesRawMetric(
-            wafUpdatesCounter.incrementAndGet(), wafVersion, rulesVersion, success));
+    rawMetricsQueue.offer(new WafUpdatesRawMetric(1L, wafVersion, rulesVersion, success));
 
     // Flush request metrics to get the new version.
     if (rulesVersion != null

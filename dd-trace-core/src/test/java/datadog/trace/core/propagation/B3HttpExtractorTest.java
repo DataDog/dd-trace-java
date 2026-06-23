@@ -1,7 +1,5 @@
 package datadog.trace.core.propagation;
 
-import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
-import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_SPAN_ID;
@@ -16,50 +14,27 @@ import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
-import datadog.trace.api.DynamicConfig;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
-import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
-@WithConfig(key = PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED, value = "true")
-class B3HttpExtractorTest extends DDJavaSpecification {
-  private static final String SOME_HEADER = "SOME_HEADER";
-  private static final String SOME_TAG = "some-tag";
+class B3HttpExtractorTest extends AbstractHttpExtractorTest {
   private static final String SOME_VALUE = "my-interesting-info";
-  private static final String FORWARDED_IP = "1.2.3.4";
-  private static final String FORWARDED_PORT = "1234";
 
-  private HttpCodec.Extractor extractor;
-  private boolean origAppSecActive;
-
-  @BeforeEach
-  void setup() {
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create()
-            .setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG))
-            .setBaggageMapping(emptyMap())
-            .apply();
-    this.extractor = B3HttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
-    this.origAppSecActive = APPSEC_ACTIVE;
-    APPSEC_ACTIVE = true;
-  }
-
-  @AfterEach
-  void teardown() {
-    APPSEC_ACTIVE = this.origAppSecActive;
+  @Override
+  protected HttpCodec.Extractor newExtractor(
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+    return B3HttpCodec.newExtractor(config, traceConfigSupplier);
   }
 
   @TableTest({
@@ -84,7 +59,8 @@ class B3HttpExtractorTest extends DDJavaSpecification {
         SAMPLING_PRIORITY_KEY, samplingPriority != null ? samplingPriority.toString() : null);
     // spotless:on
 
-    ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
+    ExtractedContext context =
+        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
     assertEquals(B3TraceId.fromHex(traceIdHex), context.getTraceId());
     assertEquals(DDSpanId.fromHex(spanIdHex), context.getSpanId());
@@ -232,67 +208,6 @@ class B3HttpExtractorTest extends DDJavaSpecification {
   }
 
   @Test
-  void extractHeadersWithForwarding() {
-    String forwarded = "for=" + FORWARDED_IP + ":" + FORWARDED_PORT;
-    Map<String, String> tagOnlyCtx = headers("Forwarded", forwarded);
-    // spotless:off
-    Map<String, String> fullCtx = headers(
-        TRACE_ID_KEY, "1",
-        SPAN_ID_KEY, "2",
-        "Forwarded", forwarded
-    );
-    // spotless:on
-
-    TagContext context = extractor.extract(tagOnlyCtx, stringValuesMap());
-
-    assertNotNull(context);
-    assertFalse(context instanceof ExtractedContext);
-    assertEquals(forwarded, context.getForwarded());
-
-    context = this.extractor.extract(fullCtx, stringValuesMap());
-
-    assertInstanceOf(ExtractedContext.class, context);
-    assertEquals(1L, context.getTraceId().toLong());
-    assertEquals(2L, context.getSpanId());
-    assertEquals(forwarded, context.getForwarded());
-  }
-
-  @Test
-  void extractHeadersWithXForwarding() {
-    // spotless:off
-    Map<String, String> tagOnlyCtx = headers(
-        "X-Forwarded-For", FORWARDED_IP,
-        "X-Forwarded-Port", FORWARDED_PORT
-    );
-    Map<String, String> fullCtx = headers(
-        TRACE_ID_KEY, "1",
-        SPAN_ID_KEY, "2",
-        "x-forwarded-for", FORWARDED_IP,
-        "x-forwarded-port", FORWARDED_PORT
-    );
-    // spotless:on
-
-    TagContext context = extractor.extract(tagOnlyCtx, stringValuesMap());
-
-    assertNotNull(context);
-    assertEquals(FORWARDED_IP, context.getXForwardedFor());
-    assertEquals(FORWARDED_PORT, context.getXForwardedPort());
-
-    context = extractor.extract(fullCtx, stringValuesMap());
-
-    assertInstanceOf(ExtractedContext.class, context);
-    assertEquals(1L, context.getTraceId().toLong());
-    assertEquals(2L, context.getSpanId());
-    assertEquals(FORWARDED_IP, context.getXForwardedFor());
-    assertEquals(FORWARDED_PORT, context.getXForwardedPort());
-  }
-
-  @Test
-  void extractEmptyHeadersReturnsNull() {
-    assertNull(extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
-  }
-
-  @Test
   void extractHttpHeadersWithInvalidNonNumericId() {
     // spotless:off
     Map<String, String> headers = headers(
@@ -362,36 +277,5 @@ class B3HttpExtractorTest extends DDJavaSpecification {
       return "0";
     }
     return hex.substring(firstNonZero, length);
-  }
-
-  @Test
-  void extractCommonHttpHeaders() {
-    // spotless:off
-    Map<String, String> headers = headers(
-        HttpCodec.USER_AGENT_KEY, "some-user-agent",
-        HttpCodec.X_CLUSTER_CLIENT_IP_KEY, "1.1.1.1",
-        HttpCodec.X_REAL_IP_KEY, "2.2.2.2",
-        HttpCodec.X_CLIENT_IP_KEY, "3.3.3.3",
-        HttpCodec.TRUE_CLIENT_IP_KEY, "4.4.4.4",
-        HttpCodec.FORWARDED_FOR_KEY, "5.5.5.5",
-        HttpCodec.FORWARDED_KEY, "6.6.6.6",
-        HttpCodec.FASTLY_CLIENT_IP_KEY, "7.7.7.7",
-        HttpCodec.CF_CONNECTING_IP_KEY, "8.8.8.8",
-        HttpCodec.CF_CONNECTING_IP_V6_KEY, "9.9.9.9"
-    );
-    // spotless:on
-
-    TagContext context = extractor.extract(headers, stringValuesMap());
-
-    assertEquals("some-user-agent", context.getUserAgent());
-    assertEquals("1.1.1.1", context.getXClusterClientIp());
-    assertEquals("2.2.2.2", context.getXRealIp());
-    assertEquals("3.3.3.3", context.getXClientIp());
-    assertEquals("4.4.4.4", context.getTrueClientIp());
-    assertEquals("5.5.5.5", context.getForwardedFor());
-    assertEquals("6.6.6.6", context.getForwarded());
-    assertEquals("7.7.7.7", context.getFastlyClientIp());
-    assertEquals("8.8.8.8", context.getCfConnectingIp());
-    assertEquals("9.9.9.9", context.getCfConnectingIpv6());
   }
 }

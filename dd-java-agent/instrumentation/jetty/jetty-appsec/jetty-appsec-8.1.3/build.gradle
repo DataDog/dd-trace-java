@@ -11,6 +11,8 @@ apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '8.1.3.v20120416'
-}
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '8.1.3.v20120416'
 
-// testing happens in the jetty-* modules
+  testImplementation libs.bundles.mockito
+  testImplementation group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
+}

@@ -17,8 +17,6 @@ addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'io.opentelemetry', name: 'opentelemetry-api', version: otelVersion
-
-  compileOnly group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.2'
   compileOnly group: 'com.google.auto.value', name: 'auto-value-annotations', version: '1.6.6'
 
   testImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: otelVersion
