@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:armeria:armeria-grpc-0.84:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepForkedTestCompileProtoPath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileProtoPath,latestDepTestRuntimeClasspath,testCompileProtoPath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latestDepForkedTestCompileProtoPath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileProtoPath,latestDepTestRuntimeClasspath,testCompileProtoPath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=latestDepForkedTestCompileClasspath,latestDepForkedTestCompileProtoPath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestCompileProtoPath,latestDepTestRuntimeClasspath,testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
@@ -35,7 +36,7 @@ com.github.jnr:jnr-ffi:2.2.19=latestDepForkedTestCompileProtoPath,latestDepForke
 com.github.jnr:jnr-posix:3.1.22=latestDepForkedTestCompileProtoPath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileProtoPath,latestDepTestRuntimeClasspath,testCompileProtoPath,testRuntimeClasspath
 com.github.jnr:jnr-unixsocket:0.38.25=latestDepForkedTestCompileProtoPath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileProtoPath,latestDepTestRuntimeClasspath,testCompileProtoPath,testRuntimeClasspath
 com.github.jnr:jnr-x86asm:1.0.2=latestDepForkedTestCompileProtoPath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileProtoPath,latestDepTestRuntimeClasspath,testCompileProtoPath,testRuntimeClasspath
-com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,compileProtoPath,latestDepForkedTestCompileClasspath,latestDepForkedTestCompileProtoPath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestCompileProtoPath,latestDepTestRuntimeClasspath,spotbugs,testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
+com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,compileProtoPath,spotbugs
 com.github.spotbugs:spotbugs:4.9.8=spotbugs
 com.github.stephenc.jcip:jcip-annotations:1.0-1=spotbugs
 com.google.android:annotations:4.1.1.4=compileClasspath,compileProtoPath,latestDepForkedTestCompileProtoPath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileProtoPath,latestDepTestRuntimeClasspath,testCompileProtoPath,testRuntimeClasspath
