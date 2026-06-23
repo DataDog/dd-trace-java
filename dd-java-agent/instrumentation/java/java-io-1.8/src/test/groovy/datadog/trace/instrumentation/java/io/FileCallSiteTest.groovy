@@ -4,7 +4,7 @@ import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.PathTraversalModule
-import datadog.trace.instrumentation.java.lang.FileLoadedRaspHelper
+import datadog.trace.instrumentation.java.lang.FileIORaspHelper
 import foo.bar.TestFileSuite
 
 import java.util.function.BiFunction
@@ -84,8 +84,8 @@ class FileCallSiteTest extends BaseIoRaspCallSiteTest {
 
   void 'test RASP new file with parent and child'() {
     setup:
-    final helper = Mock(FileLoadedRaspHelper)
-    FileLoadedRaspHelper.INSTANCE = helper
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
     final parent = '/home/test'
     final child = 'test.txt'
 
@@ -98,8 +98,8 @@ class FileCallSiteTest extends BaseIoRaspCallSiteTest {
 
   void 'test RASP new file with parent file and child'() {
     setup:
-    final helper = Mock(FileLoadedRaspHelper)
-    FileLoadedRaspHelper.INSTANCE = helper
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
     final parent = new File('/home/test')
     final child = 'test.txt'
 
@@ -112,8 +112,8 @@ class FileCallSiteTest extends BaseIoRaspCallSiteTest {
 
   void 'test RASP new file with uri'() {
     setup:
-    final helper = Mock(FileLoadedRaspHelper)
-    FileLoadedRaspHelper.INSTANCE = helper
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
     final file = new URI('file:/test.txt')
 
     when:

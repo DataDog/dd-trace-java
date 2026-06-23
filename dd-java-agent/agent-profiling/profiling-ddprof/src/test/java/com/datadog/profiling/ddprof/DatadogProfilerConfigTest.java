@@ -1,13 +1,18 @@
 package com.datadog.profiling.ddprof;
 
+import static com.datadog.profiling.controller.ProfilingSupport.isOldObjectSampleAvailable;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -125,5 +130,71 @@ class DatadogProfilerConfigTest {
         Arguments.of("fp", "fp"),
         Arguments.of("lbr", "lbr"),
         Arguments.of("no", "no"));
+  }
+
+  @Test
+  void isMemoryLeakProfilingSafeConsistentWithComponentChecks() {
+    boolean expected = DatadogProfilerConfig.isJmethodIDSafe() || isOldObjectSampleAvailable();
+    assertEquals(expected, DatadogProfilerConfig.isMemoryLeakProfilingSafe());
+  }
+
+  @Test
+  void unifiedFlagEnabledDdprofKeyDefaultReflectsSafety() {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_HEAP_ENABLED, "true");
+    ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
+    // ddprof live heap requires Java 11+ (JVMTI Allocation Sampler) AND jmethodID safety
+    boolean expectedDefault =
+        JavaVirtualMachine.isJavaVersionAtLeast(11) && DatadogProfilerConfig.isJmethodIDSafe();
+    assertEquals(expectedDefault, DatadogProfilerConfig.isMemoryLeakProfilingEnabled(config));
+  }
+
+  @Test
+  void unifiedFlagDisabledOverridesDdprof() {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_HEAP_ENABLED, "false");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, "true");
+    ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
+    assertFalse(DatadogProfilerConfig.isMemoryLeakProfilingEnabled(config));
+  }
+
+  @Test
+  void unifiedFlagEnabledDdprofKeyDisabledReturnsFalse() {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_HEAP_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, "false");
+    ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
+    assertFalse(DatadogProfilerConfig.isMemoryLeakProfilingEnabled(config));
+  }
+
+  @Test
+  void unifiedFlagEnabledDdprofKeyEnabledReturnsTrue() {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_HEAP_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, "true");
+    ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
+    assertTrue(DatadogProfilerConfig.isMemoryLeakProfilingEnabled(config));
+  }
+
+  @Test
+  void oldMemleakAliasStillWorks() {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_HEAP_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED, "true");
+    ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
+    assertTrue(DatadogProfilerConfig.isMemoryLeakProfilingEnabled(config));
+  }
+
+  @Test
+  void defaultBehaviorNoFlagsSetUsesAutoDetection() {
+    Properties props = new Properties();
+    ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
+    // With no flags set:
+    // unified default = isMemoryLeakProfilingSafe()
+    // ddprof default = Java 11+ && isJmethodIDSafe()
+    // result = isMemoryLeakProfilingSafe() && (Java 11+ && isJmethodIDSafe())
+    boolean expectedDefault =
+        JavaVirtualMachine.isJavaVersionAtLeast(11) && DatadogProfilerConfig.isJmethodIDSafe();
+    assertEquals(expectedDefault, DatadogProfilerConfig.isMemoryLeakProfilingEnabled(config));
   }
 }

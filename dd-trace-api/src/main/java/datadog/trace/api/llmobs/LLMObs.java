@@ -217,6 +217,11 @@ public class LLMObs {
       return new LLMMessage(role, content, toolCalls, null);
     }
 
+    public static LLMMessage from(
+        String role, String content, List<ToolCall> toolCalls, List<ToolResult> toolResults) {
+      return new LLMMessage(role, content, toolCalls, toolResults);
+    }
+
     public static LLMMessage from(String role, String content) {
       return new LLMMessage(role, content, null, null);
     }

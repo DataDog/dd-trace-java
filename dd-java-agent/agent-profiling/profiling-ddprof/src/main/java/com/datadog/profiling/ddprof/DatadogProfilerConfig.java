@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import static com.datadog.profiling.controller.ProfilingSupport.isOldObjectSampleAvailable;
 import static datadog.environment.JavaVirtualMachine.isJ9;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES;
@@ -20,7 +21,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_CAPACITY_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT_DEFAULT;
@@ -43,6 +43,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
@@ -52,6 +53,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH_DEFA
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 
+import com.datadog.profiling.controller.ProfilingSupport;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -165,26 +167,12 @@ public class DatadogProfilerConfig {
         PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT);
   }
 
-  private static boolean isJmethodIDSafe() {
-    // see https://bugs.openjdk.org/browse/JDK-8313816
-    if (JavaVirtualMachine.isJavaVersionAtLeast(22)) {
-      // any version after 22 should be safe
-      return true;
-    }
-    switch (JavaVirtualMachine.getLangVersion()) {
-      case "8":
-        // Java 8 is not affected by the jmethodID issue
-        return true;
-      case "11":
-        return JavaVirtualMachine.isJavaVersionAtLeast(11, 0, 23);
-      case "17":
-        return JavaVirtualMachine.isJavaVersionAtLeast(17, 0, 11);
-      case "21":
-        return JavaVirtualMachine.isJavaVersionAtLeast(21, 0, 3);
-      default:
-        // any other non-LTS version should be considered unsafe
-        return false;
-    }
+  static boolean isJmethodIDSafe() {
+    return ProfilingSupport.isJmethodIDSafe();
+  }
+
+  static boolean isMemoryLeakProfilingSafe() {
+    return ProfilingSupport.isLiveHeapProfilingSafe();
   }
 
   public static boolean isAllocationProfilingEnabled(ConfigProvider configProvider) {
@@ -223,16 +211,29 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isMemoryLeakProfilingEnabled(ConfigProvider configProvider) {
-    boolean isSafe = isJmethodIDSafe();
+    boolean unifiedEnabled =
+        configProvider.getBoolean(PROFILING_HEAP_ENABLED, isMemoryLeakProfilingSafe());
+    if (!unifiedEnabled) {
+      return false;
+    }
+    // JVMTI Allocation Sampler is required for ddprof live heap and is available since Java 11.
+    // isJmethodIDSafe() alone is not sufficient — Java 8 is jmethodID-safe but lacks the sampler.
+    boolean isSafe = JavaVirtualMachine.isJavaVersionAtLeast(11) && isJmethodIDSafe();
     boolean enableDdprofMemleak =
         getBoolean(
             configProvider,
             PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
-            PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED_DEFAULT,
+            isSafe,
             PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED);
     if (!isSafe && enableDdprofMemleak) {
       log.warn(
-          "Memory leak profiling was enabled although it is not considered stable on this JVM version.");
+          "Live heap profiling (ddprof) was enabled although it is not considered stable"
+              + " on this JVM version.");
+    }
+    if (!enableDdprofMemleak && !isOldObjectSampleAvailable()) {
+      log.warn(
+          "ddprof live heap profiling is disabled and JFR OldObjectSample is not available"
+              + " on this JVM. Live heap profiling will be inactive.");
     }
     return enableDdprofMemleak;
   }

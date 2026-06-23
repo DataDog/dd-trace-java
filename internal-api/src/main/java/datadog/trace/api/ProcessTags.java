@@ -3,6 +3,7 @@ package datadog.trace.api;
 import datadog.environment.EnvironmentVariables;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.env.CapturedEnvironment;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.TraceUtils;
 import java.nio.file.Path;
@@ -13,6 +14,8 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -28,8 +31,7 @@ public class ProcessTags {
   public static final String ENTRYPOINT_BASEDIR = "entrypoint.basedir";
   public static final String ENTRYPOINT_WORKDIR = "entrypoint.workdir";
 
-  // visible for testing
-  static Function<String, String> envGetter = EnvironmentVariables::get;
+  @VisibleForTesting static Function<String, String> envGetter = EnvironmentVariables::get;
 
   private static class Lazy {
     // the tags are used to compute a hash for dsm hence that map must be sorted.
@@ -48,8 +50,53 @@ public class ProcessTags {
         } catch (Throwable t) {
           LOGGER.debug("Unable to calculate default process tags", t);
         }
+        fillMappingTags(tags, config.getProcessTagsMapping());
       }
       return tags;
+    }
+
+    private static void fillMappingTags(
+        SortedMap<String, String> tags, Map<String, String> mappings) {
+      if (mappings.isEmpty()) {
+        return;
+      }
+      final Pattern mappingKeyPattern = Pattern.compile("^\\{(\\w+)}(\\S+)$");
+      for (Map.Entry<String, String> entry : mappings.entrySet()) {
+        parseMappingEntry(tags, mappingKeyPattern, entry.getKey(), entry.getValue());
+      }
+    }
+
+    private static void parseMappingEntry(
+        SortedMap<String, String> tags,
+        Pattern mappingKeyPattern,
+        String sourceAndKey,
+        String processTagKey) {
+      // sourceAndKey format: {source}config_key (colon-split already done by getMergedMap)
+      final Matcher matcher = mappingKeyPattern.matcher(sourceAndKey != null ? sourceAndKey : "");
+      if (!matcher.matches()) {
+        LOGGER.warn("Malformed process.tags.mapping key: '{}'", sourceAndKey);
+        return;
+      }
+      String source = matcher.group(1);
+      String configKey = matcher.group(2);
+      String value;
+      if ("env".equals(source)) {
+        value = envGetter.apply(configKey);
+      } else if ("prop".equals(source)) {
+        value = SystemProperties.get(configKey);
+      } else {
+        LOGGER.warn(
+            "Unsupported source '{}' in process.tags.mapping for key: '{}' (supported sources: 'env', 'prop' — lowercase only)",
+            source,
+            sourceAndKey);
+        return;
+      }
+      if (value == null || value.isEmpty()) {
+        LOGGER.debug(
+            "No value for key '{}' from source '{}' in process.tags.mapping", configKey, source);
+        return;
+      }
+      tags.put(TraceUtils.normalizeTagValue(processTagKey), value);
     }
 
     private static void fillJeeTags(SortedMap<String, String> tags) {
@@ -222,7 +269,7 @@ public class ProcessTags {
     return Lazy.serializedForm;
   }
 
-  /** Visible for testing. */
+  @VisibleForTesting
   static void empty() {
     synchronized (Lazy.TAGS) {
       Lazy.TAGS.clear();
@@ -232,12 +279,12 @@ public class ProcessTags {
     }
   }
 
-  /** Visible for testing. */
+  @VisibleForTesting
   static void reset() {
     reset(Config.get());
   }
 
-  /** Visible for testing. */
+  @VisibleForTesting
   public static void reset(Config config) {
     synchronized (Lazy.TAGS) {
       empty();

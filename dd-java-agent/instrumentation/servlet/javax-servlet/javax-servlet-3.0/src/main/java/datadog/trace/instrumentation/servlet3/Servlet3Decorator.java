@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.servlet3;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
+
 import datadog.context.Context;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -8,8 +10,11 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Servlet3Decorator
     extends HttpServerDecorator<
@@ -21,6 +26,7 @@ public class Servlet3Decorator
       UTF8BytesString.create(DECORATE.operationName());
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
+  private static final Logger LOGGER = LoggerFactory.getLogger(Servlet3Decorator.class);
 
   @Override
   protected String[] instrumentationNames() {
@@ -64,7 +70,15 @@ public class Servlet3Decorator
 
   @Override
   protected int peerPort(final HttpServletRequest httpServletRequest) {
-    return httpServletRequest.getRemotePort();
+    try {
+      return httpServletRequest.getRemotePort();
+    } catch (AbstractMethodError e) {
+      LOGGER.debug(
+          EXCLUDE_TELEMETRY,
+          "Method not implemented when trying to get the request remote port",
+          e);
+      return 0; // 0 will be handled as `no port` by the caller
+    }
   }
 
   @Override
@@ -113,5 +127,20 @@ public class Servlet3Decorator
       super.onError(span, throwable);
     }
     return span;
+  }
+
+  /**
+   * Safely calls ServletRequest#isAsyncStarted. Some 2.x wrappers might be dangling in the 3.x
+   * classpath and produce an AbstractMethodError
+   *
+   * @param servletRequest the servlet request.
+   * @return the real call result or false when the method does not exist in the provided object.
+   */
+  public boolean safeIsAsyncStarted(final ServletRequest servletRequest) {
+    try {
+      return servletRequest.isAsyncStarted();
+    } catch (AbstractMethodError ignored) {
+      return false;
+    }
   }
 }

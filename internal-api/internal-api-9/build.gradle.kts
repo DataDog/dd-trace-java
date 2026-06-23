@@ -34,8 +34,8 @@ listOf(JavaCompile::class.java, GroovyCompile::class.java).forEach { compileTask
   }
 }
 
-val minimumBranchCoverage by extra(0.8)
-val minimumInstructionCoverage by extra(0.8)
+extra["minimumBranchCoverage"] = 0.8
+extra["minimumInstructionCoverage"] = 0.8
 
 dependencies {
   api(project(":internal-api"))

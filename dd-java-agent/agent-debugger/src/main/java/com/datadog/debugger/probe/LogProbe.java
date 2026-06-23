@@ -458,7 +458,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     double rate =
         sampling != null
             ? sampling.getEventsPerSecond()
-            : (isCaptureSnapshot()
+            : (isFullSnapshot()
                 ? ProbeRateLimiter.DEFAULT_SNAPSHOT_RATE
                 : ProbeRateLimiter.DEFAULT_LOG_RATE);
     sampler = ProbeRateLimiter.createSampler(rate);
@@ -502,7 +502,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   public boolean isReadyToCapture() {
     if (!hasCondition()) {
       // we are sampling here to avoid creating CapturedContext when the sampling result is negative
-      return ProbeRateLimiter.tryProbe(sampler, isCaptureSnapshot());
+      return ProbeRateLimiter.tryProbe(sampler, isFullSnapshot());
     }
     return true;
   }
@@ -570,10 +570,10 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     // if condition has error and no capture Snapshot, the error is reported using errorSampler
     // at 1/s rate instead of the log template one
     Sampler localSampler =
-        logStatus.hasConditionErrors && !isCaptureSnapshot() ? errorSampler : sampler;
+        logStatus.hasConditionErrors && !isFullSnapshot() ? errorSampler : sampler;
     boolean sampled =
         !logStatus.getDebugSessionStatus().isDisabled()
-            && ProbeRateLimiter.tryProbe(localSampler, isCaptureSnapshot());
+            && ProbeRateLimiter.tryProbe(localSampler, isFullSnapshot());
     logStatus.setSampled(sampled);
     if (!sampled) {
       DebuggerAgent.getSink()
@@ -730,7 +730,6 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
                   captureExpression.getName(), Object.class.getTypeName(), null));
         } else {
           if (captureExpression.capture != null) {
-            Value.toCapturedSnapshot(captureExpression.getName(), result);
             context.addCaptureExpression(
                 Value.toCapturedSnapshot(
                     captureExpression.getName(),
@@ -740,8 +739,20 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
                     captureExpression.capture.maxLength,
                     captureExpression.capture.maxFieldCount));
           } else {
-            context.addCaptureExpression(
-                Value.toCapturedSnapshot(captureExpression.getName(), result));
+            // inherit from probe capture field because no specific capture
+            if (capture != null) {
+              context.addCaptureExpression(
+                  Value.toCapturedSnapshot(
+                      captureExpression.getName(),
+                      result,
+                      capture.maxReferenceDepth,
+                      capture.maxCollectionSize,
+                      capture.maxLength,
+                      capture.maxFieldCount));
+            } else {
+              context.addCaptureExpression(
+                  Value.toCapturedSnapshot(captureExpression.getName(), result));
+            }
           }
         }
       } catch (EvaluationException ex) {

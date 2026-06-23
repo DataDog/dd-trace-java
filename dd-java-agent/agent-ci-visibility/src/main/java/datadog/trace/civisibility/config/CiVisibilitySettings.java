@@ -24,7 +24,7 @@ public class CiVisibilitySettings {
           null,
           false);
 
-  public static final CiVisibilitySettings REQUEST_ERROR =
+  public static final CiVisibilitySettings SETTINGS_REQUEST_ERROR =
       new CiVisibilitySettings(
           false,
           false,
@@ -52,7 +52,7 @@ public class CiVisibilitySettings {
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final TestManagementSettings testManagementSettings;
   @Nullable private final String defaultBranch;
-  private final boolean requestError;
+  private final boolean settingsRequestError;
 
   CiVisibilitySettings(
       boolean itrEnabled,
@@ -67,7 +67,7 @@ public class CiVisibilitySettings {
       EarlyFlakeDetectionSettings earlyFlakeDetectionSettings,
       TestManagementSettings testManagementSettings,
       @Nullable String defaultBranch,
-      boolean requestError) {
+      boolean settingsRequestError) {
     this.itrEnabled = itrEnabled;
     this.codeCoverage = codeCoverage;
     this.testsSkipping = testsSkipping;
@@ -80,7 +80,7 @@ public class CiVisibilitySettings {
     this.earlyFlakeDetectionSettings = earlyFlakeDetectionSettings;
     this.testManagementSettings = testManagementSettings;
     this.defaultBranch = defaultBranch;
-    this.requestError = requestError;
+    this.settingsRequestError = settingsRequestError;
   }
 
   public boolean isItrEnabled() {
@@ -132,8 +132,8 @@ public class CiVisibilitySettings {
     return defaultBranch;
   }
 
-  public boolean isRequestError() {
-    return requestError;
+  public boolean isSettingsRequestError() {
+    return settingsRequestError;
   }
 
   @Override
@@ -157,7 +157,7 @@ public class CiVisibilitySettings {
         && Objects.equals(earlyFlakeDetectionSettings, that.earlyFlakeDetectionSettings)
         && Objects.equals(testManagementSettings, that.testManagementSettings)
         && Objects.equals(defaultBranch, that.defaultBranch)
-        && requestError == that.requestError;
+        && settingsRequestError == that.settingsRequestError;
   }
 
   @Override
@@ -175,7 +175,7 @@ public class CiVisibilitySettings {
         earlyFlakeDetectionSettings,
         testManagementSettings,
         defaultBranch,
-        requestError);
+        settingsRequestError);
   }
 
   public interface Factory {

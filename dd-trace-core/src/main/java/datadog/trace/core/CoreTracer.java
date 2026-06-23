@@ -40,6 +40,7 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
@@ -52,6 +53,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
@@ -90,29 +92,32 @@ import datadog.trace.core.baggage.BaggagePropagator;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DataStreamsTransactionExtractors;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
+import datadog.trace.core.datastreams.DisabledDataStreamsMonitoring;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.TracerHealthMetrics;
+import datadog.trace.core.otlp.logs.OtlpLogsService;
+import datadog.trace.core.otlp.metrics.OtlpMetricsService;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.InferredProxyPropagator;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.TracingPropagator;
 import datadog.trace.core.propagation.XRayPropagator;
+import datadog.trace.core.propagation.opg.OrgGuard;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.servicediscovery.ServiceDiscovery;
 import datadog.trace.core.servicediscovery.ServiceDiscoveryFactory;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
+import datadog.trace.lambda.LambdaAppSecHandler;
 import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -120,8 +125,6 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
-import java.util.SortedSet;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -136,11 +139,8 @@ import org.slf4j.LoggerFactory;
  */
 public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
-  // UINT64 max value
-  public static final BigInteger TRACE_ID_MAX =
-      BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
 
-  public static final CoreTracerBuilder builder() {
+  public static CoreTracerBuilder builder() {
     return new CoreTracerBuilder();
   }
 
@@ -211,6 +211,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final TimeSource timeSource;
   private final ProfilingContextIntegration profilingContextIntegration;
   private final boolean injectBaggageAsTags;
+  private final boolean injectLinksAsTags;
   private final boolean flushOnClose;
   private final Collection<Runnable> shutdownListeners = new CopyOnWriteArrayList<>();
 
@@ -226,8 +227,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
    */
   private final TagInterceptor tagInterceptor;
 
-  private final SortedSet<TraceInterceptor> interceptors =
-      new ConcurrentSkipListSet<>(Comparator.comparingInt(TraceInterceptor::priority));
+  private final TraceInterceptors interceptors = new TraceInterceptors();
 
   private final boolean logs128bTraceIdEnabled;
 
@@ -329,6 +329,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     private boolean reportInTracerFlare;
     private boolean pollForTracingConfiguration;
     private boolean injectBaggageAsTags;
+    private boolean injectLinksAsTags;
     private boolean flushOnClose;
 
     public CoreTracerBuilder serviceName(String serviceName) {
@@ -474,6 +475,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       return this;
     }
 
+    public CoreTracerBuilder injectLinksAsTags(boolean injectLinksAsTags) {
+      this.injectLinksAsTags = injectLinksAsTags;
+      return this;
+    }
+
     public CoreTracerBuilder flushOnClose(boolean flushOnClose) {
       this.flushOnClose = flushOnClose;
       return this;
@@ -509,6 +515,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       partialFlushMinSpans(config.getPartialFlushMinSpans());
       strictTraceWrites(config.isTraceStrictWritesEnabled());
       injectBaggageAsTags(config.isInjectBaggageAsTagsEnabled());
+      injectLinksAsTags(config.isInjectLinksAsTagsEnabled());
       flushOnClose(config.isCiVisibilityEnabled());
       return this;
     }
@@ -541,6 +548,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           reportInTracerFlare,
           pollForTracingConfiguration,
           injectBaggageAsTags,
+          injectLinksAsTags,
           flushOnClose);
     }
   }
@@ -572,6 +580,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final boolean reportInTracerFlare,
       final boolean pollForTracingConfiguration,
       final boolean injectBaggageAsTags,
+      final boolean injectLinksAsTags,
       final boolean flushOnClose) {
     this(
         config,
@@ -600,6 +609,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         reportInTracerFlare,
         pollForTracingConfiguration,
         injectBaggageAsTags,
+        injectLinksAsTags,
         flushOnClose);
   }
 
@@ -631,6 +641,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final boolean reportInTracerFlare,
       final boolean pollForTracingConfiguration,
       final boolean injectBaggageAsTags,
+      final boolean injectLinksAsTags,
       final boolean flushOnClose) {
 
     assert localRootSpanTags != null;
@@ -759,14 +770,17 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
-
     if (config.isCiVisibilityEnabled()) {
       // ensure updated discovery and sync if the another discovery currently being done
       featuresDiscovery.discoverIfOutdated();
     }
 
+    boolean payloadFilesEnabled =
+        config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled();
     if (config.isCiVisibilityEnabled()
-        && (config.isCiVisibilityAgentlessEnabled() || featuresDiscovery.supportsEvpProxy())) {
+        && (config.isCiVisibilityAgentlessEnabled()
+            || payloadFilesEnabled
+            || featuresDiscovery.supportsEvpProxy())) {
       pendingTraceBuffer = PendingTraceBuffer.discarding();
       traceCollectorFactory =
           new StreamingTraceCollector.Factory(this, this.timeSource, this.healthMetrics);
@@ -787,38 +801,45 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     // allowed
     metricsAggregator = NoOpMetricsAggregator.INSTANCE;
     final SharedCommunicationObjects sco = sharedCommunicationObjects;
-    // asynchronously create the aggregator to avoid triggering expensive classloading during the
-    // tracer initialisation.
+    // asynchronously create these aggregator/export components to avoid triggering
+    // expensive classloading during the tracer initialisation.
     sharedCommunicationObjects.whenReady(
         () ->
             AgentTaskScheduler.get()
                 .execute(
                     () -> {
-                      metricsAggregator = createMetricsAggregator(config, sco, this.healthMetrics);
-                      // Schedule the metrics aggregator to begin reporting after a random delay of
-                      // 1 to 10 seconds (using milliseconds granularity.)
-                      // This avoids a fleet of traced applications starting at the same time from
-                      // sending metrics in sync.
-                      AgentTaskScheduler.get()
-                          .scheduleWithJitter(
-                              MetricsAggregator::start, metricsAggregator, 1, SECONDS);
+                      startMetricsAggregation(config, sco);
+                      maybeStartLogsExport(config);
                     }));
 
     if (dataStreamsMonitoring == null) {
+      // Avoid DSM in bazel hermetic mode
       this.dataStreamsMonitoring =
-          new DefaultDataStreamsMonitoring(
-              config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
+          payloadFilesEnabled
+              ? DisabledDataStreamsMonitoring.INSTANCE
+              : new DefaultDataStreamsMonitoring(
+                  config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
     } else {
       this.dataStreamsMonitoring = dataStreamsMonitoring;
     }
 
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
 
+    propagationTagsFactory = PropagationTags.factory(config);
+
     // Register context propagators
-    HttpCodec.Extractor tracingExtractor =
+    HttpCodec.Extractor baseExtractor =
         extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
+    OrgGuard orgGuard =
+        OrgGuard.create(
+            config,
+            featuresDiscovery::getOrgPropagationMarker,
+            propagationTagsFactory,
+            this.healthMetrics);
+    HttpCodec.Extractor tracingExtractor = orgGuard.decorateExtractor(baseExtractor);
+    HttpCodec.Injector tracingInjector = orgGuard.decorateInjector(injector);
     TracingPropagator tracingPropagator =
-        new TracingPropagator(config.isApmTracingEnabled(), injector, tracingExtractor);
+        new TracingPropagator(config.isApmTracingEnabled(), tracingInjector, tracingExtractor);
     Propagators.register(TRACING_CONCERN, tracingPropagator);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
     if (config.isDataStreamsEnabled()) {
@@ -837,7 +858,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
       }
 
-      if (config.isCiVisibilityAgentlessEnabled()) {
+      if (config.isCiVisibilityAgentlessEnabled() || BazelMode.get().isPayloadFilesEnabled()) {
         addTraceInterceptor(DDIntakeTraceInterceptor.INSTANCE);
       } else {
         featuresDiscovery.discoverIfOutdated();
@@ -876,9 +897,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     StatusLogger.logStatus(config);
 
-    propagationTagsFactory = PropagationTags.factory(config);
     this.profilingContextIntegration = profilingContextIntegration;
     this.injectBaggageAsTags = injectBaggageAsTags;
+    this.injectLinksAsTags = injectLinksAsTags;
     this.flushOnClose = flushOnClose;
     this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
     if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
@@ -905,6 +926,26 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               },
               1,
               SECONDS);
+    }
+  }
+
+  private void startMetricsAggregation(Config config, SharedCommunicationObjects sco) {
+    metricsAggregator = createMetricsAggregator(config, sco, this.healthMetrics);
+    // Schedule the metrics aggregator to begin reporting after a random delay of
+    // 1 to 10 seconds (using milliseconds granularity.)
+    // This avoids a fleet of traced applications starting at the same time from
+    // sending metrics in sync.
+    AgentTaskScheduler.get()
+        .scheduleWithJitter(MetricsAggregator::start, metricsAggregator, 1, SECONDS);
+
+    if (config.isMetricsOtlpExporterEnabled()) {
+      OtlpMetricsService.INSTANCE.start();
+    }
+  }
+
+  private void maybeStartLogsExport(Config config) {
+    if (config.isLogsOtlpExporterEnabled()) {
+      OtlpLogsService.INSTANCE.start();
     }
   }
 
@@ -1196,14 +1237,26 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId) {
-    return LambdaHandler.notifyStartInvocation(event, lambdaRequestId);
+  public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
+    // Get context from AppSec
+    AgentSpanContext appSecContext = LambdaAppSecHandler.processRequestStart(event);
+
+    // Get context from extension
+    AgentSpanContext extensionContext = LambdaHandler.notifyStartInvocation(event, lambdaRequestId);
+
+    // Merge contexts
+    return LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext);
   }
 
   @Override
   public void notifyExtensionEnd(
       AgentSpan span, Object result, boolean isError, String lambdaRequestId) {
     LambdaHandler.notifyEndInvocation(span, result, isError, lambdaRequestId);
+  }
+
+  @Override
+  public void notifyAppSecEnd(AgentSpan span) {
+    LambdaAppSecHandler.processRequestEnd(span);
   }
 
   @Override
@@ -1262,7 +1315,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   static final List<DDSpan> interceptCompleteTrace(
-      SortedSet<TraceInterceptor> interceptors, SpanList originalTrace) {
+      TraceInterceptors interceptors, SpanList originalTrace) {
     if (interceptors.isEmpty()) {
       return originalTrace;
     }
@@ -1284,7 +1337,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     Collection<? extends MutableSpan> interceptedTrace = originalTrace;
     int originalModCount = originalTrace.modCount();
 
-    for (final TraceInterceptor interceptor : interceptors) {
+    for (final TraceInterceptor interceptor : interceptors.interceptors()) {
       try {
         // If one TraceInterceptor throws an exception, then continue with the next one
         interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
@@ -1345,24 +1398,22 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return "0";
   }
 
+  @VisibleForTesting
+  TraceInterceptors getInterceptors() {
+    return interceptors;
+  }
+
   @Override
   public boolean addTraceInterceptor(final TraceInterceptor interceptor) {
-    if (interceptors.add(interceptor)) {
+    TraceInterceptor conflictingInterceptor = interceptors.add(interceptor);
+    if (conflictingInterceptor == null) {
       return true;
     } else {
-      Comparator<? super TraceInterceptor> interceptorComparator = interceptors.comparator();
-      if (interceptorComparator != null) {
-        TraceInterceptor anotherInterceptor =
-            interceptors.stream()
-                .filter(i -> interceptorComparator.compare(i, interceptor) == 0)
-                .findFirst()
-                .orElse(null);
-        log.warn(
-            "Interceptor {} will NOT be registered with the tracer, "
-                + "as already registered interceptor {} is considered its duplicate",
-            interceptor,
-            anotherInterceptor);
-      }
+      log.warn(
+          "Interceptor {} will NOT be registered with the tracer, "
+              + "as already registered interceptor {} is considered its duplicate",
+          interceptor,
+          conflictingInterceptor);
       return false;
     }
   }
@@ -1426,6 +1477,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     RumInjector.shutdownTelemetry();
     AgentMeter.statsDClient().close();
     metricsAggregator.close();
+    if (initialConfig.isMetricsOtlpExporterEnabled()) {
+      OtlpMetricsService.INSTANCE.shutdown();
+    }
+    if (initialConfig.isLogsOtlpExporterEnabled()) {
+      OtlpLogsService.INSTANCE.shutdown();
+    }
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
     healthMetrics.close();
@@ -1460,6 +1517,17 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       metricsAggregator.forceReport().get(2_500, MILLISECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
       log.debug("Failed to wait for metrics flush.", e);
+    }
+
+    if (initialConfig.isMetricsOtlpExporterEnabled()) {
+      OtlpMetricsService.INSTANCE.flush();
+    }
+  }
+
+  @Override
+  public void flushLogs() {
+    if (initialConfig.isLogsOtlpExporterEnabled()) {
+      OtlpLogsService.INSTANCE.flush();
     }
   }
 
@@ -2120,7 +2188,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               tracer.disableSamplingMechanismValidation,
               propagationTags,
               tracer.profilingContextIntegration,
-              tracer.injectBaggageAsTags);
+              tracer.injectBaggageAsTags,
+              tracer.injectLinksAsTags);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
@@ -2236,6 +2305,75 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
   }
 
+  /**
+   * Implements a copy on write array list where interceptors are added to the list ordered by
+   * TraceInterceptor priority
+   */
+  static final class TraceInterceptors {
+    private volatile TraceInterceptor[] interceptors = {};
+
+    public boolean isEmpty() {
+      return (this.interceptors.length == 0);
+    }
+
+    public TraceInterceptor[] interceptors() {
+      return this.interceptors;
+    }
+
+    /**
+     * Adds the interceptor to the list; returns any colliding interceptor with the same priority
+     *
+     * <ul>
+     *   <li>returns null - if there is no collision and the interceptor was added
+     *   <li>returns the colliding interceptor - if not added
+     * </ul>
+     */
+    public synchronized TraceInterceptor add(TraceInterceptor newInterceptor) {
+      // Interceptors is always kept in sorted order
+
+      // This method performs an insertion sort by scanning interceptors
+      // and finding the correct insertion position
+
+      // Since interceptors isn't expected to be large, not using a binary search
+      // Simple search should provide better cache utilization
+      TraceInterceptor[] interceptors = this.interceptors;
+
+      int newPriority = newInterceptor.priority();
+
+      int insertionIndex = interceptors.length;
+      for (int i = 0; i < interceptors.length; ++i) {
+        TraceInterceptor curInterceptor = interceptors[i];
+        int curPriority = curInterceptor.priority();
+
+        if (curPriority > newPriority) {
+          insertionIndex = i;
+          break;
+        } else if (curPriority == newPriority) {
+          return curInterceptor;
+        }
+      }
+
+      // While not immediately obvious, this code does handle when interceptors was previously empty
+      // In that case, the insertionIndex will be 0 and length will 0, so neither if / arraycopy
+      // blocks are run
+      TraceInterceptor[] newInterceptors = new TraceInterceptor[interceptors.length + 1];
+      if (insertionIndex != 0) {
+        System.arraycopy(interceptors, 0, newInterceptors, 0, insertionIndex);
+      }
+      newInterceptors[insertionIndex] = newInterceptor;
+      if (insertionIndex != interceptors.length) {
+        System.arraycopy(
+            interceptors,
+            insertionIndex,
+            newInterceptors,
+            insertionIndex + 1,
+            interceptors.length - insertionIndex);
+      }
+      this.interceptors = newInterceptors;
+      return null;
+    }
+  }
+
   private static class ShutdownHook extends Thread {
     private final WeakReference<CoreTracer> reference;
 
@@ -2295,18 +2433,18 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     result.putAll(userSpanTags);
     if (null != config) { // static
       if (!config.getEnv().isEmpty()) {
-        result.put("env", config.getEnv());
+        result.set("env", config.getEnv());
       }
       if (config.isDataJobsEnabled()) {
-        result.put(DJM_ENABLED, 1);
+        result.set(DJM_ENABLED, 1);
       }
       if (config.isDataStreamsEnabled()) {
-        result.put(DSM_ENABLED, 1);
+        result.set(DSM_ENABLED, 1);
       }
     }
     if (null != traceConfig) { // dynamic
       if (traceConfig.isDataStreamsEnabled()) {
-        result.put(DSM_ENABLED, 1);
+        result.set(DSM_ENABLED, 1);
       } else {
         result.remove(DSM_ENABLED);
       }

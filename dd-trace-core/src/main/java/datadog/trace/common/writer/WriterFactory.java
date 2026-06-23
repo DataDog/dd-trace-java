@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_AGE
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_INTAKE_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.PRINTING_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.TRACE_STRUCTURE_WRITER_TYPE;
 import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE;
@@ -12,8 +13,10 @@ import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 
 import datadog.common.container.ServerlessInfo;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.ddagent.DroppingPolicy;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
@@ -26,6 +29,7 @@ import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +57,8 @@ public class WriterFactory {
       final HealthMetrics healthMetrics,
       String configuredType) {
 
+    int flushIntervalMilliseconds = Math.round(config.getTraceFlushIntervalSeconds() * 1000);
+
     if (LOGGING_WRITER_TYPE.equals(configuredType)) {
       return new LoggingWriter();
     } else if (PRINTING_WRITER_TYPE.equals(configuredType)) {
@@ -63,6 +69,17 @@ public class WriterFactory {
     } else if (configuredType.startsWith(MULTI_WRITER_TYPE)) {
       return new MultiWriter(
           config, commObjects, sampler, singleSpanSampler, healthMetrics, configuredType);
+    } else if (OTLP_WRITER_TYPE.equals(configuredType)) {
+      return OtlpWriter.builder()
+          .endpoint(config.getOtlpTracesEndpoint())
+          .headers(config.getOtlpTracesHeaders())
+          .protocol(config.getOtlpTracesProtocol())
+          .compression(config.getOtlpTracesCompression())
+          .timeoutMillis(config.getOtlpTracesTimeout())
+          .healthMetrics(healthMetrics)
+          .spanSamplingRules(singleSpanSampler)
+          .flushIntervalMilliseconds(flushIntervalMilliseconds)
+          .build();
     }
 
     if (!DD_AGENT_WRITER_TYPE.equals(configuredType)
@@ -80,8 +97,31 @@ public class WriterFactory {
           "Using 'EnsureTrace' prioritization type. (Do not use this type if your application is running in production mode)");
     }
 
-    int flushIntervalMilliseconds = Math.round(config.getTraceFlushIntervalSeconds() * 1000);
     DDAgentFeaturesDiscovery featuresDiscovery = commObjects.featuresDiscovery(config);
+
+    // CI Visibility payload-files mode writes traces to local files instead of the agent.
+    if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
+      BazelMode bazelMode = BazelMode.get();
+      String testsDir = bazelMode.getTestPayloadsDir();
+      String coverageDir =
+          config.isCiVisibilityCodeCoverageEnabled() ? bazelMode.getCoveragePayloadsDir() : null;
+      log.info("[bazel mode] Payloads-in-files enabled, writing to {}", bazelMode.getPayloadsDir());
+
+      PayloadDispatcher dispatcher = createCiVisBazelPayloadDispatcher(testsDir, coverageDir);
+
+      TraceProcessingWorker worker =
+          new TraceProcessingWorker(
+              1024,
+              healthMetrics,
+              dispatcher,
+              DroppingPolicy.DISABLED,
+              prioritization,
+              flushIntervalMilliseconds,
+              TimeUnit.MILLISECONDS,
+              singleSpanSampler);
+
+      return new DDIntakeWriter(worker, dispatcher, healthMetrics, 5, TimeUnit.SECONDS, false);
+    }
 
     // The AgentWriter doesn't support the CI Visibility protocol. If CI Visibility is
     // enabled, check if we can use the IntakeWriter instead.
@@ -172,6 +212,23 @@ public class WriterFactory {
     }
 
     return remoteWriter;
+  }
+
+  @Nonnull
+  private static PayloadDispatcher createCiVisBazelPayloadDispatcher(
+      String testsDir, String coverageDir) {
+    FileBasedPayloadDispatcher testDispatcher =
+        new FileBasedPayloadDispatcher(testsDir, "tests", TrackType.CITESTCYCLE);
+
+    PayloadDispatcher dispatcher;
+    if (coverageDir != null) {
+      FileBasedPayloadDispatcher covDispatcher =
+          new FileBasedPayloadDispatcher(coverageDir, "coverage", TrackType.CITESTCOV);
+      dispatcher = new CompositePayloadDispatcher(testDispatcher, covDispatcher);
+    } else {
+      dispatcher = testDispatcher;
+    }
+    return dispatcher;
   }
 
   private static RemoteApi createDDIntakeRemoteApi(

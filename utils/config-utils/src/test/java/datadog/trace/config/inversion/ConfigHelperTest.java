@@ -3,6 +3,7 @@ package datadog.trace.config.inversion;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.test.util.ControllableEnvironmentVariables;
 import java.util.ArrayList;
@@ -62,7 +63,7 @@ public class ConfigHelperTest {
             testSupported, testAliases, testAliasMapping, new HashMap<>());
     ConfigHelper.get().setConfigurationSource(testSource);
     strictness = ConfigHelper.get().configInversionStrictFlag();
-    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT);
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT_TEST);
   }
 
   @AfterAll
@@ -168,6 +169,14 @@ public class ConfigHelperTest {
   }
 
   @Test
+  void testStrictTestThrowsForUnsupportedConfig() {
+    env.set("DD_FAKE_VAR", "banana");
+
+    // STRICT_TEST mode should throw for unsupported DD_ variables
+    assertThrows(IllegalArgumentException.class, () -> ConfigHelper.env("DD_FAKE_VAR"));
+  }
+
+  @Test
   void testUnsupportedEnvWarningNotInTestMode() {
     ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST);
 
@@ -177,7 +186,7 @@ public class ConfigHelperTest {
     assertEquals("banana", ConfigHelper.env("DD_FAKE_VAR"));
 
     // Cleanup
-    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT);
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT_TEST);
   }
 
   @Test

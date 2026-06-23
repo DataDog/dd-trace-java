@@ -2,6 +2,7 @@ package datadog.trace.civisibility;
 
 import datadog.communication.BackendApi;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
@@ -19,6 +20,7 @@ import datadog.trace.civisibility.config.ConfigurationApiImpl;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.ExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ExecutionSettingsFactoryImpl;
+import datadog.trace.civisibility.config.FileBasedConfigurationApi;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.config.MultiModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.git.tree.GitClient;
@@ -81,15 +83,22 @@ public class CiVisibilityRepoServices {
 
     ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
 
-    gitDataUploader =
-        buildGitDataUploader(
-            services.config,
-            services.metricCollector,
-            services.gitInfoProvider,
-            gitClient,
-            gitRepoUnshallow,
-            services.backendApi,
-            repoRoot);
+    if (BazelMode.get().isEnabled()) {
+      // bazel rule takes care of the git data upload
+      LOGGER.info("[bazel mode] Skipping git data upload");
+      gitDataUploader = () -> CompletableFuture.completedFuture(null);
+    } else {
+      gitDataUploader =
+          buildGitDataUploader(
+              services.config,
+              services.metricCollector,
+              services.gitInfoProvider,
+              gitClient,
+              gitRepoUnshallow,
+              services.backendApi,
+              repoRoot);
+    }
+
     repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot);
     codeowners = buildCodeowners(repoRoot);
     sourcePathResolver = buildSourcePathResolver(repoRoot, repoIndexProvider);
@@ -180,6 +189,16 @@ public class CiVisibilityRepoServices {
   }
 
   private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {
+    BazelMode bazelMode = BazelMode.get();
+    if (bazelMode.isEnabled()) {
+      String bazelRepoRoot = bazelMode.getRepoRoot();
+      if (bazelRepoRoot != null) {
+        // The on-disk repo is unreachable from a Bazel test sandbox, so the runfiles workspace
+        // dir is used as a virtual repo root for source-path resolution.
+        return bazelRepoRoot;
+      }
+    }
+
     String ciWorkspace = ciInfo.getCiWorkspace();
     if (Strings.isNotBlank(ciWorkspace)) {
       return ciWorkspace;
@@ -242,7 +261,17 @@ public class CiVisibilityRepoServices {
       PullRequestInfo pullRequestInfo,
       @Nullable String repoRoot) {
     ConfigurationApi configurationApi;
-    if (backendApi == null) {
+    BazelMode bazelMode = BazelMode.get();
+    if (bazelMode.isManifestModeEnabled()) {
+      LOGGER.info("[bazel mode] Manifest mode detected. Using file-based configuration API");
+      configurationApi =
+          new FileBasedConfigurationApi(
+              toPathOrNull(bazelMode.getSettingsPath()),
+              null,
+              toPathOrNull(bazelMode.getFlakyTestsPath()),
+              toPathOrNull(bazelMode.getKnownTestsPath()),
+              toPathOrNull(bazelMode.getTestManagementPath()));
+    } else if (backendApi == null) {
       LOGGER.warn(
           "Remote config and skippable tests requests will be skipped since backend API client could not be created");
       configurationApi = ConfigurationApi.NO_OP;
@@ -264,6 +293,11 @@ public class CiVisibilityRepoServices {
     } else {
       return new MultiModuleExecutionSettingsFactory(config, factory);
     }
+  }
+
+  @Nullable
+  private static Path toPathOrNull(@Nullable String path) {
+    return path != null ? Paths.get(path) : null;
   }
 
   private static GitDataUploader buildGitDataUploader(

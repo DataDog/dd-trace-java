@@ -4,6 +4,7 @@ import static org.mule.runtime.api.util.MuleTestUtil.muleSpan
 
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.config.inversion.ConfigHelper
 import spock.lang.Shared
 
 class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
@@ -56,6 +57,7 @@ class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
     injectSysConfig("integration.mule.enabled", "true")
   }
 

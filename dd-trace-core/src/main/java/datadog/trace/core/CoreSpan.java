@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Map;
 
 public interface CoreSpan<T extends CoreSpan<T>> {
@@ -80,6 +81,11 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   boolean isForceKeep();
 
+  default boolean isKind(SpanKindFilter filter) {
+    Object kind = unsafeGetTag(Tags.SPAN_KIND);
+    return filter.matches(kind == null ? null : kind.toString());
+  }
+
   CharSequence getType();
 
   /**
@@ -90,6 +96,9 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   void processServiceTags();
 
   void processTagsAndBaggage(MetadataConsumer consumer);
+
+  void processTagsAndBaggage(
+      MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags);
 
   T setSamplingPriority(int samplingPriority, int samplingMechanism);
 

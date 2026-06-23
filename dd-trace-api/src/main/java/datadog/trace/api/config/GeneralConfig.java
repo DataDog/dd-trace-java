@@ -34,6 +34,8 @@ public final class GeneralConfig {
   public static final String EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED =
       "experimental.propagate.process.tags.enabled";
 
+  public static final String PROCESS_TAGS_MAPPING = "process.tags.mapping";
+
   public static final String LOG_LEVEL = "log.level";
   public static final String TRACE_LOG_LEVEL = "trace.log.level";
   public static final String TRACE_DEBUG = "trace.debug";
@@ -65,6 +67,8 @@ public final class GeneralConfig {
   public static final String PERF_METRICS_ENABLED = "trace.perf.metrics.enabled";
 
   public static final String TRACE_STATS_COMPUTATION_ENABLED = "trace.stats.computation.enabled";
+  public static final String TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION =
+      "trace.stats.computation.ignore.agent.version";
   public static final String TRACER_METRICS_ENABLED = "trace.tracer.metrics.enabled";
   public static final String TRACER_METRICS_BUFFERING_ENABLED =
       "trace.tracer.metrics.buffering.enabled";

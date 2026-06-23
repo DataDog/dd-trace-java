@@ -44,7 +44,9 @@ subprojects { Project subProj ->
 
     // Add instrumentation-specific forbiddenApi rules
     subProj.tasks.withType(CheckForbiddenApis).configureEach {
-      signaturesFiles += subProj.files("$rootDir/gradle/forbiddenApiFilters/instrumentation.txt")
+      signaturesFiles = subProj.files(
+        "$rootDir/gradle/forbiddenApiFilters/main.txt",
+        "$rootDir/gradle/forbiddenApiFilters/instrumentation.txt")
     }
 
 
@@ -101,7 +103,7 @@ dependencies {
   implementation(project(':dd-java-agent:agent-tooling')) {
     exclude module: ':dd-java-agent:agent-bootstrap'
   }
-  implementation project(':dd-java-agent:agent-builder')
+  implementation project(':dd-java-agent:agent-installer')
 }
 
 if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") }) {

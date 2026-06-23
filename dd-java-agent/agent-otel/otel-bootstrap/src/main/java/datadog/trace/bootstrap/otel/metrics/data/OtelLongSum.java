@@ -1,7 +1,10 @@
 package datadog.trace.bootstrap.otel.metrics.data;
 
+import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
 import java.util.concurrent.atomic.LongAdder;
 
+/** Reports the sum of values since the last reset. */
 final class OtelLongSum extends OtelAggregator {
   private final LongAdder total = new LongAdder();
 
@@ -11,7 +14,7 @@ final class OtelLongSum extends OtelAggregator {
   }
 
   @Override
-  OtelPoint doCollect(boolean reset) {
-    return new OtelLongPoint(reset ? total.sumThenReset() : total.sum());
+  OtlpDataPoint doCollect(boolean reset) {
+    return new OtlpLongPoint(reset ? total.sumThenReset() : total.sum());
   }
 }

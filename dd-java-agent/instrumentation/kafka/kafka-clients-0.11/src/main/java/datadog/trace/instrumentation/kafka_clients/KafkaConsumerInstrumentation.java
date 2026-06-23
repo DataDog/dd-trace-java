@@ -15,6 +15,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -46,7 +47,9 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>(2);
-    contextStores.put("org.apache.kafka.clients.Metadata", "java.lang.String");
+    contextStores.put(
+        "org.apache.kafka.clients.Metadata",
+        "datadog.trace.instrumentation.kafka_common.MetadataState");
     contextStores.put(
         "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());
     return contextStores;
@@ -73,6 +76,8 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
       packageName + ".TextMapInjectAdapter",
       "datadog.trace.instrumentation.kafka_common.Utils",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
+      "datadog.trace.instrumentation.kafka_common.PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.MetadataState",
     };
   }
 
@@ -113,7 +118,7 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
         String group = KafkaConsumerInstrumentationHelper.extractGroup(kafkaConsumerInfo);
         String clusterId =
             KafkaConsumerInstrumentationHelper.extractClusterId(
-                kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
+                kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
         String bootstrapServers =
             KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
         iterable =
@@ -135,7 +140,7 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
         String group = KafkaConsumerInstrumentationHelper.extractGroup(kafkaConsumerInfo);
         String clusterId =
             KafkaConsumerInstrumentationHelper.extractClusterId(
-                kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
+                kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
         String bootstrapServers =
             KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
         iterable =
@@ -157,7 +162,7 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
         String group = KafkaConsumerInstrumentationHelper.extractGroup(kafkaConsumerInfo);
         String clusterId =
             KafkaConsumerInstrumentationHelper.extractClusterId(
-                kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
+                kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
         String bootstrapServers =
             KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
         iterator =

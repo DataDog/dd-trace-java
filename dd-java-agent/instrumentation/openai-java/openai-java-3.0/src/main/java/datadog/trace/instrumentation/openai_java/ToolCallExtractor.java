@@ -4,7 +4,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openai.models.chat.completions.ChatCompletionMessageFunctionToolCall;
 import com.openai.models.chat.completions.ChatCompletionMessageToolCall;
+import com.openai.models.responses.ResponseCustomToolCall;
 import com.openai.models.responses.ResponseFunctionToolCall;
+import com.openai.models.responses.ResponseOutputItem.McpCall;
 import datadog.trace.api.llmobs.LLMObs;
 import java.util.Collections;
 import java.util.Map;
@@ -64,7 +66,47 @@ public class ToolCallExtractor {
     return null;
   }
 
-  private static Map<String, Object> parseArguments(String argumentsJson) {
+  public static LLMObs.ToolCall getToolCall(ResponseCustomToolCall customToolCall) {
+    try {
+      String name = customToolCall.name();
+      String callId = customToolCall.callId();
+      String inputJson = customToolCall.input();
+
+      String type = "custom_tool_call";
+      Optional<String> typeOpt = customToolCall._type().asString();
+      if (typeOpt.isPresent()) {
+        type = typeOpt.get();
+      }
+
+      Map<String, Object> arguments = parseArguments(inputJson);
+      return LLMObs.ToolCall.from(name, type, callId, arguments);
+    } catch (Exception e) {
+      log.debug("Failed to extract custom tool call information", e);
+    }
+    return null;
+  }
+
+  public static LLMObs.ToolCall getToolCall(McpCall mcpCall) {
+    try {
+      String name = mcpCall.name();
+      String callId = mcpCall.id();
+      String argumentsJson = mcpCall.arguments();
+
+      String type = "mcp_call";
+      Optional<String> typeOpt = mcpCall._type().asString();
+      if (typeOpt.isPresent()) {
+        type = typeOpt.get();
+      }
+
+      Map<String, Object> arguments = parseArguments(argumentsJson);
+      return LLMObs.ToolCall.from(name, type, callId, arguments);
+    } catch (Exception e) {
+      log.debug("Failed to extract MCP tool call information", e);
+    }
+    return null;
+  }
+
+  static Map<String, Object> parseArguments(String argumentsJson) {
     try {
       return MAPPER.readValue(argumentsJson, MAP_TYPE_REF);
     } catch (Exception e) {

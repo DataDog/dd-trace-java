@@ -6,6 +6,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 import datadog.communication.util.IOUtils
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.agent.test.utils.OkHttpUtils
 import okhttp3.MultipartBody
 import okhttp3.Request
@@ -14,6 +15,14 @@ import spock.lang.Shared
 /* Don't actually need AgentTestRunner, but it messes up the classloader for AgentTestRunnerTest if this runs first. */
 
 class HttpServerTest extends InstrumentationSpecification {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
+
   @Shared
   def client = OkHttpUtils.client()
 

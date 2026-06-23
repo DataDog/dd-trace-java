@@ -24,12 +24,13 @@ import datadog.crashtracking.dto.OSInfo;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.PidHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import java.io.*;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -113,6 +114,7 @@ public final class CrashUploader {
 
   private final Config config;
   private final ConfigManager.StoredConfig storedConfig;
+  private final CrashUploaderSettings uploaderSettings;
 
   private final HttpUrl telemetryUrl;
   private final HttpUrl errorTrackingUrl;
@@ -128,9 +130,10 @@ public final class CrashUploader {
   }
 
   CrashUploader(
-      @NonNull final Config config, @Nonnull final ConfigManager.StoredConfig storedConfig) {
+      @Nonnull final Config config, @Nonnull final ConfigManager.StoredConfig storedConfig) {
     this.config = config;
     this.storedConfig = storedConfig;
+    this.uploaderSettings = storedConfig.toCrashUploaderSettings();
     this.telemetryUrl = HttpUrl.get(config.getFinalCrashTrackingTelemetryUrl());
     this.errorTrackingUrl = HttpUrl.get(config.getFinalCrashTrackingErrorTrackingUrl());
     this.agentless = config.isCrashTrackingAgentless();
@@ -185,7 +188,7 @@ public final class CrashUploader {
     }
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   void sendPingToTelemetry(String error) {
     // send a ping message to the telemetry to notify that the crash report started
     try (Buffer buf = new Buffer();
@@ -205,7 +208,7 @@ public final class CrashUploader {
     }
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   void sendPingToErrorTracking(String error) {
     try {
       final CrashLog ping =
@@ -251,7 +254,7 @@ public final class CrashUploader {
     }
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   void remoteUpload(
       @Nonnull String fileContent, boolean sendToTelemetry, boolean sendToErrorTracking) {
     final String uuid = storedConfig.reportUUID;
@@ -314,7 +317,7 @@ public final class CrashUploader {
     }
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   @SuppressForbidden
   static String extractErrorKind(String fileContent) {
     Matcher matcher = ERROR_MESSAGE_PATTERN.matcher(fileContent);
@@ -346,7 +349,7 @@ public final class CrashUploader {
               "$"),
           Pattern.DOTALL | Pattern.MULTILINE);
 
-  // @VisibleForTesting
+  @VisibleForTesting
   @SuppressForbidden
   static String extractErrorMessage(String fileContent) {
     Matcher matcher = ERROR_MESSAGE_PATTERN.matcher(fileContent);
@@ -525,6 +528,9 @@ public final class CrashUploader {
           }
           writer.name("type").value(payload.error.kind);
           writer.name("message").value(payload.error.message);
+          if (uploaderSettings.isExtendedInfoEnabled() && payload.error.threadName != null) {
+            writer.name("thread_name").value(payload.error.threadName);
+          }
           writer.name("source_type").value("Crashtracking");
           if (payload.error.stack != null) {
             writer.name("stack");
@@ -571,6 +577,54 @@ public final class CrashUploader {
                       "os.version")); // this has been restructured under OsInfo so taking raw here
           writer.endObject();
         }
+        // experimental
+        if (payload.experimental != null
+            && (payload.experimental.ucontext != null
+                || payload.experimental.registerToMemoryMapping != null
+                || payload.experimental.runtimeArgs != null)) {
+          writer.name("experimental");
+          writer.beginObject();
+          if (payload.experimental.ucontext != null) {
+            writer.name("ucontext");
+            writer.beginObject();
+            for (Map.Entry<String, String> entry : payload.experimental.ucontext.entrySet()) {
+              writer.name(entry.getKey()).value(entry.getValue());
+            }
+            writer.endObject();
+          }
+          if (uploaderSettings.isExtendedInfoEnabled()
+              && payload.experimental.registerToMemoryMapping != null) {
+            writer.name("register_to_memory_mapping");
+            writer.beginObject();
+            for (Map.Entry<String, String> entry :
+                payload.experimental.registerToMemoryMapping.entrySet()) {
+              writer.name(entry.getKey()).value(entry.getValue());
+            }
+            writer.endObject();
+          }
+          if (uploaderSettings.isExtendedInfoEnabled()
+              && payload.experimental.runtimeArgs != null) {
+            writer.name("runtime_args");
+            writer.beginArray();
+            for (String arg : payload.experimental.runtimeArgs) {
+              writer.value(arg);
+            }
+            writer.endArray();
+          }
+          writer.endObject();
+        }
+        // files (e.g. /proc/self/maps or dynamic_libraries)
+        if (uploaderSettings.isExtendedInfoEnabled() && payload.files != null) {
+          writer.name("files");
+          writer.beginObject();
+          writer.name(payload.files.name);
+          writer.beginArray();
+          for (String fileLine : payload.files.lines) {
+            writer.value(fileLine);
+          }
+          writer.endArray();
+          writer.endObject();
+        }
         writer.endObject();
       }
       return RequestBody.create(APPLICATION_JSON, buf.readByteString());
@@ -599,6 +653,16 @@ public final class CrashUploader {
     tags.append(",")
         .append("language_version:")
         .append(normalizeTagValue(SystemProperties.getOrDefault("java.version", "unknown")));
+    tags.append(",")
+        .append("runtime_version:")
+        .append(
+            normalizeTagValue(SystemProperties.getOrDefault("java.runtime.version", "unknown")));
+    tags.append(",")
+        .append("runtime_vendor:")
+        .append(normalizeTagValue(SystemProperties.getOrDefault("java.vendor", "unknown")));
+    tags.append(",")
+        .append("runtime_name:")
+        .append(normalizeTagValue(SystemProperties.getOrDefault("java.runtime.name", "unknown")));
     tags.append(",").append("tracer_version:").append(normalizeTagValue(VersionInfo.VERSION));
     tags.append(",").append("uuid:").append(uuid);
     return (tags.toString());
@@ -611,6 +675,16 @@ public final class CrashUploader {
     tags.append(",")
         .append("language_version:")
         .append(normalizeTagValue(SystemProperties.getOrDefault("java.version", "unknown")));
+    tags.append(",")
+        .append("runtime_version:")
+        .append(
+            normalizeTagValue(SystemProperties.getOrDefault("java.runtime.version", "unknown")));
+    tags.append(",")
+        .append("runtime_vendor:")
+        .append(normalizeTagValue(SystemProperties.getOrDefault("java.vendor", "unknown")));
+    tags.append(",")
+        .append("runtime_name:")
+        .append(normalizeTagValue(SystemProperties.getOrDefault("java.runtime.name", "unknown")));
     tags.append(",").append("tracer_version:").append(normalizeTagValue(VersionInfo.VERSION));
     tags.append(",").append("uuid:").append(uuid);
     return (tags.toString());

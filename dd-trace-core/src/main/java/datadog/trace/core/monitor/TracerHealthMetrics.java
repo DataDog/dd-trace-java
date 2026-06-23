@@ -13,6 +13,7 @@ import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.propagation.opg.OrgGuard;
 import datadog.trace.util.AgentTaskScheduler;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
@@ -89,6 +90,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final LongAdder longRunningTracesDropped = new LongAdder();
   private final LongAdder longRunningTracesExpired = new LongAdder();
 
+  private final LongAdder orgGuardEnforceMismatch = new LongAdder();
+  private final LongAdder orgGuardEnforceStrictMissing = new LongAdder();
+
   private final LongAdder clientStatsProcessedSpans = new LongAdder();
   private final LongAdder clientStatsProcessedTraces = new LongAdder();
   private final LongAdder clientStatsP0DroppedSpans = new LongAdder();
@@ -96,6 +100,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final LongAdder clientStatsRequests = new LongAdder();
   private final LongAdder clientStatsErrors = new LongAdder();
   private final LongAdder clientStatsDowngrades = new LongAdder();
+
+  private final LongAdder statsAggregateDropped = new LongAdder();
+  private final LongAdder statsInboxFull = new LongAdder();
 
   private final StatsDClient statsd;
   private final long interval;
@@ -284,6 +291,18 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onOrgGuardEnforce(OrgGuard.Reason reason) {
+    switch (reason) {
+      case MISMATCH:
+        orgGuardEnforceMismatch.increment();
+        break;
+      case STRICT_MISSING:
+        orgGuardEnforceStrictMissing.increment();
+        break;
+    }
+  }
+
+  @Override
   public void onSend(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {
     onSendAttempt(traceCount, sizeInBytes, response);
@@ -351,6 +370,16 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onStatsAggregateDropped() {
+    statsAggregateDropped.increment();
+  }
+
+  @Override
+  public void onStatsInboxFull() {
+    statsInboxFull.increment();
+  }
+
+  @Override
   public void close() {
     if (null != cancellation) {
       cancellation.cancel();
@@ -366,8 +395,13 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] SERIAL_FAILED_TAG = new String[] {"failure:serial"};
     private static final String[] UNSET_TAG = new String[] {"priority:unset"};
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
+    private static final String[] REASON_LRU_EVICTION_TAG = new String[] {"reason:lru_eviction"};
+    private static final String[] REASON_INBOX_FULL_TAG = new String[] {"reason:inbox_full"};
+    private static final String[] ORG_GUARD_MISMATCH_TAGS = new String[] {"reason:mismatch"};
+    private static final String[] ORG_GUARD_STRICT_MISSING_TAGS =
+        new String[] {"reason:strict_missing"};
 
-    private final long[] previousCounts = new long[50];
+    private final long[] previousCounts = new long[54];
 
     @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
     private int countIndex;
@@ -481,6 +515,17 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
 
         reportIfChanged(
+            target.statsd,
+            "org_guard.enforce",
+            target.orgGuardEnforceMismatch,
+            ORG_GUARD_MISMATCH_TAGS);
+        reportIfChanged(
+            target.statsd,
+            "org_guard.enforce",
+            target.orgGuardEnforceStrictMissing,
+            ORG_GUARD_STRICT_MISSING_TAGS);
+
+        reportIfChanged(
             target.statsd, "stats.traces_in", target.clientStatsProcessedTraces, NO_TAGS);
         reportIfChanged(target.statsd, "stats.spans_in", target.clientStatsProcessedSpans, NO_TAGS);
         reportIfChanged(
@@ -491,6 +536,16 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         reportIfChanged(target.statsd, "stats.flush_errors", target.clientStatsErrors, NO_TAGS);
         reportIfChanged(
             target.statsd, "stats.agent_downgrades", target.clientStatsDowngrades, NO_TAGS);
+        reportIfChanged(
+            target.statsd,
+            "stats.dropped_aggregates",
+            target.statsAggregateDropped,
+            REASON_LRU_EVICTION_TAG);
+        reportIfChanged(
+            target.statsd,
+            "stats.dropped_aggregates",
+            target.statsInboxFull,
+            REASON_INBOX_FULL_TAG);
 
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(
@@ -622,6 +677,10 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         + "\nclientStatsProcessedSpans="
         + clientStatsProcessedSpans.sum()
         + "\nclientStatsProcessedTraces="
-        + clientStatsProcessedTraces.sum();
+        + clientStatsProcessedTraces.sum()
+        + "\nstatsAggregateDropped="
+        + statsAggregateDropped.sum()
+        + "\nstatsInboxFull="
+        + statsInboxFull.sum();
   }
 }

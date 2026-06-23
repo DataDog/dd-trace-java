@@ -203,6 +203,7 @@
       "span.kind" : "test_suite_end",
       "test.framework" : "junit5",
       "test.framework_version" : "5.10.2",
+      "test.itr.tests_skipping.enabled" : "true",
       "test.module" : ":test",
       "test.source.file" : "src/test/java/datadog/smoke/HelloPluginFunctionalTest.java",
       "test.status" : "pass",
@@ -215,8 +216,8 @@
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id_2},
-      "test.source.end" : 44,
-      "test.source.start" : 16
+      "test.source.end" : 58,
+      "test.source.start" : 20
     },
     "name" : "junit5.test_suite",
     "resource" : "datadog.smoke.HelloPluginFunctionalTest",
@@ -262,6 +263,7 @@
       "test.final_status" : "pass",
       "test.framework" : "junit5",
       "test.framework_version" : "5.10.2",
+      "test.itr.tests_skipping.enabled" : "true",
       "test.module" : ":test",
       "test.name" : "pluginPrintsHelloMessageOnGradle85",
       "test.source.file" : "src/test/java/datadog/smoke/HelloPluginFunctionalTest.java",
@@ -276,8 +278,8 @@
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id_2},
-      "test.source.end" : 43,
-      "test.source.start" : 30
+      "test.source.end" : 49,
+      "test.source.start" : 36
     },
     "name" : "junit5.test",
     "parent_id" : ${content_parent_id},
