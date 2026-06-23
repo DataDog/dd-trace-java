@@ -1,0 +1,456 @@
+package com.datadog.featureflag;
+
+import static java.util.Collections.singletonMap;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.Moshi;
+import datadog.common.queue.MessagePassingBlockingQueue;
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.trace.agent.test.server.http.JavaTestHttpServer;
+import datadog.trace.api.Config;
+import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.exposure.Allocation;
+import datadog.trace.api.featureflag.exposure.ExposureEvent;
+import datadog.trace.api.featureflag.exposure.ExposuresRequest;
+import datadog.trace.api.featureflag.exposure.Flag;
+import datadog.trace.api.featureflag.exposure.Subject;
+import datadog.trace.api.featureflag.exposure.Variant;
+import java.io.ByteArrayInputStream;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Random;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okio.Okio;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
+
+class ExposureWriterTests {
+
+  private static final Queue<ExposuresRequest> REQUESTS = new ConcurrentLinkedQueue<>();
+  private static final Set<String> FAILED =
+      Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+
+  private static JavaTestHttpServer server;
+  private static SharedCommunicationObjects sharedCommunicationObjects;
+
+  @BeforeAll
+  static void startServer() {
+    JsonAdapter<ExposuresRequest> adapter =
+        new Moshi.Builder().build().adapter(ExposuresRequest.class);
+    server =
+        JavaTestHttpServer.httpServer(
+            s ->
+                s.handlers(
+                    h ->
+                        h.prefix(
+                            "/evp_proxy/api/v2/exposures",
+                            api -> {
+                              ExposuresRequest exposuresRequest =
+                                  adapter.fromJson(
+                                      Okio.buffer(
+                                          Okio.source(
+                                              new ByteArrayInputStream(
+                                                  api.getRequest().getBody()))));
+                              String serviceName = exposuresRequest.context.get("service");
+                              boolean failForever = "fail-forever".equals(serviceName);
+                              boolean fail =
+                                  serviceName.startsWith("fail")
+                                      && (FAILED.add(serviceName) || failForever);
+                              if (fail) {
+                                api.getResponse().status(500).send("Boom!!!");
+                              } else {
+                                REQUESTS.add(exposuresRequest);
+                                api.getResponse().status(200).send("OK");
+                              }
+                            })));
+    sharedCommunicationObjects = sharedCommunicationObjects(true);
+  }
+
+  @AfterAll
+  static void stopServer() {
+    if (server != null) {
+      server.close();
+    }
+  }
+
+  @AfterEach
+  void cleanup() {
+    REQUESTS.clear();
+    FAILED.clear();
+  }
+
+  @TableTest({
+    "service        | env    | version",
+    "               |        |        ",
+    "'test-service' | 'test' | '23'   ",
+    "'test-service' |        | '23'   ",
+    "'test-service' | 'test' |        "
+  })
+  void testExposureEventWrites(String service, String env, String version) throws Exception {
+    Config config = mockConfig(service, env, version);
+    List<ExposureEvent> exposures = buildExposures(5);
+
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
+      writer.init();
+      for (ExposureEvent exposure : exposures) {
+        writer.accept(exposure);
+      }
+
+      eventually(
+          () -> {
+            assertFalse(REQUESTS.isEmpty());
+            for (ExposuresRequest request : REQUESTS) {
+              assertContext(request.context, service, env, version);
+            }
+            assertExposures(allExposures(), exposures);
+          },
+          5000);
+    }
+  }
+
+  @Test
+  void testLruCache() throws Exception {
+    Config config = mockConfig("test-service");
+    List<ExposureEvent> exposures = buildExposures(6);
+
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
+      writer.init();
+      // populating the cache
+      for (ExposureEvent exposure : exposures) {
+        writer.accept(exposure);
+      }
+
+      // all events are written
+      eventually(() -> assertEquals(exposures.size(), allExposures().size()), 1000);
+
+      // publishing duplicate events
+      for (ExposureEvent exposure : exposures) {
+        writer.accept(exposure);
+      }
+
+      // no events are written
+      MILLISECONDS.sleep(300); // wait until a flush happens
+      assertEquals(exposures.size(), allExposures().size());
+
+      // a new event is generated
+      writer.accept(buildExposure());
+
+      // oldest event is evicted and the new one is submitted
+      eventually(() -> assertEquals(exposures.size() + 1, allExposures().size()), 5000);
+    }
+  }
+
+  @Test
+  void testHighLoadScenario() throws Exception {
+    Config config = mockConfig("test-service");
+    int exposuresPerThread = 100;
+    Random random = new Random();
+    int threads = Runtime.getRuntime().availableProcessors();
+    ExecutorService executor = Executors.newFixedThreadPool(threads);
+    List<ExposureEvent> exposures = buildExposures(threads * exposuresPerThread);
+    CountDownLatch latch = new CountDownLatch(1);
+
+    try (ExposureWriterImpl writer = new ExposureWriterImpl(sharedCommunicationObjects, config)) {
+      writer.init();
+      List<Future<Boolean>> futures = new ArrayList<>();
+      for (int index = 0; index < exposures.size(); index += exposuresPerThread) {
+        List<ExposureEvent> partition =
+            exposures.subList(index, Math.min(index + exposuresPerThread, exposures.size()));
+        futures.add(
+            executor.submit(
+                () -> {
+                  latch.await();
+                  for (ExposureEvent exposure : partition) {
+                    MILLISECONDS.sleep(random.nextInt(2));
+                    writer.accept(exposure);
+                  }
+                  return true;
+                }));
+      }
+      latch.countDown(); // start threads
+
+      for (Future<Boolean> future : futures) {
+        assertTrue(future.get()); // wait for all threads to finish
+      }
+      eventually(() -> assertExposures(allExposures(), exposures), 5000);
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
+  @TableTest({
+    "serviceName    | finallyFail",
+    "'fail-once'    | false      ",
+    "'fail-forever' | true       "
+  })
+  void testFailuresAreRetried(String serviceName, boolean finallyFail) throws Exception {
+    Config config = mockConfig(serviceName);
+
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
+      writer.init();
+      writer.accept(buildExposure());
+
+      MILLISECONDS.sleep(500); // wait for a flush to happen
+      ExposuresRequest found = findRequest(serviceName);
+      if (finallyFail) {
+        assertNull(found, REQUESTS.toString());
+      } else {
+        assertNotNull(found, REQUESTS.toString());
+      }
+    }
+  }
+
+  @Test
+  void testWriterStopsReceivingExposuresIfEvpProxyIsNotAvailable() throws Exception {
+    SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects(false);
+
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(sharedCommunicationObjects, Config.get())) {
+      writer.init();
+      Thread serializerThread = getField(writer, "serializerThread", Thread.class);
+      eventually(() -> assertFalse(serializerThread.isAlive()), 5000);
+
+      FeatureFlaggingGateway.dispatch(buildExposure());
+
+      MessagePassingBlockingQueue<?> queue =
+          getField(writer, "queue", MessagePassingBlockingQueue.class);
+      assertEquals(0, queue.size());
+    }
+  }
+
+  private static Config mockConfig(String serviceName) {
+    return mockConfig(serviceName, "test", "0.0.0");
+  }
+
+  private static Config mockConfig(String serviceName, String env, String version) {
+    Config config = mock(Config.class);
+    when(config.getIdGenerationStrategy()).thenReturn(IdGenerationStrategy.fromName("RANDOM"));
+    when(config.getServiceName()).thenReturn(serviceName);
+    when(config.getEnv()).thenReturn(env);
+    when(config.getVersion()).thenReturn(version);
+    return config;
+  }
+
+  private static SharedCommunicationObjects sharedCommunicationObjects(boolean evpProxyAvailable) {
+    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+    when(discovery.supportsEvpProxy()).thenReturn(evpProxyAvailable);
+    if (evpProxyAvailable) {
+      when(discovery.getEvpProxyEndpoint()).thenReturn("/evp_proxy/");
+    }
+
+    SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
+    sharedCommunicationObjects.setFeaturesDiscovery(discovery);
+    sharedCommunicationObjects.agentUrl = HttpUrl.get(server.getAddress());
+    sharedCommunicationObjects.agentHttpClient = new OkHttpClient.Builder().build();
+    return sharedCommunicationObjects;
+  }
+
+  private static void assertContext(
+      Map<String, String> context, String service, String env, String version) {
+    assertEquals(service == null ? "unknown" : service, context.get("service"));
+    assertOptionalContextValue(context, "env", env);
+    assertOptionalContextValue(context, "version", version);
+  }
+
+  private static void assertOptionalContextValue(
+      Map<String, String> context, String key, String value) {
+    if (value == null) {
+      assertFalse(context.containsKey(key));
+    } else {
+      assertEquals(value, context.get(key));
+    }
+  }
+
+  private static ExposuresRequest findRequest(String serviceName) {
+    for (ExposuresRequest request : REQUESTS) {
+      if (serviceName.equals(request.context.get("service"))) {
+        return request;
+      }
+    }
+    return null;
+  }
+
+  private static List<ExposureEvent> allExposures() {
+    List<ExposureEvent> exposures = new ArrayList<>();
+    for (ExposuresRequest request : REQUESTS) {
+      exposures.addAll(request.exposures);
+    }
+    return exposures;
+  }
+
+  private static void assertExposures(
+      List<ExposureEvent> receivedExposures, List<ExposureEvent> expectedExposures) {
+    assertEquals(expectedExposures.size(), receivedExposures.size());
+    TreeSet<ExposureEvent> received = new TreeSet<>(ExposureWriterTests::compare);
+    received.addAll(receivedExposures);
+    assertTrue(received.containsAll(expectedExposures));
+  }
+
+  private static int compare(ExposureEvent first, ExposureEvent second) {
+    if (first == second) {
+      return 0;
+    }
+    if (first == null) {
+      return -1;
+    }
+    if (second == null) {
+      return 1;
+    }
+
+    int result = Long.compare(first.timestamp, second.timestamp);
+    if (result != 0) {
+      return result;
+    }
+
+    result = compareNullableString(first.flag == null ? null : first.flag.key, second.flag);
+    if (result != 0) {
+      return result;
+    }
+
+    result =
+        compareNullableString(first.variant == null ? null : first.variant.key, second.variant);
+    if (result != 0) {
+      return result;
+    }
+
+    result =
+        compareNullableString(
+            first.allocation == null ? null : first.allocation.key, second.allocation);
+    if (result != 0) {
+      return result;
+    }
+
+    result = compareNullableString(first.subject == null ? null : first.subject.id, second.subject);
+    if (result != 0) {
+      return result;
+    }
+
+    Map.Entry<String, Object> firstEntry = firstEntry(first.subject);
+    Map.Entry<String, Object> secondEntry = firstEntry(second.subject);
+    result =
+        compareNullableString(
+            firstEntry == null ? null : firstEntry.getKey(),
+            secondEntry == null ? null : secondEntry.getKey());
+    if (result != 0) {
+      return result;
+    }
+    return compareNullableString(
+        firstEntry == null ? null : String.valueOf(firstEntry.getValue()),
+        secondEntry == null ? null : String.valueOf(secondEntry.getValue()));
+  }
+
+  private static int compareNullableString(String first, Flag second) {
+    return compareNullableString(first, second == null ? null : second.key);
+  }
+
+  private static int compareNullableString(String first, Variant second) {
+    return compareNullableString(first, second == null ? null : second.key);
+  }
+
+  private static int compareNullableString(String first, Allocation second) {
+    return compareNullableString(first, second == null ? null : second.key);
+  }
+
+  private static int compareNullableString(String first, Subject second) {
+    return compareNullableString(first, second == null ? null : second.id);
+  }
+
+  private static int compareNullableString(String first, String second) {
+    String firstValue = first == null ? "" : first;
+    String secondValue = second == null ? "" : second;
+    return firstValue.compareTo(secondValue);
+  }
+
+  private static Map.Entry<String, Object> firstEntry(Subject subject) {
+    if (subject == null || subject.attributes == null) {
+      return null;
+    }
+    Iterator<Map.Entry<String, Object>> iterator = subject.attributes.entrySet().iterator();
+    return iterator.hasNext() ? iterator.next() : null;
+  }
+
+  private static List<ExposureEvent> buildExposures(int count) {
+    List<ExposureEvent> exposures = new ArrayList<>();
+    for (int index = 0; index < count; index++) {
+      exposures.add(buildExposure());
+    }
+    return exposures;
+  }
+
+  private static ExposureEvent buildExposure() {
+    String id = UUID.randomUUID().toString();
+    return new ExposureEvent(
+        System.currentTimeMillis(),
+        new Allocation("Allocation_" + id),
+        new Flag("Flag_" + id),
+        new Variant("Variant_" + id),
+        new Subject("Subject_" + id, singletonMap("key_" + id, (Object) ("value_" + id))));
+  }
+
+  private static <T> T getField(Object target, String fieldName, Class<T> fieldType)
+      throws NoSuchFieldException, IllegalAccessException {
+    Field field = target.getClass().getDeclaredField(fieldName);
+    field.setAccessible(true);
+    return fieldType.cast(field.get(target));
+  }
+
+  private static void eventually(ThrowingRunnable assertion, long timeoutMillis) throws Exception {
+    long deadline = System.nanoTime() + MILLISECONDS.toNanos(timeoutMillis);
+    AssertionError lastAssertionError = null;
+    Exception lastException = null;
+    while (System.nanoTime() <= deadline) {
+      try {
+        assertion.run();
+        return;
+      } catch (AssertionError error) {
+        lastAssertionError = error;
+      } catch (Exception exception) {
+        lastException = exception;
+      }
+      MILLISECONDS.sleep(20);
+    }
+    if (lastAssertionError != null) {
+      throw lastAssertionError;
+    }
+    if (lastException != null) {
+      throw lastException;
+    }
+    throw new AssertionError("condition was not satisfied before timeout");
+  }
+
+  @FunctionalInterface
+  private interface ThrowingRunnable {
+    void run() throws Exception;
+  }
+}
