@@ -34,7 +34,7 @@ Provider<String> graalvmHome = providers.provider({
 } as Callable<String>)
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'quarkusNativeBuild'
     nestedTasks = ['build']
     artifactPath = 'quarkus-native-smoketest--runner'
