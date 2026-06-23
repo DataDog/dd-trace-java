@@ -33,7 +33,7 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
     writer = new ListWriter();
     tracer = tracerBuilder().writer(writer).build();
     rootSpan = (DDSpan) tracer.buildSpan("datadog", "fakeOperation").start();
-    traceCollector = (PendingTrace) rootSpan.context().getTraceCollector();
+    traceCollector = (PendingTrace) rootSpan.spanContext().getTraceCollector();
 
     assertEquals(0, traceCollector.size());
     assertEquals(1, traceCollector.getPendingReferenceCount());
@@ -60,7 +60,7 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
   @Test
   void childFinishesBeforeParent() throws InterruptedException, TimeoutException {
     DDSpan child =
-        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(rootSpan.context()).start();
+        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(rootSpan.spanContext()).start();
 
     assertEquals(2, traceCollector.getPendingReferenceCount());
 
@@ -82,7 +82,7 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
   @Test
   void parentFinishesBeforeChild() throws InterruptedException, TimeoutException {
     DDSpan child =
-        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(rootSpan.context()).start();
+        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(rootSpan.spanContext()).start();
 
     assertEquals(2, traceCollector.getPendingReferenceCount());
 
@@ -109,7 +109,7 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
     // may incorrectly add spans after the trace is reported.
     // in those cases we should still decrement the pending trace count
     DDSpan childSpan =
-        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(rootSpan.context()).start();
+        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(rootSpan.spanContext()).start();
     childSpan.finish();
     writer.waitForTraces(2);
 
@@ -135,13 +135,13 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
     CoreTracer quickTracer = tracerBuilder().writer(writer).build();
     try {
       DDSpan localRoot = (DDSpan) quickTracer.buildSpan("datadog", "root").start();
-      PendingTrace trace = (PendingTrace) localRoot.context().getTraceCollector();
+      PendingTrace trace = (PendingTrace) localRoot.spanContext().getTraceCollector();
       DDSpan child1 =
           (DDSpan)
-              quickTracer.buildSpan("datadog", "child1").asChildOf(localRoot.context()).start();
+              quickTracer.buildSpan("datadog", "child1").asChildOf(localRoot.spanContext()).start();
       DDSpan child2 =
           (DDSpan)
-              quickTracer.buildSpan("datadog", "child2").asChildOf(localRoot.context()).start();
+              quickTracer.buildSpan("datadog", "child2").asChildOf(localRoot.spanContext()).start();
 
       assertEquals(3, trace.getPendingReferenceCount());
 
@@ -180,13 +180,13 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
     CoreTracer quickTracer = tracerBuilder().writer(writer).build();
     try {
       DDSpan localRoot = (DDSpan) quickTracer.buildSpan("datadog", "root").start();
-      PendingTrace trace = (PendingTrace) localRoot.context().getTraceCollector();
+      PendingTrace trace = (PendingTrace) localRoot.spanContext().getTraceCollector();
       DDSpan child1 =
           (DDSpan)
-              quickTracer.buildSpan("datadog", "child1").asChildOf(localRoot.context()).start();
+              quickTracer.buildSpan("datadog", "child1").asChildOf(localRoot.spanContext()).start();
       DDSpan child2 =
           (DDSpan)
-              quickTracer.buildSpan("datadog", "child2").asChildOf(localRoot.context()).start();
+              quickTracer.buildSpan("datadog", "child2").asChildOf(localRoot.spanContext()).start();
 
       assertEquals(3, trace.getPendingReferenceCount());
 
@@ -240,7 +240,7 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
     try {
       CountDownLatch latch = new CountDownLatch(1);
       DDSpan localRoot = (DDSpan) tracer.buildSpan("test", "root").start();
-      PendingTrace localTraceCollector = (PendingTrace) localRoot.context().getTraceCollector();
+      PendingTrace localTraceCollector = (PendingTrace) localRoot.spanContext().getTraceCollector();
       List<Throwable> exceptions = new ArrayList<>();
 
       List<Thread> threads = new ArrayList<>(threadCount);
@@ -252,7 +252,8 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
                     latch.await();
                     List<DDSpan> spans = new ArrayList<>(spanCount);
                     for (int s = 0; s < spanCount; s++) {
-                      spans.add((DDSpan) tracer.startSpan("test", "child", localRoot.context()));
+                      spans.add(
+                          (DDSpan) tracer.startSpan("test", "child", localRoot.spanContext()));
                     }
                     for (DDSpan span : spans) {
                       span.finish();

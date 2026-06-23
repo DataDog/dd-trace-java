@@ -587,13 +587,13 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private static String getLatestMavenVersion() {
-    String version = loadLatestToolVersions().getProperty("maven.version");
+    String version = loadLatestToolVersions().getProperty("maven.latest");
     LOGGER.info("Will run the 'latest' tests with Maven version {}", version);
     return version;
   }
 
   private static String getLatestMavenSurefireVersion() {
-    String version = loadLatestToolVersions().getProperty("maven-surefire.version");
+    String version = loadLatestToolVersions().getProperty("maven-surefire.latest");
     LOGGER.info("Will run the 'latest' tests with Maven Surefire version {}", version);
     return version;
   }

@@ -8,7 +8,7 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'ASM Standalone Billing Tests.'
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'bootJar'
     artifactPath = 'libs/apm-tracing-disabled-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'
