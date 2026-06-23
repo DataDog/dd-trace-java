@@ -221,12 +221,11 @@ class ExposureWriterTests {
       writer.init();
       writer.accept(buildExposure());
 
-      MILLISECONDS.sleep(500); // wait for a flush to happen
-      ExposuresRequest found = findRequest(serviceName);
       if (finallyFail) {
-        assertNull(found, REQUESTS.toString());
+        MILLISECONDS.sleep(500); // wait for a flush to happen
+        assertNull(findRequest(serviceName), REQUESTS.toString());
       } else {
-        assertNotNull(found, REQUESTS.toString());
+        eventually(() -> assertNotNull(findRequest(serviceName), REQUESTS.toString()), 5000);
       }
     }
   }
