@@ -67,7 +67,6 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
   }
 
   static TagMap create(int size) {
-    // size is advisory; OptimizedTagMap uses a fixed initial bucket capacity
     return new OptimizedTagMap();
   }
 
