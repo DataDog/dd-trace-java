@@ -1,6 +1,8 @@
 package datadog.smoketest
 
+import static datadog.environment.OperatingSystem.architecture
 
+import datadog.environment.OperatingSystem
 import java.time.Duration
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
@@ -11,6 +13,7 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.MountableFile
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 /**
@@ -22,6 +25,10 @@ import spock.lang.Shared
  *
  * Note that the websphere related metrics will only arrive if our instrumentation is applied.
  */
+//  There is no arm64 docker image for IBM icr.io/appcafe/websphere-traditional.
+@IgnoreIf({
+  OperatingSystem.isLinux() && architecture().isArm64()
+})
 class WebSphereJmxSmokeTest extends AbstractSmokeTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(WebSphereJmxSmokeTest)

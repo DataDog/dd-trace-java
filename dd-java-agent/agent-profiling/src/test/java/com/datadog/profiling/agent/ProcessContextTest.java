@@ -1,5 +1,6 @@
 package com.datadog.profiling.agent;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -79,24 +80,8 @@ class ProcessContextTest {
   }
 
   @Test
-  void testRegisterSkipsByDefault() {
-    ConfigProvider configProvider = mock(ConfigProvider.class);
-    when(configProvider.getBoolean(
-            eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED),
-            eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT)))
-        .thenReturn(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT);
-
-    DdprofLibraryLoader.OTelContextHolder holder =
-        mock(DdprofLibraryLoader.OTelContextHolder.class);
-
-    try (MockedStatic<DdprofLibraryLoader> ddprofMock = mockStatic(DdprofLibraryLoader.class)) {
-      ddprofMock.when(DdprofLibraryLoader::otelContext).thenReturn(holder);
-
-      ProcessContext.register(configProvider);
-
-      verify(holder, org.mockito.Mockito.never()).getReasonNotLoaded();
-      verify(holder, org.mockito.Mockito.never()).getComponent();
-    }
+  void testEnabledByDefault() {
+    assertTrue(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT);
   }
 
   @Test

@@ -39,9 +39,19 @@ gradlePlugin {
       implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
     }
 
+    create("version-file-plugin") {
+      id = "dd-trace-java.version-file"
+      implementationClass = "datadog.gradle.plugin.version.WriteVersionFilePlugin"
+    }
+
     create("dump-hanged-test-plugin") {
       id = "dd-trace-java.dump-hanged-test"
       implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
+    }
+
+    create("test-jvm-constraints-plugin") {
+      id = "dd-trace-java.test-jvm-constraints"
+      implementationClass = "datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsPlugin"
     }
 
     create("supported-config-generation") {
@@ -58,12 +68,15 @@ gradlePlugin {
       id = "dd-trace-java.instrumentation-naming"
       implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
     }
+
+    create("sca-enrichments-plugin") {
+      id = "dd-trace-java.sca-enrichments"
+      implementationClass = "datadog.gradle.plugin.sca.ScaEnrichmentsPlugin"
+    }
   }
 }
 
-apply {
-  from("$rootDir/../gradle/repositories.gradle")
-}
+apply(from = "$rootDir/../gradle/repositories.gradle")
 
 repositories {
   gradlePluginPortal()
@@ -72,7 +85,7 @@ repositories {
 dependencies {
   implementation(gradleApi())
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.3")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.10")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
@@ -80,9 +93,8 @@ dependencies {
   implementation("org.apache.maven", "maven-aether-provider", "3.3.9")
 
   implementation("com.github.zafarkhaja:java-semver:0.10.2")
-  implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
+  implementation(libs.javaparser.symbol.solver)
 
-  implementation("com.google.guava", "guava", "20.0")
   implementation(libs.asm)
   implementation(libs.asm.tree)
 
@@ -96,12 +108,13 @@ dependencies {
 
 tasks.compileKotlin {
   dependsOn(":call-site-instrumentation-plugin:build")
+  dependsOn(":modifiable-config-agent:build")
 }
 
 testing {
   @Suppress("UnstableApiUsage")
   suites {
-    val test by getting(JvmTestSuite::class) {
+    named<JvmTestSuite>("test") {
       dependencies {
         implementation(libs.assertj.core)
       }

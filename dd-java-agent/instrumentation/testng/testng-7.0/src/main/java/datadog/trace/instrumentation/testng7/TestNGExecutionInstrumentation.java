@@ -47,7 +47,7 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
 
     transformer.applyAdvice(
         named("runTestResultListener").and(takesArgument(0, named("org.testng.ITestResult"))),
-        TestNGExecutionInstrumentation.class.getName() + "$SuppressFailuresAdvice");
+        TestNGExecutionInstrumentation.class.getName() + "$ModifyStatusAdvice");
   }
 
   @Override
@@ -106,24 +106,27 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
     }
   }
 
-  public static class SuppressFailuresAdvice {
+  public static class ModifyStatusAdvice {
     @SuppressWarnings("bytebuddy-exception-suppression")
     @Advice.OnMethodEnter
-    public static void suppressFailures(@Advice.Argument(0) final ITestResult result) {
-      if (result.getStatus() != ITestResult.FAILURE) {
-        // nothing to suppress
-        return;
-      }
-
+    public static void modifyStatus(@Advice.Argument(0) final ITestResult result) {
       IRetryAnalyzer retryAnalyzer = TestNGUtils.getRetryAnalyzer(result);
       if (!(retryAnalyzer instanceof RetryAnalyzer)) {
         // test execution policies not injected
         return;
       }
       RetryAnalyzer ddRetryAnalyzer = (RetryAnalyzer) retryAnalyzer;
-      if (ddRetryAnalyzer.getAndResetSuppressFailures()) {
+
+      if (result.getStatus() == ITestResult.FAILURE
+          && ddRetryAnalyzer.getAndResetSuppressFailures()) {
         // "failed but within success percentage"
         result.setStatus(ITestResult.SUCCESS_PERCENTAGE_FAILURE);
+      } else if (result.isSuccess() && ddRetryAnalyzer.shouldPropagateFailure()) {
+        // mark status as failed to propagate an earlier failure suppressed by TestNG
+        result.setStatus(ITestResult.FAILURE);
+        result.setThrowable(
+            new AssertionError(
+                "Datadog: propagating test failure based on aggregated execution results"));
       }
     }
   }

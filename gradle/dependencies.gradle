@@ -44,7 +44,7 @@ final class CachedData {
       exclude(dependency('com.squareup.okhttp3:okhttp'))
       exclude(dependency('com.datadoghq.okio:okio'))
       exclude(dependency('com.squareup.okio:okio'))
-      exclude(dependency('org.lz4:lz4-java'))
+      exclude(dependency('at.yawk.lz4:lz4-java'))
       exclude(dependency('io.airlift:aircompressor'))
 
       // dogstatsd and its transitives
@@ -69,8 +69,21 @@ final class CachedData {
 
       // snakeyaml-engine and its transitives
       exclude(dependency('org.snakeyaml:snakeyaml-engine'))
+
+      // re2j and its transitives
+      exclude(dependency('com.google.re2j:re2j'))
     }
   ]
+}
+
+// The upstream `org.lz4:lz4-java` project is no longer maintained (see https://github.com/lz4/lz4-java),
+// so we depend on the community fork `at.yawk.lz4:lz4-java`. The fork advertises itself as a drop-in replacement
+// via Gradle capabilities (see https://docs.gradle.org/current/userguide/component_capabilities.html).
+// This rule resolves conflicts by selecting the highest version.
+configurations.configureEach {
+  resolutionStrategy.capabilitiesResolution.withCapability('org.lz4:lz4-java') {
+    selectHighestVersion()
+  }
 }
 
 CachedData.deps.shared = [
@@ -85,7 +98,8 @@ CachedData.deps.shared = [
   libs.moshi,
   libs.jctools,
   libs.lz4,
-  libs.aircompressor
+  libs.aircompressor,
+  libs.re2j
 ]
 
 ext {

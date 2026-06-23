@@ -1,6 +1,7 @@
 package datadog.trace.api.civisibility;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.util.Strings;
 
 public class CiVisibilityWellKnownTags {
 
@@ -26,16 +27,25 @@ public class CiVisibilityWellKnownTags {
       CharSequence osPlatform,
       CharSequence osVersion,
       CharSequence isUserProvidedService) {
-    this.runtimeId = UTF8BytesString.create(runtimeId);
-    this.env = UTF8BytesString.create(env);
-    this.language = UTF8BytesString.create(language);
-    this.runtimeName = UTF8BytesString.create(runtimeName);
-    this.runtimeVersion = UTF8BytesString.create(runtimeVersion);
-    this.runtimeVendor = UTF8BytesString.create(runtimeVendor);
-    this.osArch = UTF8BytesString.create(osArch);
-    this.osPlatform = UTF8BytesString.create(osPlatform);
-    this.osVersion = UTF8BytesString.create(osVersion);
-    this.isUserProvidedService = UTF8BytesString.create(isUserProvidedService);
+    this.runtimeId = truncated(runtimeId);
+    this.env = truncated(env);
+    this.language = truncated(language);
+    this.runtimeName = truncated(runtimeName);
+    this.runtimeVersion = truncated(runtimeVersion);
+    this.runtimeVendor = truncated(runtimeVendor);
+    this.osArch = truncated(osArch);
+    this.osPlatform = truncated(osPlatform);
+    this.osVersion = truncated(osVersion);
+    this.isUserProvidedService = truncated(isUserProvidedService);
+  }
+
+  /**
+   * Truncates a well-known tag value to the EVP per-value limit once, up front, and stores it
+   * pre-encoded so the intake serializers can marshal it as-is on every payload without truncating.
+   */
+  private static UTF8BytesString truncated(CharSequence value) {
+    return UTF8BytesString.create(
+        Strings.truncate(value, CIConstants.MAX_META_STRING_VALUE_LENGTH));
   }
 
   public UTF8BytesString getEnv() {

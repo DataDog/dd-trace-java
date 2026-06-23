@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I64_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.VARINT_WIRE_TYPE;
-import static datadog.trace.core.otlp.common.OtlpCommonProto.recordMessage;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeI64;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeInstrumentationScope;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeString;
@@ -25,6 +24,7 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpDoublePoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
+import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 
 /** Provides optimized writers for OpenTelemetry's "metrics.proto" wire protocol. */
 public final class OtlpMetricsProto {
@@ -37,12 +37,12 @@ public final class OtlpMetricsProto {
   private static final int OBSERVABLE_COUNTER_TEMPORALITY = temporality(OBSERVABLE_COUNTER);
   private static final int HISTOGRAM_TEMPORALITY = temporality(HISTOGRAM);
 
-  /**
-   * Records the first part of a scoped metrics message where we know its nested metric messages
-   * will follow in one or more byte-arrays that add up to the given number of remaining bytes.
-   */
-  public static byte[] recordScopedMetricsMessage(
-      GrowableBuffer buf, OtelInstrumentationScope scope, int remainingBytes) {
+  /** Records a scoped metrics message after its nested metric messages have been recorded. */
+  public static int recordScopedMetricsMessage(
+      GrowableBuffer buf,
+      OtelInstrumentationScope scope,
+      int nestedMetricBytes,
+      OtlpProtoBuffer protobuf) {
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeInstrumentationScope(buf, scope);
@@ -51,15 +51,15 @@ public final class OtlpMetricsProto {
       writeString(buf, scope.getSchemaUrl().getUtf8Bytes());
     }
 
-    return recordMessage(buf, 2, remainingBytes);
+    return protobuf.recordMessage(buf, 2, nestedMetricBytes);
   }
 
-  /**
-   * Records the first part of a metric message where we know that its nested data point messages
-   * will follow in one or more byte-arrays that add up to the given number of remaining bytes.
-   */
-  public static byte[] recordMetricMessage(
-      GrowableBuffer buf, OtelInstrumentDescriptor descriptor, int remainingBytes) {
+  /** Records a metric message after its nested data point messages have been recorded. */
+  public static int recordMetricMessage(
+      GrowableBuffer buf,
+      OtelInstrumentDescriptor descriptor,
+      int nestedDataPointBytes,
+      OtlpProtoBuffer protobuf) {
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeString(buf, descriptor.getName().getUtf8Bytes());
@@ -76,12 +76,12 @@ public final class OtlpMetricsProto {
       case GAUGE:
       case OBSERVABLE_GAUGE:
         writeTag(buf, 5, LEN_WIRE_TYPE);
-        writeVarInt(buf, remainingBytes);
+        writeVarInt(buf, nestedDataPointBytes);
         // gauges have no aggregation temporality
         break;
       case COUNTER:
         writeTag(buf, 7, LEN_WIRE_TYPE);
-        writeVarInt(buf, remainingBytes + 4);
+        writeVarInt(buf, nestedDataPointBytes + 4);
         writeTag(buf, 2, VARINT_WIRE_TYPE);
         writeVarInt(buf, COUNTER_TEMPORALITY);
         writeTag(buf, 3, VARINT_WIRE_TYPE);
@@ -89,7 +89,7 @@ public final class OtlpMetricsProto {
         break;
       case OBSERVABLE_COUNTER:
         writeTag(buf, 7, LEN_WIRE_TYPE);
-        writeVarInt(buf, remainingBytes + 4);
+        writeVarInt(buf, nestedDataPointBytes + 4);
         writeTag(buf, 2, VARINT_WIRE_TYPE);
         writeVarInt(buf, OBSERVABLE_COUNTER_TEMPORALITY);
         writeTag(buf, 3, VARINT_WIRE_TYPE);
@@ -98,14 +98,14 @@ public final class OtlpMetricsProto {
       case UP_DOWN_COUNTER:
       case OBSERVABLE_UP_DOWN_COUNTER:
         writeTag(buf, 7, LEN_WIRE_TYPE);
-        writeVarInt(buf, remainingBytes + 2);
+        writeVarInt(buf, nestedDataPointBytes + 2);
         writeTag(buf, 2, VARINT_WIRE_TYPE);
         // up/down counters are always cumulative
         writeVarInt(buf, TEMPORALITY_CUMULATIVE);
         break;
       case HISTOGRAM:
         writeTag(buf, 9, LEN_WIRE_TYPE);
-        writeVarInt(buf, remainingBytes + 2);
+        writeVarInt(buf, nestedDataPointBytes + 2);
         writeTag(buf, 2, VARINT_WIRE_TYPE);
         writeVarInt(buf, HISTOGRAM_TEMPORALITY);
         break;
@@ -113,11 +113,12 @@ public final class OtlpMetricsProto {
         throw new IllegalArgumentException("Unknown instrument type: " + descriptor.getType());
     }
 
-    return recordMessage(buf, 2, remainingBytes);
+    return protobuf.recordMessage(buf, 2, nestedDataPointBytes);
   }
 
-  /** Completes recording of a data point message and packs it into its own byte-array. */
-  public static byte[] recordDataPointMessage(GrowableBuffer buf, OtlpDataPoint point) {
+  /** Records a data point message. */
+  public static int recordDataPointMessage(
+      GrowableBuffer buf, OtlpDataPoint point, OtlpProtoBuffer protobuf) {
     if (point instanceof OtlpDoublePoint) {
       writeTag(buf, 4, I64_WIRE_TYPE);
       writeI64(buf, ((OtlpDoublePoint) point).value);
@@ -134,17 +135,28 @@ public final class OtlpMetricsProto {
       writeI64(buf, histogram.min);
       writeTag(buf, 12, I64_WIRE_TYPE);
       writeI64(buf, histogram.max);
-      for (double bucketCount : histogram.bucketCounts) {
-        writeTag(buf, 6, I64_WIRE_TYPE);
-        writeI64(buf, (long) bucketCount);
-      }
-      for (double bucketBoundary : histogram.bucketBoundaries) {
-        writeTag(buf, 7, I64_WIRE_TYPE);
-        writeI64(buf, bucketBoundary);
+      if (!histogram.bucketCounts.isEmpty()) {
+        boolean hasOverflow = false;
+        for (double bucketBoundary : histogram.bucketBoundaries) {
+          if (!Double.isInfinite(bucketBoundary)) {
+            writeTag(buf, 7, I64_WIRE_TYPE);
+            writeI64(buf, bucketBoundary);
+          } else {
+            hasOverflow = true; // don't write the overflow boundary
+          }
+        }
+        for (double bucketCount : histogram.bucketCounts) {
+          writeTag(buf, 6, I64_WIRE_TYPE);
+          writeI64(buf, (long) bucketCount);
+        }
+        if (!hasOverflow) { // write one more count than boundaries
+          writeTag(buf, 6, I64_WIRE_TYPE);
+          writeI64(buf, 0L);
+        }
       }
     }
 
-    return recordMessage(buf, 1);
+    return protobuf.recordMessage(buf, 1);
   }
 
   private static int temporality(OtelInstrumentType type) {

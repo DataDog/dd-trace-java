@@ -1,33 +1,16 @@
 package datadog.trace.junit.utils.config;
 
-import static net.bytebuddy.agent.builder.AgentBuilder.RedefinitionStrategy.Listener.ErrorEscalating.FAIL_FAST;
-import static net.bytebuddy.agent.builder.AgentBuilder.RedefinitionStrategy.RETRANSFORMATION;
-import static net.bytebuddy.description.modifier.FieldManifestation.VOLATILE;
-import static net.bytebuddy.description.modifier.Ownership.STATIC;
-import static net.bytebuddy.description.modifier.Visibility.PUBLIC;
-import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
-import static net.bytebuddy.matcher.ElementMatchers.none;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.environment.EnvironmentVariables;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import net.bytebuddy.agent.ByteBuddyAgent;
-import net.bytebuddy.agent.builder.AgentBuilder;
-import net.bytebuddy.dynamic.ClassFileLocator;
-import net.bytebuddy.dynamic.Transformer;
-import net.bytebuddy.utility.JavaModule;
+import javax.annotation.Nonnull;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -39,7 +22,9 @@ import org.junit.platform.commons.support.AnnotationSupport;
  * JUnit 5 extension that manages DD config injection for tests. Handles:
  *
  * <ul>
- *   <li>Making {@code Config} and {@code InstrumenterConfig} singletons modifiable via ByteBuddy
+ *   <li>Verifying {@code Config} and {@code InstrumenterConfig} {@code INSTANCE} fields have been
+ *       made modifiable by the load-time agent (see {@code
+ *       dd-trace-java.modifiable-config.gradle.kts} and {@code buildSrc/modifiable-config-agent})
  *   <li>Saving/restoring system properties between tests
  *   <li>Managing test environment variables
  *   <li>Applying {@link WithConfig} annotations (class and method level, including composed
@@ -57,13 +42,26 @@ public class WithConfigExtension
   static final String INST_CONFIG = "datadog.trace.api.InstrumenterConfig";
   static final String CONFIG = "datadog.trace.api.Config";
 
-  private static Field instConfigInstanceField;
-  private static Constructor<?> instConfigConstructor;
-  private static Field configInstanceField;
-  private static Constructor<?> configConstructor;
+  private static final Field instConfigInstanceField;
+  private static final Constructor<?> instConfigConstructor;
+  private static final Field configInstanceField;
+  private static final Constructor<?> configConstructor;
 
-  private static volatile boolean isConfigInstanceModifiable = false;
-  private static volatile boolean configModificationFailed = false;
+  static {
+    ensureConfigInstrumentationHasBeenApplied();
+    try {
+      Class<?> instCfg = Class.forName(INST_CONFIG);
+      instConfigInstanceField = instCfg.getDeclaredField("INSTANCE");
+      instConfigConstructor = instCfg.getDeclaredConstructor();
+      instConfigConstructor.setAccessible(true);
+      Class<?> cfg = Class.forName(CONFIG);
+      configInstanceField = cfg.getDeclaredField("INSTANCE");
+      configConstructor = cfg.getDeclaredConstructor();
+      configConstructor.setAccessible(true);
+    } catch (ReflectiveOperationException e) {
+      throw new ExceptionInInitializerError(e);
+    }
+  }
 
   static final TestEnvironmentVariables environmentVariables = TestEnvironmentVariables.setup();
 
@@ -73,49 +71,59 @@ public class WithConfigExtension
 
   @Override
   public void beforeAll(ExtensionContext context) {
-    installConfigTransformer();
-    makeConfigInstanceModifiable();
-    assertFalse(configModificationFailed, "Config class modification failed");
+    // Back up config and apply class-level config values.
     if (originalSystemProperties == null) {
       saveProperties();
     }
+    // Apply class-level @WithConfig so config is available before @BeforeAll methods
+    applyClassLevelConfig(context);
+    rebuildConfig();
   }
 
   @Override
   public void beforeEach(ExtensionContext context) {
     restoreProperties();
     environmentVariables.clear();
-    if (isConfigInstanceModifiable) {
-      rebuildConfig();
-    }
     applyDeclaredConfig(context);
+    rebuildConfig();
   }
 
   @Override
   public void afterEach(ExtensionContext context) {
     environmentVariables.clear();
     restoreProperties();
-    if (isConfigInstanceModifiable) {
-      rebuildConfig();
-    }
+    rebuildConfig();
   }
 
   @Override
   public void afterAll(ExtensionContext context) {
     restoreProperties();
-    if (isConfigInstanceModifiable) {
-      rebuildConfig();
+    rebuildConfig();
+  }
+
+  private static void applyDeclaredConfig(ExtensionContext context) {
+    applyClassLevelConfig(context);
+    applyMethodLevelConfig(context);
+  }
+
+  private static void applyClassLevelConfig(ExtensionContext context) {
+    // Walk the entire class hierarchy so annotations on superclasses and apply topmost first, then
+    // subclass overrides.
+    Class<?> testClass = context.getRequiredTestClass();
+    List<Class<?>> hierarchy = new ArrayList<>();
+    for (Class<?> cls = testClass; cls != null; cls = cls.getSuperclass()) {
+      hierarchy.add(cls);
+    }
+    for (int i = hierarchy.size() - 1; i >= 0; i--) {
+      List<WithConfig> classConfigs =
+          AnnotationSupport.findRepeatableAnnotations(hierarchy.get(i), WithConfig.class);
+      for (WithConfig cfg : classConfigs) {
+        applyConfig(cfg);
+      }
     }
   }
 
-  private void applyDeclaredConfig(ExtensionContext context) {
-    // Class-level @WithConfig annotations (supports composed/meta-annotations)
-    List<WithConfig> classConfigs =
-        AnnotationSupport.findRepeatableAnnotations(
-            context.getRequiredTestClass(), WithConfig.class);
-    for (WithConfig cfg : classConfigs) {
-      applyConfig(cfg);
-    }
+  private static void applyMethodLevelConfig(ExtensionContext context) {
     // Method-level @WithConfig annotations (supports composed/meta-annotations)
     context
         .getTestMethod()
@@ -131,10 +139,20 @@ public class WithConfigExtension
 
   private static void applyConfig(WithConfig cfg) {
     if (cfg.env()) {
-      injectEnvConfig(cfg.key(), cfg.value(), cfg.addPrefix());
+      setEnvVariable(cfg.key(), cfg.value(), cfg.addPrefix());
     } else {
-      injectSysConfig(cfg.key(), cfg.value(), cfg.addPrefix());
+      setSysProperty(cfg.key(), cfg.value(), cfg.addPrefix());
     }
+  }
+
+  private static void setSysProperty(String name, String value, boolean addPrefix) {
+    String prefixedName = addPrefix && !name.startsWith("dd.") ? "dd." + name : name;
+    System.setProperty(prefixedName, value);
+  }
+
+  private static void setEnvVariable(String name, String value, boolean addPrefix) {
+    String prefixedName = addPrefix && !name.startsWith("DD_") ? "DD_" + name : name;
+    environmentVariables.set(prefixedName, value);
   }
 
   // endregion
@@ -146,9 +164,7 @@ public class WithConfigExtension
   }
 
   public static void injectSysConfig(String name, String value, boolean addPrefix) {
-    checkConfigTransformation();
-    String prefixedName = name.startsWith("dd.") || !addPrefix ? name : "dd." + name;
-    System.setProperty(prefixedName, value);
+    setSysProperty(name, value, addPrefix);
     rebuildConfig();
   }
 
@@ -157,8 +173,7 @@ public class WithConfigExtension
   }
 
   public static void removeSysConfig(String name, boolean addPrefix) {
-    checkConfigTransformation();
-    String prefixedName = name.startsWith("dd.") || !addPrefix ? name : "dd." + name;
+    String prefixedName = addPrefix && !name.startsWith("dd.") ? "dd." + name : name;
     System.clearProperty(prefixedName);
     rebuildConfig();
   }
@@ -168,9 +183,7 @@ public class WithConfigExtension
   }
 
   public static void injectEnvConfig(String name, String value, boolean addPrefix) {
-    checkConfigTransformation();
-    String prefixedName = name.startsWith("DD_") || !addPrefix ? name : "DD_" + name;
-    environmentVariables.set(prefixedName, value);
+    setEnvVariable(name, value, addPrefix);
     rebuildConfig();
   }
 
@@ -179,8 +192,7 @@ public class WithConfigExtension
   }
 
   public static void removeEnvConfig(String name, boolean addPrefix) {
-    checkConfigTransformation();
-    String prefixedName = name.startsWith("DD_") || !addPrefix ? name : "DD_" + name;
+    String prefixedName = addPrefix && !name.startsWith("DD_") ? "DD_" + name : name;
     environmentVariables.removePrefixed(prefixedName);
     rebuildConfig();
   }
@@ -189,63 +201,30 @@ public class WithConfigExtension
 
   // region Config infrastructure setup
 
-  private static void installConfigTransformer() {
-    try {
-      Instrumentation instrumentation = ByteBuddyAgent.install();
-      new AgentBuilder.Default()
-          .with(RETRANSFORMATION)
-          .with(FAIL_FAST)
-          .with(
-              new AgentBuilder.LocationStrategy.Simple(
-                  ClassFileLocator.ForClassLoader.ofSystemLoader()))
-          .ignore(none())
-          .type(namedOneOf(INST_CONFIG, CONFIG))
-          .transform(
-              (builder, typeDescription, classLoader, module, pd) ->
-                  builder
-                      .field(named("INSTANCE"))
-                      .transform(Transformer.ForField.withModifiers(PUBLIC, STATIC, VOLATILE)))
-          .with(new ConfigInstrumentationFailedListener())
-          .installOn(instrumentation);
-    } catch (IllegalStateException e) {
-      // Ignore. When we have -javaagent:dd-java-agent.jar, this is fine.
-    }
-  }
-
-  static void makeConfigInstanceModifiable() {
-    if (isConfigInstanceModifiable || configModificationFailed) {
+  private static void ensureConfigInstrumentationHasBeenApplied() {
+    if (isWritableInstance(CONFIG) && isWritableInstance(INST_CONFIG)) {
       return;
     }
+    throw new IllegalStateException(
+        "Config/InstrumenterConfig INSTANCE fields are not modifiable. "
+            + "Need the '-javaagent:modifiable-config-agent.jar' on the test JVM "
+            + "(the dd-trace-java.configure-tests Gradle convention plugin wires this automatically).");
+  }
 
+  private static boolean isWritableInstance(String className) {
     try {
-      Class<?> instConfigClass = Class.forName(INST_CONFIG);
-      instConfigInstanceField = instConfigClass.getDeclaredField("INSTANCE");
-      instConfigConstructor = instConfigClass.getDeclaredConstructor();
-      instConfigConstructor.setAccessible(true);
-      Class<?> configClass = Class.forName(CONFIG);
-      configInstanceField = configClass.getDeclaredField("INSTANCE");
-      configConstructor = configClass.getDeclaredConstructor();
-      configConstructor.setAccessible(true);
-
-      isConfigInstanceModifiable = true;
-    } catch (ClassNotFoundException e) {
-      if (INST_CONFIG.equals(e.getMessage()) || CONFIG.equals(e.getMessage())) {
-        System.err.println("Config class not found in this classloader. Not transforming it");
-      } else {
-        configModificationFailed = true;
-        System.err.println("Config will not be modifiable");
-        e.printStackTrace();
-      }
-    } catch (ReflectiveOperationException e) {
-      configModificationFailed = true;
-      System.err.println("Config will not be modifiable");
-      e.printStackTrace();
+      int m = Class.forName(className).getDeclaredField("INSTANCE").getModifiers();
+      return Modifier.isPublic(m)
+          && Modifier.isStatic(m)
+          && Modifier.isVolatile(m)
+          && !Modifier.isFinal(m);
+    } catch (ClassNotFoundException | NoSuchFieldException e) {
+      return false;
     }
   }
 
   private static void rebuildConfig() {
     synchronized (WithConfigExtension.class) {
-      checkConfigTransformation();
       try {
         Object newInstConfig = instConfigConstructor.newInstance();
         instConfigInstanceField.set(null, newInstConfig);
@@ -276,26 +255,6 @@ public class WithConfigExtension
 
   // endregion
 
-  // region Validation
-
-  private static void checkConfigTransformation() {
-    assertTrue(isConfigInstanceModifiable);
-    assertNotNull(instConfigConstructor);
-    checkWritable(instConfigInstanceField);
-    assertNotNull(configConstructor);
-    checkWritable(configInstanceField);
-  }
-
-  private static void checkWritable(Field field) {
-    assertNotNull(field);
-    assertTrue(Modifier.isPublic(field.getModifiers()));
-    assertTrue(Modifier.isStatic(field.getModifiers()));
-    assertTrue(Modifier.isVolatile(field.getModifiers()));
-    assertFalse(Modifier.isFinal(field.getModifiers()));
-  }
-
-  // endregion
-
   /** Test-only environment variable provider that replaces the real one during tests. */
   public static class TestEnvironmentVariables
       extends EnvironmentVariables.EnvironmentVariablesProvider {
@@ -308,7 +267,7 @@ public class WithConfigExtension
     }
 
     @Override
-    public String get(@NonNull String name) {
+    public String get(@Nonnull String name) {
       return env.get(name);
     }
 
@@ -342,20 +301,6 @@ public class WithConfigExtension
       }
 
       return provider;
-    }
-  }
-
-  private static class ConfigInstrumentationFailedListener extends AgentBuilder.Listener.Adapter {
-    @Override
-    public void onError(
-        @NonNull String typeName,
-        ClassLoader classLoader,
-        JavaModule module,
-        boolean loaded,
-        @NonNull Throwable throwable) {
-      if (CONFIG.equals(typeName)) {
-        configModificationFailed = true;
-      }
     }
   }
 }

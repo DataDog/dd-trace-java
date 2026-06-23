@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import datadog.metrics.api.Recording;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
@@ -139,7 +140,8 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   private static final AtomicLongFieldUpdater<PendingTrace> LAST_REFERENCED =
       AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "lastReferenced");
 
-  private PendingTrace(
+  @VisibleForTesting
+  PendingTrace(
       @Nonnull CoreTracer tracer,
       @Nonnull DDTraceId traceId,
       @Nonnull PendingTraceBuffer pendingTraceBuffer,
@@ -221,6 +223,41 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
 
   boolean compareAndSetLongRunningState(int expected, int newState) {
     return LONG_RUNNING_STATE.compareAndSet(this, expected, newState);
+  }
+
+  @VisibleForTesting
+  int getLongRunningTrackedState() {
+    return longRunningTrackedState;
+  }
+
+  @VisibleForTesting
+  void setLongRunningTrackedState(int state) {
+    LONG_RUNNING_STATE.set(this, state);
+  }
+
+  @VisibleForTesting
+  int getPendingReferenceCount() {
+    return pendingReferenceCount;
+  }
+
+  @VisibleForTesting
+  PendingTraceBuffer getPendingTraceBuffer() {
+    return pendingTraceBuffer;
+  }
+
+  @VisibleForTesting
+  DDTraceId getTraceId() {
+    return traceId;
+  }
+
+  @VisibleForTesting
+  boolean isRootSpanWritten() {
+    return rootSpanWritten;
+  }
+
+  @VisibleForTesting
+  int getIsEnqueued() {
+    return isEnqueued;
   }
 
   boolean empty() {
@@ -456,7 +493,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
       return duration;
     }
     DDSpan ddSpan = (DDSpan) span;
-    TraceCollector traceCollector = ddSpan.context().getTraceCollector();
+    TraceCollector traceCollector = ddSpan.spanContext().getTraceCollector();
     if (!(traceCollector instanceof PendingTrace)) {
       throw new IllegalArgumentException(
           "Expected "

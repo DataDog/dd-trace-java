@@ -15,6 +15,7 @@ import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -62,6 +63,14 @@ public class InstrumentationGatewayTest {
 
           @Override
           public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+            return null;
+          }
+
+          @Override
+          public void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+
+          @Override
+          public ClientIpAddressData getClientIpAddressData() {
             return null;
           }
         };
@@ -240,6 +249,12 @@ public class InstrumentationGatewayTest {
     assertEquals(
         Flow.Action.Noop.INSTANCE,
         cbp.getCallback(events.requestFilesFilenames()).apply(null, null).getAction());
+    ss.registerCallback(events.requestFilesContent(), callback);
+    assertEquals(
+        Flow.Action.Noop.INSTANCE,
+        cbp.getCallback(events.requestFilesContent()).apply(null, null).getAction());
+    ss.registerCallback(events.fileWritten(), callback);
+    cbp.getCallback(events.fileWritten()).apply(null, null);
     assertEquals(Events.MAX_EVENTS, callback.count);
   }
 
@@ -329,6 +344,11 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.requestFilesFilenames(), throwback);
     assertEquals(
         Flow.ResultFlow.empty(), cbp.getCallback(events.requestFilesFilenames()).apply(null, null));
+    ss.registerCallback(events.requestFilesContent(), throwback);
+    assertEquals(
+        Flow.ResultFlow.empty(), cbp.getCallback(events.requestFilesContent()).apply(null, null));
+    ss.registerCallback(events.fileWritten(), throwback);
+    cbp.getCallback(events.fileWritten()).apply(null, null);
     assertEquals(Events.MAX_EVENTS, throwback.count);
   }
 

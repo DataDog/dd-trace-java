@@ -1,8 +1,8 @@
 package datadog.trace.core.otlp.common;
 
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
+import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
-import static datadog.trace.core.otlp.common.OtlpCommonProto.recordMessage;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeAttribute;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 
@@ -26,7 +26,10 @@ public final class OtlpResourceProto {
               "version",
               "service.name",
               "deployment.environment.name",
-              "service.version"));
+              "service.version",
+              "telemetry.sdk.name",
+              "telemetry.sdk.version",
+              "telemetry.sdk.language"));
 
   public static final byte[] RESOURCE_MESSAGE = buildResourceMessage(Config.get());
 
@@ -44,6 +47,9 @@ public final class OtlpResourceProto {
     if (!version.isEmpty()) {
       writeResourceAttribute(buf, "service.version", version);
     }
+    writeResourceAttribute(buf, "telemetry.sdk.name", "datadog");
+    writeResourceAttribute(buf, "telemetry.sdk.version", TRACER_VERSION);
+    writeResourceAttribute(buf, "telemetry.sdk.language", "java");
 
     config
         .getGlobalTags()
@@ -55,11 +61,16 @@ public final class OtlpResourceProto {
               }
             });
 
-    return recordMessage(buf, 1);
+    OtlpProtoBuffer protobuf = new OtlpProtoBuffer(buf.capacity());
+    int numBytes = protobuf.recordMessage(buf, 1);
+    byte[] resourceMessage = new byte[numBytes];
+    protobuf.flip().get(resourceMessage);
+
+    return resourceMessage;
   }
 
   private static void writeResourceAttribute(StreamingBuffer buf, String key, String value) {
     writeTag(buf, 1, LEN_WIRE_TYPE);
-    writeAttribute(buf, STRING, key, value);
+    writeAttribute(buf, STRING_ATTRIBUTE, key, value);
   }
 }

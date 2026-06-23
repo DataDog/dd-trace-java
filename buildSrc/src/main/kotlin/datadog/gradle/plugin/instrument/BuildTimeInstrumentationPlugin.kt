@@ -3,6 +3,7 @@ package datadog.gradle.plugin.instrument
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.logging.Logging
+import org.gradle.api.tasks.ClasspathNormalizer
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.AbstractCompile
@@ -115,6 +116,8 @@ class BuildTimeInstrumentationPlugin : Plugin<Project> {
           BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION
         )
         inputs.files(project.configurations.named(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION))
+          .withPropertyName(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION)
+          .withNormalizer(ClasspathNormalizer::class.java)
 
         // Compute optional Java version.
         val match = Regex("compileMain_(.+)Java").matchEntire(compileTaskName)

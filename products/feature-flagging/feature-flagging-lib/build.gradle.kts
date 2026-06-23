@@ -1,18 +1,16 @@
 plugins {
   `java-library`
+  id("dd-trace-java.version-file")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
-apply(from = "$rootDir/gradle/version.gradle")
 
 description = "Feature flagging remote config and exposure handling"
 
-val excludedClassesCoverage by extra(
-  listOf(
-    // POJOs
-    "com.datadog.featureflag.ExposureCache.Key",
-    "com.datadog.featureflag.ExposureCache.Value"
-  )
+extra["excludedClassesCoverage"] = listOf(
+  // POJOs
+  "com.datadog.featureflag.ExposureCache.Key",
+  "com.datadog.featureflag.ExposureCache.Value"
 )
 
 dependencies {
@@ -25,6 +23,8 @@ dependencies {
 
   compileOnly(project(":dd-trace-core")) // shading does not work with this one
 
+  testImplementation(libs.bundles.junit5)
+  testImplementation(libs.bundles.mockito)
   testImplementation(project(":utils:test-utils"))
   testImplementation(project(":dd-java-agent:testing"))
 }

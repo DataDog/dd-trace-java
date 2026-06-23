@@ -1,0 +1,38 @@
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '2.7.15'
+  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+}
+
+def sharedRootDir = "$rootDir/../../../"
+def sharedConfigDirectory = "$sharedRootDir/gradle"
+rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
+
+apply from: "$sharedConfigDirectory/repositories.gradle"
+
+if (hasProperty('appBuildDir')) {
+  buildDir = property('appBuildDir')
+}
+
+version = ""
+
+// Java 11 (not Java 8 like the other Spring Boot 2.x smoke tests): the OpenFeature SDK
+// requires Java 11+. This matches what the outer (pre-nested) build was doing before
+// the application was extracted into this nested build.
+java {
+  sourceCompatibility = 11
+  targetCompatibility = 11
+}
+
+if (hasProperty('featureFlaggingApiJar')) {
+  dependencies {
+    implementation files(property('featureFlaggingApiJar'))
+  }
+}
+
+dependencies {
+  // OpenFeature SDK is an API dependency of feature-flagging-api but is not
+  // transitively resolved when the jar is passed as a files() dependency.
+  implementation 'dev.openfeature:sdk:1.20.1'
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+}

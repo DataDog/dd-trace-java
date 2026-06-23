@@ -1,44 +1,29 @@
-import org.springframework.boot.gradle.tasks.bundling.BootWar
-
 plugins {
-  id 'java'
-  id 'war'
-  id 'org.springframework.boot' version '2.6.0'
+  id 'dd-trace-java.smoke-test-app'
 }
 
-apply plugin: 'io.spring.dependency-management'
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
+
 description = 'SpringBoot JPA Smoke Tests.'
 
+smokeTestApp {
+  gradleApp {
+    taskName = 'bootWar'
+    artifactPath = 'libs/springboot-jpa-smoketest.war'
+    sysProperty = 'datadog.smoketest.springboot.bootWar.path'
+  }
+}
+
 dependencies {
-  implementation 'org.springframework.boot:spring-boot-starter-web'
-  implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-  implementation 'org.apache.tomcat.embed:tomcat-embed-jasper'
-  implementation 'javax.servlet:jstl:1.2'
-  implementation 'com.h2database:h2:2.1.214'
-
   testImplementation project(':dd-smoke-tests')
-
-  compileOnly 'org.projectlombok:lombok:1.18.34'
-  annotationProcessor 'org.projectlombok:lombok:1.18.34'
-
-  testCompileOnly 'org.projectlombok:lombok:1.18.34'
-  testAnnotationProcessor 'org.projectlombok:lombok:1.18.34'
 }
 
-tasks.withType(Test).configureEach {
-  dependsOn "bootWar"
+spotless {
+  java {
+    target "**/*.java"
+  }
 
-  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-      @Override
-      Iterable<String> asArguments() {
-        def bootWarTask = tasks.named('bootWar', BootWar).get()
-        return ["-Ddatadog.smoketest.springboot.bootWar.path=${bootWarTask.archiveFile.get()}"]
-      }
-    })
-}
-
-tasks.withType(GroovyCompile).configureEach {
-  configureCompiler(it, 8)
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
 }
