@@ -551,6 +551,8 @@ def build_validation_summary(
         blocks.append(
             "### :warning: Cannot verify age, reverted\n\n"
             "The age of these dependencies could not be verified, so the lockfiles were reverted. "
+            "This likely means that the following dependencies are published to a repo not yet configured in the workflow. "
+            "If this is the case, add the missing repository as a `--repo-url` in the `Validate changed lock files` step of `.github/workflows/update-gradle-dependencies.yaml`. "
             "**This needs to be resolved manually.**\n\n"
             + "\n".join(sorted(unverified))
         )

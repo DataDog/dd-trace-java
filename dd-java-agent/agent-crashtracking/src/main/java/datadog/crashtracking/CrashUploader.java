@@ -29,8 +29,8 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.PidHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import java.io.*;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -130,7 +130,7 @@ public final class CrashUploader {
   }
 
   CrashUploader(
-      @NonNull final Config config, @Nonnull final ConfigManager.StoredConfig storedConfig) {
+      @Nonnull final Config config, @Nonnull final ConfigManager.StoredConfig storedConfig) {
     this.config = config;
     this.storedConfig = storedConfig;
     this.uploaderSettings = storedConfig.toCrashUploaderSettings();

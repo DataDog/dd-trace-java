@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:karate-1.0:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=karate131TestRuntimeClasspath,karate141TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=karate131TestRuntimeClasspath,karate141TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=karate131TestCompileClasspath,karate131TestRuntimeClasspath,karate141TestCompileClasspath,karate141TestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
@@ -34,7 +35,7 @@ com.github.jnr:jnr-ffi:2.2.19=karate131TestRuntimeClasspath,karate141TestRuntime
 com.github.jnr:jnr-posix:3.1.22=karate131TestRuntimeClasspath,karate141TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-unixsocket:0.38.25=karate131TestRuntimeClasspath,karate141TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-x86asm:1.0.2=karate131TestRuntimeClasspath,karate141TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
-com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,karate131TestCompileClasspath,karate131TestRuntimeClasspath,karate141TestCompileClasspath,karate141TestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
+com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,spotbugs
 com.github.spotbugs:spotbugs:4.9.8=spotbugs
 com.github.stephenc.jcip:jcip-annotations:1.0-1=spotbugs
 com.google.auto.service:auto-service-annotations:1.1.1=annotationProcessor,compileClasspath,karate131TestAnnotationProcessor,karate131TestCompileClasspath,karate141TestAnnotationProcessor,karate141TestCompileClasspath,latestDepTestAnnotationProcessor,latestDepTestCompileClasspath,testAnnotationProcessor,testCompileClasspath
