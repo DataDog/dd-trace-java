@@ -41,8 +41,8 @@ import org.openjdk.jmh.infra.Blackhole;
  *       plain insertion. However, if a builder pattern is required, {@code TagMap.Ledger} (41M)
  *       handily beats {@code HashMap} builder style — staging map + defensive copy (28M) — because
  *       it avoids the second allocation and second fill pass.
- *   <li><b>clone</b>: See {@link UnsynchronizedMapBenchmark} — TagMap clone is ~4.6x faster than
- *       HashMap clone (295M vs 64M ops/s), which dominates span lifecycle costs.
+ *   <li><b>clone</b>: See {@link datadog.trace.util.SingleThreadedMapBenchmark} — TagMap clone is
+ *       ~4.6x faster than HashMap clone (295M vs 64M ops/s), which dominates span lifecycle costs.
  * </ul>
  *
  * <code>

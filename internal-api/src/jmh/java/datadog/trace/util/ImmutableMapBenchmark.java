@@ -27,9 +27,17 @@ import org.openjdk.jmh.infra.Blackhole;
  * ConcurrentHashtable} / {@code ThreadSafeMap} suites.
  *
  * <p>Compares {@code get} + {@code iterate} across {@link HashMap}, {@link LinkedHashMap}, {@link
- * TreeMap}, and {@link TagMap}. Lookups use {@code EQUAL_KEYS} (distinct String instances) to
- * exercise {@code equals()} rather than identity; {@code *_sameKey} variants reuse the original key
- * instances to show the identity fast path. (Results pending a fresh multi-JVM run.)
+ * TreeMap}, {@link TagMap}, and {@link java.util.Map#copyOf} (via {@link
+ * CollectionUtils#tryMakeImmutableMap} — the JDK's compact, array-backed {@code
+ * ImmutableCollections.MapN}, which is what the agent actually uses for fixed config maps; Java
+ * 10+, falls back to the input map pre-10). {@code Map.copyOf}/{@code MapN} is the honest
+ * immutable-map baseline, not {@code HashMap}.
+ *
+ * <p>Lookups use {@code EQUAL_KEYS} (distinct String instances) to exercise {@code equals()};
+ * {@code *_sameKey} variants reuse the original interned key instances to show the identity fast
+ * path — which is the common tracer case, since map keys are typically interned tag-name constants.
+ * (Results pending a fresh multi-JVM run — {@code Map.copyOf} only materializes the compact form on
+ * Java 10+.)
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -64,6 +72,7 @@ public class ImmutableMapBenchmark {
   LinkedHashMap<String, Integer> linkedHashMap;
   TreeMap<String, Integer> treeMap;
   TagMap tagMap;
+  Map<String, Integer> copyOfMap;
 
   @Setup(Level.Trial)
   public void setUp() {
@@ -77,6 +86,8 @@ public class ImmutableMapBenchmark {
     for (int i = 0; i < INSERTION_KEYS.length; ++i) {
       tagMap.set(INSERTION_KEYS[i], i); // primitive support
     }
+    // JDK compact immutable map (MapN on Java 10+); the agent's actual fixed-map representation.
+    copyOfMap = CollectionUtils.tryMakeImmutableMap(hashMap);
   }
 
   /** Per-thread lookup cursor so each reader thread cycles keys independently. */
@@ -165,5 +176,23 @@ public class ImmutableMapBenchmark {
           bh.consume(entry.tag());
           bh.consume(entry.intValue());
         });
+  }
+
+  @Benchmark
+  public Integer get_copyOf(Cursor cursor) {
+    return copyOfMap.get(cursor.nextKey());
+  }
+
+  @Benchmark
+  public Integer get_copyOf_sameKey(Cursor cursor) {
+    return copyOfMap.get(cursor.nextKey(INSERTION_KEYS));
+  }
+
+  @Benchmark
+  public void iterate_copyOf(Blackhole blackhole) {
+    for (Map.Entry<String, Integer> entry : copyOfMap.entrySet()) {
+      blackhole.consume(entry.getKey());
+      blackhole.consume(entry.getValue());
+    }
   }
 }
