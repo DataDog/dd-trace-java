@@ -423,7 +423,7 @@ public final class ContinuableScopeManager implements ContextManager {
     AgentSpan span = AgentSpan.fromContext(context);
     AgentTraceCollector traceCollector;
     if (span != null) {
-      traceCollector = span.context().getTraceCollector();
+      traceCollector = span.spanContext().getTraceCollector();
     } else {
       traceCollector = AgentTracer.NoopAgentTraceCollector.INSTANCE;
     }
