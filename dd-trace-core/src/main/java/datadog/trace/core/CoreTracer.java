@@ -2031,11 +2031,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           requestContextDataIast = null;
           ciVisibilityContextData = null;
         }
-        // Local child: share the parent's (trace-level) PropagationTags instead of allocating a
-        // fresh empty() per span. getPropagationTags() routes to the root, so a non-root child's
-        // own instance is never read for injection — the per-span empty() was pure allocation
-        // waste (N+1 -> 1 PropagationTags per trace). The ctor's updateTraceIdHighOrderBits stamp
-        // is a guarded no-op on the already-stamped root instance (same trace => same high bits).
+        // Local children share the parent's PropagationTags (trace-level state; reads route to the
+        // root) instead of allocating an unused empty() per span.
         propagationTags = ddsc.getPropagationTags();
       } else {
         long endToEndStartTime;
