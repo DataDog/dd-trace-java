@@ -1,5 +1,8 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.api.ProtocolVersion.V0_4;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -51,6 +54,7 @@ public class ConflatingMetricsAggregatorBenchmark {
     final List<CoreSpan<?>> trace = new ArrayList<>();
     for (int i = 0; i < len; i++) {
       SimpleSpan span = new SimpleSpan("", "", "", "", true, true, false, 0, 10, -1);
+      span.setTag(SPAN_KIND, SPAN_KIND_CLIENT);
       span.setTag("peer.hostname", Strings.random(10));
       trace.add(span);
     }
@@ -72,7 +76,7 @@ public class ConflatingMetricsAggregatorBenchmark {
 
     public FixedAgentFeaturesDiscovery(Set<String> peerTags, Set<String> spanKinds) {
       // create a fixed discovery with metrics enabled
-      super(null, Monitoring.DISABLED, null, false, true);
+      super(null, Monitoring.DISABLED, null, V0_4, true, false);
       this.peerTags = peerTags;
       this.spanKinds = spanKinds;
     }

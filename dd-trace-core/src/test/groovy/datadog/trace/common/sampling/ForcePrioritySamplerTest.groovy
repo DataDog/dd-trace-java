@@ -17,7 +17,7 @@ class ForcePrioritySamplerTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
 
     when:
-    def span1 = tracer.buildSpan("test").start()
+    def span1 = tracer.buildSpan("datadog", "test").start()
     sampler.setSamplingPriority(span1)
 
     then:
@@ -43,7 +43,7 @@ class ForcePrioritySamplerTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
 
     when:
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("datadog", "test").start()
 
     then:
     span.getSamplingPriority() == null
@@ -69,7 +69,7 @@ class ForcePrioritySamplerTest extends DDCoreSpecification {
     when:
     def sampler = new ForcePrioritySampler(SAMPLER_KEEP, DEFAULT)
     def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
-    def span = tracer.buildSpan("root").start()
+    def span = tracer.buildSpan("datadog", "root").start()
     if (tagName) {
       span.setTag(tagName, tagValue)
     }
@@ -91,7 +91,7 @@ class ForcePrioritySamplerTest extends DDCoreSpecification {
     setup:
     def sampler = new ForcePrioritySampler(SAMPLER_KEEP, DEFAULT)
     def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
-    def span = tracer.buildSpan("root").start()
+    def span = tracer.buildSpan("datadog", "root").start()
     if (tagName) {
       span.setTag(tagName, tagValue)
     }

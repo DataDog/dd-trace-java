@@ -3,7 +3,6 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  testImplementation project(':dd-java-agent:instrumentation:mongo:mongo-common').sourceSets.test.output
   testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
 
   // We need to pull in this dependency to get the 'suspend span' instrumentation for spock tests

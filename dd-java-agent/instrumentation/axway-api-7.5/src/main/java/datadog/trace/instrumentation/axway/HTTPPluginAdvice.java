@@ -17,7 +17,7 @@ public class HTTPPluginAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope onEnter(@Advice.Argument(value = 2) final Object serverTransaction) {
-    final AgentSpan span = startSpan("axway-api", DECORATE.spanName()).setMeasured(true);
+    final AgentSpan span = startSpan("axway-http", DECORATE.spanName()).setMeasured(true);
     DECORATE.afterStart(span);
     // serverTransaction is like request + connection in one object:
     DECORATE.onRequest(span, serverTransaction, serverTransaction, getRootContext());

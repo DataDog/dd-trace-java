@@ -63,6 +63,13 @@ pattern before writing new code. Use it as a template.
    - `testImplementation` dependencies for tests
    - `muzzle { pass { } }` directives (see Step 9)
 4. Register the new module in `settings.gradle.kts` in **alphabetical order**
+5. Register the integration name in `metadata/supported-configurations.json`, or
+   `checkInstrumenterModuleConfigurations` fails. The name in `super(...)` maps to env var
+   `DD_TRACE_<NAME>_ENABLED` (`.` and `-` become `_`, uppercased — `couchbase-3` →
+   `DD_TRACE_COUCHBASE_3_ENABLED`). Add a `"type": "boolean"` entry, in alphabetical order, with
+   aliases `DD_TRACE_INTEGRATION_<NAME>_ENABLED` and `DD_INTEGRATION_<NAME>_ENABLED`. Set `default`
+   to the module's real default — `"true"`, or `"false"` if it overrides `defaultEnabled()` (e.g.
+   OpenTelemetry, Hazelcast). Declaring several names (`super("a", "b")`) means one entry each.
 
 ## Step 5 – Write the InstrumenterModule
 
@@ -77,6 +84,19 @@ Conventions to enforce:
   - Include inner classes (`Foo$Bar`), anonymous classes (`Foo$1`), and enum synthetic classes
 - Declare `contextStore()` entries if context stores are needed (key class → value class)
 - Keep method matchers as narrow as possible (name, parameter types, visibility)
+
+### Must NOT do in InstrumenterModule
+
+- **Do not extract one-shot method return values into static constants.**
+  Methods like `triggerClasses()`, `contextStore()`, `classLoaderMatcher()`, and `methodAdvice()`
+  are called **once** by `AgentInstaller` / the framework wiring. Extracting their return value
+  into a `private static final` constant provides no performance benefit and needlessly bloats
+  the constant pool of the instrumentation class.
+
+  ❌ `private static final String[] TRIGGER_CLASSES = new String[]{"com.example.Foo"};`
+     `public String[] triggerClasses() { return TRIGGER_CLASSES; }`
+
+  ✅ `public String[] triggerClasses() { return new String[]{"com.example.Foo"}; }`
 
 ## Step 6 – Write the Decorator
 
@@ -180,10 +200,14 @@ Run these commands in order and fix any failures before proceeding:
 ./gradlew :dd-java-agent:instrumentation:$framework-$version:muzzle
 ./gradlew :dd-java-agent:instrumentation:$framework-$version:test
 ./gradlew :dd-java-agent:instrumentation:$framework-$version:latestDepTest
+./gradlew checkInstrumenterModuleConfigurations
 ./gradlew spotlessCheck
 ```
 
 **If muzzle fails:** check for missing helper class names in `helperClassNames()`.
+
+**If `checkInstrumenterModuleConfigurations` fails:** an integration name from `super(...)` is missing
+(or mismatched) in `metadata/supported-configurations.json` — see Step 4, item 5.
 
 **If tests fail:** verify span lifecycle order (start → activate → error → finish → close), helper registration,
 and `contextStore()` map entries match actual usage.
@@ -195,11 +219,13 @@ and `contextStore()` map entries match actual usage.
 Output this checklist and confirm each item is satisfied:
 
 - [ ] `settings.gradle.kts` entry added in alphabetical order
+- [ ] `metadata/supported-configurations.json` has a `DD_TRACE_<NAME>_ENABLED` entry (+ the two aliases) for every name passed to `super(...)`
 - [ ] `build.gradle` has `compileOnly` deps and `muzzle` directives with `assertInverse = true`
 - [ ] `@AutoService(InstrumenterModule.class)` annotation present on the module class
 - [ ] `helperClassNames()` lists ALL referenced helpers (including inner, anonymous, and enum synthetic classes)
 - [ ] Advice methods are `static` with `@Advice.OnMethodEnter` / `@Advice.OnMethodExit` annotations
 - [ ] `suppress = Throwable.class` on enter/exit (unless the hooked method is a constructor)
+- [ ] No static constants holding return values of one-shot instrumenter methods (`triggerClasses()`, `contextStore()`, etc.)
 - [ ] No logger field in the Advice class or InstrumenterModule class
 - [ ] No `inline=false` left in production code
 - [ ] No `java.util.logging.*` / `java.nio.*` / `javax.management.*` in bootstrap path

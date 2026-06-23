@@ -1,0 +1,40 @@
+[
+  {
+    "language": "python",
+    "package": [
+      {
+        "ecosystem": "pypi",
+        "name": "requests",
+        "version_range": ["< 2.28.0"]
+      }
+    ],
+    "ecosystem_specific": {
+      "imports": [
+        {
+          "symbols": [
+            {"type": "function", "value": "requests", "name": "get"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "language": "jvm",
+    "package": [
+      {
+        "ecosystem": "maven",
+        "name": "com.thoughtworks.xstream:xstream",
+        "version_range": ["< 1.4.16"]
+      }
+    ],
+    "ecosystem_specific": {
+      "imports": [
+        {
+          "symbols": [
+            {"type": "class", "value": "com.thoughtworks.xstream", "name": "XStream"}
+          ]
+        }
+      ]
+    }
+  }
+]

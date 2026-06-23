@@ -15,10 +15,8 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
@@ -67,7 +65,7 @@ public final class AgentJarIndex {
 
   /** For testing purposes only. */
   public static AgentJarIndex emptyIndex() {
-    return new AgentJarIndex(new String[0], ClassNameTrie.Builder.EMPTY_TRIE);
+    return new AgentJarIndex(new String[0], ClassNameTrie.EMPTY_TRIE);
   }
 
   public static AgentJarIndex readIndex(JarFile agentJar) {
@@ -101,9 +99,11 @@ public final class AgentJarIndex {
     private final List<String> prefixes = new ArrayList<>();
     private final ClassNameTrie.Builder prefixTrie = new ClassNameTrie.Builder();
 
+    private final List<String> collectedEntryKeys = new ArrayList<>();
+    private final List<Integer> collectedPrefixIds = new ArrayList<>();
+
     private Path prefixRoot;
     private int prefixId;
-    private Map<Integer, String> prefixMappings = new HashMap<>();
 
     IndexGenerator(Path resourcesDir) {
       this.resourcesDir = resourcesDir;
@@ -111,7 +111,33 @@ public final class AgentJarIndex {
       prefixTrie.put("datadog.*", 0);
     }
 
-    public void writeIndex(Path indexFile) throws IOException {
+    void buildIndex() throws IOException {
+      Files.walkFileTree(resourcesDir, this);
+
+      for (int i = 0; i < collectedEntryKeys.size(); i++) {
+        prefixTrie.put(collectedEntryKeys.get(i), collectedPrefixIds.get(i));
+      }
+
+      // warn if two subsections contain content under the same package prefix
+      // because we're then unable to redirect requests to the right submodule
+      for (int i = 0; i < collectedEntryKeys.size(); i++) {
+        String entryKey = collectedEntryKeys.get(i);
+        int expectedPrefixId = collectedPrefixIds.get(i);
+        int indexedPrefixId = prefixTrie.apply(entryKey);
+        if (indexedPrefixId != expectedPrefixId) {
+          log.warn(
+              "Detected duplicate content '{}' under '{}', already seen in {}. Ensure your content is under a distinct directory.",
+              entryKey,
+              getPrefix(expectedPrefixId),
+              getPrefix(indexedPrefixId));
+        }
+      }
+
+      collectedEntryKeys.clear();
+      collectedPrefixIds.clear();
+    }
+
+    void writeIndex(Path indexFile) throws IOException {
       try (DataOutputStream out =
           new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(indexFile)))) {
         out.writeInt(prefixes.size());
@@ -122,13 +148,20 @@ public final class AgentJarIndex {
       }
     }
 
+    private String getPrefix(int prefixId) {
+      return prefixes.get(prefixId - 1);
+    }
+
     @Override
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
       if (dir.getParent().equals(resourcesDir)) {
+        String prefix = dir.getFileName() + "/";
         prefixRoot = dir;
-        prefixes.add(dir.getFileName() + "/");
-        prefixId = prefixes.size();
-        prefixMappings.put(prefixId, dir.getFileName().toString());
+        prefixId = 1 + prefixes.indexOf(prefix);
+        if (prefixId < 1) {
+          prefixes.add(prefix);
+          prefixId = prefixes.size();
+        }
       }
       return FileVisitResult.CONTINUE;
     }
@@ -146,19 +179,8 @@ public final class AgentJarIndex {
       if (null != prefixRoot) {
         String entryKey = computeEntryKey(prefixRoot.relativize(file));
         if (null != entryKey) {
-          int existingPrefixId = prefixTrie.apply(entryKey);
-          // warn if two subsections contain content under the same package prefix
-          // because we're then unable to redirect requests to the right submodule
-          // (ignore the two 'datadog.compiler' packages which allow duplication)
-          if (existingPrefixId > 0 && prefixId != existingPrefixId) {
-            log.warn(
-                "Detected duplicate content '{}' under '{}', already seen in {}. Ensure your content is under a distinct directory.",
-                entryKey,
-                resourcesDir.relativize(file).getName(0), // prefix
-                prefixMappings.get(existingPrefixId) // previous prefix
-                );
-          }
-          prefixTrie.put(entryKey, prefixId);
+          collectedEntryKeys.add(entryKey);
+          collectedPrefixIds.add(prefixId);
           if (entryKey.endsWith("*")) {
             // optimization: wildcard will match everything under here so can skip
             return FileVisitResult.SKIP_SIBLINGS;
@@ -168,7 +190,7 @@ public final class AgentJarIndex {
       return FileVisitResult.CONTINUE;
     }
 
-    private static String computeEntryKey(Path path) {
+    static String computeEntryKey(Path path) {
       if (ignoredFileNames.contains(path.getFileName().toString())) {
         return null;
       }
@@ -205,7 +227,7 @@ public final class AgentJarIndex {
         indexDir = Paths.get(args[1]).toAbsolutePath();
       }
       IndexGenerator indexGenerator = new IndexGenerator(resourcesDir);
-      Files.walkFileTree(resourcesDir, indexGenerator);
+      indexGenerator.buildIndex();
       indexGenerator.writeIndex(indexDir.resolve(AGENT_INDEX_FILE_NAME));
     }
   }

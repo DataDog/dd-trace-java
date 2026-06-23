@@ -13,6 +13,7 @@ import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.Profiling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -522,6 +523,11 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   }
 
   @Override
+  public void flushLogs() {
+    tracer.flushLogs();
+  }
+
+  @Override
   public Profiling getProfilingContext() {
     return tracer != null ? tracer.getProfilingContext() : Profiling.NoOp.INSTANCE;
   }
@@ -538,6 +544,11 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   @Override
   public void close() {
     tracer.close();
+  }
+
+  @VisibleForTesting
+  AgentTracer.TracerAPI getInternalTracer() {
+    return tracer;
   }
 
   private static class TextMapSetter implements CarrierSetter<TextMap> {

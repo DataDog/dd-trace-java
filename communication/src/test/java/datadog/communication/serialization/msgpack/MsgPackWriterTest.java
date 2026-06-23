@@ -33,8 +33,7 @@ import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 
 public class MsgPackWriterTest {
-  // Explicit escapes for non-ASCII chars to make test independent of container settings.
-  private static final String NON_ASCII_STRING = "foob\u00E1r_\u263a"; // foobár_☺
+  private static final String NON_ASCII_STRING = "foobár_☺";
   private static final byte[] NON_ASCII_BYTES = NON_ASCII_STRING.getBytes(UTF_8);
   private static final int NON_ASCII_BUFFER_CAPACITY = NON_ASCII_BYTES.length + 1;
 
@@ -152,6 +151,28 @@ public class MsgPackWriterTest {
                   }
                 }));
     writer.writeBinary("foobar".getBytes(UTF_8));
+  }
+
+  @Test
+  public void testWriteBinaryLongPair() {
+    final long hi = 0x1122334455667788L;
+    final long lo = 0x99AABBCCDDEEFF00L;
+    final byte[] data = ByteBuffer.allocate(16).putLong(hi).putLong(lo).array();
+    MessageFormatter messageFormatter =
+        new MsgPackWriter(
+            newBuffer(
+                25,
+                (messageCount, buffy) -> {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
+                    int length = unpacker.unpackBinaryHeader();
+                    assertEquals(16, length);
+                    assertArrayEquals(data, unpacker.readPayload(length));
+                  } catch (IOException e) {
+                    fail(e.getMessage());
+                  }
+                }));
+    messageFormatter.format(data, (ignored, writable) -> writable.writeBinary(hi, lo));
+    messageFormatter.flush();
   }
 
   @Test

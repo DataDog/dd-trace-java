@@ -1,6 +1,7 @@
 package com.datadog.profiling.controller.oracle;
 
 import com.datadog.profiling.controller.OngoingRecording;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.io.IOException;
 import java.time.Duration;
@@ -52,7 +53,7 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
     }
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   final OracleJdkRecordingData snapshot(@Nonnull final Instant start) {
     return snapshot(start, ProfilingSnapshot.Kind.PERIODIC);
   }

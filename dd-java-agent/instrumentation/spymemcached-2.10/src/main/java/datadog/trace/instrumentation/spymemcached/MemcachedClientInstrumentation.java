@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.spymemcached.MemcacheClientDecorator.COMPONENT_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -78,7 +79,8 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
         return null;
       }
-      return activateSpan(startSpan(MemcacheClientDecorator.OPERATION_NAME));
+      return activateSpan(
+          startSpan(COMPONENT_NAME.toString(), MemcacheClientDecorator.OPERATION_NAME));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -107,7 +109,8 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
         return null;
       }
-      return activateSpan(startSpan(MemcacheClientDecorator.OPERATION_NAME));
+      return activateSpan(
+          startSpan(COMPONENT_NAME.toString(), MemcacheClientDecorator.OPERATION_NAME));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -136,7 +139,8 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
         return null;
       }
-      return activateSpan(startSpan(MemcacheClientDecorator.OPERATION_NAME));
+      return activateSpan(
+          startSpan(COMPONENT_NAME.toString(), MemcacheClientDecorator.OPERATION_NAME));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -165,7 +169,8 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
         return null;
       }
-      final AgentSpan span = startSpan(MemcacheClientDecorator.OPERATION_NAME);
+      final AgentSpan span =
+          startSpan(COMPONENT_NAME.toString(), MemcacheClientDecorator.OPERATION_NAME);
       return new SyncCompletionListener(span, methodName);
     }
 

@@ -9,3 +9,14 @@ repositories {
 dependencies {
   compileOnly gradleApi()
 }
+
+// This module's Groovy classes are loaded into the user's Gradle daemon, which might bundle Groovy <3.0 (Gradle <7.x).
+// Groovy 4 (bundled by the build's Gradle 9+) compiles invokedynamic by default, binding dynamic calls to
+// org.codehaus.groovy.vmplugin.v8.IndyInterface — a class that only exists from Groovy
+// 3.0 onwards. Under Groovy <3.0 that bootstrap target is missing, so the classes fail
+// to link and CI Visibility never instruments the build. Force classic call-site
+// dispatch so the emitted bytecode links on older daemons regardless of the build's
+// bundled Groovy version.
+tasks.withType(GroovyCompile).configureEach {
+  groovyOptions.optimizationOptions.indy = false
+}

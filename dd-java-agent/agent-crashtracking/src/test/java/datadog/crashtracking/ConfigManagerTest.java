@@ -28,9 +28,8 @@ public class ConfigManagerTest {
     when(config.getMergedCrashTrackingTags()).thenReturn(Collections.singletonMap("key", "value"));
     File tmpFile = File.createTempFile("ConfigManagerTest", null);
     tmpFile.deleteOnExit();
-    ConfigManager.writeConfigToFile(config, tmpFile.toPath());
-    ConfigManager.StoredConfig deserialized =
-        ConfigManager.readConfig(Config.get(), tmpFile.toPath());
+    ConfigManager.writeConfigToFile(config, tmpFile);
+    ConfigManager.StoredConfig deserialized = ConfigManager.readConfig(Config.get(), tmpFile);
     Assertions.assertNotNull(deserialized);
     assertEquals("service", deserialized.service);
     assertEquals("version", deserialized.version);

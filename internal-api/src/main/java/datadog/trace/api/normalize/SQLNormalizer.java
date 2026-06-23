@@ -106,15 +106,21 @@ public final class SQLNormalizer {
 
   private static BitSet findSplitterPositions(byte[] utf8) {
     BitSet positions = new BitSet(utf8.length);
-    boolean quoted = false;
+    boolean singleQuoted = false;
+    boolean doubleQuoted = false;
     boolean escaped = false;
     for (int i = 0; i < utf8.length; ++i) {
       byte b = utf8[i];
-      if (b == '\'' && !escaped) {
-        quoted = !quoted;
+      if (b == '\'' && !escaped && !doubleQuoted) {
+        singleQuoted = !singleQuoted;
+      } else if (b == '"' && !singleQuoted) {
+        // No !escaped check here: in SQL, double quotes delimit identifiers,
+        // where backslash has no special escaping role. A literal double quote
+        // inside an identifier is escaped by doubling it (""), not by backslash.
+        doubleQuoted = !doubleQuoted;
       } else {
         escaped = (b == '\\') & !escaped;
-        positions.set(i, !quoted & isSplitter(b));
+        positions.set(i, !singleQuoted & !doubleQuoted & isSplitter(b));
       }
     }
     return positions;

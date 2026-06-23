@@ -12,6 +12,7 @@ import datadog.appsec.api.blocking.BlockingException;
 import datadog.smoketest.appsec.springboot.service.AsyncService;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -187,6 +188,12 @@ public class WebController {
   @GetMapping("/lfi/path")
   public String lfiPath(@RequestParam("path") String path) {
     new File(System.getProperty("user.dir")).toPath().resolve(path);
+    return "EXECUTED";
+  }
+
+  @GetMapping("/lfi/fileoutputstream")
+  public String lfiFileOutputStream(@RequestParam("path") String path) throws IOException {
+    new FileOutputStream(path).close();
     return "EXECUTED";
   }
 

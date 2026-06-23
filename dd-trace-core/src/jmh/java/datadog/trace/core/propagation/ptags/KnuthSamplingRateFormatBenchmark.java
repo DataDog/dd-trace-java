@@ -22,8 +22,8 @@ import org.openjdk.jmh.infra.Blackhole;
 /**
  * Benchmarks for formatting the Knuth sampling rate (_dd.p.ksr tag value).
  *
- * <p>The format requirement is %.6g semantics: 6 significant figures, no trailing zeros, using
- * fixed notation for values in [1e-4, 1] and scientific notation for smaller values.
+ * <p>The format requirement is 6 decimal digits of precision, no trailing zeros (fixed notation
+ * only; values below 0.0000005 round to "0").
  *
  * <p>Run with:
  *
@@ -94,10 +94,12 @@ public class KnuthSamplingRateFormatBenchmark {
     bh.consume(ptags.getKnuthSamplingRateTagValue());
   }
 
-  // ---- old implementation for comparison ----
+  // ---- old implementation for comparison (%.6f with trailing zero removal) ----
 
   static String stringFormatImpl(double rate) {
-    String formatted = String.format(Locale.ROOT, "%.6g", rate);
+    if (rate <= 0.0) return "0";
+    if (rate >= 1.0) return "1";
+    String formatted = String.format(Locale.ROOT, "%.6f", rate);
     int dotIndex = formatted.indexOf('.');
     if (dotIndex >= 0) {
       int end = formatted.length();
@@ -109,6 +111,6 @@ public class KnuthSamplingRateFormatBenchmark {
       }
       formatted = formatted.substring(0, end);
     }
-    return formatted;
+    return "0".equals(formatted) ? "0" : formatted;
   }
 }

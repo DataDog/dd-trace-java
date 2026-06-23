@@ -6,6 +6,7 @@ import static java.lang.ClassLoader.getSystemClassLoader;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -187,7 +188,7 @@ public class BlockingActionHelper {
     return mediaRangeMatcher.group(1);
   }
 
-  // public for testing
+  @VisibleForTesting
   public static void reset(Config config) {
     TEMPLATE_HTML = null;
     TEMPLATE_JSON = null;
