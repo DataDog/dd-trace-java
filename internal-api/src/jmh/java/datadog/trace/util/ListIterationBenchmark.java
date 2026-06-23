@@ -16,7 +16,7 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Benchmark comparing difference ways to iterate list of different types and sizes -- both with
+ * Benchmark comparing different ways to iterate list of different types and sizes -- both with
  * simple loop bodies (inline case) and complicated loop bodies (dont inline case).
  *
  * <ul>
