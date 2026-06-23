@@ -2,6 +2,9 @@ package datadog.trace.util;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -19,25 +22,24 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Compares {@link ConcurrentHashtable.D2} against {@link ConcurrentHashMap} and {@link
- * ConcurrentSkipListMap} for shared, concurrent composite-key lookups.
+ * Compares thread-safe map strategies for shared, concurrent composite-key lookups.
+ *
+ * <p>See {@link ThreadSafeMapD1Benchmark} for the single-key variant.
  *
  * <p>The table is shared across all threads ({@link Scope#Benchmark}) and pre-populated before the
  * measurement iteration — modelling the steady-state read-mostly pattern that the tracer uses (a
  * per-class or per-method instrumentation cache consulted on every invocation).
  *
- * <ul>
- *   <li><b>get</b> — pure read: D2.get(k1, k2) vs CHM.get(new Key2(k1, k2)). D2 sidesteps the
- *       composite key allocation entirely; CHM.get does not store the key, but the allocation still
- *       happens before the call.
- *   <li><b>getOrCreate (hit)</b> — the dominant call-site pattern: try to fetch an existing entry,
- *       create only on first access. On subsequent calls D2 takes the lock-free fast path (same as
- *       get); CHM.computeIfAbsent with a get-first pattern avoids the lambda capture allocation on
- *       hits, but still allocates the composite key.
- * </ul>
+ * <p>Strategies compared:
  *
- * <p>ConcurrentSkipListMap is included as a second baseline: it is entirely lock-free for reads
- * (CAS-based) but pays for tree traversal and Comparable overhead on every operation.
+ * <ul>
+ *   <li>{@link ConcurrentHashtable.D2} — lock-free reads, no composite key allocation per lookup.
+ *   <li>{@link ConcurrentHashMap} — striped locking, allocates a {@link Key2} wrapper per lookup.
+ *   <li>{@link ConcurrentSkipListMap} — fully lock-free (CAS), but pays tree traversal and {@link
+ *       Comparable} overhead; allocates {@link Key2} per lookup.
+ *   <li>{@link Collections#synchronizedMap} wrapping {@link HashMap} — global lock on every
+ *       operation; allocates {@link Key2} per lookup. Establishes the coarse-locking baseline.
+ * </ul>
  */
 @Fork(2)
 @Warmup(iterations = 2)
@@ -45,7 +47,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(MICROSECONDS)
 @Threads(8)
-public class ConcurrentHashtableD2Benchmark {
+public class ThreadSafeMapD2Benchmark {
 
   static final int N_KEYS = 64;
   static final int CAPACITY = 128;
@@ -69,7 +71,7 @@ public class ConcurrentHashtableD2Benchmark {
     }
   }
 
-  /** Composite key for ConcurrentHashMap and ConcurrentSkipListMap baselines. */
+  /** Composite key for map-based baselines. */
   static final class Key2 implements Comparable<Key2> {
     final String k1;
     final Integer k2;
@@ -103,25 +105,28 @@ public class ConcurrentHashtableD2Benchmark {
   }
 
   /**
-   * Shared state ({@link Scope#Benchmark}): one table instance across all threads, modelling a
-   * shared instrumentation cache.
+   * Shared state ({@link Scope#Benchmark}): one instance of each map across all threads, modelling
+   * a shared instrumentation cache.
    */
   @State(Scope.Benchmark)
   public static class SharedState {
     ConcurrentHashtable.D2<String, Integer, D2Entry> table;
     ConcurrentHashMap<Key2, Long> concurrentHashMap;
     ConcurrentSkipListMap<Key2, Long> skipListMap;
+    Map<Key2, Long> synchronizedHashMap;
 
     @Setup(Level.Iteration)
     public void setUp() {
       table = new ConcurrentHashtable.D2<>(CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
       skipListMap = new ConcurrentSkipListMap<>();
+      synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(CAPACITY));
       for (int i = 0; i < N_KEYS; ++i) {
         table.getOrCreate(SOURCE_K1[i], SOURCE_K2[i], D2Entry::new);
         Key2 key = new Key2(SOURCE_K1[i], SOURCE_K2[i]);
         concurrentHashMap.put(key, (long) i);
         skipListMap.put(key, (long) i);
+        synchronizedHashMap.put(key, (long) i);
       }
     }
   }
@@ -157,6 +162,12 @@ public class ConcurrentHashtableD2Benchmark {
   }
 
   @Benchmark
+  public Long get_synchronizedHashMap(SharedState s, ThreadState t) {
+    int i = t.next();
+    return s.synchronizedHashMap.get(new Key2(SOURCE_K1[i], SOURCE_K2[i]));
+  }
+
+  @Benchmark
   public D2Entry getOrCreate_concurrentHashtable(SharedState s, ThreadState t) {
     int i = t.next();
     return s.table.getOrCreate(SOURCE_K1[i], SOURCE_K2[i], D2Entry::new);
@@ -175,5 +186,22 @@ public class ConcurrentHashtableD2Benchmark {
       return existing;
     }
     return s.concurrentHashMap.computeIfAbsent(key, k -> 0L);
+  }
+
+  /**
+   * get-first pattern for synchronized HashMap. On hit: one lock acquire/release for get. On miss:
+   * a second synchronized block for the double-checked put.
+   */
+  @Benchmark
+  public Long getOrCreate_synchronizedHashMap(SharedState s, ThreadState t) {
+    int i = t.next();
+    Key2 key = new Key2(SOURCE_K1[i], SOURCE_K2[i]);
+    Long existing = s.synchronizedHashMap.get(key);
+    if (existing != null) {
+      return existing;
+    }
+    synchronized (s.synchronizedHashMap) {
+      return s.synchronizedHashMap.computeIfAbsent(key, k -> 0L);
+    }
   }
 }
