@@ -270,13 +270,6 @@ abstract class NestedGradleBuild @Inject constructor(
         file.parentFile?.name == "bin"
     }
 
-  private fun gradleExecutableName(): String =
-    if (System.getProperty("os.name").lowercase().contains("windows")) {
-      "gradle.bat"
-    } else {
-      "gradle"
-    }
-
   private fun createGradleUserHome(): File {
     val directory = temporaryDir.resolve("gradle-user-home")
     deleteGradleUserHome(directory)
@@ -294,8 +287,15 @@ abstract class NestedGradleBuild @Inject constructor(
     }
   }
 
-  private companion object {
-    const val GRADLE_STOP_TIMEOUT_SECONDS = 30L
+  companion object {
+    private const val GRADLE_STOP_TIMEOUT_SECONDS = 30L
+
+    internal fun gradleExecutableName(osName: String = System.getProperty("os.name")): String =
+      if (isWindows(osName)) {
+        "gradle.bat"
+      } else {
+        "gradle"
+      }
   }
 }
 

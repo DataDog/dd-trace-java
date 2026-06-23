@@ -470,16 +470,16 @@ class SmokeTestAppEndToEndTest {
     additionalConfig: String = "",
   ): String {
     val config = additionalConfig.trimIndent()
-    return buildString {
-      appendLine("gradleApp {")
-      appendLine("  taskName.set(\"$taskName\")")
-      appendLine("  artifactPath.set(\"$artifactPath\")")
-      appendLine("  sysProperty.set(\"$sysProperty\")")
-      if (config.isNotBlank()) {
-        appendLine(config.prependIndent("  "))
-      }
-      appendLine("}")
-    }
+    return listOfNotNull(
+      """
+      gradleApp {
+        taskName.set("$taskName")
+        artifactPath.set("$artifactPath")
+        sysProperty.set("$sysProperty")
+      """.trimIndent(),
+      config.takeIf { it.isNotBlank() }?.prependIndent("  "),
+      "}",
+    ).joinToString(System.lineSeparator())
   }
 
   private fun smokeTestMavenApplication(
@@ -489,44 +489,36 @@ class SmokeTestAppEndToEndTest {
     additionalConfig: String = "",
   ): String {
     val config = additionalConfig.trimIndent()
-    return buildString {
-      appendLine("mavenApp {")
-      appendLine("  taskName.set(\"$taskName\")")
-      appendLine("  artifactPath.set(\"$artifactPath\")")
-      appendLine("  sysProperty.set(\"$sysProperty\")")
-      if (config.isNotBlank()) {
-        appendLine(config.prependIndent("  "))
-      }
-      appendLine("}")
-    }
+    return listOfNotNull(
+      """
+      mavenApp {
+        taskName.set("$taskName")
+        artifactPath.set("$artifactPath")
+        sysProperty.set("$sysProperty")
+      """.trimIndent(),
+      config.takeIf { it.isNotBlank() }?.prependIndent("  "),
+      "}",
+    ).joinToString(System.lineSeparator())
   }
 
   private fun writeFakeMavenWrapper() {
     val wrapper = File(projectDir.toFile(), fakeMavenWrapperName())
-    wrapper.writeText(
-      """
-      #!/bin/sh
-      set -eu
-      target=""
-      while [ "${'$'}#" -gt 0 ]; do
-        case "${'$'}1" in
-          -Dtarget.dir=*) target="${'$'}{1#-Dtarget.dir=}" ;;
-        esac
-        shift
-      done
-      [ -n "${'$'}target" ] || exit 2
-      mkdir -p "${'$'}target"
-      printf "jar" > "${'$'}target/sample.jar"
-      {
-        printf "MAVEN_OPTS=%s\n" "${'$'}{MAVEN_OPTS:-}"
-        printf "MVNW_REPOURL=%s\n" "${'$'}{MVNW_REPOURL:-}"
-      } > "${'$'}target/maven-env.txt"
-      """.trimIndent(),
-    )
-    wrapper.setExecutable(true)
+    val resource =
+      requireNotNull(javaClass.getResource(fakeMavenWrapperName())) {
+        "Missing fake Maven wrapper test resource"
+      }
+    wrapper.writeBytes(resource.readBytes())
+    if (!isWindows()) {
+      wrapper.setExecutable(true)
+    }
   }
 
-  private fun fakeMavenWrapperName(): String = "fake-mvnw"
+  private fun fakeMavenWrapperName(): String =
+    if (isWindows()) {
+      "fake-mvnw.cmd"
+    } else {
+      "fake-mvnw"
+    }
 
   private fun writeInnerSettings() {
     File(applicationDir, "settings.gradle.kts").writeText(

@@ -1,5 +1,7 @@
 package datadog.buildlogic.smoketest
 
+import datadog.buildlogic.smoketest.NestedGradleBuild.Companion.gradleExecutableName
+import datadog.buildlogic.smoketest.NestedMavenBuild.Companion.mavenWrapperName
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -104,6 +106,9 @@ class SmokeTestAppPluginTest {
   @Test
   fun `mavenApp block registers NestedMavenBuild task with configured inputs`() {
     val project = ProjectBuilder.builder().build()
+    val wrapperProperties = project.file(".mvn/wrapper/maven-wrapper.properties")
+    wrapperProperties.parentFile.mkdirs()
+    wrapperProperties.writeText("distributionUrl=https://repo.example/maven2/test.zip")
     project.apply<JavaPlugin>()
     project.plugins.apply("dd-trace-java.smoke-test-app")
 
@@ -134,10 +139,19 @@ class SmokeTestAppPluginTest {
     assertThat(task.mavenOpts.get()).isEqualTo("-Xmx512M")
     assertThat(task.mavenExecutable.get().asFile)
       .isEqualTo(project.layout.projectDirectory.file("mvnw").asFile)
+    assertThat(task.mavenWrapperFiles.files).containsExactly(wrapperProperties)
     assertThat(task.mavenRepositoryProxy.get()).isEqualTo("https://repo.example")
     assertThat(task.useMavenLocalRepository.get()).isTrue()
     assertThat(task.mavenLocalRepository.get().asFile)
       .isEqualTo(project.layout.projectDirectory.dir("m2").asFile)
+  }
+
+  @Test
+  fun `wrapper executable names follow the host operating system`() {
+    assertThat(mavenWrapperName("Windows 11")).isEqualTo("mvnw.cmd")
+    assertThat(mavenWrapperName("Mac OS X")).isEqualTo("mvnw")
+    assertThat(gradleExecutableName("Windows Server 2022")).isEqualTo("gradle.bat")
+    assertThat(gradleExecutableName("Linux")).isEqualTo("gradle")
   }
 
   @Test

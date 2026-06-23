@@ -25,7 +25,7 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaLauncher
 import org.gradle.jvm.toolchain.JavaToolchainService
 import java.io.File
-import java.util.Locale
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 /**
@@ -71,6 +71,14 @@ abstract class NestedMavenBuild @Inject constructor(
   @get:PathSensitive(PathSensitivity.RELATIVE)
   abstract val mavenExecutable: RegularFileProperty
 
+  @get:InputFiles
+  @get:IgnoreEmptyDirectories
+  @get:PathSensitive(PathSensitivity.RELATIVE)
+  val mavenWrapperFiles: FileTree =
+    objects.fileTree().from(project.rootProject.layout.projectDirectory.dir(".mvn/wrapper")).matching {
+      include("maven-wrapper.properties", "maven-wrapper.jar")
+    }
+
   @get:Nested
   abstract val javaLauncher: Property<JavaLauncher>
 
@@ -112,17 +120,32 @@ abstract class NestedMavenBuild @Inject constructor(
       addAll(goals.get())
     }
 
-    val processBuilder = ProcessBuilder(command)
+    val process = ProcessBuilder(command)
       .directory(appDir)
       .redirectOutput(ProcessBuilder.Redirect.INHERIT)
       .redirectError(ProcessBuilder.Redirect.INHERIT)
-    processBuilder.environment().apply {
-      clear()
-      putAll(nestedEnvironment(daemonJavaHome))
-    }
+      .apply {
+        environment().apply {
+          clear()
+          putAll(nestedEnvironment(daemonJavaHome))
+        }
+      }
+      .start()
 
-    val process = processBuilder.start()
-    val exitCode = process.waitFor()
+    try {
+      if (!process.waitFor(MAVEN_BUILD_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+        process.destroyForcibly()
+        throw GradleException(
+          "Nested Maven build timed out after $MAVEN_BUILD_TIMEOUT_SECONDS seconds: " +
+            command.joinToString(" "),
+        )
+      }
+    } catch (e: InterruptedException) {
+      process.destroyForcibly()
+      Thread.currentThread().interrupt()
+      throw GradleException("Interrupted while running nested Maven build", e)
+    }
+    val exitCode = process.exitValue()
     if (exitCode != 0) {
       throw GradleException(
         "Nested Maven build failed with exit code $exitCode: ${command.joinToString(" ")}",
@@ -147,9 +170,21 @@ abstract class NestedMavenBuild @Inject constructor(
   }
 
   private fun mavenCommand(executable: File): MutableList<String> =
-    if (System.getProperty("os.name").lowercase(Locale.ROOT).contains("windows")) {
+    if (isWindows()) {
       mutableListOf("cmd", "/c", executable.absolutePath)
     } else {
       mutableListOf(executable.absolutePath)
     }
+
+  companion object {
+    val MAVEN_BUILD_TIMEOUT_SECONDS: Long = TimeUnit.MINUTES.toSeconds(30)
+
+    internal fun mavenWrapperName(osName: String = System.getProperty("os.name")): String =
+      if (isWindows(osName)) {
+        "mvnw.cmd"
+      } else {
+        "mvnw"
+      }
+
+  }
 }

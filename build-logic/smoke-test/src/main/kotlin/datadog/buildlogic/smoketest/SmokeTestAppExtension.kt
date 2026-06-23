@@ -282,13 +282,7 @@ abstract class SmokeTestAppExtension @Inject constructor(
 
   private fun rootMavenExecutable(): Provider<RegularFile> =
     project.providers.provider {
-      val command =
-        if (System.getProperty("os.name").lowercase(Locale.ROOT).contains("windows")) {
-          "mvnw.cmd"
-        } else {
-          "mvnw"
-        }
-      project.rootProject.layout.projectDirectory.file(command)
+      project.rootProject.layout.projectDirectory.file(NestedMavenBuild.mavenWrapperName())
     }
 
   private fun isCiProvider(): Provider<Boolean> =
