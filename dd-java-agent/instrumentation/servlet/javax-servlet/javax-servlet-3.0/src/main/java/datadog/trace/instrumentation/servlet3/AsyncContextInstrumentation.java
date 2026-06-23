@@ -98,7 +98,7 @@ public final class AsyncContextInstrumentation extends InstrumenterModule.Tracin
       }
 
       final AgentSpan span =
-          startSpan(JAVA_WEB_SERVLET_DISPATCHER.toString(), SERVLET_DISPATCH, parent.context());
+          startSpan(JAVA_WEB_SERVLET_DISPATCHER.toString(), SERVLET_DISPATCH, parent.spanContext());
       // This span should get finished by Servlet3Advice
       // However, when using Jetty without servlets (directly org.eclipse.jetty.server.Handler),
       // that's not the case (see jetty's HandleAdvice)

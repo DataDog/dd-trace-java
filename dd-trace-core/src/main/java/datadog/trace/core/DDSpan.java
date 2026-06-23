@@ -544,7 +544,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   @Nonnull
-  public final DDSpanContext context() {
+  public final DDSpanContext spanContext() {
     return context;
   }
 
@@ -967,7 +967,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   @Override
   public void copyPropagationAndBaggage(final AgentSpan source) {
     if (source instanceof DDSpan) {
-      final DDSpanContext sourceSpanContext = ((DDSpan) source).context();
+      final DDSpanContext sourceSpanContext = ((DDSpan) source).spanContext();
       // align the sampling priority for this span context
       setSamplingPriority(sourceSpanContext.getSamplingPriority(), DEFAULT);
       // the sampling mechanism determine the dm tag hence we need to override and lock the current

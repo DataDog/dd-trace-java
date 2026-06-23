@@ -120,7 +120,7 @@ public final class GraphQLInstrumentation extends SimplePerformantInstrumentatio
         AgentTracer.startSpan(
             GraphQLDecorator.GRAPHQL_JAVA.toString(),
             GraphQLDecorator.GRAPHQL_PARSING,
-            state.getRequestSpan().context());
+            state.getRequestSpan().spanContext());
     GraphQLDecorator.DECORATE.afterStart(parsingSpan);
     return new ParsingInstrumentationContext(parsingSpan, state, parameters.getQuery());
   }
@@ -137,7 +137,7 @@ public final class GraphQLInstrumentation extends SimplePerformantInstrumentatio
         AgentTracer.startSpan(
             GraphQLDecorator.GRAPHQL_JAVA.toString(),
             GraphQLDecorator.GRAPHQL_VALIDATION,
-            state.getRequestSpan().context());
+            state.getRequestSpan().spanContext());
     GraphQLDecorator.DECORATE.afterStart(validationSpan);
     return new ValidationInstrumentationContext(validationSpan);
   }
