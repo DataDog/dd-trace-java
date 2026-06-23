@@ -1179,7 +1179,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (tracer != null) {
       AgentSpan span = tracer.activeSpan();
       if (span instanceof DDSpan) {
-        DDSpanContext context = (DDSpanContext) span.context();
+        DDSpanContext context = (DDSpanContext) span.spanContext();
         String debug = context.getPropagationTags().getDebugPropagation();
         if (debug != null) {
           String[] entries = debug.split(",");

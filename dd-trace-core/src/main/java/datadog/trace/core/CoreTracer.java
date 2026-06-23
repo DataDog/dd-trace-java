@@ -1289,7 +1289,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     boolean forceKeep = metricsAggregator.publish(writtenTrace);
 
-    TraceCollector traceCollector = writtenTrace.get(0).context().getTraceCollector();
+    TraceCollector traceCollector = writtenTrace.get(0).spanContext().getTraceCollector();
     traceCollector.setSamplingPriorityIfNecessary();
 
     DDSpan rootSpan = traceCollector.getRootSpan();
@@ -1542,7 +1542,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (activeSpan == null) {
       return null;
     }
-    AgentSpanContext ctx = activeSpan.context();
+    AgentSpanContext ctx = activeSpan.spanContext();
     if (ctx instanceof DDSpanContext) {
       return ((DDSpanContext) ctx).getTraceSegment();
     }
@@ -1780,7 +1780,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         // use the Scope as parent unless overridden or ignored.
         final AgentSpan activeSpan = tracer.scopeManager.activeSpan();
         if (activeSpan != null) {
-          parentContext = activeSpan.context();
+          parentContext = activeSpan.spanContext();
         }
       }
 
@@ -1880,7 +1880,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     public final CoreSpanBuilder asChildOf(final AgentSpan agentSpan) {
-      parent = agentSpan.context();
+      parent = agentSpan.spanContext();
       return this;
     }
 

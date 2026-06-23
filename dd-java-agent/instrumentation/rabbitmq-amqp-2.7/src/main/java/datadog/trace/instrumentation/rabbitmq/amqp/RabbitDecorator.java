@@ -230,7 +230,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
               TimeUnit.MILLISECONDS.toMicros(queueStartMillis));
       BROKER_DECORATE.afterStart(queueSpan);
       BROKER_DECORATE.onTimeInQueue(queueSpan, queue, body);
-      parentContext = queueSpan.context();
+      parentContext = queueSpan.spanContext();
       BROKER_DECORATE.beforeFinish(queueSpan);
       // The queueSpan will be finished after the inner span has been activated to ensure that the
       // spans are written out together by the TraceStructureWriter when running in strict mode

@@ -37,7 +37,7 @@ public final class SpanLinkMatcher {
    * @return A {@code SpanLinkMatcher} that matches a span link to the given span.
    */
   public static SpanLinkMatcher to(DDSpan span) {
-    return to(span.context());
+    return to(span.spanContext());
   }
 
   /**

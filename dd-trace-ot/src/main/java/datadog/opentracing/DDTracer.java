@@ -534,7 +534,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
 
   @Override
   public TraceSegment getTraceSegment() {
-    AgentSpanContext ctx = tracer.activeSpan().context();
+    AgentSpanContext ctx = tracer.activeSpan().spanContext();
     if (ctx instanceof DDSpanContext) {
       return ((DDSpanContext) ctx).getTraceSegment();
     }
@@ -593,7 +593,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     @Override
     public DDSpanBuilder asChildOf(final Span parent) {
       if (parent != null) {
-        delegate.asChildOf(converter.toAgentSpan(parent).context());
+        delegate.asChildOf(converter.toAgentSpan(parent).spanContext());
       }
       return this;
     }
@@ -667,7 +667,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     @Override
     public Span start() {
       final AgentSpan agentSpan = delegate.start();
-      agentSpan.context().setIntegrationName("opentracing");
+      agentSpan.spanContext().setIntegrationName("opentracing");
       return converter.toSpan(agentSpan);
     }
 
