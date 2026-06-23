@@ -42,7 +42,8 @@ import org.openjdk.jmh.annotations.Warmup;
  *   <li>{@link ConcurrentHashMap} — striped locking, allocates a {@link Key2} wrapper per lookup
  *       (boxes the {@code int} K2 inside).
  *   <li>{@link ConcurrentSkipListMap} — fully lock-free (CAS), but pays tree traversal and {@link
- *       Comparable} overhead; allocates {@link Key2} per lookup.
+ *       Comparable} overhead; allocates {@link Key2} per lookup. {@code getOrCreate} uses
+ *       get-then-{@code putIfAbsent} (no native {@code computeIfAbsent}).
  *   <li>{@link Collections#synchronizedMap} wrapping {@link HashMap} — global lock on every
  *       operation; allocates {@link Key2} per lookup. Establishes the coarse-locking baseline.
  * </ul>
@@ -233,6 +234,35 @@ public class ThreadSafeMapD2Benchmark {
     return s.table.getOrCreate(SOURCE_K1[i], SOURCE_K2[i], D2Entry::new);
   }
 
+  @Benchmark
+  public SupportEntry getOrCreate_support(SharedState s, ThreadState t) {
+    int i = t.next();
+    String k1 = SOURCE_K1[i];
+    int k2 = SOURCE_K2_INT[i];
+    long keyHash = SupportEntry.hash(k1, k2);
+    int index = ConcurrentHashtable.Support.bucketIndex(s.supportBuckets, keyHash);
+    for (SupportEntry e = ConcurrentHashtable.Support.bucket(s.supportBuckets, index);
+        e != null;
+        e = e.next()) {
+      if (e.keyHash == keyHash && e.matches(k1, k2)) {
+        return e;
+      }
+    }
+    synchronized (s.supportBuckets) {
+      for (SupportEntry e = ConcurrentHashtable.Support.bucket(s.supportBuckets, index);
+          e != null;
+          e = e.next()) {
+        if (e.keyHash == keyHash && e.matches(k1, k2)) {
+          return e;
+        }
+      }
+      SupportEntry newEntry = new SupportEntry(k1, k2);
+      newEntry.setNext(ConcurrentHashtable.Support.bucket(s.supportBuckets, index));
+      s.supportBuckets.set(index, newEntry);
+      return newEntry;
+    }
+  }
+
   /**
    * get-first pattern for CHM to avoid capturing-lambda allocation on hits — the idiomatic
    * equivalent of D2.getOrCreate on a mostly-populated table.
@@ -246,6 +276,22 @@ public class ThreadSafeMapD2Benchmark {
       return existing;
     }
     return s.concurrentHashMap.computeIfAbsent(key, k -> 0L);
+  }
+
+  /**
+   * get-first pattern for ConcurrentSkipListMap — manual get-then-putIfAbsent since CSLM has no
+   * computeIfAbsent. Two traversals on miss; one on hit.
+   */
+  @Benchmark
+  public Long getOrCreate_concurrentSkipListMap(SharedState s, ThreadState t) {
+    int i = t.next();
+    Key2 key = new Key2(SOURCE_K1[i], SOURCE_K2[i]);
+    Long existing = s.skipListMap.get(key);
+    if (existing != null) {
+      return existing;
+    }
+    Long prev = s.skipListMap.putIfAbsent(key, 0L);
+    return prev != null ? prev : 0L;
   }
 
   /**
