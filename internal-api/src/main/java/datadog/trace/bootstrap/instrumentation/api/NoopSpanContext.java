@@ -51,7 +51,7 @@ class NoopSpanContext implements AgentSpanContext.Extracted {
   }
 
   @Override
-  public List<AgentSpanLink> getTerminatedContextLinks() {
+  public List<AgentSpanLink> getTerminatedSpanLinks() {
     return emptyList();
   }
 

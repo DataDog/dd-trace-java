@@ -1682,10 +1682,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     protected static final List<AgentSpanLink> addTerminatedSpanAsLinks(
         List<AgentSpanLink> links, AgentSpanContext parentSpanContext) {
       if (parentSpanContext instanceof TagContext) {
-        List<AgentSpanLink> terminatedSpanContextLinks =
-            ((TagContext) parentSpanContext).getTerminatedContextLinks();
-        if (!terminatedSpanContextLinks.isEmpty()) {
-          return addLinks(links, terminatedSpanContextLinks);
+        List<AgentSpanLink> terminatedSpanLinks =
+            ((TagContext) parentSpanContext).getTerminatedSpanLinks();
+        if (!terminatedSpanLinks.isEmpty()) {
+          return addLinks(links, terminatedSpanLinks);
         }
       }
       return links;
@@ -1788,7 +1788,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         return new BlackHoleSpan(parentSpanContext.getTraceId());
       }
 
-      // Handle remote terminated context as span links
+      // Handle remote terminated span context as span links
       if (parentSpanContext != null && parentSpanContext.isRemote()) {
         switch (Config.get().getTracePropagationBehaviorExtract()) {
           case RESTART:
