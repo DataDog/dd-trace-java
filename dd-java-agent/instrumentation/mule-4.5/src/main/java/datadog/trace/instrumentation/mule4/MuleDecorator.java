@@ -70,7 +70,7 @@ public class MuleDecorator extends BaseDecorator {
     if (parentSpan == null) {
       span = startSpan("mule", OPERATION_NAME);
     } else {
-      span = startSpan("mule", OPERATION_NAME, parentSpan.context());
+      span = startSpan("mule", OPERATION_NAME, parentSpan.spanContext());
     }
     // here we have to use the forEachAttribute since each specialized InitialSpanInfo class can add
     // different things through this method. Using the map version is not the same.

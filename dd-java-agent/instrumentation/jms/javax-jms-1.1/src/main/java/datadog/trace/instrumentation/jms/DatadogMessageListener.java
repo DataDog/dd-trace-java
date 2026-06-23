@@ -58,7 +58,7 @@ public class DatadogMessageListener implements MessageListener {
             consumerState.getBrokerServiceName());
         consumerState.setTimeInQueueSpan(batchId, timeInQueue);
       }
-      span = startSpan("jms", JMS_CONSUME, timeInQueue.context());
+      span = startSpan("jms", JMS_CONSUME, timeInQueue.spanContext());
     }
     CONSUMER_DECORATE.afterStart(span);
     CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());

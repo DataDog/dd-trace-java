@@ -478,12 +478,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (batchKey != null) {
       AgentSpan batchSpan =
           getOrCreateStreamingBatchSpan(batchKey, queryStart.time(), jobProperties);
-      spanBuilder.asChildOf(batchSpan.context());
+      spanBuilder.asChildOf(batchSpan.spanContext());
     } else if (isRunningOnDatabricks) {
       addDatabricksSpecificTags(spanBuilder, jobProperties, true);
     } else {
       initApplicationSpanIfNotInitialized();
-      spanBuilder.asChildOf(applicationSpan.context());
+      spanBuilder.asChildOf(applicationSpan.spanContext());
     }
 
     AgentSpan sqlSpan = spanBuilder.start();
@@ -523,18 +523,18 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
      *                      spark.job
      */
     if (sqlSpan != null) {
-      jobSpanBuilder.asChildOf(sqlSpan.context());
+      jobSpanBuilder.asChildOf(sqlSpan.spanContext());
     } else if (batchKey != null) {
       isStreamingJob = true;
       AgentSpan batchSpan =
           getOrCreateStreamingBatchSpan(batchKey, jobStart.time(), jobStart.properties());
-      jobSpanBuilder.asChildOf(batchSpan.context());
+      jobSpanBuilder.asChildOf(batchSpan.spanContext());
     } else if (isRunningOnDatabricks) {
       addDatabricksSpecificTags(jobSpanBuilder, jobStart.properties(), true);
     } else {
       // In non-databricks, non-streaming env, the spark application is the local root span
       initApplicationSpanIfNotInitialized();
-      jobSpanBuilder.asChildOf(applicationSpan.context());
+      jobSpanBuilder.asChildOf(applicationSpan.spanContext());
     }
 
     jobSpanBuilder.withTag(DDTags.RESOURCE_NAME, getSparkJobName(jobStart));
@@ -623,7 +623,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     AgentSpan stageSpan =
         buildSparkSpan("spark.stage", stageSubmitted.properties())
-            .asChildOf(jobSpan.context())
+            .asChildOf(jobSpan.spanContext())
             .withStartTimestamp(submissionTimeMs * 1000)
             .withTag("stage_id", stageId)
             .withTag(
@@ -778,7 +778,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       AgentSpan stageSpan, SparkListenerTaskEnd taskEnd, Properties properties) {
     AgentSpan taskSpan =
         buildSparkSpan("spark.task", properties)
-            .asChildOf(stageSpan.context())
+            .asChildOf(stageSpan.spanContext())
             .withStartTimestamp(taskEnd.taskInfo().launchTime() * 1000)
             .withTag("task_id", taskEnd.taskInfo().taskId())
             .withTag("task_attempt_id", taskEnd.taskInfo().attemptNumber())

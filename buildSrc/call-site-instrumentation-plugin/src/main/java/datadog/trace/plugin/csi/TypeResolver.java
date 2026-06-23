@@ -1,6 +1,6 @@
 package datadog.trace.plugin.csi;
 
-import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
+import com.github.javaparser.resolution.TypeSolver;
 import datadog.trace.plugin.csi.HasErrors.HasErrorsException;
 import datadog.trace.plugin.csi.util.MethodType;
 import java.lang.reflect.Executable;

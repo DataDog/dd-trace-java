@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
 ch.qos.logback:logback-access:1.2.3=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,nestedTestCompileClasspath,nestedTestRuntimeClasspath,resteasy31TestCompileClasspath,resteasy31TestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
@@ -28,15 +29,15 @@ com.fasterxml.jackson.module:jackson-module-jaxb-annotations:2.9.10=latestDepTes
 com.fasterxml.jackson.module:jackson-module-parameter-names:2.9.10=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,nestedTestCompileClasspath,nestedTestRuntimeClasspath,resteasy31TestCompileClasspath,resteasy31TestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.fasterxml:classmate:1.3.1=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,nestedTestCompileClasspath,nestedTestRuntimeClasspath,resteasy31TestCompileClasspath,resteasy31TestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.github.javaparser:javaparser-core:3.25.6=codenarc
-com.github.jnr:jffi:1.3.14=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
+com.github.jnr:jffi:1.3.15=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-a64asm:1.0.0=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-constants:0.10.4=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
-com.github.jnr:jnr-enxio:0.32.19=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
-com.github.jnr:jnr-ffi:2.2.18=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
-com.github.jnr:jnr-posix:3.1.21=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
-com.github.jnr:jnr-unixsocket:0.38.24=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
+com.github.jnr:jnr-enxio:0.32.20=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
+com.github.jnr:jnr-ffi:2.2.19=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
+com.github.jnr:jnr-posix:3.1.22=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
+com.github.jnr:jnr-unixsocket:0.38.25=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-x86asm:1.0.2=latestDepTestRuntimeClasspath,nestedTestRuntimeClasspath,resteasy31TestRuntimeClasspath,testRuntimeClasspath
-com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,nestedTestCompileClasspath,nestedTestRuntimeClasspath,resteasy31TestCompileClasspath,resteasy31TestRuntimeClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
+com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,spotbugs
 com.github.spotbugs:spotbugs:4.9.8=spotbugs
 com.github.stephenc.jcip:jcip-annotations:1.0-1=spotbugs
 com.google.auto.service:auto-service-annotations:1.1.1=annotationProcessor,compileClasspath,latestDepTestAnnotationProcessor,latestDepTestCompileClasspath,nestedTestAnnotationProcessor,nestedTestCompileClasspath,resteasy31TestAnnotationProcessor,resteasy31TestCompileClasspath,testAnnotationProcessor,testCompileClasspath

@@ -5,11 +5,11 @@ import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.DistributionSeries;
 import datadog.telemetry.api.Metric;
 import datadog.trace.api.telemetry.MetricCollector;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nonnull;
 
 public abstract class MetricPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {
   @Override
@@ -23,7 +23,7 @@ public abstract class MetricPeriodicAction implements TelemetryRunnable.Telemetr
     toDistributionSeries(rawDistributionSeriesPoints).forEach(service::addDistributionSeries);
   }
 
-  @NonNull
+  @Nonnull
   public abstract MetricCollector<MetricCollector.Metric> collector();
 
   private Collection<Metric> toTelemetryMetrics(final Collection<MetricCollector.Metric> metrics) {

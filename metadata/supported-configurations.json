@@ -361,22 +361,6 @@
         "aliases": []
       }
     ],
-    "DD_APPSEC_REPORTING_INBAND": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
-        "aliases": []
-      }
-    ],
-    "DD_APPSEC_REPORT_TIMEOUT": [
-      {
-        "version": "A",
-        "type": "int",
-        "default": "60",
-        "aliases": []
-      }
-    ],
     "DD_APPSEC_RULES": [
       {
         "version": "C",

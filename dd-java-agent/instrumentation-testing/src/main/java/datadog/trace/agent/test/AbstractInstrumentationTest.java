@@ -196,7 +196,7 @@ public abstract class AbstractInstrumentationTest {
 
   static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
     if (span instanceof DDSpan) {
-      TraceCollector traceCollector = ((DDSpan) span).context().getTraceCollector();
+      TraceCollector traceCollector = ((DDSpan) span).spanContext().getTraceCollector();
       if (!(traceCollector instanceof PendingTrace)) {
         throw new IllegalStateException(
             "Expected PendingTrace trace collector, got " + traceCollector.getClass().getName());
