@@ -95,7 +95,6 @@ dependencies {
   implementation("com.github.zafarkhaja:java-semver:0.10.2")
   implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
 
-  implementation("com.google.guava", "guava", "20.0")
   implementation(libs.asm)
   implementation(libs.asm.tree)
 
