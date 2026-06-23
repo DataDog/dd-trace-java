@@ -582,7 +582,7 @@ class WebsocketTest extends InstrumentationSpecification {
     def clientHandshake = createHandshakeSpan("http.request", url)  //simulate client span
     clientHandshake.setSamplingPriority(PrioritySampling.SAMPLER_DROP) // simulate sampler drop
     def serverHandshake = createHandshakeSpan("servlet.request", url,
-    new ExtractedContext(clientHandshake.context().getTraceId(), clientHandshake.context().getSpanId(), clientHandshake.context().getSamplingPriority(),
+    new ExtractedContext(clientHandshake.spanContext().getTraceId(), clientHandshake.spanContext().getSpanId(), clientHandshake.spanContext().getSamplingPriority(),
     "test", 0, ["example_baggage": "test"], TagMap.EMPTY, null, null, null, null)) // simulate server span
     def session = deployEndpointAndConnect(new Endpoints.TestEndpoint(new Endpoints.FullStringHandler()),
     clientHandshake, serverHandshake, url)
@@ -626,8 +626,8 @@ class WebsocketTest extends InstrumentationSpecification {
     // check that the handshake trace state is inherited
     TEST_WRITER.flatten().findAll { span -> (span as DDSpan).getSpanType() == "websocket"  && (span as DDSpan).getParentId() == 0}.each {
       assert (it as DDSpan).getSamplingPriority() == serverHandshake.getSamplingPriority()
-      assert (it as DDSpan).getOrigin() == serverHandshake.context().getOrigin()
-      assert (it as DDSpan).getBaggage() == serverHandshake.context().getBaggageItems()
+      assert (it as DDSpan).getOrigin() == serverHandshake.spanContext().getOrigin()
+      assert (it as DDSpan).getBaggage() == serverHandshake.spanContext().getBaggageItems()
       assert !(it as DDSpan).getBaggage().isEmpty()
     }
   }

@@ -205,7 +205,7 @@ public class KarateTracingHook implements RuntimeHook {
     String stepName = step.getPrefix() + " " + step.getText();
     span.setResourceName(stepName);
     span.setTag(Tags.COMPONENT, "karate");
-    span.context().setIntegrationName("karate");
+    span.spanContext().setIntegrationName("karate");
     span.setTag("step.name", stepName);
     span.setTag("step.startLine", step.getLine());
     span.setTag("step.endLine", step.getEndLine());
