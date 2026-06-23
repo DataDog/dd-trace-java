@@ -5145,6 +5145,54 @@
         "aliases": ["DD_TRACE_INTEGRATION_COMMONS_HTTP_CLIENT_ENABLED", "DD_INTEGRATION_COMMONS_HTTP_CLIENT_ENABLED"]
       }
     ],
+    "DD_TRACE_COMMONS_HTTPCLIENT_2_0_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_COMMONS_HTTPCLIENT_2_0_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_COMMONS_HTTPCLIENT_2_0_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_COMMONS_HTTPCLIENT_2_0_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
+    "DD_TRACE_COMMONS_HTTPCLIENT_2_0_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_COMMONS_HTTPCLIENT_2_0_ENABLED", "DD_INTEGRATION_COMMONS_HTTPCLIENT_2_0_ENABLED"]
+      }
+    ],
+    "DD_TRACE_COMMONS_HTTPCLIENT_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_COMMONS_HTTPCLIENT_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_COMMONS_HTTPCLIENT_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_COMMONS_HTTPCLIENT_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
+    "DD_TRACE_COMMONS_HTTPCLIENT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_COMMONS_HTTPCLIENT_ENABLED", "DD_INTEGRATION_COMMONS_HTTPCLIENT_ENABLED"]
+      }
+    ],
     "DD_TRACE_CONFIG": [
       {
         "version": "A",

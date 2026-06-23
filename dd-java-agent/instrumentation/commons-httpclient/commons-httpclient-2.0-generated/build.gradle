@@ -1,0 +1,30 @@
+muzzle {
+  pass {
+    group = "commons-httpclient"
+    module = "commons-httpclient"
+    versions = "[2.0,4.0)"
+    skipVersions += '3.1-jenkins-1'
+    skipVersions += '2.0-final'
+  }
+  fail {
+    group = "commons-httpclient"
+    module = "commons-httpclient"
+    versions = "[,2.0)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'commons-httpclient', name: 'commons-httpclient', version: '2.0'
+
+  testImplementation group: 'commons-httpclient', name: 'commons-httpclient', version: '2.0'
+
+  // latestDepTest tests against the highest 2.x release (module instruments 2.x only)
+  latestDepTestImplementation group: 'commons-httpclient', name: 'commons-httpclient', version: '2+'
+
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter'))
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-net:java-net-1.8'))
+}
