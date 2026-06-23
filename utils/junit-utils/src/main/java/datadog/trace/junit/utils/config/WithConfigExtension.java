@@ -2,7 +2,6 @@ package datadog.trace.junit.utils.config;
 
 import datadog.environment.EnvironmentVariables;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -11,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import javax.annotation.Nonnull;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -267,7 +267,7 @@ public class WithConfigExtension
     }
 
     @Override
-    public String get(@NonNull String name) {
+    public String get(@Nonnull String name) {
       return env.get(name);
     }
 

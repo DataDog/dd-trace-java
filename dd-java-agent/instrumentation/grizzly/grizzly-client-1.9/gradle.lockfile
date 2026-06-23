@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:grizzly:grizzly-client-1.9:dependencies --write-locks
 biz.aQute.bnd:biz.aQute.bnd.annotation:7.1.0=latest5DepTestCompileClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=latest5DepTestRuntimeClasspath,latestDepTestRuntimeClasspath,muleLatestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latest5DepTestRuntimeClasspath,latestDepTestRuntimeClasspath,muleLatestDepTestRuntimeClasspath,testRuntimeClasspath
@@ -22,7 +23,7 @@ com.github.jnr:jnr-ffi:2.2.19=latest5DepTestRuntimeClasspath,latestDepTestRuntim
 com.github.jnr:jnr-posix:3.1.22=latest5DepTestRuntimeClasspath,latestDepTestRuntimeClasspath,muleLatestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-unixsocket:0.38.25=latest5DepTestRuntimeClasspath,latestDepTestRuntimeClasspath,muleLatestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-x86asm:1.0.2=latest5DepTestRuntimeClasspath,latestDepTestRuntimeClasspath,muleLatestDepTestRuntimeClasspath,testRuntimeClasspath
-com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,latest5DepTestCompileClasspath,latest5DepTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,muleLatestDepTestCompileClasspath,muleLatestDepTestRuntimeClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
+com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,spotbugs
 com.github.spotbugs:spotbugs:4.9.8=spotbugs
 com.github.stephenc.jcip:jcip-annotations:1.0-1=spotbugs
 com.google.auto.service:auto-service-annotations:1.1.1=annotationProcessor,compileClasspath,latest5DepTestAnnotationProcessor,latest5DepTestCompileClasspath,latestDepTestAnnotationProcessor,latestDepTestCompileClasspath,muleLatestDepTestAnnotationProcessor,muleLatestDepTestCompileClasspath,testAnnotationProcessor,testCompileClasspath
