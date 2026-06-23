@@ -5,7 +5,7 @@ import static java.util.Objects.requireNonNull;
 import javax.annotation.Nullable;
 
 /** {@link Context} containing no values. */
-final class EmptyContext implements Context {
+final class EmptyContext implements SelfScopedContext {
   static final Context INSTANCE = new EmptyContext();
 
   private EmptyContext() {}

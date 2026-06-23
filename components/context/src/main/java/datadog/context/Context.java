@@ -168,4 +168,13 @@ public interface Context {
     }
     return value.storeInto(this);
   }
+
+  /**
+   * Wraps context as a scope without attaching it to the current execution unit.
+   *
+   * @return a scope that has no effect on execution units.
+   */
+  default ContextScope asScope() {
+    return new NoopContextScope(this);
+  }
 }

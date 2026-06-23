@@ -73,7 +73,7 @@ class ContextProvidersForkedTest {
 
           @Override
           public ContextScope attach(Context context) {
-            return NoopContextScope.ROOT_SCOPE;
+            return new NoopContextScope(root());
           }
 
           @Override
@@ -83,7 +83,7 @@ class ContextProvidersForkedTest {
 
           @Override
           public ContextContinuation capture(Context context) {
-            return NoopContextContinuation.ROOT_CONTINUATION;
+            return new NoopContextContinuation(root());
           }
 
           @Override

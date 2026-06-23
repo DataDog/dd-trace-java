@@ -8,7 +8,7 @@ import java.util.Arrays;
 import javax.annotation.Nullable;
 
 /** {@link Context} containing many values. */
-final class IndexedContext implements Context {
+final class IndexedContext implements SelfScopedContext {
   final Object[] store;
 
   IndexedContext(Object[] store) {

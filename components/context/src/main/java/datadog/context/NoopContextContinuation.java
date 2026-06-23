@@ -2,12 +2,9 @@ package datadog.context;
 
 /** {@link ContextContinuation} that has no effect on execution units. */
 final class NoopContextContinuation implements ContextContinuation, ContextScope {
-  static final NoopContextContinuation ROOT_CONTINUATION =
-      new NoopContextContinuation(Context.root());
-
   private final Context context;
 
-  private NoopContextContinuation(Context context) {
+  NoopContextContinuation(Context context) {
     this.context = context;
   }
 

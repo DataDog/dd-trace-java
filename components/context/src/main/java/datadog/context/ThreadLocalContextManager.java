@@ -8,6 +8,9 @@ import javax.annotation.Nullable;
 final class ThreadLocalContextManager implements ContextManager {
   static final ThreadLocalContextManager INSTANCE = new ThreadLocalContextManager();
 
+  private static final NoopContextContinuation ROOT_CONTINUATION =
+      new NoopContextContinuation(Context.root());
+
   private static final ThreadLocal<ContextHolder> CONTEXT_HOLDER =
       ThreadLocal.withInitial(ContextHolder::new);
 
@@ -34,11 +37,7 @@ final class ThreadLocalContextManager implements ContextManager {
         continuation.releaseOnScopeClose();
         return continuation; // acts as no-op scope, avoiding allocation
       }
-      NoopContextScope noopScope = holder.noopScope;
-      if (context != noopScope.context()) {
-        noopScope = holder.noopScope = NoopContextScope.create(context);
-      }
-      return noopScope;
+      return context.asScope(); // convert to scope without attaching
     }
 
     ContextListener[] ls = listeners;
@@ -73,7 +72,7 @@ final class ThreadLocalContextManager implements ContextManager {
   @Override
   public ContextContinuation capture(Context context) {
     if (context == Context.root()) {
-      return NoopContextContinuation.ROOT_CONTINUATION;
+      return ROOT_CONTINUATION;
     } else {
       return new ContextContinuationImpl(context);
     }
@@ -170,7 +169,6 @@ final class ThreadLocalContextManager implements ContextManager {
         ContextListener[] ls = INSTANCE.listeners;
         notifyDetach(context, ls);
         holder.current = previous;
-        holder.noopScope = NoopContextScope.ROOT_SCOPE;
         notifyAttach(previous, ls);
         closed = true;
       }
@@ -295,7 +293,5 @@ final class ThreadLocalContextManager implements ContextManager {
 
   private static final class ContextHolder {
     Context current = Context.root();
-
-    NoopContextScope noopScope = NoopContextScope.ROOT_SCOPE;
   }
 }

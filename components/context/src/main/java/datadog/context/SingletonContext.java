@@ -7,7 +7,7 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 /** {@link Context} containing a single value. */
-final class SingletonContext implements Context {
+final class SingletonContext implements SelfScopedContext {
   final int index;
   final Object value;
 
