@@ -493,7 +493,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
       return duration;
     }
     DDSpan ddSpan = (DDSpan) span;
-    TraceCollector traceCollector = ddSpan.context().getTraceCollector();
+    TraceCollector traceCollector = ddSpan.spanContext().getTraceCollector();
     if (!(traceCollector instanceof PendingTrace)) {
       throw new IllegalArgumentException(
           "Expected "

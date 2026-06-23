@@ -154,7 +154,7 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
       @Nullable JavaAgent jacocoAgent) {
     ExecutionSettings executionSettings = executionSettingsFactory.create(jvmInfo, moduleName);
     return new BuildSystemModuleImpl(
-        span.context(),
+        span.spanContext(),
         moduleName,
         startCommand,
         startTime,
@@ -178,7 +178,7 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
 
   @Override
   public AgentSpan testTaskStart(String taskName) {
-    return startSpan("ci_visibility", taskName, span.context());
+    return startSpan("ci_visibility", taskName, span.spanContext());
   }
 
   private void onModuleFinish(AgentSpan moduleSpan) {

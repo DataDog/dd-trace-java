@@ -476,7 +476,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     assertEquals((int) PrioritySampling.USER_KEEP, span.getSamplingPriority());
     assertEquals(
         "_dd.p.dm=-4",
-        span.context().getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG));
+        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG));
   }
 
   @ParameterizedTest
@@ -523,7 +523,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     span.finish();
     writer.waitForTraces(1);
 
-    assertEquals(value, getter.apply((DDSpanContext) span.context()));
+    assertEquals(value, getter.apply((DDSpanContext) span.spanContext()));
   }
 
   @Test

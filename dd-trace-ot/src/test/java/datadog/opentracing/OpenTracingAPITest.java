@@ -304,7 +304,7 @@ class OpenTracingAPITest extends DDJavaSpecification {
     assertEquals(testSpan.context().toSpanId(), tracer.getSpanId());
     assertEquals(
         testSpan.context().toTraceId(),
-        tracer.getInternalTracer().activeSpan().context().getTraceId().toString());
+        tracer.getInternalTracer().activeSpan().spanContext().getTraceId().toString());
 
     scope.close();
     testSpan.finish();
@@ -442,7 +442,7 @@ class OpenTracingAPITest extends DDJavaSpecification {
     assertEquals("someService", serverSpanDD.getServiceName());
     assertEquals("serverOperation", serverSpanDD.getOperationName().toString());
     assertEquals("serverOperation", serverSpanDD.getResourceName().toString());
-    assertEquals(clientSpan.context().getSpanId(), serverSpanDD.getParentId());
+    assertEquals(clientSpan.spanContext().getSpanId(), serverSpanDD.getParentId());
   }
 
   @Test

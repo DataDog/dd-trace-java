@@ -200,7 +200,7 @@ class HttpExtractorTest extends DDJavaSpecification {
 
     TagContext context = extractor.extract(headers, stringValuesMap());
 
-    List<AgentSpanLink> links = context.getTerminatedContextLinks();
+    List<AgentSpanLink> links = context.getTerminatedSpanLinks();
     assertEquals(expectedSpanLinks.size(), links.size());
     for (int i = 0; i < links.size(); i++) {
       TracePropagationStyle style = expectedSpanLinks.get(i);

@@ -16,7 +16,7 @@ smokeTestApp {
   javaLauncher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(11)
   }
-  application {
+  gradleApp {
     taskName = 'quarkusBuild'
     nestedTasks = ['build']
     // Quarkus' uber-jar is named `<projectName>-runner.jar`; here the inner project has no

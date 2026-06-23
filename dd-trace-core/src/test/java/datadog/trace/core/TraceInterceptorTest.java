@@ -188,13 +188,13 @@ public class TraceInterceptorTest extends DDCoreJavaSpecification {
     assertEquals(1, trace.size());
 
     DDSpan span = trace.get(0);
-    assertEquals("modifiedON-test", span.context().getOperationName().toString());
+    assertEquals("modifiedON-test", span.spanContext().getOperationName().toString());
     assertTrue(span.getServiceName().startsWith("modifiedSN-"));
     assertEquals("modifiedRN-modifiedON-test", span.getResourceName().toString());
     assertEquals("modifiedST-null", span.getSpanType());
-    assertTrue(span.context().getErrorFlag());
+    assertTrue(span.spanContext().getErrorFlag());
 
-    TagMap tags = span.context().getTags();
+    TagMap tags = span.spanContext().getTags();
     assertEquals(true, tags.get("boolean-tag"));
     assertEquals(5.0, tags.get("number-tag"));
     assertEquals("howdy", tags.get("string-tag"));

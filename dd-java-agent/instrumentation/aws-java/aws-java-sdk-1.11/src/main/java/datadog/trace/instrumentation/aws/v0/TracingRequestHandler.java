@@ -135,8 +135,8 @@ public class TracingRequestHandler extends RequestHandler2 {
           PathwayContext pathwayContext = dataStreamsMonitoring.newPathwayContext();
           DataStreamsContext dataStreamsContext = create(tags, arrivalTime.getTime(), 0);
           pathwayContext.setCheckpoint(dataStreamsContext, dataStreamsMonitoring::add);
-          if (!span.context().getPathwayContext().isStarted()) {
-            span.context().mergePathwayContext(pathwayContext);
+          if (!span.spanContext().getPathwayContext().isStarted()) {
+            span.spanContext().mergePathwayContext(pathwayContext);
           }
         }
       }
