@@ -116,8 +116,9 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
             config.getOtlpMetricsCompression());
       default:
         // HTTP_JSON has no protobuf-free encoder yet; JSON transport is deferred per the plan.
-        log.debug(
-            "Unsupported OTLP metrics protocol for trace metrics export: {}",
+        log.warn(
+            "OTLP trace metrics export disabled: unsupported metrics protocol {}. "
+                + "Set OTEL_EXPORTER_OTLP_METRICS_PROTOCOL to grpc or http/protobuf.",
             config.getOtlpMetricsProtocol());
         return null;
     }
