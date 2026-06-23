@@ -50,12 +50,9 @@ public final class ConcurrentHashtable {
       return size.get();
     }
 
-    @SuppressWarnings("unchecked")
     public TEntry get(K key) {
       long keyHash = Hashtable.D1.Entry.hash(key);
-      for (TEntry te = (TEntry) buckets.get(Support.bucketIndex(buckets, keyHash));
-          te != null;
-          te = te.next()) {
+      for (TEntry te = Support.bucket(buckets, keyHash); te != null; te = te.next()) {
         if (te.keyHash == keyHash && te.matches(key)) {
           return te;
         }
@@ -68,23 +65,22 @@ public final class ConcurrentHashtable {
      * hit; acquires a table-level lock on miss. Re-checks under the lock to avoid duplicate entries
      * under concurrent misses.
      */
-    @SuppressWarnings("unchecked")
     public TEntry getOrCreate(K key, Function<? super K, ? extends TEntry> creator) {
       long keyHash = Hashtable.D1.Entry.hash(key);
       int index = Support.bucketIndex(buckets, keyHash);
-      for (TEntry te = (TEntry) buckets.get(index); te != null; te = te.next()) {
+      for (TEntry te = Support.bucket(buckets, index); te != null; te = te.next()) {
         if (te.keyHash == keyHash && te.matches(key)) {
           return te;
         }
       }
       synchronized (this) {
-        for (TEntry te = (TEntry) buckets.get(index); te != null; te = te.next()) {
+        for (TEntry te = Support.bucket(buckets, index); te != null; te = te.next()) {
           if (te.keyHash == keyHash && te.matches(key)) {
             return te;
           }
         }
         TEntry newEntry = creator.apply(key);
-        newEntry.setNext((TEntry) buckets.get(index));
+        newEntry.setNext(Support.bucket(buckets, index));
         buckets.set(index, newEntry);
         size.incrementAndGet();
         return newEntry;
@@ -128,12 +124,9 @@ public final class ConcurrentHashtable {
       return size.get();
     }
 
-    @SuppressWarnings("unchecked")
     public TEntry get(K1 key1, K2 key2) {
       long keyHash = Hashtable.D2.Entry.hash(key1, key2);
-      for (TEntry te = (TEntry) buckets.get(Support.bucketIndex(buckets, keyHash));
-          te != null;
-          te = te.next()) {
+      for (TEntry te = Support.bucket(buckets, keyHash); te != null; te = te.next()) {
         if (te.keyHash == keyHash && te.matches(key1, key2)) {
           return te;
         }
@@ -149,24 +142,23 @@ public final class ConcurrentHashtable {
      * <p>The {@code creator} should build an entry whose {@code keyHash} equals {@link
      * Hashtable.D2.Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}.
      */
-    @SuppressWarnings("unchecked")
     public TEntry getOrCreate(
         K1 key1, K2 key2, BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
       long keyHash = Hashtable.D2.Entry.hash(key1, key2);
       int index = Support.bucketIndex(buckets, keyHash);
-      for (TEntry te = (TEntry) buckets.get(index); te != null; te = te.next()) {
+      for (TEntry te = Support.bucket(buckets, index); te != null; te = te.next()) {
         if (te.keyHash == keyHash && te.matches(key1, key2)) {
           return te;
         }
       }
       synchronized (this) {
-        for (TEntry te = (TEntry) buckets.get(index); te != null; te = te.next()) {
+        for (TEntry te = Support.bucket(buckets, index); te != null; te = te.next()) {
           if (te.keyHash == keyHash && te.matches(key1, key2)) {
             return te;
           }
         }
         TEntry newEntry = creator.apply(key1, key2);
-        newEntry.setNext((TEntry) buckets.get(index));
+        newEntry.setNext(Support.bucket(buckets, index));
         buckets.set(index, newEntry);
         size.incrementAndGet();
         return newEntry;
@@ -192,6 +184,28 @@ public final class ConcurrentHashtable {
 
     public static int bucketIndex(AtomicReferenceArray<Hashtable.Entry> buckets, long keyHash) {
       return (int) (keyHash & (buckets.length() - 1));
+    }
+
+    /**
+     * Returns the head entry of the bucket that {@code keyHash} maps to, cast to the caller's
+     * concrete entry type. The unchecked cast lives here so chain-walk loops at call sites don't
+     * need to thread a raw {@link Hashtable.Entry} variable through.
+     */
+    @SuppressWarnings("unchecked")
+    public static <TEntry extends Hashtable.Entry> TEntry bucket(
+        AtomicReferenceArray<Hashtable.Entry> buckets, long keyHash) {
+      return (TEntry) buckets.get(bucketIndex(buckets, keyHash));
+    }
+
+    /**
+     * Returns the head entry of the bucket at {@code index}, cast to the caller's concrete entry
+     * type. Use when the bucket index is already computed (e.g. inside {@code getOrCreate} where
+     * the same index is reused across the lock boundary).
+     */
+    @SuppressWarnings("unchecked")
+    public static <TEntry extends Hashtable.Entry> TEntry bucket(
+        AtomicReferenceArray<Hashtable.Entry> buckets, int index) {
+      return (TEntry) buckets.get(index);
     }
 
     @SuppressWarnings("unchecked")
