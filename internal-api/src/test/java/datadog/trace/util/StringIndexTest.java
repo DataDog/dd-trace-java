@@ -6,11 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.util.TagSet.Data;
-import datadog.trace.util.TagSet.Support;
+import datadog.trace.util.StringIndex.Data;
+import datadog.trace.util.StringIndex.Support;
 import org.junit.jupiter.api.Test;
 
-class TagSetTest {
+class StringIndexTest {
 
   @Test
   void hash_spread_and_zeroSentinel() {
@@ -32,7 +32,7 @@ class TagSetTest {
 
   @Test
   void instance_contains_internedAndCopy_andMiss() {
-    TagSet set = TagSet.of("foo", "bar", "baz");
+    StringIndex set = StringIndex.of("foo", "bar", "baz");
 
     assertEquals(8, set.slots()); // 3 names -> tableSizeFor(3) == 8
 
@@ -84,7 +84,7 @@ class TagSetTest {
     assertThrows(IllegalStateException.class, () -> Support.put(hashes, names, "c", 6));
   }
 
-  /** The documented usage: build a TagSet, attach a parallel payload indexed by slot. */
+  /** The documented usage: build a StringIndex, attach a parallel payload indexed by slot. */
   @Test
   void parallelPayloadBySlot() {
     String[] names = {"a", "b", "c"};

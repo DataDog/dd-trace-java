@@ -11,7 +11,7 @@ package datadog.trace.util;
  *       path; nothing to dereference.
  *   <li>{@link Data} — a <b>build-time carrier</b> for the placed {@code {hashes, names}} returned
  *       by {@link Support#create}. Pull its fields into your own and discard it.
- *   <li>The {@code TagSet} <b>instance</b> ({@link #of}) — a convenience wrapper holding the
+ *   <li>The {@code StringIndex} <b>instance</b> ({@link #of}) — a convenience wrapper holding the
  *       arrays; {@link #indexOf}/{@link #contains} delegate to {@link Support}. Costs an
  *       instance-field load per call (the indirection the static path removes) — fine off the hot
  *       path.
@@ -23,12 +23,12 @@ package datadog.trace.util;
  * <p>Slot 0-value is the empty sentinel: {@link Support#hash} never returns 0, so {@code hashes[i]
  * == 0} unambiguously means an empty slot.
  */
-public final class TagSet {
+public final class StringIndex {
   private final int[] hashes;
   private final String[] names;
   public final int slots; // == hashes.length
 
-  private TagSet(int[] hashes, String[] names) {
+  private StringIndex(int[] hashes, String[] names) {
     this.hashes = hashes;
     this.names = names;
     this.slots = hashes.length;
@@ -37,9 +37,9 @@ public final class TagSet {
   /**
    * Convenience instance — wraps the placed arrays. For the hot path prefer raw {@link Support}.
    */
-  public static TagSet of(String... names) {
+  public static StringIndex of(String... names) {
     Data data = Support.create(names);
-    return new TagSet(data.hashes, data.names);
+    return new StringIndex(data.hashes, data.names);
   }
 
   /** Slot of {@code name}, or -1. Delegates to {@link Support} on the instance's arrays. */
@@ -67,7 +67,9 @@ public final class TagSet {
     }
   }
 
-  /** Static algorithm over raw arrays. Query helpers take raw arrays, never a Data or a TagSet. */
+  /**
+   * Static algorithm over raw arrays. Query helpers take raw arrays, never a Data or a StringIndex.
+   */
   public static final class Support {
     private Support() {}
 

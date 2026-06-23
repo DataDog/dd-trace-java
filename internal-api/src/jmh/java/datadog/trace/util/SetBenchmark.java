@@ -20,13 +20,14 @@ import org.openjdk.jmh.annotations.Warmup;
  * capped the fast structures at a ~1.4B contention ceiling (since superseded by the numbers below).
  *
  * <ul>
- *   <li><b>tagSetSupport (static) is the fastest membership path</b> — 2336M hit / 2170M miss. It
- *       beats the TagSet instance ({@code tagSet_*}) by ~7% (hit) to ~12% (miss): the instance pays
- *       an instance-field load of hashes/names, while {@code Support.indexOf} over {@code static
- *       final} arrays lets the refs fold to constants. Matches KeyOfBenchmark's ~12% static-vs-
- *       instance gap. So when the set is fixed, pull {@code Data} into your own static finals.
+ *   <li><b>stringIndexSupport (static) is the fastest membership path</b> — 2336M hit / 2170M miss.
+ *       It beats the StringIndex instance ({@code stringIndex_*}) by ~7% (hit) to ~12% (miss): the
+ *       instance pays an instance-field load of hashes/names, while {@code Support.indexOf} over
+ *       {@code static final} arrays lets the refs fold to constants. Matches KeyOfBenchmark's ~12%
+ *       static-vs- instance gap. So when the set is fixed, pull {@code Data} into your own static
+ *       finals.
  *   <li><b>vs HashSet</b> — the static path is ~12% faster on hit and ~par on miss. But HashSet was
- *       noisy here (±22% error) while TagSet was tight (±2-7%), so TagSet also wins on
+ *       noisy here (±22% error) while StringIndex was tight (±2-7%), so StringIndex also wins on
  *       predictability — and is allocation-free and positional-capable.
  *   <li>array / sortedArray / treeSet cluster ~0.65-1.0B — they compare/scan per element, so they
  *       slow on miss (hit early-exits; miss does the full scan / binary descent / tree walk).
@@ -44,10 +45,10 @@ import org.openjdk.jmh.annotations.Warmup;
  * SetBenchmark.hashSet_miss        thrpt    6  2136501411.026 ± 474132929.024  ops/s
  * SetBenchmark.sortedArray_hit     thrpt    6   837595967.794 ± 113538780.712  ops/s
  * SetBenchmark.sortedArray_miss    thrpt    6   692064118.699 ±  25752553.077  ops/s
- * SetBenchmark.tagSet_hit          thrpt    6  2184722734.028 ±  61054981.099  ops/s
- * SetBenchmark.tagSet_miss         thrpt    6  1933588009.009 ± 159869680.982  ops/s
- * SetBenchmark.tagSetSupport_hit   thrpt    6  2335685599.706 ±  52460762.937  ops/s
- * SetBenchmark.tagSetSupport_miss  thrpt    6  2169715463.018 ± 141321499.862  ops/s
+ * SetBenchmark.stringIndex_hit          thrpt    6  2184722734.028 ±  61054981.099  ops/s
+ * SetBenchmark.stringIndex_miss         thrpt    6  1933588009.009 ± 159869680.982  ops/s
+ * SetBenchmark.stringIndexSupport_hit   thrpt    6  2335685599.706 ±  52460762.937  ops/s
+ * SetBenchmark.stringIndexSupport_miss  thrpt    6  2169715463.018 ± 141321499.862  ops/s
  * SetBenchmark.treeSet_hit         thrpt    6   798251906.675 ±  39041398.413  ops/s
  * SetBenchmark.treeSet_miss        thrpt    6   667078954.487 ±  56517120.187  ops/s
  * </code>
@@ -174,37 +175,38 @@ public class SetBenchmark {
     return TREE_SET.contains(nextMiss());
   }
 
-  static final TagSet TAG_SET = TagSet.of(STRINGS);
+  static final StringIndex STRING_INDEX = StringIndex.of(STRINGS);
 
   @Benchmark
-  public boolean tagSet_hit() {
-    return TAG_SET.contains(nextHit());
+  public boolean stringIndex_hit() {
+    return STRING_INDEX.contains(nextHit());
   }
 
   @Benchmark
-  public boolean tagSet_miss() {
-    return TAG_SET.contains(nextMiss());
+  public boolean stringIndex_miss() {
+    return STRING_INDEX.contains(nextMiss());
   }
 
   // The static Support path: hashes/names built once into static-final arrays (refs fold to
-  // constants) and probed directly via Support.indexOf -- vs tagSet_* above, which loads them
-  // through a TagSet instance. Mirrors KeyOfBenchmark's tagSet (static) vs tagSet_throughClass.
+  // constants) and probed directly via Support.indexOf -- vs stringIndex_* above, which loads them
+  // through a StringIndex instance. Mirrors KeyOfBenchmark's stringIndex (static) vs
+  // stringIndex_throughClass.
   static final int[] SUPPORT_HASHES;
   static final String[] SUPPORT_NAMES;
 
   static {
-    TagSet.Data data = TagSet.Support.create(STRINGS);
+    StringIndex.Data data = StringIndex.Support.create(STRINGS);
     SUPPORT_HASHES = data.hashes;
     SUPPORT_NAMES = data.names;
   }
 
   @Benchmark
-  public boolean tagSetSupport_hit() {
-    return TagSet.Support.indexOf(SUPPORT_HASHES, SUPPORT_NAMES, nextHit()) >= 0;
+  public boolean stringIndexSupport_hit() {
+    return StringIndex.Support.indexOf(SUPPORT_HASHES, SUPPORT_NAMES, nextHit()) >= 0;
   }
 
   @Benchmark
-  public boolean tagSetSupport_miss() {
-    return TagSet.Support.indexOf(SUPPORT_HASHES, SUPPORT_NAMES, nextMiss()) >= 0;
+  public boolean stringIndexSupport_miss() {
+    return StringIndex.Support.indexOf(SUPPORT_HASHES, SUPPORT_NAMES, nextMiss()) >= 0;
   }
 }

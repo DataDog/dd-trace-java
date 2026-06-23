@@ -21,17 +21,17 @@ import org.openjdk.jmh.infra.Blackhole;
  * <ul>
  *   Benchmark comparing different Map-s...
  *   <li>(RECOMMENDED) HashMap - fastest lookups among general-purpose (mutable) maps - (not
- *       typically needed for tags; a fixed TagSet map below is faster still when the keys are
+ *       typically needed for tags; a fixed StringIndex map below is faster still when the keys are
  *       known)
  *   <li>(RECOMMENDED) TagMap - for storing tags - especially if copying between maps or using
  *       builders
  *   <li>TreeMap - better for custom Comparators - case-insensitive Maps (see
  *       CaseInsensitiveMapBenchmark)
  *   <li>LinkedHashMap - only when insertion order is needed
- *   <li>TagSet + parallel value array - for a FIXED (build-once, read-only) map whose key set is
- *       known up front: the keys go in a {@link TagSet} and the values in a parallel array indexed
- *       by the slot {@code indexOf} returns. Fastest get, no per-lookup allocation, no node chasing
- *       - but it can't change after construction (see get_tagSetMap).
+ *   <li>StringIndex + parallel value array - for a FIXED (build-once, read-only) map whose key set
+ *       is known up front: the keys go in a {@link StringIndex} and the values in a parallel array
+ *       indexed by the slot {@code indexOf} returns. Fastest get, no per-lookup allocation, no node
+ *       chasing - but it can't change after construction (see get_stringIndexMap).
  * </ul>
  *
  * <p>TagMap is the preferred way to store tags.
@@ -51,10 +51,10 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>HashMap & TagMap also perform exceedingly well in cases where the exact same object is used
  * for put & get operations. e.g. when using String literals or Class literals as keys.
  *
- * <p>A TagSet + parallel int[] used as a fixed (build-once) map is the fastest get here -- ~30%
- * ahead of HashMap on the rotating-key path and ~50% ahead on the same-key path, where it sustains
- * 5.4B ops/s at the tightest error in the table (±1.3%). It pays no boxing (int[] values), chases
- * no node, and allocates nothing per lookup. It only applies when the key set is fixed at
+ * <p>A StringIndex + parallel int[] used as a fixed (build-once) map is the fastest get here --
+ * ~30% ahead of HashMap on the rotating-key path and ~50% ahead on the same-key path, where it
+ * sustains 5.4B ops/s at the tightest error in the table (±1.3%). It pays no boxing (int[] values),
+ * chases no node, and allocates nothing per lookup. It only applies when the key set is fixed at
  * construction. <code>
  * Apple M1 Max (10 core), macOS 26.4.1 -- 8 threads (per-thread state), 2 forks -- Java 17 (Zulu 17.42.19, 17.0.7+7-LTS)
  *
@@ -76,8 +76,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * UnsynchronizedMapBenchmark.get_linkedHashMap         thrpt    6  1871397460.306 ±  51848940.996  ops/s
  * UnsynchronizedMapBenchmark.get_tagMap                thrpt    6  1706422514.145 ±  91472057.777  ops/s
  * UnsynchronizedMapBenchmark.get_tagMap_sameKey        thrpt    6  2205821374.441 ± 108659512.329  ops/s
- * UnsynchronizedMapBenchmark.get_tagSetMap             thrpt    6  2448917198.752 ± 105399021.596  ops/s
- * UnsynchronizedMapBenchmark.get_tagSetMap_sameKey     thrpt    6  5358887465.195 ±  70196881.552  ops/s
+ * UnsynchronizedMapBenchmark.get_stringIndexMap             thrpt    6  2448917198.752 ± 105399021.596  ops/s
+ * UnsynchronizedMapBenchmark.get_stringIndexMap_sameKey     thrpt    6  5358887465.195 ±  70196881.552  ops/s
  * UnsynchronizedMapBenchmark.get_treeMap               thrpt    6   704782343.575 ±  52129796.457  ops/s
  *
  * UnsynchronizedMapBenchmark.iterate_hashMap           thrpt    6   132215205.201 ±   9079485.505  ops/s
@@ -303,38 +303,42 @@ public class UnsynchronizedMapBenchmark {
     return TAG_MAP.copy();
   }
 
-  // TagSet + a parallel value array used as a FIXED (build-once, read-only) map. The keys are known
-  // up front, so they go in a TagSet and the values in a plain array indexed by the slot that
+  // StringIndex + a parallel value array used as a FIXED (build-once, read-only) map. The keys are
+  // known
+  // up front, so they go in a StringIndex and the values in a plain array indexed by the slot that
   // Support.indexOf returns. There is no node, no Entry, and no per-lookup allocation -- a get is a
   // hash probe (with an interned == fast path) plus one array load. Pull the Data into your own
   // static finals (as below) so the hashes/names refs fold to constants -- same static-vs-instance
   // win SetBenchmark and KeyOfBenchmark measure. The values live in a parallel int[] -- no boxing,
   // the same primitive-value advantage TagMap.getInt has over a HashMap<String, Integer>, whose
   // value type structurally forces the box. The trade-off: it cannot change after construction.
-  static final int[] TAG_SET_HASHES;
-  static final String[] TAG_SET_NAMES;
-  static final int[] TAG_SET_VALUES;
+  static final int[] STRING_INDEX_HASHES;
+  static final String[] STRING_INDEX_NAMES;
+  static final int[] STRING_INDEX_VALUES;
 
   static {
-    TagSet.Data data = TagSet.Support.create(INSERTION_KEYS);
+    StringIndex.Data data = StringIndex.Support.create(INSERTION_KEYS);
     int[] values = new int[data.names.length];
     for (int i = 0; i < INSERTION_KEYS.length; ++i) {
-      values[TagSet.Support.indexOf(data.hashes, data.names, INSERTION_KEYS[i])] = i;
+      values[StringIndex.Support.indexOf(data.hashes, data.names, INSERTION_KEYS[i])] = i;
     }
-    TAG_SET_HASHES = data.hashes;
-    TAG_SET_NAMES = data.names;
-    TAG_SET_VALUES = values;
+    STRING_INDEX_HASHES = data.hashes;
+    STRING_INDEX_NAMES = data.names;
+    STRING_INDEX_VALUES = values;
   }
 
   @Benchmark
-  public int get_tagSetMap() {
-    int slot = TagSet.Support.indexOf(TAG_SET_HASHES, TAG_SET_NAMES, nextLookupKey());
-    return slot < 0 ? -1 : TAG_SET_VALUES[slot];
+  public int get_stringIndexMap() {
+    int slot =
+        StringIndex.Support.indexOf(STRING_INDEX_HASHES, STRING_INDEX_NAMES, nextLookupKey());
+    return slot < 0 ? -1 : STRING_INDEX_VALUES[slot];
   }
 
   @Benchmark
-  public int get_tagSetMap_sameKey() {
-    int slot = TagSet.Support.indexOf(TAG_SET_HASHES, TAG_SET_NAMES, nextLookupKey(INSERTION_KEYS));
-    return slot < 0 ? -1 : TAG_SET_VALUES[slot];
+  public int get_stringIndexMap_sameKey() {
+    int slot =
+        StringIndex.Support.indexOf(
+            STRING_INDEX_HASHES, STRING_INDEX_NAMES, nextLookupKey(INSERTION_KEYS));
+    return slot < 0 ? -1 : STRING_INDEX_VALUES[slot];
   }
 }
