@@ -351,7 +351,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       Object httpMethodObj = span.unsafeGetTag(HTTP_METHOD);
       httpMethod = httpMethodObj != null ? httpMethodObj.toString() : null;
       Object httpEndpointObj = span.unsafeGetTag(HTTP_ENDPOINT);
-      httpEndpointObj = httpEndpointObj != null ? httpEndpointObj : span.unsafeGetTag(HTTP_ROUTE);
       httpEndpoint = httpEndpointObj != null ? httpEndpointObj.toString() : null;
     }
 
