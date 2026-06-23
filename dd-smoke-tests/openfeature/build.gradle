@@ -11,7 +11,7 @@ testJvmConstraints {
 }
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'bootJar'
     artifactPath = 'libs/openfeature-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'

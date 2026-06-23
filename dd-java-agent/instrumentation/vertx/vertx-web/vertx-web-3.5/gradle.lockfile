@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-3.5:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepForkedTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latestDepForkedTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=latestDepForkedTestCompileClasspath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
@@ -28,7 +29,7 @@ com.github.jnr:jnr-ffi:2.2.19=latestDepForkedTestRuntimeClasspath,latestDepTestR
 com.github.jnr:jnr-posix:3.1.22=latestDepForkedTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-unixsocket:0.38.25=latestDepForkedTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-x86asm:1.0.2=latestDepForkedTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
-com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,latestDepForkedTestCompileClasspath,latestDepForkedTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
+com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,spotbugs
 com.github.spotbugs:spotbugs:4.9.8=spotbugs
 com.github.stephenc.jcip:jcip-annotations:1.0-1=spotbugs
 com.google.auto.service:auto-service-annotations:1.1.1=annotationProcessor,compileClasspath,latestDepForkedTestAnnotationProcessor,latestDepForkedTestCompileClasspath,latestDepTestAnnotationProcessor,latestDepTestCompileClasspath,testAnnotationProcessor,testCompileClasspath

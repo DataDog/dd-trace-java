@@ -86,7 +86,7 @@ public final class OtlpTraceProto {
       MetaWriter metaWriter,
       int nestedSpanLinkBytes,
       OtlpProtoBuffer protobuf) {
-    PropagationTags propagationTags = span.context().getPropagationTags();
+    PropagationTags propagationTags = span.spanContext().getPropagationTags();
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeTraceId(buf, span.getTraceId());
@@ -109,7 +109,7 @@ public final class OtlpTraceProto {
     if (span.samplingPriority() > 0) {
       traceFlags |= SAMPLED_TRACE_FLAG;
     }
-    if (span.context().isRemote()) {
+    if (span.spanContext().isRemote()) {
       traceFlags |= REMOTE_TRACE_FLAG;
     }
     if (traceFlags != NO_TRACE_FLAGS) {
@@ -126,7 +126,7 @@ public final class OtlpTraceProto {
     }
 
     writeTag(buf, 6, VARINT_WIRE_TYPE);
-    writeVarInt(buf, spanKind(span.context().getSpanKindString()));
+    writeVarInt(buf, spanKind(span.spanContext().getSpanKindString()));
 
     writeTag(buf, 7, I64_WIRE_TYPE);
     writeI64(buf, span.getStartTime());
