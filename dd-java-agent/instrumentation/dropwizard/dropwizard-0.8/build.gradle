@@ -23,3 +23,10 @@ dependencies {
   // Anything 1.0+ fails with a java.lang.NoClassDefFoundError: org/eclipse/jetty/server/RequestLog
   //  latestDepTestImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '1.+'
 }
+
+// Dropwizard 0.8 needs Guava 18's removed CharMatcher.WHITESPACE field.
+['testCompileClasspath', 'testRuntimeClasspath'].each {
+  configurations.named(it) {
+    resolutionStrategy.force 'com.google.guava:guava:18.0'
+  }
+}
