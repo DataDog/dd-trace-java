@@ -9,8 +9,6 @@ import java.util.function.Supplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
@@ -20,78 +18,84 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <ul>
  *   Benchmark comparing different Map-s...
- *   <li>(RECOMMENDED) HashMap - fastest lookups among general-purpose (mutable) maps - (not
- *       typically needed for tags; a fixed StringIndex map below is faster still when the keys are
- *       known)
+ *   <li>(RECOMMENDED) HashMap - for fastest lookups - (not typically needed for tags)
  *   <li>(RECOMMENDED) TagMap - for storing tags - especially if copying between maps or using
  *       builders
  *   <li>TreeMap - better for custom Comparators - case-insensitive Maps (see
  *       CaseInsensitiveMapBenchmark)
  *   <li>LinkedHashMap - only when insertion order is needed
- *   <li>StringIndex + parallel value array - for a FIXED (build-once, read-only) map whose key set
- *       is known up front: the keys go in a {@link StringIndex} and the values in a parallel array
- *       indexed by the slot {@code indexOf} returns. Fastest get, no per-lookup allocation, no node
- *       chasing - but it can't change after construction (see get_stringIndexMap).
  * </ul>
  *
  * <p>TagMap is the preferred way to store tags.
  *
  * <p>TagMap excels at storing primitives, copying between TagMap instances, and builder idioms.
  *
- * <p>Iterator traversal with TagMap is relatively slow, but TagMap#forEach matches the fastest map
- * iterators (LinkedHashMap/TreeMap) and far outpaces HashMap entry-set iteration.
+ * <p>Iterator traversal with TagMap is relatively slow, but TagMap#forEach is on par (and slightly)
+ * faster than traditional map entry iteration.
  *
  * <p>HashMap & LinkedHashMap perform equally well on get operations.
  *
- * <p>HashMap is ~1.4x faster throughput-wise to create than LinkedHashMap and has less memory
- * overhead because there's no linked list to capture insertion order.
+ * <p>HashMap is 2x faster throughput-wise to create and has less memory overhead because there's no
+ * linked list to capture insertion order.
  *
  * <p>TreeMap is useful when a custom Comparator is needed -- see CaseInsensitiveMapBenchmark
  *
  * <p>HashMap & TagMap also perform exceedingly well in cases where the exact same object is used
- * for put & get operations. e.g. when using String literals or Class literals as keys.
+ * for put & get operations. e.g. when using String literals or Class literals as keys <code>
+ * MacBook M1 1 thread (Java 21)
  *
- * <p>A StringIndex + parallel int[] used as a fixed (build-once) map is the fastest get here --
- * ~30% ahead of HashMap on the rotating-key path and ~50% ahead on the same-key path, where it
- * sustains 5.4B ops/s at the tightest error in the table (±1.3%). It pays no boxing (int[] values),
- * chases no node, and allocates nothing per lookup. It only applies when the key set is fixed at
- * construction. <code>
- * Apple M1 Max (10 core), macOS 26.4.1 -- 8 threads (per-thread state), 2 forks -- Java 17 (Zulu 17.42.19, 17.0.7+7-LTS)
+ * Benchmark                                         Mode  Cnt          Score          Error  Units
+ * UnsynchronizedMapBenchmark.clone_hashMap         thrpt    6   12482267.775 ±   236852.198  ops/s
+ * UnsynchronizedMapBenchmark.clone_linkedHashMap   thrpt    6   12414187.888 ±   224418.265  ops/s
+ * UnsynchronizedMapBenchmark.clone_tagMap          thrpt    6   49638156.234 ±  2972608.986  ops/s
+ * UnsynchronizedMapBenchmark.clone_treeMap         thrpt    6   16201216.086 ±   619985.352  ops/s
+ *
+ * UnsynchronizedMapBenchmark.create_hashMap        thrpt    6   22534042.260 ±   819970.046  ops/s
+ * UnsynchronizedMapBenchmark.create_hashMap_sized  thrpt    6   21871270.375 ±   893842.109  ops/s
+ * UnsynchronizedMapBenchmark.create_linkedHashMap  thrpt    6   12905731.242 ±  8930007.156  ops/s
+ * UnsynchronizedMapBenchmark.create_tagMap         thrpt    6   15794277.380 ±  6069426.265  ops/s
+ * UnsynchronizedMapBenchmark.create_treeMap        thrpt    6    4711961.814 ±    48582.934  ops/s
+ *
+ * UnsynchronizedMapBenchmark.get_hashMap           thrpt    6  212201631.841 ±  6223069.782  ops/s
+ * UnsynchronizedMapBenchmark.get_hashMap_sameKey   thrpt    6  392053406.085 ±  3938305.125  ops/s
+ * UnsynchronizedMapBenchmark.get_linkedHashMap     thrpt    6  210734968.352 ±  3627805.282  ops/s
+ * UnsynchronizedMapBenchmark.get_tagMap            thrpt    6  201864656.534 ±  4596147.771  ops/s
+ * UnsynchronizedMapBenchmark.get_tagMap_sameKey    thrpt    6  256311645.716 ± 13315886.308  ops/s
+ * UnsynchronizedMapBenchmark.get_treeMap           thrpt    6   94606404.423 ±   806879.890  ops/s
+ * </code> <code>
+ * MacBook M1 with 8 threads (Java 21)
  *
  * Benchmark                                             Mode  Cnt           Score           Error  Units
- * UnsynchronizedMapBenchmark.clone_hashMap             thrpt    6    69903436.959 ±   8570506.651  ops/s
- * UnsynchronizedMapBenchmark.clone_linkedHashMap       thrpt    6    85857078.271 ±   6500998.510  ops/s
- * UnsynchronizedMapBenchmark.clone_tagMap              thrpt    6   293226423.495 ±  40922964.340  ops/s
- * UnsynchronizedMapBenchmark.clone_treeMap             thrpt    6    95345978.653 ±  19359076.478  ops/s
+ * UnsynchronizedMapBenchmark.clone_hashMap             thrpt    6    89645484.526 ±   6546683.185  ops/s
+ * UnsynchronizedMapBenchmark.clone_linkedHashMap       thrpt    6    78233577.417 ±   7204526.742  ops/s
+ * UnsynchronizedMapBenchmark.clone_tagMap              thrpt    6   315228772.058 ±  20689692.104  ops/s
+ * UnsynchronizedMapBenchmark.clone_treeMap             thrpt    6   102416350.341 ±   7258040.561  ops/s
  *
- * UnsynchronizedMapBenchmark.create_hashMap            thrpt    6   154092654.362 ±   4062613.480  ops/s
- * UnsynchronizedMapBenchmark.create_hashMap_sized      thrpt    6   146583930.032 ±   4457830.615  ops/s
- * UnsynchronizedMapBenchmark.create_linkedHashMap      thrpt    6   111282881.273 ±  11735323.503  ops/s
- * UnsynchronizedMapBenchmark.create_tagMap             thrpt    6    92286566.881 ±  16770930.695  ops/s
- * UnsynchronizedMapBenchmark.create_tagMap_via_ledger  thrpt    6    71399936.094 ±   8077504.597  ops/s
- * UnsynchronizedMapBenchmark.create_treeMap            thrpt    6    35930407.162 ±    590070.611  ops/s
+ * UnsynchronizedMapBenchmark.create_hashMap            thrpt    6   150462966.692 ±  11243713.572  ops/s
+ * UnsynchronizedMapBenchmark.create_hashMap_sized      thrpt    6   111213025.138 ±   4593366.916  ops/s
+ * UnsynchronizedMapBenchmark.create_linkedHashMap      thrpt    6    80882399.133 ±  19567359.487  ops/s
+ * UnsynchronizedMapBenchmark.create_tagMap             thrpt    6    93026443.634 ±  11831456.794  ops/s
+ * UnsynchronizedMapBenchmark.create_tagMap_via_ledger  thrpt    6    70769351.353 ±   3821543.185  ops/s
+ * UnsynchronizedMapBenchmark.create_treeMap            thrpt    6    32737595.187 ±   2638992.844  ops/s
  *
- * UnsynchronizedMapBenchmark.get_hashMap               thrpt    6  1897568575.023 ±  47092787.708  ops/s
- * UnsynchronizedMapBenchmark.get_hashMap_sameKey       thrpt    6  3544716454.416 ± 192397957.653  ops/s
- * UnsynchronizedMapBenchmark.get_linkedHashMap         thrpt    6  1871397460.306 ±  51848940.996  ops/s
- * UnsynchronizedMapBenchmark.get_tagMap                thrpt    6  1706422514.145 ±  91472057.777  ops/s
- * UnsynchronizedMapBenchmark.get_tagMap_sameKey        thrpt    6  2205821374.441 ± 108659512.329  ops/s
- * UnsynchronizedMapBenchmark.get_stringIndexMap             thrpt    6  2448917198.752 ± 105399021.596  ops/s
- * UnsynchronizedMapBenchmark.get_stringIndexMap_sameKey     thrpt    6  5358887465.195 ±  70196881.552  ops/s
- * UnsynchronizedMapBenchmark.get_treeMap               thrpt    6   704782343.575 ±  52129796.457  ops/s
+ * UnsynchronizedMapBenchmark.get_hashMap               thrpt    6  1154522356.093 ± 116525174.735  ops/s
+ * UnsynchronizedMapBenchmark.get_hashMap_sameKey       thrpt    6  1760800709.734 ±  33551896.166  ops/s
+ * UnsynchronizedMapBenchmark.get_linkedHashMap         thrpt    6  1191208257.933 ±  49810465.132  ops/s
+ * UnsynchronizedMapBenchmark.get_tagMap                thrpt    6   933455574.646 ± 154146815.295  ops/s
+ * UnsynchronizedMapBenchmark.get_tagMap_sameKey        thrpt    6  1138764608.359 ±  88352911.617  ops/s
+ * UnsynchronizedMapBenchmark.get_treeMap               thrpt    6   490872723.682 ±  87017311.892  ops/s
  *
- * UnsynchronizedMapBenchmark.iterate_hashMap           thrpt    6   132215205.201 ±   9079485.505  ops/s
- * UnsynchronizedMapBenchmark.iterate_linkedHashMap     thrpt    6   343848177.356 ±  13084730.321  ops/s
- * UnsynchronizedMapBenchmark.iterate_tagMap            thrpt    6   140210161.690 ±  13645098.317  ops/s
- * UnsynchronizedMapBenchmark.iterate_tagMap_forEach    thrpt    6   354398629.295 ±   5906534.357  ops/s
- * UnsynchronizedMapBenchmark.iterate_treeMap           thrpt    6   344428565.523 ±  11100737.787  ops/s
+ * UnsynchronizedMapBenchmark.iterate_hashMap           thrpt    6   351222668.708 ±  35242914.752  ops/s
+ * UnsynchronizedMapBenchmark.iterate_linkedHashMap     thrpt    6   406635839.285 ±  55990655.235  ops/s
+ * UnsynchronizedMapBenchmark.iterate_tagMap            thrpt    6   185264584.604 ±  15137886.028  ops/s
+ * UnsynchronizedMapBenchmark.iterate_tagMap_forEach    thrpt    6   422407681.630 ±  19493455.109  ops/s
+ * UnsynchronizedMapBenchmark.iterate_treeMap           thrpt    6   392884747.896 ±  80190674.417  ops/s
  * </code>
  */
 @Fork(2)
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @Threads(8)
-@State(Scope.Thread)
 public class UnsynchronizedMapBenchmark {
   static final String[] INSERTION_KEYS = {
     "foo", "bar", "baz", "quux", "foobar", "foobaz", "key0", "key1", "key2", "key3"
@@ -107,19 +111,18 @@ public class UnsynchronizedMapBenchmark {
             return keys;
           });
 
-  int lookupIndex = 0; // per-thread (Scope.Thread) — no shared-counter contention under @Threads(8)
+  static int sharedLookupIndex = 0;
 
-  String nextLookupKey() {
+  static String nextLookupKey() {
     return nextLookupKey(EQUAL_KEYS);
   }
 
-  String nextLookupKey(String[] keys) {
-    int i = lookupIndex + 1;
-    if (i >= keys.length) {
-      i = 0;
+  static String nextLookupKey(String[] keys) {
+    int localIndex = ++sharedLookupIndex;
+    if (localIndex >= keys.length) {
+      sharedLookupIndex = localIndex = 0;
     }
-    lookupIndex = i;
-    return keys[i];
+    return keys[localIndex];
   }
 
   static <T> T init(Supplier<T> supplier) {
@@ -301,44 +304,5 @@ public class UnsynchronizedMapBenchmark {
   @Benchmark
   public TagMap clone_tagMap() {
     return TAG_MAP.copy();
-  }
-
-  // StringIndex + a parallel value array used as a FIXED (build-once, read-only) map. The keys are
-  // known
-  // up front, so they go in a StringIndex and the values in a plain array indexed by the slot that
-  // Support.indexOf returns. There is no node, no Entry, and no per-lookup allocation -- a get is a
-  // hash probe (with an interned == fast path) plus one array load. Pull the Data into your own
-  // static finals (as below) so the hashes/names refs fold to constants -- same static-vs-instance
-  // win SetBenchmark and KeyOfBenchmark measure. The values live in a parallel int[] -- no boxing,
-  // the same primitive-value advantage TagMap.getInt has over a HashMap<String, Integer>, whose
-  // value type structurally forces the box. The trade-off: it cannot change after construction.
-  static final int[] STRING_INDEX_HASHES;
-  static final String[] STRING_INDEX_NAMES;
-  static final int[] STRING_INDEX_VALUES;
-
-  static {
-    StringIndex.Data data = StringIndex.Support.create(INSERTION_KEYS);
-    int[] values = new int[data.names.length];
-    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
-      values[StringIndex.Support.indexOf(data.hashes, data.names, INSERTION_KEYS[i])] = i;
-    }
-    STRING_INDEX_HASHES = data.hashes;
-    STRING_INDEX_NAMES = data.names;
-    STRING_INDEX_VALUES = values;
-  }
-
-  @Benchmark
-  public int get_stringIndexMap() {
-    int slot =
-        StringIndex.Support.indexOf(STRING_INDEX_HASHES, STRING_INDEX_NAMES, nextLookupKey());
-    return slot < 0 ? -1 : STRING_INDEX_VALUES[slot];
-  }
-
-  @Benchmark
-  public int get_stringIndexMap_sameKey() {
-    int slot =
-        StringIndex.Support.indexOf(
-            STRING_INDEX_HASHES, STRING_INDEX_NAMES, nextLookupKey(INSERTION_KEYS));
-    return slot < 0 ? -1 : STRING_INDEX_VALUES[slot];
   }
 }
