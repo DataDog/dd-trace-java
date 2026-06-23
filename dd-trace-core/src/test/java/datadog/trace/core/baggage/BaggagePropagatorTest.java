@@ -15,6 +15,7 @@ import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import javax.annotation.ParametersAreNonnullByDefault;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -28,6 +29,7 @@ class BaggagePropagatorTest extends DDJavaSpecification {
   private Map<String, String> carrier;
   private Context context;
 
+  @ParametersAreNonnullByDefault
   static class MapCarrierAccessor
       implements CarrierSetter<Map<String, String>>, CarrierVisitor<Map<String, String>> {
     @Override
@@ -78,7 +80,7 @@ class BaggagePropagatorTest extends DDJavaSpecification {
     "third entry dropped | [key1: val1, key2: val2, key3: val3] | 'key1=val1,key2=val2'"
   })
   void testBaggageInjectItemLimit(Map<String, String> baggage, String baggageHeader) {
-    // creating a new instance after injecting config
+    // Creating propagator with test item limit
     propagator = new BaggagePropagator(true, true, 2, DEFAULT_TRACE_BAGGAGE_MAX_BYTES);
     context = Baggage.create(baggage).storeInto(context);
 
@@ -94,7 +96,7 @@ class BaggagePropagatorTest extends DDJavaSpecification {
     "single entry exceeds bytes once encoded | [abcdefg: 'hijklmnopq♥']            | ''                    "
   })
   void testBaggageInjectBytesLimit(Map<String, String> baggage, String baggageHeader) {
-    // creating a new instance after injecting config
+    // Creating propagator with test bytes limit
     propagator = new BaggagePropagator(true, true, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS, 20);
     context = Baggage.create(baggage).storeInto(context);
 
@@ -113,7 +115,9 @@ class BaggagePropagatorTest extends DDJavaSpecification {
 
     context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap());
 
-    assertEquals(baggageMap, Baggage.fromContext(context).asMap());
+    Baggage baggage = Baggage.fromContext(context);
+    assertNotNull(baggage);
+    assertEquals(baggageMap, baggage.asMap());
   }
 
   @Test
@@ -123,7 +127,7 @@ class BaggagePropagatorTest extends DDJavaSpecification {
     context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap());
     Baggage baggage = Baggage.fromContext(context);
 
-    // non ASCII values data are still accessible as part of the API
+    // non-ASCII values data are still accessible as part of the API
     assertNotNull(baggage);
     assertEquals("vallée", baggage.asMap().get("key1"));
     assertEquals("value", baggage.asMap().get("clé2"));
@@ -163,8 +167,9 @@ class BaggagePropagatorTest extends DDJavaSpecification {
 
     context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap());
 
-    Baggage baggageContext = Baggage.fromContext(context);
-    assertEquals(cachedString, baggageContext.getW3cHeader());
+    Baggage baggage = Baggage.fromContext(context);
+    assertNotNull(baggage);
+    assertEquals(cachedString, baggage.getW3cHeader());
   }
 
   @TableTest({
@@ -180,8 +185,9 @@ class BaggagePropagatorTest extends DDJavaSpecification {
 
     context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap());
 
-    Baggage baggageContext = Baggage.fromContext(context);
-    assertEquals(cachedString, baggageContext.getW3cHeader());
+    Baggage baggage = Baggage.fromContext(context);
+    assertNotNull(baggage);
+    assertEquals(cachedString, baggage.getW3cHeader());
   }
 
   @TableTest({
@@ -189,15 +195,16 @@ class BaggagePropagatorTest extends DDJavaSpecification {
     "limit not reached     | 'key1=val1,key2=val2'           | 'key1=val1,key2=val2'",
     "third entry truncates | 'key1=val1,key2=val2,key3=val3' | 'key1=val1,key2=val2'"
   })
-  void testBaggageCacheBytesLimit(String scenario, String baggageHeader, String cachedString) {
-    // creating a new instance after injecting config
+  void testBaggageCacheBytesLimit(String baggageHeader, String cachedString) {
+    // Creating propagator with test bytes limit
     propagator = new BaggagePropagator(true, true, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS, 20);
     Map<String, String> headers = singletonMap(BAGGAGE_KEY, baggageHeader);
 
     context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap());
 
-    Baggage baggageContext = Baggage.fromContext(context);
-    assertEquals(cachedString, baggageContext.getW3cHeader());
+    Baggage baggage = Baggage.fromContext(context);
+    assertNotNull(baggage);
+    assertEquals(cachedString, baggage.getW3cHeader());
   }
 
   @TableTest({
@@ -207,14 +214,16 @@ class BaggagePropagatorTest extends DDJavaSpecification {
     "third entry dropped | 'key1=val1,key2=val2,key3=val3' | [key1: val1, key2: val2]"
   })
   void testBaggageExtractItemsLimit(String baggageHeader, Map<String, String> baggageMap) {
-    // creating a new instance after injecting config
+    // Creating propagator with test item limit
     propagator = new BaggagePropagator(true, true, 2, DEFAULT_TRACE_BAGGAGE_MAX_BYTES);
     Map<String, String> headers = singletonMap(BAGGAGE_KEY, baggageHeader);
 
     context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap());
 
     // parsing stops once the item limit is exceeded
-    assertEquals(baggageMap, Baggage.fromContext(context).asMap());
+    Baggage baggage = Baggage.fromContext(context);
+    assertNotNull(baggage);
+    assertEquals(baggageMap, baggage.asMap());
   }
 
   @TableTest({
@@ -224,14 +233,16 @@ class BaggagePropagatorTest extends DDJavaSpecification {
     "third entry dropped | 'key1=val1,key2=val2,key3=val3' | [key1: val1, key2: val2]"
   })
   void testBaggageExtractBytesLimit(String baggageHeader, Map<String, String> baggageMap) {
-    // creating a new instance after injecting config
+    // Creating propagator with test bytes limit
     propagator = new BaggagePropagator(true, true, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS, 20);
     Map<String, String> headers = singletonMap(BAGGAGE_KEY, baggageHeader);
 
     context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap());
 
     // parsing stops once the byte limit is exceeded
-    assertEquals(baggageMap, Baggage.fromContext(context).asMap());
+    Baggage baggage = Baggage.fromContext(context);
+    assertNotNull(baggage);
+    assertEquals(baggageMap, baggage.asMap());
   }
 
   @Test

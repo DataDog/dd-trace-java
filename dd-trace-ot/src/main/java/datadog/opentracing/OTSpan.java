@@ -1,6 +1,7 @@
 package datadog.opentracing;
 
 import datadog.trace.api.interceptor.MutableSpan;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -246,6 +247,11 @@ class OTSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
 
   @Override
   public AgentSpan asAgentSpan() {
+    return delegate;
+  }
+
+  @VisibleForTesting
+  AgentSpan getDelegate() {
     return delegate;
   }
 }

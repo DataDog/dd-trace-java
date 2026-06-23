@@ -1,9 +1,10 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:agent-jmxfetch:dependencies --write-locks
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
 ch.qos.logback:logback-core:1.2.13=testCompileClasspath,testRuntimeClasspath
-com.datadoghq:dd-instrument-java:0.0.3=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+com.datadoghq:dd-instrument-java:0.0.4=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.datadoghq:dd-javac-plugin-client:0.2.2=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.datadoghq:java-dogstatsd-client:2.10.5=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.datadoghq:jmxfetch:0.52.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
