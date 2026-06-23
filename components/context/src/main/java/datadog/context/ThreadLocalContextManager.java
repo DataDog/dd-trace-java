@@ -30,8 +30,8 @@ final class ThreadLocalContextManager implements ContextManager {
   ContextScope doAttach(Context context, @Nullable ContextContinuationImpl continuation) {
     ContextHolder holder = CONTEXT_HOLDER.get();
 
-    Context previous = holder.current;
-    if (context == previous) {
+    Context beforeAttach = holder.current;
+    if (context == beforeAttach) {
       if (continuation != null) {
         // already attached, safe to release early to avoid resource leak
         continuation.releaseOnScopeClose();
@@ -41,14 +41,14 @@ final class ThreadLocalContextManager implements ContextManager {
     }
 
     ContextListener[] ls = listeners;
-    notifyDetach(previous, ls);
+    notifyDetach(beforeAttach, ls);
     holder.current = context;
     notifyAttach(context, ls);
 
     if (continuation == null) {
-      return new ContextScopeImpl(context, holder, previous);
+      return new ContextScopeImpl(context, holder, beforeAttach);
     } else {
-      return new ResumedScopeImpl(context, holder, previous, continuation);
+      return new ResumedScopeImpl(context, holder, beforeAttach, continuation);
     }
   }
 
@@ -56,17 +56,17 @@ final class ThreadLocalContextManager implements ContextManager {
   public Context swap(Context context) {
     ContextHolder holder = CONTEXT_HOLDER.get();
 
-    Context previous = holder.current;
-    if (context == previous) {
-      return previous;
+    Context beforeSwap = holder.current;
+    if (context == beforeSwap) {
+      return beforeSwap;
     }
 
     ContextListener[] ls = listeners;
-    notifyDetach(previous, ls);
+    notifyDetach(beforeSwap, ls);
     holder.current = context;
     notifyAttach(context, ls);
 
-    return previous;
+    return beforeSwap;
   }
 
   @Override
@@ -147,14 +147,14 @@ final class ThreadLocalContextManager implements ContextManager {
 
     private final Context context;
     private final ContextHolder holder;
-    private final Context previous;
+    private final Context beforeAttach;
 
     private boolean closed;
 
-    ContextScopeImpl(Context context, ContextHolder holder, Context previous) {
+    ContextScopeImpl(Context context, ContextHolder holder, Context beforeAttach) {
       this.context = context;
       this.holder = holder;
-      this.previous = previous;
+      this.beforeAttach = beforeAttach;
     }
 
     @Override
@@ -168,8 +168,8 @@ final class ThreadLocalContextManager implements ContextManager {
       if (!closed && context == holder.current) {
         ContextListener[] ls = INSTANCE.listeners;
         notifyDetach(context, ls);
-        holder.current = previous;
-        notifyAttach(previous, ls);
+        holder.current = beforeAttach;
+        notifyAttach(beforeAttach, ls);
         closed = true;
       }
     }
@@ -181,9 +181,9 @@ final class ThreadLocalContextManager implements ContextManager {
     ResumedScopeImpl(
         Context context,
         ContextHolder holder,
-        Context previous,
+        Context beforeAttach,
         @Nullable ContextContinuationImpl continuation) {
-      super(context, holder, previous);
+      super(context, holder, beforeAttach);
       this.continuation = continuation;
     }
 
