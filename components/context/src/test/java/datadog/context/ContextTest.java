@@ -60,8 +60,10 @@ class ContextTest {
     // Test null value handling
     assertDoesNotThrow(
         () -> context.with(BOOLEAN_KEY, null), "Null value should not throw exception");
-    // Test null implicitly keyed value handling
-    assertDoesNotThrow(() -> context.with(null), "Null implicitly keyed value not throw exception");
+    // Test null implicitly keyed value handling - should preserve existing context, not discard it
+    Context withNull = context1.with((ImplicitContextKeyed) null);
+    assertEquals(
+        context1, withNull, "Null implicitly keyed value should preserve existing context");
   }
 
   @ParameterizedTest

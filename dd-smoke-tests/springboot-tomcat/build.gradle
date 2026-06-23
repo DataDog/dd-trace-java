@@ -35,7 +35,7 @@ configurations {
 }
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'bootWar'
     artifactPath = 'libs/springboot-tomcat-smoketest.war'
     sysProperty = 'datadog.smoketest.springboot.war.path'

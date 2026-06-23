@@ -68,6 +68,8 @@ jobs:
             --artifact-id maven-surefire-plugin \
             --prerelease-pattern alpha \
             --prerelease-pattern beta \
+            --prerelease-pattern rc \
+            --prerelease-pattern '-m\d' \
             --min-age-hours "${MIN_DEPENDENCY_AGE_HOURS}" \
             --current-version "${{ steps.current.outputs.surefire_version }}" \
             --github-output "$GITHUB_OUTPUT"

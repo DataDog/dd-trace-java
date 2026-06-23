@@ -1,5 +1,7 @@
 package datadog.buildlogic.smoketest
 
+import datadog.buildlogic.smoketest.NestedGradleBuild.Companion.gradleExecutableName
+import datadog.buildlogic.smoketest.NestedMavenBuild.Companion.mavenWrapperName
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -26,13 +28,14 @@ class SmokeTestAppPluginTest {
   }
 
   @Test
-  fun `plugin is a no-op when smokeTestApp_application is never called`() {
+  fun `plugin is a no-op when no smokeTestApp application is configured`() {
     val project = ProjectBuilder.builder().build()
 
     project.plugins.apply("dd-trace-java.smoke-test-app")
 
-    // No task of our type should be registered until `application { }` is invoked.
+    // No nested build task should be registered until `gradleApp { }` or `mavenApp { }` is invoked.
     assertThat(project.tasks.withType<NestedGradleBuild>()).isEmpty()
+    assertThat(project.tasks.withType<NestedMavenBuild>()).isEmpty()
   }
 
   @Test
@@ -68,7 +71,7 @@ class SmokeTestAppPluginTest {
   }
 
   @Test
-  fun `application block registers NestedGradleBuild task with configured inputs`() {
+  fun `gradleApp block registers NestedGradleBuild task with configured inputs`() {
     val project = ProjectBuilder.builder().build()
     project.apply<JavaPlugin>()
     project.plugins.apply("dd-trace-java.smoke-test-app")
@@ -76,7 +79,7 @@ class SmokeTestAppPluginTest {
     val extension = project.extensions.getByType<SmokeTestAppExtension>()
     extension.gradleVersion.set("8.14.5")
     extension.gradleDistributionBaseUrl.set("https://mass.example")
-    extension.application {
+    extension.gradleApp {
       taskName.set("packageApp")
       artifactPath.set("libs/test.jar")
       sysProperty.set("test.path")
@@ -98,6 +101,86 @@ class SmokeTestAppPluginTest {
     assertThat(task.buildArguments.get()).containsExactly("-Ddemo=true")
     assertThat(task.environment.get()).containsEntry("DEMO_ENV", "true")
     assertThat(task.buildCacheEnabled.get()).isTrue()
+    assertThat(task.stopTimeoutSeconds.isPresent).isFalse()
+  }
+
+  @Test
+  fun `mavenApp block registers NestedMavenBuild task with configured inputs`() {
+    val project = ProjectBuilder.builder().build()
+    val wrapperProperties = project.file(".mvn/wrapper/maven-wrapper.properties")
+    wrapperProperties.parentFile.mkdirs()
+    wrapperProperties.writeText("distributionUrl=https://repo.example/maven2/test.zip")
+    project.apply<JavaPlugin>()
+    project.plugins.apply("dd-trace-java.smoke-test-app")
+
+    val extension = project.extensions.getByType<SmokeTestAppExtension>()
+    extension.mavenApp {
+      taskName.set("packageApp")
+      artifactPath.set("target/test.jar")
+      sysProperty.set("test.path")
+      goals.set(listOf("verify"))
+      arguments.add("-Ddemo=true")
+      environment.put("DEMO_ENV", "true")
+      mavenOpts.set("-Xmx512M")
+      mavenExecutable.set(project.layout.projectDirectory.file("mvnw"))
+      mavenRepositoryProxy.set("https://repo.example")
+      useMavenLocalRepository.set(true)
+      mavenLocalRepository.set(project.layout.projectDirectory.dir("m2"))
+    }
+
+    val task = project.tasks.getByName("packageApp") as NestedMavenBuild
+
+    assertThat(task.applicationDir.get().asFile)
+      .isEqualTo(project.layout.projectDirectory.dir("application").asFile)
+    assertThat(task.applicationBuildDir.get().asFile)
+      .isEqualTo(project.layout.buildDirectory.dir("application").get().asFile)
+    assertThat(task.goals.get()).containsExactly("verify")
+    assertThat(task.arguments.get()).containsExactly("-Ddemo=true")
+    assertThat(task.environment.get()).containsEntry("DEMO_ENV", "true")
+    assertThat(task.mavenOpts.get()).isEqualTo("-Xmx512M")
+    assertThat(task.mavenExecutable.get().asFile)
+      .isEqualTo(project.layout.projectDirectory.file("mvnw").asFile)
+    assertThat(task.mavenWrapperFiles.files).containsExactly(wrapperProperties)
+    assertThat(task.mavenRepositoryProxy.get()).isEqualTo("https://repo.example")
+    assertThat(task.useMavenLocalRepository.get()).isTrue()
+    assertThat(task.mavenLocalRepository.get().asFile)
+      .isEqualTo(project.layout.projectDirectory.dir("m2").asFile)
+    assertThat(task.buildTimeoutSeconds.isPresent).isFalse()
+  }
+
+  @Test
+  fun `nested build timeouts can be overridden`() {
+    val project = ProjectBuilder.builder().build()
+    project.apply<JavaPlugin>()
+    project.plugins.apply("dd-trace-java.smoke-test-app")
+
+    val extension = project.extensions.getByType<SmokeTestAppExtension>()
+    extension.gradleApp {
+      taskName.set("packageGradleApp")
+      artifactPath.set("libs/test.jar")
+      sysProperty.set("test.gradle.path")
+      stopTimeoutSeconds.set(45L)
+    }
+    extension.mavenApp {
+      taskName.set("packageMavenApp")
+      artifactPath.set("target/test.jar")
+      sysProperty.set("test.maven.path")
+      buildTimeoutSeconds.set(60L)
+    }
+
+    val gradleTask = project.tasks.getByName("packageGradleApp") as NestedGradleBuild
+    val mavenTask = project.tasks.getByName("packageMavenApp") as NestedMavenBuild
+
+    assertThat(gradleTask.stopTimeoutSeconds.get()).isEqualTo(45L)
+    assertThat(mavenTask.buildTimeoutSeconds.get()).isEqualTo(60L)
+  }
+
+  @Test
+  fun `wrapper executable names follow the host operating system`() {
+    assertThat(mavenWrapperName("Windows 11")).isEqualTo("mvnw.cmd")
+    assertThat(mavenWrapperName("Mac OS X")).isEqualTo("mvnw")
+    assertThat(gradleExecutableName("Windows Server 2022")).isEqualTo("gradle.bat")
+    assertThat(gradleExecutableName("Linux")).isEqualTo("gradle")
   }
 
   @Test

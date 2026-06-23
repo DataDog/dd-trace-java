@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:benchmark-integration:play-perftest:dependencies --write-locks
 aopalliance:aopalliance:1.0=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 args4j:args4j:2.0.26=javaScriptCompiler
 cglib:cglib-nodep:3.2.4=testCompileClasspath,testRuntimeClasspath
