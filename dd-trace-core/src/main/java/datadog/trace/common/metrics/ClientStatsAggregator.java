@@ -4,6 +4,7 @@ import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS
 import static datadog.trace.api.DDSpanTypes.RPC;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static datadog.trace.common.metrics.AggregateEntry.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateEntry.TOP_LEVEL_TAG;
 import static datadog.trace.common.metrics.SignalItem.ClearSignal.CLEAR;
@@ -73,6 +74,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
   private final boolean includeEndpointInMetrics;
+  private final boolean otlpStatsExportEnabled;
 
   /**
    * Cached peer-aggregation schema read by producer threads.
@@ -136,7 +138,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         config.getTracerMetricsMaxPending(),
         config.getTraceStatsInterval(),
         MILLISECONDS,
-        config.isTraceResourceRenamingEnabled());
+        true);
   }
 
   ClientStatsAggregator(
@@ -198,6 +200,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
     this.includeEndpointInMetrics = includeEndpointInMetrics;
+    this.otlpStatsExportEnabled = metricWriter instanceof OtlpStatsMetricWriter;
     this.inbox = Queues.mpscArrayQueue(queueSize);
     this.features = features;
     this.healthMetrics = healthMetric;
@@ -231,11 +234,19 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     log.debug("started metrics aggregator");
   }
 
+  private boolean statsExportEnabled() {
+    return otlpStatsExportEnabled || features.supportsMetrics();
+  }
+
   private boolean isMetricsEnabled() {
-    if (features.getMetricsEndpoint() == null) {
+    // The discovery refresh only helps the native path, which is gated on the agent advertising
+    // v0.6/stats. The OTLP path uses its own sender and never depends on that capability -- even
+    // when a Datadog Agent is present (the OTLP endpoint may itself be the agent's OTLP receiver),
+    // so refreshing agent features here would be pointless for it.
+    if (!otlpStatsExportEnabled && features.getMetricsEndpoint() == null) {
       features.discoverIfOutdated();
     }
-    return features.supportsMetrics();
+    return statsExportEnabled();
   }
 
   @Override
@@ -291,7 +302,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   public boolean publish(List<? extends CoreSpan<?>> trace) {
     boolean forceKeep = false;
     int counted = 0;
-    if (features.supportsMetrics()) {
+    if (statsExportEnabled()) {
       // Producer-side fast path: one volatile read and use whatever schema is currently cached.
       // The aggregator thread keeps this schema in sync with feature discovery in
       // resetCardinalityHandlers(). The only producer-side rebuild is the one-time bootstrap on
@@ -340,6 +351,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       Object httpMethodObj = span.unsafeGetTag(HTTP_METHOD);
       httpMethod = httpMethodObj != null ? httpMethodObj.toString() : null;
       Object httpEndpointObj = span.unsafeGetTag(HTTP_ENDPOINT);
+      httpEndpointObj = httpEndpointObj != null ? httpEndpointObj : span.unsafeGetTag(HTTP_ROUTE);
       httpEndpoint = httpEndpointObj != null ? httpEndpointObj.toString() : null;
     }
 

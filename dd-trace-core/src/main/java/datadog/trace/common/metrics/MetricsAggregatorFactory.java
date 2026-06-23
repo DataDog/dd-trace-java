@@ -17,6 +17,12 @@ public class MetricsAggregatorFactory {
     // the same ClientStatsAggregator span selection + DDSketch aggregation, differing only in
     // the injected MetricWriter.
     if (config.isTracesSpanMetricsEnabled()) {
+      if (config.isTracerMetricsEnabled()) {
+        log.warn(
+            "Both OTLP trace span metrics and native tracer metrics are enabled; "
+                + "using OTLP export and ignoring native tracer metrics (the two are mutually "
+                + "exclusive).");
+      }
       log.debug("OTLP trace span metrics enabled");
       return new ClientStatsAggregator(
           config, sharedCommunicationObjects, healthMetrics, new OtlpStatsMetricWriter(config));

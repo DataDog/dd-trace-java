@@ -7,6 +7,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.ddagent.DroppingPolicy;
 import datadog.metrics.api.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProtocolVersion;
@@ -48,6 +49,7 @@ public class DDAgentWriter extends RemoteWriter {
     private DDAgentApi agentApi;
     private Prioritization prioritization;
     private DDAgentFeaturesDiscovery featureDiscovery;
+    private DroppingPolicy droppingPolicy;
     private SingleSpanSampler singleSpanSampler;
 
     public DDAgentWriterBuilder agentApi(DDAgentApi agentApi) {
@@ -125,6 +127,11 @@ public class DDAgentWriter extends RemoteWriter {
       return this;
     }
 
+    public DDAgentWriterBuilder droppingPolicy(DroppingPolicy droppingPolicy) {
+      this.droppingPolicy = droppingPolicy;
+      return this;
+    }
+
     public DDAgentWriterBuilder flushTimeout(int flushTimeout, TimeUnit flushTimeoutUnit) {
       this.flushTimeout = flushTimeout;
       this.flushTimeoutUnit = flushTimeoutUnit;
@@ -170,7 +177,10 @@ public class DDAgentWriter extends RemoteWriter {
               traceBufferSize,
               healthMetrics,
               dispatcher,
-              featureDiscovery,
+              droppingPolicy != null
+                  ? droppingPolicy
+                  : featureDiscovery, // custom dropping policy for OTLP but backup to feature
+              // discovery
               null == prioritization ? FAST_LANE : prioritization,
               flushIntervalMilliseconds,
               TimeUnit.MILLISECONDS,
