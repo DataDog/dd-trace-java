@@ -201,6 +201,11 @@ public final class ConcurrentHashtable {
    *
    * Locking on the {@code AtomicReferenceArray} itself is also valid but no cleaner — pick
    * whichever lock object is most natural for the owning class.
+   *
+   * <p>One advantage of using {@code Support} directly over {@link D1}/{@link D2} is that the
+   * caller controls the lock object, enabling lock striping: shard the lock by bucket index or key
+   * hash to reduce write-path contention if profiling shows the single table-level lock is a
+   * bottleneck.
    */
   public static final class Support {
     private Support() {}
