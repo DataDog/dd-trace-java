@@ -47,6 +47,39 @@ import org.openjdk.jmh.annotations.Warmup;
  *   <li>{@link Collections#synchronizedMap} wrapping {@link HashMap} — global lock on every
  *       operation; allocates {@link Key2} per lookup. Establishes the coarse-locking baseline.
  * </ul>
+ *
+ * <p>Java 17 results ({@code @Fork(2)}, {@code @Threads(8)}, 64 pre-populated keys):
+ *
+ * <pre>{@code
+ * Benchmark                              Score   Units
+ * get_concurrentHashtable                1452   ops/us  (tied fastest)
+ * get_support                            1450   ops/us  (primitive int K2)
+ * get_concurrentHashMap                   777   ops/us  (allocates Key2 wrapper)
+ * get_concurrentSkipListMap               146   ops/us
+ * get_synchronizedHashMap                  27   ops/us
+ *
+ * getOrCreate_support                    1379   ops/us  (fastest)
+ * getOrCreate_concurrentHashtable        1119   ops/us
+ * getOrCreate_concurrentHashMap           769   ops/us
+ * getOrCreate_concurrentSkipListMap       151   ops/us
+ * getOrCreate_synchronizedHashMap          28   ops/us
+ * }</pre>
+ *
+ * <p>Key findings:
+ *
+ * <ul>
+ *   <li>{@code ConcurrentHashtable} and {@code Support} are neck-and-neck on {@code get} (1452 vs
+ *       1450 ops/us); both avoid the {@link Key2} wrapper allocation that {@code ConcurrentHashMap}
+ *       requires on every lookup.
+ *   <li>{@code ConcurrentHashMap} is ~2× slower than {@code ConcurrentHashtable} on {@code get}
+ *       (777 vs 1452 ops/us) — the {@link Key2} allocation plus two-level hash lookup adds up.
+ *   <li>{@code Support} shows slightly higher {@code getOrCreate} throughput than {@code D2} (1379
+ *       vs 1119 ops/us) because its primitive {@code int} K2 field avoids boxing inside the entry
+ *       match on the write-path re-check.
+ *   <li>{@code ConcurrentSkipListMap} is ~5× slower than {@code ConcurrentHashMap} due to tree
+ *       traversal; the two-traversal {@code getOrCreate} pattern adds further overhead on misses.
+ *   <li>Synchronized {@code HashMap} is ~50× slower than {@code ConcurrentHashtable}.
+ * </ul>
  */
 @Fork(2)
 @Warmup(iterations = 2)
