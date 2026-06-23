@@ -35,10 +35,9 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>Iterator traversal with TagMap is relatively slow, but TagMap#forEach is on par (and slightly)
  * faster than traditional map entry iteration.
  *
- * <p>HashMap & LinkedHashMap perform equally well on get operations.
- *
- * <p>HashMap is 2x faster throughput-wise to create and has less memory overhead because there's no
- * linked list to capture insertion order.
+ * <p>HashMap & LinkedHashMap perform equally well on get and iterate operations — the cost of
+ * LinkedHashMap is paid entirely at construction (~40% slower) and in memory (doubly-linked list
+ * overhead per entry). Do not use LinkedHashMap unless insertion-order iteration is required.
  *
  * <p>TreeMap is useful when a custom Comparator is needed -- see CaseInsensitiveMapBenchmark
  *
