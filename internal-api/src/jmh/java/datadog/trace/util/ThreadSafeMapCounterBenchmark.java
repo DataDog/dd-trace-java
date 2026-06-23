@@ -46,7 +46,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(MICROSECONDS)
 @Threads(8)
-public class ThreadSafeCounterBenchmark {
+public class ThreadSafeMapCounterBenchmark {
 
   static final int N_KEYS = 64;
   static final int CAPACITY = 128;
