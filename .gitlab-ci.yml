@@ -1108,6 +1108,8 @@ test_smoke_graalvm:
   tags: [ "arch:amd64" ]
   variables:
     <<: *tier_l_variables
+    # Caps native-image to 6 build threads.
+    KUBERNETES_CPU_REQUEST: 6
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
@@ -1121,6 +1123,8 @@ test_smoke_graalvm_arm64:
   tags: [ "arch:arm64" ]
   variables:
     <<: *tier_l_variables
+    # Caps native-image to 6 build threads.
+    KUBERNETES_CPU_REQUEST: 6
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
