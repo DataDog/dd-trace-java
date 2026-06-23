@@ -51,7 +51,6 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-bootstrap')
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
   testImplementation(libs.bytebuddy)
-  testImplementation(libs.guava)
 
   testImplementation(libs.groovy.yaml)
 
