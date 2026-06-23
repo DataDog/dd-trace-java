@@ -10156,7 +10156,7 @@
     "DD_TRACE_SPARKJAVA_ANALYTICS_SAMPLE_RATE": [
       {
         "version": "A",
-        "type": "double",
+        "type": "decimal",
         "default": "1.0",
         "aliases": ["DD_SPARKJAVA_ANALYTICS_SAMPLE_RATE"]
       }
