@@ -138,6 +138,7 @@ import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_JSON
 import static datadog.trace.api.config.OtlpConfig.Temporality.CUMULATIVE
 import static datadog.trace.api.config.OtlpConfig.Temporality.DELTA
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT
@@ -722,10 +723,13 @@ class ConfigTest extends DDSpecification {
     config.otlpTracesEndpoint == "http://localhost:4318/v1/traces"
   }
 
-  def "traces span metrics tri-state default: exporter=#exporter metricsOtel=#metricsOtel override=#override"() {
+  def "traces span metrics tri-state default: exporter=#exporter metricsExporter=#metricsExporter override=#override"() {
     setup:
     System.setProperty(PREFIX + TRACE_OTEL_EXPORTER, exporter)
-    System.setProperty(PREFIX + METRICS_OTEL_ENABLED, metricsOtel)
+    System.setProperty(PREFIX + METRICS_OTEL_ENABLED, "true")
+    if (metricsExporter != null) {
+      System.setProperty(PREFIX + METRICS_OTEL_EXPORTER, metricsExporter)
+    }
     if (override != null) {
       System.setProperty(PREFIX + TRACES_SPAN_METRICS_ENABLED, override)
     }
@@ -734,18 +738,19 @@ class ConfigTest extends DDSpecification {
     Config config = new Config()
 
     then:
-    // Unset: emit iff OTLP trace export and OTel metrics export are both on. An explicit
+    // Unset: emit iff OTLP trace export and OTLP metrics export are both on. An explicit
     // dd.traces.span.metrics.enabled always wins.
     config.tracesSpanMetricsEnabled == expected
 
     where:
-    exporter | metricsOtel | override | expected
-    "otlp"   | "true"      | null     | true
-    "otlp"   | "false"     | null     | false
-    "none"   | "true"      | null     | false
-    "none"   | "false"     | null     | false
-    "none"   | "false"     | "true"   | true
-    "otlp"   | "true"      | "false"  | false
+    exporter | metricsExporter | override | expected
+    "otlp"   | null            | null     | true   // metrics defaults to otlp
+    "otlp"   | "otlp"         | null     | true
+    "otlp"   | "none"         | null     | false  // metrics exporter explicitly disabled
+    "none"   | null            | null     | false
+    "none"   | "otlp"         | null     | false
+    "none"   | "none"         | "true"   | true   // explicit override wins
+    "otlp"   | "otlp"         | "false"  | false  // explicit override wins
   }
 
   def "specify overrides via system properties"() {

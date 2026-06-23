@@ -2131,10 +2131,11 @@ public class Config {
 
     traceOtelSemanticsEnabled = configProvider.getBoolean(TRACE_OTEL_SEMANTICS_ENABLED, false);
     // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
-    // export and OTel metrics export are both enabled.
+    // export and OTLP metrics export are both enabled.
     tracesSpanMetricsEnabled =
         configProvider.getBoolean(
-            TRACES_SPAN_METRICS_ENABLED, isTraceOtlpExporterEnabled() && isMetricsOtelEnabled());
+            TRACES_SPAN_METRICS_ENABLED,
+            isTraceOtlpExporterEnabled() && isMetricsOtlpExporterEnabled());
 
     otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
     if (otlpTimeout < 0) {
