@@ -65,33 +65,33 @@ import org.openjdk.jmh.infra.Blackhole;
  * UnsynchronizedMapBenchmark.get_tagMap_sameKey    thrpt    6  256311645.716 ± 13315886.308  ops/s
  * UnsynchronizedMapBenchmark.get_treeMap           thrpt    6   94606404.423 ±   806879.890  ops/s
  * </code> <code>
- * MacBook M1 with 8 threads (Java 21)
+ * MacBook M1 with 8 threads (Java 17)
  *
  * Benchmark                                             Mode  Cnt           Score           Error  Units
- * UnsynchronizedMapBenchmark.clone_hashMap             thrpt    6    89645484.526 ±   6546683.185  ops/s
- * UnsynchronizedMapBenchmark.clone_linkedHashMap       thrpt    6    78233577.417 ±   7204526.742  ops/s
- * UnsynchronizedMapBenchmark.clone_tagMap              thrpt    6   315228772.058 ±  20689692.104  ops/s
- * UnsynchronizedMapBenchmark.clone_treeMap             thrpt    6   102416350.341 ±   7258040.561  ops/s
+ * UnsynchronizedMapBenchmark.clone_hashMap             thrpt    6    64114261.922 ±   2714625.721  ops/s
+ * UnsynchronizedMapBenchmark.clone_linkedHashMap       thrpt    6    58377772.312 ±   1886458.903  ops/s
+ * UnsynchronizedMapBenchmark.clone_tagMap              thrpt    6   294689216.889 ±   2109031.601  ops/s
+ * UnsynchronizedMapBenchmark.clone_treeMap             thrpt    6    95734227.366 ±   4991257.908  ops/s
  *
- * UnsynchronizedMapBenchmark.create_hashMap            thrpt    6   150462966.692 ±  11243713.572  ops/s
- * UnsynchronizedMapBenchmark.create_hashMap_sized      thrpt    6   111213025.138 ±   4593366.916  ops/s
- * UnsynchronizedMapBenchmark.create_linkedHashMap      thrpt    6    80882399.133 ±  19567359.487  ops/s
- * UnsynchronizedMapBenchmark.create_tagMap             thrpt    6    93026443.634 ±  11831456.794  ops/s
- * UnsynchronizedMapBenchmark.create_tagMap_via_ledger  thrpt    6    70769351.353 ±   3821543.185  ops/s
- * UnsynchronizedMapBenchmark.create_treeMap            thrpt    6    32737595.187 ±   2638992.844  ops/s
+ * UnsynchronizedMapBenchmark.create_hashMap            thrpt    6   138186878.397 ±   8061849.083  ops/s
+ * UnsynchronizedMapBenchmark.create_hashMap_sized      thrpt    6   134663715.019 ±   3647180.727  ops/s
+ * UnsynchronizedMapBenchmark.create_linkedHashMap      thrpt    6   100174160.624 ±  15100786.744  ops/s
+ * UnsynchronizedMapBenchmark.create_tagMap             thrpt    6   100393577.047 ±  31239670.187  ops/s
+ * UnsynchronizedMapBenchmark.create_tagMap_via_ledger  thrpt    6    66617980.502 ±   7150404.185  ops/s
+ * UnsynchronizedMapBenchmark.create_treeMap            thrpt    6    35675941.185 ±   1336913.277  ops/s
  *
- * UnsynchronizedMapBenchmark.get_hashMap               thrpt    6  1154522356.093 ± 116525174.735  ops/s
- * UnsynchronizedMapBenchmark.get_hashMap_sameKey       thrpt    6  1760800709.734 ±  33551896.166  ops/s
- * UnsynchronizedMapBenchmark.get_linkedHashMap         thrpt    6  1191208257.933 ±  49810465.132  ops/s
- * UnsynchronizedMapBenchmark.get_tagMap                thrpt    6   933455574.646 ± 154146815.295  ops/s
- * UnsynchronizedMapBenchmark.get_tagMap_sameKey        thrpt    6  1138764608.359 ±  88352911.617  ops/s
- * UnsynchronizedMapBenchmark.get_treeMap               thrpt    6   490872723.682 ±  87017311.892  ops/s
+ * UnsynchronizedMapBenchmark.get_hashMap               thrpt    6  1188970326.797 ±  12769138.695  ops/s
+ * UnsynchronizedMapBenchmark.get_hashMap_sameKey       thrpt    6  1775131917.376 ±  36253403.407  ops/s
+ * UnsynchronizedMapBenchmark.get_linkedHashMap         thrpt    6  1116040635.574 ± 171675606.827  ops/s
+ * UnsynchronizedMapBenchmark.get_tagMap                thrpt    6  1096185164.767 ±  86073700.284  ops/s
+ * UnsynchronizedMapBenchmark.get_tagMap_sameKey        thrpt    6  1421384314.806 ±  41585905.864  ops/s
+ * UnsynchronizedMapBenchmark.get_treeMap               thrpt    6   609161698.455 ±  52856650.957  ops/s
  *
- * UnsynchronizedMapBenchmark.iterate_hashMap           thrpt    6   351222668.708 ±  35242914.752  ops/s
- * UnsynchronizedMapBenchmark.iterate_linkedHashMap     thrpt    6   406635839.285 ±  55990655.235  ops/s
- * UnsynchronizedMapBenchmark.iterate_tagMap            thrpt    6   185264584.604 ±  15137886.028  ops/s
- * UnsynchronizedMapBenchmark.iterate_tagMap_forEach    thrpt    6   422407681.630 ±  19493455.109  ops/s
- * UnsynchronizedMapBenchmark.iterate_treeMap           thrpt    6   392884747.896 ±  80190674.417  ops/s
+ * UnsynchronizedMapBenchmark.iterate_hashMap           thrpt    6   105299838.607 ±   2351744.650  ops/s
+ * UnsynchronizedMapBenchmark.iterate_linkedHashMap     thrpt    6   128496701.159 ±   4733810.851  ops/s
+ * UnsynchronizedMapBenchmark.iterate_tagMap            thrpt    6    93444577.025 ±   3013254.073  ops/s
+ * UnsynchronizedMapBenchmark.iterate_tagMap_forEach    thrpt    6   147636746.282 ±  13994246.571  ops/s
+ * UnsynchronizedMapBenchmark.iterate_treeMap           thrpt    6   128732613.579 ±   4947877.215  ops/s
  * </code>
  */
 @Fork(2)
