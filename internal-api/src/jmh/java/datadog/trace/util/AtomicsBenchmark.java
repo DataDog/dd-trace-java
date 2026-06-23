@@ -32,7 +32,7 @@ import org.openjdk.jmh.annotations.Warmup;
  * the incrementAndGet gap with AtomicInteger while retaining the construction allocation advantage.
  * Not available here because internal-api targets Java 8.
  *
- * <code> Java 17 - MacBook M1 - 8 threads
+ * <code> Java 17 - MacBook M1 Pro Max - 8 threads
  * Benchmark                                                                Mode  Cnt           Score           Error   Units
  * AtomicsBenchmark.atomicFieldUpdater_construction                        thrpt    6  2215272588.708 ±  88556141.052   ops/s
  * AtomicsBenchmark.atomicFieldUpdater_construction:gc.alloc.rate.norm     thrpt    6          16.000 ±         0.001    B/op
