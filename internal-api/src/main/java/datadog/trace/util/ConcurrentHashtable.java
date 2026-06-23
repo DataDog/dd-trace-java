@@ -178,7 +178,30 @@ public final class ConcurrentHashtable {
     }
   }
 
-  /** Building blocks for concurrent hash-table operations, mirroring {@link Hashtable.Support}. */
+  /**
+   * Building blocks for concurrent hash-table operations, mirroring {@link Hashtable.Support}.
+   *
+   * <p>Use {@link D1} or {@link D2} when their object-key constraints are acceptable — they handle
+   * synchronization internally. Use {@code Support} directly only when you need primitive key
+   * components or other entry-level flexibility that {@code D1}/{@code D2} cannot provide.
+   *
+   * <p><b>Synchronization contract.</b> {@link #bucket} performs a volatile read of the bucket slot
+   * and is safe to call from any thread without a lock — this is the lock-free read path. Writes
+   * (inserting a new entry) are the caller's responsibility: use the same double-checked locking
+   * pattern that {@link D1} and {@link D2} use internally —
+   *
+   * <ol>
+   *   <li>Lock-free pre-check: walk the chain via {@link #bucket}; return if found.
+   *   <li>Acquire a lock on a stable object owned by the same class that owns the {@code buckets}
+   *       array (typically {@code synchronized (this)}).
+   *   <li>Re-check under the lock (another thread may have inserted between step 1 and step 2).
+   *   <li>Build the new entry, set its {@code next} via {@link Hashtable.Entry#setNext}, then write
+   *       it to the bucket with {@link AtomicReferenceArray#set} (volatile write).
+   * </ol>
+   *
+   * Locking on the {@code AtomicReferenceArray} itself is also valid but no cleaner — pick
+   * whichever lock object is most natural for the owning class.
+   */
   public static final class Support {
     private Support() {}
 
