@@ -485,8 +485,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   @Override
   public <C> void inject(final SpanContext spanContext, final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
-      final AgentSpanContext context = converter.toContext(spanContext);
-      AgentSpan span = fromSpanContext(context);
+      final AgentSpanContext convertedSpanContext = converter.toContext(spanContext);
+      AgentSpan span = fromSpanContext(convertedSpanContext);
       defaultPropagator().inject(span, (TextMap) carrier, TextMapSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
@@ -534,9 +534,9 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
 
   @Override
   public TraceSegment getTraceSegment() {
-    AgentSpanContext ctx = tracer.activeSpan().spanContext();
-    if (ctx instanceof DDSpanContext) {
-      return ((DDSpanContext) ctx).getTraceSegment();
+    AgentSpanContext spanContext = tracer.activeSpan().spanContext();
+    if (spanContext instanceof DDSpanContext) {
+      return ((DDSpanContext) spanContext).getTraceSegment();
     }
     return null;
   }
@@ -600,22 +600,22 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
 
     @Override
     public DDSpanBuilder addReference(
-        final String referenceType, final SpanContext referencedContext) {
-      if (referencedContext == null) {
+        final String referenceType, final SpanContext referencedSpanContext) {
+      if (referencedSpanContext == null) {
         return this;
       }
 
-      final AgentSpanContext context = converter.toContext(referencedContext);
-      if (!(context instanceof ExtractedContext) && !(context instanceof DDSpanContext)) {
+      final AgentSpanContext spanContext = converter.toContext(referencedSpanContext);
+      if (!(spanContext instanceof ExtractedContext) && !(spanContext instanceof DDSpanContext)) {
         log.debug(
             "Expected to have a DDSpanContext or ExtractedContext but got {}",
-            context.getClass().getName());
+            spanContext.getClass().getName());
         return this;
       }
 
       if (References.CHILD_OF.equals(referenceType)
           || References.FOLLOWS_FROM.equals(referenceType)) {
-        delegate.asChildOf(context);
+        delegate.asChildOf(spanContext);
       } else {
         log.debug("Only support reference type of CHILD_OF and FOLLOWS_FROM");
       }

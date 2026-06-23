@@ -118,14 +118,14 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
                 .withSpanType(expectedType)
                 .start();
 
-    DDSpanContext context = span.spanContext();
+    DDSpanContext spanContext = span.spanContext();
 
-    assertEquals(expectedResource, context.getResourceName());
-    assertTrue(context.getErrorFlag());
-    assertEquals(expectedService, context.getServiceName());
-    assertEquals(expectedType, context.getSpanType());
-    assertEquals(Thread.currentThread().getName(), context.getTag(THREAD_NAME));
-    assertEquals(Thread.currentThread().getId(), context.getTag(THREAD_ID));
+    assertEquals(expectedResource, spanContext.getResourceName());
+    assertTrue(spanContext.getErrorFlag());
+    assertEquals(expectedService, spanContext.getServiceName());
+    assertEquals(expectedType, spanContext.getSpanType());
+    assertEquals(Thread.currentThread().getName(), spanContext.getTag(THREAD_NAME));
+    assertEquals(Thread.currentThread().getId(), spanContext.getTag(THREAD_ID));
   }
 
   @TableTest({
@@ -196,9 +196,9 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
                 .asChildOf(mockedContext)
                 .start();
 
-    DDSpanContext actualContext = span.spanContext();
-    assertEquals(expectedParentId, actualContext.getParentId());
-    assertEquals(traceId, actualContext.getTraceId());
+    DDSpanContext actualSpanContext = span.spanContext();
+    assertEquals(expectedParentId, actualSpanContext.getParentId());
+    assertEquals(traceId, actualSpanContext.getTraceId());
   }
 
   @TableTest({
@@ -220,8 +220,8 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
       DDSpan span =
           (DDSpan) tracer.buildSpan("test", "fakeName").withServiceName(serviceName).start();
 
-      DDSpanContext actualContext = span.spanContext();
-      assertEquals(expectedParentId, actualContext.getParentId());
+      DDSpanContext actualSpanContext = span.spanContext();
+      assertEquals(expectedParentId, actualSpanContext.getParentId());
       assertEquals(expectTopLevel, span.isTopLevel());
     }
   }
