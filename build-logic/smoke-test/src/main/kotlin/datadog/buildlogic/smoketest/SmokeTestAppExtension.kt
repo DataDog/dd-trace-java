@@ -137,6 +137,7 @@ abstract class SmokeTestAppExtension @Inject constructor(
         buildArguments.set(spec.buildArguments)
         environment.set(spec.environment)
         buildCacheEnabled.set(spec.buildCacheEnabled)
+        spec.stopTimeoutSeconds.orNull?.let(stopTimeoutSeconds::set)
         projectJars.set(this@SmokeTestAppExtension.projectJars)
       }
 
@@ -177,6 +178,7 @@ abstract class SmokeTestAppExtension @Inject constructor(
         mavenRepositoryProxy.set(spec.mavenRepositoryProxy)
         useMavenLocalRepository.set(spec.useMavenLocalRepository)
         mavenLocalRepository.set(spec.mavenLocalRepository)
+        spec.buildTimeoutSeconds.orNull?.let(buildTimeoutSeconds::set)
       }
 
     wireTestTasks(taskProvider, artifactPath, sysProperty, spec.additionalSystemProperties)
@@ -348,6 +350,9 @@ abstract class GradleAppSpec @Inject constructor() : ApplicationSpec() {
    * `--build-cache` / `--no-build-cache` is passed explicitly either way.
    */
   abstract val buildCacheEnabled: Property<Boolean>
+
+  /** Timeout, in seconds, for stopping the nested Gradle daemon after the build. */
+  abstract val stopTimeoutSeconds: Property<Long>
 }
 
 /** DSL describing a nested Maven invocation for one smoke-test application. */
@@ -383,6 +388,9 @@ abstract class MavenAppSpec @Inject constructor() : ApplicationSpec() {
 
   /** Local repository path used when [useMavenLocalRepository] is enabled. */
   abstract val mavenLocalRepository: DirectoryProperty
+
+  /** Timeout, in seconds, for the nested Maven build process. */
+  abstract val buildTimeoutSeconds: Property<Long>
 }
 
 /**

@@ -102,6 +102,11 @@ abstract class NestedMavenBuild @Inject constructor(
   @get:Input
   abstract val useMavenLocalRepository: Property<Boolean>
 
+  /** Timeout, in seconds, for the nested Maven build process. */
+  @get:Input
+  @get:Optional
+  abstract val buildTimeoutSeconds: Property<Long>
+
   @get:Internal
   abstract val mavenLocalRepository: DirectoryProperty
 
@@ -133,10 +138,18 @@ abstract class NestedMavenBuild @Inject constructor(
       .start()
 
     try {
-      if (!process.waitFor(MAVEN_BUILD_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+      val timeoutSeconds = buildTimeoutSeconds.orNull
+      val completed =
+        if (timeoutSeconds == null) {
+          process.waitFor()
+          true
+        } else {
+          process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
+        }
+      if (!completed) {
         process.destroyForcibly()
         throw GradleException(
-          "Nested Maven build timed out after $MAVEN_BUILD_TIMEOUT_SECONDS seconds: " +
+          "Nested Maven build timed out after $timeoutSeconds seconds: " +
             command.joinToString(" "),
         )
       }
@@ -174,11 +187,9 @@ abstract class NestedMavenBuild @Inject constructor(
       mutableListOf("cmd", "/c", executable.absolutePath)
     } else {
       mutableListOf(executable.absolutePath)
-    }
+  }
 
   companion object {
-    val MAVEN_BUILD_TIMEOUT_SECONDS: Long = TimeUnit.MINUTES.toSeconds(30)
-
     internal fun mavenWrapperName(osName: String = System.getProperty("os.name")): String =
       if (isWindows(osName)) {
         "mvnw.cmd"

@@ -101,6 +101,7 @@ class SmokeTestAppPluginTest {
     assertThat(task.buildArguments.get()).containsExactly("-Ddemo=true")
     assertThat(task.environment.get()).containsEntry("DEMO_ENV", "true")
     assertThat(task.buildCacheEnabled.get()).isTrue()
+    assertThat(task.stopTimeoutSeconds.isPresent).isFalse()
   }
 
   @Test
@@ -144,6 +145,34 @@ class SmokeTestAppPluginTest {
     assertThat(task.useMavenLocalRepository.get()).isTrue()
     assertThat(task.mavenLocalRepository.get().asFile)
       .isEqualTo(project.layout.projectDirectory.dir("m2").asFile)
+    assertThat(task.buildTimeoutSeconds.isPresent).isFalse()
+  }
+
+  @Test
+  fun `nested build timeouts can be overridden`() {
+    val project = ProjectBuilder.builder().build()
+    project.apply<JavaPlugin>()
+    project.plugins.apply("dd-trace-java.smoke-test-app")
+
+    val extension = project.extensions.getByType<SmokeTestAppExtension>()
+    extension.gradleApp {
+      taskName.set("packageGradleApp")
+      artifactPath.set("libs/test.jar")
+      sysProperty.set("test.gradle.path")
+      stopTimeoutSeconds.set(45L)
+    }
+    extension.mavenApp {
+      taskName.set("packageMavenApp")
+      artifactPath.set("target/test.jar")
+      sysProperty.set("test.maven.path")
+      buildTimeoutSeconds.set(60L)
+    }
+
+    val gradleTask = project.tasks.getByName("packageGradleApp") as NestedGradleBuild
+    val mavenTask = project.tasks.getByName("packageMavenApp") as NestedMavenBuild
+
+    assertThat(gradleTask.stopTimeoutSeconds.get()).isEqualTo(45L)
+    assertThat(mavenTask.buildTimeoutSeconds.get()).isEqualTo(60L)
   }
 
   @Test

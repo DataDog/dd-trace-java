@@ -113,6 +113,11 @@ abstract class NestedGradleBuild @Inject constructor(
   @get:Input
   abstract val buildCacheEnabled: Property<Boolean>
 
+  /** Timeout, in seconds, for stopping the nested Gradle daemon after the build. */
+  @get:Input
+  @get:Optional
+  abstract val stopTimeoutSeconds: Property<Long>
+
   /**
    * Extra environment variables for the nested Gradle daemon. Merged on top of the outer process
    * environment; Gradle launcher variables are reserved by this task so nested builds do not
@@ -236,9 +241,17 @@ abstract class NestedGradleBuild @Inject constructor(
       }
 
       val process = processBuilder.start()
-      if (!process.waitFor(GRADLE_STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+      val timeoutSeconds = stopTimeoutSeconds.orNull
+      val completed =
+        if (timeoutSeconds == null) {
+          process.waitFor()
+          true
+        } else {
+          process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
+        }
+      if (!completed) {
         process.destroyForcibly()
-        logger.warn("Timed out while stopping nested Gradle daemon")
+        logger.warn("Timed out after {} seconds while stopping nested Gradle daemon", timeoutSeconds)
         return
       }
       val exitCode = process.exitValue()
@@ -288,8 +301,6 @@ abstract class NestedGradleBuild @Inject constructor(
   }
 
   companion object {
-    private const val GRADLE_STOP_TIMEOUT_SECONDS = 30L
-
     internal fun gradleExecutableName(osName: String = System.getProperty("os.name")): String =
       if (isWindows(osName)) {
         "gradle.bat"

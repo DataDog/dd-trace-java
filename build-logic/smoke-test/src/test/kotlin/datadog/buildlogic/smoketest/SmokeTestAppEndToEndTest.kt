@@ -96,6 +96,33 @@ class SmokeTestAppEndToEndTest {
   }
 
   @Test
+  fun `nested Maven build output is restored from the outer build cache`() {
+    writeOuterSettings(withLocalBuildCache = true)
+    writeFakeMavenWrapper()
+    writeSmokeTestAppBuild(
+      smokeTestMavenApplication(
+        taskName = "packageApp",
+        artifactPath = "target/sample.jar",
+        sysProperty = "sample.path",
+        additionalConfig = """
+        mavenExecutable.set(layout.projectDirectory.file("${fakeMavenWrapperName()}"))
+        """,
+      ),
+    )
+    File(applicationDir, "pom.xml").writeText("<project />")
+
+    val first = runner("packageApp", "--build-cache").build()
+    assertThat(first.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(applicationOutput("target/sample.jar")).exists()
+
+    applicationBuildDir.deleteRecursively()
+
+    val second = runner("packageApp", "--build-cache").build()
+    assertThat(second.task(":packageApp")?.outcome).isEqualTo(TaskOutcome.FROM_CACHE)
+    assertThat(applicationOutput("target/sample.jar")).exists()
+  }
+
+  @Test
   fun `nested build clears inherited Gradle launcher environment`() {
     writeOuterSettings()
     val inheritedGradleUserHome = projectDir.resolve("inherited-gradle-user-home").toFile()
@@ -400,6 +427,7 @@ class SmokeTestAppEndToEndTest {
     ).toTypedArray()
     val second = runner(*secondArgs).build()
     assertThat(second.task(":buildJar")?.outcome).isEqualTo(expectedSecondOutcome)
+    assertThat(applicationOutput("libs/sample.jar")).exists()
   }
 
   private fun writeOuterSettings(withLocalBuildCache: Boolean = false) {
