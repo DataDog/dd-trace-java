@@ -36,6 +36,7 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
   }
 
   // Dummy comment
+  // Another comment
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
