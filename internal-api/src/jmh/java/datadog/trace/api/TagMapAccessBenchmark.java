@@ -59,7 +59,7 @@ import org.openjdk.jmh.infra.Blackhole;
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Fork(1)
+@Fork(2)
 @Warmup(iterations = 3)
 @Measurement(iterations = 5)
 @Threads(8)
