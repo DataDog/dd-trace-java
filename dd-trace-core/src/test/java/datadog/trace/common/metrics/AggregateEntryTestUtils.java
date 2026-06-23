@@ -76,7 +76,9 @@ public final class AggregateEntryTestUtils {
             serviceSource,
             type,
             (short) httpStatusCode,
-            synthetic,
+            // The legacy boolean maps onto the full origin field: true => "synthetics", false =>
+            // no origin. Tests needing a non-synthetics origin use ofOrigin(...).
+            synthetic ? "synthetics" : null,
             traceRoot,
             spanKind == null ? null : spanKind.toString(),
             schema,
@@ -86,6 +88,38 @@ public final class AggregateEntryTestUtils {
             grpcStatusCode == null ? null : grpcStatusCode.toString(),
             0L);
     return forSnapshot(syntheticSnapshot);
+  }
+
+  /**
+   * Builds a minimal {@link AggregateEntry} carrying an explicit trace {@code origin} (e.g. {@code
+   * rum}, {@code ciapp-test}, {@code lambda}). A trace-root server entry with no HTTP/RPC/peer-tag
+   * fields; durations are recorded by the caller.
+   */
+  public static AggregateEntry ofOrigin(
+      CharSequence resource,
+      CharSequence service,
+      CharSequence operationName,
+      CharSequence type,
+      CharSequence spanKind,
+      @Nullable CharSequence origin) {
+    SpanSnapshot snapshot =
+        new SpanSnapshot(
+            resource,
+            service == null ? null : service.toString(),
+            operationName,
+            null,
+            type,
+            (short) 0,
+            origin,
+            true,
+            spanKind == null ? null : spanKind.toString(),
+            null,
+            null,
+            null,
+            null,
+            null,
+            0L);
+    return forSnapshot(snapshot);
   }
 
   /**
@@ -106,7 +140,7 @@ public final class AggregateEntryTestUtils {
     if (a == b) return true;
     if (a == null || b == null) return false;
     return a.getHttpStatusCode() == b.getHttpStatusCode()
-        && a.isSynthetics() == b.isSynthetics()
+        && Objects.equals(a.getOrigin(), b.getOrigin())
         && a.isTraceRoot() == b.isTraceRoot()
         && Objects.equals(a.getResource(), b.getResource())
         && Objects.equals(a.getService(), b.getService())

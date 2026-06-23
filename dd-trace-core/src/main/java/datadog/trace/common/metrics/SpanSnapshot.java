@@ -16,7 +16,16 @@ final class SpanSnapshot implements InboxItem {
   final CharSequence serviceNameSource;
   final CharSequence spanType;
   final short httpStatusCode;
-  final boolean synthetic;
+
+  /**
+   * Trace origin (e.g. {@code synthetics}, {@code synthetics-browser}, {@code rum}, {@code
+   * ciapp-test}, {@code lambda}), or {@code null} when the root span carried no origin. Captured in
+   * full -- rather than collapsed to a synthetics flag -- so the OTLP export can emit {@code
+   * datadog.origin} with the recognized value; the native msgpack path derives its synthetics
+   * boolean from it via {@link AggregateEntry#isSynthetics()}.
+   */
+  final CharSequence origin;
+
   final boolean traceRoot;
   final String spanKind;
 
@@ -48,7 +57,7 @@ final class SpanSnapshot implements InboxItem {
       CharSequence serviceNameSource,
       CharSequence spanType,
       short httpStatusCode,
-      boolean synthetic,
+      CharSequence origin,
       boolean traceRoot,
       String spanKind,
       PeerTagSchema peerTagSchema,
@@ -63,7 +72,7 @@ final class SpanSnapshot implements InboxItem {
     this.serviceNameSource = serviceNameSource;
     this.spanType = spanType;
     this.httpStatusCode = httpStatusCode;
-    this.synthetic = synthetic;
+    this.origin = origin;
     this.traceRoot = traceRoot;
     this.spanKind = spanKind;
     this.peerTagSchema = peerTagSchema;

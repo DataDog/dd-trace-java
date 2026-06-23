@@ -80,6 +80,9 @@ final class AggregateEntry extends Hashtable.Entry {
       DDCaches.newFixedSizeCache(32);
   private static final DDCache<String, UTF8BytesString> GRPC_STATUS_CODE_CACHE =
       DDCaches.newFixedSizeCache(32);
+  // Origin is a small fixed vocabulary (synthetics, synthetics-browser, rum, ciapp-test, lambda).
+  private static final DDCache<String, UTF8BytesString> ORIGIN_CACHE =
+      DDCaches.newFixedSizeCache(8);
 
   /**
    * Outer cache keyed by peer-tag name, with an inner per-name cache keyed by value. The inner
@@ -108,8 +111,13 @@ final class AggregateEntry extends Hashtable.Entry {
   @Nullable private final UTF8BytesString grpcStatusCode;
   private final short httpStatusCode;
 
-  /** Whether the root span carried the {@code synthetics} origin tag (synthetic-monitoring run). */
-  private final boolean synthetic;
+  /**
+   * Trace origin (e.g. {@code synthetics}, {@code rum}, {@code ciapp-test}, {@code lambda}), or
+   * {@code null} when the root span carried no origin. Part of the bucket key, so spans with
+   * distinct origins aggregate separately. The OTLP export emits this as {@code datadog.origin};
+   * the native msgpack path reads {@link #isSynthetics()}, derived from it.
+   */
+  @Nullable private final UTF8BytesString origin;
 
   /** Whether this span is the trace root ({@code parentId == 0}). */
   private final boolean traceRoot;
@@ -139,7 +147,8 @@ final class AggregateEntry extends Hashtable.Entry {
   private int errorCount;
   private int hitCount;
   private int topLevelCount;
-  private long duration;
+  private long okDuration;
+  private long errorDuration;
 
   /** Hot-path constructor for the producer/consumer flow. Builds UTF8 fields via the caches. */
   AggregateEntry(SpanSnapshot s, long keyHash) {
@@ -154,7 +163,7 @@ final class AggregateEntry extends Hashtable.Entry {
     this.httpEndpoint = canonicalizeOptional(HTTP_ENDPOINT_CACHE, s.httpEndpoint);
     this.grpcStatusCode = canonicalizeOptional(GRPC_STATUS_CODE_CACHE, s.grpcStatusCode);
     this.httpStatusCode = s.httpStatusCode;
-    this.synthetic = s.synthetic;
+    this.origin = canonicalizeOptional(ORIGIN_CACHE, s.origin);
     this.traceRoot = s.traceRoot;
     this.peerTagNames = s.peerTagSchema == null ? null : s.peerTagSchema.names;
     this.peerTagValues = s.peerTagValues;
@@ -174,11 +183,12 @@ final class AggregateEntry extends Hashtable.Entry {
     if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
       tagAndDuration ^= ERROR_TAG;
       errorLatenciesForWrite().accept(tagAndDuration);
+      errorDuration += tagAndDuration;
       ++errorCount;
     } else {
       okLatencies.accept(tagAndDuration);
+      okDuration += tagAndDuration;
     }
-    duration += tagAndDuration;
   }
 
   int getErrorCount() {
@@ -194,7 +204,15 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   long getDuration() {
-    return duration;
+    return okDuration + errorDuration;
+  }
+
+  long getOkDuration() {
+    return okDuration;
+  }
+
+  long getErrorDuration() {
+    return errorDuration;
   }
 
   Histogram getOkLatencies() {
@@ -232,7 +250,8 @@ final class AggregateEntry extends Hashtable.Entry {
     this.errorCount = 0;
     this.hitCount = 0;
     this.topLevelCount = 0;
-    this.duration = 0;
+    this.okDuration = 0;
+    this.errorDuration = 0;
     this.okLatencies.clear();
     // errorLatencies stays null on entries that never errored. Only clear if it was allocated.
     if (this.errorLatencies != null) {
@@ -243,7 +262,7 @@ final class AggregateEntry extends Hashtable.Entry {
   boolean matches(SpanSnapshot s) {
     String[] snapshotNames = s.peerTagSchema == null ? null : s.peerTagSchema.names;
     return httpStatusCode == s.httpStatusCode
-        && synthetic == s.synthetic
+        && contentEquals(origin, s.origin)
         && traceRoot == s.traceRoot
         && contentEquals(resource, s.resourceName)
         && contentEquals(service, s.serviceName)
@@ -284,7 +303,7 @@ final class AggregateEntry extends Hashtable.Entry {
     h = LongHashingUtils.addToHash(h, s.serviceNameSource);
     h = LongHashingUtils.addToHash(h, s.spanType);
     h = LongHashingUtils.addToHash(h, s.httpStatusCode);
-    h = LongHashingUtils.addToHash(h, s.synthetic);
+    h = LongHashingUtils.addToHash(h, s.origin);
     h = LongHashingUtils.addToHash(h, s.traceRoot);
     h = LongHashingUtils.addToHash(h, s.spanKind);
     // Always mix in both the schema's content hash and the values' content hash, unconditionally
@@ -352,8 +371,21 @@ final class AggregateEntry extends Hashtable.Entry {
     return httpStatusCode;
   }
 
+  /**
+   * The full trace origin, or {@code null} when unset. Used by {@link OtlpStatsMetricWriter} to
+   * emit {@code datadog.origin}.
+   */
+  @Nullable
+  UTF8BytesString getOrigin() {
+    return origin;
+  }
+
+  /**
+   * Whether the origin is {@code synthetics}. Derived from {@link #origin} for the native msgpack
+   * writer, which emits a synthetics boolean rather than the full origin.
+   */
   boolean isSynthetics() {
-    return synthetic;
+    return origin != null && "synthetics".contentEquals(origin);
   }
 
   boolean isTraceRoot() {

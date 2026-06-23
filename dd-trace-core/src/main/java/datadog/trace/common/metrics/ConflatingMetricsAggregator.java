@@ -47,8 +47,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private static final Map<String, String> DEFAULT_HEADERS =
       Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
 
-  private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
-
   private static final SpanKindFilter METRICS_ELIGIBLE_KINDS =
       SpanKindFilter.builder()
           .includeServer()
@@ -346,7 +344,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getServiceNameSource(),
             spanType,
             span.getHttpStatusCode(),
-            isSynthetic(span),
+            span.getOrigin(),
             span.getParentId() == 0,
             spanKind,
             peerTagSchema,
@@ -464,10 +462,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       }
     }
     return values;
-  }
-
-  private static boolean isSynthetic(CoreSpan<?> span) {
-    return span.getOrigin() != null && SYNTHETICS_ORIGIN.equals(span.getOrigin().toString());
   }
 
   public void stop() {
