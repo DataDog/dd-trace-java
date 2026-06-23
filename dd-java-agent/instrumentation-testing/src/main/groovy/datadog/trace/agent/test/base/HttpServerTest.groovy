@@ -1785,8 +1785,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     TEST_WRITER.get(0).any {
       span ->
       def tag = span.getTag('request.body.files_content') as String
-      tag?.contains("content_of_file_$maxFilesToInspect") &&
-      !tag.contains("content_of_file_${maxFilesToInspect + 1}")
+      // Exactly maxFilesToInspect files inspected; which file is excluded depends on iteration order
+      tag != null && tag.count('content_of_file_') == maxFilesToInspect
     }
 
     cleanup:
