@@ -15,9 +15,7 @@ if (hasProperty('appBuildDir')) {
 
 version = ""
 
-// Match native-image build threads to the CPUs the CI pod requested: the container sets a CPU
-// request but no limit, so native-image would otherwise size to the whole host and its off-heap
-// would exhaust memory. Falls back to 4 if the request is absent.
+// Avoid unlimited CPU usage on CI.
 def isCI = providers.environmentVariable("CI").isPresent()
 def ciBuildCpuCount = providers.environmentVariable("KUBERNETES_CPU_REQUEST").getOrElse("4")
 
