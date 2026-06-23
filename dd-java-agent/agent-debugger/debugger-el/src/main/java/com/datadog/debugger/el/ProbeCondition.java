@@ -9,8 +9,8 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
+import javax.annotation.Nonnull;
 
 /** Implements expression language for probe condition */
 public final class ProbeCondition implements DebuggerScript<Boolean> {
@@ -48,7 +48,7 @@ public final class ProbeCondition implements DebuggerScript<Boolean> {
     }
 
     @Override
-    public void toJson(@NonNull JsonWriter jsonWriter, ProbeCondition value) throws IOException {
+    public void toJson(@Nonnull JsonWriter jsonWriter, ProbeCondition value) throws IOException {
       if (value == null) {
         jsonWriter.nullValue();
         return;

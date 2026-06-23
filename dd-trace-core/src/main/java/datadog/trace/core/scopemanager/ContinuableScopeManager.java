@@ -124,7 +124,7 @@ public final class ContinuableScopeManager implements ContextManager {
   }
 
   private AgentScope.Continuation captureSpan(Context context, byte source, AgentSpan span) {
-    AgentTraceCollector traceCollector = span.context().getTraceCollector();
+    AgentTraceCollector traceCollector = span.spanContext().getTraceCollector();
     return new ScopeContinuation(this, context, source, traceCollector).register();
   }
 
@@ -359,8 +359,8 @@ public final class ContinuableScopeManager implements ContextManager {
     // to encapsulate other scope lifecycle activities
     // FIXME DDSpanContext is always a ProfilerContext anyway...
     AgentSpan span = AgentSpan.fromContext(context);
-    if (span != null && span.context() instanceof ProfilerContext) {
-      return profilingContextIntegration.newScopeState((ProfilerContext) span.context());
+    if (span != null && span.spanContext() instanceof ProfilerContext) {
+      return profilingContextIntegration.newScopeState((ProfilerContext) span.spanContext());
     }
     return Stateful.DEFAULT;
   }

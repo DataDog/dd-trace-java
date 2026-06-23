@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:sofarpc:sofarpc-5.0:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latestDepTestRuntimeClasspath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
@@ -52,7 +53,7 @@ com.github.jnr:jnr-ffi:2.2.19=latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-posix:3.1.22=latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-unixsocket:0.38.25=latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-x86asm:1.0.2=latestDepTestRuntimeClasspath,testRuntimeClasspath
-com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
+com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,spotbugs
 com.github.spotbugs:spotbugs:4.9.8=spotbugs
 com.github.stephenc.jcip:jcip-annotations:1.0-1=spotbugs
 com.google.android:annotations:4.1.1.4=latestDepTestRuntimeClasspath,testRuntimeClasspath
@@ -116,17 +117,35 @@ io.grpc:grpc-testing:1.53.0=latestDepTestCompileClasspath,latestDepTestRuntimeCl
 io.grpc:grpc-xds:1.53.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.leangen.geantyref:geantyref:1.3.16=latestDepTestRuntimeClasspath,testRuntimeClasspath
 io.netty:netty-all:4.1.32.Final=compileClasspath
-io.netty:netty-all:4.1.44.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-all:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.netty:netty-buffer:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-codec-dns:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-codec-haproxy:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.netty:netty-codec-http2:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.netty:netty-codec-http:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-io.netty:netty-codec-socks:4.1.79.Final=latestDepTestRuntimeClasspath,testRuntimeClasspath
+io.netty:netty-codec-memcache:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-codec-mqtt:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-codec-redis:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-codec-smtp:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-codec-socks:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-codec-stomp:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-codec-xml:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.netty:netty-codec:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.netty:netty-common:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-io.netty:netty-handler-proxy:4.1.79.Final=latestDepTestRuntimeClasspath,testRuntimeClasspath
+io.netty:netty-handler-proxy:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.netty:netty-handler:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-resolver-dns-classes-macos:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-resolver-dns-native-macos:4.1.79.Final=latestDepTestRuntimeClasspath,testRuntimeClasspath
+io.netty:netty-resolver-dns:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.netty:netty-resolver:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-transport-classes-epoll:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-transport-classes-kqueue:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-transport-native-epoll:4.1.79.Final=latestDepTestRuntimeClasspath,testRuntimeClasspath
+io.netty:netty-transport-native-kqueue:4.1.79.Final=latestDepTestRuntimeClasspath,testRuntimeClasspath
 io.netty:netty-transport-native-unix-common:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-transport-rxtx:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-transport-sctp:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-transport-udt:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.netty:netty-transport:4.1.79.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.opencensus:opencensus-api:0.28.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 io.opencensus:opencensus-contrib-http-util:0.28.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath

@@ -100,7 +100,7 @@ public abstract class BaseDecorator {
     // DQH - Could retrieve the value from componentEntry and cast to avoid the virtual call,
     // unclear which option is better here
     final CharSequence component = component();
-    span.context().setIntegrationName(component);
+    span.spanContext().setIntegrationName(component);
 
     // null handled by setMetric
     span.setMetric(traceAnalyticsEntry);

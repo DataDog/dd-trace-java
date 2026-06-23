@@ -160,11 +160,11 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
 
     assertSame(childScope, scopeManager.active());
     assertEquals(
-        parentScope.span().context().getSpanId(),
-        ((DDSpan) childScope.span()).context().getParentId());
+        parentScope.span().spanContext().getSpanId(),
+        ((DDSpan) childScope.span()).spanContext().getParentId());
     assertSame(
-        parentScope.span().context().getTraceCollector(),
-        childScope.span().context().getTraceCollector());
+        parentScope.span().spanContext().getTraceCollector(),
+        childScope.span().spanContext().getTraceCollector());
 
     childScope.close();
 
@@ -355,7 +355,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
     // the child has the correct parent
     assertNull(scopeManager.active());
     assertTrue(spanFinished(childSpan));
-    assertEquals(span.context().getSpanId(), ((DDSpan) childSpan).context().getParentId());
+    assertEquals(span.spanContext().getSpanId(), ((DDSpan) childSpan).spanContext().getParentId());
     assertEquals(1, writer.size());
     assertTrue(writer.get(0).containsAll(Arrays.asList(childSpan, span)));
   }

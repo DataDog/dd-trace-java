@@ -276,7 +276,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     } else {
       span.setResourceName(DB_QUERY);
     }
-    span.context().setIntegrationName(component);
+    span.spanContext().setIntegrationName(component);
     return span.setTag(Tags.COMPONENT, component);
   }
 

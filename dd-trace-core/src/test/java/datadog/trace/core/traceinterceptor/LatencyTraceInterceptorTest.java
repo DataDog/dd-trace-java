@@ -50,6 +50,6 @@ class LatencyTraceInterceptorTest extends DDCoreJavaSpecification {
     List<DDSpan> trace = writer.firstTrace();
     assertEquals(1, trace.size());
     DDSpan span = trace.get(0);
-    assertEquals(expected, span.context().getSamplingPriority());
+    assertEquals(expected, span.spanContext().getSamplingPriority());
   }
 }

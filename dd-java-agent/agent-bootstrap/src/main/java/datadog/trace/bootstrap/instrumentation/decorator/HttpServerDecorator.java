@@ -434,7 +434,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   protected static AgentSpanContext.Extracted getExtractedSpanContext(Context parentContext) {
     AgentSpan extractedSpan = AgentSpan.fromContext(parentContext);
     if (extractedSpan != null) {
-      AgentSpanContext extractedSpanContext = extractedSpan.context();
+      AgentSpanContext extractedSpanContext = extractedSpan.spanContext();
       if (extractedSpanContext instanceof AgentSpanContext.Extracted) {
         return (AgentSpanContext.Extracted) extractedSpanContext;
       } else {
