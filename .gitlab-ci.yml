@@ -788,6 +788,11 @@ muzzle-dep-report:
     # Apache Maven Wrapper supports MVNW_REPOURL for repository-manager downloads:
     # https://maven.apache.org/tools/wrapper/#Using_a_Maven_Repository_Manager
     - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
+    # Route Gradle distribution download through MASS pull-through cache
+    - |
+      mass_read_host="${MASS_READ_URL#https://}"
+      mass_read_host="${mass_read_host%/}"
+      sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
     - *normalize_node_index
     - *prepare_test_env
     # Disable CDS in forked JVMs to avoid SIGSEGVs on Linux arm64.
