@@ -103,6 +103,11 @@
       ]
     }
   },
+  "runtime_info": {
+    "java_vm": "OpenJDK 64-Bit Server VM (25.372-b07 mixed mode bsd-aarch64 compressed oops)",
+    "jre_version": "OpenJDK Runtime Environment (Zulu 8.70.0.23-CA-macos-aarch64) (8.0_372-b07) (build 1.8.0_372-b07)",
+    "vm_info": "OpenJDK 64-Bit Server VM (25.372-b07) for bsd-aarch64 JRE (Zulu 8.70.0.23-CA-macos-aarch64) (1.8.0_372-b07), built on Apr 18 2023 01:36:20 by \"zulu_re\" with gcc Apple LLVM 12.0.0 (clang-1200.0.32.28)"
+  },
   "files": {
     "dynamic_libraries": [
       "0x00000001ae54a000 \t/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa",

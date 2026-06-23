@@ -577,6 +577,21 @@ public final class CrashUploader {
                       "os.version")); // this has been restructured under OsInfo so taking raw here
           writer.endObject();
         }
+        // runtime info (JDK vendor and build details from the crash log)
+        if (payload.runtimeInfo != null) {
+          writer.name("runtime_info");
+          writer.beginObject();
+          if (payload.runtimeInfo.jreVersion != null) {
+            writer.name("jre_version").value(payload.runtimeInfo.jreVersion);
+          }
+          if (payload.runtimeInfo.javaVm != null) {
+            writer.name("java_vm").value(payload.runtimeInfo.javaVm);
+          }
+          if (payload.runtimeInfo.vmInfo != null) {
+            writer.name("vm_info").value(payload.runtimeInfo.vmInfo);
+          }
+          writer.endObject();
+        }
         // experimental
         if (payload.experimental != null
             && (payload.experimental.ucontext != null
