@@ -785,6 +785,11 @@ muzzle-dep-report:
     - sudo chown -R 1001:1001 .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    # Route Gradle distribution download through MASS pull-through cache
+    - |
+      mass_read_host="${MASS_READ_URL#https://}"
+      mass_read_host="${mass_read_host%/}"
+      sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
     - *normalize_node_index
     - *prepare_test_env
     # Disable CDS in forked JVMs to avoid SIGSEGVs on Linux arm64.
@@ -1108,8 +1113,6 @@ test_smoke_graalvm:
   tags: [ "arch:amd64" ]
   variables:
     <<: *tier_l_variables
-    # Caps native-image to 6 build threads.
-    KUBERNETES_CPU_REQUEST: 6
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
@@ -1123,8 +1126,6 @@ test_smoke_graalvm_arm64:
   tags: [ "arch:arm64" ]
   variables:
     <<: *tier_l_variables
-    # Caps native-image to 6 build threads.
-    KUBERNETES_CPU_REQUEST: 6
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
