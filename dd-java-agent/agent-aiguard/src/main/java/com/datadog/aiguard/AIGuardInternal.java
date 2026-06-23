@@ -269,7 +269,7 @@ public class AIGuardInternal implements Evaluator {
     final AgentTracer.SpanBuilder builder = tracer.buildSpan(SPAN_NAME, SPAN_NAME);
     final AgentSpan parent = AgentTracer.activeSpan();
     if (parent != null) {
-      builder.asChildOf(parent.context());
+      builder.asChildOf(parent.spanContext());
     }
     final AgentSpan span = builder.start();
     final AgentSpan localRootSpan = span.getLocalRootSpan();

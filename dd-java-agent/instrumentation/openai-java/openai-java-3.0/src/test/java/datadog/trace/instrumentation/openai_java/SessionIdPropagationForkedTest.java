@@ -78,7 +78,8 @@ class SessionIdPropagationForkedTest extends AbstractInstrumentationTest {
 
     AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
     try (AgentScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
-      try (ContextScope ignored2 = LLMObsContext.attach(parentSpan.context(), expectedSessionId)) {
+      try (ContextScope ignored2 =
+          LLMObsContext.attach(parentSpan.spanContext(), expectedSessionId)) {
         try {
           openAiClient.chat().completions().create(buildMinimalChatParams());
         } catch (Exception ignored) {

@@ -94,7 +94,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
       final AgentScope parentScope = continuation.activate();
 
       final AgentSpan errorSpan = startSpan("netty", NETTY_CONNECT).setTag(Tags.COMPONENT, "netty");
-      errorSpan.context().setIntegrationName(NETTY);
+      errorSpan.spanContext().setIntegrationName(NETTY);
       try (final ContextScope scope = getCurrentContext().with(errorSpan).attach()) {
         NettyHttpServerDecorator.DECORATE.onError(errorSpan, cause);
         NettyHttpServerDecorator.DECORATE.beforeFinish(scope.context());
