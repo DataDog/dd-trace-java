@@ -1,11 +1,13 @@
 package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -189,7 +191,108 @@ class ConcurrentHashtableD2Test {
     }
   }
 
-  private static final class PairEntry extends Hashtable.D2.Entry<String, Integer> {
+  @Test
+  void removeReturnsEntryAndShrinks() {
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    PairEntry ab = table.getOrCreate("a", 1, PairEntry::new);
+    table.getOrCreate("a", 2, PairEntry::new);
+    assertSame(ab, table.remove("a", 1));
+    assertEquals(1, table.size());
+    assertNull(table.get("a", 1));
+    assertNotNull(table.get("a", 2));
+  }
+
+  @Test
+  void removeAbsentKeyReturnsNull() {
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    table.getOrCreate("a", 1, PairEntry::new);
+    assertNull(table.remove("a", 99));
+    assertNull(table.remove("z", 1));
+    assertEquals(1, table.size());
+  }
+
+  @Test
+  void removeMiddleOfSameBucketChainKeepsOthersReachable() {
+    // Capacity 1 forces every pair into a single bucket chain.
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(1);
+    table.getOrCreate("a", 1, PairEntry::new);
+    PairEntry mid = table.getOrCreate("a", 2, PairEntry::new);
+    table.getOrCreate("a", 3, PairEntry::new);
+
+    assertSame(mid, table.remove("a", 2));
+    assertNull(table.get("a", 2));
+    assertNotNull(table.get("a", 1));
+    assertNotNull(table.get("a", 3));
+    assertEquals(2, table.size());
+  }
+
+  @Test
+  void removeIfRemovesMatchingEntries() {
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(16);
+    for (int i = 0; i < 10; i++) {
+      table.getOrCreate("k", i, PairEntry::new);
+    }
+    boolean removed = table.removeIf(e -> e.key2 % 2 == 0); // removes key2 0,2,4,6,8
+    assertTrue(removed);
+    assertEquals(5, table.size());
+    Set<String> seen = new HashSet<>();
+    table.forEach(e -> seen.add(e.key1 + ":" + e.key2));
+    assertEquals(5, seen.size());
+  }
+
+  @Test
+  void removeIfReturnsFalseWhenNothingMatches() {
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    table.getOrCreate("a", 1, PairEntry::new);
+    assertFalse(table.removeIf(e -> false));
+    assertEquals(1, table.size());
+  }
+
+  @Test
+  void clearEmptiesTableAndLeavesItUsable() {
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    table.getOrCreate("a", 1, PairEntry::new);
+    table.getOrCreate("b", 2, PairEntry::new);
+    table.clear();
+    assertEquals(0, table.size());
+    assertNull(table.get("a", 1));
+    PairEntry c = table.getOrCreate("c", 3, PairEntry::new);
+    assertSame(c, table.get("c", 3));
+    assertEquals(1, table.size());
+  }
+
+  @Test
+  void drainRemovesEveryEntryAndFeedsSink() {
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    table.getOrCreate("a", 1, PairEntry::new);
+    table.getOrCreate("a", 2, PairEntry::new);
+    table.getOrCreate("b", 1, PairEntry::new);
+
+    Set<String> drained = new HashSet<>();
+    table.drain(e -> drained.add(e.key1 + ":" + e.key2));
+
+    assertEquals(new HashSet<>(Arrays.asList("a:1", "a:2", "b:1")), drained);
+    assertEquals(0, table.size());
+    assertNull(table.get("a", 1));
+    PairEntry c = table.getOrCreate("c", 3, PairEntry::new);
+    assertSame(c, table.get("c", 3));
+    assertEquals(1, table.size());
+  }
+
+  @Test
+  void drainWithContextFeedsSink() {
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    table.getOrCreate("a", 1, PairEntry::new);
+    table.getOrCreate("b", 2, PairEntry::new);
+
+    Set<String> drained = new HashSet<>();
+    table.drain(drained, (ctx, e) -> ctx.add(e.key1 + ":" + e.key2));
+
+    assertEquals(new HashSet<>(Arrays.asList("a:1", "b:2")), drained);
+    assertEquals(0, table.size());
+  }
+
+  private static final class PairEntry extends ConcurrentHashtable.D2.Entry<String, Integer> {
     PairEntry(String key1, Integer key2) {
       super(key1, key2);
     }

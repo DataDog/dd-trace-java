@@ -104,7 +104,7 @@ public class ThreadSafeMapD2Benchmark {
     }
   }
 
-  static final class D2Entry extends Hashtable.D2.Entry<String, Integer> {
+  static final class D2Entry extends ConcurrentHashtable.D2.Entry<String, Integer> {
     final long value;
 
     D2Entry(String k1, Integer k2) {
@@ -118,7 +118,7 @@ public class ThreadSafeMapD2Benchmark {
    * computed with the same formula as {@link Hashtable.D2.Entry#hash} but avoids the {@link
    * Integer#hashCode(int)} boxing path by calling {@link LongHashingUtils} directly.
    */
-  static final class SupportEntry extends Hashtable.Entry {
+  static final class SupportEntry extends ConcurrentHashtable.Entry {
     final String k1;
     final int k2;
     final long value;
@@ -179,7 +179,7 @@ public class ThreadSafeMapD2Benchmark {
   @State(Scope.Benchmark)
   public static class SharedState {
     ConcurrentHashtable.D2<String, Integer, D2Entry> table;
-    java.util.concurrent.atomic.AtomicReferenceArray<Hashtable.Entry> supportBuckets;
+    java.util.concurrent.atomic.AtomicReferenceArray<ConcurrentHashtable.Entry> supportBuckets;
     ConcurrentHashMap<Key2, Long> concurrentHashMap;
     ConcurrentSkipListMap<Key2, Long> skipListMap;
     Map<Key2, Long> synchronizedHashMap;
@@ -189,7 +189,7 @@ public class ThreadSafeMapD2Benchmark {
       table = new ConcurrentHashtable.D2<>(CAPACITY);
       supportBuckets =
           new java.util.concurrent.atomic.AtomicReferenceArray<>(
-              Hashtable.Support.sizeFor(CAPACITY));
+              ConcurrentHashtable.Support.sizeFor(CAPACITY));
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
       skipListMap = new ConcurrentSkipListMap<>();
       synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(CAPACITY));
