@@ -33,6 +33,19 @@ public class SharedDBCommenter {
   private static final String TRACEPARENT = encode("traceparent");
   private static final String DD_SERVICE_HASH = encode("ddsh");
 
+  // Pre-built "<key>=" needles for containsTraceComment, computed once at class init. The keys
+  // are assigned via encode(...), so "KEY + =" is a runtime concat, not a compile-time constant;
+  // doing it per call allocated nine throwaway Strings on every non-matching check.
+  private static final String PARENT_SERVICE_EQ = PARENT_SERVICE + "=";
+  private static final String DATABASE_SERVICE_EQ = DATABASE_SERVICE + "=";
+  private static final String DD_HOSTNAME_EQ = DD_HOSTNAME + "=";
+  private static final String DD_DB_NAME_EQ = DD_DB_NAME + "=";
+  private static final String DD_PEER_SERVICE_EQ = DD_PEER_SERVICE + "=";
+  private static final String DD_ENV_EQ = DD_ENV + "=";
+  private static final String DD_VERSION_EQ = DD_VERSION + "=";
+  private static final String TRACEPARENT_EQ = TRACEPARENT + "=";
+  private static final String DD_SERVICE_HASH_EQ = DD_SERVICE_HASH + "=";
+
   // Pre-encoded "key='encoded_value'" fragments for the invariant fields (the values
   // come from Config are effectively immutable post-init in production).
   // Note about the visibility: needs to be visible but can tolerate races (reason why it's not
@@ -40,18 +53,19 @@ public class SharedDBCommenter {
   private static volatile boolean staticPrefixComputed = false;
   private static volatile String staticPrefix;
 
-  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection
-  // Note: this should be "better" done and avoid this bunch of string contains/concatenation
+  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection.
+  // Note: the contains-chain could still be done "better" (a single scan), but the per-call
+  // "KEY + =" concatenation -- the allocating part -- is now hoisted to the *_EQ constants above.
   public static boolean containsTraceComment(String commentContent) {
-    return commentContent.contains(PARENT_SERVICE + "=")
-        || commentContent.contains(DATABASE_SERVICE + "=")
-        || commentContent.contains(DD_HOSTNAME + "=")
-        || commentContent.contains(DD_DB_NAME + "=")
-        || commentContent.contains(DD_PEER_SERVICE + "=")
-        || commentContent.contains(DD_ENV + "=")
-        || commentContent.contains(DD_VERSION + "=")
-        || commentContent.contains(TRACEPARENT + "=")
-        || commentContent.contains(DD_SERVICE_HASH + "=");
+    return commentContent.contains(PARENT_SERVICE_EQ)
+        || commentContent.contains(DATABASE_SERVICE_EQ)
+        || commentContent.contains(DD_HOSTNAME_EQ)
+        || commentContent.contains(DD_DB_NAME_EQ)
+        || commentContent.contains(DD_PEER_SERVICE_EQ)
+        || commentContent.contains(DD_ENV_EQ)
+        || commentContent.contains(DD_VERSION_EQ)
+        || commentContent.contains(TRACEPARENT_EQ)
+        || commentContent.contains(DD_SERVICE_HASH_EQ);
   }
 
   // Build database comment content without comment delimiters such as /* */
