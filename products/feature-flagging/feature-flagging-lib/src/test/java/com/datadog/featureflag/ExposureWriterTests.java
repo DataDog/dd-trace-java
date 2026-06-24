@@ -26,6 +26,7 @@ import datadog.trace.api.featureflag.exposure.ExposuresRequest;
 import datadog.trace.api.featureflag.exposure.Flag;
 import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.exposure.Variant;
+import datadog.trace.test.util.ThreadUtils.ThrowingRunnable;
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -50,6 +51,8 @@ import okio.Okio;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class ExposureWriterTests {
@@ -200,12 +203,10 @@ class ExposureWriterTests {
     }
   }
 
-  @TableTest({
-    "serviceName    | finallyFail",
-    "'fail-once'    | false      ",
-    "'fail-forever' | true       "
-  })
-  void testFailuresAreRetried(String serviceName, boolean finallyFail) throws Exception {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void testFailuresAreRetried(boolean finallyFail) throws Exception {
+    String serviceName = finallyFail ? "fail-forever" : "fail-once";
     Config config = mockConfig(serviceName);
 
     try (ExposureWriterImpl writer =
@@ -419,30 +420,26 @@ class ExposureWriterTests {
 
   private static void eventually(ThrowingRunnable assertion, long timeoutMillis) throws Exception {
     long deadline = System.nanoTime() + MILLISECONDS.toNanos(timeoutMillis);
-    AssertionError lastAssertionError = null;
-    Exception lastException = null;
+    Throwable lastFailure = null;
     while (System.nanoTime() <= deadline) {
       try {
         assertion.run();
         return;
       } catch (AssertionError error) {
-        lastAssertionError = error;
+        lastFailure = error;
       } catch (Exception exception) {
-        lastException = exception;
+        lastFailure = exception;
+      } catch (Throwable throwable) {
+        throw new AssertionError("unexpected throwable while waiting", throwable);
       }
       MILLISECONDS.sleep(20);
     }
-    if (lastAssertionError != null) {
-      throw lastAssertionError;
+    if (lastFailure instanceof AssertionError) {
+      throw (AssertionError) lastFailure;
     }
-    if (lastException != null) {
-      throw lastException;
+    if (lastFailure instanceof Exception) {
+      throw (Exception) lastFailure;
     }
     throw new AssertionError("condition was not satisfied before timeout");
-  }
-
-  @FunctionalInterface
-  private interface ThrowingRunnable {
-    void run() throws Exception;
   }
 }
