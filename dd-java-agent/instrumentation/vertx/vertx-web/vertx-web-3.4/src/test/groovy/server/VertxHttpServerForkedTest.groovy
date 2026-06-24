@@ -98,8 +98,13 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
     true
   }
 
-  // fileUploads() returns a HashSet in Vert.x: override to verify count instead of which specific file is last
-  def 'test instrumentation gateway file upload content max files limit'() {
+  @Override
+  boolean testBodyFilesContentOrdering() {
+    false
+  }
+
+  // fileUploads() returns a HashSet in Vert.x: check count instead of which specific file is excluded
+  def 'test instrumentation gateway file upload content max files limit count'() {
     setup:
     assumeTrue(testBodyFilesContent())
     def maxFilesToInspect = Config.get().getAppSecMaxFileContentCount()
