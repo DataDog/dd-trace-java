@@ -309,14 +309,15 @@ public final class J9JavacoreParser {
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
     List<String> runtimeArgs = j9UserArgs.build();
-    Experimental experimental =
-        (registers != null && !registers.isEmpty())
-                || (runtimeArgs != null && !runtimeArgs.isEmpty())
-            ? new Experimental(registers, runtimeArgs)
-            : null;
     RuntimeInfo runtimeInfo =
         (j9JavaVersion != null || j9VmVersion != null)
             ? new RuntimeInfo(j9JavaVersion, null, j9VmVersion)
+            : null;
+    Experimental experimental =
+        (registers != null && !registers.isEmpty())
+                || (runtimeArgs != null && !runtimeArgs.isEmpty())
+                || runtimeInfo != null
+            ? new Experimental(registers, null, runtimeArgs, runtimeInfo)
             : null;
 
     return new CrashLog(
@@ -330,7 +331,6 @@ public final class J9JavacoreParser {
         sigInfo,
         "1.0",
         experimental,
-        runtimeInfo,
         null);
   }
 

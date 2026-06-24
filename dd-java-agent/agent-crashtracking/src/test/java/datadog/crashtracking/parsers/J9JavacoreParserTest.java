@@ -223,9 +223,10 @@ public class J9JavacoreParserTest {
     CrashLog crashLog =
         new J9JavacoreParser().parse(UUID.randomUUID().toString(), readFileAsString(filename));
 
-    assertNotNull(crashLog.runtimeInfo, "runtimeInfo should be populated");
-    assertNotNull(crashLog.runtimeInfo.jreVersion, "jreVersion should be populated");
-    assertEquals(expectedJreVersion, crashLog.runtimeInfo.jreVersion);
+    assertNotNull(crashLog.experimental, "experimental should be populated");
+    assertNotNull(crashLog.experimental.runtimeInfo, "runtimeInfo should be populated");
+    assertNotNull(crashLog.experimental.runtimeInfo.jreVersion, "jreVersion should be populated");
+    assertEquals(expectedJreVersion, crashLog.experimental.runtimeInfo.jreVersion);
   }
 
   @Test

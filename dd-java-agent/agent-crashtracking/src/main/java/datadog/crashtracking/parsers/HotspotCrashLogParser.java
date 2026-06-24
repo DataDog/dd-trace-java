@@ -625,15 +625,16 @@ public final class HotspotCrashLogParser {
       registerToMemoryMapping.replaceAll((k, v) -> RedactUtils.redactRegisterToMemoryMapping(v));
       resolvedMapping = registerToMemoryMapping;
     }
+    RuntimeInfo runtimeInfo =
+        (jreVersion != null || javaVm != null || vmInfo != null)
+            ? new RuntimeInfo(jreVersion, javaVm, vmInfo)
+            : null;
     Experimental experimental =
         !registers.isEmpty()
                 || resolvedMapping != null
                 || (runtimeArgs != null && !runtimeArgs.isEmpty())
-            ? new Experimental(registers, resolvedMapping, runtimeArgs)
-            : null;
-    RuntimeInfo runtimeInfo =
-        (jreVersion != null || javaVm != null || vmInfo != null)
-            ? new RuntimeInfo(jreVersion, javaVm, vmInfo)
+                || runtimeInfo != null
+            ? new Experimental(registers, resolvedMapping, runtimeArgs, runtimeInfo)
             : null;
     DynamicLibs files =
         (dynamicLibraryLines != null && !dynamicLibraryLines.isEmpty())
@@ -650,7 +651,6 @@ public final class HotspotCrashLogParser {
         sigInfo,
         "1.0",
         experimental,
-        runtimeInfo,
         files);
   }
 
