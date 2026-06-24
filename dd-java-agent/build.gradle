@@ -612,7 +612,7 @@ tasks.register('verifyAgentJarIntegrations', JavaExec) {
     if (!integrationsGoldenFile.exists()) {
       throw new GradleException(
       "${integrationsGoldenFile.name} not found. " +
-      "Run './gradlew :dd-java-agent:updateAgentJarIntegrationsGolden' to create it.")
+      "Run './gradlew :dd-java-agent:updateAgentJarIntegrationsGoldenFile' to create it.")
     }
 
     def actual   = capturedOutput.toString().readLines().findAll { !it.isBlank() }.toSorted()
@@ -622,7 +622,7 @@ tasks.register('verifyAgentJarIntegrations', JavaExec) {
 
     if (added || removed) {
       def msg = new StringBuilder("Integration list differs from ${integrationsGoldenFile.name}.")
-      msg.append(" Run './gradlew :dd-java-agent:updateAgentJarIntegrationsGolden' to update it.\n")
+      msg.append(" Run './gradlew :dd-java-agent:updateAgentJarIntegrationsGoldenFile' to update it.\n")
       added.each   { msg.append("  + ${it}\n") }
       removed.each { msg.append("  - ${it}\n") }
       throw new GradleException(msg.toString())
@@ -635,7 +635,7 @@ tasks.register('verifyAgentJarIntegrations', JavaExec) {
 }
 
 // Manual run after adding/removing integrations to update expected-integrations.txt, then add with the new integration.
-tasks.register('updateAgentJarIntegrationsGolden', JavaExec) {
+tasks.register('updateAgentJarIntegrationsGoldenFile', JavaExec) {
   group = LifecycleBasePlugin.VERIFICATION_GROUP
   description = 'Regenerate expected-integrations.txt from the current agent jar'
 
