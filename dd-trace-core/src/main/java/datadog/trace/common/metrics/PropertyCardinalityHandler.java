@@ -165,7 +165,7 @@ final class PropertyCardinalityHandler {
    */
   String[] statsDTag() {
     if (statsDTag == null) {
-      statsDTag = new String[] {"tag:" + name};
+      statsDTag = new String[] {"collapsed:" + name};
     }
     return statsDTag;
   }

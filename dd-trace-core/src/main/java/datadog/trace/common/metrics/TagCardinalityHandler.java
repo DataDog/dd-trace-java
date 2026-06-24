@@ -127,7 +127,7 @@ final class TagCardinalityHandler {
 
   String[] statsDTag() {
     if (statsDTag == null) {
-      statsDTag = new String[] {"tag:" + tag};
+      statsDTag = new String[] {"collapsed:" + tag};
     }
     return statsDTag;
   }
