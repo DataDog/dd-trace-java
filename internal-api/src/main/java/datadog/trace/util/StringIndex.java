@@ -23,12 +23,15 @@ package datadog.trace.util;
  * <p>Slot 0-value is the empty sentinel: {@link Support#hash} never returns 0, so {@code hashes[i]
  * == 0} unambiguously means an empty slot.
  *
- * <p>Trades footprint for throughput: the 2x-oversized table (load factor &le; 0.5) and cached
- * {@code int[]} hashes keep probe chains short and gate {@code equals()}, but cost more memory than
- * a tightly-packed set. Prefer {@link java.util.Set#copyOf} (the JDK's compact {@code SetN}) when
- * you only need membership; reach for {@code StringIndex} for the {@code
- * indexOf}-&gt;parallel-array (name&rarr;id) capability or the hot, allocation-free static {@link
- * Support} path.
+ * <p>Trades memory for simplicity (and, incidentally, speed). The table is 2x-oversized (load
+ * factor &le; 0.5) so build-time placement always finds a free slot and never has to rehash or
+ * resize — short probe chains are a welcome side effect, not the design goal. The cached {@code
+ * int[]} hashes gate {@code equals()}. Both cost memory, so a tightly-packed set is more compact:
+ * prefer {@link java.util.Set#copyOf} (the JDK's {@code SetN}) when you only need membership, and
+ * reach for {@code StringIndex} for the {@code indexOf}-&gt;parallel-array (name&rarr;id)
+ * capability or the hot, allocation-free static {@link Support} path. (If footprint ever matters
+ * more than build simplicity, a higher load factor with construction-time rehashing would close the
+ * gap.)
  */
 public final class StringIndex {
   private final int[] hashes;
