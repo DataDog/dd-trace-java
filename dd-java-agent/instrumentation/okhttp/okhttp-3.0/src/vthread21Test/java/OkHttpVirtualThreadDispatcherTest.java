@@ -47,11 +47,23 @@ import org.junit.jupiter.api.Test;
  * without the {@code AsyncCall.<init>} scope capture. {@code virtualThreadPerTaskDispatcher_…} is a
  * single-shot baseline: it confirms basic propagation through the virtual-thread dispatcher but
  * does not by itself exercise the contamination path (single-shot requests never queue).
+ *
+ * <p>{@code promotedFromFinished_keepsEnqueuingTraceNotFinishingTrace} is the deterministic
+ * regression guard: it constructs the same promotion-from-{@code finished()} contamination with two
+ * calls and a capacity-1 gate, so it fails identically every run instead of relying on stochastic
+ * contention. The concurrent stress test above stays as an integration sanity check.
  */
 class OkHttpVirtualThreadDispatcherTest extends AbstractInstrumentationTest {
 
   private static HttpServer mockServer;
   private static String baseUrl;
+
+  // Gate for the deterministic promotion test: the /gated handler signals when it begins serving
+  // and
+  // then blocks until released, letting a test hold one call "running" (occupying a capacity-1
+  // dispatcher slot) while a second call is enqueued and queues behind it.
+  private static volatile CountDownLatch gateServing;
+  private static volatile CountDownLatch gateRelease;
 
   @BeforeAll
   static void startServer() throws IOException {
@@ -59,6 +71,27 @@ class OkHttpVirtualThreadDispatcherTest extends AbstractInstrumentationTest {
     mockServer.createContext(
         "/ok",
         exchange -> {
+          byte[] body = "ok".getBytes();
+          exchange.sendResponseHeaders(200, body.length);
+          exchange.getResponseBody().write(body);
+          exchange.close();
+        });
+    // Gated endpoint: signals when it starts serving, then blocks until the test releases it.
+    mockServer.createContext(
+        "/gated",
+        exchange -> {
+          CountDownLatch serving = gateServing;
+          if (serving != null) {
+            serving.countDown();
+          }
+          try {
+            CountDownLatch release = gateRelease;
+            if (release != null) {
+              release.await(30, TimeUnit.SECONDS);
+            }
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
           byte[] body = "ok".getBytes();
           exchange.sendResponseHeaders(200, body.length);
           exchange.getResponseBody().write(body);
@@ -234,6 +267,95 @@ class OkHttpVirtualThreadDispatcherTest extends AbstractInstrumentationTest {
   }
 
   /**
+   * Deterministic counterpart to the stress test: rather than relying on stochastic queue
+   * contention, it constructs the promotion-from-{@code finished()} path explicitly. With
+   * dispatcher capacity 1, {@code call_B} (parent B) occupies the only slot and blocks at the gated
+   * endpoint; {@code call_A} (parent A) is then enqueued and necessarily queues. Releasing the gate
+   * lets {@code call_B} finish, and its {@code Dispatcher.finished()} promotes {@code call_A} from
+   * inside {@code call_B}'s worker — with scope B active there. Without the {@code
+   * AsyncCall.<init>} capture {@code call_A}'s {@code okhttp.request} span lands under parent B;
+   * with it, under parent A. No bursts, no timing windows — it fails the same way every run, so it
+   * is the reliable regression guard (the stress test above remains as an integration sanity
+   * check).
+   */
+  @Test
+  void promotedFromFinished_keepsEnqueuingTraceNotFinishingTrace() throws Exception {
+    ExecutorService dispatcherExecutor =
+        Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("okhttp-promote-", 0).factory());
+    OkHttpClient client = buildClient(dispatcherExecutor);
+    Dispatcher dispatcher = client.dispatcher();
+    dispatcher.setMaxRequests(1);
+    dispatcher.setMaxRequestsPerHost(1);
+
+    gateServing = new CountDownLatch(1);
+    gateRelease = new CountDownLatch(1);
+    CountDownLatch bDone = new CountDownLatch(1);
+    CountDownLatch aDone = new CountDownLatch(1);
+
+    AgentSpan parentB = AgentTracer.startSpan("test", "parentB");
+    AgentSpan parentA = AgentTracer.startSpan("test", "parentA");
+    try {
+      // call_B (the "finishing" trace) occupies the single slot and blocks at /gated.
+      try (AgentScope ignored = AgentTracer.activateSpan(parentB)) {
+        client
+            .newCall(new Request.Builder().url(baseUrl + "/gated").build())
+            .enqueue(countdownCallback(bDone));
+      }
+      assertTrue(gateServing.await(10, TimeUnit.SECONDS), "call_B never reached the server");
+
+      // call_A (the "enqueuing" trace) must queue: the only slot is held by call_B.
+      try (AgentScope ignored = AgentTracer.activateSpan(parentA)) {
+        client
+            .newCall(new Request.Builder().url(baseUrl + "/ok").build())
+            .enqueue(countdownCallback(aDone));
+      }
+
+      // Release call_B -> finished() -> promoteAndExecute() runs call_A from B's worker (scope B
+      // active there). The fix must keep call_A parented under A regardless.
+      gateRelease.countDown();
+
+      assertTrue(bDone.await(10, TimeUnit.SECONDS), "call_B callback timed out");
+      assertTrue(aDone.await(10, TimeUnit.SECONDS), "call_A callback timed out");
+    } finally {
+      parentA.finish();
+      parentB.finish();
+      dispatcherExecutor.shutdown();
+    }
+
+    // One trace per parent; each must hold its own okhttp.request span.
+    writer.waitForTraces(2);
+    DDSpan parentASpan = null;
+    DDSpan parentBSpan = null;
+    DDSpan aOkhttp = null;
+    DDSpan bOkhttp = null;
+    for (List<DDSpan> trace : writer) {
+      DDSpan ok = findByOp(trace, "okhttp.request");
+      if (findByOp(trace, "parentA") != null) {
+        parentASpan = findByOp(trace, "parentA");
+        aOkhttp = ok;
+      } else if (findByOp(trace, "parentB") != null) {
+        parentBSpan = findByOp(trace, "parentB");
+        bOkhttp = ok;
+      }
+    }
+
+    assertNotNull(parentASpan, "parentA trace should exist");
+    assertNotNull(parentBSpan, "parentB trace should exist");
+    assertNotNull(
+        aOkhttp,
+        "call_A's okhttp.request must live in parentA's trace; if null it leaked to parentB's trace"
+            + " (promotion captured the finishing call's scope instead of the enqueuing scope)");
+    assertNotNull(bOkhttp, "call_B's okhttp.request should live in parentB's trace");
+    assertEquals(
+        parentASpan.getSpanId(),
+        aOkhttp.getParentId(),
+        "call_A was promoted from call_B's finished() under scope B, but its span must parent under A"
+            + " (the scope active where call_A was enqueued)");
+    assertEquals(
+        parentBSpan.getSpanId(), bOkhttp.getParentId(), "call_B's span must parent under B");
+  }
+
+  /**
    * One parent burst: M OkHttp requests under a single freshly-started parent span. Deliberately
    * does <em>not</em> block on per-parent child-span accounting &mdash; the whole point of the test
    * is to detect when children leak to a sibling's trace, and per-parent blocking would just turn
@@ -276,6 +398,21 @@ class OkHttpVirtualThreadDispatcherTest extends AbstractInstrumentationTest {
   private static OkHttpClient buildClient(ExecutorService dispatcherExecutor) {
     Dispatcher dispatcher = new Dispatcher(dispatcherExecutor);
     return new OkHttpClient.Builder().dispatcher(dispatcher).build();
+  }
+
+  private static Callback countdownCallback(CountDownLatch done) {
+    return new Callback() {
+      @Override
+      public void onResponse(Call call, Response response) throws IOException {
+        response.body().close();
+        done.countDown();
+      }
+
+      @Override
+      public void onFailure(Call call, IOException e) {
+        done.countDown();
+      }
+    };
   }
 
   private void assertOkHttpSpanParentedUnderParent() throws Exception {
