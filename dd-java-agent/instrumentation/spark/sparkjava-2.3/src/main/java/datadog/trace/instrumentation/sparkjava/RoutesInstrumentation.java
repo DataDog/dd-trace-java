@@ -11,8 +11,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import net.bytebuddy.asm.Advice;
 import spark.route.HttpMethod;
 import spark.routematch.RouteMatch;
@@ -42,9 +40,6 @@ public class RoutesInstrumentation extends InstrumenterModule.Tracing
 
   public static class RoutesAdvice {
 
-    private static final CharSequence SPARK_JAVA = UTF8BytesString.create("spark-java");
-    private static final CharSequence SPARK_REQUEST = UTF8BytesString.create("spark.request");
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void routeMatchEnricher(
         @Advice.Argument(0) final HttpMethod method, @Advice.Return final RouteMatch routeMatch) {
@@ -52,8 +47,6 @@ public class RoutesInstrumentation extends InstrumenterModule.Tracing
       final AgentSpan span = activeSpan();
       if (span != null && routeMatch != null) {
         HTTP_RESOURCE_DECORATOR.withRoute(span, method.name(), routeMatch.getMatchUri());
-        span.setSpanName(SPARK_REQUEST);
-        span.setTag(Tags.COMPONENT, SPARK_JAVA);
       }
     }
   }
