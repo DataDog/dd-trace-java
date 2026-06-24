@@ -242,8 +242,9 @@ default:
       EOF
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
-    # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
-    - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    # Apache Maven Wrapper supports MVNW_REPOURL for repository-manager downloads:
+    # https://maven.apache.org/tools/wrapper/#Using_a_Maven_Repository_Manager
+    - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
     # Route Gradle distribution download through MASS pull-through cache
     - |
       mass_read_host="${MASS_READ_URL#https://}"
@@ -784,7 +785,14 @@ muzzle-dep-report:
     # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
     - sudo chown -R 1001:1001 .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
-    - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    # Apache Maven Wrapper supports MVNW_REPOURL for repository-manager downloads:
+    # https://maven.apache.org/tools/wrapper/#Using_a_Maven_Repository_Manager
+    - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
+    # Route Gradle distribution download through MASS pull-through cache
+    - |
+      mass_read_host="${MASS_READ_URL#https://}"
+      mass_read_host="${mass_read_host%/}"
+      sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
     - *normalize_node_index
     - *prepare_test_env
     # Disable CDS in forked JVMs to avoid SIGSEGVs on Linux arm64.
@@ -1107,6 +1115,7 @@ test_smoke_graalvm:
   needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
@@ -1119,6 +1128,7 @@ test_smoke_graalvm_arm64:
   extends: .test_job_arm64
   tags: [ "arch:arm64" ]
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"

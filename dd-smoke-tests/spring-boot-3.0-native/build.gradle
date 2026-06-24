@@ -34,7 +34,7 @@ Provider<String> graalvmHome = providers.provider({
 } as Callable<String>)
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'springNativeBuild'
     nestedTasks = ['nativeCompile']
     artifactPath = 'native/nativeCompile/native-3.0-smoketest'
