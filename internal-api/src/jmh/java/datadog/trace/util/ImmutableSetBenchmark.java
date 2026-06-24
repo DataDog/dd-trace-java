@@ -30,10 +30,11 @@ import org.openjdk.jmh.annotations.Warmup;
  *   <li>{@code array} / {@code sortedArray} — linear scan / binary search; slow on miss.
  *   <li>{@link HashSet} — idiomatic, fast; node-based, allocates per element.
  *   <li>{@link TreeSet} — comparator-ordered; worth it only for a custom comparator, not speed.
- *   <li>{@link java.util.Set#copyOf} (via {@link CollectionUtils#tryMakeImmutableSet}) — the JDK's
- *       compact, array-backed immutable set ({@code ImmutableCollections.SetN}), which is what the
- *       agent actually uses for fixed config sets. Java 10+; falls back to {@code HashSet} pre-10.
- *       The realistic baseline for any flat/immutable set comparison.
+ *   <li>{@code tracerImmutableSet} — {@link java.util.Set#copyOf} (via {@link
+ *       CollectionUtils#tryMakeImmutableSet}), the JDK's compact, array-backed immutable set
+ *       ({@code ImmutableCollections.SetN}), which is what the agent actually uses for fixed config
+ *       sets. Java 10+; falls back to {@code HashSet} pre-10. The realistic baseline for any
+ *       flat/immutable set comparison.
  * </ul>
  *
  * <p>Lookups are interned (the {@code ==} fast path where a structure has one); misses are short
@@ -44,7 +45,7 @@ import org.openjdk.jmh.annotations.Warmup;
  * <pre>{@code
  * Structure              hit     miss
  * hashSet               2159     1751    (fastest)
- * copyOf (SetN)         1946     1633
+ * tracerImmutableSet    1946     1633    (Set.copyOf / SetN)
  * array                  926      584
  * sortedArray            664      588
  * treeSet                642      593
@@ -88,7 +89,7 @@ public class ImmutableSetBenchmark {
   String[] sortedArray;
   HashSet<String> hashSet;
   TreeSet<String> treeSet;
-  Set<String> copyOfSet;
+  Set<String> tracerImmutableSet;
 
   @Setup(Level.Trial)
   public void setUp() {
@@ -97,7 +98,7 @@ public class ImmutableSetBenchmark {
     Arrays.sort(sortedArray);
     hashSet = new HashSet<>(Arrays.asList(STRINGS));
     treeSet = new TreeSet<>(Arrays.asList(STRINGS));
-    copyOfSet = CollectionUtils.tryMakeImmutableSet(Arrays.asList(STRINGS));
+    tracerImmutableSet = CollectionUtils.tryMakeImmutableSet(Arrays.asList(STRINGS));
   }
 
   /** Per-thread lookup cursor so each reader thread cycles keys independently. */
@@ -175,12 +176,12 @@ public class ImmutableSetBenchmark {
   }
 
   @Benchmark
-  public boolean copyOf_hit(Cursor cursor) {
-    return copyOfSet.contains(cursor.nextHit());
+  public boolean tracerImmutableSet_hit(Cursor cursor) {
+    return tracerImmutableSet.contains(cursor.nextHit());
   }
 
   @Benchmark
-  public boolean copyOf_miss(Cursor cursor) {
-    return copyOfSet.contains(cursor.nextMiss());
+  public boolean tracerImmutableSet_miss(Cursor cursor) {
+    return tracerImmutableSet.contains(cursor.nextMiss());
   }
 }
