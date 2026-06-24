@@ -202,6 +202,11 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  boolean testBodyFilesContent() {
+    true
+  }
+
+  @Override
   boolean testBlockingOnResponse() {
     true
   }
