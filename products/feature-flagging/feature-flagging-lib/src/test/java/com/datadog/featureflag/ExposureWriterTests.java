@@ -212,9 +212,10 @@ class ExposureWriterTests {
       writer.init();
       writer.accept(buildExposure());
 
+      MILLISECONDS.sleep(500); // wait for a flush to happen
+      ExposuresRequest found = findRequest(serviceName);
       if (finallyFail) {
-        MILLISECONDS.sleep(500); // wait for a flush to happen
-        assertNull(findRequest(serviceName), requests.toString());
+        assertNull(found, requests.toString());
       } else {
         eventually(
             () -> assertNotNull(findRequest(serviceName), requests.toString()), TIMEOUT_MILLIS);
