@@ -39,7 +39,7 @@ class ObjectVisitorTest extends Specification {
     given:
     final visitor = Mock(ObjectVisitor.Visitor)
     final wrapped = ['1', '2', '3']
-    final Iterable target = wrapped.&iterator
+    final Iterable target = wrapped.&iterator as Iterable
 
     when:
     ObjectVisitor.visit(target, visitor) { Iterable.isAssignableFrom(it) }
