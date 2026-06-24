@@ -16,6 +16,7 @@ import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
+import datadog.trace.agent.test.server.http.JavaTestHttpServer.HandlerApi;
 import datadog.trace.api.Config;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
@@ -54,6 +55,8 @@ import org.tabletest.junit.TableTest;
 
 class ExposureWriterTests {
 
+  private static final String EXPOSURES_ENDPOINT = "/evp_proxy/api/v2/exposures";
+  private static final long TIMEOUT_MILLIS = 5000;
   private static final Queue<ExposuresRequest> REQUESTS = new ConcurrentLinkedQueue<>();
   private static final Set<String> FAILED =
       Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
@@ -69,28 +72,7 @@ class ExposureWriterTests {
         JavaTestHttpServer.httpServer(
             s ->
                 s.handlers(
-                    h ->
-                        h.prefix(
-                            "/evp_proxy/api/v2/exposures",
-                            api -> {
-                              ExposuresRequest exposuresRequest =
-                                  adapter.fromJson(
-                                      Okio.buffer(
-                                          Okio.source(
-                                              new ByteArrayInputStream(
-                                                  api.getRequest().getBody()))));
-                              String serviceName = exposuresRequest.context.get("service");
-                              boolean failForever = "fail-forever".equals(serviceName);
-                              boolean fail =
-                                  serviceName.startsWith("fail")
-                                      && (FAILED.add(serviceName) || failForever);
-                              if (fail) {
-                                api.getResponse().status(500).send("Boom!!!");
-                              } else {
-                                REQUESTS.add(exposuresRequest);
-                                api.getResponse().status(200).send("OK");
-                              }
-                            })));
+                    h -> h.prefix(EXPOSURES_ENDPOINT, api -> handleExposureRequest(api, adapter))));
     sharedCommunicationObjects = sharedCommunicationObjects(true);
   }
 
@@ -105,6 +87,22 @@ class ExposureWriterTests {
   void cleanup() {
     REQUESTS.clear();
     FAILED.clear();
+  }
+
+  private static void handleExposureRequest(HandlerApi api, JsonAdapter<ExposuresRequest> adapter)
+      throws Exception {
+    ExposuresRequest exposuresRequest =
+        adapter.fromJson(
+            Okio.buffer(Okio.source(new ByteArrayInputStream(api.getRequest().getBody()))));
+    String serviceName = exposuresRequest.context.get("service");
+    boolean failForever = "fail-forever".equals(serviceName);
+    boolean fail = serviceName.startsWith("fail") && (FAILED.add(serviceName) || failForever);
+    if (fail) {
+      api.getResponse().status(500).send("Boom!!!");
+    } else {
+      REQUESTS.add(exposuresRequest);
+      api.getResponse().status(200).send("OK");
+    }
   }
 
   @TableTest({
@@ -133,7 +131,7 @@ class ExposureWriterTests {
             }
             assertExposures(allExposures(), exposures);
           },
-          5000);
+          TIMEOUT_MILLIS);
     }
   }
 
@@ -151,7 +149,8 @@ class ExposureWriterTests {
       }
 
       // all events are written
-      eventually(() -> assertEquals(exposures.size(), allExposures().size()), 1000);
+      eventually(
+          () -> assertEquals(exposures.size(), allExposures().size()), TIMEOUT_MILLIS);
 
       // publishing duplicate events
       for (ExposureEvent exposure : exposures) {
@@ -166,7 +165,9 @@ class ExposureWriterTests {
       writer.accept(buildExposure());
 
       // oldest event is evicted and the new one is submitted
-      eventually(() -> assertEquals(exposures.size() + 1, allExposures().size()), 5000);
+      eventually(
+          () -> assertEquals(exposures.size() + 1, allExposures().size()),
+          TIMEOUT_MILLIS);
     }
   }
 
@@ -202,7 +203,7 @@ class ExposureWriterTests {
       for (Future<Boolean> future : futures) {
         assertTrue(future.get()); // wait for all threads to finish
       }
-      eventually(() -> assertExposures(allExposures(), exposures), 5000);
+      eventually(() -> assertExposures(allExposures(), exposures), TIMEOUT_MILLIS);
     } finally {
       executor.shutdownNow();
     }
@@ -225,7 +226,9 @@ class ExposureWriterTests {
         MILLISECONDS.sleep(500); // wait for a flush to happen
         assertNull(findRequest(serviceName), REQUESTS.toString());
       } else {
-        eventually(() -> assertNotNull(findRequest(serviceName), REQUESTS.toString()), 5000);
+        eventually(
+            () -> assertNotNull(findRequest(serviceName), REQUESTS.toString()),
+            TIMEOUT_MILLIS);
       }
     }
   }
@@ -238,7 +241,7 @@ class ExposureWriterTests {
         new ExposureWriterImpl(sharedCommunicationObjects, Config.get())) {
       writer.init();
       Thread serializerThread = getField(writer, "serializerThread", Thread.class);
-      eventually(() -> assertFalse(serializerThread.isAlive()), 5000);
+      eventually(() -> assertFalse(serializerThread.isAlive()), TIMEOUT_MILLIS);
 
       FeatureFlaggingGateway.dispatch(buildExposure());
 

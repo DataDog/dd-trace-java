@@ -12,72 +12,69 @@ import org.junit.jupiter.api.Test;
 
 class FeatureFlaggingGatewayTest {
 
+  private FeatureFlaggingGateway.ConfigListener configListener;
+  private FeatureFlaggingGateway.ExposureListener exposureListener;
+  private ServerConfiguration firstConfiguration;
+  private ServerConfiguration secondConfiguration;
+  private ExposureEvent firstExposure;
+  private ExposureEvent secondExposure;
+
   @BeforeEach
+  void setUp() {
+    configListener = mock(FeatureFlaggingGateway.ConfigListener.class);
+    exposureListener = mock(FeatureFlaggingGateway.ExposureListener.class);
+    firstConfiguration = mock(ServerConfiguration.class);
+    secondConfiguration = mock(ServerConfiguration.class);
+    firstExposure = mock(ExposureEvent.class);
+    secondExposure = mock(ExposureEvent.class);
+  }
+
   @AfterEach
-  void resetCurrentConfiguration() {
-    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+  void tearDown() {
+    FeatureFlaggingGateway.removeConfigListener(configListener);
+    FeatureFlaggingGateway.removeExposureListener(exposureListener);
   }
 
   @Test
   void testAttachingAConfigListener() {
-    FeatureFlaggingGateway.ConfigListener listener =
-        mock(FeatureFlaggingGateway.ConfigListener.class);
-    ServerConfiguration first = mock(ServerConfiguration.class);
-    ServerConfiguration second = mock(ServerConfiguration.class);
+    clearCurrentServerConfiguration();
 
-    try {
-      FeatureFlaggingGateway.addConfigListener(listener);
-      FeatureFlaggingGateway.dispatch(first);
+    FeatureFlaggingGateway.addConfigListener(configListener);
+    FeatureFlaggingGateway.dispatch(firstConfiguration);
 
-      verify(listener).accept(first);
-      verifyNoMoreInteractions(listener);
+    verify(configListener).accept(firstConfiguration);
+    verifyNoMoreInteractions(configListener);
 
-      FeatureFlaggingGateway.dispatch(second);
+    FeatureFlaggingGateway.dispatch(secondConfiguration);
 
-      verify(listener).accept(second);
-      verifyNoMoreInteractions(listener);
-    } finally {
-      FeatureFlaggingGateway.removeConfigListener(listener);
-    }
+    verify(configListener).accept(secondConfiguration);
+    verifyNoMoreInteractions(configListener);
   }
 
   @Test
   void testAttachingAListenerAfterConfigured() {
-    FeatureFlaggingGateway.ConfigListener listener =
-        mock(FeatureFlaggingGateway.ConfigListener.class);
-    ServerConfiguration first = mock(ServerConfiguration.class);
+    FeatureFlaggingGateway.dispatch(firstConfiguration);
+    FeatureFlaggingGateway.addConfigListener(configListener);
 
-    try {
-      FeatureFlaggingGateway.dispatch(first);
-      FeatureFlaggingGateway.addConfigListener(listener);
-
-      verify(listener).accept(first);
-      verifyNoMoreInteractions(listener);
-    } finally {
-      FeatureFlaggingGateway.removeConfigListener(listener);
-    }
+    verify(configListener).accept(firstConfiguration);
+    verifyNoMoreInteractions(configListener);
   }
 
   @Test
   void testAttachingAnExposureListener() {
-    FeatureFlaggingGateway.ExposureListener listener =
-        mock(FeatureFlaggingGateway.ExposureListener.class);
-    ExposureEvent first = mock(ExposureEvent.class);
-    ExposureEvent second = mock(ExposureEvent.class);
+    FeatureFlaggingGateway.addExposureListener(exposureListener);
+    FeatureFlaggingGateway.dispatch(firstExposure);
 
-    try {
-      FeatureFlaggingGateway.addExposureListener(listener);
-      FeatureFlaggingGateway.dispatch(first);
+    verify(exposureListener).accept(firstExposure);
+    verifyNoMoreInteractions(exposureListener);
 
-      verify(listener).accept(first);
-      verifyNoMoreInteractions(listener);
+    FeatureFlaggingGateway.dispatch(secondExposure);
 
-      FeatureFlaggingGateway.dispatch(second);
+    verify(exposureListener).accept(secondExposure);
+    verifyNoMoreInteractions(exposureListener);
+  }
 
-      verify(listener).accept(second);
-      verifyNoMoreInteractions(listener);
-    } finally {
-      FeatureFlaggingGateway.removeExposureListener(listener);
-    }
+  private static void clearCurrentServerConfiguration() {
+    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
   }
 }

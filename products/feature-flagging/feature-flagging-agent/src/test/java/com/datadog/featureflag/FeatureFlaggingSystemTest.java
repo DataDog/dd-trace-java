@@ -18,15 +18,9 @@ import datadog.trace.api.Config;
 import datadog.trace.junit.utils.config.WithConfig;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class FeatureFlaggingSystemTest {
-
-  @AfterEach
-  void stopFeatureFlaggingSystem() {
-    FeatureFlaggingSystem.stop();
-  }
 
   @Test
   void testFeatureFlagSystemInitialization() {
@@ -58,7 +52,12 @@ class FeatureFlaggingSystemTest {
   void testThatRemoteConfigIsRequired() {
     SharedCommunicationObjects sharedCommunicationObjects = mock(SharedCommunicationObjects.class);
 
-    assertThrows(
-        IllegalStateException.class, () -> FeatureFlaggingSystem.start(sharedCommunicationObjects));
+    try {
+      assertThrows(
+          IllegalStateException.class,
+          () -> FeatureFlaggingSystem.start(sharedCommunicationObjects));
+    } finally {
+      FeatureFlaggingSystem.stop();
+    }
   }
 }
