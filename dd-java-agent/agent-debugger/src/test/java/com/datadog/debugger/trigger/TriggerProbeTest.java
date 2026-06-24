@@ -16,7 +16,6 @@ import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.Sampling;
 import com.datadog.debugger.probe.TriggerProbe;
-import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.TestTraceInterceptor;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
@@ -80,7 +79,7 @@ public class TriggerProbeTest extends CapturingTestBase {
             .filter(
                 span -> {
                   DDSpan ddSpan = (DDSpan) span;
-                  PropagationTags tags = ddSpan.context().getPropagationTags();
+                  PropagationTags tags = ddSpan.spanContext().getPropagationTags();
                   return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
                 })
             .count();
@@ -96,10 +95,13 @@ public class TriggerProbeTest extends CapturingTestBase {
       String signature,
       ProbeCondition probeCondition,
       Sampling sampling) {
-    return new TriggerProbe(id, Where.of(typeName, methodName, signature))
-        .setSessionId(sessionId)
-        .setProbeCondition(probeCondition)
-        .setSampling(sampling);
+    return TriggerProbe.builder()
+        .probeId(id)
+        .where(typeName, methodName, signature)
+        .when(probeCondition)
+        .sampling(sampling)
+        .build()
+        .setSessionId(sessionId);
   }
 
   @Test
@@ -135,7 +137,7 @@ public class TriggerProbeTest extends CapturingTestBase {
               .filter(
                   span -> {
                     DDSpan ddSpan = (DDSpan) span;
-                    PropagationTags tags = ddSpan.context().getPropagationTags();
+                    PropagationTags tags = ddSpan.spanContext().getPropagationTags();
                     return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
                   })
               .count();

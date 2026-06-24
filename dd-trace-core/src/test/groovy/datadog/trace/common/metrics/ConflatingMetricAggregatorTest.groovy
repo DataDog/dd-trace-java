@@ -119,23 +119,25 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then:
     latchTriggered
     1 * writer.startBucket(1, _, _)
-    1 * writer.add(new MetricKey(
-      null,
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "baz",
-      [],
-      null,
-      null,
-      null
-      ), _) >> { MetricKey key, AggregateMetric value ->
-        value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
-      }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        null,
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "baz",
+        [],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
+    }
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -165,23 +167,25 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then:
     latchTriggered
     1 * writer.startBucket(1, _, _)
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "baz",
-      [],
-      null,
-      null,
-      null
-      ), _) >> { MetricKey key, AggregateMetric value ->
-        value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
-      }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "baz",
+        [],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
+    }
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -216,24 +220,26 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then:
     latchTriggered == statsComputed
     (statsComputed ? 1 : 0) * writer.startBucket(1, _, _)
-    (statsComputed ? 1 : 0) * writer.add(
-      new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      kind,
-      [],
-      httpMethod,
-      httpEndpoint,
-      null
-      ), { AggregateMetric aggregateMetric ->
-        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
-      })
+    (statsComputed ? 1 : 0) * writer.add({
+      AggregateEntryTestUtils.equals(it,
+        AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        kind,
+        [],
+        httpMethod,
+        httpEndpoint,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
+    }
     (statsComputed ? 1 : 0) * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -255,66 +261,85 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
 
   def "should create bucket for each set of peer tags"() {
     setup:
+    // Peer-tag schema is reconciled with feature discovery once per reporting cycle (on the
+    // aggregator thread, in the post-report hook), not per-span on the producer. Drive two
+    // reporting cycles with different peerTags() configurations to verify the aggregator buckets
+    // each cycle by the schema that was current at publish time.
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    features.peerTags() >>> [["country"], ["country", "georegion"],]
+    features.peerTags() >>> [["country"], ["country", "georegion"]]
+    // Bump the discovered state hash so reconcile during report cycle 1 sees a mismatch and
+    // rebuilds the schema for span 2. Three calls: bootstrap (span1's publish), reconcile-during-
+    // report-1 (mismatch -> rebuild + 2nd peerTags() call), reconcile-during-report-2 (no change).
+    features.state() >>> ["state-1", "state-2", "state-2"]
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
-    when:
-    CountDownLatch latch = new CountDownLatch(1)
+    when: "cycle 1 -- peerTags=[country]"
+    CountDownLatch latch1 = new CountDownLatch(1)
     aggregator.publish([
-      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
-      .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe"),
       new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
       .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe")
     ])
     aggregator.report()
-    def latchTriggered = latch.await(2, SECONDS)
+    def cycle1Triggered = latch1.await(2, SECONDS)
+
+    and: "cycle 2 -- reconcile picks up peerTags=[country, georegion]"
+    CountDownLatch latch2 = new CountDownLatch(1)
+    aggregator.publish([
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe")
+    ])
+    aggregator.report()
+    def cycle2Triggered = latch2.await(2, SECONDS)
 
     then:
-    latchTriggered
-    1 * writer.startBucket(2, _, _)
-    1 * writer.add(
-      new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "client",
-      [UTF8BytesString.create("country:france")],
-      null,
-      null,
-      null
-      ), { AggregateMetric aggregateMetric ->
-        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
-      })
-    1 * writer.add(
-      new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "client",
-      [UTF8BytesString.create("country:france"), UTF8BytesString.create("georegion:europe")],
-      null,
-      null,
-      null
-      ), { AggregateMetric aggregateMetric ->
-        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
-      })
-    1 * writer.finishBucket() >> { latch.countDown() }
+    cycle1Triggered
+    cycle2Triggered
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,
+        AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "client",
+        [UTF8BytesString.create("country:france")],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
+    }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,
+        AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "client",
+        [UTF8BytesString.create("country:france"), UTF8BytesString.create("georegion:europe")],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
+    }
+    2 * writer.finishBucket() >> { latch1.countDown(); latch2.countDown() }
 
     cleanup:
     aggregator.close()
@@ -343,24 +368,26 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then:
     latchTriggered
     1 * writer.startBucket(1, _, _)
-    1 * writer.add(
-      new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      kind,
-      expectedPeerTags,
-      null,
-      null,
-      null
-      ), { AggregateMetric aggregateMetric ->
-        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
-      })
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,
+        AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        kind,
+        expectedPeerTags,
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
+    }
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -396,23 +423,25 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then:
     latchTriggered
     1 * writer.startBucket(1, _, _)
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "baz",
-      [],
-      null,
-      null,
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == 1 && value.getTopLevelCount() == topLevelCount && value.getDuration() == 100
-      })
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "baz",
+        [],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getTopLevelCount() == topLevelCount && e.getDuration() == 100
+    }
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -455,40 +484,44 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.finishBucket() >> { latch.countDown() }
     1 * writer.startBucket(2, _, SECONDS.toNanos(reportingInterval))
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "baz",
-      [],
-      null,
-      null,
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == count && value.getDuration() == count * duration
-      })
-    1 * writer.add(new MetricKey(
-      "resource2",
-      "service2",
-      "operation2",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "baz",
-      [],
-      null,
-      null,
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == count && value.getDuration() == count * duration * 2
-      })
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "baz",
+        [],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == count && e.getDuration() == count * duration
+    }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource2",
+        "service2",
+        "operation2",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "baz",
+        [],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == count && e.getDuration() == count * duration * 2
+    }
 
     cleanup:
     aggregator.close()
@@ -526,23 +559,25 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "should aggregate into single metric"
     latchTriggered
     1 * writer.startBucket(1, _, _)
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "server",
-      [],
-      "GET",
-      "/api/users/:id",
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == count && value.getDuration() == count * duration
-      })
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "server",
+        [],
+        "GET",
+        "/api/users/:id",
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == count && e.getDuration() == count * duration
+    }
     1 * writer.finishBucket() >> { latch.countDown() }
 
     when: "publish spans with different endpoints"
@@ -567,57 +602,63 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "should create separate metrics for each endpoint/method combination"
     latchTriggered2
     1 * writer.startBucket(3, _, _)
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "server",
-      [],
-      "GET",
-      "/api/users/:id",
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration
-      })
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "server",
-      [],
-      "GET",
-      "/api/orders/:id",
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration * 2
-      })
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "server",
-      [],
-      "POST",
-      "/api/users/:id",
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration * 3
-      })
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "server",
+        [],
+        "GET",
+        "/api/users/:id",
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getDuration() == duration
+    }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "server",
+        [],
+        "GET",
+        "/api/orders/:id",
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getDuration() == duration * 2
+    }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "server",
+        [],
+        "POST",
+        "/api/users/:id",
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getDuration() == duration * 3
+    }
     1 * writer.finishBucket() >> { latch2.countDown() }
 
     cleanup:
@@ -665,74 +706,82 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "should create 4 separate metrics"
     latchTriggered
     1 * writer.startBucket(4, _, _)
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      200,
-      false,
-      false,
-      "server",
-      [],
-      "GET",
-      "/api/users/:id",
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration
-      })
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      200,
-      false,
-      false,
-      "server",
-      [],
-      "POST",
-      "/api/users/:id",
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration * 2
-      })
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      404,
-      false,
-      false,
-      "server",
-      [],
-      "GET",
-      "/api/users/:id",
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration * 3
-      })
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      200,
-      false,
-      false,
-      "server",
-      [],
-      "GET",
-      "/api/orders/:id",
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration * 4
-      })
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        200,
+        false,
+        false,
+        "server",
+        [],
+        "GET",
+        "/api/users/:id",
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getDuration() == duration
+    }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        200,
+        false,
+        false,
+        "server",
+        [],
+        "POST",
+        "/api/users/:id",
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getDuration() == duration * 2
+    }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        404,
+        false,
+        false,
+        "server",
+        [],
+        "GET",
+        "/api/users/:id",
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getDuration() == duration * 3
+    }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        200,
+        false,
+        false,
+        "server",
+        [],
+        "GET",
+        "/api/orders/:id",
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getDuration() == duration * 4
+    }
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -769,40 +818,44 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "should create separate metric keys for spans with and without HTTP tags"
     latchTriggered
     1 * writer.startBucket(2, _, _)
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      200,
-      false,
-      false,
-      "server",
-      [],
-      null,
-      null,
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration
-      })
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      200,
-      false,
-      false,
-      "server",
-      [],
-      "GET",
-      "/api/users/:id",
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration * 2
-      })
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        200,
+        false,
+        false,
+        "server",
+        [],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getDuration() == duration
+    }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        200,
+        false,
+        false,
+        "server",
+        [],
+        "GET",
+        "/api/users/:id",
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getDuration() == duration * 2
+    }
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -837,47 +890,54 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "should create the different metric keys for spans with and without sources"
     latchTriggered
     1 * writer.startBucket(2, _, _)
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      "source",
-      "type",
-      200,
-      false,
-      false,
-      "server",
-      [],
-      null,
-      null,
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == 2 && value.getDuration() == 2 * duration
-      })
-    1 * writer.add(new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      200,
-      false,
-      false,
-      "server",
-      [],
-      null,
-      null,
-      null
-      ), { AggregateMetric value ->
-        value.getHitCount() == 1 && value.getDuration() == duration
-      })
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        "source",
+        "type",
+        200,
+        false,
+        false,
+        "server",
+        [],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 2 && e.getDuration() == 2 * duration
+    }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        200,
+        false,
+        false,
+        "server",
+        [],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getDuration() == duration
+    }
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
     aggregator.close()
   }
 
-  def "test least recently written to aggregate flushed when size limit exceeded"() {
+  def "new aggregates beyond size limit are dropped when no stale entries can be evicted"() {
+    // The table only evicts entries with hitCount == 0 to make room. When all entries are live
+    // (all have been recorded against), an over-cap insert drops the new key rather than evicting
+    // an established one. This protects the data we've already collected from a burst of new keys.
     setup:
     int maxAggregates = 10
     MetricWriter writer = Mock(MetricWriter)
@@ -901,11 +961,11 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.report()
     def latchTriggered = latch.await(2, SECONDS)
 
-    then: "the first aggregate should be dropped but the rest reported"
+    then: "the established service0..service9 are reported; service10 is dropped"
     latchTriggered
     1 * writer.startBucket(10, _, SECONDS.toNanos(reportingInterval))
-    for (int i = 1; i < 11; ++i) {
-      1 * writer.add(new MetricKey(
+    for (int i = 0; i < 10; ++i) {
+      def expected = AggregateEntryTestUtils.of(
         "resource",
         "service" + i,
         "operation",
@@ -918,26 +978,28 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         [],
         null,
         null,
-        null
-        ), _) >> { MetricKey key, AggregateMetric value ->
-          value.getHitCount() == 1 && value.getDuration() == duration
-        }
+        null)
+      1 * writer.add({ AggregateEntryTestUtils.equals(it, expected) }) >> { AggregateEntry e ->
+        assert e.getHitCount() == 1 && e.getDuration() == duration
+      }
     }
-    0 * writer.add(new MetricKey(
-      "resource",
-      "service0",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "baz",
-      [],
-      null,
-      null,
-      null
-      ), _)
+    0 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service10",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "baz",
+        [],
+        null,
+        null,
+        null
+        ))
+    })
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -1052,7 +1114,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(5, _, SECONDS.toNanos(reportingInterval))
     for (int i = 0; i < 5; ++i) {
-      1 * writer.add(new MetricKey(
+      def expected = AggregateEntryTestUtils.of(
         "resource",
         "service" + i,
         "operation",
@@ -1065,10 +1127,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         [],
         null,
         null,
-        null
-        ), { AggregateMetric value ->
-          value.getHitCount() == 1 && value.getDuration() == duration
-        })
+        null)
+      1 * writer.add({ AggregateEntryTestUtils.equals(it, expected) }) >> { AggregateEntry e ->
+        assert e.getHitCount() == 1 && e.getDuration() == duration
+      }
     }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -1087,7 +1149,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(4, _, SECONDS.toNanos(reportingInterval))
     for (int i = 1; i < 5; ++i) {
-      1 * writer.add(new MetricKey(
+      def expected = AggregateEntryTestUtils.of(
         "resource",
         "service" + i,
         "operation",
@@ -1100,26 +1162,28 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         [],
         null,
         null,
-        null
-        ), { AggregateMetric value ->
-          value.getHitCount() == 1 && value.getDuration() == duration
-        })
+        null)
+      1 * writer.add({ AggregateEntryTestUtils.equals(it, expected) }) >> { AggregateEntry e ->
+        assert e.getHitCount() == 1 && e.getDuration() == duration
+      }
     }
-    0 * writer.add(new MetricKey(
-      "resource",
-      "service0",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "baz",
-      [],
-      null,
-      null,
-      null
-      ), _)
+    0 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "resource",
+        "service0",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "baz",
+        [],
+        null,
+        null,
+        null
+        ))
+    })
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -1154,7 +1218,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(5, _, SECONDS.toNanos(reportingInterval))
     for (int i = 0; i < 5; ++i) {
-      1 * writer.add(new MetricKey(
+      def expected = AggregateEntryTestUtils.of(
         "resource",
         "service" + i,
         "operation",
@@ -1167,10 +1231,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         [],
         null,
         null,
-        null
-        ), { AggregateMetric value ->
-          value.getHitCount() == 1 && value.getDuration() == duration
-        })
+        null)
+      1 * writer.add({ AggregateEntryTestUtils.equals(it, expected) }) >> { AggregateEntry e ->
+        assert e.getHitCount() == 1 && e.getDuration() == duration
+      }
     }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -1180,7 +1244,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "aggregate not updated in cycle is not reported"
     0 * writer.finishBucket()
     0 * writer.startBucket(_, _, _)
-    0 * writer.add(_, _)
+    0 * writer.add(_)
 
     cleanup:
     aggregator.close()
@@ -1213,7 +1277,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(5, _, SECONDS.toNanos(1))
     for (int i = 0; i < 5; ++i) {
-      1 * writer.add(new MetricKey(
+      def expected = AggregateEntryTestUtils.of(
         "resource",
         "service" + i,
         "operation",
@@ -1226,10 +1290,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         [],
         null,
         null,
-        null
-        ), { AggregateMetric value ->
-          value.getHitCount() == 1 && value.getDuration() == duration
-        })
+        null)
+      1 * writer.add({ AggregateEntryTestUtils.equals(it, expected) }) >> { AggregateEntry e ->
+        assert e.getHitCount() == 1 && e.getDuration() == duration
+      }
     }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -1379,24 +1443,26 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then:
     latchTriggered
     1 * writer.startBucket(1, _, _)
-    1 * writer.add(
-      new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      true,
-      "",
-      [],
-      null,
-      null,
-      null
-      ), { AggregateMetric aggregateMetric ->
-        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 100
-      })
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,
+        AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        true,
+        "",
+        [],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
+    }
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -1434,24 +1500,26 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "all spans should go to the same bucket (httpMethod and httpEndpoint are ignored)"
     latchTriggered
     1 * writer.startBucket(1, _, _)
-    1 * writer.add(
-      new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "server",
-      [],
-      null,
-      null,
-      null
-      ), { AggregateMetric aggregateMetric ->
-        aggregateMetric.getHitCount() == 3 && aggregateMetric.getTopLevelCount() == 3 && aggregateMetric.getDuration() == 450
-      })
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,
+        AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "server",
+        [],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 3 && e.getTopLevelCount() == 3 && e.getDuration() == 450
+    }
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -1489,60 +1557,66 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then: "spans should go to separate buckets based on httpMethod and httpEndpoint"
     latchTriggered
     1 * writer.startBucket(3, _, _)
-    1 * writer.add(
-      new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "server",
-      [],
-      "GET",
-      "/api/users/:id",
-      null
-      ), { AggregateMetric aggregateMetric ->
-        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 100
-      })
-    1 * writer.add(
-      new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "server",
-      [],
-      "POST",
-      "/api/orders",
-      null
-      ), { AggregateMetric aggregateMetric ->
-        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 200
-      })
-    1 * writer.add(
-      new MetricKey(
-      "resource",
-      "service",
-      "operation",
-      null,
-      "type",
-      HTTP_OK,
-      false,
-      false,
-      "server",
-      [],
-      null,
-      null,
-      null
-      ), { AggregateMetric aggregateMetric ->
-        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 150
-      })
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,
+        AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "server",
+        [],
+        "GET",
+        "/api/users/:id",
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
+    }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,
+        AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "server",
+        [],
+        "POST",
+        "/api/orders",
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 200
+    }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,
+        AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "server",
+        [],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 150
+    }
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -1578,51 +1652,57 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     then:
     latchTriggered
     1 * writer.startBucket(3, _, _)
-    1 * writer.add(new MetricKey(
-      "grpc.service/Method",
-      "service",
-      "grpc.server",
-      null,
-      "rpc",
-      0,
-      false,
-      false,
-      "server",
-      [],
-      null,
-      null,
-      "0"
-      ), _)
-    1 * writer.add(new MetricKey(
-      "grpc.service/Method",
-      "service",
-      "grpc.server",
-      null,
-      "rpc",
-      0,
-      false,
-      false,
-      "server",
-      [],
-      null,
-      null,
-      "5"
-      ), _)
-    1 * writer.add(new MetricKey(
-      "GET /api",
-      "service",
-      "http.request",
-      null,
-      "web",
-      200,
-      false,
-      false,
-      "server",
-      [],
-      null,
-      null,
-      null
-      ), _)
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "grpc.service/Method",
+        "service",
+        "grpc.server",
+        null,
+        "rpc",
+        0,
+        false,
+        false,
+        "server",
+        [],
+        null,
+        null,
+        "0"
+        ))
+    })
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "grpc.service/Method",
+        "service",
+        "grpc.server",
+        null,
+        "rpc",
+        0,
+        false,
+        false,
+        "server",
+        [],
+        null,
+        null,
+        "5"
+        ))
+    })
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
+        "GET /api",
+        "service",
+        "http.request",
+        null,
+        "web",
+        200,
+        false,
+        false,
+        "server",
+        [],
+        null,
+        null,
+        null
+        ))
+    })
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:

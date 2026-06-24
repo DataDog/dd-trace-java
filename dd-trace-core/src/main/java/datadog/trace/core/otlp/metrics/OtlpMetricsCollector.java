@@ -3,8 +3,8 @@ package datadog.trace.core.otlp.metrics;
 import datadog.trace.core.otlp.common.OtlpPayload;
 
 /** Collects metrics ready for export. */
-public interface OtlpMetricsCollector {
-  OtlpMetricsCollector NOOP_COLLECTOR = () -> OtlpPayload.EMPTY;
+public abstract class OtlpMetricsCollector {
 
-  OtlpPayload collectMetrics();
+  /** Collects all metrics recorded since the last collection. */
+  public abstract OtlpPayload collectMetrics();
 }

@@ -65,6 +65,8 @@ import java.util.function.Supplier
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART_COMBINED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART_REPEATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
@@ -369,6 +371,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testBodyFilenamesCalledOnce() {
+    false
+  }
+
+  boolean testBodyFilenamesCalledOnceCombined() {
+    false
+  }
+
   boolean testBodyFilenames() {
     false
   }
@@ -481,6 +491,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     CREATED_IS("created_input_stream", 201, "created"),
     BODY_URLENCODED("body-urlencoded?ignore=pair", 200, '[a:[x]]'),
     BODY_MULTIPART("body-multipart?ignore=pair", 200, '[a:[x]]'),
+    BODY_MULTIPART_REPEATED("body-multipart-repeated", 200, "ok"),
+    BODY_MULTIPART_COMBINED("body-multipart-combined", 200, "ok"),
     BODY_JSON("body-json", 200, '{"a":"x"}'),
     BODY_XML("body-xml", 200, '<foo attr="attr_value">mytext<bar/></foo>'),
     REDIRECT("redirect", 302, "/redirected"),
@@ -1248,7 +1260,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/9396", suites = ["PekkoHttpServerInstrumentationAsyncHttp2Test"])
-  def "test exception"() {
+  def "Instrumentation test exception"() {
     setup:
     def method = "GET"
     def body = null
@@ -1651,6 +1663,54 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     then:
     TEST_WRITER.get(0).any {
       it.getTag('request.body.filenames') == "[evil.php]"
+    }
+
+    cleanup:
+    response.close()
+  }
+
+  def 'test instrumentation gateway file upload filenames called once'() {
+    setup:
+    assumeTrue(testBodyFilenamesCalledOnce())
+    RequestBody fileBody = RequestBody.create(MediaType.parse('application/octet-stream'), 'file content')
+    def body = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'evil.php', fileBody)
+    .build()
+    def httpRequest = request(BODY_MULTIPART_REPEATED, 'POST', body).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.filenames') == "[evil.php]"
+      && it.getTag('_dd.appsec.filenames.cb.calls') == 1
+    }
+
+    cleanup:
+    response.close()
+  }
+
+  def 'test instrumentation gateway file upload filenames called once via parameter map'() {
+    setup:
+    assumeTrue(testBodyFilenamesCalledOnceCombined())
+    RequestBody fileBody = RequestBody.create(MediaType.parse('application/octet-stream'), 'file content')
+    def body = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'evil.php', fileBody)
+    .build()
+    def httpRequest = request(BODY_MULTIPART_COMBINED, 'POST', body).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.filenames') == "[evil.php]"
+      && it.getTag('_dd.appsec.filenames.cb.calls') == 1
     }
 
     cleanup:
@@ -2571,22 +2631,18 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (hasPeerPort) {
             "$Tags.PEER_PORT" Integer
           }
+          def peerHostTag = Tags.PEER_HOST_IPV4
+          def expectedPeerIp = "127.0.0.1"
           if (span.getTag(Tags.PEER_HOST_IPV6) != null) {
-            "$Tags.PEER_HOST_IPV6" {
-              it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
-            "$Tags.HTTP_CLIENT_IP" {
-              it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
-          } else {
-            "$Tags.PEER_HOST_IPV4" {
-              it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
-            "$Tags.HTTP_CLIENT_IP" {
-              it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
+            peerHostTag = Tags.PEER_HOST_IPV6
+            expectedPeerIp = "0:0:0:0:0:0:0:1"
           }
+          tag(peerHostTag, expectedPeerIp)
+          "$Tags.HTTP_CLIENT_IP" clientIp ?: expectedPeerIp
+          "$Tags.NETWORK_CLIENT_IP" expectedPeerIp
         } else {
+          // http.client_ip is inferred from forwarded headers; network.client.ip requires peerIp.
+          "$Tags.NETWORK_CLIENT_IP" null
           "$Tags.HTTP_CLIENT_IP" clientIp
         }
         "$Tags.HTTP_HOSTNAME" address.host
@@ -2671,6 +2727,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       Object responseBody
       List<String> uploadedFilenames
       List<String> uploadedFilesContent
+      int uploadedFilenamesCallCount = 0
     }
 
     static final String stringOrEmpty(String string) {
@@ -2844,6 +2901,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       rqCtxt.traceSegment.setTagTop('request.body.filenames', filenames as String)
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       context.uploadedFilenames = filenames
+      context.uploadedFilenamesCallCount++
+      rqCtxt.traceSegment.setTagTop('_dd.appsec.filenames.cb.calls', context.uploadedFilenamesCallCount)
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, List<String>, Flow<Void>>)
 

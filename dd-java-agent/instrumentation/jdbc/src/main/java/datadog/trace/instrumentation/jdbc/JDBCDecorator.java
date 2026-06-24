@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_DYNAMIC_SERVICE;
 import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL;
 import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_STATIC;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -60,7 +61,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       Config.get().isExperimentalPropagateProcessTagsEnabled();
   public static final boolean INJECT_COMMENT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL)
-          || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC);
+          || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC)
+          || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_DYNAMIC_SERVICE);
   private static final boolean INJECT_TRACE_CONTEXT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
@@ -234,13 +236,13 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
           clientInfo = connection.getClientInfo();
         } catch (final Throwable ex) {
           // getClientInfo is likely not allowed, we can still extract info from the url alone
-          log.debug("Could not get client info from DB", ex);
+          log.debug(LogCollector.EXCLUDE_TELEMETRY, "Could not get client info from DB", ex);
         }
         dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, clientInfo);
       } else {
         dbInfo = DBInfo.DEFAULT;
       }
-    } catch (final SQLException se) {
+    } catch (final Throwable se) {
       log.debug("Could not get metadata from DB", se);
       dbInfo = DBInfo.DEFAULT;
     }
@@ -274,7 +276,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     } else {
       span.setResourceName(DB_QUERY);
     }
-    span.context().setIntegrationName(component);
+    span.spanContext().setIntegrationName(component);
     return span.setTag(Tags.COMPONENT, component);
   }
 
@@ -336,7 +338,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     // potentially get build span like here
     AgentSpan instrumentationSpan =
         AgentTracer.get()
-            .singleSpanBuilder("set context_info")
+            .singleSpanBuilder("java-jdbc", "set context_info")
             .withTag("dd.instrumentation", true)
             .start();
     DECORATE.afterStart(instrumentationSpan);

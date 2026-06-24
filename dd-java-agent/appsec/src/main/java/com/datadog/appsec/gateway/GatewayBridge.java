@@ -986,9 +986,6 @@ public class GatewayBridge {
 
         span.setTag("appsec.event", true);
 
-        String peerAddress = ctx.getPeerAddress();
-        span.setTag("network.client.ip", peerAddress);
-
         // Reflect client_ip as actor.ip for backward compatibility
         Object clientIp = tags.get(Tags.HTTP_CLIENT_IP);
         if (clientIp != null) {

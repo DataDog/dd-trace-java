@@ -1,14 +1,20 @@
 import com.datadog.iast.taint.Ranges
 import com.datadog.iast.test.IastAgentTestRunner
 import com.datadog.iast.model.VulnerabilityBatch
+import datadog.trace.api.iast.InstrumentationBridge
+import datadog.trace.api.iast.sink.SqlInjectionModule
 import datadog.trace.core.DDSpan
+import datadog.trace.instrumentation.jdbc.IastConnectionCallSite
 import foo.bar.IastInstrumentedConnection
 import foo.bar.IastInstrumentedStatement
+import test.TestConnection
 
 import spock.lang.Shared
 
 import javax.sql.DataSource
 import java.sql.Connection
+import java.sql.DatabaseMetaData
+import java.sql.SQLException
 import java.sql.Statement
 
 class IastJDBCTest extends IastAgentTestRunner {
@@ -120,5 +126,29 @@ class IastJDBCTest extends IastAgentTestRunner {
     with(iastReport.vulnerabilities[0].evidence) {
       value == 'SELECT id FROM TEST LIMIT 1'
     }
+  }
+
+  void 'metadata runtime exception does not report unexpected exception on connection method'() {
+    setup:
+    def previousModule = InstrumentationBridge.SQL_INJECTION
+    def module = Mock(SqlInjectionModule)
+    InstrumentationBridge.SQL_INJECTION = module
+    def sql = 'SELECT id FROM TEST LIMIT 1'
+    def connection = new TestConnection(false) {
+        @Override
+        DatabaseMetaData getMetaData() throws SQLException {
+          throw new RuntimeException('metadata exception')
+        }
+      }
+
+    when:
+    IastConnectionCallSite.beforePrepare(connection, sql)
+
+    then:
+    1 * module.onJdbcQuery(sql, 'database')
+    0 * module.onUnexpectedException(_, _)
+
+    cleanup:
+    InstrumentationBridge.SQL_INJECTION = previousModule
   }
 }

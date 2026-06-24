@@ -51,14 +51,18 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     }
   }
 
-  void 'test remote config'() {
+  void 'test first remote config poll asks agent for feature flags'() {
     when:
-    final rcRequest = waitForRcClientRequest { req ->
-      decodeProducts(req).find { it == Product.FFE_FLAGS } != null
+    final firstRcRequest = waitForRcClientRequest { req ->
+      return true
     }
 
     then:
-    final capabilities = decodeCapabilities(rcRequest)
+    firstRcRequest == rcClientMessages.first()
+    // An already-running Agent gives a newly-started tracer one new-client cache bypass. If
+    // FFE_FLAGS is missing here and only appears on a later poll, the Agent can miss the fast path.
+    decodeProducts(firstRcRequest).find { it == Product.FFE_FLAGS } != null
+    final capabilities = decodeCapabilities(firstRcRequest)
     hasCapability(capabilities, Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES)
   }
 

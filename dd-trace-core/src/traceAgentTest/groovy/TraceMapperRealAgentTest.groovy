@@ -31,7 +31,7 @@ class TraceMapperRealAgentTest extends AbstractTraceAgentTest {
   def "send random traces"() {
     setup:
     HealthMetrics healthMetrics = Mock(HealthMetrics)
-    DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, protocol, true)
+    DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, protocol, true, false)
     DDAgentApi api = new DDAgentApi(client, agentUrl, discovery, monitoring, false)
     PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring)
     List<List<CoreSpan>> traces = generateRandomTraces(traceCount, lowCardinality)

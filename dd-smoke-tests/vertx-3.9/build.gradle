@@ -1,53 +1,32 @@
 plugins {
+  id 'dd-trace-java.smoke-test-app'
   id 'idea'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+description = 'Vert.x 3.9 Smoke Tests.'
+
+smokeTestApp {
+  gradleApp {
+    taskName = 'vertxBuild'
+    nestedTasks = ['assemble']
+    artifactPath = 'libs/vertx-3.9-1.0.0-SNAPSHOT-fat.jar'
+    sysProperty = 'datadog.smoketest.vertx.uberJar.path'
+  }
+  projectJar('apiJar', project(':dd-trace-api'))
+}
 
 dependencies {
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 
-def appDir = "$projectDir/application"
-def appBuildDir = "$buildDir/application"
-def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
-def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
-// define the task that builds the vertx project
-tasks.register('vertxBuild', Exec) {
-  workingDir "$appDir"
-  environment += [
-    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
-    "JAVA_HOME": getLazyJavaHomeFor(8)
-  ]
-  commandLine "$appDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
-
-  outputs.cacheIf { true }
-
-  outputs.dir(appBuildDir)
-    .withPropertyName("applicationJar")
-
-  inputs.files(fileTree(appDir) {
-    include '**/*'
-    exclude '.gradle/**'
-  })
-  .withPropertyName("application")
-  .withPathSensitivity(PathSensitivity.RELATIVE)
-}
-
-tasks.named("vertxBuild", Exec) {
-  dependsOn project(':dd-trace-api').tasks.named("jar")
-}
-
 tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn 'vertxBuild'
   outputs.upToDateWhen {
-    !vertxBuild.didWork
+    !tasks.named('vertxBuild').get().didWork
   }
-}
-
-tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.vertx.uberJar.path=$appBuildDir/libs/vertx-3.9-1.0.0-SNAPSHOT-fat.jar"
 }
 
 spotless {
@@ -62,6 +41,6 @@ spotless {
 
 idea {
   module {
-    excludeDirs += [file("$appDir")]
+    excludeDirs += [file("$projectDir/application")]
   }
 }

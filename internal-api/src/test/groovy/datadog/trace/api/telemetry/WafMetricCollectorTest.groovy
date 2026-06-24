@@ -67,7 +67,7 @@ class WafMetricCollectorTest extends DDSpecification {
 
     def updateMetric2 = (WafMetricCollector.WafUpdatesRawMetric) metrics[2]
     updateMetric2.type == 'count'
-    updateMetric2.value == 2
+    updateMetric2.value == 1
     updateMetric2.namespace == 'appsec'
     updateMetric2.metricName == 'waf.updates'
     updateMetric2.tags.toSet() == ['waf_version:waf_ver1', 'event_rules_version:rules.3', 'success:false'].toSet()

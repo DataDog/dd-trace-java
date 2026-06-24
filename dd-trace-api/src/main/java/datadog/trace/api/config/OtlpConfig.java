@@ -20,6 +20,8 @@ public final class OtlpConfig {
   public static final String METRICS_OTEL_INTERVAL = "metrics.otel.interval";
   public static final String METRICS_OTEL_TIMEOUT = "metrics.otel.timeout";
   public static final String METRICS_OTEL_CARDINALITY_LIMIT = "metrics.otel.cardinality.limit";
+  public static final String METRICS_OTEL_EXPERIMENTAL_ENABLED =
+      "metrics.otel.experimental.enabled";
 
   public static final String OTLP_METRICS_ENDPOINT = "otlp.metrics.endpoint";
   public static final String OTLP_METRICS_HEADERS = "otlp.metrics.headers";

@@ -24,7 +24,7 @@ class TestListener extends AsyncObservationSupport {
       markAsyncStarted()
       awaitAsyncRelease()
       // Asserting spring.consume root span is active during async execution
-      def childSpan = startSpan("async.child")
+      def childSpan = startSpan("test", "async.child")
       def childScope = activateSpan(childSpan)
       childScope.close()
       childSpan.finish()

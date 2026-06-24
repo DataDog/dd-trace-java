@@ -7,6 +7,7 @@ public enum Provider implements TagValue {
   APPVEYOR,
   AWS,
   AZP,
+  BAZEL,
   BITBUCKET,
   BITRISE,
   BUILDKITE,

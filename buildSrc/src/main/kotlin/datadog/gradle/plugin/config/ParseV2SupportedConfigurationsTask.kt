@@ -117,7 +117,14 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     PrintWriter(outFile).use { out ->
       out.println("package $packageName;")
       out.println()
-      out.println("import java.util.*;")
+      out.println("import java.util.HashMap;")
+      out.println("import java.util.List;")
+      out.println("import java.util.Map;")
+      out.println("import static java.util.Arrays.asList;")
+      out.println("import static java.util.Collections.emptyList;")
+      out.println("import static java.util.Collections.singletonList;")
+      out.println("import static java.util.Collections.unmodifiableList;")
+      out.println("import static java.util.Collections.unmodifiableMap;")
       out.println()
       out.println("public final class $className {")
       out.println()
@@ -145,7 +152,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       out.println("    Map<String, List<SupportedConfiguration>> supportedMap = new HashMap<>();")
       out.println("    initSupported1(supportedMap);")
       out.println("    initSupported2(supportedMap);")
-      out.println("    return Collections.unmodifiableMap(supportedMap);")
+      out.println("    return unmodifiableMap(supportedMap);")
       out.println("  }")
       out.println()
 
@@ -155,20 +162,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       // initSupported1() - first half
       out.println("  private static void initSupported1(Map<String, List<SupportedConfiguration>> supportedMap) {")
       for ((key, configList) in sortedSupported.take(midpoint)) {
-        out.print("    supportedMap.put(\"${esc(key)}\", Collections.unmodifiableList(Arrays.asList(")
-        val configIter = configList.iterator()
-        while (configIter.hasNext()) {
-          val config = configIter.next()
-          out.print("new SupportedConfiguration(")
-          out.print("${escNullableString(config.version)}, ")
-          out.print("${escNullableString(config.type)}, ")
-          out.print("${escNullableString(config.default)}, ")
-          out.print("Arrays.asList(${quoteList(config.aliases)}), ")
-          out.print("Arrays.asList(${quoteList(config.propertyKeys)})")
-          out.print(")")
-          if (configIter.hasNext()) out.print(", ")
-        }
-        out.println(")));")
+        out.println("    supportedMap.put(\"${esc(key)}\", ${supportedConfigListLiteral(configList)});")
       }
       out.println("  }")
       out.println()
@@ -176,20 +170,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       // initSupported2() - second half
       out.println("  private static void initSupported2(Map<String, List<SupportedConfiguration>> supportedMap) {")
       for ((key, configList) in sortedSupported.drop(midpoint)) {
-        out.print("    supportedMap.put(\"${esc(key)}\", Collections.unmodifiableList(Arrays.asList(")
-        val configIter = configList.iterator()
-        while (configIter.hasNext()) {
-          val config = configIter.next()
-          out.print("new SupportedConfiguration(")
-          out.print("${escNullableString(config.version)}, ")
-          out.print("${escNullableString(config.type)}, ")
-          out.print("${escNullableString(config.default)}, ")
-          out.print("Arrays.asList(${quoteList(config.aliases)}), ")
-          out.print("Arrays.asList(${quoteList(config.propertyKeys)})")
-          out.print(")")
-          if (configIter.hasNext()) out.print(", ")
-        }
-        out.println(")));")
+        out.println("    supportedMap.put(\"${esc(key)}\", ${supportedConfigListLiteral(configList)});")
       }
       out.println("  }")
       out.println()
@@ -200,12 +181,12 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       out.println("    Map<String, List<String>> aliasesMap = new HashMap<>();")
       for ((canonical, list) in aliases.toSortedMap()) {
         out.printf(
-          "    aliasesMap.put(\"%s\", Collections.unmodifiableList(Arrays.asList(%s)));\n",
+          "    aliasesMap.put(\"%s\", %s);\n",
           esc(canonical),
-          quoteList(list)
+          unmodifiableListLiteral(list)
         )
       }
-      out.println("    return Collections.unmodifiableMap(aliasesMap);")
+      out.println("    return unmodifiableMap(aliasesMap);")
       out.println("  }")
       out.println()
 
@@ -215,7 +196,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       for ((alias, target) in aliasMapping.toSortedMap()) {
         out.printf("    aliasMappingMap.put(\"%s\", \"%s\");\n", esc(alias), esc(target))
       }
-      out.println("    return Collections.unmodifiableMap(aliasMappingMap);")
+      out.println("    return unmodifiableMap(aliasMappingMap);")
       out.println("  }")
       out.println()
 
@@ -225,7 +206,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       for ((oldKey, note) in deprecated.toSortedMap()) {
         out.printf("    deprecatedMap.put(\"%s\", \"%s\");\n", esc(oldKey), esc(note))
       }
-      out.println("    return Collections.unmodifiableMap(deprecatedMap);")
+      out.println("    return unmodifiableMap(deprecatedMap);")
       out.println("  }")
       out.println()
 
@@ -235,14 +216,35 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       for ((propertyKey, config) in reversePropertyKeysMap.toSortedMap()) {
         out.printf("    reversePropertyKeysMapping.put(\"%s\", \"%s\");\n", esc(propertyKey), esc(config))
       }
-      out.println("    return Collections.unmodifiableMap(reversePropertyKeysMapping);")
+      out.println("    return unmodifiableMap(reversePropertyKeysMapping);")
       out.println("  }")
       out.println("}")
     }
   }
 
+  private fun supportedConfigLiteral(config: SupportedConfigurationItem): String =
+    "new SupportedConfiguration(${escNullableString(config.version)}, ${escNullableString(config.type)}, ${escNullableString(config.default)}, ${listLiteral(config.aliases)}, ${listLiteral(config.propertyKeys)})"
+
+  private fun supportedConfigListLiteral(configList: List<SupportedConfigurationItem>): String = when (configList.size) {
+    0 -> "emptyList()"
+    1 -> "singletonList(${supportedConfigLiteral(configList[0])})"
+    else -> "unmodifiableList(asList(${configList.joinToString(", ") { supportedConfigLiteral(it) }}))"
+  }
+
   private fun quoteList(list: List<String>): String =
     list.joinToString(", ") { "\"${esc(it)}\"" }
+
+  private fun listLiteral(list: List<String>): String = when (list.size) {
+    0 -> "emptyList()"
+    1 -> "singletonList(${quoteList(list)})"
+    else -> "asList(${quoteList(list)})"
+  }
+
+  private fun unmodifiableListLiteral(list: List<String>): String = when (list.size) {
+    0 -> "emptyList()"
+    1 -> "singletonList(${quoteList(list)})"
+    else -> "unmodifiableList(asList(${quoteList(list)}))"
+  }
 
   private fun esc(s: String): String =
     s.replace("\\", "\\\\").replace("\"", "\\\"")
