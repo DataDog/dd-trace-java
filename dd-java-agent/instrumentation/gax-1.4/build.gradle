@@ -1,0 +1,21 @@
+muzzle {
+  pass {
+    group = "com.google.api"
+    module = "gax"
+    // CallbackChainRetryingFuture (with setAttemptFuture + attemptFutureCompletionListener) first
+    // appears in gax 1.4.0. No need to assert the low bound hence since the instrumentation is not applied.
+    versions = "[1.4.0,]"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.google.api', name: 'gax', version: '1.4.0'
+  testImplementation project(":dd-java-agent:instrumentation:guava-10.0")
+  testImplementation group: 'com.google.api', name: 'gax', version: '1.4.0'
+
+  latestDepTestImplementation group: 'com.google.api', name: 'gax', version: '+'
+}

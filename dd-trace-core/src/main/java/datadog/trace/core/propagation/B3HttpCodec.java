@@ -25,15 +25,15 @@ class B3HttpCodec {
 
   private static final Logger log = LoggerFactory.getLogger(B3HttpCodec.class);
 
-  private static final String B3_TRACE_ID = "b3.traceid";
-  private static final String B3_SPAN_ID = "b3.spanid";
+  static final String B3_TRACE_ID = "b3.traceid";
+  static final String B3_SPAN_ID = "b3.spanid";
   static final String TRACE_ID_KEY = "X-B3-TraceId";
   static final String SPAN_ID_KEY = "X-B3-SpanId";
-  private static final String SAMPLING_PRIORITY_KEY = "X-B3-Sampled";
+  static final String SAMPLING_PRIORITY_KEY = "X-B3-Sampled";
   // See https://github.com/openzipkin/b3-propagation#single-header for b3 header documentation
-  private static final String B3_KEY = "b3";
-  private static final String SAMPLING_PRIORITY_ACCEPT = String.valueOf(1);
-  private static final String SAMPLING_PRIORITY_DROP = String.valueOf(0);
+  static final String B3_KEY = "b3";
+  static final String SAMPLING_PRIORITY_ACCEPT = String.valueOf(1);
+  static final String SAMPLING_PRIORITY_DROP = String.valueOf(0);
 
   private B3HttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -282,7 +282,7 @@ class B3HttpCodec {
         if (LOG_EXTRACT_HEADER_NAMES) {
           log.debug("Header: {}", key);
         }
-        if (B3_KEY.equals(key)) {
+        if (B3_KEY.equalsIgnoreCase(key)) {
           return extractB3(firstHeaderValue(value));
         } else {
           char first = Character.toLowerCase(key.charAt(0));

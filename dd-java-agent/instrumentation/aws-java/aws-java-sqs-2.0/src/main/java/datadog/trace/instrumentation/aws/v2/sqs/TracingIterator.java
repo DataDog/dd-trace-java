@@ -12,6 +12,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.instrumentation.aws.v2.sqs.MessageExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.BROKER_DECORATE;
+import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.SQS_INBOUND_OPERATION;
 import static datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator.SQS_TIME_IN_QUEUE_OPERATION;
@@ -91,12 +92,13 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
             if (timeInQueueStart > 0) {
               queueSpan =
                   startSpan(
+                      COMPONENT_NAME.toString(),
                       SQS_TIME_IN_QUEUE_OPERATION,
                       spanContext,
                       MILLISECONDS.toMicros(timeInQueueStart));
               BROKER_DECORATE.afterStart(queueSpan);
               BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl, requestId);
-              spanContext = queueSpan.context();
+              spanContext = queueSpan.spanContext();
               // The queueSpan will be finished after inner span has been activated to ensure that
               // spans are written out together by TraceStructureWriter when running in strict mode
             }
@@ -104,7 +106,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
           // re-use this context for any other messages received in this batch
           batchContext = spanContext;
         }
-        AgentSpan span = startSpan(SQS_INBOUND_OPERATION, batchContext);
+        AgentSpan span = startSpan(COMPONENT_NAME.toString(), SQS_INBOUND_OPERATION, batchContext);
 
         DataStreamsTags tags = create("sqs", INBOUND, urlFileName(queueUrl));
         AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, create(tags, 0, 0));

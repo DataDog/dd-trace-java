@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.smoke-test-app'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
@@ -5,52 +9,33 @@ testJvmConstraints {
   maxJavaVersion = JavaVersion.VERSION_21
 }
 
+description = 'Quarkus Smoke Tests.'
+
+smokeTestApp {
+  // Quarkus 1.9.2 (Sep 2020) cannot run on JDK 21; use Java 11 launcher
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(11)
+  }
+  gradleApp {
+    taskName = 'quarkusBuild'
+    nestedTasks = ['build']
+    // Quarkus' uber-jar is named `<projectName>-runner.jar`; here the inner project has no
+    // version, so the artifact name is `quarkus-smoketest--runner.jar`.
+    artifactPath = 'quarkus-smoketest--runner.jar'
+    sysProperty = 'datadog.smoketest.quarkus.uberJar.path'
+  }
+  projectJar('apiJar', project(':dd-trace-api'))
+}
+
 dependencies {
   testImplementation project(':dd-smoke-tests')
-}
-
-def appDir = "$projectDir/application"
-def appBuildDir = "$buildDir/application"
-def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
-def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
-
-// define the task that builds the quarkus project
-tasks.register('quarkusBuild', Exec) {
-  workingDir "$appDir"
-  environment += [
-    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
-    "JAVA_HOME": getLazyJavaHomeFor(8)
-  ]
-  commandLine "${rootDir}/${gradlewCommand}", "build", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
-
-  outputs.cacheIf { true }
-
-  outputs.dir(appBuildDir)
-    .withPropertyName("applicationJar")
-
-  inputs.files(fileTree(appDir) {
-    include '**/*'
-    exclude '.gradle/**'
-  })
-  .withPropertyName("application")
-  .withPathSensitivity(PathSensitivity.RELATIVE)
-}
-
-evaluationDependsOn ':dd-trace-api'
-
-tasks.named("quarkusBuild", Exec) {
-  dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn 'quarkusBuild'
   outputs.upToDateWhen {
-    !quarkusBuild.didWork
+    !tasks.named('quarkusBuild').get().didWork
   }
-}
-
-tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.quarkus.uberJar.path=$appBuildDir/quarkus-smoketest--runner.jar"
 }
 
 spotless {

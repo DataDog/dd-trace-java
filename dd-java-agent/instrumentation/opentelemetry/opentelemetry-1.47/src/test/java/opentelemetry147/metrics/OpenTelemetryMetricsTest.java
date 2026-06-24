@@ -166,6 +166,38 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
   }
 
   @Test
+  void testLongHistogramOverflow() {
+    io.opentelemetry.api.metrics.LongHistogram histogram =
+        meter.histogramBuilder("long-histogram-overflow").ofLongs().build();
+    histogram.record(20_000); // exceeds highest default boundary of 10_000
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+
+    assertEquals(
+        new HistogramData(
+            1.0,
+            Arrays.asList(10_000.0, Double.POSITIVE_INFINITY),
+            Arrays.asList(0.0, 1.0),
+            20_000.0),
+        points.get("test:long-histogram-overflow"));
+  }
+
+  @Test
+  void testDoubleHistogramOverflow() {
+    io.opentelemetry.api.metrics.DoubleHistogram histogram =
+        meter.histogramBuilder("double-histogram-overflow").build();
+    histogram.record(20_000.5); // exceeds highest default boundary of 10_000
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+
+    assertEquals(
+        new HistogramData(
+            1.0,
+            Arrays.asList(10_000.0, Double.POSITIVE_INFINITY),
+            Arrays.asList(0.0, 1.0),
+            20_000.5),
+        points.get("test:double-histogram-overflow"));
+  }
+
+  @Test
   void testObservableLongCounter() {
     AutoCloseable observable =
         meter
@@ -179,6 +211,13 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
 
     assertEquals(1L, points.get("test:observable-long-counter"));
     assertEquals(2L, points.get("test:observable-long-counter" + WITH_ATTRS));
+
+    // second collect: absolute values are reported, not accumulated
+    points.clear();
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+
+    assertEquals(0L, points.get("test:observable-long-counter"));
+    assertEquals(0L, points.get("test:observable-long-counter" + WITH_ATTRS));
 
     closeQuietly(observable);
   }
@@ -199,6 +238,13 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     assertEquals(1.2, points.get("test:observable-double-counter"));
     assertEquals(3.4, points.get("test:observable-double-counter" + WITH_ATTRS));
 
+    // second collect: absolute values are reported, not accumulated
+    points.clear();
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+
+    assertEquals(0.0, points.get("test:observable-double-counter"));
+    assertEquals(0.0, points.get("test:observable-double-counter" + WITH_ATTRS));
+
     closeQuietly(observable);
   }
 
@@ -212,6 +258,13 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
                   m.record(1);
                   m.record(2, SOME_ATTRIBUTES);
                 });
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+
+    assertEquals(1L, points.get("test:observable-long-up-down-counter"));
+    assertEquals(2L, points.get("test:observable-long-up-down-counter" + WITH_ATTRS));
+
+    // second collect: absolute values are reported, not accumulated
+    points.clear();
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1L, points.get("test:observable-long-up-down-counter"));
@@ -231,6 +284,13 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
                   m.record(1.2);
                   m.record(3.4, SOME_ATTRIBUTES);
                 });
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+
+    assertEquals(1.2, points.get("test:observable-double-up-down-counter"));
+    assertEquals(3.4, points.get("test:observable-double-up-down-counter" + WITH_ATTRS));
+
+    // second collect: absolute values are reported, not accumulated
+    points.clear();
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
     assertEquals(1.2, points.get("test:observable-double-up-down-counter"));
@@ -272,6 +332,108 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
 
     assertEquals(1.2, points.get("test:observable-double-gauge"));
     assertEquals(3.4, points.get("test:observable-double-gauge" + WITH_ATTRS));
+
+    closeQuietly(observable);
+  }
+
+  @Test
+  void testObservableLongCounterDeltaWithChangingValues() {
+    long[] absoluteValue = {0L};
+    AutoCloseable observable =
+        meter
+            .counterBuilder("observable-long-counter-delta-changing")
+            .buildWithCallback(m -> m.record(absoluteValue[0]));
+
+    absoluteValue[0] = 5L;
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(5L, points.get("test:observable-long-counter-delta-changing"));
+
+    // delta since last collect: 12 - 5 = 7
+    points.clear();
+    absoluteValue[0] = 12L;
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(7L, points.get("test:observable-long-counter-delta-changing"));
+
+    // no change in absolute value: delta = 0
+    points.clear();
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(0L, points.get("test:observable-long-counter-delta-changing"));
+
+    closeQuietly(observable);
+  }
+
+  @Test
+  void testObservableDoubleCounterDeltaWithChangingValues() {
+    double[] absoluteValue = {0.0};
+    AutoCloseable observable =
+        meter
+            .counterBuilder("observable-double-counter-delta-changing")
+            .ofDoubles()
+            .buildWithCallback(m -> m.record(absoluteValue[0]));
+
+    absoluteValue[0] = 2.5;
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(2.5, points.get("test:observable-double-counter-delta-changing"));
+
+    // delta since last collect: 5.0 - 2.5 = 2.5
+    points.clear();
+    absoluteValue[0] = 5.0;
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(2.5, points.get("test:observable-double-counter-delta-changing"));
+
+    // no change in absolute value: delta = 0.0
+    points.clear();
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(0.0, points.get("test:observable-double-counter-delta-changing"));
+
+    closeQuietly(observable);
+  }
+
+  @Test
+  void testObservableLongUpDownCounterReportsAbsoluteValue() {
+    long[] absoluteValue = {0L};
+    AutoCloseable observable =
+        meter
+            .upDownCounterBuilder("observable-long-up-down-counter-absolute")
+            .buildWithCallback(m -> m.record(absoluteValue[0]));
+
+    absoluteValue[0] = 10L;
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(10L, points.get("test:observable-long-up-down-counter-absolute"));
+
+    // value decreases: should report new absolute value, not a delta
+    points.clear();
+    absoluteValue[0] = 3L;
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(3L, points.get("test:observable-long-up-down-counter-absolute"));
+
+    // value increases again
+    points.clear();
+    absoluteValue[0] = 15L;
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(15L, points.get("test:observable-long-up-down-counter-absolute"));
+
+    closeQuietly(observable);
+  }
+
+  @Test
+  void testObservableDoubleUpDownCounterReportsAbsoluteValue() {
+    double[] absoluteValue = {0.0};
+    AutoCloseable observable =
+        meter
+            .upDownCounterBuilder("observable-double-up-down-counter-absolute")
+            .ofDoubles()
+            .buildWithCallback(m -> m.record(absoluteValue[0]));
+
+    absoluteValue[0] = 8.0;
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(8.0, points.get("test:observable-double-up-down-counter-absolute"));
+
+    // value decreases: should report new absolute value
+    points.clear();
+    absoluteValue[0] = 2.5;
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+    assertEquals(2.5, points.get("test:observable-double-up-down-counter-absolute"));
 
     closeQuietly(observable);
   }
@@ -353,18 +515,18 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     points.clear();
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
-    // delta mode: counters show values added during last collect
-    assertEquals(1L, points.get("test:long-counter-observer"));
-    assertEquals(10L, points.get("test:long-counter-observer" + WITH_ATTRS));
-    assertEquals(2.3, points.get("test:double-counter-observer"));
-    assertEquals(20.3, points.get("test:double-counter-observer" + WITH_ATTRS));
-    // up-down counters stay cumulative: they show the running total
-    assertEquals(8L, points.get("test:long-up-down-counter-observer"));
-    assertEquals(80L, points.get("test:long-up-down-counter-observer" + WITH_ATTRS));
-    assertEquals(11.2, (double) points.get("test:double-up-down-counter-observer"), 0.001);
+    // async counters show delta since last collect (same value was recorded)
+    assertEquals(0L, points.get("test:long-counter-observer"));
+    assertEquals(0L, points.get("test:long-counter-observer" + WITH_ATTRS));
+    assertEquals(0.0, points.get("test:double-counter-observer"));
+    assertEquals(0.0, points.get("test:double-counter-observer" + WITH_ATTRS));
+    // async up-down counters stay cumulative and show the latest value
+    assertEquals(4L, points.get("test:long-up-down-counter-observer"));
+    assertEquals(40L, points.get("test:long-up-down-counter-observer" + WITH_ATTRS));
+    assertEquals(5.6, (double) points.get("test:double-up-down-counter-observer"), 0.001);
     assertEquals(
-        101.2, (double) points.get("test:double-up-down-counter-observer" + WITH_ATTRS), 0.001);
-    // gauges also stay cumulative: they only show latest value
+        50.6, (double) points.get("test:double-up-down-counter-observer" + WITH_ATTRS), 0.001);
+    // gauges continue to only show the latest value
     assertEquals(7L, points.get("test:long-gauge-observer"));
     assertEquals(70L, points.get("test:long-gauge-observer" + WITH_ATTRS));
     assertEquals(8.9, points.get("test:double-gauge-observer"));
@@ -375,18 +537,18 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
     points.clear();
     OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
 
-    // delta mode: no values were added as batchCallback is closed
+    // delta mode: no counts were set as batchCallback is closed, so no data point
     assertNull(points.get("test:long-counter-observer"));
     assertNull(points.get("test:long-counter-observer" + WITH_ATTRS));
     assertNull(points.get("test:double-counter-observer"));
     assertNull(points.get("test:double-counter-observer" + WITH_ATTRS));
-    // up-down counters stay cumulative: they show the running total
-    assertEquals(8L, points.get("test:long-up-down-counter-observer"));
-    assertEquals(80L, points.get("test:long-up-down-counter-observer" + WITH_ATTRS));
-    assertEquals(11.2, (double) points.get("test:double-up-down-counter-observer"), 0.001);
+    // up-down counters stay cumulative: they continue to show the last count set
+    assertEquals(4L, points.get("test:long-up-down-counter-observer"));
+    assertEquals(40L, points.get("test:long-up-down-counter-observer" + WITH_ATTRS));
+    assertEquals(5.6, (double) points.get("test:double-up-down-counter-observer"), 0.001);
     assertEquals(
-        101.2, (double) points.get("test:double-up-down-counter-observer" + WITH_ATTRS), 0.001);
-    // gauges also stay cumulative: they only show latest value
+        50.6, (double) points.get("test:double-up-down-counter-observer" + WITH_ATTRS), 0.001);
+    // gauges also stay cumulative: they continue to show the latest value set
     assertEquals(7L, points.get("test:long-gauge-observer"));
     assertEquals(70L, points.get("test:long-gauge-observer" + WITH_ATTRS));
     assertEquals(8.9, points.get("test:double-gauge-observer"));

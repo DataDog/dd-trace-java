@@ -30,6 +30,7 @@ interface CommonTags {
   String ENV = TAG_PREFIX + "env";
   String SERVICE = TAG_PREFIX + "service";
   String PARENT_ID = TAG_PREFIX + "parent_id";
+  String SESSION_ID = TAG_PREFIX + LLMObsTags.SESSION_ID;
 
   String TOOL_DEFINITIONS = TAG_PREFIX + "tool_definitions";
 

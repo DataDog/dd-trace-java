@@ -24,6 +24,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
+import datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor;
 import datadog.trace.bootstrap.otlp.logs.OtlpLogRecord;
 import datadog.trace.bootstrap.otlp.logs.OtlpScopedLogsVisitor;
 import datadog.trace.common.writer.LoggingWriter;
@@ -32,11 +33,11 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,7 +48,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Tests for {@link OtlpLogsProto} via {@link OtlpLogsProtoCollector#collectLogs}.
+ * Tests for {@link OtlpLogsProto} via {@link OtlpLogsProtoCollector#waitForLogs}.
  *
  * <p>Each test case constructs {@link OtlpLogRecord} instances (using real {@link DDSpan} contexts
  * where needed), collects them via {@link OtlpLogsProtoCollector}, drains the resulting chunked
@@ -86,7 +87,7 @@ class OtlpLogsProtoTest {
 
   static final class LogSpec {
     /** Instrumentation scope for this log record → drives ScopeLogs grouping. */
-    final OtelInstrumentationScope scope;
+    OtelInstrumentationScope scope;
 
     /** time_unix_nano (proto field 1). */
     final long timestampNanos;
@@ -95,25 +96,25 @@ class OtlpLogsProtoTest {
     final long observedNanos;
 
     /** severity_number (proto field 2). */
-    final int severityNumber;
+    int severityNumber;
 
     /** severity_text (proto field 3); {@code null} → field absent. */
-    @Nullable final String severityText;
+    @Nullable String severityText;
 
     /** body.string_value (proto field 5 → AnyValue field 1); {@code null} → field absent. */
     @Nullable final String body;
 
     /** Extra attributes written via {@code visitAttribute} before the log record. */
-    final Map<String, Object> attrs;
+    Map<String, Object> attrs;
 
     /**
      * If ≥ 0, index into the pre-built span list for the span context, encoding trace_id, span_id,
      * and flags. If -1, no span context → those fields absent.
      */
-    final int spanContextIndex;
+    int spanContextIndex;
 
     /** event_name (proto field 12); {@code null} → field absent. */
-    @Nullable final String eventName;
+    @Nullable String eventName;
 
     /**
      * If true, the span at {@code spanContextIndex} is started under a known 128-bit trace ID so
@@ -121,30 +122,60 @@ class OtlpLogsProtoTest {
      */
     boolean use128BitTraceId;
 
-    LogSpec(
-        OtelInstrumentationScope scope,
-        long timestampNanos,
-        long observedNanos,
-        int severityNumber,
-        @Nullable String severityText,
-        @Nullable String body,
-        Map<String, Object> attrs,
-        int spanContextIndex,
-        @Nullable String eventName) {
-      this.scope = scope;
-      this.timestampNanos = timestampNanos;
-      this.observedNanos = observedNanos;
-      this.severityNumber = severityNumber;
-      this.severityText = severityText;
+    LogSpec(@Nullable String body) {
       this.body = body;
+      this.scope = DEFAULT_SCOPE;
+      this.timestampNanos = BASE_NANOS;
+      this.observedNanos = BASE_NANOS + OBSERVED_OFFSET_NANOS;
+      this.severityNumber = 9;
+      this.severityText = "INFO";
+      this.attrs = emptyMap();
+      this.spanContextIndex = -1;
+    }
+
+    LogSpec scope(OtelInstrumentationScope scope) {
+      this.scope = scope;
+      return this;
+    }
+
+    LogSpec severity(int number, @Nullable String text) {
+      this.severityNumber = number;
+      this.severityText = text;
+      return this;
+    }
+
+    LogSpec attrs(Map<String, Object> attrs) {
       this.attrs = attrs;
-      this.spanContextIndex = spanContextIndex;
-      this.eventName = eventName;
+      return this;
+    }
+
+    LogSpec spanContextIndex(int index) {
+      this.spanContextIndex = index;
+      return this;
+    }
+
+    LogSpec eventName(@Nullable String name) {
+      this.eventName = name;
+      return this;
     }
 
     LogSpec use128BitTraceId() {
       this.use128BitTraceId = true;
       return this;
+    }
+  }
+
+  private static final class ParsedScope {
+    final String name;
+    final String version;
+    final String schemaUrl;
+    final List<byte[]> logRecordBlobs;
+
+    ParsedScope(String name, String version, String schemaUrl, List<byte[]> logRecordBlobs) {
+      this.name = name;
+      this.version = version;
+      this.schemaUrl = schemaUrl;
+      this.logRecordBlobs = logRecordBlobs;
     }
   }
 
@@ -158,95 +189,32 @@ class OtlpLogsProtoTest {
       DD128bTraceId.from(0x0123456789abcdefL, 0xfedcba9876543210L);
 
   private static LogSpec infoLog(String body) {
-    return new LogSpec(
-        DEFAULT_SCOPE,
-        BASE_NANOS,
-        BASE_NANOS + OBSERVED_OFFSET_NANOS,
-        9,
-        "INFO",
-        body,
-        new HashMap<>(),
-        -1,
-        null);
+    return new LogSpec(body);
   }
 
   private static LogSpec scopedLog(OtelInstrumentationScope scope, String body) {
-    return new LogSpec(
-        scope,
-        BASE_NANOS,
-        BASE_NANOS + OBSERVED_OFFSET_NANOS,
-        9,
-        "INFO",
-        body,
-        new HashMap<>(),
-        -1,
-        null);
+    return new LogSpec(body).scope(scope);
   }
 
   private static LogSpec severityLog(
       int severityNumber, @Nullable String severityText, String body) {
-    return new LogSpec(
-        DEFAULT_SCOPE,
-        BASE_NANOS,
-        BASE_NANOS + OBSERVED_OFFSET_NANOS,
-        severityNumber,
-        severityText,
-        body,
-        new HashMap<>(),
-        -1,
-        null);
+    return new LogSpec(body).severity(severityNumber, severityText);
   }
 
   private static LogSpec contextLog(String body, int spanContextIndex) {
-    return new LogSpec(
-        DEFAULT_SCOPE,
-        BASE_NANOS,
-        BASE_NANOS + OBSERVED_OFFSET_NANOS,
-        9,
-        "INFO",
-        body,
-        new HashMap<>(),
-        spanContextIndex,
-        null);
+    return new LogSpec(body).spanContextIndex(spanContextIndex);
   }
 
   private static LogSpec eventLog(String body, String eventName) {
-    return new LogSpec(
-        DEFAULT_SCOPE,
-        BASE_NANOS,
-        BASE_NANOS + OBSERVED_OFFSET_NANOS,
-        9,
-        "INFO",
-        body,
-        new HashMap<>(),
-        -1,
-        eventName);
+    return new LogSpec(body).eventName(eventName);
   }
 
   private static LogSpec eventOnlyLog(String eventName) {
-    return new LogSpec(
-        DEFAULT_SCOPE,
-        BASE_NANOS,
-        BASE_NANOS + OBSERVED_OFFSET_NANOS,
-        9,
-        "INFO",
-        null,
-        new HashMap<>(),
-        -1,
-        eventName);
+    return new LogSpec(null).eventName(eventName);
   }
 
   private static LogSpec taggedLog(String body, Map<String, Object> attrs) {
-    return new LogSpec(
-        DEFAULT_SCOPE,
-        BASE_NANOS,
-        BASE_NANOS + OBSERVED_OFFSET_NANOS,
-        9,
-        "INFO",
-        body,
-        attrs,
-        -1,
-        null);
+    return new LogSpec(body).attrs(attrs);
   }
 
   private static Map<String, Object> attrs(Object... keyValues) {
@@ -366,90 +334,91 @@ class OtlpLogsProtoTest {
 
     OtlpPayload payload =
         OtlpLogsProtoCollector.INSTANCE.collectLogs(
-            visitor -> {
-              OtelInstrumentationScope lastScope = null;
-              OtlpScopedLogsVisitor scoped = null;
-              for (LogSpec spec : specs) {
-                if (!spec.scope.equals(lastScope)) {
-                  scoped = visitor.visitScopedLogs(spec.scope);
-                  lastScope = spec.scope;
+            (visitor, interval) -> {
+              for (List<LogSpec> scopeGroup : groupByScope(specs).values()) {
+                OtlpScopedLogsVisitor scoped = visitor.visitScopedLogs(scopeGroup.get(0).scope);
+                for (LogSpec spec : scopeGroup) {
+                  for (Map.Entry<String, Object> attr : spec.attrs.entrySet()) {
+                    scoped.visitAttribute(
+                        attrType(attr.getValue()), attr.getKey(), attr.getValue());
+                  }
+                  scoped.visitLogRecord(
+                      new OtlpLogRecord(
+                          spec.scope,
+                          spec.timestampNanos,
+                          spec.observedNanos,
+                          spec.severityNumber,
+                          spec.severityText,
+                          spec.body,
+                          emptyMap(),
+                          resolveContext(spans, spec),
+                          spec.eventName));
                 }
-                for (Map.Entry<String, Object> e : spec.attrs.entrySet()) {
-                  scoped.visitAttribute(attrType(e.getValue()), e.getKey(), e.getValue());
-                }
-                AgentSpanContext ctx = resolveContext(spans, spec);
-                scoped.visitLogRecord(
-                    new OtlpLogRecord(
-                        spec.scope,
-                        spec.timestampNanos,
-                        spec.observedNanos,
-                        spec.severityNumber,
-                        spec.severityText,
-                        spec.body,
-                        emptyMap(),
-                        ctx,
-                        spec.eventName));
               }
-            });
+            },
+            0);
 
     if (specs.isEmpty()) {
       assertEquals(0, payload.getContentLength(), "empty specs must produce empty payload");
       return;
     }
 
-    ByteArrayOutputStream baos = new ByteArrayOutputStream(payload.getContentLength());
-    payload.drain(baos::write);
-    byte[] bytes = baos.toByteArray();
-    assertTrue(bytes.length > 0, "non-empty specs must produce bytes");
+    assertTrue(payload.getContentLength() > 0, "non-empty specs must produce bytes");
 
     // ── parse LogsData ────────────────────────────────────────────────────
-    CodedInputStream ld = CodedInputStream.newInstance(bytes);
-    int ldTag = ld.readTag();
-    assertEquals(1, WireFormat.getTagFieldNumber(ldTag), "LogsData.resource_logs is field 1");
-    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(ldTag));
-    CodedInputStream rl = ld.readBytes().newCodedInput();
-    assertTrue(ld.isAtEnd(), "expected exactly one ResourceLogs");
+    CodedInputStream logsData = CodedInputStream.newInstance(payload.getContent());
+    int logsTag = logsData.readTag();
+    assertEquals(1, WireFormat.getTagFieldNumber(logsTag), "LogsData.resource_logs is field 1");
+    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(logsTag));
+    CodedInputStream resourceLogs = logsData.readBytes().newCodedInput();
+    assertTrue(logsData.isAtEnd(), "expected exactly one ResourceLogs");
 
     // ── parse ResourceLogs ────────────────────────────────────────────────
     boolean resourceFound = false;
     List<byte[]> scopeBlobs = new ArrayList<>();
-    while (!rl.isAtEnd()) {
-      int rlTag = rl.readTag();
-      switch (WireFormat.getTagFieldNumber(rlTag)) {
+    while (!resourceLogs.isAtEnd()) {
+      int tag = resourceLogs.readTag();
+      switch (WireFormat.getTagFieldNumber(tag)) {
         case 1:
-          verifyResource(rl.readBytes().newCodedInput());
+          verifyResource(resourceLogs.readBytes().newCodedInput());
           resourceFound = true;
           break;
         case 2:
-          scopeBlobs.add(rl.readBytes().toByteArray());
+          scopeBlobs.add(resourceLogs.readBytes().toByteArray());
           break;
         default:
-          rl.skipField(rlTag);
+          resourceLogs.skipField(tag);
       }
     }
     assertTrue(resourceFound, "Resource must be present in ResourceLogs [" + caseName + "]");
 
-    // ── verify ScopeLogs groups ───────────────────────────────────────────
-    List<List<LogSpec>> scopeGroups = groupByScope(specs);
+    // ── verify ScopeLogs groups (order-insensitive) ───────────────────────
+    Map<String, List<LogSpec>> expectedByScopeName = groupByScope(specs);
     assertEquals(
-        scopeGroups.size(), scopeBlobs.size(), "ScopeLogs count mismatch [" + caseName + "]");
+        expectedByScopeName.size(),
+        scopeBlobs.size(),
+        "ScopeLogs count mismatch [" + caseName + "]");
 
-    for (int s = 0; s < scopeGroups.size(); s++) {
-      List<LogSpec> group = scopeGroups.get(s);
-      List<byte[]> logRecordBlobs =
-          parseScopeLogs(
-              CodedInputStream.newInstance(scopeBlobs.get(s)), group.get(0).scope, caseName);
+    for (byte[] scopeBlob : scopeBlobs) {
+      ParsedScope parsedScope = parseScopeLogs(CodedInputStream.newInstance(scopeBlob), caseName);
+      List<LogSpec> group = expectedByScopeName.get(parsedScope.name);
+      assertNotNull(group, "unexpected scope '" + parsedScope.name + "' [" + caseName + "]");
+      verifyScope(parsedScope, group.get(0).scope, caseName);
+
+      Map<String, LogSpec> expectedByKey = new HashMap<>();
+      for (LogSpec spec : group) {
+        expectedByKey.put(logKey(spec), spec);
+      }
       assertEquals(
           group.size(),
-          logRecordBlobs.size(),
-          "LogRecord count mismatch in scope " + s + " [" + caseName + "]");
-
-      for (int r = 0; r < group.size(); r++) {
+          parsedScope.logRecordBlobs.size(),
+          "LogRecord count in scope " + parsedScope.name + " [" + caseName + "]");
+      for (byte[] recordBlob : parsedScope.logRecordBlobs) {
+        String key = parseLogKey(recordBlob);
+        LogSpec spec = expectedByKey.get(key);
+        assertNotNull(spec, "unexpected log record with key '" + key + "' [" + caseName + "]");
         verifyLogRecord(
-            CodedInputStream.newInstance(logRecordBlobs.get(r)),
-            group.get(r),
-            resolveContext(spans, group.get(r)),
-            caseName);
+            CodedInputStream.newInstance(recordBlob), spec, resolveContext(spans, spec), caseName);
       }
     }
   }
@@ -457,15 +426,22 @@ class OtlpLogsProtoTest {
   // ── span construction ─────────────────────────────────────────────────────
 
   private static List<DDSpan> buildSpans(List<LogSpec> specs) {
-    int maxIndex = specs.stream().mapToInt(s -> s.spanContextIndex).max().orElse(-1);
+    int maxIndex = -1;
+    for (LogSpec spec : specs) {
+      if (spec.spanContextIndex > maxIndex) maxIndex = spec.spanContextIndex;
+    }
     if (maxIndex < 0) {
       return new ArrayList<>();
     }
     List<DDSpan> spans = new ArrayList<>(maxIndex + 1);
     for (int i = 0; i <= maxIndex; i++) {
-      final int idx = i;
-      LogSpec refSpec =
-          specs.stream().filter(s -> s.spanContextIndex == idx).findFirst().orElse(null);
+      LogSpec refSpec = null;
+      for (LogSpec spec : specs) {
+        if (spec.spanContextIndex == i) {
+          refSpec = spec;
+          break;
+        }
+      }
       AgentSpan span;
       if (refSpec != null && refSpec.use128BitTraceId) {
         ExtractedContext parent128 =
@@ -497,20 +473,15 @@ class OtlpLogsProtoTest {
       return null;
     }
     DDSpan span = spans.get(spec.spanContextIndex);
-    return span.context();
+    return span.spanContext();
   }
 
   // ── grouping helper ───────────────────────────────────────────────────────
 
-  private static List<List<LogSpec>> groupByScope(List<LogSpec> specs) {
-    List<List<LogSpec>> groups = new ArrayList<>();
-    OtelInstrumentationScope lastScope = null;
+  private static Map<String, List<LogSpec>> groupByScope(List<LogSpec> specs) {
+    Map<String, List<LogSpec>> groups = new LinkedHashMap<>();
     for (LogSpec spec : specs) {
-      if (!spec.scope.equals(lastScope)) {
-        groups.add(new ArrayList<>());
-        lastScope = spec.scope;
-      }
-      groups.get(groups.size() - 1).add(spec);
+      groups.computeIfAbsent(spec.scope.getName().toString(), k -> new ArrayList<>()).add(spec);
     }
     return groups;
   }
@@ -521,89 +492,82 @@ class OtlpLogsProtoTest {
    * Parses a {@code Resource} message body and asserts it contains a {@code service.name}
    * attribute.
    */
-  private static void verifyResource(CodedInputStream res) throws IOException {
+  private static void verifyResource(CodedInputStream resource) throws IOException {
     boolean foundServiceName = false;
-    while (!res.isAtEnd()) {
-      int tag = res.readTag();
+    while (!resource.isAtEnd()) {
+      int tag = resource.readTag();
       if (WireFormat.getTagFieldNumber(tag) == 1) {
-        String key = readKeyValueKey(res.readBytes().newCodedInput());
+        String key = readKeyValueKey(resource.readBytes().newCodedInput());
         if ("service.name".equals(key)) {
           foundServiceName = true;
         }
       } else {
-        res.skipField(tag);
+        resource.skipField(tag);
       }
     }
     assertTrue(foundServiceName, "Resource must contain a 'service.name' attribute");
   }
 
   /**
-   * Parses a {@code ScopeLogs} message body, verifies its scope and schema_url, and returns the raw
-   * bytes of each {@code log_records} entry.
+   * Parses a {@code ScopeLogs} message body into a {@link ParsedScope} containing the scope
+   * identity and raw bytes of each {@code log_records} entry.
    *
    * <pre>
    *   ScopeLogs { scope=1, log_records=2, schema_url=3 }
    * </pre>
    */
-  private static List<byte[]> parseScopeLogs(
-      CodedInputStream sl, OtelInstrumentationScope expectedScope, String caseName)
+  private static ParsedScope parseScopeLogs(CodedInputStream scopeLogs, String caseName)
       throws IOException {
+    String name = null;
+    String version = null;
+    String schemaUrl = null;
     List<byte[]> logRecords = new ArrayList<>();
     boolean scopeFound = false;
-    String parsedSchemaUrl = null;
-    while (!sl.isAtEnd()) {
-      int tag = sl.readTag();
+    while (!scopeLogs.isAtEnd()) {
+      int tag = scopeLogs.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
         case 1:
-          verifyScope(sl.readBytes().newCodedInput(), expectedScope, caseName);
+          CodedInputStream scopeStream = scopeLogs.readBytes().newCodedInput();
           scopeFound = true;
+          while (!scopeStream.isAtEnd()) {
+            int scopeTag = scopeStream.readTag();
+            switch (WireFormat.getTagFieldNumber(scopeTag)) {
+              case 1:
+                name = scopeStream.readString();
+                break;
+              case 2:
+                version = scopeStream.readString();
+                break;
+              default:
+                scopeStream.skipField(scopeTag);
+            }
+          }
           break;
         case 2:
-          logRecords.add(sl.readBytes().toByteArray());
+          logRecords.add(scopeLogs.readBytes().toByteArray());
           break;
         case 3:
-          parsedSchemaUrl = sl.readString();
+          schemaUrl = scopeLogs.readString();
           break;
         default:
-          sl.skipField(tag);
+          scopeLogs.skipField(tag);
       }
     }
     assertTrue(scopeFound, "InstrumentationScope must be present in ScopeLogs [" + caseName + "]");
-    String expectedSchemaUrl =
-        expectedScope.getSchemaUrl() != null ? expectedScope.getSchemaUrl().toString() : null;
-    assertEquals(expectedSchemaUrl, parsedSchemaUrl, "schema_url mismatch [" + caseName + "]");
-    return logRecords;
+    return new ParsedScope(name, version, schemaUrl, logRecords);
   }
 
-  /**
-   * Parses an {@code InstrumentationScope} message body and verifies name and version.
-   *
-   * <pre>
-   *   InstrumentationScope { name=1, version=2 }
-   * </pre>
-   */
+  /** Verifies that a parsed scope's identity fields match the expected scope. */
   private static void verifyScope(
-      CodedInputStream cs, OtelInstrumentationScope expected, String caseName) throws IOException {
-    String parsedName = null;
-    String parsedVersion = null;
-    while (!cs.isAtEnd()) {
-      int tag = cs.readTag();
-      switch (WireFormat.getTagFieldNumber(tag)) {
-        case 1:
-          parsedName = cs.readString();
-          break;
-        case 2:
-          parsedVersion = cs.readString();
-          break;
-        default:
-          cs.skipField(tag);
-      }
-    }
+      ParsedScope parsed, OtelInstrumentationScope expected, String caseName) {
     assertEquals(
-        expected.getName().toString(), parsedName, "scope.name mismatch [" + caseName + "]");
+        expected.getName().toString(), parsed.name, "scope.name mismatch [" + caseName + "]");
     String expectedVersion =
         expected.getVersion() != null ? expected.getVersion().toString() : null;
-    assertEquals(expectedVersion, parsedVersion, "scope.version mismatch [" + caseName + "]");
+    assertEquals(expectedVersion, parsed.version, "scope.version mismatch [" + caseName + "]");
+    String expectedSchemaUrl =
+        expected.getSchemaUrl() != null ? expected.getSchemaUrl().toString() : null;
+    assertEquals(expectedSchemaUrl, parsed.schemaUrl, "schema_url mismatch [" + caseName + "]");
   }
 
   /**
@@ -616,7 +580,7 @@ class OtlpLogsProtoTest {
    * </pre>
    */
   private static void verifyLogRecord(
-      CodedInputStream lr, LogSpec spec, @Nullable AgentSpanContext ctx, String caseName)
+      CodedInputStream logRecord, LogSpec spec, @Nullable AgentSpanContext ctx, String caseName)
       throws IOException {
     long parsedTimestamp = -1;
     long parsedObserved = -1;
@@ -630,42 +594,42 @@ class OtlpLogsProtoTest {
     byte[] parsedSpanId = null;
     String parsedEventName = null;
 
-    while (!lr.isAtEnd()) {
-      int tag = lr.readTag();
+    while (!logRecord.isAtEnd()) {
+      int tag = logRecord.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
         case 1:
-          parsedTimestamp = lr.readFixed64();
+          parsedTimestamp = logRecord.readFixed64();
           break;
         case 2:
-          parsedSeverityNumber = lr.readEnum();
+          parsedSeverityNumber = logRecord.readEnum();
           break;
         case 3:
-          parsedSeverityText = lr.readString();
+          parsedSeverityText = logRecord.readString();
           break;
         case 5:
-          parsedBody = readBodyString(lr.readBytes().newCodedInput());
+          parsedBody = readBodyString(logRecord.readBytes().newCodedInput());
           break;
         case 6:
-          attrKeys.add(readKeyValueKey(lr.readBytes().newCodedInput()));
+          attrKeys.add(readKeyValueKey(logRecord.readBytes().newCodedInput()));
           break;
         case 8:
-          parsedFlags = lr.readFixed32();
+          parsedFlags = logRecord.readFixed32();
           flagsFound = true;
           break;
         case 9:
-          parsedTraceId = lr.readBytes().toByteArray();
+          parsedTraceId = logRecord.readBytes().toByteArray();
           break;
         case 10:
-          parsedSpanId = lr.readBytes().toByteArray();
+          parsedSpanId = logRecord.readBytes().toByteArray();
           break;
         case 11:
-          parsedObserved = lr.readFixed64();
+          parsedObserved = logRecord.readFixed64();
           break;
         case 12:
-          parsedEventName = lr.readString();
+          parsedEventName = logRecord.readString();
           break;
         default:
-          lr.skipField(tag);
+          logRecord.skipField(tag);
       }
     }
 
@@ -722,16 +686,40 @@ class OtlpLogsProtoTest {
 
   // ── proto parsing helpers ─────────────────────────────────────────────────
 
+  private static String logKey(LogSpec spec) {
+    return spec.body != null ? spec.body : "~event:" + spec.eventName;
+  }
+
+  private static String parseLogKey(byte[] blob) throws IOException {
+    CodedInputStream logRecord = CodedInputStream.newInstance(blob);
+    String body = null;
+    String eventName = null;
+    while (!logRecord.isAtEnd()) {
+      int tag = logRecord.readTag();
+      switch (WireFormat.getTagFieldNumber(tag)) {
+        case 5:
+          body = readBodyString(logRecord.readBytes().newCodedInput());
+          break;
+        case 12:
+          eventName = logRecord.readString();
+          break;
+        default:
+          logRecord.skipField(tag);
+      }
+    }
+    return body != null ? body : "~event:" + eventName;
+  }
+
   /**
    * Reads a {@code AnyValue} body and returns the string value from field 1 ({@code string_value}).
    */
-  private static String readBodyString(CodedInputStream av) throws IOException {
-    while (!av.isAtEnd()) {
-      int tag = av.readTag();
+  private static String readBodyString(CodedInputStream anyValue) throws IOException {
+    while (!anyValue.isAtEnd()) {
+      int tag = anyValue.readTag();
       if (WireFormat.getTagFieldNumber(tag) == 1) {
-        return av.readString();
+        return anyValue.readString();
       }
-      av.skipField(tag);
+      anyValue.skipField(tag);
     }
     return null;
   }
@@ -740,17 +728,15 @@ class OtlpLogsProtoTest {
    * Reads a {@code KeyValue} body and returns the key (field 1). The value is skipped; its encoding
    * is covered by {@code OtlpCommonProtoTest}.
    */
-  private static String readKeyValueKey(CodedInputStream kv) throws IOException {
-    String key = null;
-    while (!kv.isAtEnd()) {
-      int tag = kv.readTag();
+  private static String readKeyValueKey(CodedInputStream keyValue) throws IOException {
+    while (!keyValue.isAtEnd()) {
+      int tag = keyValue.readTag();
       if (WireFormat.getTagFieldNumber(tag) == 1) {
-        key = kv.readString();
-      } else {
-        kv.skipField(tag);
+        return keyValue.readString();
       }
+      keyValue.skipField(tag);
     }
-    return key;
+    return null;
   }
 
   /** Returns the {@link OtlpAttributeVisitor} type constant for a given value. */

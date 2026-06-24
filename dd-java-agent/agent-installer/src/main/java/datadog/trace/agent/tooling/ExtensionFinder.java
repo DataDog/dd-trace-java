@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling;
 import static datadog.opentelemetry.tooling.OtelExtensionHandler.OPENTELEMETRY;
 import static datadog.trace.agent.tooling.ExtensionHandler.DATADOG;
 
+import datadog.trace.api.telemetry.OtelSpiCollector;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -26,6 +27,33 @@ public final class ExtensionFinder {
 
   private static final ExtensionHandler[] handlers = {OPENTELEMETRY, DATADOG};
 
+  private static final String EXTENSIONS_PATH_SOURCE = "extensions_path";
+  private static final String SERVICES_PREFIX = "META-INF/services/";
+
+  private static final String[] OTEL_SPI_FQNS = {
+    "io.opentelemetry.context.ContextStorageProvider",
+    "io.opentelemetry.exporter.internal.compression.CompressorProvider",
+    "io.opentelemetry.exporter.internal.grpc.GrpcSenderProvider",
+    "io.opentelemetry.exporter.internal.http.HttpSenderProvider",
+    "io.opentelemetry.javaagent.extension.AgentListener",
+    "io.opentelemetry.javaagent.extension.ignore.IgnoredTypesConfigurer",
+    "io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule",
+    "io.opentelemetry.javaagent.tooling.BeforeAgentListener",
+    "io.opentelemetry.javaagent.tooling.LoggingCustomizer",
+    "io.opentelemetry.javaagent.tooling.bootstrap.BootstrapPackagesConfigurer",
+    "io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider",
+    "io.opentelemetry.sdk.autoconfigure.spi.AutoConfigureListener",
+    "io.opentelemetry.sdk.autoconfigure.spi.ConditionalResourceProvider",
+    "io.opentelemetry.sdk.autoconfigure.spi.ConfigurablePropagatorProvider",
+    "io.opentelemetry.sdk.autoconfigure.spi.ResourceProvider",
+    "io.opentelemetry.sdk.autoconfigure.spi.internal.ComponentProvider",
+    "io.opentelemetry.sdk.autoconfigure.spi.logs.ConfigurableLogRecordExporterProvider",
+    "io.opentelemetry.sdk.autoconfigure.spi.metrics.ConfigurableMetricExporterProvider",
+    "io.opentelemetry.sdk.autoconfigure.spi.traces.ConfigurableSamplerProvider",
+    "io.opentelemetry.sdk.autoconfigure.spi.traces.ConfigurableSpanExporterProvider",
+    "io.opentelemetry.sdk.autoconfigure.spi.traces.SpanExporterCustomizer",
+  };
+
   /**
    * Discovers extensions on the configured path and creates a classloader for each extension.
    * Registers the combined classloader with {@link Utils#setExtendedClassLoader(ClassLoader)}.
@@ -40,6 +68,7 @@ public final class ExtensionFinder {
     String[] descriptors = descriptors(extensionTypes);
 
     for (JarFile jar : findExtensionJars(extensionsPath)) {
+      recordOtelSpiTelemetry(jar);
       URL extensionURL = findExtensionURL(jar, descriptors);
       if (null != extensionURL) {
         log.debug("Found extension jar {}", jar.getName());
@@ -58,6 +87,15 @@ public final class ExtensionFinder {
     }
 
     return !classLoaders.isEmpty();
+  }
+
+  /** Reports telemetry for any tracked OpenTelemetry SPI service descriptors present in the jar. */
+  static void recordOtelSpiTelemetry(JarFile jar) {
+    for (String fqn : OTEL_SPI_FQNS) {
+      if (null != jar.getJarEntry(SERVICES_PREFIX + fqn)) {
+        OtelSpiCollector.getInstance().recordSpiDetected(fqn, EXTENSIONS_PATH_SOURCE);
+      }
+    }
   }
 
   /** Closes jar resources from the extension path which did not contain any extensions. */

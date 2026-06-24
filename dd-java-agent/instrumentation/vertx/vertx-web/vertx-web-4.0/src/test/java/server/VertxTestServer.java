@@ -39,13 +39,6 @@ public class VertxTestServer extends AbstractVerticle {
   public static final String CONFIG_HTTP_SERVER_PORT = "http.server.port";
   public static final String PORT_DATA_ADDRESS = "PORT_DATA";
 
-  int fibonacci(int n) {
-    if (n <= 1) {
-      return n;
-    }
-    return fibonacci(n - 1) + fibonacci(n - 2);
-  }
-
   @Override
   public void start(final Promise<Void> startPromise) {
     final int port = config().getInteger(CONFIG_HTTP_SERVER_PORT);
@@ -60,10 +53,8 @@ public class VertxTestServer extends AbstractVerticle {
                 controller(
                     ctx,
                     SUCCESS,
-                    () -> {
-                      fibonacci(40);
-                      ctx.response().setStatusCode(SUCCESS.getStatus()).end(SUCCESS.getBody());
-                    }));
+                    () ->
+                        ctx.response().setStatusCode(SUCCESS.getStatus()).end(SUCCESS.getBody())));
     router
         .route(FORWARDED.getPath())
         .handler(
@@ -101,6 +92,7 @@ public class VertxTestServer extends AbstractVerticle {
                       String res = convertFormAttributes(ctx);
                       ctx.response().setStatusCode(BODY_URLENCODED.getStatus()).end(res);
                     }));
+    router.route(BODY_MULTIPART.getPath()).handler(BodyHandler.create());
     router
         .route(BODY_MULTIPART.getPath())
         .handler(
@@ -109,13 +101,9 @@ public class VertxTestServer extends AbstractVerticle {
                     ctx,
                     BODY_MULTIPART,
                     () -> {
-                      ctx.request().setExpectMultipart(true);
-                      ctx.request()
-                          .endHandler(
-                              (_void) -> {
-                                String res = convertFormAttributes(ctx);
-                                ctx.response().setStatusCode(BODY_MULTIPART.getStatus()).end(res);
-                              });
+                      ctx.fileUploads();
+                      String res = convertFormAttributes(ctx);
+                      ctx.response().setStatusCode(BODY_MULTIPART.getStatus()).end(res);
                     }));
     router.route(BODY_JSON.getPath()).handler(BodyHandler.create());
     router

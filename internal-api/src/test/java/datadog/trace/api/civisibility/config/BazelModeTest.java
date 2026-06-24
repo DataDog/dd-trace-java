@@ -154,6 +154,48 @@ class BazelModeTest {
     assertNull(mode.getTelemetryPayloadsDir());
   }
 
+  @Test
+  void repoRootResolvedViaTestSrcDir(@TempDir Path tmp) throws IOException {
+    Path workspace = Files.createDirectories(tmp.resolve("_main"));
+    envProvider.set("TEST_SRCDIR", tmp.toString());
+    envProvider.set("TEST_WORKSPACE", "_main");
+
+    BazelMode mode = new BazelMode(configWith(null, false));
+
+    assertEquals(workspace.toFile().getAbsolutePath(), mode.getRepoRoot());
+  }
+
+  @Test
+  void repoRootResolvedViaRunfilesDirWhenTestSrcDirMissing(@TempDir Path tmp) throws IOException {
+    Path workspace = Files.createDirectories(tmp.resolve("_main"));
+    envProvider.set("RUNFILES_DIR", tmp.toString());
+    envProvider.set("TEST_WORKSPACE", "_main");
+
+    BazelMode mode = new BazelMode(configWith(null, false));
+
+    assertEquals(workspace.toFile().getAbsolutePath(), mode.getRepoRoot());
+  }
+
+  @Test
+  void repoRootNullWhenTestWorkspaceMissing(@TempDir Path tmp) throws IOException {
+    Files.createDirectories(tmp.resolve("_main"));
+    envProvider.set("TEST_SRCDIR", tmp.toString());
+
+    BazelMode mode = new BazelMode(configWith(null, false));
+
+    assertNull(mode.getRepoRoot());
+  }
+
+  @Test
+  void repoRootNullWhenWorkspaceDirMissing(@TempDir Path tmp) {
+    envProvider.set("TEST_SRCDIR", tmp.toString());
+    envProvider.set("TEST_WORKSPACE", "_main");
+
+    BazelMode mode = new BazelMode(configWith(null, false));
+
+    assertNull(mode.getRepoRoot());
+  }
+
   private static Config configWith(String manifestRloc, boolean payloadsInFiles) {
     Config config = mock(Config.class);
     when(config.getTestOptimizationManifestFile()).thenReturn(manifestRloc);

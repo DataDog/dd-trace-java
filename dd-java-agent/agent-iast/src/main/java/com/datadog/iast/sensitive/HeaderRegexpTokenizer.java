@@ -2,8 +2,8 @@ package com.datadog.iast.sensitive;
 
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.util.Ranged;
+import com.google.re2j.Pattern;
 import java.util.NoSuchElementException;
-import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 public class HeaderRegexpTokenizer implements SensitiveHandler.Tokenizer {

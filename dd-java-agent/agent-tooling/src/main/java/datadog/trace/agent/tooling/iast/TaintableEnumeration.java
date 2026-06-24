@@ -3,8 +3,8 @@ package datadog.trace.agent.tooling.iast;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.util.stacktrace.StackUtils;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Enumeration;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class TaintableEnumeration implements Enumeration<String> {
@@ -25,8 +25,8 @@ public class TaintableEnumeration implements Enumeration<String> {
 
   private TaintableEnumeration(
       final IastContext ctx,
-      @NonNull final Enumeration<String> delegate,
-      @NonNull final PropagationModule module,
+      @Nonnull final Enumeration<String> delegate,
+      @Nonnull final PropagationModule module,
       final byte origin,
       @Nullable final CharSequence name,
       final boolean useValueAsName) {
@@ -78,8 +78,8 @@ public class TaintableEnumeration implements Enumeration<String> {
 
   public static Enumeration<String> wrap(
       final IastContext ctx,
-      @NonNull final Enumeration<String> delegate,
-      @NonNull final PropagationModule module,
+      @Nonnull final Enumeration<String> delegate,
+      @Nonnull final PropagationModule module,
       final byte origin,
       @Nullable final CharSequence name) {
     return new TaintableEnumeration(ctx, delegate, module, origin, name, false);
@@ -87,8 +87,8 @@ public class TaintableEnumeration implements Enumeration<String> {
 
   public static Enumeration<String> wrap(
       final IastContext ctx,
-      @NonNull final Enumeration<String> delegate,
-      @NonNull final PropagationModule module,
+      @Nonnull final Enumeration<String> delegate,
+      @Nonnull final PropagationModule module,
       final byte origin,
       boolean useValueAsName) {
     return new TaintableEnumeration(ctx, delegate, module, origin, null, useValueAsName);

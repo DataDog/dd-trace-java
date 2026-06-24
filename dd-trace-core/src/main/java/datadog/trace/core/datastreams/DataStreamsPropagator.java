@@ -43,7 +43,7 @@ public class DataStreamsPropagator implements Propagator {
     PathwayContext pathwayContext;
     DataStreamsContext dsmContext;
     if ((span = AgentSpan.fromContext(context)) == null
-        || (pathwayContext = span.context().getPathwayContext()) == null
+        || (pathwayContext = span.spanContext().getPathwayContext()) == null
         || (dsmContext = DataStreamsContext.fromContext(context)) == null
         || !traceConfig().isDataStreamsEnabled()) {
       return;
@@ -97,7 +97,7 @@ public class DataStreamsPropagator implements Propagator {
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
     AgentSpanContext extractedSpanContext;
     if (extractedSpan != null
-        && (extractedSpanContext = extractedSpan.context()) instanceof TagContext) {
+        && (extractedSpanContext = extractedSpan.spanContext()) instanceof TagContext) {
       return (TagContext) extractedSpanContext;
     }
     return null;

@@ -170,10 +170,11 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       boolean parallelized,
       TestFrameworkInstrumentation instrumentation) {
     return new TestSuiteImpl(
-        span.context(),
+        span.spanContext(),
         moduleName,
         testSuiteName,
         executionStrategy.getExecutionSettings().getItrCorrelationId(),
+        executionStrategy.getExecutionSettings().isTestSkippingEnabled(),
         testClass,
         startTime,
         parallelized,

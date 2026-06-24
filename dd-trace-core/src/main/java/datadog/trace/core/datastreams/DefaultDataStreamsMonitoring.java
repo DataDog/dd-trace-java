@@ -262,7 +262,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               DataStreamsContextCarrierAdapter.INSTANCE,
               this.timeSource,
               getThreadServiceName());
-      ((DDSpan) span).context().mergePathwayContext(pathwayContext);
+      ((DDSpan) span).spanContext().mergePathwayContext(pathwayContext);
     }
   }
 
@@ -306,7 +306,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   @Override
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
-    PathwayContext pathwayContext = span.context().getPathwayContext();
+    PathwayContext pathwayContext = span.spanContext().getPathwayContext();
     if (pathwayContext != null) {
       pathwayContext.setCheckpoint(context, this::add);
     }
