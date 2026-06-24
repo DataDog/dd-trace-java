@@ -37,8 +37,29 @@ import org.openjdk.jmh.annotations.Warmup;
  * </ul>
  *
  * <p>Lookups are interned (the {@code ==} fast path where a structure has one); misses are short
- * and never present. (Results pending a fresh multi-JVM run — {@code Set.copyOf} only materializes
- * the compact form on Java 10+.)
+ * and never present.
+ *
+ * <p>Java 17 results (Apple M1, {@code @Fork(2)}, {@code @Threads(8)}; M ops/s = millions):
+ *
+ * <pre>{@code
+ * Structure              hit     miss
+ * hashSet               2159     1751    (fastest)
+ * copyOf (SetN)         1946     1633
+ * array                  926      584
+ * sortedArray            664      588
+ * treeSet                642      593
+ * }</pre>
+ *
+ * <p>Key findings:
+ *
+ * <ul>
+ *   <li>{@code HashSet} is fastest; {@link java.util.Set#copyOf} ({@code SetN}) trails by only ~10%
+ *       on hit and ~7% on miss — and it's the compact, array-backed form the agent already uses for
+ *       fixed config sets, so it's a strong default when the set is immutable.
+ *   <li>{@code array} / {@code sortedArray} / {@code treeSet} cluster at ~0.6–0.9B — they scan,
+ *       binary-search, or tree-walk per lookup, so they trail the hashed structures, most visibly
+ *       on the miss path.
+ * </ul>
  */
 @Fork(2)
 @Warmup(iterations = 2)
