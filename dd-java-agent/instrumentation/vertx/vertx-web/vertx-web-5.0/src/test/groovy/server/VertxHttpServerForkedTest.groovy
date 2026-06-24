@@ -91,6 +91,11 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   }
 
   @Override
+  boolean testBodyFilesContent() {
+    true
+  }
+
+  @Override
   boolean testBodyJson() {
     true
   }
