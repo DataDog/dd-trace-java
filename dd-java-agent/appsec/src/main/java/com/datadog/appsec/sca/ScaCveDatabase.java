@@ -78,7 +78,9 @@ public final class ScaCveDatabase {
 
     for (EntryJson e : root.entries) {
       ScaEntry entry = toScaEntry(e);
-      if (entry == null) continue;
+      if (entry == null) {
+        continue;
+      }
       entryCount++;
       // Index once per unique class name: an entry with multiple symbols for the same class
       // (e.g. Yaml.load + Yaml.loadAll) must appear only once in the list, otherwise
@@ -104,7 +106,9 @@ public final class ScaCveDatabase {
     }
     List<ScaSymbol> symbols = new ArrayList<>(e.symbols.size());
     for (SymbolJson s : e.symbols) {
-      if (s.className == null) continue;
+      if (s.className == null) {
+        continue;
+      }
       if (s.method == null) {
         log.debug("SCA Reachability: skipping symbol with null method in entry {}", e.vulnId);
         continue;

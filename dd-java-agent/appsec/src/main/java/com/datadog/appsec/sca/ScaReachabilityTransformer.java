@@ -320,11 +320,17 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     //      resolveDependencies() under JVM locks, reintroducing the snakeyaml deadlock.
     for (Class<?> c : toRetransform) {
       ProtectionDomain pd = c.getProtectionDomain();
-      if (pd == null) continue;
+      if (pd == null) {
+        continue;
+      }
       CodeSource cs = pd.getCodeSource();
-      if (cs == null) continue;
+      if (cs == null) {
+        continue;
+      }
       URL loc = cs.getLocation();
-      if (loc == null) continue;
+      if (loc == null) {
+        continue;
+      }
       resolveDependencies(loc);
       String internalName = c.getName().replace('.', '/');
       List<ScaEntry> dbEntries = database.entriesForClass(internalName);
