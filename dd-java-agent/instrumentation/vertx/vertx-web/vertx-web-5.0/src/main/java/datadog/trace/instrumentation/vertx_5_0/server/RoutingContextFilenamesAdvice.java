@@ -112,8 +112,13 @@ class RoutingContextFilenamesAdvice {
       if (path == null || path.isEmpty()) {
         return "";
       }
+      String charSet = upload.charSet();
+      String contentType =
+          charSet != null && !charSet.isEmpty()
+              ? upload.contentType() + "; charset=" + charSet
+              : upload.contentType();
       try (FileInputStream fis = new FileInputStream(path)) {
-        return MultipartContentDecoder.readInputStream(fis, maxBytes, upload.contentType());
+        return MultipartContentDecoder.readInputStream(fis, maxBytes, contentType);
       }
     } catch (Exception ignored) {
       return "";

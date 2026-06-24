@@ -20,6 +20,7 @@ public class RoutingContextImplInstrumentation extends InstrumenterModule.AppSec
           .withMethod(new String[0], 0, "fileName", "Ljava/lang/String;")
           .withMethod(new String[0], 0, "uploadedFileName", "Ljava/lang/String;")
           .withMethod(new String[0], 0, "contentType", "Ljava/lang/String;")
+          .withMethod(new String[0], 0, "charSet", "Ljava/lang/String;")
           .build();
 
   public RoutingContextImplInstrumentation() {
