@@ -149,7 +149,7 @@ tasks.named('shadowJar', ShadowJar) {
     exclude(project(":dd-trace-core"))
     exclude(dependency('com.datadoghq:sketches-java'))
     exclude(dependency('com.google.re2j:re2j'))
-    deps.excludeShared(delegate)
+    deps.excludeShared.execute(it)
   }
 }
 
