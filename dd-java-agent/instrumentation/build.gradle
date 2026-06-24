@@ -162,7 +162,6 @@ instrumentationNaming {
   exclusions = [
     "org-json-20230227",
     // org-json does not use semver
-    "commons-httpclient-2.0-generated", // research convention: toolkit-generated side-by-side eval module
   ]
   suffixes = ["-common", "-stubs", "-iast"]
 }
