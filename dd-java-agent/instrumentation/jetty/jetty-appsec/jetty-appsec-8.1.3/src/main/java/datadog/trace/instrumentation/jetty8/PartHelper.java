@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty8;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
@@ -104,7 +105,7 @@ public class PartHelper {
           filenames.add(filename);
         }
       } catch (Exception e) {
-        log.debug("extractFilenames: skipping malformed part", e);
+        log.debug(EXCLUDE_TELEMETRY, "extractFilenames: skipping malformed part", e);
       }
     }
     return filenames;
@@ -122,11 +123,10 @@ public class PartHelper {
     if (parts == null || parts.isEmpty()) {
       return Collections.emptyMap();
     }
-    int maxFields = Config.get().getAppSecMaxFileContentCount();
     Map<String, List<String>> result = new LinkedHashMap<>();
     int count = 0;
     for (Object obj : parts) {
-      if (count >= maxFields) {
+      if (count >= MAX_FILES_TO_INSPECT) {
         break;
       }
       try {
@@ -145,7 +145,7 @@ public class PartHelper {
         result.computeIfAbsent(name, k -> new ArrayList<>()).add(value);
         count++;
       } catch (Exception e) {
-        log.debug("extractFormFields: skipping malformed part", e);
+        log.debug(EXCLUDE_TELEMETRY, "extractFormFields: skipping malformed part", e);
       }
     }
     return result;
@@ -295,7 +295,7 @@ public class PartHelper {
         }
         contents.add(readFileContent(part));
       } catch (Exception e) {
-        log.debug("extractContents: skipping malformed part", e);
+        log.debug(EXCLUDE_TELEMETRY, "extractContents: skipping malformed part", e);
       }
     }
     return contents;
@@ -305,7 +305,7 @@ public class PartHelper {
     try (InputStream is = part.getInputStream()) {
       return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, part.getContentType());
     } catch (Exception e) {
-      log.debug("readFileContent: stream read failed", e);
+      log.debug(EXCLUDE_TELEMETRY, "readFileContent: stream read failed", e);
       return "";
     }
   }
@@ -344,23 +344,22 @@ public class PartHelper {
   private static String readPartContent(Part part) {
     Charset charset = charsetFromContentType(part.getContentType());
     // Bound the buffered form-field text by the file-content byte cap. There is no dedicated
-    // "max form-field bytes" config, so we intentionally reuse getAppSecMaxFileContentBytes():
+    // "max form-field bytes" config, so we intentionally reuse MAX_CONTENT_BYTES:
     // this is the only framework that must manually buffer form-field text (Servlet 3.0 has no
     // container-side bound), and without a cap a single huge text field could exhaust the heap.
-    int maxBytes = Config.get().getAppSecMaxFileContentBytes();
     try (InputStream is = part.getInputStream()) {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       byte[] buf = new byte[4096];
       int total = 0;
       int read;
-      while (total < maxBytes
-          && (read = is.read(buf, 0, Math.min(buf.length, maxBytes - total))) != -1) {
+      while (total < MAX_CONTENT_BYTES
+          && (read = is.read(buf, 0, Math.min(buf.length, MAX_CONTENT_BYTES - total))) != -1) {
         baos.write(buf, 0, read);
         total += read;
       }
       return new String(baos.toByteArray(), charset);
     } catch (IOException e) {
-      log.debug("readPartContent: stream read failed", e);
+      log.debug(EXCLUDE_TELEMETRY, "readPartContent: stream read failed", e);
       return null;
     }
   }

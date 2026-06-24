@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty93;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
@@ -49,7 +50,7 @@ public class MultipartHelper {
         }
       } catch (Exception ignored) {
         // malformed or inaccessible part — skip and continue with remaining parts
-        log.debug("extractFilenames: skipping malformed part", ignored);
+        log.debug(EXCLUDE_TELEMETRY, "extractFilenames: skipping malformed part", ignored);
       }
     }
     return filenames;
@@ -77,7 +78,7 @@ public class MultipartHelper {
         }
         contents.add(readFileContent(part));
       } catch (Exception ignored) {
-        log.debug("extractContents: skipping malformed part", ignored);
+        log.debug(EXCLUDE_TELEMETRY, "extractContents: skipping malformed part", ignored);
       }
     }
     return contents;
@@ -87,7 +88,7 @@ public class MultipartHelper {
     try (InputStream is = part.getInputStream()) {
       return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, part.getContentType());
     } catch (Exception e) {
-      log.debug("readFileContent: stream read failed", e);
+      log.debug(EXCLUDE_TELEMETRY, "readFileContent: stream read failed", e);
       return "";
     }
   }
