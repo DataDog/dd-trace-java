@@ -3,9 +3,9 @@ package datadog.trace.common.writer;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;

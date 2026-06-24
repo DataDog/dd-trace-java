@@ -83,7 +83,7 @@ class AxisTransportForkedTest extends InstrumentationSpecification {
     message1.setProperty("TRANSPORT_HEADERS", ["foo":"bar"] as HashMap)
     def message2 = testMessage()
     // no action, expect span to use testDestination
-    AgentSpan span0 = startSpan('test')
+    AgentSpan span0 = startSpan('test', 'test')
     span0.setServiceName('testSpan')
     activateSpan(span0).withCloseable {
       AxisEngine.send(message1)
@@ -134,7 +134,7 @@ class AxisTransportForkedTest extends InstrumentationSpecification {
       topLevel parentSpan == null
       tags {
         // manual tracing
-        serviceNameSource null
+        serviceNameSource "m"
         defaultTags()
       }
     }
@@ -161,7 +161,7 @@ class AxisTransportForkedTest extends InstrumentationSpecification {
           "error.stack" String
         }
         "$Tags.COMPONENT" "axis2"
-        serviceNameSource null
+        serviceNameSource "m"
         defaultTags()
       }
     }
@@ -200,7 +200,7 @@ class AxisTransportForkedTest extends InstrumentationSpecification {
         "$Tags.HTTP_STATUS" 200
         "$Tags.PEER_HOSTNAME" "my-host"
         "$Tags.PEER_PORT" 8080
-        serviceNameSource null
+        serviceNameSource "m"
         defaultTags()
       }
     }

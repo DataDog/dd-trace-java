@@ -9,6 +9,7 @@ import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.api.statsd.StatsDClientManager;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.telemetry.LogCollector;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -32,6 +33,7 @@ public class JMXFetch {
   private static final Logger log = LoggerFactory.getLogger(JMXFetch.class);
 
   private static final String DEFAULT_CONFIG = "jmxfetch-config.yaml";
+  private static final String OTLP_JMX_CONFIG = "jmxfetch-config-no-jvm-defaults.yaml";
   private static final String WEBSPHERE_CONFIG = "jmxfetch-websphere-config.yaml";
 
   private static final int DELAY_BETWEEN_RUN_ATTEMPTS = 5000;
@@ -93,9 +95,22 @@ public class JMXFetch {
     final StatsDClient statsd = statsDClientManager.statsDClient(host, port, namedPipe, null, null);
     final AgentStatsdReporter reporter = new AgentStatsdReporter(statsd);
 
+    final boolean otlpRuntimeMetricsEnabled =
+        InstrumenterConfig.get().isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled();
+
     TracerFlare.addReporter(reporter);
     final List<String> defaultConfigs = new ArrayList<>();
-    defaultConfigs.add(DEFAULT_CONFIG);
+    if (otlpRuntimeMetricsEnabled) {
+      // Register JVM runtime metric callbacks against the OtelMeterProvider so the OTLP
+      // exporter started by CoreTracer collects them. Started here so it rides the same
+      // delayed-start path as JMXFetch itself.
+      JvmOtlpRuntimeMetrics.start(config.isMetricsOtelExperimentalEnabled());
+      // When the OTLP exporter is collecting JVM runtime metrics, skip the default JMXFetch
+      // JVM config to avoid double-reporting.
+      defaultConfigs.add(OTLP_JMX_CONFIG);
+    } else {
+      defaultConfigs.add(DEFAULT_CONFIG);
+    }
     if (config.isJmxFetchIntegrationEnabled(Collections.singletonList("websphere"), false)) {
       defaultConfigs.add(WEBSPHERE_CONFIG);
     }

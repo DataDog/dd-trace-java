@@ -10,7 +10,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.junit.Rule
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import reactor.core.publisher.Flux
@@ -27,9 +26,8 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 class KafkaReactorForkedTest extends InstrumentationSpecification {
-  @Rule
   // create 4 partitions for more parallelism
-  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, 4, KafkaClientTestBase.SHARED_TOPIC)
+  KafkaEmbedded embeddedKafka
 
   @Override
   boolean useStrictTraceWrites() {
@@ -37,7 +35,13 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
   }
 
   def setup() {
+    embeddedKafka = new KafkaEmbedded(1, true, 4, KafkaClientTestBase.SHARED_TOPIC)
+    embeddedKafka.before()
     TEST_WRITER.setFilter(KafkaClientTestBase.DROP_KAFKA_POLL)
+  }
+
+  def cleanup() {
+    embeddedKafka?.after()
   }
 
   def "test reactive produce and consume"() {
@@ -193,6 +197,9 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
         "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$KafkaClientTestBase.SHARED_TOPIC"
+        "$InstrumentationTags.PARTITION" { it >= 0 }
+        "$InstrumentationTags.OFFSET" { it >= 0 }
+        "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
         peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
         defaultTags()
       }
@@ -222,6 +229,7 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
         "$InstrumentationTags.OFFSET" { Integer }
         "$InstrumentationTags.CONSUMER_GROUP" "sender"
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
+        "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
         "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$KafkaClientTestBase.SHARED_TOPIC"
         defaultTags(true)

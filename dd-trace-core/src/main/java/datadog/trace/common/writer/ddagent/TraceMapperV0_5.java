@@ -9,6 +9,7 @@ import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagMap.EntryReader;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
@@ -125,6 +126,16 @@ public final class TraceMapperV0_5 implements TraceMapper {
     return "v0.5";
   }
 
+  @VisibleForTesting
+  Map<Object, Integer> getEncoding() {
+    return encoding;
+  }
+
+  @VisibleForTesting
+  GrowableBuffer getDictionary() {
+    return dictionary;
+  }
+
   private static class DictionaryMapper implements Mapper<Object> {
 
     @Override
@@ -202,7 +213,10 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
     @Override
     public void accept(Metadata metadata) {
-      final boolean writeSamplingPriority = firstSpanInTrace || lastSpanInTrace;
+      // Also write on top-level spans so that inferred proxy spans (which may be in the middle
+      // of the serialized list due to phased-finish ordering) always carry the sampling decision.
+      final boolean writeSamplingPriority =
+          firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
 
       TagMap tags = metadata.getTags();

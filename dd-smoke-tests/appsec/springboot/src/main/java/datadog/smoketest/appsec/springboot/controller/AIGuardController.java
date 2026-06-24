@@ -8,6 +8,9 @@ import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
 import datadog.trace.api.aiguard.AIGuard.Evaluation;
 import datadog.trace.api.aiguard.AIGuard.Message;
 import datadog.trace.api.aiguard.AIGuard.Options;
+import datadog.trace.api.interceptor.MutableSpan;
+import io.opentracing.Span;
+import io.opentracing.util.GlobalTracer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -26,7 +29,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class AIGuardController {
 
   @GetMapping(value = "/allow")
-  public ResponseEntity<?> allow() {
+  public ResponseEntity<?> allow(
+      @RequestHeader(name = "X-User-Id", required = false) final String userId,
+      @RequestHeader(name = "X-Session-Id", required = false) final String sessionId) {
+    final Span activeSpan = GlobalTracer.get().activeSpan();
+    if (activeSpan instanceof MutableSpan) {
+      final MutableSpan rootSpan = ((MutableSpan) activeSpan).getLocalRootSpan();
+      if (userId != null && !userId.isEmpty()) {
+        rootSpan.setTag("usr.id", userId);
+      }
+      if (sessionId != null && !sessionId.isEmpty()) {
+        rootSpan.setTag("usr.session_id", sessionId);
+      }
+    }
     final Evaluation result =
         AIGuard.evaluate(
             asList(
@@ -59,6 +74,20 @@ public class AIGuardController {
                   Message.message("system", "You are a beautiful AI"),
                   Message.message("user", "Nuke yourself" + (block ? " [block]" : ""))),
               new Options().block(block));
+      return ResponseEntity.ok(result);
+    } catch (AIGuardAbortError e) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getReason());
+    }
+  }
+
+  @GetMapping(value = "/deny-default-options")
+  public ResponseEntity<?> denyDefaultOptions() {
+    try {
+      final Evaluation result =
+          AIGuard.evaluate(
+              asList(
+                  Message.message("system", "You are a beautiful AI"),
+                  Message.message("user", "You should not trust me [block]")));
       return ResponseEntity.ok(result);
     } catch (AIGuardAbortError e) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getReason());

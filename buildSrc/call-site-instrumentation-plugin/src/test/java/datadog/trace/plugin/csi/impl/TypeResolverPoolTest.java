@@ -11,86 +11,57 @@ import org.objectweb.asm.Type;
 
 class TypeResolverPoolTest {
 
+  TypeResolverPool resolver = new TypeResolverPool();
+
   @Test
   void testResolvePrimitive() {
-    TypeResolverPool resolver = new TypeResolverPool();
-
-    Class<?> result = resolver.resolveType(Type.INT_TYPE);
-
-    assertEquals(int.class, result);
+    assertEquals(int.class, resolver.resolveType(Type.INT_TYPE));
   }
 
   @Test
   void testResolvePrimitiveArray() {
-    TypeResolverPool resolver = new TypeResolverPool();
     Type type = Type.getType("[I");
-
-    Class<?> result = resolver.resolveType(type);
-
-    assertEquals(int[].class, result);
+    assertEquals(int[].class, resolver.resolveType(type));
   }
 
   @Test
   void testResolvePrimitiveMultidimensionalArray() {
-    TypeResolverPool resolver = new TypeResolverPool();
     Type type = Type.getType("[[[I");
-
-    Class<?> result = resolver.resolveType(type);
-
-    assertEquals(int[][][].class, result);
+    assertEquals(int[][][].class, resolver.resolveType(type));
   }
 
   @Test
   void testResolveClass() {
-    TypeResolverPool resolver = new TypeResolverPool();
     Type type = Type.getType(String.class);
-
-    Class<?> result = resolver.resolveType(type);
-
-    assertEquals(String.class, result);
+    assertEquals(String.class, resolver.resolveType(type));
   }
 
   @Test
   void testResolveClassArray() {
-    TypeResolverPool resolver = new TypeResolverPool();
     Type type = Type.getType(String[].class);
-
-    Class<?> result = resolver.resolveType(type);
-
-    assertEquals(String[].class, result);
+    assertEquals(String[].class, resolver.resolveType(type));
   }
 
   @Test
   void testResolveClassMultidimensionalArray() {
-    TypeResolverPool resolver = new TypeResolverPool();
     Type type = Type.getType(String[][][].class);
-
-    Class<?> result = resolver.resolveType(type);
-
-    assertEquals(String[][][].class, result);
+    assertEquals(String[][][].class, resolver.resolveType(type));
   }
 
   @Test
   void testTypeResolverFromMethod() {
-    TypeResolverPool resolver = new TypeResolverPool();
     Type type =
         Type.getMethodType(
             Type.getType(String[].class), Type.getType(String.class), Type.getType(String.class));
-
-    Class<?> result = resolver.resolveType(type.getReturnType());
-
-    assertEquals(String[].class, result);
+    assertEquals(String[].class, resolver.resolveType(type.getReturnType()));
   }
 
   @Test
   void testInheritedMethods() throws Exception {
-    TypeResolverPool resolver = new TypeResolverPool();
     Type owner = Type.getType(HttpServletRequest.class);
     String name = "getParameter";
     Type descriptor = Type.getMethodType(Type.getType(String.class), Type.getType(String.class));
-
     Method result = (Method) resolver.resolveMethod(new MethodType(owner, name, descriptor));
-
     assertEquals(ServletRequest.class.getDeclaredMethod("getParameter", String.class), result);
   }
 }

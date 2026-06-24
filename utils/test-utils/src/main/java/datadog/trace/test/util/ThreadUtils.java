@@ -33,6 +33,32 @@ public class ThreadUtils {
    * @return true if everything went well
    * @throws Throwable if anything went wrong
    */
+  @FunctionalInterface
+  public interface ThrowingRunnable {
+    void run() throws Throwable;
+  }
+
+  public static boolean runConcurrently(
+      final int concurrency, final int totalInvocations, final ThrowingRunnable runnable)
+      throws Throwable {
+    return runConcurrently(
+        concurrency,
+        totalInvocations,
+        new Closure<Void>(null) {
+          @Override
+          public Void call() {
+            try {
+              runnable.run();
+            } catch (RuntimeException | Error e) {
+              throw e;
+            } catch (Throwable t) {
+              throw new RuntimeException(t);
+            }
+            return null;
+          }
+        });
+  }
+
   public static boolean runConcurrently(
       final int concurrency, final int totalInvocations, final Closure<Void> closure)
       throws Throwable {

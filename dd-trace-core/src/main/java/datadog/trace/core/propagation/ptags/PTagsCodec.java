@@ -18,6 +18,8 @@ abstract class PTagsCodec {
   protected static final TagKey TRACE_ID_TAG = TagKey.from("tid");
   protected static final TagKey TRACE_SOURCE_TAG = TagKey.from("ts");
   protected static final TagKey DEBUG_TAG = TagKey.from("debug");
+  protected static final TagKey KNUTH_SAMPLING_RATE_TAG = TagKey.from("ksr");
+  protected static final TagKey ORG_PROPAGATION_MARKER_TAG = TagKey.from("opm");
   protected static final String PROPAGATION_ERROR_MALFORMED_TID = "malformed_tid ";
   protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
@@ -48,6 +50,16 @@ abstract class PTagsCodec {
       }
       if (ptags.getDebugPropagation() != null) {
         size = codec.appendTag(sb, DEBUG_TAG, TagValue.from(ptags.getDebugPropagation()), size);
+      }
+      if (ptags.getKnuthSamplingRateTagValue() != null) {
+        size =
+            codec.appendTag(
+                sb, KNUTH_SAMPLING_RATE_TAG, ptags.getKnuthSamplingRateTagValue(), size);
+      }
+      if (ptags.getOrgPropagationMarkerTagValue() != null) {
+        size =
+            codec.appendTag(
+                sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -102,6 +114,16 @@ abstract class PTagsCodec {
     if (propagationTags.getDebugPropagation() != null) {
       tagMap.put(
           DEBUG_TAG.forType(Encoding.DATADOG).toString(), propagationTags.getDebugPropagation());
+    }
+    if (propagationTags.getKnuthSamplingRateTagValue() != null) {
+      tagMap.put(
+          KNUTH_SAMPLING_RATE_TAG.forType(Encoding.DATADOG).toString(),
+          propagationTags.getKnuthSamplingRateTagValue().forType(Encoding.DATADOG).toString());
+    }
+    if (propagationTags.getOrgPropagationMarkerTagValue() != null) {
+      tagMap.put(
+          ORG_PROPAGATION_MARKER_TAG.forType(Encoding.DATADOG).toString(),
+          propagationTags.getOrgPropagationMarkerTagValue().forType(Encoding.DATADOG).toString());
     }
     if (propagationTags.getTraceIdHighOrderBitsHexTagValue() != null) {
       tagMap.put(

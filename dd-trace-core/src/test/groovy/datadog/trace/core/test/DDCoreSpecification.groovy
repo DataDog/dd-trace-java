@@ -45,7 +45,7 @@ abstract class DDCoreSpecification extends DDSpecification {
 
   @Override
   void setupSpec() {
-    TagsPostProcessorFactory.withAddBaseService(false)
+    TagsPostProcessorFactory.withAddInternalTags(false)
     TagsPostProcessorFactory.withAddRemoteHostname(false)
   }
 
@@ -113,6 +113,7 @@ abstract class DDCoreSpecification extends DDSpecification {
       false,
       propagationTags,
       ProfilingContextIntegration.NoOp.INSTANCE,
+      true,
       true)
 
     def span = DDSpan.create("test", timestamp, context, null)

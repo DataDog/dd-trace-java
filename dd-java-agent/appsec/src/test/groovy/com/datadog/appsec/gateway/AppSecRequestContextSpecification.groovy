@@ -81,13 +81,13 @@ class AppSecRequestContextSpecification extends DDSpecification {
     thrown(IllegalStateException)
   }
 
-  void 'adding uri a second time is forbidden'() {
+  void 'setting uri a second time is ignored, first value wins'() {
     when:
     ctx.rawURI = '/a'
     ctx.rawURI = '/b'
 
     then:
-    thrown(IllegalStateException)
+    noExceptionThrown()
     ctx.savedRawURI == '/a'
   }
 

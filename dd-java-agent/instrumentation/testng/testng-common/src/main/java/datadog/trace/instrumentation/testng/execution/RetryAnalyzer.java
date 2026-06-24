@@ -49,6 +49,10 @@ public class RetryAnalyzer implements IRetryAnalyzer {
     suppressFailures = executionPolicy.suppressFailures();
   }
 
+  public boolean shouldPropagateFailure() {
+    return executionPolicy != null && executionPolicy.propagateFailure();
+  }
+
   public boolean getAndResetSuppressFailures() {
     boolean suppressFailures = this.suppressFailures;
     this.suppressFailures = false;

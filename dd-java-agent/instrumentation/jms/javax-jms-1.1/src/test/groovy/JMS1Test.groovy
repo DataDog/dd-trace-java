@@ -1,3 +1,6 @@
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED
+import static org.junit.jupiter.api.Assumptions.assumeTrue
+
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -5,30 +8,31 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import org.apache.activemq.ActiveMQConnectionFactory
-import org.apache.activemq.command.ActiveMQTextMessage
-import org.apache.activemq.junit.EmbeddedActiveMQBroker
-import spock.lang.Shared
-
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicReference
 import javax.jms.Connection
+import javax.jms.ConnectionFactory
 import javax.jms.Destination
 import javax.jms.Message
 import javax.jms.MessageListener
+import javax.jms.Queue
 import javax.jms.QueueConnection
 import javax.jms.QueueSession
 import javax.jms.Session
 import javax.jms.TemporaryQueue
 import javax.jms.TemporaryTopic
-import javax.jms.Queue
-import javax.jms.Topic
 import javax.jms.TextMessage
+import javax.jms.Topic
 import javax.jms.TopicConnection
 import javax.jms.TopicSession
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.atomic.AtomicReference
+import jms10mock.Jms10ConnectionFactory
+import org.apache.activemq.command.ActiveMQTextMessage
+import org.apache.activemq.junit.EmbeddedActiveMQBroker
+import spock.lang.Shared
 
 abstract class JMS1Test extends VersionedNamingTestBase {
   @Shared
@@ -61,9 +65,17 @@ abstract class JMS1Test extends VersionedNamingTestBase {
 
   abstract String operationForConsumer()
 
+  boolean testUnclosedScopeFinished() {
+    true
+  }
+
+  def createConnectionFactory() {
+    broker.createConnectionFactory()
+  }
+
   def setupSpec() {
     broker.start()
-    final ActiveMQConnectionFactory connectionFactory = broker.createConnectionFactory()
+    final ConnectionFactory connectionFactory = createConnectionFactory()
 
     connection = connectionFactory.createConnection()
     connection.start()
@@ -164,6 +176,7 @@ abstract class JMS1Test extends VersionedNamingTestBase {
 
   def "closing #destinationType session should close and finish any pending scopes"() {
     setup:
+    assumeTrue(testUnclosedScopeFinished())
     def destination = destinationType.create(session)
     def localSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
     def producer = localSession.createProducer(destination)
@@ -249,6 +262,9 @@ abstract class JMS1Test extends VersionedNamingTestBase {
 
   def "receiving messages from #destinationType with manual acknowledgement"() {
     setup:
+    // Use a long scope iteration keep-alive to prevent early cleanup of the 3rd
+    // consumer span, ensuring exactly 5 traces before acknowledge (not 6).
+    injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "10000")
     def destination = destinationType.create(session)
     def clientSession = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE)
     def producer = session.createProducer(destination)
@@ -268,7 +284,8 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     receivedMessage1.text == messageText1
     receivedMessage2.text == messageText2
     receivedMessage3.text == messageText3
-    // only two consume traces will be finished at this point
+    // only two consume traces will be finished at this point because message 3
+    // has not been acknowledged and the long keep-alive prevents early cleanup
     assertTraces(5) {
       producerTraceWithNaming(it, destination)
       producerTraceWithNaming(it, destination)
@@ -292,7 +309,6 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     }
 
     cleanup:
-    receivedMessage3.acknowledge()
     producer.close()
     consumer.close()
     clientSession.close()
@@ -1045,6 +1061,19 @@ class JMS1V0Test extends JMS1Test {
   }
 }
 
+class JMSContextSwapForkedTest extends JMS1V0Test {
+  @Override
+  protected void configurePreAgent() {
+    injectSysConfig(LEGACY_CONTEXT_MANAGER_ENABLED, "false")
+  }
+
+  @Override
+  boolean testUnclosedScopeFinished() {
+    //TODO: This need to be removed when the Context manager will support it
+    false
+  }
+}
+
 class JMS1V1ForkedTest extends JMS1Test {
 
   @Override
@@ -1070,5 +1099,12 @@ class JMS1V1ForkedTest extends JMS1Test {
   @Override
   String operationForConsumer() {
     "jms.process"
+  }
+}
+
+class JMS10Test extends JMS1V0Test {
+  @Override
+  def createConnectionFactory() {
+    new Jms10ConnectionFactory(super.createConnectionFactory())
   }
 }

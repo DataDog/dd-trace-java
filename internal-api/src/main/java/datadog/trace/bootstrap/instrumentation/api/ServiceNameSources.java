@@ -14,6 +14,7 @@ public final class ServiceNameSources {
   public static final CharSequence SPLIT_BY_SERVLET_CONTEXT =
       UTF8BytesString.create("opt.split_by_servlet_context");
   public static final CharSequence SPLIT_BY_TAGS = UTF8BytesString.create("opt.split_by_tags");
+  public static final CharSequence MANUAL = UTF8BytesString.create("m");
 
   private ServiceNameSources() {
     // utility class - no instantiation

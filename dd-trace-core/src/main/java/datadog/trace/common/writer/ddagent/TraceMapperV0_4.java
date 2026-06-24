@@ -3,7 +3,9 @@ package datadog.trace.common.writer.ddagent;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
 import datadog.communication.serialization.Codec;
+import datadog.communication.serialization.GenerationalUtf8Cache;
 import datadog.communication.serialization.GrowableBuffer;
+import datadog.communication.serialization.SimpleUtf8Cache;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
@@ -71,7 +73,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
       TagMap tags = metadata.getTags();
 
-      final boolean writeSamplingPriority = firstSpanInTrace || lastSpanInTrace;
+      // Also write on top-level spans so that inferred proxy spans (which may be in the middle
+      // of the serialized list due to phased-finish ordering) always carry the sampling decision.
+      final boolean writeSamplingPriority =
+          firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
       int metaSize =
           metadata.getBaggage().size()

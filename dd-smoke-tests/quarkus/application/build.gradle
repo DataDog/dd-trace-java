@@ -15,6 +15,11 @@ if (hasProperty('appBuildDir')) {
 
 version = ""
 
+// Pin bytecode target: the nested daemon now runs on JDK 21, but Quarkus 1.9 supports Java 8.
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+}
+
 dependencies {
   implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
   implementation 'io.quarkus:quarkus-resteasy'

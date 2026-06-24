@@ -1,0 +1,112 @@
+method: POST
+path: responses
+-- begin request body --
+{"input":"Use the custom_weather tool to answer: What's the weather in Boston?","model":"gpt-5","tool_choice":{"name":"custom_weather","type":"custom"},"tools":[{"name":"custom_weather","type":"custom","description":"Return weather for a location","format":{"type":"text"}}]}
+-- end request body -- 
+status code: 200
+-- begin response headers --
+alt-svc: h3=":443"; ma=86400
+cf-cache-status: DYNAMIC
+cf-ray: 9e2122d2ae6712d4-SEA
+content-type: application/json
+date: Wed, 25 Mar 2026 21:51:20 GMT
+openai-organization: datadog-staging
+openai-processing-ms: 3360
+openai-project: proj_gt6TQZPRbZfoY2J9AQlEJMpd
+openai-version: 2020-10-01
+server: cloudflare
+set-cookie: __cf_bm=SP753lo3ga6JHum4FOPTYPa6B.h7QhGpK2Tih8iqYOI-1774475476.9017334-1.0.1.1-G_WqthMsAoHTvAkAACMpAsVWmtzzeqOHTjGZ_eY4WSxZz_pND9T9O78.pCiPD52gquRIzVxrXPd9J06VIMqiuAA9z_GWrLKLGc.s2dzDvUsWxIek6wIPjN4EOBFNlgoB; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Wed, 25 Mar 2026 22:21:20 GMT
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+x-content-type-options: nosniff
+x-ratelimit-limit-requests: 15000
+x-ratelimit-limit-tokens: 40000000
+x-ratelimit-remaining-requests: 14999
+x-ratelimit-remaining-tokens: 40000000
+x-ratelimit-reset-requests: 4ms
+x-ratelimit-reset-tokens: 0s
+x-request-id: req_dcbdd1cbcd494ff793ee2e099de4554e
+-- end response headers --
+-- begin response body --
+{
+  "id": "resp_0f18ec8851ed77310169c458d536188190ae13c792509ad0c7",
+  "object": "response",
+  "created_at": 1774475477,
+  "status": "completed",
+  "background": false,
+  "billing": {
+    "payer": "developer"
+  },
+  "completed_at": 1774475480,
+  "error": null,
+  "frequency_penalty": 0.0,
+  "incomplete_details": null,
+  "instructions": null,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "model": "gpt-5-2025-08-07",
+  "output": [
+    {
+      "id": "rs_0f18ec8851ed77310169c458d5b5108190a0c49289af33d93b",
+      "type": "reasoning",
+      "summary": []
+    },
+    {
+      "id": "ctc_0f18ec8851ed77310169c458d84a7c8190b1cefc253127979c",
+      "type": "custom_tool_call",
+      "status": "completed",
+      "call_id": "call_sxqlRD4E0PihmL74BNt7GqVV",
+      "input": "Boston, MA, USA",
+      "name": "custom_weather"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0.0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": null,
+  "reasoning": {
+    "effort": "medium",
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "store": false,
+  "temperature": 1.0,
+  "text": {
+    "format": {
+      "type": "text"
+    },
+    "verbosity": "medium"
+  },
+  "tool_choice": {
+    "type": "custom",
+    "name": "custom_weather"
+  },
+  "tools": [
+    {
+      "type": "custom",
+      "description": "Return weather for a location",
+      "format": {
+        "type": "text"
+      },
+      "name": "custom_weather"
+    }
+  ],
+  "top_logprobs": 0,
+  "top_p": 1.0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 67,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 238,
+    "output_tokens_details": {
+      "reasoning_tokens": 192
+    },
+    "total_tokens": 305
+  },
+  "user": null,
+  "metadata": {}
+}�
+-- end response body --

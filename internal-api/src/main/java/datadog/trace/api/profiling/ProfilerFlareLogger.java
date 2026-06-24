@@ -1,6 +1,7 @@
 package datadog.trace.api.profiling;
 
 import datadog.trace.api.flare.TracerFlare;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -23,7 +24,7 @@ public final class ProfilerFlareLogger implements TracerFlare.Reporter {
   private final List<String> flareReportLines = new ArrayList<>();
   private int usedReportCapacity = 0;
 
-  // @VisibleForTesting
+  @VisibleForTesting
   ProfilerFlareLogger() {
     TracerFlare.addReporter(this);
   }
@@ -76,17 +77,17 @@ public final class ProfilerFlareLogger implements TracerFlare.Reporter {
     cleanup();
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   int getUsedReportCapacity() {
     return usedReportCapacity;
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   int getMaxReportCapacity() {
     return REPORT_CAPACITY;
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   int linesSize() {
     synchronized (flareReportLines) {
       return flareReportLines.size();

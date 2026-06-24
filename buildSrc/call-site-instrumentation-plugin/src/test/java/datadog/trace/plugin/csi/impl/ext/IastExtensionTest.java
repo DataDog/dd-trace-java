@@ -22,6 +22,7 @@ import datadog.trace.plugin.csi.impl.assertion.AssertBuilder;
 import datadog.trace.plugin.csi.impl.assertion.CallSiteAssert;
 import datadog.trace.plugin.csi.impl.ext.tests.IastExtensionCallSite;
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,12 +47,15 @@ class IastExtensionTest extends BaseCsiPluginTest {
 
   @BeforeEach
   void setup() throws Exception {
-    targetFolder = buildDir.toPath().resolve("target");
-    Files.createDirectories(targetFolder);
-    projectFolder = buildDir.toPath().resolve("project");
-    Files.createDirectories(projectFolder);
-    srcFolder = projectFolder.resolve("src/main/java");
-    Files.createDirectories(srcFolder);
+    targetFolder = createFolder("target");
+    projectFolder = createFolder("project");
+    srcFolder = createFolder("src/main/java");
+  }
+
+  private Path createFolder(String folderName) throws IOException {
+    Path folder = buildDir.toPath().resolve(folderName);
+    Files.createDirectories(folder);
+    return folder;
   }
 
   @ParameterizedTest

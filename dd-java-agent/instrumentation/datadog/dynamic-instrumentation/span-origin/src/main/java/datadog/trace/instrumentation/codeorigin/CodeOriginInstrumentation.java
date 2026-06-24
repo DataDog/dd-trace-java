@@ -1,8 +1,12 @@
 package datadog.trace.instrumentation.codeorigin;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule.Tracing;
-import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.OneOf;
 import datadog.trace.api.InstrumenterConfig;
@@ -37,13 +41,22 @@ public abstract class CodeOriginInstrumentation extends Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return HierarchyMatchers.declaresMethod(HierarchyMatchers.isAnnotatedWith(matcher));
+    ElementMatcher.Junction<TypeDescription> matcher =
+        declaresMethod(isAnnotatedWith(this.matcher));
+    if (InstrumenterConfig.get().isCodeOriginInterfaceSupport()) {
+      matcher = matcher.or(implementsInterface(declaresMethod(isAnnotatedWith(this.matcher))));
+    }
+    return matcher;
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        HierarchyMatchers.isAnnotatedWith(matcher),
-        "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
+        isAnnotatedWith(matcher), "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
+    if (InstrumenterConfig.get().isCodeOriginInterfaceSupport()) {
+      transformer.applyAdvice(
+          isDeclaredBy(implementsInterface(declaresMethod(isAnnotatedWith(matcher)))),
+          "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
+    }
   }
 }

@@ -1,4 +1,3 @@
-
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 import com.google.api.gax.core.NoCredentialsProvider
@@ -27,18 +26,18 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.grpc.client.GrpcClientDecorator
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.CountDownLatch
 import org.testcontainers.containers.PubSubEmulatorContainer
 import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
-
-import java.nio.charset.StandardCharsets
-import java.util.concurrent.CountDownLatch
 
 abstract class PubSubTest extends VersionedNamingTestBase {
   private static final String PROJECT_ID = "dd-trace-java"
@@ -68,11 +67,6 @@ abstract class PubSubTest extends VersionedNamingTestBase {
     null
   }
 
-  @Override
-  boolean useStrictTraceWrites() {
-    false
-  }
-
   boolean shadowGrpcSpans() {
     true
   }
@@ -96,7 +90,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
   }
 
   def setupSpec() {
-    emulator = new PubSubEmulatorContainer(DockerImageName.parse("gcr.io/google.com/cloudsdktool/cloud-sdk:495.0.0-emulators"))
+    emulator = new PubSubEmulatorContainer(DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:495.0.0-emulators"))
     emulator.start()
     channel = ManagedChannelBuilder.forTarget(emulator.getEmulatorEndpoint()).usePlaintext().build()
     transportChannelProvider = FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel))
@@ -284,6 +278,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         "$Tags.RPC_SERVICE" { String }
         "status.code" { String }
         "grpc.status.code" { String }
+        "$InstrumentationTags.GRPC_STATUS_CODE" { Integer }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }

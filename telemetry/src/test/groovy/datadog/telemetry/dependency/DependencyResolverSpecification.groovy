@@ -95,6 +95,26 @@ class DependencyResolverSpecification extends DepSpecification {
       )
   }
 
+  void 'jar with dd-java-agent pom.properties resolves to com.datadoghq:dd-java-agent'() {
+    given: 'a jar containing META-INF/maven/com.datadoghq/dd-java-agent/pom.properties'
+    File file = new File(testDir, 'dd-java-agent.jar')
+    new ZipOutputStream(new FileOutputStream(file)).with {
+      putNextEntry(new ZipEntry('META-INF/maven/com.datadoghq/dd-java-agent/pom.properties'))
+      write('groupId=com.datadoghq\nartifactId=dd-java-agent\nversion=1.0.0\n'.getBytes('UTF-8'))
+      closeEntry()
+      close()
+    }
+
+    when:
+    List<Dependency> deps = DependencyResolver.resolve(file.toURI())
+
+    then:
+    deps.size() == 1
+    deps[0].name == 'com.datadoghq:dd-java-agent'
+    deps[0].version == '1.0.0'
+    deps[0].hash == null
+  }
+
   void 'jar without manifest and no version in filename gets resolved'() {
     // If no manifest info and no suitable file name - calculate sha1 hash
     knownJarCheck(

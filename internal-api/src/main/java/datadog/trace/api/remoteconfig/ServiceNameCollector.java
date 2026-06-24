@@ -3,6 +3,7 @@ package datadog.trace.api.remoteconfig;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -71,5 +72,10 @@ public class ServiceNameCollector {
 
   public void clear() {
     services.clear();
+  }
+
+  @VisibleForTesting
+  static void setInstance(ServiceNameCollector instance) {
+    INSTANCE = instance;
   }
 }

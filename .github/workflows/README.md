@@ -30,9 +30,12 @@ _Recovery:_ Manually verify the guideline compliance.
 
 ### check-pull-request-labels [🔗](check-pull-request-labels.yaml)
 
-_Trigger:_ When creating or updating a pull request.
+_Trigger:_ When creating or updating a pull request, or when new commits are pushed to it.
 
-_Action:_ Check the pull request did not introduce unexpected label.
+_Actions:_
+
+* Detect AI-generated pull requests then apply the `tag: ai generated` label.
+* Check the pull request did not introduce unexpected labels.
 
 _Recovery:_ Update the pull request or add a comment to trigger the action again.
 
@@ -91,16 +94,6 @@ Close them if no following update within a week.
 
 _Recovery:_ Manually trigger the action again.
 
-### update-docker-build-image [🔗](update-docker-build-image.yaml)
-
-_Trigger:_ Quarterly released, loosely [a day after the new image tag is created](https://github.com/DataDog/dd-trace-java-docker-build/blob/master/.github/workflows/docker-tag.yml).
-
-_Action:_ Update the Docker build image used in GitLab CI with the latest tag.
-
-_Recovery:_ Download artifacts and upload them manually to the related _download release_.
-
-_Notes:_  Manually trigger the action again given the desired image tag as input.
-
 ### update-download-releases [🔗](update-download-releases.yaml)
 
 _Trigger:_ When a release is published.
@@ -122,6 +115,18 @@ _Action:_
 * Close all those issues.
 
 _Recovery:_ Check at the milestone for the related issues and update them manually.
+
+### enforce-groovy-migration [🔗](enforce-groovy-migration.yaml)
+
+_Trigger:_ When creating or updating a pull request targeting `master`, or when labels are updated.
+
+_Actions:_
+
+* Fail the PR if it introduces any new `.groovy` file, including added, copied, or renamed files whose previous name was not already `.groovy`.
+
+_Recovery:_ Re-write the new Groovy files in Java / JUnit. To override this check entirely, add the `tag: override-groovy-enforcement` label to the PR. Remove the label to re-enable enforcement.
+
+_Notes:_ The override label skips the workflow entirely.
 
 ## Code Quality and Security
 
@@ -155,6 +160,14 @@ _Recovery:_ Manually trigger the action on the desired branch.
 _Trigger:_ Every week or manually.
 
 _Action:_ Create a PR updating the Grade dependencies and their locking files.
+
+_Recovery:_ Manually trigger the action again.
+
+### update-smoke-test-latest-versions [🔗](update-smoke-test-latest-versions.yaml)
+
+_Trigger:_ Every week or manually.
+
+_Action:_ Create a PR updating the pinned "latest" tool versions (Gradle, Maven, Maven Surefire) used by CI Visibility smoke tests.
 
 _Recovery:_ Manually trigger the action again.
 

@@ -57,8 +57,12 @@ public class SymbolExtractor {
       int classStartLine = Integer.MAX_VALUE;
       int classEndLine = 0;
       for (Scope scope : methodScopes) {
-        classStartLine = Math.min(classStartLine, scope.getStartLine());
-        classEndLine = Math.max(classEndLine, scope.getEndLine());
+        if (scope.getStartLine() > 0) {
+          classStartLine = Math.min(classStartLine, scope.getStartLine());
+        }
+        if (scope.getEndLine() > 0) {
+          classEndLine = Math.max(classEndLine, scope.getEndLine());
+        }
       }
       List<Symbol> fields = extractFields(classNode);
       LanguageSpecifics classSpecifics =
@@ -386,13 +390,24 @@ public class SymbolExtractor {
       List<Symbol> varSymbols = new ArrayList<>();
       int minLine = Integer.MAX_VALUE;
       for (LocalVariableNode var : entry.getValue()) {
-        int line = monotonicLineMap.get(var.start.getLabel());
+        Integer line = monotonicLineMap.get(var.start.getLabel());
+        if (line == null) {
+          LOGGER.debug(
+              "Cannot find the line for variable {} idx={} in local variables",
+              var.name,
+              var.index);
+          continue;
+        }
         minLine = Math.min(line, minLine);
         varSymbols.add(
             new Symbol(
                 SymbolType.LOCAL, var.name, line, Type.getType(var.desc).getClassName(), null));
       }
-      int endLine = monotonicLineMap.get(entry.getKey().getLabel());
+      Integer endLine = monotonicLineMap.get(entry.getKey().getLabel());
+      if (endLine == null) {
+        LOGGER.debug("Cannot find the line from end label");
+        continue;
+      }
       Scope varScope =
           Scope.builder(ScopeType.LOCAL, sourceFile, minLine, endLine)
               .symbols(varSymbols)
@@ -491,7 +506,7 @@ public class SymbolExtractor {
       if (node.getType() == AbstractInsnNode.LINE) {
         LineNumberNode lineNumberNode = (LineNumberNode) node;
         int newLine = sourceRemapper.remapSourceLine(lineNumberNode.line);
-        if (dedupSet.add(newLine)) {
+        if (newLine > 0 && dedupSet.add(newLine)) {
           lineNo.add(newLine);
         }
         maxLine = Math.max(newLine, maxLine);
@@ -505,7 +520,18 @@ public class SymbolExtractor {
       node = node.getNext();
     }
     lineNo.sort(Integer::compareTo);
-    int startLine = lineNo.isEmpty() ? 0 : lineNo.get(0);
+    if (methodNode.name.equals("<init>") && !lineNo.isEmpty()) {
+      // for constructors we are dropping the first line because it is not instrumentable:
+      // it needs to call the super or this before
+      lineNo.remove(0);
+    }
+    int startLine;
+    if (lineNo.isEmpty()) {
+      startLine = 0;
+      maxLine = 0;
+    } else {
+      startLine = lineNo.get(0);
+    }
     List<Scope.LineRange> ranges = buildRanges(lineNo);
     return new MethodLineInfo(startLine, maxLine, map, ranges);
   }

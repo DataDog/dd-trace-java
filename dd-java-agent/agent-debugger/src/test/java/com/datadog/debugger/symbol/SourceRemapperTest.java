@@ -21,9 +21,11 @@ class SourceRemapperTest {
   @Test
   public void kotlinSourceRemapper() {
     SourceMap sourceMapMock = mock(SourceMap.class);
-    StratumExt stratumMock = mock(StratumExt.class);
-    when(sourceMapMock.getStratum(eq("KotlinDebug"))).thenReturn(stratumMock);
-    when(stratumMock.getInputLine(eq(42))).thenReturn(Pair.of("", 24));
+    StratumExt stratumMainMock = mock(StratumExt.class);
+    StratumExt stratumDebugMock = mock(StratumExt.class);
+    when(sourceMapMock.getStratum(eq("Kotlin"))).thenReturn(stratumMainMock);
+    when(sourceMapMock.getStratum(eq("KotlinDebug"))).thenReturn(stratumDebugMock);
+    when(stratumDebugMock.getInputLine(eq(42))).thenReturn(Pair.of("", 24));
     SourceRemapper sourceRemapper = SourceRemapper.getSourceRemapper("foo.kt", sourceMapMock);
     assertTrue(sourceRemapper instanceof SourceRemapper.KotlinSourceRemapper);
     assertEquals(24, sourceRemapper.remapSourceLine(42));

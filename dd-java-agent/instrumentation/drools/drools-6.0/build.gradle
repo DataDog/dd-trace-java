@@ -1,0 +1,80 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir("latest7Test", "test")
+addTestSuiteForDir("latest8Test", "test")
+addTestSuiteForDir("latestDepTest", "test")
+
+testJvmConstraints {
+}
+repositories {
+  maven {
+    url = uri("https://repository.jboss.org/nexus/content/repositories/releases/")
+  }
+}
+dependencies {
+  testImplementation project(':dd-java-agent:testing')
+  testImplementation group: 'org.drools', name: 'drools-compiler', version: '6.0.0.Final'
+  testImplementation group: 'org.drools', name: 'drools-core', version: '6.0.0.Final'
+  testImplementation group: 'org.kie', name: 'kie-api', version: '6.0.0.Final'
+
+  latest7TestImplementation group: 'org.drools', name: 'drools-compiler', version: '7.+'
+  latest7TestImplementation group: 'org.drools', name: 'drools-core', version: '7.+'
+  latest7TestImplementation group: 'org.drools', name: 'drools-mvel', version: '7.+'
+  latest7TestImplementation group: 'org.kie', name: 'kie-api', version: '7.+'
+
+  latest8TestImplementation group: 'org.drools', name: 'drools-compiler', version: '8.+'
+  latest8TestImplementation group: 'org.drools', name: 'drools-core', version: '8.+'
+  latest8TestImplementation group: 'org.drools', name: 'drools-mvel', version: '8.+'
+  latest8TestImplementation group: 'org.kie', name: 'kie-api', version: '8.+'
+
+  // for now this is locked to 10.x not to add maintenance burden
+  latestDepTestImplementation group: 'org.drools', name: 'drools-compiler', version: '10.+'
+  latestDepTestImplementation group: 'org.drools', name: 'drools-core', version: '10.+'
+  latestDepTestImplementation group: 'org.drools', name: 'drools-mvel', version: '10.+'
+  latestDepTestImplementation group: 'org.kie', name: 'kie-api', version: '10.+'
+}
+
+configurations.matching { it.name.startsWith('latestDepTest') }.configureEach {
+  it.resolutionStrategy {
+    force group: 'org.slf4j', name: 'slf4j-api', version: libs.versions.slf4j.get()
+  }
+}
+
+tasks.named("test") {
+  testJvmConstraints {
+    maxJavaVersion = JavaVersion.VERSION_1_8
+  }
+}
+
+tasks.named("latest7Test") {
+  testJvmConstraints {
+    maxJavaVersion = JavaVersion.VERSION_11
+  }
+}
+
+tasks.named("latest8Test") {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_11
+    maxJavaVersion = JavaVersion.VERSION_17
+  }
+}
+
+tasks.named("latestDepTest") {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
+}
+
+project.afterEvaluate {
+  tasks.withType(Test).configureEach {
+    conditionalJvmArgs(
+      it,
+      JavaVersion.VERSION_16,
+      [
+        "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+        "--add-opens=java.base/java.text=ALL-UNNAMED",
+        "--add-opens=java.desktop/java.awt.font=ALL-UNNAMED",
+      ]
+      )
+  }
+}

@@ -18,12 +18,12 @@ public class DDSketchHistogram implements Histogram {
   }
 
   @Override
-  public double getCount() {
+  public final double getCount() {
     return sketch.getCount();
   }
 
   @Override
-  public boolean isEmpty() {
+  public final boolean isEmpty() {
     return sketch.isEmpty();
   }
 
@@ -38,7 +38,7 @@ public class DDSketchHistogram implements Histogram {
   }
 
   @Override
-  public double getValueAtQuantile(double quantile) {
+  public final double getValueAtQuantile(double quantile) {
     return sketch.getValueAtQuantile(quantile);
   }
 
@@ -53,7 +53,7 @@ public class DDSketchHistogram implements Histogram {
   }
 
   @Override
-  public List<Double> getBinBoundaries() {
+  public final List<Double> getBinBoundaries() {
     List<Double> boundaries = new ArrayList<>();
     // Bin boundaries are defined as a sequence of upper bounds. When our sketch contains gaps we
     // must introduce extra bounds to represent the lower bound of any bins after a gap; otherwise
@@ -75,7 +75,7 @@ public class DDSketchHistogram implements Histogram {
   }
 
   @Override
-  public List<Double> getBinCounts() {
+  public final List<Double> getBinCounts() {
     List<Double> counts = new ArrayList<>();
     // to maintain alignment with getBoundaries we must introduce zero counts for
     // boundaries inserted to represent the lower bound of any bins after a gap.
@@ -100,7 +100,7 @@ public class DDSketchHistogram implements Histogram {
   }
 
   @Override
-  public ByteBuffer serialize() {
+  public final ByteBuffer serialize() {
     return sketch.serialize();
   }
 }

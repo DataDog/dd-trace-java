@@ -11,6 +11,7 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import java.lang.reflect.ParameterizedType;
+import java.time.Duration;
 import java.util.Map;
 
 /** Helper for creating Moshi instances with the right adapters depending on the context */
@@ -32,9 +33,9 @@ public class MoshiHelper {
         .add(ProbeDefinition.Tag[].class, new ProbeDefinition.TagAdapter());
   }
 
-  public static Moshi createMoshiSnapshot() {
+  public static Moshi createMoshiSnapshot(Duration captureTimeOut) {
     return new Moshi.Builder()
-        .add(new MoshiSnapshotHelper.SnapshotJsonFactory())
+        .add(new MoshiSnapshotHelper.SnapshotJsonFactory(captureTimeOut))
         .add(
             DebuggerScript.class,
             new ProbeCondition.ProbeConditionJsonAdapter()) // ProbeDetails in Snapshot

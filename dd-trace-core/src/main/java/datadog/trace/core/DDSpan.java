@@ -3,6 +3,7 @@ package datadog.trace.core;
 import static datadog.trace.api.DDTags.TRACE_START_TIME;
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -18,6 +19,7 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.debugger.DebuggerConfigBridge;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.metrics.SpanMetrics;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -29,9 +31,7 @@ import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.util.StackTraces;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.List;
@@ -115,7 +115,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    */
   private volatile int longRunningVersion = 0;
 
-  protected final List<AgentSpanLink> links;
+  private static final List<AgentSpanLink> EMPTY = Collections.emptyList();
+  protected volatile List<AgentSpanLink> links;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -124,7 +125,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  private DDSpan(
+  @VisibleForTesting
+  DDSpan(
       @Nonnull String instrumentationName,
       final long timestampMicro,
       @Nonnull DDSpanContext context,
@@ -143,7 +145,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       context.getTraceCollector().touch(); // external clock: explicitly update lastReferenced
     }
 
-    this.links = links == null ? new CopyOnWriteArrayList<>() : new CopyOnWriteArrayList<>(links);
+    this.links = links == null || links.isEmpty() ? EMPTY : new CopyOnWriteArrayList<>(links);
   }
 
   public boolean isFinished() {
@@ -352,10 +354,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   @Override
   public DDSpan addThrowable(Throwable error, byte errorPriority) {
     if (null != error) {
-      String message = error.getMessage();
+      String message = StackTraces.safeGetMessage(error);
       if (!"broken pipe".equalsIgnoreCase(message)
           && (error.getCause() == null
-              || !"broken pipe".equalsIgnoreCase(error.getCause().getMessage()))) {
+              || !"broken pipe".equalsIgnoreCase(StackTraces.safeGetMessage(error.getCause())))) {
         // broken pipes happen when clients abort connections,
         // which might happen because the application is overloaded
         // or warming up - capturing the stack trace and keeping
@@ -542,7 +544,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   @Nonnull
-  public final DDSpanContext context() {
+  public final DDSpanContext spanContext() {
     return context;
   }
 
@@ -581,7 +583,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public final DDSpan setServiceName(final String serviceName) {
-    context.setServiceName(serviceName);
+    setServiceName(serviceName, MANUAL);
     return this;
   }
 
@@ -645,6 +647,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
     if (context.setSamplingPriority(samplingPriority, samplingMechanism)) {
       setMetric(rate, sampleRate);
+      if (samplingMechanism == SamplingMechanism.AGENT_RATE
+          || samplingMechanism == SamplingMechanism.LOCAL_USER_RULE
+          || samplingMechanism == SamplingMechanism.REMOTE_USER_RULE
+          || samplingMechanism == SamplingMechanism.REMOTE_ADAPTIVE_RULE) {
+        context.getPropagationTags().updateKnuthSamplingRate(sampleRate);
+      }
     }
     return this;
   }
@@ -671,6 +679,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   @Override
   public long getDurationNano() {
     return durationNano;
+  }
+
+  @VisibleForTesting
+  void setDurationNano(long duration) {
+    DURATION_NANO_UPDATER.set(this, duration);
   }
 
   @Override
@@ -757,12 +770,19 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public void processServiceTags() {
-    context.earlyProcessTags(links);
+    context.earlyProcessTags(this);
   }
 
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    context.processTagsAndBaggage(consumer, longRunningVersion, links);
+    context.processTagsAndBaggage(consumer, longRunningVersion, this);
+  }
+
+  @Override
+  public void processTagsAndBaggage(
+      final MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
+    context.processTagsAndBaggage(
+        consumer, longRunningVersion, this, injectLinksAsTags, injectBaggageAsTags);
   }
 
   @Override
@@ -855,7 +875,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
-  public void attachWrapper(@NonNull SpanWrapper wrapper) {
+  public void attachWrapper(@Nonnull SpanWrapper wrapper) {
     WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
   }
 
@@ -876,10 +896,44 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     return context.getTraceCollector().getTraceConfig();
   }
 
+  public List<? extends AgentSpanLink> getLinks() {
+    return this.links;
+  }
+
   @Override
   public void addLink(AgentSpanLink link) {
-    if (link != null) {
-      this.links.add(link);
+    if (link == null) {
+      return;
+    }
+
+    // If links are initially null / empty, then the shared placeholder List EMPTY is used.
+    // Because EMPTY is shared, EMPTY is safe for reading, but not for writing.
+    // On write - if links is the EMPTY placeholder, then need to create a CopyOnWriteArrayList
+    // owned by this DDSpan
+
+    // Creation of the CopyOnWriteArrayList is done via double checking locking using volatile &
+    // synchronized
+
+    // If before or inside the synchronized block, links no longer points to EMPTY,
+    // then this thread or another thread has already handled the list construction,
+    // so just add to the list
+
+    // If links still points to EMPTY inside the synchronized block, then construct a new
+    // CopyOnWriteArrayList containing the newly added link
+
+    List<AgentSpanLink> links = this.links;
+    if (links != EMPTY) {
+      links.add(link);
+      return;
+    }
+
+    synchronized (this) {
+      links = this.links;
+      if (links != EMPTY) {
+        links.add(link);
+      } else {
+        this.links = new CopyOnWriteArrayList<>(Collections.singletonList(link));
+      }
     }
   }
 
@@ -901,14 +955,19 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public boolean isOutbound() {
-    Object spanKind = context.getTag(Tags.SPAN_KIND);
-    return Tags.SPAN_KIND_CLIENT.equals(spanKind) || Tags.SPAN_KIND_PRODUCER.equals(spanKind);
+    byte ordinal = context.getSpanKindOrdinal();
+    return ordinal == DDSpanContext.SPAN_KIND_CLIENT || ordinal == DDSpanContext.SPAN_KIND_PRODUCER;
+  }
+
+  @Override
+  public boolean isKind(SpanKindFilter filter) {
+    return filter.matches(context.getSpanKindOrdinal());
   }
 
   @Override
   public void copyPropagationAndBaggage(final AgentSpan source) {
     if (source instanceof DDSpan) {
-      final DDSpanContext sourceSpanContext = ((DDSpan) source).context();
+      final DDSpanContext sourceSpanContext = ((DDSpan) source).spanContext();
       // align the sampling priority for this span context
       setSamplingPriority(sourceSpanContext.getSamplingPriority(), DEFAULT);
       // the sampling mechanism determine the dm tag hence we need to override and lock the current

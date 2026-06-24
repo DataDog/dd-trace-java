@@ -1,5 +1,7 @@
 package datadog.trace.api.civisibility.config;
 
+import datadog.trace.util.HashingUtils;
+import datadog.trace.util.Strings;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
@@ -16,12 +18,12 @@ public class TestIdentifier {
 
   public TestIdentifier(String suite, String name, @Nullable String parameters) {
     this.fqn = new TestFQN(suite, name);
-    this.parameters = parameters;
+    this.parameters = Strings.isNotBlank(parameters) ? parameters : null;
   }
 
   public TestIdentifier(TestFQN testFQN, @Nullable String parameters) {
     this.fqn = testFQN;
-    this.parameters = parameters;
+    this.parameters = Strings.isNotBlank(parameters) ? parameters : null;
   }
 
   public String getSuite() {
@@ -55,7 +57,7 @@ public class TestIdentifier {
 
   @Override
   public int hashCode() {
-    return Objects.hash(fqn, parameters);
+    return HashingUtils.hash(fqn, parameters);
   }
 
   @Override

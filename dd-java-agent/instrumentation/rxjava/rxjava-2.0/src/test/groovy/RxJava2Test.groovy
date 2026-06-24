@@ -20,12 +20,6 @@ class RxJava2Test extends InstrumentationSpecification {
 
   public static final String EXCEPTION_MESSAGE = "test exception"
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
   @Shared
   def addOne = { i ->
     addOneFunc(i)
@@ -300,7 +294,7 @@ class RxJava2Test extends InstrumentationSpecification {
       // The "add one" operations in the publisher created here should be children of the publisher-parent
       def publisher = publisherSupplier()
 
-      AgentSpan intermediate = startSpan("intermediate")
+      AgentSpan intermediate = startSpan("test", "intermediate")
       AgentScope scope = activateSpan(intermediate)
       try {
         if (publisher instanceof Maybe) {
@@ -382,7 +376,7 @@ class RxJava2Test extends InstrumentationSpecification {
 
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def assemblePublisherUnderTrace(def publisherSupplier) {
-    def span = startSpan("publisher-parent")
+    def span = startSpan("test", "publisher-parent")
     // After this activation, the "add two" operations below should be children of this span
     def scope = activateSpan(span)
 
@@ -404,7 +398,7 @@ class RxJava2Test extends InstrumentationSpecification {
 
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def cancelUnderTrace(def publisherSupplier) {
-    final AgentSpan span = startSpan("publisher-parent")
+    final AgentSpan span = startSpan("test", "publisher-parent")
     AgentScope scope = activateSpan(span)
 
     def publisher = publisherSupplier()

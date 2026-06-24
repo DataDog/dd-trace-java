@@ -1,11 +1,20 @@
 package utils
 
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.agent.test.utils.PortUtils
 
 import java.util.concurrent.TimeUnit
 
 class PortUtilsTest extends InstrumentationSpecification {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
+
   def "expect waitForPortToOpen succeed"() {
     given:
     int port = PortUtils.randomOpenPort()

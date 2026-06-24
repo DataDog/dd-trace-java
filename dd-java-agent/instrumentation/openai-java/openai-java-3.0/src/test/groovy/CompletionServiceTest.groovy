@@ -8,6 +8,7 @@ import com.openai.core.http.HttpResponseFor
 import com.openai.core.http.StreamResponse
 import com.openai.models.completions.Completion
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
@@ -20,7 +21,7 @@ class CompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertCompletionTrace()
+    assertCompletionTrace(false)
 
     where:
     params << [completionCreateParams(true), completionCreateParams(false)]
@@ -35,7 +36,7 @@ class CompletionServiceTest extends OpenAiTest {
     resp.statusCode() == 200
     resp.parse().valid // force response parsing, so it sets all the tags
     and:
-    assertCompletionTrace()
+    assertCompletionTrace(false)
 
     where:
     params << [completionCreateParams(true), completionCreateParams(false)]
@@ -52,7 +53,7 @@ class CompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertCompletionTrace()
+    assertCompletionTrace(true)
 
     where:
     params << [completionCreateStreamedParams(true), completionCreateStreamedParams(false)]
@@ -69,7 +70,7 @@ class CompletionServiceTest extends OpenAiTest {
     }
 
     expect:
-    assertCompletionTrace()
+    assertCompletionTrace(true)
 
     where:
     params << [completionCreateStreamedParams(true), completionCreateStreamedParams(false)]
@@ -83,7 +84,7 @@ class CompletionServiceTest extends OpenAiTest {
     completionFuture.get()
 
     expect:
-    assertCompletionTrace()
+    assertCompletionTrace(false)
 
     where:
     params << [completionCreateParams(true), completionCreateParams(false)]
@@ -98,7 +99,7 @@ class CompletionServiceTest extends OpenAiTest {
     resp.parse().valid // force response parsing, so it sets all the tags
 
     expect:
-    assertCompletionTrace()
+    assertCompletionTrace(false)
 
     where:
     params << [completionCreateParams(true), completionCreateParams(false)]
@@ -113,7 +114,7 @@ class CompletionServiceTest extends OpenAiTest {
     }
     asyncResp.onCompleteFuture().get()
     expect:
-    assertCompletionTrace()
+    assertCompletionTrace(true)
 
     where:
     params << [completionCreateStreamedParams(true), completionCreateStreamedParams(false)]
@@ -131,13 +132,17 @@ class CompletionServiceTest extends OpenAiTest {
     }
     expect:
     resp.statusCode() == 200
-    assertCompletionTrace()
+    assertCompletionTrace(true)
 
     where:
     params << [completionCreateStreamedParams(true), completionCreateStreamedParams(false)]
   }
 
-  private void assertCompletionTrace() {
+  private void assertCompletionTrace(boolean streamRequest) {
+    List<LLMObs.LLMMessage> inputTagsOut = []
+    List<LLMObs.LLMMessage> outputTagsOut = []
+    Map<String, Object> metadataOut = [:]
+
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -157,14 +162,30 @@ class CompletionServiceTest extends OpenAiTest {
             "_ml_obs_tag.model_provider" "openai"
             "_ml_obs_tag.model_name" String
             "_ml_obs_tag.metadata" Map
+            def metadata = tag("_ml_obs_tag.metadata")
+            if (metadata != null) {
+              metadataOut.putAll(metadata)
+            }
             "_ml_obs_tag.input" List
+            def inputTags = tag("_ml_obs_tag.input")
+            if (inputTags != null) {
+              inputTagsOut.addAll(inputTags)
+            }
             "_ml_obs_tag.output" List
+            def outputTags = tag("_ml_obs_tag.output")
+            if (outputTags != null) {
+              outputTagsOut.addAll(outputTags)
+            }
             "_ml_obs_metric.input_tokens" Long
             "_ml_obs_metric.output_tokens" Long
             "_ml_obs_metric.total_tokens" Long
             "_ml_obs_tag.parent_id" "undefined"
             "_ml_obs_tag.ml_app" String
             "_ml_obs_tag.service" String
+            "$CommonTags.DDTRACE_VERSION" String
+            "$CommonTags.SOURCE" "integration"
+            "$CommonTags.INTEGRATION" "openai"
+            "$CommonTags.ERROR" 0
             "openai.request.method" "POST"
             "openai.request.endpoint" "/v1/completions"
             "openai.api_base" openAiBaseApi
@@ -188,6 +209,17 @@ class CompletionServiceTest extends OpenAiTest {
           spanType "http"
         }
       }
+    }
+
+    assert inputTagsOut.size() == 1
+    assert inputTagsOut[0].role == ""
+    assert inputTagsOut[0].content == "Tell me a story about building the best SDK!"
+    assert outputTagsOut.size() >= 1
+    assert outputTagsOut.every { it.role == "" }
+    if (streamRequest) {
+      assert metadataOut.stream_options == [include_usage: true]
+    } else {
+      assert !metadataOut.containsKey("stream_options")
     }
   }
 }

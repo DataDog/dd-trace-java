@@ -12,6 +12,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,8 +53,17 @@ public class InstrumentationTestHelper {
   public static Map<String, byte[]> compile(
       String className, SourceCompiler.DebugInfo debugInfo, String version)
       throws IOException, URISyntaxException {
+    return compile(className, debugInfo, version, Collections.emptyList());
+  }
+
+  public static Map<String, byte[]> compile(
+      String className,
+      SourceCompiler.DebugInfo debugInfo,
+      String version,
+      List<String> additionalOptions)
+      throws IOException, URISyntaxException {
     String classSource = getFixtureContent("/" + className.replace('.', '/') + ".java");
-    return SourceCompiler.compile(className, classSource, debugInfo, version);
+    return SourceCompiler.compile(className, classSource, debugInfo, version, additionalOptions);
   }
 
   public static Class<?> loadClass(String className, String classFileName) throws IOException {

@@ -10,11 +10,6 @@ import java.net.http.HttpResponse
 import java.time.Duration
 
 abstract class JavaHttpClientTest extends HttpClientTest {
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
 
   def client = HttpClient.newBuilder()
   .connectTimeout(Duration.ofMillis(CONNECT_TIMEOUT_MS))
@@ -42,6 +37,17 @@ abstract class JavaHttpClientTest extends HttpClientTest {
 
   boolean testRedirects() {
     false
+  }
+
+  def "request to agent not traced"() {
+    when:
+    def status = doRequest("GET", server.address.resolve("/success"), ["Datadog-Meta-Lang": "java"])
+
+    then:
+    status == 200
+    assertTraces(1) {
+      server.distributedRequestTrace(it)
+    }
   }
 
   def 'should not inject duplicate headers'() {

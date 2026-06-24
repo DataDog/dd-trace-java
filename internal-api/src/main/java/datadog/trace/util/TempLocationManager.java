@@ -2,6 +2,7 @@ package datadog.trace.util;
 
 import datadog.environment.SystemProperties;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.ProfilerFlareLogger;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
@@ -18,6 +19,8 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.nio.file.attribute.UserPrincipal;
+import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -209,10 +212,20 @@ public final class TempLocationManager {
     }
   }
 
+  private static final Set<PosixFilePermission> GROUP_WORLD_BITS =
+      EnumSet.of(
+          PosixFilePermission.GROUP_READ,
+          PosixFilePermission.GROUP_WRITE,
+          PosixFilePermission.GROUP_EXECUTE,
+          PosixFilePermission.OTHERS_READ,
+          PosixFilePermission.OTHERS_WRITE,
+          PosixFilePermission.OTHERS_EXECUTE);
+
   private final boolean isPosixFs;
   private final Path baseTempDir;
   private final Path tempDir;
   private final long cutoffSeconds;
+  private UserPrincipal expectedOwner;
 
   private final CleanupTask cleanupTask = new CleanupTask();
   private final CleanupHook cleanupTestHook;
@@ -307,7 +320,7 @@ public final class TempLocationManager {
     createTempDir(tempDir);
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   static String getBaseTempDirName() {
     String userName = SystemProperties.get("user.name");
     // unlikely, but fall-back to system env based user name
@@ -351,6 +364,8 @@ public final class TempLocationManager {
         subPath != null && !subPath.toString().isEmpty() ? tempDir.resolve(subPath) : tempDir;
     if (create && !Files.exists(rslt)) {
       createTempDir(rslt);
+    } else if (isPosixFs && Files.exists(rslt)) {
+      validateOwnedSecureDir(rslt);
     }
     return rslt;
   }
@@ -399,7 +414,7 @@ public final class TempLocationManager {
     return false;
   }
 
-  // accessible for tests
+  @VisibleForTesting
   boolean waitForCleanup(long timeout, TimeUnit unit) {
     try {
       return cleanupTask.await(timeout, unit);
@@ -416,21 +431,84 @@ public final class TempLocationManager {
     return false;
   }
 
-  // accessible for tests
+  @VisibleForTesting
   void createDirStructure() throws IOException {
     Files.createDirectories(baseTempDir);
+    if (isPosixFs) {
+      if (expectedOwner == null) {
+        expectedOwner = Files.getOwner(baseTempDir);
+      }
+      validateOwnedSecureDir(baseTempDir);
+    }
+  }
+
+  /**
+   * Validates that the given directory is owned by the current JVM user and has no group or world
+   * permission bits set (effective {@code 0700}). Only enforced on POSIX file systems.
+   *
+   * @throws IllegalStateException if the directory fails the ownership or permission check
+   */
+  private void validateOwnedSecureDir(Path dir) {
+    if (!isPosixFs) {
+      return;
+    }
+    try {
+      Set<PosixFilePermission> perms = Files.getPosixFilePermissions(dir);
+      UserPrincipal owner = Files.getOwner(dir);
+      boolean hasGroupWorldBits = perms.stream().anyMatch(GROUP_WORLD_BITS::contains);
+      boolean wrongOwner = expectedOwner != null && !expectedOwner.equals(owner);
+      if (hasGroupWorldBits || wrongOwner) {
+        ProfilerFlareLogger.getInstance()
+            .log(
+                "Refusing to use temp directory {} owned by {} with perms {}",
+                dir,
+                owner,
+                PosixFilePermissions.toString(perms));
+        throw new IllegalStateException("Untrusted temp directory: " + dir);
+      }
+    } catch (IllegalStateException e) {
+      throw e;
+    } catch (IOException e) {
+      ProfilerFlareLogger.getInstance()
+          .log("Failed to validate temp directory ownership/permissions for {}", dir);
+      throw new IllegalStateException("Untrusted temp directory: " + dir, e);
+    }
   }
 
   private void createTempDir(Path tempDir) {
     String msg = "Failed to create temp directory: " + tempDir;
     try {
       if (isPosixFs) {
+        // Validate any already-existing components from baseTempDir down to tempDir
+        // before creating anything new, to reject attacker-pre-planted directories.
+        Path current = baseTempDir;
+        if (Files.exists(current)) {
+          if (expectedOwner == null) {
+            expectedOwner = Files.getOwner(current);
+          }
+          validateOwnedSecureDir(current);
+          // Walk the relative path components between baseTempDir and tempDir
+          Path rel = baseTempDir.relativize(tempDir);
+          for (int i = 0; i < rel.getNameCount(); i++) {
+            current = current.resolve(rel.getName(i));
+            if (Files.exists(current)) {
+              validateOwnedSecureDir(current);
+            }
+          }
+        }
         Files.createDirectories(
             tempDir,
             PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+        // Capture owner from a freshly created reference if not yet established
+        if (expectedOwner == null) {
+          expectedOwner = Files.getOwner(tempDir);
+        }
+        validateOwnedSecureDir(tempDir);
       } else {
         Files.createDirectories(tempDir);
       }
+    } catch (IllegalStateException e) {
+      throw e;
     } catch (IOException e) {
       // if on a posix fs, let's check the expected permissions
       // we will find the first offender not having the expected permissions and fail the check

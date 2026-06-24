@@ -19,6 +19,7 @@ public class ResponseModule extends InstrumenterModule.Tracing {
       packageName + ".ResponseDecorator",
       packageName + ".FunctionCallOutputExtractor",
       packageName + ".OpenAiDecorator",
+      packageName + ".JsonValueUtils",
       packageName + ".HttpResponseWrapper",
       packageName + ".HttpStreamResponseWrapper",
       packageName + ".HttpStreamResponseStreamWrapper",

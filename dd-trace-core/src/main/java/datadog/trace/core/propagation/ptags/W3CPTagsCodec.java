@@ -2,12 +2,13 @@ package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.api.internal.util.LongStringUtils.toHexStringPadded;
 
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -26,7 +27,7 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static final char KEY_VALUE_SEPARATOR = ':';
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
-  private static final int MAX_MEMBER_COUNT = 32;
+  @VisibleForTesting public static final int MAX_MEMBER_COUNT = 32;
 
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
@@ -97,6 +98,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     int traceSource = ProductTraceSource.UNSET;
     int maxUnknownSize = 0;
     CharSequence lastParentId = null;
+    TagValue orgPropagationMarkerTagValue = null;
     while (tagPos < ddMemberValueEnd) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -159,6 +161,8 @@ public class W3CPTagsCodec extends PTagsCodec {
               traceIdTagValue = tagValue;
             } else if (tagKey.equals(TRACE_SOURCE_TAG)) {
               traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
+            } else if (tagKey.equals(ORG_PROPAGATION_MARKER_TAG)) {
+              orgPropagationMarkerTagValue = tagValue;
             } else {
               if (tagPairs == null) {
                 // This is roughly the size of a two element linked list but can hold six
@@ -191,7 +195,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         ddMemberStart,
         ddMemberValueEnd,
         maxUnknownSize,
-        lastParentId);
+        lastParentId,
+        orgPropagationMarkerTagValue);
   }
 
   @Override
@@ -693,7 +698,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     return size;
   }
 
-  private static W3CPTags empty(PTagsFactory factory, String original) {
+  static W3CPTags empty(PTagsFactory factory, String original) {
     return empty(factory, original, 0, -1, -1);
   }
 
@@ -716,6 +721,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         ddMemberStart,
         ddMemberValueEnd,
         0,
+        null,
         null);
   }
 
@@ -750,7 +756,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         int ddMemberStart,
         int ddMemberValueEnd,
         int maxUnknownSize,
-        CharSequence lastParentId) {
+        CharSequence lastParentId,
+        TagValue orgPropagationMarkerTagValue) {
       super(
           factory,
           tagPairs,
@@ -759,7 +766,8 @@ public class W3CPTagsCodec extends PTagsCodec {
           traceSource,
           samplingPriority,
           origin,
-          lastParentId);
+          lastParentId,
+          orgPropagationMarkerTagValue);
       this.tracestate = original;
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;

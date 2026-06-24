@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.events;
 
+import datadog.trace.util.HashingUtils;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
@@ -46,7 +47,7 @@ public final class TestDescriptor {
 
   @Override
   public int hashCode() {
-    return Objects.hash(testSuiteName, testClass, testName, testParameters, testQualifier);
+    return HashingUtils.hash(testSuiteName, testClass, testName, testParameters, testQualifier);
   }
 
   @Override

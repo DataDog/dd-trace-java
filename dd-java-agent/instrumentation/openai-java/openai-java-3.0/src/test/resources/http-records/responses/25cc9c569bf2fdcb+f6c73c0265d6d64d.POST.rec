@@ -1,0 +1,178 @@
+method: POST
+path: responses
+-- begin request body --
+{"prompt":{"id":"pmpt_69201db75c4c81959c01ea6987ab023c070192cd2843dec0","variables":{"user_message":{"type":"input_text","text":"Analyze these images and document"},"user_image_1":{"type":"input_image","image_url":"https://raw.githubusercontent.com/github/explore/main/topics/python/python.png"},"user_file":{"type":"input_file","file_url":"https://www.berkshirehathaway.com/letters/2024ltr.pdf"},"user_image_2":{"type":"input_image","file_id":"file-BCuhT1HQ24kmtsuuzF1mh2"}},"version":"2"}}
+-- end request body -- 
+status code: 200
+-- begin response headers --
+alt-svc: h3=":443"; ma=86400
+cf-cache-status: DYNAMIC
+cf-ray: 9e1fdb67e8b3d84e-SEA
+content-type: application/json
+date: Wed, 25 Mar 2026 18:08:13 GMT
+openai-organization: datadog-staging
+openai-processing-ms: 27175
+openai-project: proj_gt6TQZPRbZfoY2J9AQlEJMpd
+openai-version: 2020-10-01
+server: cloudflare
+set-cookie: __cf_bm=0omhm_EDPiOwCkTnRHMTcH2143C9foKJkpkM5V98XPA-1774462065.9075637-1.0.1.1-Dr2KjfEYzM5.5hH26NB1U9ok305D3x0N1Jj2oNi9HRpE49YL0u3dMPv7FNeawtk.1duphFGgfCFpcbqn_qCR7bW1MtVt6IISK3BKO_TDbjrSg3oVneqJuZ62wmSRDDb2; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Wed, 25 Mar 2026 18:38:13 GMT
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+x-content-type-options: nosniff
+x-ratelimit-limit-requests: 30000
+x-ratelimit-limit-tokens: 150000000
+x-ratelimit-remaining-requests: 29999
+x-ratelimit-remaining-tokens: 149998470
+x-ratelimit-reset-requests: 2ms
+x-ratelimit-reset-tokens: 0s
+x-request-id: req_55ed921a6d294700bce3397e0b75e7da
+-- end response headers --
+-- begin response body --
+{
+  "id": "resp_00cd8b3bfcd5108a0169c42472356c8190a2f61c5a5f3b32e7",
+  "object": "response",
+  "created_at": 1774462067,
+  "status": "completed",
+  "background": false,
+  "billing": {
+    "payer": "developer"
+  },
+  "completed_at": 1774462093,
+  "error": null,
+  "frequency_penalty": 0.0,
+  "incomplete_details": null,
+  "instructions": [
+    {
+      "type": "message",
+      "content": [],
+      "role": "developer"
+    },
+    {
+      "type": "message",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "Analyze the following content from the user:\n\nText message: Analyze these images and document\nImage reference 1: "
+        },
+        {
+          "type": "input_image",
+          "detail": "auto",
+          "file_id": null,
+          "image_url": null
+        },
+        {
+          "type": "input_text",
+          "text": "\nDocument reference: "
+        },
+        {
+          "type": "input_file",
+          "file_id": null,
+          "file_url": "https://www.berkshirehathaway.com/letters/2024ltr.pdf"
+        },
+        {
+          "type": "input_text",
+          "text": "\nImage reference 2: "
+        },
+        {
+          "type": "input_image",
+          "detail": "auto",
+          "file_id": "file-BCuhT1HQ24kmtsuuzF1mh2",
+          "image_url": null
+        },
+        {
+          "type": "input_text",
+          "text": "\n\nPlease provide a comprehensive analysis."
+        }
+      ],
+      "role": "user"
+    }
+  ],
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "model": "o4-mini-2025-04-16",
+  "output": [
+    {
+      "id": "rs_00cd8b3bfcd5108a0169c424754a808190a4090b0188003f86",
+      "type": "reasoning",
+      "summary": []
+    },
+    {
+      "id": "msg_00cd8b3bfcd5108a0169c42480774c819082158e702c85be03",
+      "type": "message",
+      "status": "completed",
+      "content": [
+        {
+          "type": "output_text",
+          "annotations": [],
+          "logprobs": [],
+          "text": "Here\u2019s a step-by-step breakdown of the three items you\u2019ve provided:\n\n1. Image 1 (the two-snake logo)  \n   \u2022 Identification: This is the official logo of the Python programming language.  \n   \u2022 Design elements:  \n     \u2013 Two interlocking \u201csnake\u201d shapes (one blue, one yellow) arranged to form a stylized \u201cP.\u201d  \n     \u2013 Rounded corners, minimal line-weight, flat color palette\u2014characteristics of modern \u201cflat\u201d logo design.  \n     \u2013 Created to evoke both the language\u2019s namesake (Monty Python aside, a snake) and its emphasis on readability and simplicity.  \n   \u2022 Historical/contextual notes:  \n     \u2013 Python was conceived by Guido van Rossum in the late 1980s and first released in 1991.  \n     \u2013 Over the years the logo has come to symbolize a massive ecosystem\u2014from web back-ends (Django, Flask) to data science (Pandas, NumPy) to machine learning (scikit-learn, TensorFlow).  \n     \u2013 Its clean, friendly shape mirrors Python\u2019s design philosophy: code that reads like plain English, easy onboarding for newcomers.  \n\n2. The Berkshire Hathaway 2024 Shareholder Letter (Warren E. Buffett)  \n   A. Purpose & Tone  \n     \u2013 Beyond the mandatory financial \u201creport,\u201d Buffett uses the letter to provide candid commentary\u2014both on successes and on mistakes.  \n     \u2013 He stresses the obligation of a CEO to treat shareholders as he\u2019d want to be treated if the roles were reversed.  \n     \u2013 He repeatedly admits errors (16 uses of \u201cmistake\u201d or \u201cerror\u201d in the last five years), contrasting this transparency with what he sees as glib \u201cfeel-good\u201d letters from many large companies.  \n\n   B. Major Themes  \n     1. The Importance of Admitting and Correcting Mistakes  \n       \u2013 Mistakes in acquisitions or in assessing management fidelity can be painful but must be addressed promptly (\u201cno thumb-sucking\u201d).  \n       \u2013 Single great decisions\u2014e.g., GEICO purchase, finding Charlie Munger\u2014can compound into decade-long outperformance.  \n\n     2. Capital Allocation Philosophy  \n       \u2013 The core measure Buffett emphasizes is \u201coperating earnings,\u201d excluding unrealized securities gains or losses.  \n       \u2013 He reaffirms that Berkshire will remain overwhelmingly invested in equities (both controlled subsidiaries and minority stakes in giants like Apple, Coca-Cola, American Express).  \n       \u2013 He warns against over-reliance on cash or bonds, which carry currency\u2010value risk; instead, intrinsic ownership of businesses is the best inflation hedge.  \n\n     3. Insurance Float as a Growth Engine  \n       \u2013 Property-casualty underwriting delivers \u201cfloat\u201d (premiums received before claims are paid).  \n       \u2013 If priced intelligently, float can be \u201ccostless capital\u201d that Buffett can then deploy elsewhere.  \n       \u2013 He lauds Ajit Jain for building Berkshire\u2019s P/C operation into a global leader, but stresses the business is perilously dependent on accurate long-term loss estimates.  \n\n     4. Record U.S. Tax Payments  \n       \u2013 In 2024 Berkshire paid $26.8 billion in U.S. federal income taxes\u2014more than any other corporation in American history.  \n       \u2013 Buffett attributes this partly to his long-ago decision (and shareholders\u2019 endorsement) to forgo dividends, instead reinvesting all earnings back into operations.  \n\n     5. Discipline in CEO and Manager Selection  \n       \u2013 Buffett never considers pedigree (school attended) when hiring CEOs\u2014innate talent often outweighs credentials.  \n       \u2013 He illustrates this with the story of Pete Liegl (founder of Forest River), whose self-set $100 k base salary plus performance bonus yielded multiples of that investment for Berkshire over 19 years.  \n\n     6. International Ventures\u2014The Japan Five  \n       \u2013 Since 2019 Berkshire has taken minority stakes (below 10%) in five large Japanese trading houses (Itochu, Marubeni, Mitsubishi, Mitsui, Sumitomo).  \n       \u2013 He praises their capital\u2010allocation discipline, low executive pay, willingness to buy back shares.  \n       \u2013 Berkshire balances that foreign\u2010currency exposure by matching it with yen-denominated debt, achieving near currency neutrality.  \n\n     7. Shareholder-Centered Culture & Annual Meeting  \n       \u2013 Buffett invites shareholders to the May 3 gathering in Omaha, emphasizing accessibility of management, Q&A format, volunteer-run merch booths, and a single themed book for sale.  \n       \u2013 He recounts lighthearted family anecdotes (his sister Bertie\u2019s cane, grandchildren) to underscore the meeting\u2019s informal, \u201cfamily reunion\u201d atmosphere.  \n\n   C. Performance Snapshot  \n     \u2013 2024 operating earnings: $47.4 billion vs. $37.4 billion in 2023.  \n     \u2013 Insurance underwriting profit: $9.0 billion; investment income: $13.7 billion.  \n     \u2013 Continued strength at BNSF and Berkshire Hathaway Energy.  \n     \u2013 Slide reinstates the 1965\u20132024 compound annual gain of 19.9% vs. 10.4% for the S&P 500.  \n\n   D. Stylistic & Structural Notes  \n     \u2013 Plain\u2010spoken, anecdote-rich, avoids corporate jargon.  \n     \u2013 Buffett interleaves big-picture economic observations (capitalism\u2019s triumphs and pitfalls) with very granular \u201cinside\u201d details (how he negotiated with Pete Liegl).  \n     \u2013 Occasional dry humor (e.g., comparing his and his sister\u2019s canes as \u201cmale-deterrents\u201d).  \n\n3. Image 2  \n   \u2022 On my end the image rendered as a blank/empty panel. There\u2019s no visible content to describe or analyze.  \n   \u2022 If this was meant to convey text, a chart, code or a photograph, could you please re-upload a higher-resolution copy or a different file format?  \n\n\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013\u2013  \nSummary:  \n\u2013 You\u2019ve supplied two corporate \u201cicons\u201d (the Python logo and the Berkshire shareholder letter), both of which epitomize transparency, community-oriented design, and long-term stewardship\u2014one in software, the other in capital allocation.  \n\u2013 The Python logo signals a language built for clarity, extensibility and an open ecosystem.  \n\u2013 Buffett\u2019s letter models \u201cflat,\u201d jargon-free communication, candidly reporting mistakes alongside successes, and reaffirming a shareholder-centric culture.  \n\u2013 Please let me know about Image 2, and I\u2019ll be happy to complete the visual analysis."
+        }
+      ],
+      "role": "assistant"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0.0,
+  "previous_response_id": null,
+  "prompt": {
+    "id": "pmpt_69201db75c4c81959c01ea6987ab023c070192cd2843dec0",
+    "variables": {
+      "user_message": {
+        "type": "input_text",
+        "text": "Analyze these images and document"
+      },
+      "user_image_1": {
+        "type": "input_image",
+        "detail": "auto",
+        "file_id": null,
+        "image_url": null
+      },
+      "user_file": {
+        "type": "input_file",
+        "file_id": null,
+        "file_url": "https://www.berkshirehathaway.com/letters/2024ltr.pdf"
+      },
+      "user_image_2": {
+        "type": "input_image",
+        "detail": "auto",
+        "file_id": "file-BCuhT1HQ24kmtsuuzF1mh2",
+        "image_url": null
+      }
+    },
+    "version": "2"
+  },
+  "prompt_cache_key": null,
+  "prompt_cache_retention": null,
+  "reasoning": {
+    "effort": "medium",
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "store": false,
+  "temperature": 1.0,
+  "text": {
+    "format": {
+      "type": "text"
+    },
+    "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tools": [],
+  "top_logprobs": 0,
+  "top_p": 1.0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 11236,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 2366,
+    "output_tokens_details": {
+      "reasoning_tokens": 960
+    },
+    "total_tokens": 13602
+  },
+  "user": null,
+  "metadata": {}
+}�
+-- end response body --

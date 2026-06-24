@@ -3,6 +3,7 @@ apply plugin: 'groovy'
 dependencies {
   testImplementation libs.bundles.spock
   testImplementation libs.bundles.groovy
+  testImplementation libs.tabletest
 
   testImplementation libs.bundles.test.logging
 

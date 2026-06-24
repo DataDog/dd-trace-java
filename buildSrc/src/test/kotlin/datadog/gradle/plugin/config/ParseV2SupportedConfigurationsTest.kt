@@ -1,19 +1,17 @@
 package datadog.gradle.plugin.config
 
+import datadog.gradle.plugin.GradleFixture
 import org.gradle.testkit.runner.BuildResult
-import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
 import java.io.File
-import java.nio.file.Paths
 
-class ParseV2SupportedConfigurationsTest {
+class ParseV2SupportedConfigurationsTest : GradleFixture() {
   @Test
-  fun `should generate Java file from JSON configuration`(@TempDir projectDir: File) {
-    val (buildResult, generatedFile) = runGradleTask(projectDir)
+  fun `should generate Java file from JSON configuration`() {
+    val (buildResult, generatedFile) = runGradleTask()
 
     assertEquals(TaskOutcome.SUCCESS, buildResult.task(":generateSupportedConfigurations")?.outcome)
 
@@ -65,8 +63,8 @@ class ParseV2SupportedConfigurationsTest {
       aliases = listOf("DD_ALIAS")
     )
 
-    assertTrue(content.contains("""aliasesMap.put("DD_ACTION_EXECUTION_ID", Collections.unmodifiableList(Arrays.asList()))"""))
-    assertTrue(content.contains("""aliasesMap.put("DD_AGENTLESS_LOG_SUBMISSION_ENABLED", Collections.unmodifiableList(Arrays.asList("DD_ALIAS")))"""))
+    assertTrue(content.contains("""aliasesMap.put("DD_ACTION_EXECUTION_ID", emptyList())"""))
+    assertTrue(content.contains("""aliasesMap.put("DD_AGENTLESS_LOG_SUBMISSION_ENABLED", singletonList("DD_ALIAS"))"""))
 
     assertTrue(content.contains("""aliasMappingMap.put("DD_ALIAS", "DD_AGENTLESS_LOG_SUBMISSION_ENABLED")"""))
 
@@ -76,9 +74,9 @@ class ParseV2SupportedConfigurationsTest {
     assertTrue(content.contains("""reversePropertyKeysMapping.put("property.key", "DD_ACTION_EXECUTION_ID")"""))
   }
 
-  private fun runGradleTask(projectDir: File): Pair<BuildResult, File> {
-    val jsonFile = file(projectDir, "test-supported-configurations.json")
-    jsonFile.writeText(
+  private fun runGradleTask(): Pair<BuildResult, File> {
+    writeFile(
+      "test-supported-configurations.json",
       """
       {
         "supportedConfigurations": {
@@ -88,7 +86,7 @@ class ParseV2SupportedConfigurationsTest {
               "type": "string",
               "default": null,
               "aliases": [],
-              "propertyKeys": ["property.key"] 
+              "propertyKeys": ["property.key"]
             }
           ],
           "DD_AGENTLESS_LOG_SUBMISSION_ENABLED": [
@@ -111,55 +109,43 @@ class ParseV2SupportedConfigurationsTest {
           "legacy.setting": "No longer supported"
         }
       }
-      """.trimIndent()
+      """
     )
 
-    setupGradleProject(projectDir)
+    setupGradleProject()
 
-    val buildResult = GradleRunner.create()
-      .forwardOutput()
-      .withPluginClasspath()
-      .withArguments("generateSupportedConfigurations")
-      .withProjectDir(projectDir)
-      .build()
+    val buildResult = run(
+      "generateSupportedConfigurations",
+      forwardOutput = true
+    )
 
-    val generatedFile = file(projectDir, "build", "generated", "supportedConfigurations", "datadog", "test", "TestGeneratedSupportedConfigurations.java")
+    val generatedFile = file("build/generated/supportedConfigurations/datadog/test/TestGeneratedSupportedConfigurations.java")
     return Pair(buildResult, generatedFile)
   }
 
-  private fun setupGradleProject(projectDir: File) {
-    file(projectDir, "settings.gradle.kts").writeText(
+  private fun setupGradleProject() {
+    writeSettings(
       """
       rootProject.name = "test-config-project"
-      """.trimIndent()
+      """
     )
 
-    file(projectDir, "build.gradle.kts").writeText(
+    writeRootProject(
       """
       plugins {
         id("java")
         id("dd-trace-java.supported-config-generator")
       }
-      
+
       group = "datadog.config.test"
-      
+
       supportedTracerConfigurations {
         jsonFile.set(file("test-supported-configurations.json"))
         destinationDirectory.set(file("build/generated/supportedConfigurations"))
         className.set("datadog.test.TestGeneratedSupportedConfigurations")
       }
-      """.trimIndent()
+      """
     )
-  }
-
-  private fun file(projectDir: File, vararg parts: String, makeDirectory: Boolean = false): File {
-    val f = Paths.get(projectDir.absolutePath, *parts).toFile()
-
-    if (makeDirectory) {
-      f.parentFile.mkdirs()
-    }
-
-    return f
   }
 
   private fun assertContainsSupportedConfig(
@@ -171,9 +157,6 @@ class ParseV2SupportedConfigurationsTest {
     aliases: List<String>,
     propertyKeys: List<String> = emptyList()
   ) {
-    val aliasesArray = aliases.joinToString(", ") { "\"$it\"" }
-    val propertyKeysArray = propertyKeys.joinToString(", ") { "\"$it\"" }
-
     assertTrue(
       content.contains("""supportedMap.put("$key""""),
       "Should contain supportedMap.put for key: $key"
@@ -185,9 +168,9 @@ class ParseV2SupportedConfigurationsTest {
       append("\"$type\", ")
       append(if (default == "null") "null" else "\"$default\"")
       append(", ")
-      append("Arrays.asList($aliasesArray)")
+      append(listExpr(aliases))
       append(", ")
-      append("Arrays.asList($propertyKeysArray)")
+      append(listExpr(propertyKeys))
       append(")")
     }
 
@@ -195,5 +178,11 @@ class ParseV2SupportedConfigurationsTest {
       content.contains(expectedPattern),
       "Should contain SupportedConfiguration: $expectedPattern"
     )
+  }
+
+  private fun listExpr(items: List<String>): String = when (items.size) {
+    0 -> "emptyList()"
+    1 -> """singletonList("${items[0]}")"""
+    else -> """asList(${items.joinToString(", ") { "\"$it\"" }})"""
   }
 }

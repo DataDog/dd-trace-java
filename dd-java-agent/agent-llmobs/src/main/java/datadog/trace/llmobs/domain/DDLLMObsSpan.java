@@ -1,7 +1,9 @@
 package datadog.trace.llmobs.domain;
 
 import datadog.context.ContextScope;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
@@ -39,6 +41,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
   private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
   private static final String VERSION = LLMOBS_TAG_PREFIX + "version";
+  private static final String DDTRACE_VERSION = LLMOBS_TAG_PREFIX + "ddtrace.version";
   private static final String ENV = LLMOBS_TAG_PREFIX + "env";
 
   private static final String LLM_OBS_INSTRUMENTATION_NAME = "llmobs";
@@ -72,19 +75,23 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     span = spanBuilder.start();
 
+    // set global dd_tags as base layer so UST and span-level tags can override them
+    for (Map.Entry<String, String> entry : Config.get().getGlobalTags().entrySet()) {
+      span.setTag(LLMOBS_TAG_PREFIX + entry.getKey(), entry.getValue());
+    }
+
     // set UST (unified service tags, env, service, version)
     span.setTag(ENV, wellKnownTags.getEnv());
     span.setTag(SERVICE, wellKnownTags.getService());
     span.setTag(VERSION, wellKnownTags.getVersion());
+    span.setTag(DDTRACE_VERSION, DDTraceApiInfo.VERSION);
 
     span.setTag(SPAN_KIND, kind);
     spanKind = kind;
     span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
-    this.hasSessionId = sessionId != null && !sessionId.isEmpty();
-    if (this.hasSessionId) {
-      span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
-    }
-
+    // Resolve effective parent_id and session_id from the LLMObs context, both gated on
+    // trace-id consistency. A stale context from a different trace (e.g. async boundary
+    // leakage) must not contribute either tag.
     AgentSpanContext parent = LLMObsContext.current();
     String parentSpanID = LLMObsContext.ROOT_SPAN_ID;
     if (null != parent) {
@@ -97,19 +104,34 @@ public class DDLLMObsSpan implements LLMObsSpan {
             span.getSpanId());
       } else {
         parentSpanID = String.valueOf(parent.getSpanId());
+        // Inherit session_id from parent context only when it belongs to the same trace.
+        // Matches dd-trace-py and dd-trace-js: session_id need only be set on the root
+        // span; descendants inherit transitively via context propagation.
+        if (sessionId == null || sessionId.isEmpty()) {
+          String inherited = LLMObsContext.currentSessionId();
+          if (inherited != null && !inherited.isEmpty()) {
+            sessionId = inherited;
+          }
+        }
       }
     }
+
+    this.hasSessionId = sessionId != null && !sessionId.isEmpty();
+    if (this.hasSessionId) {
+      span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
+    }
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
-    scope = LLMObsContext.attach(span.context());
+    // Propagate the effective sessionId to descendant LLMObs spans via the context.
+    scope = LLMObsContext.attach(span.spanContext(), sessionId);
   }
 
   @Override
   public String toString() {
     return super.toString()
         + ", trace_id="
-        + span.context().getTraceId()
+        + span.spanContext().getTraceId()
         + ", span_id="
-        + span.context().getSpanId()
+        + span.spanContext().getSpanId()
         + ", ml_app="
         + span.getTag(LLMObsTags.ML_APP)
         + ", service="

@@ -4,7 +4,9 @@ muzzle {
   pass {
     module = 'opentelemetry-api'
     group = 'io.opentelemetry'
-    versions = "[$openTelemetryVersion,)"
+    versions = "[1.38,)" // we're binary compatible with 1.38+
+    assertInverse = true
+    skipVersions = ['0.13.0'] // bad release
   }
 }
 
@@ -17,6 +19,11 @@ dependencies {
   compileOnly group: 'com.google.auto.value', name: 'auto-value-annotations', version: '1.6.6'
 
   implementation project(':dd-java-agent:agent-otel:otel-shim')
+
+  muzzleBootstrap project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
+  testImplementation project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
+  // JvmOtlpRuntimeMetrics lives in agent-jmxfetch; the test exercises it directly.
+  testImplementation project(':dd-java-agent:agent-jmxfetch')
 
   testImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryVersion
   latestDepTestImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1+'

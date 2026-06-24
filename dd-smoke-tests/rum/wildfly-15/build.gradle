@@ -1,18 +1,31 @@
+import datadog.buildlogic.smoketest.NestedGradleBuild
+
+plugins {
+  id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.mass'
+}
+
 ext {
   serverName = 'wildfly'
   //serverModule = 'servlet'
   serverModule = 'wildfly'
-  serverVersion = '15.0.0.Final'
+  serverVersion = '26.1.3.Final'
   serverExtension = 'zip'
 }
 
 repositories {
   ivy {
-    url = 'https://download.jboss.org/'
+    url = mass.artifactUrl('github.com/wildfly/wildfly/releases/download/')
+    // Restrict this repository to WildFly distribution artifacts only.
+    // Without this filter, Gradle may probe this host for unrelated dependencies
+    // (for example JUnit/Mockito), which makes the build flaky when the host is unreachable.
+    content {
+      includeGroup 'wildfly'
+    }
     patternLayout {
-      // artifact '/[organisation]/[revision]/[module]/[organisation]-[module]-[revision].[ext]'
-      // we download the full EE profile and not the servlet minimal one
-      artifact '/[organisation]/[revision]/[organisation]-[revision].[ext]'
+      // GitHub release assets are published under /<version>/wildfly-<version>.zip
+      // while the dependency coordinates keep the "wildfly" group/module.
+      artifact '/[revision]/[module]-[revision].[ext]'
     }
     metadataSources {
       it.artifact()
@@ -36,36 +49,24 @@ configurations {
 }
 
 dependencies {
-  // uses the ivy repository url to download the wildfly servlet zip
-  // organisation = serverName, revision = serverVersion, module = serverModule, ext = serverExtension
+  // Uses the ivy repository url to download the WildFly server zip.
+  // organisation = serverName, module = serverModule, revision = serverVersion, ext = serverExtension
   serverFile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
   testImplementation project(':dd-smoke-tests:rum')
   testImplementation project(':dd-smoke-tests')
 }
 
-def appDir = "$projectDir/rum-ear"
-def appBuildDir = "$buildDir/rm-ear"
-def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
-def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
-// define the task that builds the quarkus project
-tasks.register('earBuild', Exec) {
-  workingDir "$appDir"
-  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'"]
-  commandLine "$rootDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
+def appBuildDir = layout.buildDirectory.dir("rm-ear")
+evaluationDependsOn(':dd-trace-api')
+def apiJarTask = project(':dd-trace-api').tasks.named('jar')
 
-  outputs.cacheIf { true }
-
-  outputs.dir(appBuildDir)
-    .withPropertyName("applicationEar")
-
-  inputs.files(fileTree(appDir) {
-    include '**/*'
-    exclude '.gradle/**'
-  })
-  .withPropertyName("application")
-  .withPathSensitivity(PathSensitivity.RELATIVE)
-
-  dependsOn project(':dd-trace-api').tasks.named("jar")
+// Run the nested EAR build through the Gradle Tooling API.
+tasks.register('earBuild', NestedGradleBuild) {
+  applicationDir = layout.projectDirectory.dir("rum-ear")
+  applicationBuildDir = appBuildDir
+  tasksToRun = ['assemble']
+  projectJar('apiJar', apiJarTask.flatMap { it.archiveFile })
+  dependsOn apiJarTask
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
@@ -115,8 +116,8 @@ tasks.withType(Jar).configureEach {
 def wildflyDir = "${buildDir}/${serverName}-${serverVersion}"
 
 tasks.register("deploy", Copy) {
-  dependsOn 'unzip'
-  from "${appBuildDir}/libs/wildfly-rum-ear-smoketest.ear"
+  dependsOn 'unzip', 'earBuild'
+  from appBuildDir.map { it.file("libs/wildfly-rum-ear-smoketest.ear") }
   into "${wildflyDir}/standalone/deployments"
 }
 
@@ -124,4 +125,3 @@ tasks.withType(Test).configureEach {
   dependsOn 'deploy'
   jvmArgs "-Ddatadog.smoketest.wildflyDir=${wildflyDir}"
 }
-

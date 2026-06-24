@@ -28,7 +28,7 @@ class WithSpanAnnotationTest extends InstrumentationSpecification {
           parent()
           errored false
           tags {
-            serviceNameSource null // manual service name
+            serviceNameSource "m" // manual service name
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
             "$Tags.SPAN_KIND" "internal"
@@ -52,7 +52,7 @@ class WithSpanAnnotationTest extends InstrumentationSpecification {
           parent()
           errored false
           tags {
-            serviceNameSource null // manual service name
+            serviceNameSource "m" // manual service name
             defaultTags()
             "$Tags.COMPONENT" "opentelemetry"
             "$Tags.SPAN_KIND" "internal"

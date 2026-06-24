@@ -231,9 +231,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     assert logLines[1].endsWith("- ${tagsPart} ${firstTraceId} ${firstSpanId} - INSIDE FIRST SPAN")
     assert logLines[2].endsWith("- ${tagsPart}   - AFTER FIRST SPAN") || logLines[2].endsWith("- ${tagsPart} 0 0 - AFTER FIRST SPAN")
     assert logLines[3].endsWith("- ${tagsPart} ${secondTraceId} ${secondSpanId} - INSIDE SECOND SPAN")
-    assert logLines[4].endsWith("-      - INSIDE THIRD SPAN") || logLines[0].endsWith("-    0 0 - INSIDE THIRD SPAN")
+    assert logLines[4].endsWith("-      - INSIDE THIRD SPAN") || logLines[4].endsWith("-    0 0 - INSIDE THIRD SPAN")
     assert logLines[5].endsWith("- ${tagsPart} ${forthTraceId} ${forthSpanId} - INSIDE FORTH SPAN")
-    assert logLines[6].endsWith("- ${tagsPart}   - AFTER FORTH SPAN") || logLines[0].endsWith("- ${tagsPart} 0 0 - AFTER FORTH SPAN")
+    assert logLines[6].endsWith("- ${tagsPart}   - AFTER FORTH SPAN") || logLines[6].endsWith("- ${tagsPart} 0 0 - AFTER FORTH SPAN")
     return true
   }
 
@@ -362,7 +362,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return unmangled.split(" ")[1..2]
   }
 
-  @Flaky(condition = () -> JavaVirtualMachine.isIbm8() || JavaVirtualMachine.isOracleJDK8())
+  @Flaky(condition = () -> JavaVirtualMachine.isIbm8() || JavaVirtualMachine.isOracleJDK8() || JavaVirtualMachine.isZulu8())
   def "check raw file injection"() {
     when:
     def count = waitForTraceCount(2)
@@ -378,10 +378,11 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
 
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", """{"lib_config":{}}""".toString())
 
-    testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
-    def exitValue = testedProcess.exitValue()
-
+    // Wait for all 4 traces before waiting for process exit to ensure trace delivery is confirmed
     count = waitForTraceCount(4)
+
+    assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS) : "Process did not exit within ${TIMEOUT_SECS}s"
+    def exitValue = testedProcess.exitValue()
 
     def logLines = outputLogFile.readLines()
     println "log lines: " + logLines

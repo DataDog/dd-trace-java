@@ -2,8 +2,11 @@ package datadog.trace.common.metrics
 
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.CoreSpan
+import datadog.trace.core.DDSpanContext
 import datadog.trace.core.MetadataConsumer
+import datadog.trace.core.SpanKindFilter
 
 class SimpleSpan implements CoreSpan<SimpleSpan> {
 
@@ -23,6 +26,8 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   private final long longRunningVersion
 
   private final Map<Object, Object> tags = [:]
+
+  private byte spanKindOrdinal = 0 // SPAN_KIND_UNSET
 
   SimpleSpan(
   String serviceName,
@@ -171,6 +176,9 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   @Override
   SimpleSpan setTag(String tag, Object value) {
     tags.put(tag, value)
+    if (Tags.SPAN_KIND == tag) {
+      spanKindOrdinal = DDSpanContext.spanKindOrdinalOf(value == null ? null : value.toString())
+    }
     return this
   }
 
@@ -182,7 +190,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   <U> U getTag(CharSequence name, U defaultValue) {
-    def tagValue = tags.get(String.valueOf(name)) ?: defaultValue
+    def tagValue = tags.get(String.valueOf(name))
     return tagValue != null ? (U) tagValue : defaultValue
   }
 
@@ -212,6 +220,11 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
+  boolean isKind(SpanKindFilter filter) {
+    return filter.matches(spanKindOrdinal)
+  }
+
+  @Override
   CharSequence getType() {
     return type
   }
@@ -221,6 +234,9 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   void processTagsAndBaggage(MetadataConsumer consumer) {}
+
+  @Override
+  void processTagsAndBaggage(MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {}
 
   @Override
   SimpleSpan setSamplingPriority(int samplingPriority, int samplingMechanism) {

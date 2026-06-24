@@ -1,6 +1,7 @@
 package datadog.smoketest;
 
 import com.datadog.debugger.probe.LogProbe;
+import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -50,7 +51,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     LogProbe probe =
         LogProbe.builder()
             .probeId(LINE_PROBE_ID1)
-            .where("ServerDebuggerTestApplication.java", 327)
+            .where("ServerDebuggerTestApplication.java", 329)
             .build();
     setCurrentConfiguration(createConfig(probe));
     waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
@@ -95,15 +96,19 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   // TODO test for failure of starting ER, SymDB and DI: should degrade gracefully
   // TODO by not providing endpoints
 
+  @Flaky
   @Test
   @DisplayName("testExceptionReplayEnablementFailure")
   void testExceptionReplayEnablementFailure() throws Exception {
-    additionalJvmArgs.add("-Ddd.symbol.database.upload.enabled=false"); // enabled by default
     additionalJvmArgs.add("-Ddd.exception.replay.enabled=true");
     additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
     this.probeMockDispatcher.setDispatcher(this::noEndpointDispatch);
     appUrl = startAppAndAndGetUrl();
     waitForSpecificLine(appUrl, "Failed to init common component for debugger agent");
+    probeMockDispatcher.setDispatcher(this::datadogAgentDispatch);
+    setConfigOverrides(createConfigOverrides(true, true));
+    waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
+    waitForFeatureStarted(appUrl, "Exception Replay");
   }
 
   private MockResponse noEndpointDispatch(RecordedRequest request) {

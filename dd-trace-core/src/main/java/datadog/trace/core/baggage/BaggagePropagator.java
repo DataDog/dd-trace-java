@@ -1,7 +1,5 @@
 package datadog.trace.core.baggage;
 
-import static java.util.Collections.emptyMap;
-
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
@@ -19,6 +17,7 @@ import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,13 +90,13 @@ public class BaggagePropagator implements Propagator {
       processedItems++;
       // reached the max number of baggage items allowed
       if (processedItems == this.maxItems) {
-        BAGGAGE_METRICS.onBaggageTruncatedByItemLimit();
+        BAGGAGE_METRICS.onBaggageTruncatedByInjectItemLimit();
         break;
       }
       // Drop newest k/v pair if adding it leads to exceeding the limit
       if (currentBytes + escapedKey.size + escapedVal.size + extraBytes > this.maxBytes) {
         baggageText.setLength(currentBytes);
-        BAGGAGE_METRICS.onBaggageTruncatedByByteLimit();
+        BAGGAGE_METRICS.onBaggageTruncatedByInjectByteLimit();
         break;
       }
       currentBytes += escapedKey.size + escapedVal.size + extraBytes;
@@ -130,7 +129,7 @@ public class BaggagePropagator implements Propagator {
     // TODO: consider a better way to link baggage with the extracted (legacy) TagContext
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
     if (extractedSpan != null) {
-      AgentSpanContext extractedSpanContext = extractedSpan.context();
+      AgentSpanContext extractedSpanContext = extractedSpan.spanContext();
       if (extractedSpanContext instanceof TagContext) {
         ((TagContext) extractedSpanContext).setW3CBaggage(baggage);
       }
@@ -142,8 +141,7 @@ public class BaggagePropagator implements Propagator {
   private class BaggageExtractor implements BiConsumer<String, String> {
     private static final char KEY_VALUE_SEPARATOR = '=';
     private static final char PAIR_SEPARATOR = ',';
-    private Baggage extracted;
-    private String w3cHeader;
+    @Nullable private Baggage extracted;
 
     /** URL decode value */
     private String decode(final String value) {
@@ -156,41 +154,49 @@ public class BaggagePropagator implements Propagator {
       return decoded;
     }
 
-    private Map<String, String> parseBaggageHeaders(String input) {
+    private Baggage parseBaggageHeaders(String input) {
       Map<String, String> baggage = new HashMap<>();
       int start = 0;
-      boolean truncatedCache = false;
+      String w3cHeader = input;
       int pairSeparatorInd = input.indexOf(PAIR_SEPARATOR);
       pairSeparatorInd = pairSeparatorInd == -1 ? input.length() : pairSeparatorInd;
       int kvSeparatorInd = input.indexOf(KEY_VALUE_SEPARATOR);
       while (kvSeparatorInd != -1) {
         int end = pairSeparatorInd;
+        boolean limitReached = false;
+        if (baggage.size() >= maxItems) {
+          limitReached = true;
+          BAGGAGE_METRICS.onBaggageTruncatedByExtractItemLimit();
+        } else if (end > maxBytes) {
+          limitReached = true;
+          BAGGAGE_METRICS.onBaggageTruncatedByExtractByteLimit();
+        }
+        if (limitReached) {
+          // if header was not invalidated already, and we go out of range:
+          // - fully invalidate if it's after the first k/v pair,
+          // - otherwise ignore from the current k/v separator
+          w3cHeader = (w3cHeader == null || start == 0) ? null : w3cHeader.substring(0, start - 1);
+          break;
+        }
         if (kvSeparatorInd > end) {
           LOG.debug(
               "Dropping baggage headers due to key with no value {}", input.substring(start, end));
           BAGGAGE_METRICS.onBaggageMalformed();
-          return emptyMap();
+          return null;
         }
         String key = decode(input.substring(start, kvSeparatorInd).trim());
         String value = decode(input.substring(kvSeparatorInd + 1, end).trim());
         if (key.isEmpty() || value.isEmpty()) {
           LOG.debug("Dropping baggage headers due to empty k/v {}:{}", key, value);
           BAGGAGE_METRICS.onBaggageMalformed();
-          return emptyMap();
+          return null;
         }
         baggage.put(key, value);
 
         // need to percent-encode non-ascii headers we pass down
-        if (UTF_ESCAPER.keyNeedsEncoding(key) || UTF_ESCAPER.valNeedsEncoding(value)) {
-          truncatedCache = true;
-          this.w3cHeader = null;
-        } else if (!truncatedCache && (end > maxBytes || baggage.size() > maxItems)) {
-          if (start == 0) { // if we go out of range after first k/v pair, there is no cache
-            this.w3cHeader = null;
-          } else {
-            this.w3cHeader = input.substring(0, start - 1); // -1 to ignore the k/v separator
-          }
-          truncatedCache = true;
+        if (w3cHeader != null
+            && (UTF_ESCAPER.keyNeedsEncoding(key) || UTF_ESCAPER.valNeedsEncoding(value))) {
+          w3cHeader = null;
         }
 
         kvSeparatorInd = input.indexOf(KEY_VALUE_SEPARATOR, pairSeparatorInd + 1);
@@ -199,20 +205,19 @@ public class BaggagePropagator implements Propagator {
         start = end + 1;
       }
 
-      if (!truncatedCache) {
-        this.w3cHeader = input;
-      }
-
-      return baggage;
+      return baggage.isEmpty() ? null : Baggage.create(baggage, w3cHeader);
     }
 
     @Override
-    public void accept(String key, String value) {
+    public void accept(String key, @Nullable String value) {
+      if (value == null) {
+        return;
+      }
       // Only process tags that are relevant to baggage
       if (BAGGAGE_KEY.equalsIgnoreCase(key)) {
-        Map<String, String> baggage = parseBaggageHeaders(value);
-        if (!baggage.isEmpty()) {
-          this.extracted = Baggage.create(baggage, this.w3cHeader);
+        Baggage parsed = parseBaggageHeaders(value);
+        if (parsed != null) {
+          this.extracted = parsed;
         }
       }
     }

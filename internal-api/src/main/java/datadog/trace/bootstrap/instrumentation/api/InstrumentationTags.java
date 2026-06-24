@@ -76,6 +76,7 @@ public class InstrumentationTags {
   public static final String ELASTICSEARCH_RESPONSE_STATUS = "elasticsearch.response.status";
   public static final String STATUS_CODE = "status.code";
   public static final String STATUS_DESCRIPTION = "status.description";
+  public static final String GRPC_STATUS_CODE = "rpc.grpc.status_code";
   public static final String MESSAGE_TYPE = "message.type";
   public static final String MESSAGE_SIZE = "message.size";
   public static final String HYSTRIX_COMMAND = "hystrix.command";
@@ -101,6 +102,7 @@ public class InstrumentationTags {
   public static final String MESSAGE = "message";
   public static final String HANDLER_TYPE = "handler.type";
   public static final String KAFKA_BOOTSTRAP_SERVERS = "messaging.kafka.bootstrap.servers";
+  public static final String KAFKA_CLUSTER_ID = "messaging.kafka.cluster.id";
   public static final String MESSAGING_DESTINATION_NAME = "messaging.destination.name";
   public static final String QUARTZ_JOB_NAME = "quartz.job.name";
   public static final String QUARTZ_JOB_GROUP = "quartz.job.group";
