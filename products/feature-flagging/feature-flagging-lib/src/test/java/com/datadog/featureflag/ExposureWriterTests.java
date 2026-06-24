@@ -47,9 +47,8 @@ import java.util.concurrent.Future;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okio.Okio;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -57,15 +56,16 @@ class ExposureWriterTests {
 
   private static final String EXPOSURES_ENDPOINT = "/evp_proxy/api/v2/exposures";
   private static final long TIMEOUT_MILLIS = 5000;
-  private static final Queue<ExposuresRequest> REQUESTS = new ConcurrentLinkedQueue<>();
-  private static final Set<String> FAILED =
-      Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
-  private static JavaTestHttpServer server;
-  private static SharedCommunicationObjects sharedCommunicationObjects;
+  private Queue<ExposuresRequest> requests;
+  private Set<String> failed;
+  private JavaTestHttpServer server;
+  private SharedCommunicationObjects sharedCommunicationObjects;
 
-  @BeforeAll
-  static void startServer() {
+  @BeforeEach
+  void setUp() {
+    requests = new ConcurrentLinkedQueue<>();
+    failed = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     JsonAdapter<ExposuresRequest> adapter =
         new Moshi.Builder().build().adapter(ExposuresRequest.class);
     server =
@@ -76,31 +76,25 @@ class ExposureWriterTests {
     sharedCommunicationObjects = sharedCommunicationObjects(true);
   }
 
-  @AfterAll
-  static void stopServer() {
+  @AfterEach
+  void cleanup() {
     if (server != null) {
       server.close();
     }
   }
 
-  @AfterEach
-  void cleanup() {
-    REQUESTS.clear();
-    FAILED.clear();
-  }
-
-  private static void handleExposureRequest(HandlerApi api, JsonAdapter<ExposuresRequest> adapter)
+  private void handleExposureRequest(HandlerApi api, JsonAdapter<ExposuresRequest> adapter)
       throws Exception {
     ExposuresRequest exposuresRequest =
         adapter.fromJson(
             Okio.buffer(Okio.source(new ByteArrayInputStream(api.getRequest().getBody()))));
     String serviceName = exposuresRequest.context.get("service");
     boolean failForever = "fail-forever".equals(serviceName);
-    boolean fail = serviceName.startsWith("fail") && (FAILED.add(serviceName) || failForever);
+    boolean fail = serviceName.startsWith("fail") && (failed.add(serviceName) || failForever);
     if (fail) {
       api.getResponse().status(500).send("Boom!!!");
     } else {
-      REQUESTS.add(exposuresRequest);
+      requests.add(exposuresRequest);
       api.getResponse().status(200).send("OK");
     }
   }
@@ -125,8 +119,8 @@ class ExposureWriterTests {
 
       eventually(
           () -> {
-            assertFalse(REQUESTS.isEmpty());
-            for (ExposuresRequest request : REQUESTS) {
+            assertFalse(requests.isEmpty());
+            for (ExposuresRequest request : requests) {
               assertContext(request.context, service, env, version);
             }
             assertExposures(allExposures(), exposures);
@@ -149,8 +143,7 @@ class ExposureWriterTests {
       }
 
       // all events are written
-      eventually(
-          () -> assertEquals(exposures.size(), allExposures().size()), TIMEOUT_MILLIS);
+      eventually(() -> assertEquals(exposures.size(), allExposures().size()), TIMEOUT_MILLIS);
 
       // publishing duplicate events
       for (ExposureEvent exposure : exposures) {
@@ -165,9 +158,7 @@ class ExposureWriterTests {
       writer.accept(buildExposure());
 
       // oldest event is evicted and the new one is submitted
-      eventually(
-          () -> assertEquals(exposures.size() + 1, allExposures().size()),
-          TIMEOUT_MILLIS);
+      eventually(() -> assertEquals(exposures.size() + 1, allExposures().size()), TIMEOUT_MILLIS);
     }
   }
 
@@ -224,11 +215,10 @@ class ExposureWriterTests {
 
       if (finallyFail) {
         MILLISECONDS.sleep(500); // wait for a flush to happen
-        assertNull(findRequest(serviceName), REQUESTS.toString());
+        assertNull(findRequest(serviceName), requests.toString());
       } else {
         eventually(
-            () -> assertNotNull(findRequest(serviceName), REQUESTS.toString()),
-            TIMEOUT_MILLIS);
+            () -> assertNotNull(findRequest(serviceName), requests.toString()), TIMEOUT_MILLIS);
       }
     }
   }
@@ -264,7 +254,7 @@ class ExposureWriterTests {
     return config;
   }
 
-  private static SharedCommunicationObjects sharedCommunicationObjects(boolean evpProxyAvailable) {
+  private SharedCommunicationObjects sharedCommunicationObjects(boolean evpProxyAvailable) {
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
     when(discovery.supportsEvpProxy()).thenReturn(evpProxyAvailable);
     if (evpProxyAvailable) {
@@ -294,8 +284,8 @@ class ExposureWriterTests {
     }
   }
 
-  private static ExposuresRequest findRequest(String serviceName) {
-    for (ExposuresRequest request : REQUESTS) {
+  private ExposuresRequest findRequest(String serviceName) {
+    for (ExposuresRequest request : requests) {
       if (serviceName.equals(request.context.get("service"))) {
         return request;
       }
@@ -303,9 +293,9 @@ class ExposureWriterTests {
     return null;
   }
 
-  private static List<ExposureEvent> allExposures() {
+  private List<ExposureEvent> allExposures() {
     List<ExposureEvent> exposures = new ArrayList<>();
-    for (ExposuresRequest request : REQUESTS) {
+    for (ExposuresRequest request : requests) {
       exposures.addAll(request.exposures);
     }
     return exposures;
