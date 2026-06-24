@@ -84,6 +84,14 @@ public class ExposureWriterImpl implements ExposureWriter {
     queue.offer(event);
   }
 
+  boolean isSerializerThreadAlive() {
+    return serializerThread.isAlive();
+  }
+
+  int queueSize() {
+    return queue.size();
+  }
+
   private static class ExposureSerializingHandler implements Runnable {
     private final MessagePassingBlockingQueue<ExposureEvent> queue;
     private final long ticksRequiredToFlush;

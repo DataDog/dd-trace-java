@@ -12,7 +12,6 @@ import static org.mockito.Mockito.when;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
@@ -28,7 +27,6 @@ import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.exposure.Variant;
 import datadog.trace.test.util.ThreadUtils.ThrowingRunnable;
 import java.io.ByteArrayInputStream;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -231,14 +229,11 @@ class ExposureWriterTests {
     try (ExposureWriterImpl writer =
         new ExposureWriterImpl(sharedCommunicationObjects, Config.get())) {
       writer.init();
-      Thread serializerThread = getField(writer, "serializerThread", Thread.class);
-      eventually(() -> assertFalse(serializerThread.isAlive()), TIMEOUT_MILLIS);
+      eventually(() -> assertFalse(writer.isSerializerThreadAlive()), TIMEOUT_MILLIS);
 
       FeatureFlaggingGateway.dispatch(buildExposure());
 
-      MessagePassingBlockingQueue<?> queue =
-          getField(writer, "queue", MessagePassingBlockingQueue.class);
-      assertEquals(0, queue.size());
+      assertEquals(0, writer.queueSize());
     }
   }
 
@@ -409,13 +404,6 @@ class ExposureWriterTests {
         new Flag("Flag_" + id),
         new Variant("Variant_" + id),
         new Subject("Subject_" + id, singletonMap("key_" + id, (Object) ("value_" + id))));
-  }
-
-  private static <T> T getField(Object target, String fieldName, Class<T> fieldType)
-      throws NoSuchFieldException, IllegalAccessException {
-    Field field = target.getClass().getDeclaredField(fieldName);
-    field.setAccessible(true);
-    return fieldType.cast(field.get(target));
   }
 
   private static void eventually(ThrowingRunnable assertion, long timeoutMillis) throws Exception {
