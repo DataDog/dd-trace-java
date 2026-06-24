@@ -323,7 +323,6 @@ include(
   ":dd-java-agent:instrumentation:cics-9.1",
   ":dd-java-agent:instrumentation:commons-codec-1.1",
   ":dd-java-agent:instrumentation:commons-fileupload-1.5",
-  ":dd-java-agent:instrumentation:commons-httpclient-2.0",
   ":dd-java-agent:instrumentation:commons-httpclient:commons-httpclient-2.0-generated",
   ":dd-java-agent:instrumentation:commons-lang:commons-lang-2.1",
   ":dd-java-agent:instrumentation:commons-lang:commons-lang-3.5",

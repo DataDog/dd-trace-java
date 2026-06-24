@@ -11,14 +11,14 @@ import org.apache.commons.httpclient.StatusLine;
 public class CommonsHttpClientDecorator extends HttpClientDecorator<HttpMethod, HttpMethod> {
 
   public static final CharSequence COMMONS_HTTP_CLIENT =
-      UTF8BytesString.create("commons-httpclient");
+      UTF8BytesString.create("commons-http-client");
   public static final CommonsHttpClientDecorator DECORATE = new CommonsHttpClientDecorator();
 
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {"commons-httpclient", "commons-httpclient-2.0"};
+    return new String[] {"commons-http-client"};
   }
 
   @Override
