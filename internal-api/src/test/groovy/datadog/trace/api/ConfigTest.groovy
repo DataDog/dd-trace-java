@@ -723,10 +723,10 @@ class ConfigTest extends DDSpecification {
     config.otlpTracesEndpoint == "http://localhost:4318/v1/traces"
   }
 
-  def "traces span metrics tri-state default: exporter=#exporter metricsExporter=#metricsExporter override=#override"() {
+  def "traces span metrics tri-state default: exporter=#exporter metricsEnabled=#metricsEnabled metricsExporter=#metricsExporter override=#override"() {
     setup:
     System.setProperty(PREFIX + TRACE_OTEL_EXPORTER, exporter)
-    System.setProperty(PREFIX + METRICS_OTEL_ENABLED, "true")
+    System.setProperty(PREFIX + METRICS_OTEL_ENABLED, metricsEnabled)
     if (metricsExporter != null) {
       System.setProperty(PREFIX + METRICS_OTEL_EXPORTER, metricsExporter)
     }
@@ -743,14 +743,15 @@ class ConfigTest extends DDSpecification {
     config.tracesSpanMetricsEnabled == expected
 
     where:
-    exporter | metricsExporter | override | expected
-    "otlp"   | null            | null     | true   // metrics defaults to otlp
-    "otlp"   | "otlp"         | null     | true
-    "otlp"   | "none"         | null     | false  // metrics exporter explicitly disabled
-    "none"   | null            | null     | false
-    "none"   | "otlp"         | null     | false
-    "none"   | "none"         | "true"   | true   // explicit override wins
-    "otlp"   | "otlp"         | "false"  | false  // explicit override wins
+    exporter | metricsEnabled | metricsExporter | override | expected
+    "otlp"   | "true"         | null            | null     | true   // metrics defaults to otlp
+    "otlp"   | "true"         | "otlp"          | null     | true
+    "otlp"   | "true"         | "none"          | null     | false  // metrics exporter explicitly disabled
+    "otlp"   | "false"        | "otlp"          | null     | false  // metrics feature flag off overrides exporter
+    "none"   | "true"         | null            | null     | false
+    "none"   | "true"         | "otlp"          | null     | false
+    "none"   | "false"        | "none"          | "true"   | true   // explicit override wins
+    "otlp"   | "true"         | "otlp"          | "false"  | false  // explicit override wins
   }
 
   def "specify overrides via system properties"() {

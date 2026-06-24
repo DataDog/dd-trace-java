@@ -2135,7 +2135,9 @@ public class Config {
     tracesSpanMetricsEnabled =
         configProvider.getBoolean(
             TRACES_SPAN_METRICS_ENABLED,
-            isTraceOtlpExporterEnabled() && isMetricsOtlpExporterEnabled());
+            isTraceOtlpExporterEnabled()
+                && isMetricsOtelEnabled()
+                && isMetricsOtlpExporterEnabled());
 
     otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
     if (otlpTimeout < 0) {
