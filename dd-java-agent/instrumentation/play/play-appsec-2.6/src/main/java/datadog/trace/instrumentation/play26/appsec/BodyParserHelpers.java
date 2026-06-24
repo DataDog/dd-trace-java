@@ -94,7 +94,12 @@ public class BodyParserHelpers {
     } catch (Exception ignored) {
     }
     try {
-      file = Class.forName("play.api.libs.Files$TemporaryFile", false, BodyParserHelpers.class.getClassLoader()).getMethod("file");
+      file =
+          Class.forName(
+                  "play.api.libs.Files$TemporaryFile",
+                  false,
+                  BodyParserHelpers.class.getClassLoader())
+              .getMethod("file");
     } catch (Exception ignored) {
     }
     FILE_PART_REF = ref;
