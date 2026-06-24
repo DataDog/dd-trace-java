@@ -277,6 +277,7 @@ dependencies {
   testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)
+  testImplementation("org.openjdk.jol:jol-core:0.17")
 }
 
 jmh {
