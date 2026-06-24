@@ -574,9 +574,9 @@ public class CommonsHttpClientTest extends AbstractInstrumentationTest {
     assertEquals(
         expectedMethod, String.valueOf(span.getTag("http.method")), "http.method must be set");
     assertEquals(
-        "commons-httpclient",
+        "commons-http-client",
         String.valueOf(span.getTag("component")),
-        "component must be 'commons-httpclient'");
+        "component must be 'commons-http-client'");
 
     // URL tag
     assertNotNull(span.getTag("http.url"), "http.url must be set");
