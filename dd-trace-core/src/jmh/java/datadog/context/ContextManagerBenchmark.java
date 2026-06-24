@@ -34,7 +34,7 @@ import org.openjdk.jmh.annotations.Warmup;
  * <p>Run with:
  *
  * <pre>
- * {@code ./gradlew :dd-trace-core:jmh -PjmhIncludes=ContextManagerBenchmark -PjmhJvm=25 -PjmhProfilers=gc}
+ * {@code ./gradlew :dd-trace-core:jmh -Pjmh.includes=ContextManagerBenchmark -PtestJvm=25 -Pjmh.profilers=gc}
  * </pre>
  */
 @State(Scope.Benchmark)
