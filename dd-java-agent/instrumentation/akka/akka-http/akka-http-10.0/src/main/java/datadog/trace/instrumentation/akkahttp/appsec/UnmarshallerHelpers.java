@@ -452,10 +452,15 @@ public class UnmarshallerHelpers {
 
   private static void handleStrictFormData(StrictForm sf) {
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, Object, Flow<Void>> bodyCb =
+        cbp.getCallback(EVENTS.requestBodyProcessed());
     BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
         cbp.getCallback(EVENTS.requestFilesFilenames());
     BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
         cbp.getCallback(EVENTS.requestFilesContent());
+    if (bodyCb == null && filenamesCb == null && contentCb == null) {
+      return;
+    }
 
     Iterator<Tuple2<String, StrictForm.Field>> iterator = sf.fields().iterator();
     Map<String, List<String>> conv = new HashMap<>();
@@ -500,20 +505,24 @@ public class UnmarshallerHelpers {
               MultipartContentDecoder.decodeBytes(
                   bytes, bytes.length, sentity.contentType().toString()));
         }
-        String s =
-            sentity
-                .getData()
-                .decodeString(
-                    Unmarshaller$.MODULE$.bestUnmarshallingCharsetFor(sentity).nioCharset());
-        strings.add(s);
+        if (bodyCb != null) {
+          String s =
+              sentity
+                  .getData()
+                  .decodeString(
+                      Unmarshaller$.MODULE$.bestUnmarshallingCharsetFor(sentity).nioCharset());
+          strings.add(s);
+        }
       }
     }
 
     BlockingException pendingBlock = null;
-    try {
-      handleArbitraryPostData(conv, "HttpEntity -> StrictForm unmarshaller");
-    } catch (BlockingException e) {
-      pendingBlock = e;
+    if (bodyCb != null) {
+      try {
+        handleArbitraryPostData(conv, "HttpEntity -> StrictForm unmarshaller");
+      } catch (BlockingException e) {
+        pendingBlock = e;
+      }
     }
 
     AgentSpan span = activeSpan();
