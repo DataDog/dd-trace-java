@@ -28,8 +28,7 @@ dependencies {
   testImplementation libs.logback.classic
   testImplementation libs.jackson.databind
 
-  testImplementation group: 'io.github.ndsev', name: 'zserio-runtime', version: '2.16.1'
-  testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '9.0.115'
+
   testImplementation libs.bundles.mockito
 }
 
