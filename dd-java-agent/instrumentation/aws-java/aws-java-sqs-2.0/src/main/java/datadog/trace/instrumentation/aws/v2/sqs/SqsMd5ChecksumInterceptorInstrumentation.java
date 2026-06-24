@@ -11,6 +11,8 @@ public final class SqsMd5ChecksumInterceptorInstrumentation
 
   @Override
   public String instrumentedType() {
+    // The AWS SDK checksum interceptor reads ReceiveMessageResponse.messages() while finalizing
+    // the response. Mark that internal access so we only wrap messages for application code.
     return "software.amazon.awssdk.services.sqs.internal.MessageMD5ChecksumInterceptor";
   }
 
