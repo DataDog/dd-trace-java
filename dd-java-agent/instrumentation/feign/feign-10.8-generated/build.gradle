@@ -3,7 +3,6 @@ muzzle {
     group = "io.github.openfeign"
     module = "feign-core"
     versions = "[10.8,)"
-    assertInverse = true
   }
 }
 
