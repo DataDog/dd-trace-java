@@ -428,7 +428,9 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     Object appSecData = new Object();
     Object iastData = new Object();
     TagContext tagContext =
-        new TagContext().withRequestContextDataAppSec(appSecData).withRequestContextDataIast(iastData);
+        new TagContext()
+            .withRequestContextDataAppSec(appSecData)
+            .withRequestContextDataIast(iastData);
 
     DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
 
@@ -443,7 +445,9 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     Object appSecData = new Object();
     Object iastData = new Object();
     TagContext tagContext =
-        new TagContext().withRequestContextDataAppSec(appSecData).withRequestContextDataIast(iastData);
+        new TagContext()
+            .withRequestContextDataAppSec(appSecData)
+            .withRequestContextDataIast(iastData);
 
     DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
 
