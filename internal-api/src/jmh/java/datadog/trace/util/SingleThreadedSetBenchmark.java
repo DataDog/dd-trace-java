@@ -153,7 +153,7 @@ public class SingleThreadedSetBenchmark {
 
   @Benchmark
   public Set<String> clone_synchronizedSet() {
-    return Collections.synchronizedSet(new HashSet<>(hashSet));
+    return Collections.synchronizedSet(new HashSet<>(synchronizedSet));
   }
 
   @Benchmark
