@@ -22,6 +22,13 @@ package datadog.trace.util;
  *
  * <p>Slot 0-value is the empty sentinel: {@link Support#hash} never returns 0, so {@code hashes[i]
  * == 0} unambiguously means an empty slot.
+ *
+ * <p>Trades footprint for throughput: the 2x-oversized table (load factor &le; 0.5) and cached
+ * {@code int[]} hashes keep probe chains short and gate {@code equals()}, but cost more memory than
+ * a tightly-packed set. Prefer {@link java.util.Set#copyOf} (the JDK's compact {@code SetN}) when
+ * you only need membership; reach for {@code StringIndex} for the {@code
+ * indexOf}-&gt;parallel-array (name&rarr;id) capability or the hot, allocation-free static {@link
+ * Support} path.
  */
 public final class StringIndex {
   private final int[] hashes;
