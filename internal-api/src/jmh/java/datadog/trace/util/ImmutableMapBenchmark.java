@@ -39,7 +39,9 @@ import org.openjdk.jmh.infra.Blackhole;
  * (Results pending a fresh multi-JVM run — {@code Map.copyOf} only materializes the compact form on
  * Java 10+.)
  */
-@Fork(2)
+// @Fork(5): get_copyOf* (MapN reached via interface dispatch) is JIT-bimodal at fewer forks — 5
+// forks resolves it (get_copyOf_sameKey measured ±90% at @Fork(2) -> ±1.8% at @Fork(5)).
+@Fork(5)
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @Threads(8)
