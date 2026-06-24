@@ -12,40 +12,18 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-/**
- * Captures the active scope at {@code AsyncCall.<init>} (i.e. the moment {@code
- * Call.enqueue(callback)} was invoked on the user's thread) and stores it in the {@code
- * ContextStore<Runnable, State>} shared with the rest of the concurrent instrumentation. {@code
- * RunnableInstrumentation} then re-activates that scope on {@code AsyncCall.run()} entry, which
- * overrides whatever scope {@code TaskRunner.run()} (or {@code beforeExecute}) put in place from
- * the dispatcher's worker thread.
- *
- * <p>Without this, {@code TaskRunnerInstrumentation} captures whatever scope happens to be active
- * on the worker thread when {@code Dispatcher.promoteAndExecute()} dequeues and submits the call —
- * and when promotion runs from inside {@code Dispatcher.finished()} (i.e. recursively from a
- * <em>different</em> AsyncCall's run()), that scope belongs to the finishing call, not to the
- * caller who actually enqueued this AsyncCall. Result: under concurrent OkHttp load, {@code
- * okhttp.request} spans cross-contaminate between traces.
- *
- * <p>{@code AsyncCall} is an inner class of {@code RealCall} and transitively implements {@link
- * Runnable}. This module targets OkHttp 3.x, where it lives at {@code okhttp3.RealCall$AsyncCall}.
- * OkHttp 4.x+ relocated it to {@code okhttp3.internal.connection.RealCall$AsyncCall}, which is
- * handled by the separate {@code okhttp-4.0} module.
- */
 @AutoService(InstrumenterModule.class)
 public final class AsyncCallInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public AsyncCallInstrumentation() {
-    // Re-use the existing "okhttp" / "okhttp-3" instrumentation names so we don't introduce a
-    // separately-toggleable feature flag (DD_TRACE_OKHTTP_ASYNC_CALL_ENABLED). The capture here
-    // is conceptually part of the OkHttp instrumentation — if you disable OkHttp tracing, you
-    // also disable this capture, which is the right behavior.
-    //
-    // This is a ContextTracking module (like RunnableInstrumentation, which consumes the state we
-    // write) rather than a Tracing module: its sole job is to propagate the captured scope through
-    // the shared ContextStore<Runnable, State>, not to create spans of its own.
     super("okhttp", "okhttp-3");
+  }
+
+  @Override
+  public String muzzleDirective() {
+    // 3.x only: okhttp3.RealCall$AsyncCall relocated in 4.x (handled by the okhttp-4.0 module).
+    return "okhttp-async-3";
   }
 
   @Override

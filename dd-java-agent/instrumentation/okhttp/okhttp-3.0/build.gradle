@@ -1,9 +1,24 @@
 muzzle {
+  // Core tracing (OkHttp3Instrumentation -> TracingInterceptor), IAST and AppSec reference OkHttp
+  // types and apply to 3.x/4.x/5.x.
   pass {
+    name = 'okhttp-3'
     group = "com.squareup.okhttp3"
     module = "okhttp"
     versions = "[3.0,)"
     assertInverse = true
+  }
+  // AsyncCallInstrumentation is 3.x-only: the matched type okhttp3.RealCall$AsyncCall relocated to
+  // okhttp3.internal.connection.RealCall$AsyncCall in 4.x (handled by the okhttp-4.0 module). Its
+  // advice references only java.lang.Runnable, never an OkHttp type, so muzzle has nothing
+  // version-specific to enforce here — this directive documents the [3.0,4.0) boundary; the real
+  // gate is knownMatchingTypes. No assertInverse for the same reason: with no OkHttp reference
+  // muzzle would pass outside the range (nothing to be missing), contradicting the assertion.
+  pass {
+    name = 'okhttp-async-3'
+    group = "com.squareup.okhttp3"
+    module = "okhttp"
+    versions = "[3.0,4.0)"
   }
 }
 
@@ -25,11 +40,6 @@ tasks.named("compileVthread21TestJava", JavaCompile) {
 tasks.named("vthread21Test", Test) {
   testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_21
-    // Cap at 24 to match java-concurrent-21.0, which provides the virtual-thread scope propagation
-    // (TaskRunner/VirtualThread instrumentation) this suite relies on and is only supported through
-    // JDK 24. Without this, the suite runs on the JDK 25 / "tip" (26) CI shards and times out
-    // because that propagation chain isn't active there.
-    maxJavaVersion = JavaVersion.VERSION_24
   }
 }
 

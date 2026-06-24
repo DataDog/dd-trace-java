@@ -33,9 +33,6 @@ addTestSuiteForDir('vthread21Test5', 'vthread21Test')
   tasks.named(suite, Test) {
     testJvmConstraints {
       minJavaVersion = JavaVersion.VERSION_21
-      // Cap at 24 to match java-concurrent-21.0, which provides the virtual-thread scope propagation
-      // these suites rely on and is only supported through JDK 24. See okhttp-3.0 for details.
-      maxJavaVersion = JavaVersion.VERSION_24
     }
   }
   tasks.named("check") {
