@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 /**
- * DB-level behavior of {@link SharedDBCommenter#containsTraceComment}: the nine "<key>=" needle set,
- * the {@code String} delegate, and the range overload checking the comment body in place. (The
+ * DB-level behavior of {@link SharedDBCommenter#containsTraceComment}: the nine "<key>=" needle
+ * set, the {@code String} delegate, and the range overload checking the comment body in place. (The
  * {@code [from, to)} boundary semantics are unit-tested on {@code Strings.regionContains}.)
  */
 class SharedDBCommenterContainsTraceCommentTest {

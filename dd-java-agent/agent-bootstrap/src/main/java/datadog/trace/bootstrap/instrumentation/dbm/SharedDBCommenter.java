@@ -1,13 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.dbm;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.util.Strings.regionContains;
 
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.SubSequence;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -54,9 +54,9 @@ public class SharedDBCommenter {
   private static volatile boolean staticPrefixComputed = false;
   private static volatile String staticPrefix;
 
-  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection. Mongo passes
-  // the already-extracted comment body; SQLCommenter uses the range overload to check the comment in
-  // place. Both run the same nine "<key>=" needle checks.
+  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection. Mongo
+  // passes the already-extracted comment body; SQLCommenter uses the range overload to check it
+  // in place. Both run the same nine "<key>=" needle checks.
   public static boolean containsTraceComment(String commentContent) {
     return containsTraceComment(commentContent, 0, commentContent.length());
   }
@@ -66,15 +66,17 @@ public class SharedDBCommenter {
    * to)} -- checks the comment body in place, with no substring allocation of the region.
    */
   public static boolean containsTraceComment(String sql, int from, int to) {
-    return regionContains(sql, from, to, PARENT_SERVICE_EQ)
-        || regionContains(sql, from, to, DATABASE_SERVICE_EQ)
-        || regionContains(sql, from, to, DD_HOSTNAME_EQ)
-        || regionContains(sql, from, to, DD_DB_NAME_EQ)
-        || regionContains(sql, from, to, DD_PEER_SERVICE_EQ)
-        || regionContains(sql, from, to, DD_ENV_EQ)
-        || regionContains(sql, from, to, DD_VERSION_EQ)
-        || regionContains(sql, from, to, TRACEPARENT_EQ)
-        || regionContains(sql, from, to, DD_SERVICE_HASH_EQ);
+    // Zero-copy view of the comment body; reads like ordinary String.contains, no substring.
+    SubSequence comment = SubSequence.of(sql, from, to);
+    return comment.contains(PARENT_SERVICE_EQ)
+        || comment.contains(DATABASE_SERVICE_EQ)
+        || comment.contains(DD_HOSTNAME_EQ)
+        || comment.contains(DD_DB_NAME_EQ)
+        || comment.contains(DD_PEER_SERVICE_EQ)
+        || comment.contains(DD_ENV_EQ)
+        || comment.contains(DD_VERSION_EQ)
+        || comment.contains(TRACEPARENT_EQ)
+        || comment.contains(DD_SERVICE_HASH_EQ);
   }
 
   // Build database comment content without comment delimiters such as /* */

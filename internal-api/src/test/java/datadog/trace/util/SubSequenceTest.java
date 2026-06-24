@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -107,5 +108,19 @@ public class SubSequenceTest {
     StringBuilder builder1 = new StringBuilder();
     subSeq.appendTo(builder1);
     assertEquals(expectedStr, builder1.toString());
+  }
+
+  @Test
+  public void contains() {
+    // "/*ddps='svc',dde='x'*/ rest" -- the comment body "ddps='svc',dde='x'" spans [2, 20).
+    String s = "/*ddps='svc',dde='x'*/ rest";
+    SubSequence comment = SubSequence.of(s, 2, 20);
+    assertTrue(comment.contains("ddps="));
+    assertTrue(comment.contains("dde="));
+    assertFalse(comment.contains("ddh="));
+
+    // View-relative: a needle present in the backing string but outside this view is not found.
+    SubSequence dde = SubSequence.of(s, 13, 20); // "dde='x'"
+    assertFalse(dde.contains("ddps=")); // ddps= is before this view's range
   }
 }
