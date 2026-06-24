@@ -569,4 +569,51 @@ class ScaReachabilityPeriodicActionTest {
     assertEquals("lib.jar", emitted.source, "Step 2 merge must preserve source");
     assertTrue(emitted.reachabilityMetadata.get(0).contains("GHSA-simultaneous"));
   }
+
+  /**
+   * Regression test for the registry key mismatch for JARs without pom.properties (PR #11614).
+   *
+   * <p>For JARs without {@code pom.properties}, {@code DependencyResolver.guessFallbackNoPom}
+   * produces an artifact-ID-only name (e.g. {@code "junrar"} instead of {@code
+   * "com.github.junrar:junrar"}). The transformer must register the CVE under the same name so that
+   * the registry key matches what {@code DependencyService} will report.
+   *
+   * <p>Without the fix, {@code registerCve} was called with {@code entry.artifact()} = {@code
+   * "com.github.junrar:junrar"}, while {@code DependencyService} reported {@code dep.name} = {@code
+   * "junrar"}. The result: two separate telemetry entries for the same physical JAR — one with
+   * {@code metadata:[]} (from Step 2, carrying source/hash but no CVE) and one with the CVE
+   * metadata (from Step 3, without source/hash).
+   *
+   * <p>With the fix, the transformer uses the resolved {@code dep.name} from {@code matchDep} (i.e.
+   * {@code "junrar"}) for {@code registerCve}, so the registry and {@code DependencyService} keys
+   * match. Step 2 merges them into a single emission with both the CVE metadata and source/hash.
+   */
+  @Test
+  void noPomJar_artifactIdOnlyName_cveAndSourceHashMergedIntoSingleEntry() {
+    // Simulates what ScaReachabilityTransformer.processClass() now does after the fix:
+    // registerCve with the artifactId-only name that DependencyService will also report.
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("junrar", "7.5.5", "GHSA-hf5p-test");
+
+    // DependencyService returns the dep with the same artifactId-only name (guessFallbackNoPom).
+    Dependency incoming = new Dependency("junrar", "7.5.5", "junrar-7.5.5.jar", "CAFEBABE");
+    ScaReachabilityPeriodicAction merged = actionWithDeps(incoming);
+
+    merged.doIteration(telService);
+
+    // Must produce exactly ONE emission with BOTH the CVE metadata AND source/hash — not two
+    // separate entries (one with CVE but no source/hash, one with source/hash but no CVE).
+    ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor.capture());
+    Dependency emitted = captor.getValue();
+    assertEquals(
+        "junrar", emitted.name, "name must be the artifactId-only name from DependencyService");
+    assertEquals("7.5.5", emitted.version);
+    assertEquals(
+        "junrar-7.5.5.jar", emitted.source, "source/hash from DependencyService must be preserved");
+    assertEquals("CAFEBABE", emitted.hash, "hash from DependencyService must be preserved");
+    assertFalse(
+        emitted.reachabilityMetadata.isEmpty(),
+        "CVE metadata must NOT be lost — a single merged entry must carry both CVE data and source/hash");
+    assertTrue(emitted.reachabilityMetadata.get(0).contains("GHSA-hf5p-test"));
+  }
 }

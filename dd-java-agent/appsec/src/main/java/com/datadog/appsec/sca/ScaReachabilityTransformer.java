@@ -66,13 +66,15 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   final ConcurrentHashMap<URI, List<Dependency>> jarCache = new ConcurrentHashMap<>();
 
   /**
-   * Cache: artifact name → classpath-resolved version. Used when the class's own JAR does not
-   * contain the vulnerable artifact (e.g., Spring Boot starters whose watched classes live in
-   * transitive dependency JARs). Only non-null results are cached; null means "not yet found" and
-   * will be retried on the next periodic retransform.
+   * Cache: artifact name → classpath-resolved {@link Dependency}. Stores the full dependency (name
+   * + version) so that the resolved {@code dep.name} — which may be an artifactId-only name like
+   * {@code "junrar"} for JARs without pom.properties — is propagated to {@code registerCve} and
+   * kept consistent with the name that {@link datadog.telemetry.dependency.DependencyService} will
+   * report. Only non-null results are cached; null means "not yet found" and will be retried on the
+   * next periodic retransform.
    */
   @VisibleForTesting
-  final ConcurrentHashMap<String, String> classpathArtifactCache = new ConcurrentHashMap<>();
+  final ConcurrentHashMap<String, Dependency> classpathArtifactCache = new ConcurrentHashMap<>();
 
   /**
    * Classes whose bytecode needs (re)transformation for method-level symbol injection:
@@ -170,15 +172,25 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     String dotClassName = null;
 
     for (ScaEntry entry : entries) {
-      // Resolve version: first check the class's own JAR, then fall back to a full classpath
-      // scan. The fallback handles cases where the vulnerable artifact is an aggregator/starter
-      // POM whose watched classes actually live in a transitive dependency JAR (e.g.,
-      // spring-boot-starter-web watches @Controller, but @Controller is in spring-context.jar).
-      String version = resolveVersionForArtifact(entry.artifact(), classJarDeps);
-      if (version == null) {
+      // Resolve the dependency for this artifact: first check the class's own JAR, then fall back
+      // to a full classpath scan. The fallback handles aggregator/starter POM artifacts whose
+      // watched classes actually live in a transitive dependency JAR (e.g., spring-boot-starter-web
+      // watches @Controller, but @Controller is in spring-context.jar).
+      //
+      // We use the resolved dep's name (not entry.artifact()) for registerCve and
+      // MethodCallbackSpec
+      // to ensure that the registry key matches the name that DependencyService will later report.
+      // For JARs without pom.properties, DependencyResolver.guessFallbackNoPom produces an
+      // artifactId-only name (e.g. "junrar" instead of "com.github.junrar:junrar"). Using
+      // entry.artifact() as the registry key would cause a mismatch with DependencyService's name,
+      // causing the CVE telemetry event to lose its source/hash or appear under the wrong name.
+      Dependency resolvedDep = resolveArtifactDep(entry.artifact(), classJarDeps);
+      if (resolvedDep == null) {
         hasUnresolvedMethodLevelSymbols = true;
         continue;
       }
+      String version = resolvedDep.version;
+      String depName = resolvedDep.name != null ? resolvedDep.name : entry.artifact();
 
       if (!entry.isVersionVulnerable(version)) {
         continue;
@@ -191,8 +203,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         // Register the CVE now (at class load time) with reached=[] so the next heartbeat
         // signals the backend that SCA is monitoring this CVE. The callsite will be added
         // later when the method is actually called (via ScaReachabilityCallback).
-        ScaReachabilityDependencyRegistry.INSTANCE.registerCve(
-            entry.artifact(), version, entry.vulnId());
+        ScaReachabilityDependencyRegistry.INSTANCE.registerCve(depName, version, entry.vulnId());
         if (dotClassName == null) {
           dotClassName = Strings.getClassName(className);
         }
@@ -200,7 +211,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
             .computeIfAbsent(symbol.method(), k -> new ArrayList<>())
             .add(
                 new MethodCallbackSpec(
-                    entry.vulnId(), entry.artifact(), version, dotClassName, symbol.method()));
+                    entry.vulnId(), depName, version, dotClassName, symbol.method()));
       }
     }
 
@@ -314,8 +325,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     // callback.
     // Two paths in processClass() can trigger fresh JAR I/O under locks:
     //   1. resolveDependenciesFromCache() — safe only if jarCache is already populated.
-    //   2. resolveVersionForArtifact() → findArtifactVersionInClasspath() for aggregator artifacts
-    //      (e.g., spring-boot-starter-web) whose pom.properties is not in the class's own JAR.
+    //   2. resolveArtifactDep() → findArtifactInClasspath() for aggregator artifacts (e.g.,
+    //      spring-boot-starter-web) whose pom.properties is not in the class's own JAR.
     //      Without pre-warming classpathArtifactCache, this scans all java.class.path JARs via
     //      resolveDependencies() under JVM locks, reintroducing the snakeyaml deadlock.
     for (Class<?> c : toRetransform) {
@@ -359,50 +370,54 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   // ---------------------------------------------------------------------------
 
   /**
-   * Resolves the version of {@code artifactName} using a two-step strategy:
+   * Resolves the {@link Dependency} for {@code artifactName} (groupId:artifactId format), returning
+   * the matched dependency object — which may have an artifactId-only {@code name} for JARs without
+   * {@code pom.properties}. Returns {@code null} if the artifact cannot be found.
    *
-   * <ol>
-   *   <li>Check the dependencies resolved from the class's own JAR ({@code classJarDeps}). This
-   *       covers the common case where the class and its artifact live in the same JAR.
-   *   <li>If not found, fall back to a full classpath scan via {@link
-   *       #findArtifactVersionInClasspath}. This handles aggregator/starter POM artifacts (e.g.,
-   *       {@code spring-boot-starter-web}) whose watched classes live in transitive dependency JARs
-   *       rather than in the starter JAR itself. Results of successful scans are cached.
-   * </ol>
-   *
-   * @return the resolved version string, or {@code null} if the artifact cannot be found
+   * <p>Use this method (not {@link #resolveVersionForArtifact}) whenever the resolved dependency
+   * name needs to be propagated (e.g., for {@code registerCve} and {@code MethodCallbackSpec}), so
+   * that registry keys stay consistent with the names that {@link
+   * datadog.telemetry.dependency.DependencyService} will report.
    */
   @VisibleForTesting
-  String resolveVersionForArtifact(String artifactName, List<Dependency> classJarDeps) {
-    String version = matchVersion(artifactName, classJarDeps);
-    if (version != null) {
-      return version;
+  Dependency resolveArtifactDep(String artifactName, List<Dependency> classJarDeps) {
+    Dependency dep = matchDep(artifactName, classJarDeps);
+    if (dep != null) {
+      return dep;
     }
     // Classpath fallback: check cache first, then scan.
-    String cached = classpathArtifactCache.get(artifactName);
+    Dependency cached = classpathArtifactCache.get(artifactName);
     if (cached != null) {
       return cached;
     }
-    version = findArtifactVersionInClasspath(artifactName);
-    if (version != null) {
-      classpathArtifactCache.put(artifactName, version); // only cache hits; misses are retried
+    dep = findArtifactInClasspath(artifactName);
+    if (dep != null) {
+      classpathArtifactCache.put(artifactName, dep); // only cache hits; misses are retried
     }
-    return version;
+    return dep;
+  }
+
+  @VisibleForTesting
+  String resolveVersionForArtifact(String artifactName, List<Dependency> classJarDeps) {
+    Dependency dep = resolveArtifactDep(artifactName, classJarDeps);
+    return dep != null ? dep.version : null;
   }
 
   /**
-   * Matches {@code artifactName} (groupId:artifactId format) against a list of dependencies.
+   * Matches {@code artifactName} (groupId:artifactId format) against a list of dependencies,
+   * returning the matched {@link Dependency} object (not just the version).
    *
    * <p>First tries an exact name match. If that fails, falls back to matching by artifact ID only.
    * The fallback handles JARs without {@code pom.properties}: {@code Dependency.guessFallbackNoPom}
    * can only extract the artifact ID from the filename (no group ID), producing names like {@code
-   * "junrar"} for {@code com.github.junrar:junrar}.
+   * "junrar"} for {@code com.github.junrar:junrar}. The returned dependency's {@code name} reflects
+   * what {@link datadog.telemetry.dependency.DependencyService} will report for that JAR.
    */
   @VisibleForTesting
-  static String matchVersion(String artifactName, List<Dependency> deps) {
+  static Dependency matchDep(String artifactName, List<Dependency> deps) {
     for (Dependency dep : deps) {
       if (artifactName.equals(dep.name)) {
-        return dep.version;
+        return dep;
       }
     }
     int colonIdx = artifactName.lastIndexOf(':');
@@ -415,14 +430,24 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
           && !dep.name.contains(":")
           && artifactId.equals(dep.name)
           && dep.version != null) {
-        return dep.version;
+        return dep;
       }
     }
     return null;
   }
 
+  /**
+   * Matches {@code artifactName} against a list of dependencies, returning the resolved version
+   * string. Delegates to {@link #matchDep} — use that method when the full dependency object is
+   * needed.
+   */
   @VisibleForTesting
-  String findArtifactVersionInClasspath(String artifactName) {
+  static String matchVersion(String artifactName, List<Dependency> deps) {
+    Dependency dep = matchDep(artifactName, deps);
+    return dep != null ? dep.version : null;
+  }
+
+  private Dependency findArtifactInClasspath(String artifactName) {
     // Use URI (not URL) to avoid DNS lookups in equals/hashCode (DMI_COLLECTION_OF_URLS)
     Set<URI> scanned = new HashSet<>();
 
@@ -440,9 +465,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       try {
         URI uri = new File(entry).toURI();
         if (scanned.add(uri)) {
-          String version = matchVersion(artifactName, resolveDependencies(uri.toURL()));
-          if (version != null) {
-            return version;
+          Dependency dep = matchDep(artifactName, resolveDependencies(uri.toURL()));
+          if (dep != null) {
+            return dep;
           }
         }
       } catch (Exception e) {
@@ -450,6 +475,12 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       }
     }
     return null;
+  }
+
+  @VisibleForTesting
+  String findArtifactVersionInClasspath(String artifactName) {
+    Dependency dep = findArtifactInClasspath(artifactName);
+    return dep != null ? dep.version : null;
   }
 
   private List<Dependency> resolveDependenciesFromCache(URL url) {

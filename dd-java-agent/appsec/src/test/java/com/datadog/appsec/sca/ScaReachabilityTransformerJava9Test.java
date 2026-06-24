@@ -239,6 +239,40 @@ class ScaReachabilityTransformerJava9Test {
   }
 
   /**
+   * Regression test for the registry key mismatch bug (PR #11614).
+   *
+   * <p>For JARs without {@code pom.properties}, {@code DependencyResolver.guessFallbackNoPom}
+   * produces a dep with {@code name = "junrar"} (artifactId only, no groupId). {@code
+   * resolveArtifactDep} must return that dep object so that callers ({@code processClass}) can use
+   * {@code dep.name} — not {@code entry.artifact()} — when calling {@code registerCve} and building
+   * {@code MethodCallbackSpec}. Using {@code entry.artifact()} would create a registry key ({@code
+   * "com.github.junrar:junrar@7.5.5"}) that mismatches the key {@code DependencyService} will use
+   * ({@code "junrar@7.5.5"}), causing the CVE telemetry to lose source/hash or appear under the
+   * wrong name.
+   */
+  @Test
+  void resolveArtifactDep_noPomJar_returnsArtifactIdOnlyName() throws Exception {
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
+    ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, null);
+
+    // Simulate guessFallbackNoPom: dep.name is artifactId only (no groupId).
+    Dependency noPomDep =
+        new Dependency("jackson-databind", "2.9.0", "jackson-databind-2.9.0.jar", null);
+
+    Dependency resolved =
+        transformer.resolveArtifactDep(
+            "com.fasterxml.jackson.core:jackson-databind", Collections.singletonList(noPomDep));
+
+    assertNotNull(resolved, "should resolve via artifactId-only fallback");
+    assertEquals(
+        "jackson-databind",
+        resolved.name,
+        "resolved dep.name must be the artifactId-only name from the jar, "
+            + "not entry.artifact() — so registerCve uses the same key as DependencyService");
+    assertEquals("2.9.0", resolved.version);
+  }
+
+  /**
    * Validates that {@code findArtifactVersionInClasspath} works correctly when the context
    * classloader is {@code null} — which is the actual runtime condition on agent threads, because
    * {@code AgentThreadFactory} calls {@code thread.setContextClassLoader(null)} unconditionally.
