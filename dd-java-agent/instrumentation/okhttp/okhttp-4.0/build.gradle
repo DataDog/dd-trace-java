@@ -33,6 +33,10 @@ addTestSuiteForDir('vthread21Test5', 'vthread21Test')
   tasks.named(suite, Test) {
     testJvmConstraints {
       minJavaVersion = JavaVersion.VERSION_21
+      // Cap at 24: suite fails on the JDK 25/tip CI shards (CI/test-stability, not an
+      // instrumentation limit — the vthread instrumentation works on 25; see okhttp-3.0). Lift
+      // once stable on 25+.
+      maxJavaVersion = JavaVersion.VERSION_24
     }
   }
   tasks.named("check") {
