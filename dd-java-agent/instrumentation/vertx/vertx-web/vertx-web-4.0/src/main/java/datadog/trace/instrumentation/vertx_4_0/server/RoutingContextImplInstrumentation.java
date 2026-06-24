@@ -31,6 +31,11 @@ public class RoutingContextImplInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".FileUploadHelper"};
+  }
+
+  @Override
   public Reference[] additionalMuzzleReferences() {
     return new Reference[] {VertxVersionMatcher.HTTP_1X_SERVER_RESPONSE, FILE_UPLOAD_REF};
   }

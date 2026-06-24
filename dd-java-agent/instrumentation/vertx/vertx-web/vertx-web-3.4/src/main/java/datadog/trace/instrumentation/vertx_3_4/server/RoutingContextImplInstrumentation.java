@@ -28,6 +28,11 @@ public class RoutingContextImplInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".FileUploadHelper"};
+  }
+
+  @Override
   public String instrumentedType() {
     return "io.vertx.ext.web.impl.RoutingContextImpl";
   }
