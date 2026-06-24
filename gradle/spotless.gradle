@@ -16,11 +16,22 @@ def javaGradleApplyExceptions = [
 ] as Set
 boolean forbidJavaGradleApply = project.rootProject.name == 'dd-trace-java' && !javaGradleApplyExceptions.contains(project.path)
 def javaGradleApplyLinePattern = ~/^\s*(?:\w+\.)?apply(?:\s+from\s*:|\s*\(\s*from\s*=).*/
+// Script plugins that must be applied through a 'dd-trace-java.module.*' convention plugin instead.
+def forbiddenScriptApplies = [
+  'gradle/java.gradle'   : 'Apply a \'dd-trace-java.module.*\' convention plugin instead of applying the script plugin \'gradle/java.gradle\' directly.',
+  'gradle/publish.gradle': 'Apply the \'dd-trace-java.module.distributable.*\' convention plugin instead of applying the script plugin \'gradle/publish.gradle\' directly.',
+]
 def forbidJavaGradleApplyStep = { String text ->
-  if (forbidJavaGradleApply && text.readLines().any {
-      javaGradleApplyLinePattern.matcher(it).matches() && it.contains('gradle/java.gradle')
-    }) {
-    throw new AssertionError('Apply a \'dd-trace-java.module.*\' convention plugin instead of applying the script plugin \'gradle/java.gradle\' directly.')
+  if (forbidJavaGradleApply) {
+    text.readLines().each { line ->
+      if (javaGradleApplyLinePattern.matcher(line).matches()) {
+        forbiddenScriptApplies.each { script, message ->
+          if (line.contains(script)) {
+            throw new AssertionError(message)
+          }
+        }
+      }
+    }
   }
   text
 }

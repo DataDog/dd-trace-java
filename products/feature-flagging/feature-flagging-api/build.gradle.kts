@@ -4,11 +4,8 @@ import groovy.lang.Closure
 plugins {
   `java-library`
   idea
-  `maven-publish`
-  id("dd-trace-java.module.internal-api")
+  id("dd-trace-java.module.distributable.api")
 }
-
-apply(from = "$rootDir/gradle/publish.gradle")
 
 configure<TestJvmConstraintsExtension> {
   minJavaVersion.set(JavaVersion.VERSION_11)
