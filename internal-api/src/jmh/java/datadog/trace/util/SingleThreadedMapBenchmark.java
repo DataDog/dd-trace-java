@@ -168,7 +168,7 @@ public class SingleThreadedMapBenchmark {
 
   @Benchmark
   public Map<String, Integer> clone_synchronizedHashMap() {
-    return Collections.synchronizedMap(new HashMap<>(hashMap));
+    return Collections.synchronizedMap(new HashMap<>(synchronizedHashMap));
   }
 
   @Benchmark
