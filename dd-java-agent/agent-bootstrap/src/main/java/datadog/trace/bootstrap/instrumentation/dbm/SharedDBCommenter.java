@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.dbm;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.util.Strings.regionContains;
 
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
@@ -53,19 +54,27 @@ public class SharedDBCommenter {
   private static volatile boolean staticPrefixComputed = false;
   private static volatile String staticPrefix;
 
-  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection.
-  // Note: the contains-chain could still be done "better" (a single scan), but the per-call
-  // "KEY + =" concatenation -- the allocating part -- is now hoisted to the *_EQ constants above.
+  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection. Mongo passes
+  // the already-extracted comment body; SQLCommenter uses the range overload to check the comment in
+  // place. Both run the same nine "<key>=" needle checks.
   public static boolean containsTraceComment(String commentContent) {
-    return commentContent.contains(PARENT_SERVICE_EQ)
-        || commentContent.contains(DATABASE_SERVICE_EQ)
-        || commentContent.contains(DD_HOSTNAME_EQ)
-        || commentContent.contains(DD_DB_NAME_EQ)
-        || commentContent.contains(DD_PEER_SERVICE_EQ)
-        || commentContent.contains(DD_ENV_EQ)
-        || commentContent.contains(DD_VERSION_EQ)
-        || commentContent.contains(TRACEPARENT_EQ)
-        || commentContent.contains(DD_SERVICE_HASH_EQ);
+    return containsTraceComment(commentContent, 0, commentContent.length());
+  }
+
+  /**
+   * Range overload: true if {@code sql} contains a trace-comment needle fully within {@code [from,
+   * to)} -- checks the comment body in place, with no substring allocation of the region.
+   */
+  public static boolean containsTraceComment(String sql, int from, int to) {
+    return regionContains(sql, from, to, PARENT_SERVICE_EQ)
+        || regionContains(sql, from, to, DATABASE_SERVICE_EQ)
+        || regionContains(sql, from, to, DD_HOSTNAME_EQ)
+        || regionContains(sql, from, to, DD_DB_NAME_EQ)
+        || regionContains(sql, from, to, DD_PEER_SERVICE_EQ)
+        || regionContains(sql, from, to, DD_ENV_EQ)
+        || regionContains(sql, from, to, DD_VERSION_EQ)
+        || regionContains(sql, from, to, TRACEPARENT_EQ)
+        || regionContains(sql, from, to, DD_SERVICE_HASH_EQ);
   }
 
   // Build database comment content without comment delimiters such as /* */

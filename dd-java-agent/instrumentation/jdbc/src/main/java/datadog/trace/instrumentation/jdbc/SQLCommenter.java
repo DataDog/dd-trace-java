@@ -112,11 +112,6 @@ public class SQLCommenter {
       return false;
     }
 
-    String commentContent = extractCommentContent(sql, appendComment);
-    return SharedDBCommenter.containsTraceComment(commentContent);
-  }
-
-  private static String extractCommentContent(String sql, boolean appendComment) {
     int startIdx;
     int endIdx;
     if (appendComment) {
@@ -127,9 +122,10 @@ public class SQLCommenter {
       endIdx = sql.indexOf(CLOSE_COMMENT);
     }
     if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
-      return sql.substring(startIdx + OPEN_COMMENT_LEN, endIdx);
+      // Check the comment body in place -- no substring of the comment region.
+      return SharedDBCommenter.containsTraceComment(sql, startIdx + OPEN_COMMENT_LEN, endIdx);
     }
-    return "";
+    return false;
   }
 
   /**
