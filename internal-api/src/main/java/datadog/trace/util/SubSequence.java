@@ -1,9 +1,17 @@
 package datadog.trace.util;
 
 /**
- * A <code>CharSequence</code> that is view into a sub-sequencce of a <code>String</code> Unlike
+ * A <code>CharSequence</code> that is a view into a sub-sequence of a <code>String</code>. Unlike
  * <code>String.subSequence</code>, this class doesn't allocate an additional <code>String</code>,
- * <code>char[]</code>, or <code>byte[]</code>
+ * <code>char[]</code>, or <code>byte[]</code>.
+ *
+ * <p>Why that matters: <code>String.substring</code> / <code>subSequence</code> copy the selected
+ * range into a fresh backing array on every call, so scanning or splitting a string into many
+ * pieces — parsing headers, tags, or query strings on a hot path — allocates one intermediate
+ * <code>String</code> per slice. A <code>SubSequence</code> is a zero-copy window over the original
+ * (an offset + length into the existing backing array), so the same parse allocates nothing per
+ * slice. Use it for transient, read-only views; materialize a real <code>String</code> only when
+ * the value must be retained or handed off.
  */
 public final class SubSequence implements CharSequence {
   public static final SubSequence EMPTY = new SubSequence("", 0, 0);
