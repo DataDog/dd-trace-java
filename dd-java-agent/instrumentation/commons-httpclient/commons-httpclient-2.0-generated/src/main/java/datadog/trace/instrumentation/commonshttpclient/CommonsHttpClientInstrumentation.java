@@ -17,7 +17,7 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public CommonsHttpClientInstrumentation() {
-    super("commons-http-client");
+    super("commons-httpclient", "commons-httpclient-2.0");
   }
 
   @Override
