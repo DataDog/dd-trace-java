@@ -10,9 +10,9 @@ import java.io.FileInputStream;
 import java.util.List;
 import java.util.function.BiFunction;
 
-class FileUploadHelper {
+public class FileUploadHelper {
 
-  static BlockingException commitBlockingResponse(
+  public static BlockingException commitBlockingResponse(
       BiFunction<RequestContext, List<String>, Flow<Void>> cb,
       RequestContext reqCtx,
       List<String> data,
@@ -30,7 +30,7 @@ class FileUploadHelper {
     return null;
   }
 
-  static String readUploadContent(FileUpload upload, int maxBytes) {
+  public static String readUploadContent(FileUpload upload, int maxBytes) {
     try {
       String path = upload.uploadedFileName();
       if (path == null || path.isEmpty()) {
