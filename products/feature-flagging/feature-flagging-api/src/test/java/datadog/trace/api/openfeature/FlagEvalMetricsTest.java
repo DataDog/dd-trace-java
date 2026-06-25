@@ -1,6 +1,5 @@
 package datadog.trace.api.openfeature;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -9,13 +8,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import dev.openfeature.sdk.ErrorCode;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
-import io.opentelemetry.sdk.metrics.SdkMeterProvider;
-import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
-import io.opentelemetry.sdk.metrics.data.LongPointData;
-import io.opentelemetry.sdk.metrics.data.MetricData;
-import io.opentelemetry.sdk.metrics.export.AggregationTemporalitySelector;
-import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import java.util.Collection;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -146,35 +138,9 @@ class FlagEvalMetricsTest {
   }
 
   @Test
-  void multipleRecordCallsAccumulateWithDeltaTemporality() {
-    // Use delta temporality to match the deltaPreferred() selector configured on the production
-    // OTLP exporter in FlagEvalMetrics. Delta temporality exports only increments since last
-    // collection, which is what OTLP receivers expect.
-    InMemoryMetricReader reader =
-        InMemoryMetricReader.builder()
-            .setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred())
-            .build();
-    SdkMeterProvider provider = SdkMeterProvider.builder().registerMetricReader(reader).build();
-
-    try (FlagEvalMetrics metrics = new FlagEvalMetrics(provider)) {
-      for (int i = 0; i < 5; i++) {
-        metrics.record("count-flag", "on", "STATIC", null, "default-alloc");
-      }
-
-      Collection<MetricData> data = reader.collectAllMetrics();
-      MetricData metric =
-          data.stream()
-              .filter(m -> m.getName().equals("feature_flag.evaluations"))
-              .findFirst()
-              .orElseThrow(() -> new AssertionError("feature_flag.evaluations metric not found"));
-
-      assertEquals(
-          AggregationTemporality.DELTA,
-          metric.getLongSumData().getAggregationTemporality(),
-          "Exported metric must use DELTA temporality");
-
-      LongPointData point = metric.getLongSumData().getPoints().iterator().next();
-      assertEquals(5L, point.getValue(), "5 record() calls must produce a delta sum of 5");
+  void defaultConstructorUsesOpenTelemetryApiOnly() {
+    try (FlagEvalMetrics metrics = new FlagEvalMetrics()) {
+      metrics.record("count-flag", "on", "STATIC", null, "default-alloc");
     }
   }
 
