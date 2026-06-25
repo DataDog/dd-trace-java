@@ -73,23 +73,21 @@ class ContextProvidersForkedTest {
 
           @Override
           public ContextScope attach(Context context) {
-            return new ContextScope() {
-              @Override
-              public Context context() {
-                return root();
-              }
-
-              @Override
-              public void close() {
-                // no-op
-              }
-            };
+            return new NoopContextScope(root());
           }
 
           @Override
           public Context swap(Context context) {
             return root();
           }
+
+          @Override
+          public ContextContinuation capture(Context context) {
+            return new NoopContextContinuation(root());
+          }
+
+          @Override
+          public void addListener(ContextListener listener) {}
         });
 
     // NOOP manager, context will always be root
