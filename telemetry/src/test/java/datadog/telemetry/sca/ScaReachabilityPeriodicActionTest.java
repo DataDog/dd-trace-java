@@ -616,4 +616,59 @@ class ScaReachabilityPeriodicActionTest {
         "CVE metadata must NOT be lost — a single merged entry must carry both CVE data and source/hash");
     assertTrue(emitted.reachabilityMetadata.get(0).contains("GHSA-hf5p-test"));
   }
+
+  /**
+   * Same physical copy (identical source/hash) re-detected on a later heartbeat must NOT be
+   * re-emitted — the backend already received it. Mirrors a Spring Boot {@code
+   * LaunchedURLClassLoader} reporting the same nested JAR (same URI) again.
+   */
+  @Test
+  void sameSourceHashReDetected_doesNotReEmit() {
+    DependencyService svc = mock(DependencyService.class);
+    Dependency dep = new Dependency("com.example:lib", "1.0", "lib.jar", "AABB");
+    when(svc.drainDeterminedDependencies())
+        .thenReturn(Collections.singletonList(dep)) // HB1: first detection
+        .thenReturn(Collections.singletonList(dep)); // HB2: same physical copy re-detected
+    ScaReachabilityPeriodicAction merged = new ScaReachabilityPeriodicAction(svc);
+
+    // HB1: first detection → emits metadata:[] (SCA monitoring signal)
+    merged.doIteration(telService);
+    verify(telService, times(1)).addDependency(any(Dependency.class));
+    reset(telService);
+
+    // HB2: same source/hash → backend already knows it → no emission
+    merged.doIteration(telService);
+    verify(telService, never()).addDependency(any());
+  }
+
+  /**
+   * Two physical copies of the same {@code name@version} but with different source/hash (e.g. two
+   * Tomcat webapps each shipping their own copy of the artifact) must BOTH be emitted, matching the
+   * legacy {@code DependencyPeriodicAction} behavior.
+   */
+  @Test
+  void differentSourceHashSameKey_emitsBothPhysicalCopies() {
+    DependencyService svc = mock(DependencyService.class);
+    Dependency copy1 = new Dependency("com.example:lib", "1.0", "/app1/lib.jar", "AABB");
+    Dependency copy2 = new Dependency("com.example:lib", "1.0", "/app2/lib.jar", "CCDD");
+    when(svc.drainDeterminedDependencies())
+        .thenReturn(Collections.singletonList(copy1)) // HB1: first physical copy
+        .thenReturn(Collections.singletonList(copy2)); // HB2: distinct physical copy
+    ScaReachabilityPeriodicAction merged = new ScaReachabilityPeriodicAction(svc);
+
+    // HB1: first copy → emitted
+    merged.doIteration(telService);
+    ArgumentCaptor<Dependency> captor1 = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor1.capture());
+    assertEquals("/app1/lib.jar", captor1.getValue().source);
+    assertEquals("AABB", captor1.getValue().hash);
+    reset(telService);
+
+    // HB2: different source/hash → new physical copy → also emitted
+    merged.doIteration(telService);
+    ArgumentCaptor<Dependency> captor2 = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor2.capture());
+    assertEquals("/app2/lib.jar", captor2.getValue().source);
+    assertEquals("CCDD", captor2.getValue().hash);
+  }
 }
