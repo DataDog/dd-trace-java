@@ -6,6 +6,14 @@ muzzle {
     skipVersions += '3.1-jenkins-1'
     skipVersions += '2.0-final'
   }
+  pass {
+    name = 'commons-http-client-x' // for IAST instrumenters
+    group = "commons-httpclient"
+    module = "commons-httpclient"
+    versions = "[2.0,4.0)"
+    skipVersions += '3.1-jenkins-1'
+    skipVersions += '2.0-final'
+  }
   fail {
     group = "commons-httpclient"
     module = "commons-httpclient"
