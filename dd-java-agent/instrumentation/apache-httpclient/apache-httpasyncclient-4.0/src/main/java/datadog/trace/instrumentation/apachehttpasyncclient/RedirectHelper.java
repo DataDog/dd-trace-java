@@ -53,7 +53,11 @@ public final class RedirectHelper {
       return originalUri;
     }
     HttpHost host = (HttpHost) targetHost;
-    return URI.create(host.toURI()).resolve(originalUri);
+    try {
+      return URI.create(host.toURI()).resolve(originalUri);
+    } catch (IllegalArgumentException e) {
+      return originalUri;
+    }
   }
 
   private static int effectivePort(final URI uri) {
