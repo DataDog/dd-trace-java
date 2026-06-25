@@ -130,6 +130,17 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
 tasks.register('forkedTest', Test) {
   group = LifecycleBasePlugin.VERIFICATION_GROUP
   useJUnitPlatform()
+  testClassesDirs = sourceSets.test.output.classesDirs
+  classpath = sourceSets.test.runtimeClasspath
+}
+
+// testRuntimeActivation is registered in individual module build files after this convention is
+// applied, so tasks.named() won't work here — use a lazy hook that intercepts it on registration.
+tasks.withType(Test).configureEach {
+  if (name == 'testRuntimeActivation') {
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+  }
 }
 
 def applyCodeCoverage = !(
@@ -196,6 +207,9 @@ tasks.withType(Javadoc).configureEach {
 }
 
 tasks.named("javadoc", Javadoc) {
+  javadocTool = javaToolchains.javadocToolFor {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
   source = sourceSets.main.java.srcDirs
   classpath = configurations.compileClasspath
 

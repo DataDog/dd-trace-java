@@ -2,10 +2,10 @@ package datadog.telemetry.metric;
 
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import datadog.trace.api.telemetry.MetricCollector;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import javax.annotation.Nonnull;
 
 public class CoreMetricsPeriodicAction extends MetricPeriodicAction {
-  @NonNull
+  @Nonnull
   @Override
   public MetricCollector collector() {
     return CoreMetricCollector.getInstance();

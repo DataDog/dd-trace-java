@@ -1,5 +1,6 @@
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.mass'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -7,20 +8,87 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Tomcat Smoke Tests.'
 
 def serverName = 'tomcat'
+def serverModule = 'tomcat-9'
 def serverVersion = '9.0.117'
+def serverExtension = 'zip'
+
+repositories {
+  ivy {
+    url = mass.artifactUrl('dlcdn.apache.org')
+    content {
+      includeGroup serverName
+    }
+    patternLayout {
+      artifact '/[organisation]/[module]/v[revision]/bin/apache-[organisation]-[revision].[ext]'
+    }
+    metadataSources {
+      it.artifact()
+    }
+  }
+}
+
+configurations {
+  register('serverFile') {
+    canBeConsumed = false
+    canBeResolved = true
+  }
+}
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'bootWar'
     artifactPath = 'libs/springboot-tomcat-smoketest.war'
     sysProperty = 'datadog.smoketest.springboot.war.path'
-    additionalSystemProperties.put('datadog.smoketest.tomcatDir', "apache-${serverName}-${serverVersion}")
   }
 }
 
 dependencies {
+  // Uses the ivy repository url to download the Tomcat server zip.
+  // organisation = serverName, module = serverModule, revision = serverVersion,
+  // ext = serverExtension
+  serverFile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
+
   testImplementation project(':dd-smoke-tests')
   testImplementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
+}
+
+def serverDirectory = layout.buildDirectory.dir("server")
+
+tasks.register("unzip", Copy) {
+  def zipFileNamePrefix = "tomcat"
+  def serverZipTree = providers.provider {
+    // eager access
+    def zipPath = project.configurations.serverFile.find {
+      it.name.startsWith(zipFileNamePrefix)
+    }
+    if (zipPath == null) {
+      throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
+    }
+    zipTree(zipPath)
+  }
+
+  from serverZipTree
+  into serverDirectory
+
+  // When tests are disabled this would still be run, so disable this manually
+  onlyIf { !project.rootProject.hasProperty("skipTests") }
+}
+
+def tomcatDir = serverDirectory.map {
+  it.dir("apache-${serverName}-${serverVersion}")
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn 'unzip'
+
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return tomcatDir.map {
+          ["-Ddatadog.smoketest.tomcatDir=${it.asFile.absolutePath}"]
+        }.get()
+      }
+    })
 }
 
 spotless {

@@ -21,11 +21,11 @@ jobs:
           policy: self.update-gradle-dependencies.create-pr
 
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
         with:
           submodules: "recursive"
 
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -68,14 +68,22 @@ jobs:
             --min-age-hours "${MIN_DEPENDENCY_AGE_HOURS}" \
             --repo-url "https://repo1.maven.org/maven2" \
             --repo-url "https://repo.akka.io/${AKKA_REPO_TOKEN}/secure" \
+            --repo-url "https://packages.confluent.io/maven" \
+            --repo-url "https://repository.mulesoft.org/releases" \
+            --repo-url "https://repository.mulesoft.org/nexus/content/repositories/public" \
             --github-output "$GITHUB_OUTPUT"
 
       - name: Save instrumentation lock files
         run: |
           mkdir -p /tmp/instrumentation-lockfiles
           find dd-smoke-tests dd-java-agent/instrumentation -name 'gradle.lockfile' -exec cp --parents {} /tmp/instrumentation-lockfiles/ \;
-          # Restore instrumentation dirs to original state (keep only core changes)
+          # Restore instrumentation dirs to original state (keep only core changes).
+          # git restore only reverts tracked files; brand-new lock files are untracked
+          # and would otherwise leak into the core PR, so delete the untracked ones too.
           git restore -- 'dd-smoke-tests/' 'dd-java-agent/instrumentation/'
+          git ls-files --others --exclude-standard -- \
+            'dd-smoke-tests/*gradle.lockfile' 'dd-java-agent/instrumentation/*gradle.lockfile' \
+            | xargs -r rm -f
 
       # ==================== Core modules PR ====================
       - name: Check if core changes exist
@@ -108,7 +116,7 @@ jobs:
         if: steps.check-core-changes.outputs.commit_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
-          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary }}
+          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary_core }}
         run: |
           gh pr create --title "Update Gradle dependencies" \
             --base master \
@@ -168,7 +176,7 @@ jobs:
         if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
-          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary }}
+          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary_instrumentation }}
         run: |
           gh pr create --title "Update instrumentation Gradle dependencies" \
             --base master \

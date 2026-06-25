@@ -30,7 +30,7 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
     }
 
     dependencies {
-      implementation("net.bytebuddy:byte-buddy:1.18.8")
+      implementation("net.bytebuddy:byte-buddy:1.18.10")
       implementation("com.google.auto.service:auto-service-annotations:1.1.1")
     }
   """
