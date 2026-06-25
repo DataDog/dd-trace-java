@@ -451,10 +451,12 @@ class WafMetricCollectorTest extends DDSpecification {
     def metrics = collector.drain()
     def requestMetrics = metrics.findAll { it.metricName == 'waf.requests' }
 
+    requestMetrics.size() == 1
     final metric = requestMetrics[0]
     metric.type == 'count'
     metric.metricName == 'waf.requests'
     metric.namespace == 'appsec'
+    metric.value == 1
     metric.tags == [
       "waf_version:waf_ver1",
       "event_rules_version:rules.1",
@@ -469,7 +471,16 @@ class WafMetricCollectorTest extends DDSpecification {
     ]
 
     where:
-    [triggered, blocked, wafError, wafTimeout, blockFailure, rateLimited, inputTruncated, requestExcluded] << allBooleanCombinations(8)
+    [
+      triggered,
+      blocked,
+      wafError,
+      wafTimeout,
+      blockFailure,
+      rateLimited,
+      inputTruncated,
+      requestExcluded
+    ] << allBooleanCombinations(8)
   }
 
   void 'test waf input truncated metrics'() {

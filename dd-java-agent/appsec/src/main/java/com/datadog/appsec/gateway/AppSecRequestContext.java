@@ -288,6 +288,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return wafRateLimited;
   }
 
+  // placeholder: libddwaf does not yet expose exclusion filter results
   public void setWafRequestExcluded() {
     wafRequestExcluded = true;
   }
