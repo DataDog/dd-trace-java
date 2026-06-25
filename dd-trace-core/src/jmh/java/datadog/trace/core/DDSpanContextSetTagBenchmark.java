@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.Writer;
 import java.util.List;
@@ -39,9 +40,52 @@ public class DDSpanContextSetTagBenchmark {
   private static final CoreTracer TRACER =
       CoreTracer.builder().writer(new NoopWriter()).strictTraceWrites(false).build();
 
+  // A realistic mix set on one span: ~1/3 intercepted (resource/status/kind/error/service), ~2/3
+  // ordinary app/integration tags. Cycling these through a single setTag call site keeps the
+  // handlerId/handleIntercept dispatch polymorphic and interleaves the store -- closer to
+  // production
+  // than the single-arm benchmarks, and it should keep C2 out of the degenerate single-mode that
+  // the
+  // notIntercepted-only loop locks into. setTag(String, Object) is the manual-instrumentation path.
+  private static final String[] MIXED_TAGS = {
+    DDTags.RESOURCE_NAME,
+    "http.useragent",
+    "db.instance",
+    Tags.HTTP_STATUS,
+    "component",
+    "thread.name",
+    Tags.SPAN_KIND,
+    "messaging.system",
+    "network.peer.address",
+    Tags.ERROR,
+    "http.route",
+    DDTags.SERVICE_NAME,
+    "rpc.method",
+    "app.queue.depth",
+    "http.request.content_length"
+  };
+  private static final Object[] MIXED_VALUES = {
+    "GET /api/users",
+    "Mozilla/5.0",
+    "orders",
+    200,
+    "netty",
+    "worker-1",
+    "server",
+    "kafka",
+    "10.0.0.1",
+    Boolean.FALSE,
+    "/api/users/{id}",
+    "my-service",
+    "GetUser",
+    42,
+    1024
+  };
+
   @State(Scope.Thread)
   public static class SpanState {
     DDSpan span;
+    int mixIdx;
 
     @Setup
     public void setup() {
@@ -58,6 +102,14 @@ public class DDSpanContextSetTagBenchmark {
   @Benchmark
   public Object notIntercepted(SpanState s) {
     return s.span.setTag("app.queue.depth", 200);
+  }
+
+  /** Realistic mix of intercepted + non-intercepted tags cycled through one setTag call site. */
+  @Benchmark
+  public Object mixed(SpanState s) {
+    int i = s.mixIdx;
+    s.mixIdx = (i + 1 == MIXED_TAGS.length) ? 0 : i + 1;
+    return s.span.setTag(MIXED_TAGS[i], MIXED_VALUES[i]);
   }
 
   static final class NoopWriter implements Writer {
