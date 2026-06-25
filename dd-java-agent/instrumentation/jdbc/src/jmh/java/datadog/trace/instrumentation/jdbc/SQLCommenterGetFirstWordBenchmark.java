@@ -32,21 +32,22 @@ import org.openjdk.jmh.annotations.Warmup;
  *   ./gradlew :dd-java-agent:instrumentation:jdbc:jmh   # add -prof gc
  * </pre>
  *
- * <p><b>Results</b> (JDK 25, MacBook M-series, {@code @Threads(8)}, {@code @Fork(2)}, {@code -prof
+ * <p><b>Results</b> (JDK 17, MacBook M-series, {@code @Threads(8)}, {@code @Fork(5)}, {@code -prof
  * gc}):
  *
  * <pre>
  *                        throughput            gc.alloc.rate.norm
- *   before (substring)   234.8M ± 23.2M ops/s   48 B/op
- *   after  (SubSequence) 378.2M ± 30.4M ops/s   ~0 B/op  (0.001)
+ *   before (substring)   258.1M ± 21.0M ops/s   48 B/op
+ *   after  (SubSequence) 508.0M ± 21.6M ops/s   ~0 B/op  (10^-4)
  * </pre>
  *
  * Escape analysis fully elides the view in the transient consumption (it never escapes the
  * decision), so the per-call 48 B/op of the old {@code substring} (a String + its backing array)
- * drops to ~0 and throughput rises ~1.6x at {@code @Threads(8)}. The wide {@code @Fork(2)} error is
- * bimodal JIT, not the signal: the allocation delta is exact and the throughput gap clears it.
+ * drops to ~0 and throughput rises ~2x at {@code @Threads(8)} — the allocation win surfacing as
+ * throughput. At {@code @Fork(5)} the error tightens (the earlier {@code @Fork(2)} spread was
+ * bimodal JIT, not signal); the allocation delta is exact and the throughput gap clears it.
  */
-@Fork(2)
+@Fork(5)
 @Warmup(iterations = 2)
 @Measurement(iterations = 5)
 @Threads(8)
