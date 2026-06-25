@@ -1,3 +1,5 @@
+import static org.gradle.api.JavaVersion.VERSION_25
+
 plugins {
   id 'idea'
   id 'dd-trace-java.module.instrumentation'
@@ -6,11 +8,7 @@ plugins {
 }
 
 testJvmConstraints {
-  minJavaVersion = JavaVersion.VERSION_25
-}
-
-tasks.named('compileTestJava', JavaCompile) {
-  configureCompiler(it, 25, JavaVersion.VERSION_25)
+  minJavaVersion = VERSION_25
 }
 
 muzzle {
@@ -23,4 +21,34 @@ idea {
   module {
     jdkName = '25'
   }
+}
+
+/*
+ * Declare default tests.
+ */
+tasks.named('compileTestJava', JavaCompile) {
+  configureCompiler(it, 25, VERSION_25)
+}
+
+/*
+ * Declare previewTest, a test suite that requires the Javac/Java --enable-preview feature flag
+ */
+addTestSuite('previewTest')
+
+// Configure tests compilation
+tasks.named("compilePreviewTestJava", JavaCompile) {
+  configureCompiler(it, 25)
+  options.compilerArgs.add("--enable-preview")
+}
+// Configure tests execution
+tasks.named("previewTest", Test) {
+  jvmArgs = ['--enable-preview']
+}
+// Require the preview test suite to run as part of module check
+tasks.named("check") {
+  dependsOn "previewTest"
+}
+
+dependencies {
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
 }
