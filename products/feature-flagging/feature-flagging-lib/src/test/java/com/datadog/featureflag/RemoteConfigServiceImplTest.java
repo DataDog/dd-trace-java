@@ -173,6 +173,62 @@ class RemoteConfigServiceImplTest {
     assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
   }
 
+  @Test
+  void serialIdPresentInSplitDeserializesCorrectly() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{"
+                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+                + "\"format\":\"SERVER\","
+                + "\"environment\":{\"name\":\"Test\"},"
+                + "\"flags\":{"
+                + "\"serial-flag\":{"
+                + "\"key\":\"serial-flag\","
+                + "\"enabled\":true,"
+                + "\"variationType\":\"STRING\","
+                + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"on\"}},"
+                + "\"allocations\":[{"
+                + "\"key\":\"alloc\","
+                + "\"splits\":[{\"variationKey\":\"on\",\"shards\":[],\"serialId\":42}],"
+                + "\"doLog\":false"
+                + "}]"
+                + "}"
+                + "}"
+                + "}");
+
+    assertNotNull(config);
+    assertEquals(
+        Integer.valueOf(42),
+        config.flags.get("serial-flag").allocations.get(0).splits.get(0).serialId);
+  }
+
+  @Test
+  void serialIdAbsentInSplitDeserializesToNull() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{"
+                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+                + "\"format\":\"SERVER\","
+                + "\"environment\":{\"name\":\"Test\"},"
+                + "\"flags\":{"
+                + "\"no-serial-flag\":{"
+                + "\"key\":\"no-serial-flag\","
+                + "\"enabled\":true,"
+                + "\"variationType\":\"STRING\","
+                + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"on\"}},"
+                + "\"allocations\":[{"
+                + "\"key\":\"alloc\","
+                + "\"splits\":[{\"variationKey\":\"on\",\"shards\":[]}],"
+                + "\"doLog\":false"
+                + "}]"
+                + "}"
+                + "}"
+                + "}");
+
+    assertNotNull(config);
+    assertNull(config.flags.get("no-serial-flag").allocations.get(0).splits.get(0).serialId);
+  }
+
   @TableTest({
     "scenario                                  | value                            | expectedEpochMilli",
     "utc second                                | '2023-01-01T00:00:00Z'           | 1672531200000     ",

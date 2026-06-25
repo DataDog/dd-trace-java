@@ -198,6 +198,49 @@ public class DDEvaluatorTest {
   }
 
   @Test
+  public void testSerialIdSurfacedInFlagMetadata() {
+    final Map<String, Variant> variants = new HashMap<>();
+    variants.put("on", new Variant("on", "test-value"));
+    final List<Split> splits = singletonList(new Split(emptyList(), "on", null, 42));
+    final List<Allocation> allocations =
+        singletonList(new Allocation("alloc1", null, null, null, splits, false));
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "serial-id-flag",
+        new Flag("serial-id-flag", true, ValueType.STRING, variants, allocations));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration(null, null, null, flags));
+
+    final ProviderEvaluation<?> details =
+        evaluator.evaluate(
+            String.class, "serial-id-flag", "default", new MutableContext("user-123"));
+
+    assertThat(details.getFlagMetadata().getString("__dd_split_serial_id"), equalTo("42"));
+    assertThat(details.getFlagMetadata().getString("__dd_do_log"), equalTo("false"));
+  }
+
+  @Test
+  public void testNullSerialIdAbsentFromFlagMetadata() {
+    final Map<String, Variant> variants = new HashMap<>();
+    variants.put("on", new Variant("on", "test-value"));
+    final List<Split> splits = singletonList(new Split(emptyList(), "on", null, null));
+    final List<Allocation> allocations =
+        singletonList(new Allocation("alloc1", null, null, null, splits, false));
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "no-serial-id-flag",
+        new Flag("no-serial-id-flag", true, ValueType.STRING, variants, allocations));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration(null, null, null, flags));
+
+    final ProviderEvaluation<?> details =
+        evaluator.evaluate(
+            String.class, "no-serial-id-flag", "default", new MutableContext("user-123"));
+
+    assertThat(details.getFlagMetadata().getString("__dd_split_serial_id"), nullValue());
+  }
+
+  @Test
   public void testNoAllocations() {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("null-allocation", new Flag("target", true, null, null, null));
