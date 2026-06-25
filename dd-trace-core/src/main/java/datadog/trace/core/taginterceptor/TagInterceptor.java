@@ -71,38 +71,46 @@ public class TagInterceptor {
   private static final int ID_SPAN_KIND = 20;
   private static final int ID_SPLIT_SERVICE = 21; // a Config split-by-tag (not a fixed case)
 
-  // Static membership/dispatch index over the compile-time-fixed intercepted tags. Split-by-tags
-  // are
-  // Config-driven, so they stay a per-instance check (see handlerId) and never enter this index --
-  // which keeps it a plain static (no Config, no init-timing holder).
-  private static final StringIndex FIXED =
-      StringIndex.of(
-          DDTags.RESOURCE_NAME,
-          Tags.DB_STATEMENT,
-          DDTags.SERVICE_NAME,
-          "service",
-          Tags.PEER_SERVICE,
-          DDTags.MANUAL_KEEP,
-          DDTags.MANUAL_DROP,
-          Tags.ASM_KEEP,
-          Tags.AI_GUARD_KEEP,
-          Tags.SAMPLING_PRIORITY,
-          Tags.PROPAGATED_TRACE_SOURCE,
-          Tags.PROPAGATED_DEBUG,
-          SERVLET_CONTEXT,
-          SPAN_TYPE,
-          ANALYTICS_SAMPLE_RATE,
-          Tags.ERROR,
-          HTTP_STATUS,
-          HTTP_METHOD,
-          HTTP_URL,
-          ORIGIN_KEY,
-          MEASURED,
-          Tags.SPAN_KIND);
+  // Membership/dispatch index over the compile-time-fixed intercepted tags, held as the raw placed
+  // arrays (not a StringIndex instance) so handlerId's hot-path lookup folds the refs to constants
+  // via Support.indexOf -- the path StringIndex recommends for hot code. Split-by-tags are
+  // Config-driven, so they stay a per-instance check (see handlerId) and never enter this index.
+  private static final int[] FIXED_HASHES;
+  private static final String[] FIXED_NAMES;
   // Slot-aligned handler ids (built once). The name->id switch runs only at class init.
-  private static final int[] FIXED_IDS = FIXED.mapValues(TagInterceptor::fixedId);
+  private static final int[] FIXED_HANDLER_IDS;
 
-  private static int fixedId(String tag) {
+  static {
+    StringIndex.Data fixed =
+        StringIndex.Support.create(
+            DDTags.RESOURCE_NAME,
+            Tags.DB_STATEMENT,
+            DDTags.SERVICE_NAME,
+            "service",
+            Tags.PEER_SERVICE,
+            DDTags.MANUAL_KEEP,
+            DDTags.MANUAL_DROP,
+            Tags.ASM_KEEP,
+            Tags.AI_GUARD_KEEP,
+            Tags.SAMPLING_PRIORITY,
+            Tags.PROPAGATED_TRACE_SOURCE,
+            Tags.PROPAGATED_DEBUG,
+            SERVLET_CONTEXT,
+            SPAN_TYPE,
+            ANALYTICS_SAMPLE_RATE,
+            Tags.ERROR,
+            HTTP_STATUS,
+            HTTP_METHOD,
+            HTTP_URL,
+            ORIGIN_KEY,
+            MEASURED,
+            Tags.SPAN_KIND);
+    FIXED_HASHES = fixed.hashes;
+    FIXED_NAMES = fixed.names;
+    FIXED_HANDLER_IDS = StringIndex.Support.mapValues(FIXED_NAMES, TagInterceptor::fixedHandlerId);
+  }
+
+  private static int fixedHandlerId(String tag) {
     switch (tag) {
       case DDTags.RESOURCE_NAME:
         return ID_RESOURCE_NAME;
@@ -212,14 +220,14 @@ public class TagInterceptor {
 
   /**
    * Resolves {@code tag} to a dispatch handler id ({@code ID_*}), or {@code 0} when not
-   * intercepted. Fixed (compile-time) tags come from the static {@link #FIXED} index; a Config
+   * intercepted. Fixed (compile-time) tags come from the static {@code FIXED_*} index; a Config
    * split-by-tag -- checked only on a fixed miss -- resolves to {@link #ID_SPLIT_SERVICE}. Fixed
    * wins when a tag is both, matching the original switch order.
    */
   public int handlerId(String tag) {
-    int slot = FIXED.indexOf(tag);
+    int slot = StringIndex.Support.indexOf(FIXED_HASHES, FIXED_NAMES, tag);
     if (slot >= 0) {
-      return FIXED_IDS[slot];
+      return FIXED_HANDLER_IDS[slot];
     }
     return hasSplitTags && splitServiceTags.contains(tag) ? ID_SPLIT_SERVICE : 0;
   }

@@ -72,7 +72,8 @@ public final class StringIndex {
    * Builds a slot-aligned value array: {@code out[indexOf(name)] == fn.applyAsInt(name)} for every
    * indexed name. Pair with {@link #indexOf} to use this StringIndex as a string-&gt;int map
    * without per-lookup hashing. Empty slots hold 0 and are never read ({@code indexOf} returns -1
-   * for non-members).
+   * for non-members). For the hot path, prefer the raw {@link Support#mapValues} + {@link
+   * Support#indexOf} over {@code static final} arrays (the JIT folds the refs).
    */
   public int[] mapValues(ToIntFunction<String> fn) {
     return Support.mapValues(this.names, fn);

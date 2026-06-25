@@ -14,15 +14,15 @@ import org.openjdk.jmh.annotations.Warmup;
 
 /**
  * Benchmark for {@code DDSpanContext.setTag} on a <b>primitive</b> value -- the path the caller
- * collapse touched. Before: {@code precheckIntercept} (an {@code isOptimized} call + a
- * {@code needsIntercept} resolve) and then, when intercepted, a second resolve inside
- * {@code interceptTag}. After: one {@code handlerId} resolve, then {@code handleIntercept(handlerId)}
+ * collapse touched. Before: {@code precheckIntercept} (an {@code isOptimized} call + a {@code
+ * needsIntercept} resolve) and then, when intercepted, a second resolve inside {@code
+ * interceptTag}. After: one {@code handlerId} resolve, then {@code handleIntercept(handlerId)}
  * directly.
  *
- * <p>Two paths: <b>intercepted</b> (e.g. {@code http.status_code} -- exercises the double-&gt;single
- * resolve), and <b>notIntercepted</b> (an app metric -- exercises the dropped {@code isOptimized}
- * call; stores the primitive without boxing). Per-thread span so the (mutating) {@code setTag} has no
- * cross-thread contention under {@code @Threads(8)}.
+ * <p>Two paths: <b>intercepted</b> (e.g. {@code http.status_code} -- exercises the
+ * double-&gt;single resolve), and <b>notIntercepted</b> (an app metric -- exercises the dropped
+ * {@code isOptimized} call; stores the primitive without boxing). Per-thread span so the (mutating)
+ * {@code setTag} has no cross-thread contention under {@code @Threads(8)}.
  *
  * <p>Run before (pre-collapse DDSpanContext) vs after by toggling DDSpanContext.java.
  *
