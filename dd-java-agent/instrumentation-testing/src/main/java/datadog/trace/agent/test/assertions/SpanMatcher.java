@@ -332,15 +332,15 @@ public final class SpanMatcher {
       this.parentIdMatcher = is(previousSpan.getSpanId());
     }
     // Assert span values
-    assertValue(this.traceIdMatcher, span.getTraceId(), "Expected trace identifier");
-    assertValue(this.idMatcher, span.getSpanId(), "Expected identifier");
-    assertValue(this.parentIdMatcher, span.getParentId(), "Expected parent identifier");
-    assertValue(this.serviceNameMatcher, span.getServiceName(), "Expected service name");
-    assertValue(this.operationNameMatcher, span.getOperationName(), "Expected operation name");
-    assertValue(this.resourceNameMatcher, span.getResourceName(), "Expected resource name");
-    assertValue(this.durationMatcher, ofNanos(span.getDurationNano()), "Expected duration");
-    assertValue(this.typeMatcher, span.getSpanType(), "Expected span type");
-    assertValue(this.errorMatcher, span.isError(), "Expected error status");
+    assertValue(this.traceIdMatcher, span.getTraceId(), "Unexpected trace identifier");
+    assertValue(this.idMatcher, span.getSpanId(), "Unexpected identifier");
+    assertValue(this.parentIdMatcher, span.getParentId(), "Unexpected parent identifier");
+    assertValue(this.serviceNameMatcher, span.getServiceName(), "Unexpected service name");
+    assertValue(this.operationNameMatcher, span.getOperationName(), "Unexpected operation name");
+    assertValue(this.resourceNameMatcher, span.getResourceName(), "Unexpected resource name");
+    assertValue(this.durationMatcher, ofNanos(span.getDurationNano()), "Unexpected duration");
+    assertValue(this.typeMatcher, span.getSpanType(), "Unexpected span type");
+    assertValue(this.errorMatcher, span.isError(), "Unexpected error status");
     assertSpanTags(span.getTags());
     assertSpanLinks(spanLinks(span));
   }
