@@ -216,7 +216,7 @@ public class TagInterceptor {
    * split-by-tag -- checked only on a fixed miss -- resolves to {@link #ID_SPLIT_SERVICE}. Fixed
    * wins when a tag is both, matching the original switch order.
    */
-  int handlerId(String tag) {
+  public int handlerId(String tag) {
     int slot = FIXED.indexOf(tag);
     if (slot >= 0) {
       return FIXED_IDS[slot];
@@ -228,12 +228,12 @@ public class TagInterceptor {
    * Convenience: resolve the handler id and dispatch. {@code id == 0} short-circuits (not ours).
    */
   public boolean interceptTag(DDSpanContext span, String tag, Object value) {
-    int id = handlerId(tag);
-    return id != 0 && handleIntercept(span, id, tag, value);
+    int handlerId = handlerId(tag);
+    return handlerId != 0 && handleIntercept(span, handlerId, tag, value);
   }
 
-  boolean handleIntercept(DDSpanContext span, int id, String tag, Object value) {
-    switch (id) {
+  public boolean handleIntercept(DDSpanContext span, int handlerId, String tag, Object value) {
+    switch (handlerId) {
       case ID_RESOURCE_NAME:
         return interceptResourceName(span, value);
       case ID_DB_STATEMENT:
