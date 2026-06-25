@@ -5,6 +5,7 @@ import static datadog.crashtracking.Initializer.LOG;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getOomeNotifierTemplate;
 import static datadog.crashtracking.Initializer.getScriptPathFromArg;
+import static datadog.crashtracking.Initializer.isOwnedAndPrivate;
 import static datadog.crashtracking.Initializer.pidFromSpecialFileName;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
@@ -22,12 +23,12 @@ public final class OOMENotifierScriptInitializer {
   private OOMENotifierScriptInitializer() {}
 
   @VisibleForTesting
-  static void initialize(String onOutOfMemoryVal) {
+  static boolean initialize(String onOutOfMemoryVal) {
     if (onOutOfMemoryVal == null || onOutOfMemoryVal.isEmpty()) {
       LOG.debug(
           SEND_TELEMETRY,
           "'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled.");
-      return;
+      return false;
     }
     File scriptFile = getOOMEScriptFile(onOutOfMemoryVal);
     if (scriptFile == null) {
@@ -35,19 +36,20 @@ public final class OOMENotifierScriptInitializer {
           SEND_TELEMETRY,
           "OOME notifier script value ({}) does not follow the expected format: <path>/dd_oome_notifier.(sh|bat) %p. OOME tracking is disabled.",
           onOutOfMemoryVal);
-      return;
+      return false;
     }
     String agentJar = findAgentJar();
     if (agentJar == null) {
       LOG.warn(
           SEND_TELEMETRY,
           "Unable to locate the agent jar. OOME notification will not work properly.");
-      return;
+      return false;
     }
     if (!copyOOMEscript(scriptFile)) {
-      return;
+      return false;
     }
     writeConfigToPath(scriptFile, "agent", agentJar);
+    return true;
   }
 
   private static File getOOMEScriptFile(String onOutOfMemoryVal) {
@@ -58,12 +60,17 @@ public final class OOMENotifierScriptInitializer {
   private static boolean copyOOMEscript(File scriptFile) {
     File scriptDirectory = scriptFile.getParentFile();
 
-    // cleanup all stale process-specific generated files in the parent folder of the given OOME
-    // notifier script
-    runScriptCleanup(scriptDirectory);
-
     if (scriptDirectory.exists()) {
-      // can be safely ignored; if the folder exists we will just reuse it
+      if (!isOwnedAndPrivate(scriptDirectory)) {
+        LOG.warn(
+            SEND_TELEMETRY,
+            "Untrusted OOME script folder {} (wrong owner or group/world bits set). OOME notification will not work properly.",
+            scriptDirectory);
+        return false;
+      }
+      // cleanup all stale process-specific generated files in the parent folder of the given OOME
+      // notifier script
+      runScriptCleanup(scriptDirectory);
       if (!scriptDirectory.canWrite()) {
         LOG.warn(
             SEND_TELEMETRY,
@@ -79,19 +86,27 @@ public final class OOMENotifierScriptInitializer {
             scriptDirectory);
         return false;
       }
-      scriptDirectory.setReadable(true, false);
-      scriptDirectory.setWritable(true, false);
-      scriptDirectory.setExecutable(true, false);
+      scriptDirectory.setReadable(true, true);
+      scriptDirectory.setWritable(true, true);
+      scriptDirectory.setExecutable(true, true);
     }
 
     try {
       // do not overwrite existing
       if (!scriptFile.exists()) {
         copyStream(getOomeNotifierTemplate(), scriptFile);
+        scriptFile.setReadable(true, true);
+        scriptFile.setWritable(false, false);
+        scriptFile.setExecutable(true, true);
+      } else {
+        if (!isOwnedAndPrivate(scriptFile)) {
+          LOG.warn(
+              SEND_TELEMETRY,
+              "Untrusted OOME script {} (wrong owner or group/world-writable). OOME notification will not work properly.",
+              scriptFile);
+          return false;
+        }
       }
-      scriptFile.setReadable(true, false);
-      scriptFile.setWritable(false, false);
-      scriptFile.setExecutable(true, false);
     } catch (IOException e) {
       LOG.warn(
           SEND_TELEMETRY,

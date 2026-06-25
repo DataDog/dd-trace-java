@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS_COMMA_ALLOWED;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.DatadogHttpCodec.DATADOG_TAGS_KEY;
@@ -8,7 +9,8 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.OT_BAGGAGE_PREFIX;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY;
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectEnvConfig;
+import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
+import static datadog.trace.junit.utils.converter.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -22,233 +24,112 @@ import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
-import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.TraceConfig;
 import datadog.trace.api.internal.util.LongStringUtils;
-import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.junit.utils.config.WithConfig;
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
-import datadog.trace.test.util.DDJavaSpecification;
-import java.util.LinkedHashMap;
+import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
+import datadog.trace.junit.utils.converter.TraceIdConverter;
+import java.util.HashMap;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
-@WithConfig(key = "propagation.extract.log_header_names.enabled", value = "true")
-class DatadogHttpExtractorTest extends DDJavaSpecification {
-
-  private static final String SOME_HEADER = "SOME_HEADER";
-  private static final String SOME_CUSTOM_BAGGAGE_HEADER = "SOME_CUSTOM_BAGGAGE_HEADER";
-  private static final String SOME_CUSTOM_BAGGAGE_HEADER_2 = "SOME_CUSTOM_BAGGAGE_HEADER_2";
-  private static final String SOME_ARBITRARY_HEADER = "SOME_ARBITRARY_HEADER";
-  private static final String SOME_TAG = "some-tag";
-  private static final String SOME_BAGGAGE = "some-baggage";
-  private static final String SOME_CASE_SENSITIVE_BAGGAGE = "some-CaseSensitive-baggage";
-
-  private DynamicConfig<DynamicConfig.Snapshot> dynamicConfig;
-  private HttpCodec.Extractor lazyExtractor;
-  private boolean origAppSecActive;
-
-  @BeforeEach
-  void setup() {
-    Map<String, String> baggageMap = new LinkedHashMap<>();
-    baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER, SOME_BAGGAGE);
-    baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER_2, SOME_CASE_SENSITIVE_BAGGAGE);
-    dynamicConfig =
-        DynamicConfig.create()
-            .setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG))
-            .setBaggageMapping(baggageMap)
-            .apply();
-    origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
-    ActiveSubsystems.APPSEC_ACTIVE = true;
-  }
-
-  @AfterEach
-  void teardown() {
-    ActiveSubsystems.APPSEC_ACTIVE = origAppSecActive;
-    extractor().cleanup();
-  }
-
-  private HttpCodec.Extractor extractor() {
-    if (lazyExtractor == null) {
-      lazyExtractor = createExtractor();
-    }
-    return lazyExtractor;
-  }
-
-  private HttpCodec.Extractor createExtractor() {
-    return DatadogHttpCodec.newExtractor(Config.get(), () -> dynamicConfig.captureTraceConfig());
+class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
+  @Override
+  protected HttpCodec.Extractor newExtractor(
+      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+    return DatadogHttpCodec.newExtractor(config, traceConfigSupplier);
   }
 
   @TableTest({
-    "scenario          | traceId                | spanId                 | samplingPriority              | origin   | allowComma",
-    "unset no origin   | '1'                    | '2'                    | PrioritySampling.UNSET        |          | true      ",
-    "keep with origin  | '2'                    | '3'                    | PrioritySampling.SAMPLER_KEEP | 'saipan' | false     ",
-    "uint64 max unset  | '18446744073709551615' | '18446744073709551614' | PrioritySampling.UNSET        | 'saipan' | true      ",
-    "uint64 max-1 keep | '18446744073709551614' | '18446744073709551615' | PrioritySampling.SAMPLER_KEEP | 'saipan' | false     "
+    "scenario          | traceId | spanId  | samplingPriority | origin  ",
+    "unset no origin   | '1'     | '2'     | UNSET            |         ",
+    "keep with origin  | '2'     | '3'     | SAMPLER_KEEP     | 'saipan'",
+    "uint64 max unset  | 'MAX'   | 'MAX-1' | UNSET            | 'saipan'",
+    "uint64 max-1 keep | 'MAX-1' | 'MAX'   | SAMPLER_KEEP     | 'saipan'"
   })
   void extractHttpHeaders(
-      String traceId,
-      String spanId,
-      @ConvertWith(PrioritySamplingConverter.class) int samplingPriority,
-      String origin,
-      boolean allowComma) {
-    injectEnvConfig(
-        "DD_TRACE_REQUEST_HEADER_TAGS_COMMA_ALLOWED", String.valueOf(allowComma), false);
-    HttpCodec.Extractor extractor = createExtractor();
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put("", "empty key");
-    headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
-    headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
-    headers.put((OT_BAGGAGE_PREFIX + "k1").toUpperCase(), "v1");
-    headers.put((OT_BAGGAGE_PREFIX + "k2").toUpperCase(), "v2");
-    headers.put(SOME_HEADER, "my-interesting-info,and-more");
-    headers.put(SOME_CUSTOM_BAGGAGE_HEADER, "my-interesting-baggage-info");
-    headers.put(SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2");
-    if (samplingPriority != UNSET) {
-      headers.put(SAMPLING_PRIORITY_KEY, String.valueOf(samplingPriority));
-    }
-    if (origin != null) {
-      headers.put(ORIGIN_KEY, origin);
-    }
-    String expectedTagValue = allowComma ? "my-interesting-info,and-more" : "my-interesting-info";
+      @ConvertWith(TraceIdConverter.class) String traceId,
+      @ConvertWith(TraceIdConverter.class) String spanId,
+      @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
+      String origin) {
+    // spotless:off
+    Map<String, String> headers = headers(
+        "", "empty key",
+        TRACE_ID_KEY, traceId,
+        SPAN_ID_KEY, spanId,
+        OT_BAGGAGE_PREFIX + "k1", "v1",
+        OT_BAGGAGE_PREFIX + "k2", "v2",
+        SOME_HEADER, "my-interesting-info,and-more",
+        SOME_CUSTOM_BAGGAGE_HEADER, "my-interesting-baggage-info",
+        SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2",
+        SAMPLING_PRIORITY_KEY, samplingPriority != UNSET ? String.valueOf(samplingPriority) : null,
+        ORIGIN_KEY, origin
+    );
+    // spotless:on
 
     ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
 
     assertEquals(DDTraceId.from(traceId), context.getTraceId());
     assertEquals(DDSpanId.from(spanId), context.getSpanId());
-    Map<String, String> expectedBaggage = new LinkedHashMap<>();
+    Map<String, String> expectedBaggage = new HashMap<>();
     expectedBaggage.put("k1", "v1");
     expectedBaggage.put("k2", "v2");
     expectedBaggage.put(SOME_BAGGAGE, "my-interesting-baggage-info");
     expectedBaggage.put(SOME_CASE_SENSITIVE_BAGGAGE, "my-interesting-baggage-info-2");
     assertEquals(expectedBaggage, context.getBaggage());
-    assertEquals(singletonMap(SOME_TAG, expectedTagValue), context.getTags());
+    assertEquals(singletonMap(SOME_TAG, "my-interesting-info,and-more"), context.getTags());
     assertEquals(samplingPriority, context.getSamplingPriority());
     assertEquals(origin, asString(context.getOrigin()));
+  }
+
+  @WithConfig(key = REQUEST_HEADER_TAGS_COMMA_ALLOWED, value = "false")
+  @Test
+  void extractHttpHeadersWithoutComma() {
+    // Recreate extractor with the new comma config
+    this.extractor.cleanup();
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
+        DynamicConfig.create().setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG)).apply();
+    this.extractor = DatadogHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+
+    String headerWithComma = "my-interesting-info,and-more";
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, "1",
+        SPAN_ID_KEY, "2",
+        SOME_HEADER, headerWithComma
+    );
+    // spotless:on
+
+    ExtractedContext context =
+        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
+
+    String expectedHeader = "my-interesting-info";
+    assertEquals(expectedHeader, context.getTags().getString(SOME_TAG));
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {false, true})
   void extractHeaderTagsWithNoPropagation(boolean withOrigin) {
-    Map<String, String> headers = new LinkedHashMap<>();
-    if (withOrigin) {
-      headers.put(ORIGIN_KEY, "my-origin");
-    }
-    headers.put(SOME_HEADER, "my-interesting-info");
+    // spotless:off
+    Map<String, String> headers = headers(
+        ORIGIN_KEY, withOrigin ? "my-origin" : null,
+        SOME_HEADER, "my-interesting-info"
+    );
+    // spotless:on
 
-    TagContext context = extractor().extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertFalse(context instanceof ExtractedContext);
     assertEquals(singletonMap(SOME_TAG, "my-interesting-info"), context.getTags());
     if (withOrigin) {
       assertEquals("my-origin", asString(context.getOrigin()));
     }
-  }
-
-  @Test
-  void extractHeadersWithForwarding() {
-    String forwardedIp = "1.2.3.4";
-    String forwardedPort = "1234";
-    String forwarded = "for=" + forwardedIp + ":" + forwardedPort;
-    Map<String, String> tagOnlyCtx = singletonMap("Forwarded", forwarded);
-    Map<String, String> fullCtx = new LinkedHashMap<>();
-    fullCtx.put(TRACE_ID_KEY.toUpperCase(), "1");
-    fullCtx.put(SPAN_ID_KEY.toUpperCase(), "2");
-    fullCtx.put("Forwarded", forwarded);
-
-    TagContext context = extractor().extract(tagOnlyCtx, stringValuesMap());
-
-    assertNotNull(context);
-    assertFalse(context instanceof ExtractedContext);
-    assertEquals(forwarded, context.getForwarded());
-
-    context = extractor().extract(fullCtx, stringValuesMap());
-
-    assertInstanceOf(ExtractedContext.class, context);
-    assertEquals(1L, context.getTraceId().toLong());
-    assertEquals(2L, context.getSpanId());
-    assertEquals(forwarded, context.getForwarded());
-  }
-
-  @Test
-  void extractHeadersWithXForwarding() {
-    String forwardedIp = "1.2.3.4";
-    String forwardedPort = "1234";
-    Map<String, String> tagOnlyCtx = new LinkedHashMap<>();
-    tagOnlyCtx.put("X-Forwarded-For", forwardedIp);
-    tagOnlyCtx.put("X-Forwarded-Port", forwardedPort);
-    Map<String, String> fullCtx = new LinkedHashMap<>();
-    fullCtx.put(TRACE_ID_KEY.toUpperCase(), "1");
-    fullCtx.put(SPAN_ID_KEY.toUpperCase(), "2");
-    fullCtx.put("x-forwarded-for", forwardedIp);
-    fullCtx.put("x-forwarded-port", forwardedPort);
-
-    TagContext context = extractor().extract(tagOnlyCtx, stringValuesMap());
-
-    assertNotNull(context);
-    assertEquals(forwardedIp, context.getXForwardedFor());
-    assertEquals(forwardedPort, context.getXForwardedPort());
-
-    context = extractor().extract(fullCtx, stringValuesMap());
-
-    assertInstanceOf(ExtractedContext.class, context);
-    assertEquals(1L, context.getTraceId().toLong());
-    assertEquals(2L, context.getSpanId());
-    assertEquals(forwardedIp, context.getXForwardedFor());
-    assertEquals(forwardedPort, context.getXForwardedPort());
-  }
-
-  @Test
-  void extractEmptyHeadersReturnsNull() {
-    assertNull(
-        extractor().extract(singletonMap("ignored-header", "ignored-value"), stringValuesMap()));
-  }
-
-  @Test
-  @WithConfig(key = TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED, value = "false")
-  void extractHeadersWithIpResolutionDisabled() {
-    Map<String, String> tagOnlyCtx = new LinkedHashMap<>();
-    tagOnlyCtx.put("X-Forwarded-For", "::1");
-    tagOnlyCtx.put("User-agent", "foo/bar");
-
-    TagContext context = extractor().extract(tagOnlyCtx, stringValuesMap());
-
-    assertNotNull(context);
-    assertNull(context.getXForwardedFor());
-    assertEquals("foo/bar", context.getUserAgent());
-  }
-
-  @Test
-  void extractHeadersWithIpResolutionDisabledAppsecDisabled() {
-    ActiveSubsystems.APPSEC_ACTIVE = false;
-    Map<String, String> tagOnlyCtx = new LinkedHashMap<>();
-    tagOnlyCtx.put("X-Forwarded-For", "::1");
-    tagOnlyCtx.put("User-agent", "foo/bar");
-
-    TagContext context = extractor().extract(tagOnlyCtx, stringValuesMap());
-
-    assertNotNull(context);
-    assertNull(context.getXForwardedFor());
-  }
-
-  @Test
-  @WithConfig(key = TracerConfig.TRACE_CLIENT_IP_HEADER, value = "my-header")
-  void customIpHeaderCollectionDoesNotDisableStandardIpHeaderCollection() {
-    Map<String, String> tagOnlyCtx = new LinkedHashMap<>();
-    tagOnlyCtx.put("X-Forwarded-For", "::1");
-    tagOnlyCtx.put("My-Header", "8.8.8.8");
-
-    TagContext context = extractor().extract(tagOnlyCtx, stringValuesMap());
-
-    assertNotNull(context);
-    assertEquals("::1", context.getXForwardedFor());
-    assertEquals("8.8.8.8", context.getCustomIpHeader());
   }
 
   @TableTest({
@@ -262,24 +143,27 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
   void extractHttpHeadersWith128BitTraceId(String hexId) {
     DD128bTraceId traceId = DD128bTraceId.fromHex(hexId);
     boolean is128bTrace = traceId.toHighOrderLong() != 0;
+
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, traceId.toString(),
+        SPAN_ID_KEY, "2",
+        OT_BAGGAGE_PREFIX + "k1", "v1",
+        OT_BAGGAGE_PREFIX + "k2", "v2",
+        SOME_HEADER, "my-interesting-info",
+        DATADOG_TAGS_KEY, is128bTrace
+            ? "_dd.p.tid=" + LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16)
+            : null
+    );
+    // spotless:on
+
+    ExtractedContext context =
+        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
+
     DDTraceId expectedTraceId = is128bTrace ? traceId : DD64bTraceId.from(traceId.toLong());
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(TRACE_ID_KEY.toUpperCase(), traceId.toString());
-    headers.put(SPAN_ID_KEY.toUpperCase(), "2");
-    headers.put((OT_BAGGAGE_PREFIX + "k1").toUpperCase(), "v1");
-    headers.put((OT_BAGGAGE_PREFIX + "k2").toUpperCase(), "v2");
-    headers.put(SOME_HEADER, "my-interesting-info");
-    if (is128bTrace) {
-      headers.put(
-          DATADOG_TAGS_KEY.toUpperCase(),
-          "_dd.p.tid=" + LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16));
-    }
-
-    ExtractedContext context = (ExtractedContext) extractor().extract(headers, stringValuesMap());
-
     assertEquals(expectedTraceId, context.getTraceId());
     assertEquals(DDSpanId.from("2"), context.getSpanId());
-    Map<String, String> expectedBaggage = new LinkedHashMap<>();
+    Map<String, String> expectedBaggage = new HashMap<>();
     expectedBaggage.put("k1", "v1");
     expectedBaggage.put("k2", "v2");
     assertEquals(expectedBaggage, context.getBaggage());
@@ -288,63 +172,78 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHttpHeadersWithInvalidNonNumericId() {
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(TRACE_ID_KEY.toUpperCase(), "traceId");
-    headers.put(SPAN_ID_KEY.toUpperCase(), "spanId");
-    headers.put((OT_BAGGAGE_PREFIX + "k1").toUpperCase(), "v1");
-    headers.put((OT_BAGGAGE_PREFIX + "k2").toUpperCase(), "v2");
-    headers.put(SOME_HEADER, "my-interesting-info");
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, "traceId",
+        SPAN_ID_KEY, "spanId",
+        OT_BAGGAGE_PREFIX + "k1", "v1",
+        OT_BAGGAGE_PREFIX + "k2", "v2",
+        SOME_HEADER, "my-interesting-info"
+    );
+    // spotless:on
 
-    TagContext context = extractor().extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertNull(context);
   }
 
   @Test
   void extractHttpHeadersWithOutOfRangeTraceId() {
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(TRACE_ID_KEY.toUpperCase(), "18446744073709551616"); // TRACE_ID_MAX + 1
-    headers.put(SPAN_ID_KEY.toUpperCase(), "0");
-    headers.put((OT_BAGGAGE_PREFIX + "k1").toUpperCase(), "v1");
-    headers.put((OT_BAGGAGE_PREFIX + "k2").toUpperCase(), "v2");
-    headers.put(SOME_HEADER, "my-interesting-info");
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, TRACE_ID_MAX_PLUS_1,
+        SPAN_ID_KEY, "0",
+        OT_BAGGAGE_PREFIX + "k1", "v1",
+        OT_BAGGAGE_PREFIX + "k2", "v2",
+        SOME_HEADER, "my-interesting-info"
+    );
+    // spotless:on
 
-    TagContext context = extractor().extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertNull(context);
   }
 
   @Test
   void extractHttpHeadersWithOutOfRangeSpanId() {
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(TRACE_ID_KEY.toUpperCase(), "0");
-    headers.put(SPAN_ID_KEY.toUpperCase(), "-1");
-    headers.put((OT_BAGGAGE_PREFIX + "k1").toUpperCase(), "v1");
-    headers.put((OT_BAGGAGE_PREFIX + "k2").toUpperCase(), "v2");
-    headers.put(SOME_HEADER, "my-interesting-info");
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, "0",
+        SPAN_ID_KEY, "-1",
+        OT_BAGGAGE_PREFIX + "k1", "v1",
+        OT_BAGGAGE_PREFIX + "k2", "v2",
+        SOME_HEADER, "my-interesting-info"
+    );
+    // spotless:on
 
-    TagContext context = extractor().extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertNull(context);
   }
 
   @TableTest({
-    "scenario             | traceId                | spanId                 | expectExtraction",
-    "negative traceId     | '-1'                   | '1'                    | false           ",
-    "negative spanId      | '1'                    | '-1'                   | false           ",
-    "zero traceId         | '0'                    | '1'                    | false           ",
-    "zero spanId          | '1'                    | '0'                    | true            ",
-    "uint64 max traceId   | '18446744073709551615' | '1'                    | true            ",
-    "out-of-range traceId | '18446744073709551616' | '1'                    | false           ",
-    "uint64 max spanId    | '1'                    | '18446744073709551615' | true            ",
-    "out-of-range spanId  | '1'                    | '18446744073709551616' | false           "
+    "scenario             | traceId | spanId  | expectExtraction",
+    "negative traceId     | '-1'    | '1'     | false           ",
+    "negative spanId      | '1'     | '-1'    | false           ",
+    "zero traceId         | '0'     | '1'     | false           ",
+    "zero spanId          | '1'     | '0'     | true            ",
+    "uint64 max traceId   | 'MAX'   | '1'     | true            ",
+    "out-of-range traceId | 'MAX+1' | '1'     | false           ",
+    "uint64 max spanId    | '1'     | 'MAX'   | true            ",
+    "out-of-range spanId  | '1'     | 'MAX+1' | false           "
   })
-  void moreIdRangeValidation(String traceId, String spanId, boolean expectExtraction) {
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
-    headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
+  void moreIdRangeValidation(
+      @ConvertWith(TraceIdConverter.class) String traceId,
+      @ConvertWith(TraceIdConverter.class) String spanId,
+      boolean expectExtraction) {
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, traceId,
+        SPAN_ID_KEY, spanId
+    );
+    // spotless:on
 
-    TagContext context = extractor().extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     if (expectExtraction) {
       ExtractedContext extracted = assertInstanceOf(ExtractedContext.class, context);
@@ -361,22 +260,26 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
     "epoch 2021 | '2'     | '3'    | 1610001234       "
   })
   void extractHttpHeadersWithEndToEnd(String traceId, String spanId, long endToEndStartTime) {
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put("", "empty key");
-    headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
-    headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
-    headers.put((OT_BAGGAGE_PREFIX + "k1").toUpperCase(), "v1");
-    headers.put((OT_BAGGAGE_PREFIX + "t0").toUpperCase(), String.valueOf(endToEndStartTime));
-    headers.put((OT_BAGGAGE_PREFIX + "k2").toUpperCase(), "v2");
-    headers.put(SOME_HEADER, "my-interesting-info");
-    headers.put(SOME_CUSTOM_BAGGAGE_HEADER, "my-interesting-baggage-info");
-    headers.put(SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2");
+    // spotless:off
+    Map<String, String> headers = headers(
+        "", "empty key",
+        TRACE_ID_KEY, traceId,
+        SPAN_ID_KEY, spanId,
+        OT_BAGGAGE_PREFIX + "k1", "v1",
+        OT_BAGGAGE_PREFIX + "t0", String.valueOf(endToEndStartTime),
+        OT_BAGGAGE_PREFIX + "k2", "v2",
+        SOME_HEADER, "my-interesting-info",
+        SOME_CUSTOM_BAGGAGE_HEADER, "my-interesting-baggage-info",
+        SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2"
+    );
+    // spotless:on
 
-    ExtractedContext context = (ExtractedContext) extractor().extract(headers, stringValuesMap());
+    ExtractedContext context =
+        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
     assertEquals(DDTraceId.from(traceId), context.getTraceId());
     assertEquals(DDSpanId.from(spanId), context.getSpanId());
-    Map<String, String> expectedBaggage = new LinkedHashMap<>();
+    Map<String, String> expectedBaggage = new HashMap<>();
     expectedBaggage.put("k1", "v1");
     expectedBaggage.put("k2", "v2");
     expectedBaggage.put(SOME_BAGGAGE, "my-interesting-baggage-info");
@@ -387,26 +290,32 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario         | traceId                | spanId                 | ctxCreated",
-    "negative traceId | '-1'                   | '1'                    | false     ",
-    "negative spanId  | '1'                    | '-1'                   | false     ",
-    "zero traceId     | '0'                    | '1'                    | true      ",
-    "uint64 max-1 ids | '18446744073709551614' | '18446744073709551614' | true      "
+    "scenario         | traceId | spanId  | ctxCreated",
+    "negative traceId | '-1'    | '1'     | false     ",
+    "negative spanId  | '1'     | '-1'    | false     ",
+    "zero traceId     | '0'     | '1'     | true      ",
+    "uint64 max-1 ids | 'MAX-1' | 'MAX-1' | true      "
   })
-  void baggageIsMappedOnContextCreation(String traceId, String spanId, boolean ctxCreated) {
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
-    headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
-    headers.put(SOME_CUSTOM_BAGGAGE_HEADER, "mappedBaggageValue");
-    headers.put((OT_BAGGAGE_PREFIX + "k1").toUpperCase(), "v1");
-    headers.put((OT_BAGGAGE_PREFIX + "k2").toUpperCase(), "v2");
-    headers.put(SOME_ARBITRARY_HEADER, "my-interesting-info");
+  void baggageIsMappedOnContextCreation(
+      @ConvertWith(TraceIdConverter.class) String traceId,
+      @ConvertWith(TraceIdConverter.class) String spanId,
+      boolean ctxCreated) {
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, traceId,
+        SPAN_ID_KEY, spanId,
+        SOME_CUSTOM_BAGGAGE_HEADER, "mappedBaggageValue",
+        OT_BAGGAGE_PREFIX + "k1", "v1",
+        OT_BAGGAGE_PREFIX + "k2", "v2",
+        SOME_ARBITRARY_HEADER, "my-interesting-info"
+    );
+    // spotless:on
 
-    TagContext context = extractor().extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     if (ctxCreated) {
       assertNotNull(context);
-      Map<String, String> expectedBaggage = new LinkedHashMap<>();
+      Map<String, String> expectedBaggage = new HashMap<>();
       expectedBaggage.put(SOME_BAGGAGE, "mappedBaggageValue");
       expectedBaggage.put("k1", "v1");
       expectedBaggage.put("k2", "v2");
@@ -414,34 +323,6 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
     } else {
       assertNull(context);
     }
-  }
-
-  @Test
-  void extractCommonHttpHeaders() {
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(HttpCodec.USER_AGENT_KEY, "some-user-agent");
-    headers.put(HttpCodec.X_CLUSTER_CLIENT_IP_KEY, "1.1.1.1");
-    headers.put(HttpCodec.X_REAL_IP_KEY, "2.2.2.2");
-    headers.put(HttpCodec.X_CLIENT_IP_KEY, "3.3.3.3");
-    headers.put(HttpCodec.TRUE_CLIENT_IP_KEY, "4.4.4.4");
-    headers.put(HttpCodec.FORWARDED_FOR_KEY, "5.5.5.5");
-    headers.put(HttpCodec.FORWARDED_KEY, "6.6.6.6");
-    headers.put(HttpCodec.FASTLY_CLIENT_IP_KEY, "7.7.7.7");
-    headers.put(HttpCodec.CF_CONNECTING_IP_KEY, "8.8.8.8");
-    headers.put(HttpCodec.CF_CONNECTING_IP_V6_KEY, "9.9.9.9");
-
-    TagContext context = extractor().extract(headers, stringValuesMap());
-
-    assertEquals("some-user-agent", context.getUserAgent());
-    assertEquals("1.1.1.1", context.getXClusterClientIp());
-    assertEquals("2.2.2.2", context.getXRealIp());
-    assertEquals("3.3.3.3", context.getXClientIp());
-    assertEquals("4.4.4.4", context.getTrueClientIp());
-    assertEquals("5.5.5.5", context.getForwardedFor());
-    assertEquals("6.6.6.6", context.getForwarded());
-    assertEquals("7.7.7.7", context.getFastlyClientIp());
-    assertEquals("8.8.8.8", context.getCfConnectingIp());
-    assertEquals("9.9.9.9", context.getCfConnectingIpv6());
   }
 
   private static String asString(CharSequence cs) {

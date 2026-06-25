@@ -16,7 +16,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_B
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_STACK_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
@@ -131,6 +131,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
@@ -231,10 +232,9 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_MAX_TRACKED_DEPENDENCIES;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_STACKTRACE_ENABLED_DEPRECATED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_STACK_TRACE_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
@@ -685,6 +685,9 @@ import static datadog.trace.api.config.TracerConfig.TRACE_KEEP_LATENCY_THRESHOLD
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+import static datadog.trace.api.config.TracerConfig.TRACE_ORG_GUARD_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_ORG_GUARD_STRICT;
+import static datadog.trace.api.config.TracerConfig.TRACE_ORG_GUARD_TRUSTED_OPMS;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_HOSTNAME_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_COMPONENT_OVERRIDES;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED;
@@ -720,6 +723,7 @@ import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.OtlpConfig;
@@ -939,6 +943,9 @@ public class Config {
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
   private final TracePropagationBehaviorExtract tracePropagationBehaviorExtract;
   private final boolean tracePropagationExtractFirst;
+  private final boolean traceOrgGuardEnabled;
+  private final boolean traceOrgGuardStrict;
+  private final Set<String> traceOrgGuardTrustedOpms;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
   private final List<String> traceBaggageTagKeys;
@@ -1061,10 +1068,7 @@ public class Config {
 
   private final boolean clientIpEnabled;
 
-  private final boolean appSecReportingInband;
   private final String appSecRulesFile;
-  private final int appSecReportMinTimeout;
-  private final int appSecReportMaxTimeout;
   private final int appSecTraceRateLimit;
   private final boolean appSecWafMetrics;
   private final int appSecWafTimeout;
@@ -1074,6 +1078,7 @@ public class Config {
   private final String appSecHttpBlockedTemplateJson;
   private final UserIdCollectionMode appSecUserIdCollectionMode;
   private final Boolean appSecScaEnabled;
+  private final int appSecScaMaxTrackedDependencies;
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
@@ -1833,7 +1838,8 @@ public class Config {
             DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
 
     tracePropagationStyleB3PaddingEnabled =
-        isEnabled(true, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
+        isEnabled(
+            DEFAULT_PROPAGATION_B3_PADDING_ENABLED, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
 
     TracePropagationBehaviorExtract tmpTracePropagationBehaviorExtract;
     try {
@@ -1948,6 +1954,10 @@ public class Config {
     tracePropagationExtractFirst =
         configProvider.getBoolean(
             TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
+    traceOrgGuardEnabled = configProvider.getBoolean(TRACE_ORG_GUARD_ENABLED, false);
+    traceOrgGuardStrict = configProvider.getBoolean(TRACE_ORG_GUARD_STRICT, false);
+    traceOrgGuardTrustedOpms =
+        configProvider.getSet(TRACE_ORG_GUARD_TRUSTED_OPMS, Collections.emptySet());
     traceInferredProxyEnabled =
         configProvider.getBoolean(TRACE_INFERRED_PROXY_SERVICES_ENABLED, false);
 
@@ -2447,13 +2457,7 @@ public class Config {
             DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE);
     clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
-    appSecReportingInband =
-        configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
-
-    // Default AppSec report timeout min=5, max=60
-    appSecReportMaxTimeout = configProvider.getInteger(APPSEC_REPORT_TIMEOUT_SEC, 60);
-    appSecReportMinTimeout = Math.min(appSecReportMaxTimeout, 5);
 
     appSecTraceRateLimit =
         configProvider.getInteger(APPSEC_TRACE_RATE_LIMIT, DEFAULT_APPSEC_TRACE_RATE_LIMIT);
@@ -2476,6 +2480,9 @@ public class Config {
             configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
             configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
+    appSecScaMaxTrackedDependencies =
+        configProvider.getInteger(
+            APPSEC_SCA_MAX_TRACKED_DEPENDENCIES, DEFAULT_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES);
     appSecStackTraceEnabled =
         configProvider.getBoolean(
             APPSEC_STACK_TRACE_ENABLED,
@@ -3250,7 +3257,7 @@ public class Config {
 
     int defaultStackTraceLengthLimit =
         instrumenterConfig.isCiVisibilityEnabled()
-            ? 5000 // EVP limit
+            ? CIConstants.MAX_META_STRING_VALUE_LENGTH // EVP limit
             : Integer.MAX_VALUE; // no effective limit (old behavior)
     this.stackTraceLengthLimit =
         configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
@@ -3681,6 +3688,18 @@ public class Config {
     return tracePropagationExtractFirst;
   }
 
+  public boolean isTraceOrgGuardEnabled() {
+    return traceOrgGuardEnabled;
+  }
+
+  public boolean isTraceOrgGuardStrict() {
+    return traceOrgGuardStrict;
+  }
+
+  public Set<String> getTraceOrgGuardTrustedOpms() {
+    return traceOrgGuardTrustedOpms;
+  }
+
   public boolean isInferredProxyPropagationEnabled() {
     return traceInferredProxyEnabled;
   }
@@ -4065,18 +4084,6 @@ public class Config {
 
   public ProductActivation getAppSecActivation() {
     return instrumenterConfig.getAppSecActivation();
-  }
-
-  public boolean isAppSecReportingInband() {
-    return appSecReportingInband;
-  }
-
-  public int getAppSecReportMinTimeout() {
-    return appSecReportMinTimeout;
-  }
-
-  public int getAppSecReportMaxTimeout() {
-    return appSecReportMaxTimeout;
   }
 
   public int getAppSecTraceRateLimit() {
@@ -5823,6 +5830,10 @@ public class Config {
     return appSecScaEnabled != null && appSecScaEnabled;
   }
 
+  public int getAppSecScaMaxTrackedDependencies() {
+    return appSecScaMaxTrackedDependencies;
+  }
+
   public boolean isAppSecRaspEnabled() {
     return instrumenterConfig.isAppSecRaspEnabled();
   }
@@ -6535,8 +6546,6 @@ public class Config {
         + grpcClientErrorStatuses
         + ", clientIpEnabled="
         + clientIpEnabled
-        + ", appSecReportingInband="
-        + appSecReportingInband
         + ", appSecRulesFile='"
         + appSecRulesFile
         + "'"
@@ -6604,6 +6613,8 @@ public class Config {
         + telemetryMetricsEnabled
         + ", appSecScaEnabled="
         + appSecScaEnabled
+        + ", appSecScaMaxTrackedDependencies="
+        + appSecScaMaxTrackedDependencies
         + ", appSecRaspEnabled="
         + isAppSecRaspEnabled()
         + ", dataJobsOpenLineageEnabled="
