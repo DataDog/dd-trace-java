@@ -42,7 +42,7 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
     transformer.applyAdvice(
         isConstructor().and(takesArgument(5, named("java.util.concurrent.ConcurrentLinkedQueue"))),
         WeaverInstrumentation.class.getName() + "$ConcurrentLinkedQueueAdvice");
-    // typelevel's implementation (0.9+) uses a LinkedBlockingQueue
+    // typelevel/weaver-test (0.9+) uses a LinkedBlockingQueue
     transformer.applyAdvice(
         isConstructor().and(takesArgument(5, named("java.util.concurrent.LinkedBlockingQueue"))),
         WeaverInstrumentation.class.getName() + "$LinkedBlockingQueueAdvice");
