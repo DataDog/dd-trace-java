@@ -1,5 +1,7 @@
 package datadog.trace.util;
 
+import java.util.function.ToIntFunction;
+
 /**
  * Flat open-addressed name set. Generic — it knows only names.
  *
@@ -66,6 +68,16 @@ public final class StringIndex {
     return this.slots;
   }
 
+  /**
+   * Builds a slot-aligned value array: {@code out[indexOf(name)] == fn.applyAsInt(name)} for every
+   * indexed name. Pair with {@link #indexOf} to use this StringIndex as a string-&gt;int map
+   * without per-lookup hashing. Empty slots hold 0 and are never read ({@code indexOf} returns -1
+   * for non-members).
+   */
+  public int[] mapValues(ToIntFunction<String> fn) {
+    return Support.mapValues(this.names, fn);
+  }
+
   /** Build-time carrier. Pull the fields into your own (static final) fields; don't keep this. */
   public static final class Data {
     public final int[] hashes;
@@ -107,6 +119,20 @@ public final class StringIndex {
         put(hashes, placed, name, hash(name));
       }
       return new Data(hashes, placed);
+    }
+
+    /**
+     * Slot-aligned value array over placed {@code names}; {@code out[slot] = fn(name)} per name.
+     */
+    public static int[] mapValues(String[] names, ToIntFunction<String> fn) {
+      int[] out = new int[names.length];
+      for (int slot = 0; slot < names.length; slot++) {
+        String name = names[slot];
+        if (name != null) {
+          out[slot] = fn.applyAsInt(name);
+        }
+      }
+      return out;
     }
 
     /** Build-time placement. Returns the slot. */

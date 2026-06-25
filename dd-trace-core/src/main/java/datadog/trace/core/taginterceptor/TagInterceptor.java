@@ -37,6 +37,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.util.StringIndex;
 import java.net.URI;
 import java.util.Map;
 import java.util.Set;
@@ -47,11 +48,116 @@ public class TagInterceptor {
 
   private static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
 
+  // Handler ids for the intercept dispatch. 1-based: 0 is the skip sentinel ("not intercepted"),
+  // which lines up with the empty StringIndex slots that mapValues leaves at 0.
+  private static final int ID_RESOURCE_NAME = 1;
+  private static final int ID_DB_STATEMENT = 2;
+  private static final int ID_SERVICE = 3; // SERVICE_NAME and the legacy "service"
+  private static final int ID_PEER_SERVICE = 4;
+  private static final int ID_MANUAL_KEEP = 5;
+  private static final int ID_MANUAL_DROP = 6;
+  private static final int ID_ASM_KEEP = 7;
+  private static final int ID_AI_GUARD_KEEP = 8;
+  private static final int ID_SAMPLING_PRIORITY = 9;
+  private static final int ID_PROPAGATED_TRACE_SOURCE = 10;
+  private static final int ID_PROPAGATED_DEBUG = 11;
+  private static final int ID_SERVLET_CONTEXT = 12;
+  private static final int ID_SPAN_TYPE = 13;
+  private static final int ID_ANALYTICS_SAMPLE_RATE = 14;
+  private static final int ID_ERROR = 15;
+  private static final int ID_HTTP_STATUS = 16;
+  private static final int ID_URL_RESOURCE = 17; // HTTP_METHOD and HTTP_URL
+  private static final int ID_ORIGIN = 18;
+  private static final int ID_MEASURED = 19;
+  private static final int ID_SPAN_KIND = 20;
+  private static final int ID_SPLIT_SERVICE = 21; // a Config split-by-tag (not a fixed case)
+
+  // Static membership/dispatch index over the compile-time-fixed intercepted tags. Split-by-tags
+  // are
+  // Config-driven, so they stay a per-instance check (see handlerId) and never enter this index --
+  // which keeps it a plain static (no Config, no init-timing holder).
+  private static final StringIndex FIXED =
+      StringIndex.of(
+          DDTags.RESOURCE_NAME,
+          Tags.DB_STATEMENT,
+          DDTags.SERVICE_NAME,
+          "service",
+          Tags.PEER_SERVICE,
+          DDTags.MANUAL_KEEP,
+          DDTags.MANUAL_DROP,
+          Tags.ASM_KEEP,
+          Tags.AI_GUARD_KEEP,
+          Tags.SAMPLING_PRIORITY,
+          Tags.PROPAGATED_TRACE_SOURCE,
+          Tags.PROPAGATED_DEBUG,
+          SERVLET_CONTEXT,
+          SPAN_TYPE,
+          ANALYTICS_SAMPLE_RATE,
+          Tags.ERROR,
+          HTTP_STATUS,
+          HTTP_METHOD,
+          HTTP_URL,
+          ORIGIN_KEY,
+          MEASURED,
+          Tags.SPAN_KIND);
+  // Slot-aligned handler ids (built once). The name->id switch runs only at class init.
+  private static final int[] FIXED_IDS = FIXED.mapValues(TagInterceptor::fixedId);
+
+  private static int fixedId(String tag) {
+    switch (tag) {
+      case DDTags.RESOURCE_NAME:
+        return ID_RESOURCE_NAME;
+      case Tags.DB_STATEMENT:
+        return ID_DB_STATEMENT;
+      case DDTags.SERVICE_NAME:
+      case "service":
+        return ID_SERVICE;
+      case Tags.PEER_SERVICE:
+        return ID_PEER_SERVICE;
+      case DDTags.MANUAL_KEEP:
+        return ID_MANUAL_KEEP;
+      case DDTags.MANUAL_DROP:
+        return ID_MANUAL_DROP;
+      case Tags.ASM_KEEP:
+        return ID_ASM_KEEP;
+      case Tags.AI_GUARD_KEEP:
+        return ID_AI_GUARD_KEEP;
+      case Tags.SAMPLING_PRIORITY:
+        return ID_SAMPLING_PRIORITY;
+      case Tags.PROPAGATED_TRACE_SOURCE:
+        return ID_PROPAGATED_TRACE_SOURCE;
+      case Tags.PROPAGATED_DEBUG:
+        return ID_PROPAGATED_DEBUG;
+      case SERVLET_CONTEXT:
+        return ID_SERVLET_CONTEXT;
+      case SPAN_TYPE:
+        return ID_SPAN_TYPE;
+      case ANALYTICS_SAMPLE_RATE:
+        return ID_ANALYTICS_SAMPLE_RATE;
+      case Tags.ERROR:
+        return ID_ERROR;
+      case HTTP_STATUS:
+        return ID_HTTP_STATUS;
+      case HTTP_METHOD:
+      case HTTP_URL:
+        return ID_URL_RESOURCE;
+      case ORIGIN_KEY:
+        return ID_ORIGIN;
+      case MEASURED:
+        return ID_MEASURED;
+      case Tags.SPAN_KIND:
+        return ID_SPAN_KIND;
+      default:
+        return 0; // unreachable: FIXED only holds the names above
+    }
+  }
+
   private final RuleFlags ruleFlags;
   private final boolean isServiceNameSetByUser;
   private final boolean splitByServletContext;
   private final String inferredServiceName;
   private final Set<String> splitServiceTags;
+  private final boolean hasSplitTags; // short-circuits the split check when none are configured
 
   private final boolean shouldSet404ResourceName;
   private final boolean shouldSetUrlResourceAsName;
@@ -75,6 +181,7 @@ public class TagInterceptor {
     this.isServiceNameSetByUser = isServiceNameSetByUser;
     this.inferredServiceName = inferredServiceName;
     this.splitServiceTags = splitServiceTags;
+    this.hasSplitTags = !splitServiceTags.isEmpty();
     this.ruleFlags = ruleFlags;
     splitByServletContext = splitServiceTags.contains(SERVLET_CONTEXT);
 
@@ -101,106 +208,102 @@ public class TagInterceptor {
   }
 
   public boolean needsIntercept(String tag) {
-    switch (tag) {
-      case DDTags.RESOURCE_NAME:
-      case Tags.DB_STATEMENT:
-      case DDTags.SERVICE_NAME:
-      case "service":
-      case Tags.PEER_SERVICE:
-      case DDTags.MANUAL_KEEP:
-      case DDTags.MANUAL_DROP:
-      case Tags.ASM_KEEP:
-      case Tags.AI_GUARD_KEEP:
-      case Tags.SAMPLING_PRIORITY:
-      case Tags.PROPAGATED_TRACE_SOURCE:
-      case Tags.PROPAGATED_DEBUG:
-      case SERVLET_CONTEXT:
-      case SPAN_TYPE:
-      case ANALYTICS_SAMPLE_RATE:
-      case Tags.ERROR:
-      case HTTP_STATUS:
-      case HTTP_METHOD:
-      case HTTP_URL:
-      case ORIGIN_KEY:
-      case MEASURED:
-      case Tags.SPAN_KIND:
-        return true;
-
-      default:
-        return splitServiceTags.contains(tag);
-    }
+    return handlerId(tag) != 0;
   }
 
+  /**
+   * Resolves {@code tag} to a dispatch handler id ({@code ID_*}), or {@code 0} when not
+   * intercepted. Fixed (compile-time) tags come from the static {@link #FIXED} index; a Config
+   * split-by-tag -- checked only on a fixed miss -- resolves to {@link #ID_SPLIT_SERVICE}. Fixed
+   * wins when a tag is both, matching the original switch order.
+   */
+  int handlerId(String tag) {
+    int slot = FIXED.indexOf(tag);
+    if (slot >= 0) {
+      return FIXED_IDS[slot];
+    }
+    return hasSplitTags && splitServiceTags.contains(tag) ? ID_SPLIT_SERVICE : 0;
+  }
+
+  /**
+   * Convenience: resolve the handler id and dispatch. {@code id == 0} short-circuits (not ours).
+   */
   public boolean interceptTag(DDSpanContext span, String tag, Object value) {
-    switch (tag) {
-      case DDTags.RESOURCE_NAME:
+    int id = handlerId(tag);
+    return id != 0 && handleIntercept(span, id, tag, value);
+  }
+
+  boolean handleIntercept(DDSpanContext span, int id, String tag, Object value) {
+    switch (id) {
+      case ID_RESOURCE_NAME:
         return interceptResourceName(span, value);
-      case Tags.DB_STATEMENT:
+      case ID_DB_STATEMENT:
         return interceptDbStatement(span, value);
-      case DDTags.SERVICE_NAME:
-      case "service":
+      case ID_SERVICE:
         return interceptServiceName(SERVICE_NAME, span, value);
-      case Tags.PEER_SERVICE:
+      case ID_PEER_SERVICE:
         // we still need to intercept and add this tag when the user manually set
         span.setTag(DDTags.PEER_SERVICE_SOURCE, Tags.PEER_SERVICE);
         return interceptServiceName(PEER_SERVICE, span, value);
-      case DDTags.MANUAL_KEEP:
+      case ID_MANUAL_KEEP:
         if (asBoolean(value)) {
           span.forceKeep();
           return true;
         }
         return false;
-      case DDTags.MANUAL_DROP:
+      case ID_MANUAL_DROP:
         return interceptSamplingPriority(
             FORCE_MANUAL_DROP, USER_DROP, SamplingMechanism.MANUAL, span, value);
-      case Tags.ASM_KEEP:
+      case ID_ASM_KEEP:
         if (asBoolean(value)) {
           span.forceKeep(SamplingMechanism.APPSEC);
           return true;
         }
         return false;
-      case Tags.AI_GUARD_KEEP:
+      case ID_AI_GUARD_KEEP:
         if (asBoolean(value)) {
           span.forceKeep(SamplingMechanism.AI_GUARD);
           return true;
         }
         return false;
-      case Tags.SAMPLING_PRIORITY:
+      case ID_SAMPLING_PRIORITY:
         return interceptSamplingPriority(span, value);
-      case Tags.PROPAGATED_TRACE_SOURCE:
+      case ID_PROPAGATED_TRACE_SOURCE:
         if (value instanceof Integer) {
           span.addPropagatedTraceSource((Integer) value);
           return true;
         }
         return false;
-      case Tags.PROPAGATED_DEBUG:
+      case ID_PROPAGATED_DEBUG:
         span.updateDebugPropagation(String.valueOf(value));
         return true;
-      case SERVLET_CONTEXT:
+      case ID_SERVLET_CONTEXT:
         return interceptServletContext(span, value);
-      case SPAN_TYPE:
+      case ID_SPAN_TYPE:
         return interceptSpanType(span, value);
-      case ANALYTICS_SAMPLE_RATE:
+      case ID_ANALYTICS_SAMPLE_RATE:
         return interceptAnalyticsSampleRate(span, value);
-      case Tags.ERROR:
+      case ID_ERROR:
         return interceptError(span, value);
-      case HTTP_STATUS:
+      case ID_HTTP_STATUS:
         // not set internally but may come from manual instrumentation
         return interceptHttpStatusCode(span, value);
-      case HTTP_METHOD:
-      case HTTP_URL:
+      case ID_URL_RESOURCE:
         return interceptUrlResourceAsNameRule(span, tag, value);
-      case ORIGIN_KEY:
+      case ID_ORIGIN:
         return interceptOrigin(span, value);
-      case MEASURED:
+      case ID_MEASURED:
         return interceptMeasured(span, value);
-      case Tags.SPAN_KIND:
+      case ID_SPAN_KIND:
         // Cache the ordinal for fast isOutbound() checks.
         // Return false so the value is still stored in unsafeTags for serialization.
         span.setSpanKindOrdinal(String.valueOf(value));
         return false;
+      case ID_SPLIT_SERVICE:
+        span.setServiceName(String.valueOf(value), SPLIT_BY_TAGS);
+        return true;
       default:
-        return intercept(span, tag, value);
+        return false;
     }
   }
 
@@ -241,14 +344,6 @@ public class TagInterceptor {
       span.setResourceName(
           HttpResourceNames.DEFAULT_RESOURCE_NAME, ResourceNamePriorities.HTTP_PATH_NORMALIZER);
     }
-  }
-
-  private boolean intercept(DDSpanContext span, String tag, Object value) {
-    if (splitServiceTags.contains(tag)) {
-      span.setServiceName(String.valueOf(value), SPLIT_BY_TAGS);
-      return true;
-    }
-    return false;
   }
 
   private boolean interceptResourceName(DDSpanContext span, Object value) {
