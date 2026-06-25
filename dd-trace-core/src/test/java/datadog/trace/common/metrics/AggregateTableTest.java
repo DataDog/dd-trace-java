@@ -347,7 +347,7 @@ class AggregateTableTest {
         names[i] = namesAndValues[2 * i];
         values[i] = namesAndValues[2 * i + 1];
       }
-      this.peerTagSchema = PeerTagSchema.testSchema(names);
+      this.peerTagSchema = new PeerTagSchema(names, PeerTagSchema.NO_STATE);
       this.peerTagValues = values;
       return this;
     }

@@ -71,12 +71,7 @@ final class PeerTagSchema {
     return new PeerTagSchema(names.toArray(new String[0]), state);
   }
 
-  /** Test-only factory: takes names array directly to build a schema in a specific order. */
-  static PeerTagSchema testSchema(String[] names) {
-    return new PeerTagSchema(names, NO_STATE);
-  }
-
-  private PeerTagSchema(String[] names, String state) {
+  PeerTagSchema(String[] names, String state) {
     this.names = names;
     this.state = state;
     this.handlers = new TagCardinalityHandler[names.length];
