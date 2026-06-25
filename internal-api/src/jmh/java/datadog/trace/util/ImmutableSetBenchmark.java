@@ -35,6 +35,12 @@ import org.openjdk.jmh.annotations.Warmup;
  *       ({@code ImmutableCollections.SetN}), which is what the agent actually uses for fixed config
  *       sets. Java 10+; falls back to {@code HashSet} pre-10. The realistic baseline for any
  *       flat/immutable set comparison.
+ *   <li>{@code stringIndex} — {@link StringIndex#contains} on the instance wrapper (one field load
+ *       to reach the placed arrays, then an open-addressed probe).
+ *   <li>{@code support} — the same probe via {@link StringIndex.Support#indexOf} over {@code static
+ *       final} arrays, so the JIT folds the refs to constants and there is nothing to dereference
+ *       (the hot path StringIndex recommends). The {@code stringIndex}/{@code support} pair shows
+ *       the indirection cost of the wrapper.
  * </ul>
  *
  * <p>Lookups are interned (the {@code ==} fast path where a structure has one); misses are short
@@ -84,12 +90,26 @@ public class ImmutableSetBenchmark {
     return misses;
   }
 
+  // StringIndex static-Support mode: the placed arrays pulled into static final fields, so the JIT
+  // folds the refs to constants and Support.indexOf has nothing to dereference (the hot path the
+  // StringIndex class Javadoc recommends). Contrast support_* (these) with stringIndex_* (the
+  // instance wrapper, one field load) to see the indirection cost.
+  static final int[] SI_HASHES;
+  static final String[] SI_NAMES;
+
+  static {
+    StringIndex.Data data = StringIndex.Support.create(STRINGS);
+    SI_HASHES = data.hashes;
+    SI_NAMES = data.names;
+  }
+
   // Built once, never mutated -- safe to share across the reader threads.
   String[] array;
   String[] sortedArray;
   HashSet<String> hashSet;
   TreeSet<String> treeSet;
   Set<String> tracerImmutableSet;
+  StringIndex stringIndex;
 
   @Setup(Level.Trial)
   public void setUp() {
@@ -99,6 +119,7 @@ public class ImmutableSetBenchmark {
     hashSet = new HashSet<>(Arrays.asList(STRINGS));
     treeSet = new TreeSet<>(Arrays.asList(STRINGS));
     tracerImmutableSet = CollectionUtils.tryMakeImmutableSet(Arrays.asList(STRINGS));
+    stringIndex = StringIndex.of(STRINGS);
   }
 
   /** Per-thread lookup cursor so each reader thread cycles keys independently. */
@@ -183,5 +204,25 @@ public class ImmutableSetBenchmark {
   @Benchmark
   public boolean tracerImmutableSet_miss(Cursor cursor) {
     return tracerImmutableSet.contains(cursor.nextMiss());
+  }
+
+  @Benchmark
+  public boolean stringIndex_hit(Cursor cursor) {
+    return stringIndex.contains(cursor.nextHit());
+  }
+
+  @Benchmark
+  public boolean stringIndex_miss(Cursor cursor) {
+    return stringIndex.contains(cursor.nextMiss());
+  }
+
+  @Benchmark
+  public boolean support_hit(Cursor cursor) {
+    return StringIndex.Support.indexOf(SI_HASHES, SI_NAMES, cursor.nextHit()) >= 0;
+  }
+
+  @Benchmark
+  public boolean support_miss(Cursor cursor) {
+    return StringIndex.Support.indexOf(SI_HASHES, SI_NAMES, cursor.nextMiss()) >= 0;
   }
 }
