@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:protobuf-3.0:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=testCompileProtoPath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=testCompileProtoPath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
@@ -21,7 +22,7 @@ com.github.jnr:jnr-ffi:2.2.19=testCompileProtoPath,testRuntimeClasspath
 com.github.jnr:jnr-posix:3.1.22=testCompileProtoPath,testRuntimeClasspath
 com.github.jnr:jnr-unixsocket:0.38.25=testCompileProtoPath,testRuntimeClasspath
 com.github.jnr:jnr-x86asm:1.0.2=testCompileProtoPath,testRuntimeClasspath
-com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,compileProtoPath,spotbugs,testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
+com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,compileProtoPath,spotbugs
 com.github.spotbugs:spotbugs:4.9.8=spotbugs
 com.github.stephenc.jcip:jcip-annotations:1.0-1=spotbugs
 com.google.auto.service:auto-service-annotations:1.1.1=annotationProcessor,compileClasspath,compileProtoPath,testAnnotationProcessor,testCompileClasspath,testCompileProtoPath
@@ -38,7 +39,7 @@ com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava=anno
 com.google.j2objc:j2objc-annotations:2.8=annotationProcessor,testAnnotationProcessor
 com.google.protobuf:protobuf-java:3.0.0=compileClasspath,compileProtoPath,testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
 com.google.protobuf:protoc:3.0.0=protobufToolsLocator_protoc
-com.google.re2j:re2j:1.7=testCompileProtoPath,testRuntimeClasspath
+com.google.re2j:re2j:1.8=testCompileProtoPath,testRuntimeClasspath
 com.squareup.moshi:moshi:1.11.0=testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
 com.squareup.okhttp3:logging-interceptor:3.12.12=testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
 com.squareup.okhttp3:okhttp:3.12.12=testCompileClasspath,testCompileProtoPath,testRuntimeClasspath

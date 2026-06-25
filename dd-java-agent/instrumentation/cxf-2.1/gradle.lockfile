@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:cxf-2.1:dependencies --write-locks
 aopalliance:aopalliance:1.0=compileClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=cxf3LatestDepTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=cxf3LatestDepTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
@@ -24,7 +25,7 @@ com.github.jnr:jnr-ffi:2.2.19=cxf3LatestDepTestRuntimeClasspath,latestDepTestRun
 com.github.jnr:jnr-posix:3.1.22=cxf3LatestDepTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-unixsocket:0.38.25=cxf3LatestDepTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-x86asm:1.0.2=cxf3LatestDepTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
-com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,cxf3LatestDepTestCompileClasspath,cxf3LatestDepTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
+com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,spotbugs
 com.github.spotbugs:spotbugs:4.9.8=spotbugs
 com.github.stephenc.jcip:jcip-annotations:1.0-1=spotbugs
 com.google.auto.service:auto-service-annotations:1.1.1=annotationProcessor,compileClasspath,cxf3LatestDepTestAnnotationProcessor,cxf3LatestDepTestCompileClasspath,latestDepTestAnnotationProcessor,latestDepTestCompileClasspath,testAnnotationProcessor,testCompileClasspath
@@ -39,7 +40,7 @@ com.google.guava:guava:20.0=cxf3LatestDepTestCompileClasspath,cxf3LatestDepTestR
 com.google.guava:guava:32.0.1-jre=annotationProcessor,cxf3LatestDepTestAnnotationProcessor,latestDepTestAnnotationProcessor,testAnnotationProcessor
 com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava=annotationProcessor,cxf3LatestDepTestAnnotationProcessor,latestDepTestAnnotationProcessor,testAnnotationProcessor
 com.google.j2objc:j2objc-annotations:2.8=annotationProcessor,cxf3LatestDepTestAnnotationProcessor,latestDepTestAnnotationProcessor,testAnnotationProcessor
-com.google.re2j:re2j:1.7=cxf3LatestDepTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
+com.google.re2j:re2j:1.8=cxf3LatestDepTestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.squareup.moshi:moshi:1.11.0=cxf3LatestDepTestCompileClasspath,cxf3LatestDepTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.squareup.okhttp3:logging-interceptor:3.12.12=cxf3LatestDepTestCompileClasspath,cxf3LatestDepTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.squareup.okhttp3:okhttp:3.12.12=cxf3LatestDepTestCompileClasspath,cxf3LatestDepTestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath

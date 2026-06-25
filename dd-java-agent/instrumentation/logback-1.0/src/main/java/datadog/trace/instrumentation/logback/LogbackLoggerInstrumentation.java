@@ -78,7 +78,7 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
 
       if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
         InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class)
-            .put(event, span.context());
+            .put(event, span.spanContext());
       }
     }
   }

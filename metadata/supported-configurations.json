@@ -361,22 +361,6 @@
         "aliases": []
       }
     ],
-    "DD_APPSEC_REPORTING_INBAND": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
-        "aliases": []
-      }
-    ],
-    "DD_APPSEC_REPORT_TIMEOUT": [
-      {
-        "version": "A",
-        "type": "int",
-        "default": "60",
-        "aliases": []
-      }
-    ],
     "DD_APPSEC_RULES": [
       {
         "version": "C",
@@ -2438,14 +2422,6 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
-      }
-    ],
-    "DD_OPTIMIZED_MAP_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
         "aliases": []
       }
     ],
@@ -8633,6 +8609,22 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_OTEL_SEMANTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACES_SPAN_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TRACE_ORG_GUARD_ENABLED": [
       {
         "version": "A",
@@ -11621,6 +11613,14 @@
       {
         "version": "C",
         "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_TRACES_SPAN_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
         "default": null,
         "aliases": []
       }

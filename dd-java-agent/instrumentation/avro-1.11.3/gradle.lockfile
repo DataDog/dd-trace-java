@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:avro-1.11.3:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=latestDepTest8RuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=latestDepTest8RuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=latestDepTest8CompileClasspath,latestDepTest8RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
@@ -37,7 +38,7 @@ com.github.jnr:jnr-posix:3.1.22=latestDepTest8RuntimeClasspath,latestDepTestRunt
 com.github.jnr:jnr-unixsocket:0.38.25=latestDepTest8RuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-x86asm:1.0.2=latestDepTest8RuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.luben:zstd-jni:1.5.5-5=compileClasspath,latestDepTest8CompileClasspath,latestDepTest8RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
-com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,latestDepTest8CompileClasspath,latestDepTest8RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
+com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,spotbugs
 com.github.spotbugs:spotbugs:4.9.8=spotbugs
 com.github.stephenc.jcip:jcip-annotations:1.0-1=compileClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
 com.google.auto.service:auto-service-annotations:1.1.1=annotationProcessor,compileClasspath,latestDepTest8AnnotationProcessor,latestDepTest8CompileClasspath,latestDepTestAnnotationProcessor,latestDepTestCompileClasspath,testAnnotationProcessor,testCompileClasspath
@@ -63,7 +64,7 @@ com.google.j2objc:j2objc-annotations:2.8=annotationProcessor,latestDepTest8Annot
 com.google.j2objc:j2objc-annotations:3.0.0=latestDepTest8CompileClasspath,latestDepTest8RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 com.google.protobuf:protobuf-java:2.5.0=compileClasspath,testCompileClasspath,testRuntimeClasspath
 com.google.re2j:re2j:1.1=compileClasspath,latestDepTest8CompileClasspath,latestDepTestCompileClasspath,testCompileClasspath
-com.google.re2j:re2j:1.7=latestDepTest8RuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
+com.google.re2j:re2j:1.8=latestDepTest8RuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.jcraft:jsch:0.1.55=compileClasspath,latestDepTest8CompileClasspath,latestDepTest8RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.nimbusds:nimbus-jose-jwt:10.4=latestDepTest8CompileClasspath,latestDepTest8RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 com.nimbusds:nimbus-jose-jwt:9.8.1=compileClasspath,testCompileClasspath,testRuntimeClasspath

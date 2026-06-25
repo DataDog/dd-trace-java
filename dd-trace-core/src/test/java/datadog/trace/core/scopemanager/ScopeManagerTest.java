@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.core.scopemanager.ScopeManagerTest.EVENT.ACTIVATE;
 import static datadog.trace.core.scopemanager.ScopeManagerTest.EVENT.CLOSE;
 import static datadog.trace.test.util.GCUtils.awaitGC;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -24,6 +25,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
 import datadog.trace.api.DDTraceId;
@@ -158,11 +160,11 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
 
     assertSame(childScope, scopeManager.active());
     assertEquals(
-        parentScope.span().context().getSpanId(),
-        ((DDSpan) childScope.span()).context().getParentId());
+        parentScope.span().spanContext().getSpanId(),
+        ((DDSpan) childScope.span()).spanContext().getParentId());
     assertSame(
-        parentScope.span().context().getTraceCollector(),
-        childScope.span().context().getTraceCollector());
+        parentScope.span().spanContext().getTraceCollector(),
+        childScope.span().spanContext().getTraceCollector());
 
     childScope.close();
 
@@ -353,7 +355,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
     // the child has the correct parent
     assertNull(scopeManager.active());
     assertTrue(spanFinished(childSpan));
-    assertEquals(span.context().getSpanId(), ((DDSpan) childSpan).context().getParentId());
+    assertEquals(span.spanContext().getSpanId(), ((DDSpan) childSpan).spanContext().getParentId());
     assertEquals(1, writer.size());
     assertTrue(writer.get(0).containsAll(Arrays.asList(childSpan, span)));
   }
@@ -1073,6 +1075,72 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
 
     assertNull(scopeManager.active());
     assertEquals(Context.root(), scopeManager.current());
+  }
+
+  @Test
+  void captureViaContextContinuationAPIHoldsTrace() throws Exception {
+    AgentSpan span = tracer.buildSpan("test", "test").start();
+    AgentScope scope = tracer.activateSpan(span);
+
+    // Context.current().capture() routes through ContinuableScopeManager.capture(Context)
+    ContextContinuation continuation = Context.current().capture();
+
+    scope.close();
+    span.finish();
+    assertTrue(writer.isEmpty()); // trace held pending continuation
+
+    continuation.release(); // delegates to cancel(), unblocks trace reporting
+    writer.waitForTraces(1);
+    assertFalse(writer.isEmpty());
+  }
+
+  @Test
+  void continuationResumeActivatesSpan() throws Exception {
+    AgentSpan span = tracer.buildSpan("test", "test").start();
+    AgentScope scope = tracer.activateSpan(span);
+    AgentScope.Continuation continuation = tracer.captureActiveSpan();
+    scope.close();
+    span.finish();
+
+    assertNull(scopeManager.active());
+    assertTrue(writer.isEmpty()); // trace held by continuation
+
+    // resume() delegates to activate()
+    ContextScope resumedScope = continuation.resume();
+    assertSame(span, scopeManager.active().span());
+
+    resumedScope.close();
+    assertNull(scopeManager.active());
+    writer.waitForTraces(1);
+    assertFalse(writer.isEmpty());
+  }
+
+  @Test
+  void continuationReleaseIsSameAsCancel() throws Exception {
+    AgentSpan span = tracer.buildSpan("test", "test").start();
+    AgentScope scope = tracer.activateSpan(span);
+    AgentScope.Continuation continuation = tracer.captureActiveSpan();
+    scope.close();
+    span.finish();
+
+    assertTrue(writer.isEmpty()); // trace held by continuation
+
+    continuation.release(); // delegates to cancel()
+    writer.waitForTraces(1);
+    assertFalse(writer.isEmpty());
+  }
+
+  @Test
+  void captureContextWithoutSpanUsesNoopTraceCollector() {
+    ContextKey<String> key = ContextKey.named("test-key");
+    Context ctx = Context.root().with(key, "value");
+    assertDoesNotThrow(
+        () -> {
+          // NoopAgentTraceCollector handles capture/release without throwing
+          try (ContextScope scope = ctx.attach()) {
+            Context.current().capture().release();
+          }
+        });
   }
 
   private boolean spanFinished(AgentSpan span) {

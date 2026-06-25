@@ -5,6 +5,7 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFile
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
@@ -22,10 +23,10 @@ import java.util.Locale
 import javax.inject.Inject
 
 /**
- * Project extension that wires a [NestedGradleBuild] task for a smoke-test application.
+ * Project extension that wires a nested build task for a smoke-test application.
  *
- * The plugin only contributes a task when the consumer calls [application]; if the extension
- * stays unconfigured, the plugin is a no-op and consumers can register [NestedGradleBuild]
+ * The plugin only contributes a task when the consumer calls [gradleApp] or [mavenApp]; if
+ * the extension stays unconfigured, the plugin is a no-op and consumers can register tasks
  * directly.
  */
 abstract class SmokeTestAppExtension @Inject constructor(
@@ -47,8 +48,8 @@ abstract class SmokeTestAppExtension @Inject constructor(
   abstract val gradleDistributionBaseUrl: Property<String>
 
   /**
-   * JDK used by the nested daemon. Defaults to a [DEFAULT_NESTED_JAVA_VERSION] toolchain;
-   * override to pin a different JDK if the nested application's plugin chain requires it.
+   * JDK used by the nested build. Defaults to a [DEFAULT_NESTED_JAVA_VERSION] toolchain;
+   * override to pin a different JDK if the nested application's build chain requires it.
    * The inner build script is responsible for pinning the produced bytecode level (e.g.
    * `java { sourceCompatibility = JavaVersion.VERSION_1_8 }`).
    */
@@ -58,8 +59,9 @@ abstract class SmokeTestAppExtension @Inject constructor(
   abstract val applicationDir: DirectoryProperty
 
   /**
-   * Directory the nested build writes its outputs to. The nested build script is expected to
-   * honour `-PappBuildDir=<path>`; see the existing smoke-test inner builds for the pattern.
+   * Directory the nested build writes its outputs to. Gradle applications are expected to
+   * honour `-PappBuildDir=<path>`; Maven applications are expected to honour
+   * `-Dtarget.dir=<path>`.
    */
   abstract val applicationBuildDir: DirectoryProperty
 
@@ -108,19 +110,19 @@ abstract class SmokeTestAppExtension @Inject constructor(
   /**
    * Register the nested-build task and wire the produced artifact into every `Test` task as
    * a system property. Calling this triggers task registration; consumers that prefer to
-   * register [NestedGradleBuild] manually can leave [application] uncalled.
+   * register [NestedGradleBuild] manually can leave [gradleApp] uncalled.
    */
-  fun application(action: Action<ApplicationSpec>) {
-    val spec = project.objects.newInstance<ApplicationSpec>()
+  fun gradleApp(action: Action<GradleAppSpec>) {
+    val spec = project.objects.newInstance<GradleAppSpec>()
     action.execute(spec)
     val taskName = requireNotNull(spec.taskName.orNull) {
-      "smokeTestApp.application { taskName = ... } is required"
+      "smokeTestApp.gradleApp { taskName = ... } is required"
     }
     val artifactPath = requireNotNull(spec.artifactPath.orNull) {
-      "smokeTestApp.application { artifactPath = ... } is required"
+      "smokeTestApp.gradleApp { artifactPath = ... } is required"
     }
     val sysProperty = requireNotNull(spec.sysProperty.orNull) {
-      "smokeTestApp.application { sysProperty = ... } is required"
+      "smokeTestApp.gradleApp { sysProperty = ... } is required"
     }
     val nestedTasks = spec.nestedTasks.orNull?.takeIf { it.isNotEmpty() } ?: listOf(taskName)
 
@@ -135,11 +137,61 @@ abstract class SmokeTestAppExtension @Inject constructor(
         buildArguments.set(spec.buildArguments)
         environment.set(spec.environment)
         buildCacheEnabled.set(spec.buildCacheEnabled)
+        spec.stopTimeoutSeconds.orNull?.let(stopTimeoutSeconds::set)
         projectJars.set(this@SmokeTestAppExtension.projectJars)
       }
 
+    wireTestTasks(taskProvider, artifactPath, sysProperty, spec.additionalSystemProperties)
+  }
+
+  /** Register a Maven nested-build task and expose its artifact to every `Test` task. */
+  fun mavenApp(action: Action<MavenAppSpec>) {
+    val spec = project.objects.newInstance<MavenAppSpec>()
+    spec.mavenExecutable.convention(rootMavenExecutable())
+    spec.mavenRepositoryProxy.convention(
+      project.providers.environmentVariable("MAVEN_REPOSITORY_PROXY"),
+    )
+    spec.mavenLocalRepository.convention(project.rootProject.layout.projectDirectory.dir(".mvn/caches"))
+    spec.useMavenLocalRepository.convention(isCiProvider())
+    action.execute(spec)
+
+    val taskName = requireNotNull(spec.taskName.orNull) {
+      "smokeTestApp.mavenApp { taskName = ... } is required"
+    }
+    val artifactPath = requireNotNull(spec.artifactPath.orNull) {
+      "smokeTestApp.mavenApp { artifactPath = ... } is required"
+    }
+    val sysProperty = requireNotNull(spec.sysProperty.orNull) {
+      "smokeTestApp.mavenApp { sysProperty = ... } is required"
+    }
+
+    val taskProvider: TaskProvider<NestedMavenBuild> =
+      project.tasks.register<NestedMavenBuild>(taskName) {
+        applicationDir.set(this@SmokeTestAppExtension.applicationDir)
+        applicationBuildDir.set(this@SmokeTestAppExtension.applicationBuildDir)
+        javaLauncher.set(this@SmokeTestAppExtension.javaLauncher)
+        mavenExecutable.set(spec.mavenExecutable)
+        goals.set(spec.goals)
+        arguments.set(spec.arguments)
+        environment.set(spec.environment)
+        mavenOpts.set(spec.mavenOpts)
+        mavenRepositoryProxy.set(spec.mavenRepositoryProxy)
+        useMavenLocalRepository.set(spec.useMavenLocalRepository)
+        mavenLocalRepository.set(spec.mavenLocalRepository)
+        spec.buildTimeoutSeconds.orNull?.let(buildTimeoutSeconds::set)
+      }
+
+    wireTestTasks(taskProvider, artifactPath, sysProperty, spec.additionalSystemProperties)
+  }
+
+  private fun wireTestTasks(
+    taskProvider: TaskProvider<*>,
+    artifactPath: String,
+    sysProperty: String,
+    additionalSystemProperties: MapProperty<String, String>,
+  ) {
     val artifactProvider: Provider<RegularFile> = applicationBuildDir.file(artifactPath)
-    val extras = spec.additionalSystemProperties.get().mapValues { (_, relativePath) ->
+    val extras = additionalSystemProperties.get().mapValues { (_, relativePath) ->
       applicationBuildDir.file(relativePath)
     }
     project.tasks.withType<Test>().configureEach {
@@ -229,16 +281,26 @@ abstract class SmokeTestAppExtension @Inject constructor(
       properties[name] = value
     }
   }
+
+  private fun rootMavenExecutable(): Provider<RegularFile> =
+    project.providers.provider {
+      project.rootProject.layout.projectDirectory.file(NestedMavenBuild.mavenWrapperName())
+    }
+
+  private fun isCiProvider(): Provider<Boolean> =
+    project.providers.environmentVariable("CI")
+      .map { it.equals("true", ignoreCase = true) }
+      .orElse(false)
 }
 
-/** DSL describing the nested-build invocation for one smoke-test application. */
+/** Common DSL for a smoke-test application artifact. */
 abstract class ApplicationSpec @Inject constructor() {
 
   init {
-    buildCacheEnabled.convention(false)
+    additionalSystemProperties.convention(emptyMap())
   }
 
-  /** Outer task name; the nested daemon runs the same task by default. */
+  /** Outer task name registered by the smoke-test plugin. */
   abstract val taskName: Property<String>
 
   /** Path to the produced artifact, relative to `applicationBuildDir`. */
@@ -246,6 +308,23 @@ abstract class ApplicationSpec @Inject constructor() {
 
   /** System property name set on Test tasks to point them at the produced artifact. */
   abstract val sysProperty: Property<String>
+
+  /**
+   * Additional system properties to forward to every `Test` task, keyed by property name with
+   * values resolved against `applicationBuildDir`. Use this for smoke tests that need more
+   * than the single primary artifact path (e.g. a separately unpacked server install).
+   */
+  abstract val additionalSystemProperties: MapProperty<String, String>
+}
+
+/** DSL describing a nested Gradle invocation for one smoke-test application. */
+abstract class GradleAppSpec @Inject constructor() : ApplicationSpec() {
+
+  init {
+    buildCacheEnabled.convention(false)
+    buildArguments.convention(emptyList())
+    environment.convention(emptyMap())
+  }
 
   /** Tasks run inside the nested build. Defaults to `[taskName]`. */
   abstract val nestedTasks: ListProperty<String>
@@ -262,13 +341,6 @@ abstract class ApplicationSpec @Inject constructor() {
   abstract val environment: MapProperty<String, String>
 
   /**
-   * Additional system properties to forward to every `Test` task, keyed by property name with
-   * values resolved against `applicationBuildDir`. Use this for smoke tests that need more
-   * than the single primary artifact path (e.g. a separately unpacked server install).
-   */
-  abstract val additionalSystemProperties: MapProperty<String, String>
-
-  /**
    * Whether to enable the build cache in the nested Gradle invocation. 
    * Gradle's org.gradle.caching flag is resolved from many sources (project, 
    * init, gradle user home, environment, command line) and any of them silently 
@@ -278,6 +350,47 @@ abstract class ApplicationSpec @Inject constructor() {
    * `--build-cache` / `--no-build-cache` is passed explicitly either way.
    */
   abstract val buildCacheEnabled: Property<Boolean>
+
+  /** Timeout, in seconds, for stopping the nested Gradle daemon after the build. */
+  abstract val stopTimeoutSeconds: Property<Long>
+}
+
+/** DSL describing a nested Maven invocation for one smoke-test application. */
+abstract class MavenAppSpec @Inject constructor() : ApplicationSpec() {
+
+  init {
+    goals.convention(listOf("package"))
+    arguments.convention(emptyList())
+    environment.convention(emptyMap())
+    mavenOpts.convention("")
+  }
+
+  /** Goals run inside the nested Maven build. Defaults to `package`. */
+  abstract val goals: ListProperty<String>
+
+  /** Extra arguments passed to the nested Maven invocation before [goals]. */
+  abstract val arguments: ListProperty<String>
+
+  /** Extra environment variables exposed to the nested Maven process. */
+  abstract val environment: MapProperty<String, String>
+
+  /** Optional `MAVEN_OPTS` value for the nested Maven process. */
+  abstract val mavenOpts: Property<String>
+
+  /** Root Maven wrapper executable used to launch the nested build. */
+  abstract val mavenExecutable: RegularFileProperty
+
+  /** Maven repository proxy used by the wrapper and by Maven builds that read the env var. */
+  abstract val mavenRepositoryProxy: Property<String>
+
+  /** Whether to pass [mavenLocalRepository] as `-Dmaven.repo.local`. Defaults to CI only. */
+  abstract val useMavenLocalRepository: Property<Boolean>
+
+  /** Local repository path used when [useMavenLocalRepository] is enabled. */
+  abstract val mavenLocalRepository: DirectoryProperty
+
+  /** Timeout, in seconds, for the nested Maven build process. */
+  abstract val buildTimeoutSeconds: Property<Long>
 }
 
 /**
@@ -288,8 +401,8 @@ abstract class ApplicationSpec @Inject constructor() {
 const val DEFAULT_NESTED_GRADLE_VERSION = "8.14.5"
 
 /**
- * Default JDK language version for the nested daemon. JDK 21 is the version the root build
- * requires for Gradle 9; standardising the nested daemon on the same JDK avoids pulling a
+ * Default JDK language version for the nested build. JDK 21 is the version the root build
+ * requires for Gradle 9; standardising nested builds on the same JDK avoids pulling a
  * second toolchain onto dev machines and CI runners. Inner build scripts cross-compile down
  * to their actual bytecode target via `java { sourceCompatibility = ... }`.
  */

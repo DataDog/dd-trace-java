@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:kafka:kafka-clients-0.11:dependencies --write-locks
 at.yawk.lz4:lz4-java:1.10.1=iastLatestDepTest3RuntimeClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=iastLatestDepTest3RuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=iastLatestDepTest3RuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
@@ -39,7 +40,7 @@ com.github.jnr:jnr-unixsocket:0.38.25=iastLatestDepTest3RuntimeClasspath,latestD
 com.github.jnr:jnr-x86asm:1.0.2=iastLatestDepTest3RuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.github.luben:zstd-jni:1.5.2-1=latestDepTestRuntimeClasspath
 com.github.luben:zstd-jni:1.5.6-4=iastLatestDepTest3RuntimeClasspath
-com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,iastLatestDepTest3CompileClasspath,iastLatestDepTest3RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
+com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,spotbugs
 com.github.spotbugs:spotbugs:4.9.8=spotbugs
 com.github.stephenc.jcip:jcip-annotations:1.0-1=spotbugs
 com.google.auto.service:auto-service-annotations:1.1.1=annotationProcessor,compileClasspath,iastLatestDepTest3AnnotationProcessor,iastLatestDepTest3CompileClasspath,latestDepTestAnnotationProcessor,latestDepTestCompileClasspath,testAnnotationProcessor,testCompileClasspath
@@ -54,7 +55,7 @@ com.google.guava:guava:20.0=iastLatestDepTest3CompileClasspath,iastLatestDepTest
 com.google.guava:guava:32.0.1-jre=annotationProcessor,iastLatestDepTest3AnnotationProcessor,latestDepTestAnnotationProcessor,testAnnotationProcessor
 com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava=annotationProcessor,iastLatestDepTest3AnnotationProcessor,latestDepTestAnnotationProcessor,testAnnotationProcessor
 com.google.j2objc:j2objc-annotations:2.8=annotationProcessor,iastLatestDepTest3AnnotationProcessor,latestDepTestAnnotationProcessor,testAnnotationProcessor
-com.google.re2j:re2j:1.7=iastLatestDepTest3RuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
+com.google.re2j:re2j:1.8=iastLatestDepTest3RuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 com.squareup.moshi:moshi:1.11.0=iastLatestDepTest3CompileClasspath,iastLatestDepTest3RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.squareup.okhttp3:logging-interceptor:3.12.12=iastLatestDepTest3CompileClasspath,iastLatestDepTest3RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.squareup.okhttp3:okhttp:3.12.12=iastLatestDepTest3CompileClasspath,iastLatestDepTest3RuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
