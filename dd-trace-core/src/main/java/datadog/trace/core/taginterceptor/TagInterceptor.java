@@ -43,12 +43,12 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class TagInterceptor {
+public final class TagInterceptor {
 
   private static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
 
   // Handler ids for the intercept dispatch. 1-based: 0 is the skip sentinel ("not intercepted"),
-  // which lines up with the empty StringIndex slots that mapValues leaves at 0.
+  // which lines up with the empty StringIndex slots that mapIntValues leaves at 0.
   private static final int ID_RESOURCE_NAME = 1;
   private static final int ID_DB_STATEMENT = 2;
   private static final int ID_SERVICE = 3; // SERVICE_NAME and the legacy "service"
@@ -72,9 +72,9 @@ public class TagInterceptor {
   private static final int ID_SPLIT_SERVICE = 21; // a Config split-by-tag (not a fixed case)
 
   // Membership/dispatch index over the compile-time-fixed intercepted tags, held as the raw placed
-  // arrays (not a StringIndex instance) so handlerId's hot-path lookup folds the refs to constants
-  // via Support.indexOf -- the path StringIndex recommends for hot code. Split-by-tags are
-  // Config-driven, so they stay a per-instance check (see handlerId) and never enter this index.
+  // arrays (not a StringIndex instance) so handlerId's hot-path Support.lookup folds the refs to
+  // constants -- the path StringIndex recommends for hot code. Split-by-tags are Config-driven, so
+  // they stay a per-instance check (see handlerId) and never enter this index.
   private static final int[] FIXED_HASHES;
   private static final String[] FIXED_NAMES;
   // Slot-aligned handler ids (built once). The name->id switch runs only at class init.
@@ -107,7 +107,8 @@ public class TagInterceptor {
             Tags.SPAN_KIND);
     FIXED_HASHES = fixed.hashes;
     FIXED_NAMES = fixed.names;
-    FIXED_HANDLER_IDS = StringIndex.Support.mapValues(FIXED_NAMES, TagInterceptor::fixedHandlerId);
+    FIXED_HANDLER_IDS =
+        StringIndex.Support.mapIntValues(FIXED_NAMES, TagInterceptor::fixedHandlerId);
   }
 
   private static int fixedHandlerId(String tag) {
@@ -225,9 +226,11 @@ public class TagInterceptor {
    * wins when a tag is both, matching the original switch order.
    */
   public int handlerId(String tag) {
-    int slot = StringIndex.Support.indexOf(FIXED_HASHES, FIXED_NAMES, tag);
-    if (slot >= 0) {
-      return FIXED_HANDLER_IDS[slot];
+    // lookup returns the slot's id, or 0 on a miss -- which is exactly the "not fixed" sentinel
+    // (ids are 1-based), so no separate slot >= 0 check is needed.
+    int id = StringIndex.Support.lookup(FIXED_HASHES, FIXED_NAMES, FIXED_HANDLER_IDS, tag);
+    if (id != 0) {
+      return id;
     }
     return hasSplitTags && splitServiceTags.contains(tag) ? ID_SPLIT_SERVICE : 0;
   }
