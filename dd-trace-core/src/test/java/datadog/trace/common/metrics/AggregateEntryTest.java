@@ -14,9 +14,15 @@ import datadog.metrics.impl.DDSketchHistograms;
 import datadog.metrics.impl.MonitoringImpl;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class AggregateEntryTest {
+
+  @BeforeEach
+  void resetCardinalityHandlers() {
+    AggregateEntry.resetCardinalityHandlers();
+  }
 
   @BeforeAll
   static void initAgentMeter() {

@@ -76,6 +76,7 @@ class MetricsIntegrationTest {
 
   @BeforeEach
   void setup() {
+    AggregateEntry.resetCardinalityHandlers();
     injectSysConfig(TracerConfig.AGENT_HOST, agentHost());
     injectSysConfig(TracerConfig.TRACE_AGENT_PORT, agentPort());
   }
