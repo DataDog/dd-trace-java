@@ -23,8 +23,6 @@ import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Vertx
-import okhttp3.MediaType
-import okhttp3.RequestBody
 
 class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   @Override
