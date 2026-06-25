@@ -117,8 +117,9 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       final ModifyResponse context, final ExecutionAttributes executionAttributes) {
     final SdkResponse response = context.response();
     if (!AWS_LEGACY_TRACING && isPollingRequest(context.request()) && isPollingResponse(response)) {
-      // Attach queueUrl to the unmarshalled response before the SDK rebuilds it with
-      // toBuilder().sdkHttpResponse(...).build().
+      // Attach queueUrl before AWS SDK core rebuilds the response with
+      // toBuilder().sdkHttpResponse(...).build(). afterExecution sees this pre-rebuild response,
+      // not the final response returned to user code, so capturing queueUrl there is too late.
       context
           .request()
           .getValueForField("QueueUrl", String.class)

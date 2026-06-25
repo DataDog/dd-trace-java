@@ -44,6 +44,8 @@ public final class SqsReceiveResponseBuilderInstrumentation
       String queueUrl =
           InstrumentationContext.get(ReceiveMessageResponse.class, String.class).get(response);
       if (queueUrl != null) {
+        // AWS SDK core finalizes modeled responses through response.toBuilder().build().
+        // Carry queueUrl onto the builder so it survives that response instance change.
         InstrumentationContext.get(BUILDER_IMPL, "java.lang.String").put(builder, queueUrl);
       }
     }

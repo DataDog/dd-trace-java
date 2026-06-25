@@ -44,6 +44,8 @@ public final class SqsReceiveResponseBuilderImplInstrumentation
           InstrumentationContext.get(BUILDER_IMPL, "java.lang.String");
       String queueUrl = builderStore.get(builder);
       if (queueUrl != null) {
+        // Complete the handoff from the pre-rebuild response to the final response user code
+        // sees.
         InstrumentationContext.get(ReceiveMessageResponse.class, String.class)
             .put(response, queueUrl);
       }

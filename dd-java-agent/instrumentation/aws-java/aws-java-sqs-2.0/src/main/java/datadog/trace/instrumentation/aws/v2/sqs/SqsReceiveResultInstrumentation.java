@@ -30,6 +30,8 @@ public final class SqsReceiveResultInstrumentation
         @Advice.This ReceiveMessageResponse result,
         @Advice.Return(readOnly = false) List<Message> messages) {
       if (SqsReceiveResponseInternalAccess.active()) {
+        // AWS SDK's MD5 checksum interceptor calls messages() during afterExecution. That should
+        // not create consumer spans; those belong around application message processing.
         return;
       }
       if (messages != null && !messages.isEmpty() && !(messages instanceof TracingList)) {
