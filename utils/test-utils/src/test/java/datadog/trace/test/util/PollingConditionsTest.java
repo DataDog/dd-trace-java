@@ -7,6 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
@@ -78,37 +81,24 @@ class PollingConditionsTest {
   }
 
   @Test
-  void factorBackOffReducesAttemptCount() {
-    // Constant delay: many attempts fit in the window.
-    AtomicInteger constant = new AtomicInteger();
-    assertThrows(
-        AssertionError.class,
-        () ->
-            new PollingConditions(0.3)
-                .delay(0.02)
-                .factor(1)
-                .eventually(
-                    () -> {
-                      constant.incrementAndGet();
-                      fail("nope");
-                    }));
+  void factorMultipliesDelayBetweenAttempts() {
+    // Large timeout so the run ends by success (after 4 attempts), never by the deadline; the
+    // recording subclass captures the requested delays without actually sleeping, so this is
+    // deterministic rather than dependent on wall-clock scheduling.
+    RecordingPollingConditions conditions = new RecordingPollingConditions(100);
+    conditions.delay(0.02).factor(4); // 20ms base delay, multiplied by 4 after each attempt
 
-    // Exponential back-off: the delay grows quickly, so far fewer attempts fit.
-    AtomicInteger growing = new AtomicInteger();
-    assertThrows(
-        AssertionError.class,
-        () ->
-            new PollingConditions(0.3)
-                .delay(0.02)
-                .factor(4)
-                .eventually(
-                    () -> {
-                      growing.incrementAndGet();
-                      fail("nope");
-                    }));
+    AtomicInteger attempts = new AtomicInteger();
+    conditions.eventually(
+        () -> {
+          if (attempts.incrementAndGet() < 4) {
+            fail("not yet");
+          }
+        });
 
-    assertTrue(
-        growing.get() < constant.get(), "growing=" + growing.get() + " constant=" + constant.get());
+    assertEquals(4, attempts.get());
+    // Three failed attempts -> three delays, each 4x the previous.
+    assertEquals(Arrays.asList(20L, 80L, 320L), conditions.requestedSleeps);
   }
 
   @Test
@@ -141,6 +131,20 @@ class PollingConditionsTest {
     } finally {
       // Clear the flag so it does not leak into other tests sharing this thread.
       Thread.interrupted();
+    }
+  }
+
+  /** Captures the requested delays instead of sleeping, for deterministic back-off assertions. */
+  private static final class RecordingPollingConditions extends PollingConditions {
+    final List<Long> requestedSleeps = new ArrayList<>();
+
+    RecordingPollingConditions(double timeoutSeconds) {
+      super(timeoutSeconds);
+    }
+
+    @Override
+    void sleep(long millis) {
+      requestedSleeps.add(millis);
     }
   }
 }

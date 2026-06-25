@@ -1,5 +1,6 @@
 package datadog.trace.test.util;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.test.util.ThreadUtils.ThrowingRunnable;
 
 /**
@@ -119,7 +120,9 @@ public class PollingConditions {
     return Math.round(seconds * 1000);
   }
 
-  private static void sleep(final long millis) {
+  // VisibleForTesting to allow test code to override it and avoid flaky timing-based assertions.
+  @VisibleForTesting
+  void sleep(final long millis) {
     try {
       Thread.sleep(millis);
     } catch (final InterruptedException e) {

@@ -35,6 +35,7 @@ dependencies {
   api(project(":utils:junit-utils"))
   api(group = "commons-fileupload", name = "commons-fileupload", version = "1.5")
 
+  compileOnly(project(":components:annotations"))
   compileOnly(libs.junit.jupiter)
   compileOnly(libs.logback.core)
   compileOnly(libs.logback.classic)
