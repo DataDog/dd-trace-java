@@ -1,5 +1,7 @@
 package datadog.context;
 
+import static datadog.context.ContextProviders.manager;
+
 /** Manages context across execution units. */
 public interface ContextManager {
   /**
@@ -24,6 +26,29 @@ public interface ContextManager {
    * @return the previously attached context; {@link Context#root()} if there was none.
    */
   Context swap(Context context);
+
+  /**
+   * Captures the given (attached) context so it can be resumed in another execution unit.
+   *
+   * @return continuation capturing the context.
+   */
+  ContextContinuation capture(Context context);
+
+  /**
+   * Registers the given listener to receive context events.
+   *
+   * @param listener the listener to register
+   */
+  void addListener(ContextListener listener);
+
+  /**
+   * Registers the given listener to receive context events.
+   *
+   * @param listener the listener to register.
+   */
+  static void register(ContextListener listener) {
+    manager().addListener(listener);
+  }
 
   /**
    * Requests use of a custom {@link ContextManager}.

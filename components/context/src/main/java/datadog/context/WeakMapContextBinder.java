@@ -6,10 +6,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Map;
 import java.util.WeakHashMap;
-import javax.annotation.ParametersAreNonnullByDefault;
 
 /** {@link ContextBinder} that uses a global weak map of carriers to contexts. */
-@ParametersAreNonnullByDefault
 final class WeakMapContextBinder implements ContextBinder {
   static final ContextBinder INSTANCE = new WeakMapContextBinder();
 
