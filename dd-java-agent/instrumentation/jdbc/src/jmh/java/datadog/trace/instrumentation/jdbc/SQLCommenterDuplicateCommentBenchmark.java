@@ -27,23 +27,23 @@ import org.openjdk.jmh.annotations.Warmup;
  *   ./gradlew :dd-java-agent:instrumentation:jdbc:jmh   # add -prof gc
  * </pre>
  *
- * <p><b>Results</b> (JDK 25, MacBook M-series, {@code @Threads(8)}, {@code @Fork(2)}, {@code -prof
+ * <p><b>Results</b> (JDK 17, MacBook M-series, {@code @Threads(8)}, {@code @Fork(5)}, {@code -prof
  * gc}):
  *
  * <pre>
  *                        throughput            gc.alloc.rate.norm
- *   before (substring)   15.4M ± 3.1M ops/s    140 B/op
- *   after  (range/view)  16.8M ± 1.3M ops/s    ~0  B/op  (10^-5)
+ *   before (substring)   23.5M ± 1.1M ops/s    140 B/op
+ *   after  (range/view)  26.2M ± 1.5M ops/s    ~0  B/op  (10^-5)
  * </pre>
  *
  * The extractCommentContent substring (140 B/op) is gone -- the in-place range scan and the
  * SubSequence view it flows through are both EA-elided. The allocation delta is exact and
- * fork-stable; that's the win. Throughput is flat-to-slightly-up but not cleanly resolved at
- * {@code @Fork(2)} (the "before" +-20% is bimodal) -- this path is dominated by the nine indexOf
- * scans (CPU the alloc-removal doesn't touch), so the win here is the allocation, a small cut that
- * compounds across comment-bearing injects, not a per-call throughput jump.
+ * fork-stable; that's the win. At {@code @Fork(5)} the spread tightens and a small throughput
+ * uplift (~1.1x) resolves -- but this path is dominated by the nine indexOf scans (CPU the
+ * alloc-removal doesn't touch), so the headline win is the allocation, a small cut that compounds
+ * across comment-bearing injects, not a per-call throughput jump.
  */
-@Fork(2)
+@Fork(5)
 @Warmup(iterations = 2)
 @Measurement(iterations = 5)
 @Threads(8)
