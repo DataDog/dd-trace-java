@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.concurrent.structuredconcurrency25;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.trace.bootstrap.InstrumentationContext.get;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
@@ -10,15 +11,9 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import java.util.Map;
 import net.bytebuddy.asm.Advice.OnMethodExit;
 import net.bytebuddy.asm.Advice.This;
-
-// WARNING:
-// This instrumentation is tested using smoke tests as instrumented tests cannot run using Java 25.
-// Instrumented tests rely on Spock / Groovy which cannot run using Java 25 due to byte-code
-// compatibility. Check
-// dd-java-agent/instrumentation/java/java-concurrent/java-concurrent-25.0 for this
-// instrumentation test suite.
 
 /**
  * This instrumentation captures the active span scope at StructuredTaskScope task creation
@@ -42,6 +37,11 @@ public class StructuredTaskScope25Instrumentation extends InstrumenterModule.Con
   @Override
   public boolean isEnabled() {
     return isJavaVersionAtLeast(25) && super.isEnabled();
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap(Runnable.class.getName(), State.class.getName());
   }
 
   @Override
