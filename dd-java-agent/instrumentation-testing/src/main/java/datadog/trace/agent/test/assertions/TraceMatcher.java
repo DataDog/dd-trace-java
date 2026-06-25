@@ -71,7 +71,7 @@ public final class TraceMatcher {
     DDSpan previousSpan = null;
     for (int i = 0; i < spanCount; i++) {
       DDSpan span = trace.get(i);
-      this.matchers[i].assertSpan(span, previousSpan);
+      this.matchers[i].assertSpan(span, previousSpan, trace);
       previousSpan = span;
     }
   }

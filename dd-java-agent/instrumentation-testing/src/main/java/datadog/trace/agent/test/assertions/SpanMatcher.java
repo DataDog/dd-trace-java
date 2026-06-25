@@ -64,6 +64,11 @@ public final class SpanMatcher {
 
   private static final Matcher<Long> CHILD_OF_PREVIOUS_MATCHER = is(0L);
 
+  /** Sentinel index value meaning "use the previous span in the array". */
+  private static final int INDEX_NOT_SET = -1;
+
+  private int parentSpanIndex = INDEX_NOT_SET;
+
   private SpanMatcher() {
     this.serviceNameMatcher = validates(s -> s != null && !s.isEmpty());
     this.typeMatcher = isNull();
@@ -130,6 +135,18 @@ public final class SpanMatcher {
    */
   public SpanMatcher childOfPrevious() {
     this.parentIdMatcher = CHILD_OF_PREVIOUS_MATCHER;
+    return this;
+  }
+
+  /**
+   * Checks the span is a direct child of the span at the given index in the trace. The index is
+   * resolved at assertion time by looking up the span ID from the trace list.
+   *
+   * @param index The zero-based index of the parent span in the trace.
+   * @return The current {@link SpanMatcher} instance with the child-of constraint applied.
+   */
+  public SpanMatcher childOfSpan(int index) {
+    this.parentSpanIndex = index;
     return this;
   }
 
@@ -302,6 +319,14 @@ public final class SpanMatcher {
   }
 
   void assertSpan(DDSpan span, DDSpan previousSpan) {
+    assertSpan(span, previousSpan, null);
+  }
+
+  void assertSpan(DDSpan span, DDSpan previousSpan, List<DDSpan> trace) {
+    // Apply parent id matcher from a specific span index
+    if (this.parentSpanIndex != INDEX_NOT_SET && trace != null) {
+      this.parentIdMatcher = is(trace.get(this.parentSpanIndex).getSpanId());
+    }
     // Apply parent id matcher from the previous span
     if (this.parentIdMatcher == CHILD_OF_PREVIOUS_MATCHER) {
       this.parentIdMatcher = is(previousSpan.getSpanId());
