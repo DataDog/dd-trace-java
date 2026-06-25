@@ -47,7 +47,7 @@ public class TracingPropagator implements Propagator {
         || (span = fromContext(context)) == null) {
       return;
     }
-    AgentSpanContext spanContext = span.context();
+    AgentSpanContext spanContext = span.spanContext();
     if (spanContext instanceof DDSpanContext) {
       DDSpanContext ddSpanContext = (DDSpanContext) spanContext;
       // Stop injection if tracing is disabled and tracing span is coming from tracing only

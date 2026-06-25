@@ -46,6 +46,9 @@ final class ResultCollector {
     var sourceFile = sourceFileResolver.resolve(sourceXml);
     var report = JUnitReport.parse(sourceXml);
     var reportChangedBeforeFinalStatus = report.addFileAttribute(sourceFile);
+    // Before normalization: retried attempts are matched on raw classname#name (see
+    // JUnitReport#tagRetriedAttempts) so distinct tests sharing a normalized name are not collapsed.
+    report.tagRetriedAttempts();
     reportChangedBeforeFinalStatus |= report.normalizeStableTestNames();
     report.tagSyntheticFailures();
     report.tagFinalStatuses();

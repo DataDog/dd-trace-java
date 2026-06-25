@@ -69,6 +69,9 @@ final class CachedData {
 
       // snakeyaml-engine and its transitives
       exclude(dependency('org.snakeyaml:snakeyaml-engine'))
+
+      // re2j and its transitives
+      exclude(dependency('com.google.re2j:re2j'))
     }
   ]
 }
@@ -95,7 +98,8 @@ CachedData.deps.shared = [
   libs.moshi,
   libs.jctools,
   libs.lz4,
-  libs.aircompressor
+  libs.aircompressor,
+  libs.re2j
 ]
 
 ext {

@@ -17,7 +17,8 @@ class DependencyPeriodActionSpecification extends DDSpecification {
     1 * telemetryService.addDependency({ Dependency dep ->
       dep.name == 'name' &&
         dep.version == '1.2.3' &&
-        dep.hash == 'DEADBEEF'
+        dep.hash == 'DEADBEEF' &&
+        dep.reachabilityMetadata == null
     })
     0 * _._
   }

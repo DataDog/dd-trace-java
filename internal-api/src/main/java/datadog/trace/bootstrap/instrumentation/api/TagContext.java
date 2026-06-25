@@ -25,7 +25,7 @@ public class TagContext implements AgentSpanContext.Extracted {
 
   private final CharSequence origin;
   private TagMap tags;
-  private List<AgentSpanLink> terminatedContextLinks;
+  private List<AgentSpanLink> terminatedSpanLinks;
   private Object requestContextDataAppSec;
   private Object requestContextDataIast;
   private Object ciVisibilityContextData;
@@ -57,7 +57,7 @@ public class TagContext implements AgentSpanContext.Extracted {
       final DDTraceId traceId) {
     this.origin = origin;
     this.tags = tags;
-    this.terminatedContextLinks = null;
+    this.terminatedSpanLinks = null;
     this.httpHeaders = httpHeaders == null ? EMPTY_HTTP_HEADERS : httpHeaders;
     this.baggage = baggage == null ? Collections.emptyMap() : baggage;
     this.samplingPriority = samplingPriority;
@@ -79,15 +79,15 @@ public class TagContext implements AgentSpanContext.Extracted {
   }
 
   @Override
-  public List<AgentSpanLink> getTerminatedContextLinks() {
-    return this.terminatedContextLinks == null ? emptyList() : this.terminatedContextLinks;
+  public List<AgentSpanLink> getTerminatedSpanLinks() {
+    return this.terminatedSpanLinks == null ? emptyList() : this.terminatedSpanLinks;
   }
 
-  public void addTerminatedContextLink(AgentSpanLink link) {
-    if (this.terminatedContextLinks == null) {
-      this.terminatedContextLinks = new ArrayList<>();
+  public void addTerminatedSpanLink(AgentSpanLink link) {
+    if (this.terminatedSpanLinks == null) {
+      this.terminatedSpanLinks = new ArrayList<>();
     }
-    this.terminatedContextLinks.add(link);
+    this.terminatedSpanLinks.add(link);
   }
 
   @Override

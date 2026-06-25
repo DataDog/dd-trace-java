@@ -1,36 +1,33 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.ProductTraceSource.UNSET;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.XRAY_TRACING_CONCERN;
+import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.PROPAGATED_TRACE_SOURCE;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_KEY;
+import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
 import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 import datadog.context.Context;
-import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
-import datadog.trace.api.config.TracerConfig;
-import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.junit.utils.config.WithConfig;
-import datadog.trace.junit.utils.tabletest.ProductTraceSourceConverter;
+import datadog.trace.junit.utils.converter.ProductTraceSourceConverter;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,22 +43,20 @@ class TracingPropagatorTest extends DDCoreJavaSpecification {
 
   @BeforeEach
   void setup() {
-    injector = mock(HttpCodec.Injector.class);
-    extractor = mock(HttpCodec.Extractor.class);
-    propagator = new TracingPropagator(true, injector, extractor);
+    this.injector = mock(HttpCodec.Injector.class);
+    this.extractor = mock(HttpCodec.Extractor.class);
+    this.propagator = new TracingPropagator(true, this.injector, this.extractor);
   }
 
   @Test
   void testTracingPropagatorContextInjection() {
     CoreTracer tracer = tracerBuilder().build();
     AgentSpan span = tracer.buildSpan("test", "operation").start();
-    @SuppressWarnings("unchecked")
-    CarrierSetter<Object> setter = mock(CarrierSetter.class);
-    Object carrier = new Object();
+    Map<String, String> carrier = new HashMap<>();
 
-    propagator.inject(span, carrier, setter);
+    this.propagator.inject(span, carrier, Map::put);
 
-    verify(injector).inject(same((DDSpanContext) span.context()), same(carrier), any());
+    verify(this.injector).inject(same((DDSpanContext) span.spanContext()), same(carrier), any());
 
     span.finish();
     tracer.close();
@@ -70,31 +65,25 @@ class TracingPropagatorTest extends DDCoreJavaSpecification {
   @Test
   void testTracingPropagatorContextExtractor() {
     Context context = Context.root();
-    // TODO Use ContextVisitor mock as getter once extractor API is refactored
-    @SuppressWarnings("unchecked")
-    AgentPropagation.ContextVisitor<Object> getter = mock(AgentPropagation.ContextVisitor.class);
-    Object carrier = new Object();
+    Map<String, String> carrier = new HashMap<>();
 
-    propagator.extract(context, carrier, getter);
+    this.propagator.extract(context, carrier, stringValuesMap());
 
-    verify(extractor).extract(same(carrier), any());
+    verify(this.extractor).extract(same(carrier), any());
   }
 
   @Test
-  @WithConfig(key = TracerConfig.WRITER_TYPE, value = "LoggingWriter")
   void spanPrioritySetWhenInjecting() {
     CoreTracer tracer = tracerBuilder().build();
-    @SuppressWarnings("unchecked")
-    CarrierSetter<Object> setter = mock(CarrierSetter.class);
-    Object carrier = new Object();
+    Map<String, String> carrier = new HashMap<>();
 
     AgentSpan root = tracer.buildSpan("test", "parent").start();
     AgentSpan child = tracer.buildSpan("test", "child").asChildOf(root).start();
-    Propagators.defaultPropagator().inject(child, carrier, setter);
+    Propagators.defaultPropagator().inject(child, carrier, Map::put);
 
     assertEquals(SAMPLER_KEEP, root.getSamplingPriority());
     assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
-    verify(setter).set(same(carrier), eq(SAMPLING_PRIORITY_KEY), eq(String.valueOf(SAMPLER_KEEP)));
+    assertEquals(String.valueOf(SAMPLER_KEEP), carrier.get(SAMPLING_PRIORITY_KEY));
 
     child.finish();
     root.finish();
@@ -104,28 +93,26 @@ class TracingPropagatorTest extends DDCoreJavaSpecification {
   @Test
   void spanPriorityOnlySetAfterFirstInjection() {
     ControllableSampler sampler = new ControllableSampler();
-    CoreTracer tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build();
-    @SuppressWarnings("unchecked")
-    CarrierSetter<Object> setter = mock(CarrierSetter.class);
-    Object carrier = new Object();
+    CoreTracer tracer = tracerBuilder().sampler(sampler).build();
 
     AgentSpan root = tracer.buildSpan("test", "parent").start();
     AgentSpan child = tracer.buildSpan("test", "child").asChildOf(root).start();
-    Propagators.defaultPropagator().inject(child, carrier, setter);
+
+    Map<String, String> carrier = new HashMap<>();
+    Propagators.defaultPropagator().inject(child, carrier, Map::put);
 
     assertEquals(SAMPLER_KEEP, root.getSamplingPriority());
     assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
-    verify(setter).set(same(carrier), eq(SAMPLING_PRIORITY_KEY), eq(String.valueOf(SAMPLER_KEEP)));
-    clearInvocations(setter);
+    assertEquals(String.valueOf(SAMPLER_KEEP), carrier.get(SAMPLING_PRIORITY_KEY));
 
-    sampler.nextSamplingPriority = PrioritySampling.SAMPLER_DROP;
+    sampler.nextSamplingPriority = SAMPLER_DROP;
     AgentSpan child2 = tracer.buildSpan("test", "child2").asChildOf(root).start();
-    Propagators.defaultPropagator().inject(child2, carrier, setter);
+    Propagators.defaultPropagator().inject(child2, carrier, Map::put);
 
     assertEquals(SAMPLER_KEEP, root.getSamplingPriority());
     assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
     assertEquals(root.getSamplingPriority(), child2.getSamplingPriority());
-    verify(setter).set(same(carrier), eq(SAMPLING_PRIORITY_KEY), eq(String.valueOf(SAMPLER_KEEP)));
+    assertEquals(String.valueOf(SAMPLER_KEEP), carrier.get(SAMPLING_PRIORITY_KEY));
 
     child.finish();
     child2.finish();
@@ -136,19 +123,18 @@ class TracingPropagatorTest extends DDCoreJavaSpecification {
   @Test
   void injectionDoesNotOverrideSetPriority() {
     ControllableSampler sampler = new ControllableSampler();
-    CoreTracer tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build();
-    @SuppressWarnings("unchecked")
-    CarrierSetter<Object> setter = mock(CarrierSetter.class);
-    Object carrier = new Object();
+    CoreTracer tracer = tracerBuilder().sampler(sampler).build();
 
     AgentSpan root = tracer.buildSpan("test", "root").start();
     AgentSpan child = tracer.buildSpan("test", "child").asChildOf(root).start();
     child.setSamplingPriority(USER_DROP);
-    Propagators.defaultPropagator().inject(child, carrier, setter);
+
+    Map<String, String> carrier = new HashMap<>();
+    Propagators.defaultPropagator().inject(child, carrier, Map::put);
 
     assertEquals(USER_DROP, root.getSamplingPriority());
     assertEquals(root.getSamplingPriority(), child.getSamplingPriority());
-    verify(setter).set(same(carrier), eq(SAMPLING_PRIORITY_KEY), eq(String.valueOf(USER_DROP)));
+    assertEquals(String.valueOf(USER_DROP), carrier.get(SAMPLING_PRIORITY_KEY));
 
     child.finish();
     root.finish();
@@ -156,27 +142,27 @@ class TracingPropagatorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario            | tracingEnabled | product                 ",
-    "enabled with ASM    | true           | ProductTraceSource.ASM  ",
-    "enabled with UNSET  | true           | ProductTraceSource.UNSET",
-    "disabled with ASM   | false          | ProductTraceSource.ASM  ",
-    "disabled with UNSET | false          | ProductTraceSource.UNSET"
+    "tracingEnabled | product                 ",
+    "true           | ProductTraceSource.ASM  ",
+    "true           | ProductTraceSource.UNSET",
+    "false          | ProductTraceSource.ASM  ",
+    "false          | ProductTraceSource.UNSET"
   })
   void testPropagationWhenTracingIsDisabled(
       boolean tracingEnabled, @ConvertWith(ProductTraceSourceConverter.class) int product) {
-    propagator = new TracingPropagator(tracingEnabled, injector, extractor);
+    // Recreating propagator to apply tracing test flag
+    this.propagator = new TracingPropagator(tracingEnabled, this.injector, this.extractor);
+
     CoreTracer tracer = tracerBuilder().build();
     AgentSpan span = tracer.buildSpan("test", "operation").start();
     span.setTag(PROPAGATED_TRACE_SOURCE, product);
-    @SuppressWarnings("unchecked")
-    CarrierSetter<Object> setter = mock(CarrierSetter.class);
-    Object carrier = new Object();
-    int injected = (tracingEnabled || product != 0) ? 1 : 0;
 
-    propagator.inject(span, carrier, setter);
+    Map<String, String> carrier = new HashMap<>();
+    this.propagator.inject(span, carrier, Map::put);
 
-    verify(injector, times(injected))
-        .inject(same((DDSpanContext) span.context()), same(carrier), any());
+    int injected = (tracingEnabled || product != UNSET) ? 1 : 0;
+    verify(this.injector, times(injected))
+        .inject(same((DDSpanContext) span.spanContext()), same(carrier), any());
 
     span.finish();
     tracer.close();
@@ -187,13 +173,11 @@ class TracingPropagatorTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().build();
     AgentSpan span = tracer.buildSpan("test", "operation").start();
     Propagator xrayPropagator = Propagators.forConcerns(XRAY_TRACING_CONCERN);
-    @SuppressWarnings("unchecked")
-    CarrierSetter<Object> setter = mock(CarrierSetter.class);
-    Object carrier = new Object();
 
-    xrayPropagator.inject(span, carrier, setter);
+    Map<String, String> carrier = new HashMap<>();
+    xrayPropagator.inject(span, carrier, Map::put);
 
-    verify(setter).set(same(carrier), eq("X-Amzn-Trace-Id"), any());
+    assertNotNull(carrier.get(X_AMZN_TRACE_ID));
 
     span.finish();
     tracer.close();
@@ -205,17 +189,11 @@ class TracingPropagatorTest extends DDCoreJavaSpecification {
     injectSysConfig("apm.tracing.enabled", String.valueOf(apmTracingEnabled));
     CoreTracer tracer = tracerBuilder().build();
     AgentSpan span = tracer.buildSpan("test", "operation").start();
-    @SuppressWarnings("unchecked")
-    CarrierSetter<Object> setter = mock(CarrierSetter.class);
-    Object carrier = new Object();
 
-    Propagators.defaultPropagator().inject(span, carrier, setter);
+    Map<String, String> carrier = new HashMap<>();
+    Propagators.defaultPropagator().inject(span, carrier, Map::put);
 
-    if (apmTracingEnabled) {
-      verify(setter, atLeastOnce()).set(any(), any(), any());
-    } else {
-      verifyNoInteractions(setter);
-    }
+    assertEquals(apmTracingEnabled, !carrier.isEmpty());
 
     span.finish();
     tracer.close();

@@ -67,6 +67,8 @@ dependencies {
   }
 
   testImplementation(project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3'))
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.4'))
+  testRuntimeOnly(project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-11.0'))
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')

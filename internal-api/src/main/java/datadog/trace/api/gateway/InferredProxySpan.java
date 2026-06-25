@@ -166,7 +166,7 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     // Store inferred span
     this.span = span;
     // Return inferred span as new parent context
-    return this.span.context();
+    return this.span.spanContext();
   }
 
   private String header(String name) {
