@@ -1,6 +1,9 @@
 package datadog.trace.util;
 
+import java.lang.reflect.Array;
+import java.util.function.Function;
 import java.util.function.ToIntFunction;
+import java.util.function.ToLongFunction;
 
 /**
  * Flat open-addressed name set. Generic — it knows only names.
@@ -20,7 +23,9 @@ import java.util.function.ToIntFunction;
  * </ul>
  *
  * <p>Consumers attach their own parallel payload arrays (ids, values, ...) sized to {@link #slots}
- * and indexed by the slot {@code indexOf} returns.
+ * and indexed by the slot {@code indexOf} returns. {@code mapValues}/{@code mapIntValues}/{@code
+ * mapLongValues} build such an array at construction; {@code lookup}/{@code lookupOrDefault} read
+ * one back in a single call (slot resolve + array read).
  *
  * <p>Slot 0-value is the empty sentinel: {@link Support#hash} never returns 0, so {@code hashes[i]
  * == 0} unambiguously means an empty slot.
@@ -68,15 +73,57 @@ public final class StringIndex {
     return this.slots;
   }
 
+  // --- value mapping: build a slot-aligned parallel array (off the hot path) ---
+
   /**
-   * Builds a slot-aligned value array: {@code out[indexOf(name)] == fn.applyAsInt(name)} for every
-   * indexed name. Pair with {@link #indexOf} to use this StringIndex as a string-&gt;int map
-   * without per-lookup hashing. Empty slots hold 0 and are never read ({@code indexOf} returns -1
-   * for non-members). For the hot path, prefer the raw {@link Support#mapValues} + {@link
-   * Support#indexOf} over {@code static final} arrays (the JIT folds the refs).
+   * Builds a slot-aligned {@code T[]} of values: {@code out[indexOf(name)] == fn.apply(name)} for
+   * every indexed name; other slots stay {@code null}. {@code type} is the array element type (Java
+   * can't allocate a generic array without it). Pair with {@link #lookup(Object[], String)}.
    */
-  public int[] mapValues(ToIntFunction<String> fn) {
-    return Support.mapValues(this.names, fn);
+  public <T> T[] mapValues(Class<T> type, Function<String, T> fn) {
+    return Support.mapValues(this.names, type, fn);
+  }
+
+  /** Slot-aligned {@code int[]} of values; absent slots stay 0. See {@link #mapValues}. */
+  public int[] mapIntValues(ToIntFunction<String> fn) {
+    return Support.mapIntValues(this.names, fn);
+  }
+
+  /** Slot-aligned {@code long[]} of values; absent slots stay 0. See {@link #mapValues}. */
+  public long[] mapLongValues(ToLongFunction<String> fn) {
+    return Support.mapLongValues(this.names, fn);
+  }
+
+  // --- lookup: resolve a key and read its parallel value in one call ---
+
+  /** {@code data[indexOf(key)]}, or {@code null} when {@code key} is absent. */
+  public <T> T lookup(T[] data, String key) {
+    return Support.lookup(this.hashes, this.names, data, key);
+  }
+
+  /** {@code data[indexOf(key)]}, or {@code defaultValue} when {@code key} is absent. */
+  public <T> T lookupOrDefault(T[] data, String key, T defaultValue) {
+    return Support.lookupOrDefault(this.hashes, this.names, data, key, defaultValue);
+  }
+
+  /** {@code data[indexOf(key)]}, or 0 when {@code key} is absent. */
+  public int lookup(int[] data, String key) {
+    return Support.lookup(this.hashes, this.names, data, key);
+  }
+
+  /** {@code data[indexOf(key)]}, or {@code defaultValue} when {@code key} is absent. */
+  public int lookupOrDefault(int[] data, String key, int defaultValue) {
+    return Support.lookupOrDefault(this.hashes, this.names, data, key, defaultValue);
+  }
+
+  /** {@code data[indexOf(key)]}, or 0 when {@code key} is absent. */
+  public long lookup(long[] data, String key) {
+    return Support.lookup(this.hashes, this.names, data, key);
+  }
+
+  /** {@code data[indexOf(key)]}, or {@code defaultValue} when {@code key} is absent. */
+  public long lookupOrDefault(long[] data, String key, long defaultValue) {
+    return Support.lookupOrDefault(this.hashes, this.names, data, key, defaultValue);
   }
 
   /** Build-time carrier. Pull the fields into your own (static final) fields; don't keep this. */
@@ -123,14 +170,44 @@ public final class StringIndex {
     }
 
     /**
-     * Slot-aligned value array over placed {@code names}; {@code out[slot] = fn(name)} per name.
+     * Slot-aligned {@code T[]} over placed {@code names}: {@code out[slot] = fn(name)} per name,
+     * {@code null} elsewhere. {@code type} is the array element type (generic-array allocation).
      */
-    public static int[] mapValues(String[] names, ToIntFunction<String> fn) {
+    @SuppressWarnings("unchecked")
+    public static <T> T[] mapValues(String[] names, Class<T> type, Function<String, T> fn) {
+      T[] out = (T[]) Array.newInstance(type, names.length);
+      for (int slot = 0; slot < names.length; slot++) {
+        String name = names[slot];
+        if (name != null) {
+          out[slot] = fn.apply(name);
+        }
+      }
+      return out;
+    }
+
+    /**
+     * Slot-aligned {@code int[]} over placed {@code names}; {@code out[slot] = fn(name)}, 0 else.
+     */
+    public static int[] mapIntValues(String[] names, ToIntFunction<String> fn) {
       int[] out = new int[names.length];
       for (int slot = 0; slot < names.length; slot++) {
         String name = names[slot];
         if (name != null) {
           out[slot] = fn.applyAsInt(name);
+        }
+      }
+      return out;
+    }
+
+    /**
+     * Slot-aligned {@code long[]} over placed {@code names}; {@code out[slot] = fn(name)}, 0 else.
+     */
+    public static long[] mapLongValues(String[] names, ToLongFunction<String> fn) {
+      long[] out = new long[names.length];
+      for (int slot = 0; slot < names.length; slot++) {
+        String name = names[slot];
+        if (name != null) {
+          out[slot] = fn.applyAsLong(name);
         }
       }
       return out;
@@ -171,6 +248,45 @@ public final class StringIndex {
 
     public static int indexOf(int[] hashes, String[] names, String name) {
       return indexOf(hashes, names, name, hash(name));
+    }
+
+    /** {@code data[indexOf(...)]}, or {@code null} when {@code key} is absent. */
+    public static <T> T lookup(int[] hashes, String[] names, T[] data, String key) {
+      int slot = indexOf(hashes, names, key);
+      return slot >= 0 ? data[slot] : null;
+    }
+
+    /** {@code data[indexOf(...)]}, or {@code defaultValue} when {@code key} is absent. */
+    public static <T> T lookupOrDefault(
+        int[] hashes, String[] names, T[] data, String key, T defaultValue) {
+      int slot = indexOf(hashes, names, key);
+      return slot >= 0 ? data[slot] : defaultValue;
+    }
+
+    /** {@code data[indexOf(...)]}, or 0 when {@code key} is absent. */
+    public static int lookup(int[] hashes, String[] names, int[] data, String key) {
+      int slot = indexOf(hashes, names, key);
+      return slot >= 0 ? data[slot] : 0;
+    }
+
+    /** {@code data[indexOf(...)]}, or {@code defaultValue} when {@code key} is absent. */
+    public static int lookupOrDefault(
+        int[] hashes, String[] names, int[] data, String key, int defaultValue) {
+      int slot = indexOf(hashes, names, key);
+      return slot >= 0 ? data[slot] : defaultValue;
+    }
+
+    /** {@code data[indexOf(...)]}, or 0 when {@code key} is absent. */
+    public static long lookup(int[] hashes, String[] names, long[] data, String key) {
+      int slot = indexOf(hashes, names, key);
+      return slot >= 0 ? data[slot] : 0L;
+    }
+
+    /** {@code data[indexOf(...)]}, or {@code defaultValue} when {@code key} is absent. */
+    public static long lookupOrDefault(
+        int[] hashes, String[] names, long[] data, String key, long defaultValue) {
+      int slot = indexOf(hashes, names, key);
+      return slot >= 0 ? data[slot] : defaultValue;
     }
 
     // `a` is a stored name on an occupied slot (never null); `b` is a non-null query.
