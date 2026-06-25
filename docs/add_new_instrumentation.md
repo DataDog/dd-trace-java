@@ -451,18 +451,18 @@ There are four verification strategies, three of which are mandatory.
 
 ### Agent jar integrations golden file
 
-The agent jar check task `checkAgentJarIntegrations` verifies that the set of integrations
-listed in `dd-java-agent/expected-integrations.txt` exactly matches the integrations
-shipped in the built agent jar. This catches accidental additions or removals.
+The agent jar check task `verifyAgentJarIntegrations` verifies that the set of integrations
+listed under the `expected.integrations` key in `metadata/agent-jar-checks.properties`
+exactly matches the integrations shipped in the built agent jar. This catches accidental additions or removals.
 
-When you add or remove an integration, update the golden file:
+When you add or remove an integration, update the properties file:
 
 ```shell
 ./gradlew :dd-java-agent:updateAgentJarIntegrationsGoldenFile
 ```
 
-Then commit `dd-java-agent/expected-integrations.txt` alongside your instrumentation changes.
-The `check` task runs `checkAgentJarIntegrations` automatically, so CI will fail if the file
+Then commit `metadata/agent-jar-checks.properties` alongside your instrumentation changes.
+The `check` task runs `verifyAgentJarIntegrations` automatically, so CI will fail if the file
 is out of date.
 
 All integrations must include sufficient test coverage. This HTTP client integration will include
