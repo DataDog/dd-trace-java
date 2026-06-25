@@ -5,8 +5,7 @@
 // pull from. Pushing the freshly built jar to this cache is necessary to ensure the same
 // release binary is published across all platforms.
 gradle.settingsEvaluated { settings ->
-  settings.buildCache.remote {
+  settings.buildCache.remote?.with {
     pull = false
-    push = true
   }
 }
