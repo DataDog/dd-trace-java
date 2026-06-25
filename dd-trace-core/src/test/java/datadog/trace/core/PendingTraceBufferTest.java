@@ -539,12 +539,12 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
   }
 
   private static DDSpan newSpanOf(DDSpan parent) {
-    TraceCollector traceCollector = parent.context().getTraceCollector();
+    TraceCollector traceCollector = parent.spanContext().getTraceCollector();
     DDSpanContext context =
         new DDSpanContext(
-            parent.context().getTraceId(),
+            parent.spanContext().getTraceId(),
             2,
-            parent.context().getSpanId(),
+            parent.spanContext().getSpanId(),
             null,
             "fakeService",
             "fakeOperation",

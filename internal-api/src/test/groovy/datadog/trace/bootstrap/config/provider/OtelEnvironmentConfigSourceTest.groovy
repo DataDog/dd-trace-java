@@ -9,6 +9,7 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.VERSION
+import static datadog.trace.api.config.OtlpConfig.TRACES_SPAN_METRICS_ENABLED
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED
@@ -256,6 +257,48 @@ class OtelEnvironmentConfigSourceTest extends DDSpecification {
     then:
     source.get(TRACE_ENABLED) == null
     source.get(TRACE_OTEL_EXPORTER) == 'otlp'
+  }
+
+  def "otel traces span metrics enabled system property is mapped when otel is enabled"() {
+    setup:
+    injectSysConfig('dd.trace.otel.enabled', 'true', false)
+    injectSysConfig('otel.traces.span.metrics.enabled', value, false)
+
+    when:
+    def source = new OtelEnvironmentConfigSource()
+
+    then:
+    source.get(TRACES_SPAN_METRICS_ENABLED) == value
+
+    where:
+    value << ['true', 'false']
+  }
+
+  def "otel traces span metrics enabled environment variable is mapped when otel is enabled"() {
+    setup:
+    injectEnvConfig('DD_TRACE_OTEL_ENABLED', 'true', false)
+    injectEnvConfig('OTEL_TRACES_SPAN_METRICS_ENABLED', value, false)
+
+    when:
+    def source = new OtelEnvironmentConfigSource()
+
+    then:
+    source.get(TRACES_SPAN_METRICS_ENABLED) == value
+
+    where:
+    value << ['true', 'false']
+  }
+
+  def "otel traces span metrics enabled is not mapped when otel is disabled"() {
+    setup:
+    // Without dd.trace.otel.enabled, setupTraceOtelEnvironment() does not run.
+    injectSysConfig('otel.traces.span.metrics.enabled', 'true', false)
+
+    when:
+    def source = new OtelEnvironmentConfigSource()
+
+    then:
+    source.get(TRACES_SPAN_METRICS_ENABLED) == null
   }
 
   def "otel traces exporter none still disables tracing"() {

@@ -31,7 +31,7 @@ class BaseDecoratorTest extends DDSpecification {
     then:
     1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(TagMap.Entry.create(Tags.COMPONENT, "test-component"))
-    1 * span.context() >> spanContext
+    1 * span.spanContext() >> spanContext
     1 * spanContext.setIntegrationName("test-component")
     _ * span.setTag(_)
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
