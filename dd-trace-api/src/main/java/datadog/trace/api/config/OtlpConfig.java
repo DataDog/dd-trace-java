@@ -31,6 +31,8 @@ public final class OtlpConfig {
   public static final String OTLP_METRICS_TEMPORALITY_PREFERENCE =
       "otlp.metrics.temporality.preference";
 
+  public static final String TRACES_SPAN_METRICS_ENABLED = "traces.span.metrics.enabled";
+
   public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String TRACE_OTEL_EXPORTER = "trace.otel.exporter";
 

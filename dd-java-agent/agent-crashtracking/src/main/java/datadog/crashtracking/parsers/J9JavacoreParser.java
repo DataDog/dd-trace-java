@@ -11,6 +11,7 @@ import datadog.crashtracking.dto.Experimental;
 import datadog.crashtracking.dto.Metadata;
 import datadog.crashtracking.dto.OSInfo;
 import datadog.crashtracking.dto.ProcInfo;
+import datadog.crashtracking.dto.RuntimeInfo;
 import datadog.crashtracking.dto.SigInfo;
 import datadog.crashtracking.dto.StackFrame;
 import datadog.crashtracking.dto.StackTrace;
@@ -46,6 +47,8 @@ import java.util.regex.Pattern;
  */
 public final class J9JavacoreParser {
   private static final String J9_USER_ARG_PREFIX = "2CIUSERARG";
+  private static final String J9_JAVA_VERSION_PREFIX = "1CIJAVAVERSION ";
+  private static final String J9_VM_VERSION_PREFIX = "1CIVMVERSION";
 
   private final BuildIdCollector buildIdCollector;
 
@@ -119,6 +122,8 @@ public final class J9JavacoreParser {
 
     Map<String, String> registers = null;
     RuntimeArgs j9UserArgs = new RuntimeArgs();
+    String j9JavaVersion = null;
+    String j9VmVersion = null;
 
     String[] lines = NEWLINE_SPLITTER.split(javacoreContent);
 
@@ -178,6 +183,11 @@ public final class J9JavacoreParser {
           Matcher pidMatcher = PID_PATTERN.matcher(line);
           if (pidMatcher.matches()) {
             pid = pidMatcher.group(1);
+          }
+          if (j9JavaVersion == null && line.startsWith(J9_JAVA_VERSION_PREFIX)) {
+            j9JavaVersion = line.substring(J9_JAVA_VERSION_PREFIX.length()).trim();
+          } else if (j9VmVersion == null && line.startsWith(J9_VM_VERSION_PREFIX)) {
+            j9VmVersion = line.substring(J9_VM_VERSION_PREFIX.length()).trim();
           }
           break;
 
@@ -299,10 +309,15 @@ public final class J9JavacoreParser {
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
     List<String> runtimeArgs = j9UserArgs.build();
+    RuntimeInfo runtimeInfo =
+        (j9JavaVersion != null || j9VmVersion != null)
+            ? new RuntimeInfo(j9JavaVersion, null, j9VmVersion)
+            : null;
     Experimental experimental =
         (registers != null && !registers.isEmpty())
                 || (runtimeArgs != null && !runtimeArgs.isEmpty())
-            ? new Experimental(registers, runtimeArgs)
+                || runtimeInfo != null
+            ? new Experimental(registers, null, runtimeArgs, runtimeInfo)
             : null;
 
     return new CrashLog(
