@@ -104,6 +104,14 @@ public final class TracerConfig {
   public static final String TRACE_BAGGAGE_MAX_BYTES = "trace.baggage.max.bytes";
   public static final String TRACE_BAGGAGE_TAG_KEYS = "trace.baggage.tag.keys";
 
+  /**
+   * When enabled, explicit per-span tags set via the span builder take precedence over
+   * tracer-injected tags (inbound header tags, root-span tags, contextual tags) by being applied
+   * last. Default off, preserving the historical ordering where those could override builder tags.
+   */
+  public static final String TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED =
+      "trace.builder.tags.precedence.enabled";
+
   public static final String TRACE_INFERRED_PROXY_SERVICES_ENABLED =
       "trace.inferred.proxy.services.enabled";
 

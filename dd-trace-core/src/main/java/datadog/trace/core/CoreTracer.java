@@ -243,6 +243,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final boolean SPAN_BUILDER_REUSE_ENABLED =
       Config.get().isSpanBuilderReuseEnabled();
 
+  // static final so the JIT constant-folds it and dead-code-eliminates the unused tag-ordering
+  // branch in the (hot) span builder -- the flag is process-constant. See the tag-ordering block.
+  private static final boolean BUILDER_TAGS_PRECEDENCE =
+      Config.get().isTraceBuilderTagsPrecedenceEnabled();
+
   // Cache used by buildSpan - instance so it can capture the CoreTracer
   private final ReusableSingleSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
       SPAN_BUILDER_REUSE_ENABLED ? new ReusableSingleSpanBuilderThreadLocalCache(this) : null;
@@ -2193,13 +2198,27 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               tracer.injectLinksAsTags);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
-      // the builder. This is the order that the tags were added previously, but maybe the `tags`
-      // set in the builder should come last, so that they override other tags.
+      // the builder. The `mergedTracerTags` are always applied first (the precedence floor:
+      // everything overrides them). The remaining contributors are applied last-wins.
+      //
+      // Historically the builder/`tagLedger` tags were applied 2nd, so `coreTags` (inbound header
+      // tags), `rootSpanTags` and `contextualTags` would silently OVERRIDE explicit per-span tags
+      // set via the builder -- the long-standing "maybe the builder tags should come last" wart.
+      // With `builderTagsPrecedence` enabled, the ledger is applied LAST so explicit builder tags
+      // win, which is the logical precedence. Gated + default-off so it can be rolled out
+      // gradually.
       context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
-      context.setAllTags(tagLedger);
-      context.setAllTags(coreTags, coreTagsNeedsIntercept);
-      context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
-      context.setAllTags(contextualTags);
+      if (BUILDER_TAGS_PRECEDENCE) {
+        context.setAllTags(coreTags, coreTagsNeedsIntercept);
+        context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
+        context.setAllTags(contextualTags);
+        context.setAllTags(tagLedger);
+      } else {
+        context.setAllTags(tagLedger);
+        context.setAllTags(coreTags, coreTagsNeedsIntercept);
+        context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
+        context.setAllTags(contextualTags);
+      }
       // remove version here since will be done later on the postProcessor.
       // it will allow knowing if it will be set manually or not
       context.removeTag(Tags.VERSION);
