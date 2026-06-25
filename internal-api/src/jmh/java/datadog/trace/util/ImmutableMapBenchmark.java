@@ -42,8 +42,21 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>Lookups use {@code EQUAL_KEYS} (distinct String instances) to exercise {@code equals()};
  * {@code *_sameKey} variants reuse the original interned key instances to show the identity fast
  * path — which is the common tracer case, since map keys are typically interned tag-name constants.
- * (Results pending a fresh multi-JVM run — {@code Map.copyOf} only materializes the compact form on
- * Java 10+.)
+ *
+ * <p>StringIndex-as-map arms — preliminary JDK 17 {@code @Fork(2)} spot (a proper {@code @Fork(5)}
+ * run is pending; treat as directional); M ops/s:
+ *
+ * <pre>{@code
+ *                     distinct   interned(==)
+ * support (static)      797        1197
+ * stringIndex (inst)    785        1087
+ * hashMap               702         977
+ * copyOf (MapN)         607         814
+ * }</pre>
+ *
+ * StringIndex (both modes) beats {@code HashMap} (~1.2x) and {@code Map.copyOf}/{@code MapN}
+ * (~1.5x) on the interned path — and {@code MapN} only materializes the compact form on Java 10+.
+ * The static {@code Support} path edges the instance wrapper by ~10% on the interned path.
  */
 // @Fork(5): get_copyOf* (MapN reached via interface dispatch) is JIT-bimodal at fewer forks — 5
 // forks resolves it (get_copyOf_sameKey measured ±90% at @Fork(2) -> ±1.8% at @Fork(5)).

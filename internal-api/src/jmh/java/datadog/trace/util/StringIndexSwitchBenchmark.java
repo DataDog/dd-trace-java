@@ -38,6 +38,23 @@ import org.openjdk.jmh.annotations.Warmup;
  * literals (the {@code ==} fast path StringIndex and the switch both get); misses are distinct and
  * never present. Run via {@code -Pjmh.includes=StringIndexSwitchBenchmark} (add {@code -prof gc} —
  * should be ~0 B/op both ways; this proves throughput, not allocation).
+ *
+ * <p>Preliminary JDK 17 numbers (Apple M1, {@code @Fork(2)} spot — a proper {@code @Fork(5)} run is
+ * pending; the errors are wide, treat as directional); M ops/s:
+ *
+ * <pre>{@code
+ *                            hit     miss
+ * switch (inlined)           608    1052
+ * switch (not-inlined)       617     904
+ * stringIndex (inlined)     1099    1371
+ * stringIndex (not-inlined) 1115    1510
+ * }</pre>
+ *
+ * StringIndex resolves ~1.8x faster than the switch on hit and ~1.5x on miss, and the win holds
+ * whether or not the lookup inlines — the switch's hit path pays a full {@code equals} after the
+ * hashCode switch, while StringIndex gates {@code equals} behind a cached-hash check and usually
+ * hits the {@code ==} fast path. (At {@code @Fork(2)} the inline-vs-not axis is within noise; the
+ * StringIndex-vs-switch gap clears it. This is the use case behind {@code TagInterceptor}.)
  */
 @Fork(2)
 @Warmup(iterations = 2)

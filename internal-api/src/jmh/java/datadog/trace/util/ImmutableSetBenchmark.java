@@ -67,6 +67,22 @@ import org.openjdk.jmh.annotations.Warmup;
  *       binary-search, or tree-walk per lookup, so they trail the hashed structures, most visibly
  *       on the miss path.
  * </ul>
+ *
+ * <p>StringIndex arms — preliminary JDK 17 {@code @Fork(2)} spot (a proper {@code @Fork(5)} run is
+ * pending; treat as directional). Absolute scale differs from the table above (separate run), so
+ * read the within-block comparison; M ops/s:
+ *
+ * <pre>{@code
+ * Structure             hit      miss
+ * support (static)     1389     1288    (fastest)
+ * hashSet              1293     1163
+ * tracerImmutableSet   1201      890    (SetN)
+ * stringIndex (inst)   1180     1119
+ * }</pre>
+ *
+ * The static {@code Support} path is the fastest membership structure here — it beats {@code
+ * HashSet} and {@code SetN}, most on miss; the instance wrapper costs ~15–18% (landing near {@code
+ * SetN}). So StringIndex's set edge is the static path; the wrapper is roughly SetN-class.
  */
 @Fork(2)
 @Warmup(iterations = 2)
