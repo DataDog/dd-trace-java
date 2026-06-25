@@ -38,7 +38,7 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    // disney's implementation (0.8.4+) uses a ConcurrentLinkedQueue
+    // disneystreaming/weaver-test (0.8.4+) uses a ConcurrentLinkedQueue
     transformer.applyAdvice(
         isConstructor().and(takesArgument(5, named("java.util.concurrent.ConcurrentLinkedQueue"))),
         WeaverInstrumentation.class.getName() + "$ConcurrentLinkedQueueAdvice");
