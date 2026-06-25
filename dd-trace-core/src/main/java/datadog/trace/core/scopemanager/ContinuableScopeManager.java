@@ -13,6 +13,8 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextListener;
 import datadog.context.ContextManager;
 import datadog.context.ContextScope;
 import datadog.logging.RatelimitedLogger;
@@ -407,6 +409,31 @@ public final class ContinuableScopeManager implements ContextManager {
     }
 
     return new ScopeContext(oldStack);
+  }
+
+  @Override
+  public ContextContinuation capture(Context context) {
+    // respect async propagation flag for Context.current().capture()
+    ContinuableScope activeScope = scopeStack().active();
+    if (activeScope != null
+        && activeScope.context == context
+        && !activeScope.isAsyncPropagating()) {
+      return AgentTracer.noopContinuation();
+    }
+    AgentSpan span = AgentSpan.fromContext(context);
+    AgentTraceCollector traceCollector;
+    if (span != null) {
+      traceCollector = span.spanContext().getTraceCollector();
+    } else {
+      traceCollector = AgentTracer.NoopAgentTraceCollector.INSTANCE;
+    }
+    return new ScopeContinuation(this, context, CONTEXT, traceCollector).register();
+  }
+
+  @Override
+  public void addListener(ContextListener unused) {
+    // this new API is not expected to be used in legacy mode...
+    log.warn("Unexpected call to ContextManager.addListener(...)");
   }
 
   static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {

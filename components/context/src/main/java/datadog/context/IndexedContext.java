@@ -6,11 +6,9 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
 import javax.annotation.Nullable;
-import javax.annotation.ParametersAreNonnullByDefault;
 
 /** {@link Context} containing many values. */
-@ParametersAreNonnullByDefault
-final class IndexedContext implements Context {
+final class IndexedContext implements SelfScopedContext {
   final Object[] store;
 
   IndexedContext(Object[] store) {
