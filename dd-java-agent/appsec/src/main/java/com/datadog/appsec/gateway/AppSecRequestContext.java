@@ -168,6 +168,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile boolean wafTruncated;
   private volatile boolean wafRequestBlockFailure;
   private volatile boolean wafRateLimited;
+  private volatile boolean wafRequestExcluded;
 
   private volatile int wafTimeouts;
   private volatile int raspTimeouts;
@@ -285,6 +286,14 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public boolean isWafRateLimited() {
     return wafRateLimited;
+  }
+
+  public void setWafRequestExcluded() {
+    wafRequestExcluded = true;
+  }
+
+  public boolean isWafRequestExcluded() {
+    return wafRequestExcluded;
   }
 
   public void increaseWafTimeouts() {
