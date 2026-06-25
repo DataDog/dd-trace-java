@@ -39,13 +39,13 @@ import org.openjdk.jmh.annotations.Warmup;
  *   # add -prof gc (gc.alloc.rate.norm) to corroborate the allocation delta.
  * </pre>
  *
- * <p><b>Results</b> (JDK 25, MacBook M-series, {@code @Threads(8)}, {@code @Fork(5)}, {@code -prof
+ * <p><b>Results</b> (JDK 17, MacBook M-series, {@code @Threads(8)}, {@code @Fork(5)}, {@code -prof
  * gc}):
  *
  * <pre>
  *                    throughput            gc.alloc.rate.norm
- *   before (concat)  29.7M ± 1.7M ops/s    156 B/op
- *   after  (*_EQ)    55.4M ± 2.5M ops/s    ~0  B/op  (10^-5)
+ *   before (concat)  33.5M ± 2.0M ops/s    156 B/op
+ *   after  (*_EQ)    62.1M ± 3.8M ops/s    ~0  B/op  (10^-5)
  * </pre>
  *
  * Removing the per-call concatenation drops allocation to ~0 and lifts throughput ~1.9x at
