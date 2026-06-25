@@ -1,0 +1,12 @@
+// Used during release builds to disable build cache reads while keeping writes enabled.
+//
+// This ensures the release agent jar is assembled via fresh task execution while still
+// pushing results to the build cache where downstream jobs (e.g. `deploy_to_maven_central`)
+// pull from. Pushing the freshly built jar to this cache is necessary to ensure the same
+// release binary is published across all platforms.
+gradle.settingsEvaluated { settings ->
+  settings.buildCache.remote {
+    pull = false
+    push = true
+  }
+}
