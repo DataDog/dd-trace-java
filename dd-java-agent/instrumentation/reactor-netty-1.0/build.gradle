@@ -1,3 +1,6 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 muzzle {
   fail {
@@ -12,8 +15,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 

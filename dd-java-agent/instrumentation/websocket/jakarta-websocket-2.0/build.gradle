@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     name = "jakarta-websocket"
@@ -7,8 +11,6 @@ muzzle {
     javaVersion = "17"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_11

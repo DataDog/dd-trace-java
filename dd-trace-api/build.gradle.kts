@@ -1,11 +1,8 @@
 plugins {
-  `java-library`
+  id("dd-trace-java.module.distributable.api")
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
-apply(from = "$rootDir/gradle/publish.gradle")
-
-extra["minimumBranchCoverage"] = 0.8
+val minimumBranchCoverage by extra(0.8)
 
 // These are tested outside of this module since this module mainly just defines 'API'
 extra["excludedClassesCoverage"] = listOf(

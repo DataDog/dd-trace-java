@@ -3,11 +3,10 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   `java-library`
   id("com.gradleup.shadow")
+  id("dd-trace-java.module.agent-product")
 }
 
 description = "StatsD client"
-
-apply(from = rootDir.resolve("gradle/java.gradle"))
 
 dependencies {
   api(project(":products:metrics:metrics-api"))

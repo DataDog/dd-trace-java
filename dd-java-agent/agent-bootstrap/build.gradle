@@ -1,11 +1,11 @@
-// The shadowJar of this project will be injected into the JVM's bootstrap classloader
 plugins {
   id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
+  id 'dd-trace-java.module.bootstrap-component'
+  id 'idea'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: "idea"
+// The shadowJar of this project will be injected into the JVM's bootstrap classloader
 
 tasks.named("compileJava", JavaCompile) {
   configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Need access to sun.* packages")

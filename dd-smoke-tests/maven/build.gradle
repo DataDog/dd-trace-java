@@ -4,9 +4,9 @@ import java.time.temporal.ChronoUnit
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'Maven Instrumentation Smoke Tests.'
 
 dependencies {

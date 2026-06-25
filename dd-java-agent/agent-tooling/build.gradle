@@ -1,8 +1,9 @@
 plugins {
   id 'me.champeau.jmh'
   id 'java-test-fixtures'
+  id 'dd-trace-java.module.internal-library'
 }
-apply from: "$rootDir/gradle/java.gradle"
+
 apply from: "$rootDir/gradle/tries.gradle"
 
 minimumBranchCoverage = 0.6

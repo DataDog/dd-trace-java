@@ -9,8 +9,8 @@ import static java.nio.file.StandardOpenOption.CREATE
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.agent-product'
 }
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   api('com.datadoghq:jmxfetch:0.52.0') {

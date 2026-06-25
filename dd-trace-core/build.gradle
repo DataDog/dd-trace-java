@@ -1,11 +1,10 @@
 plugins {
+  id 'dd-trace-java.module.agent-product'
   id 'me.champeau.jmh'
   id 'dd-trace-java.version-file'
 }
 
 description = 'dd-trace-core'
-
-apply from: "$rootDir/gradle/java.gradle"
 
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.6

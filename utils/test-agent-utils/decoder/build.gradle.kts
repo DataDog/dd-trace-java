@@ -1,13 +1,14 @@
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-library")
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
-
-extra["minimumInstructionCoverage"] = 0.8
-extra["excludedClassesCoverage"] = listOf(
-  "datadog.trace.test.agent.decoder.v04.raw.*",
-  "datadog.trace.test.agent.decoder.v05.raw.*",
+val minimumInstructionCoverage by extra(0.8)
+val excludedClassesCoverage by extra(
+  listOf(
+    "datadog.trace.test.agent.decoder.v04.raw.*",
+    "datadog.trace.test.agent.decoder.v05.raw.*",
+  )
 )
 
 dependencies {

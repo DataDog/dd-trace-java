@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 dependencies {
   compileOnly group: 'io.netty', name: 'netty-codec-http', version: '4.1.0.Final'

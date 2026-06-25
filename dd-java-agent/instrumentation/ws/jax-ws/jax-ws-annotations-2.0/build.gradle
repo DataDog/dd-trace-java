@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = "javax.xml.ws"
@@ -6,8 +10,6 @@ muzzle {
     skipVersions += ["2.1EA2", "2.1-1"] // bad releases
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

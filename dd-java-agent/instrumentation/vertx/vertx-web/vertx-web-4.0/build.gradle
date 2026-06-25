@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 testJvmConstraints {
   // vertx-web doesn't support Java 17 until v4.2

@@ -6,9 +6,8 @@ plugins {
   id("de.thetaphi.forbiddenapis") version "3.10"
   id("me.champeau.jmh")
   idea
+  id("dd-trace-java.module.internal-library")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 extensions.getByName("tracerJava").withGroovyBuilder {
   invokeMethod("addSourceSetFor", JavaVersion.VERSION_17)

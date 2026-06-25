@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.internal-library'
+}
 
 // The functionality is tested in dd-smoke-tests/crashtracking
 
@@ -30,4 +32,3 @@ dependencies {
   testImplementation libs.jackson.databind
   testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
 }
-

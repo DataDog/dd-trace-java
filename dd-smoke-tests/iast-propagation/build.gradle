@@ -8,9 +8,9 @@ plugins {
   id 'org.jetbrains.kotlin.jvm'
   id 'scala'
   id 'groovy'
+  id 'dd-trace-java.module.smoke-test'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'IAST propagation Smoke Tests.'
 
 kotlin {

@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 // compiling against 1.11.0, but instrumentation should work against 1.10.33 with varying effects,
 // depending on the version's implementation. (i.e. DeleteOptionGroup may have less handlerCounts than
 // expected in 1.11.84. Testing against 1.11.0 instead of 1.10.33 because the RequestHandler class
@@ -5,6 +9,7 @@
 // keeping base test version on 1.11.0 because RequestHandler2 is abstract in 1.10.33,
 // therefore keeping base version as 1.11.0 even though the instrumentation probably
 // is able to support up to 1.10.33
+
 muzzle {
   pass {
     group = "com.amazonaws"
@@ -13,8 +18,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 // Features used in test_1_11_106 (builder) is available since 1.11.84, but
 // using 1.11.106 because of previous concerns with byte code differences

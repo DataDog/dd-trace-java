@@ -1,15 +1,12 @@
 import groovy.lang.Closure
 
 plugins {
-  `java-library`
   id("com.gradleup.shadow")
+  id("dd-trace-java.module.distributable.api")
   id("me.champeau.jmh")
 }
 
 description = "dd-trace-ot"
-
-apply(from = rootDir.resolve("gradle/java.gradle"))
-apply(from = rootDir.resolve("gradle/publish.gradle"))
 
 // TODO raise these when equals() and hashCode() are excluded
 extra["minimumBranchCoverage"] = 0.5

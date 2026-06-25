@@ -3,9 +3,9 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   id 'com.gradleup.shadow'
   id 'java-test-fixtures'
+  id 'dd-trace-java.module.smoke-test'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'Jersey 2 Smoke Tests.'
 
 tasks.named("jar", Jar) {
