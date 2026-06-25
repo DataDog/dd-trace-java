@@ -885,8 +885,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             TRACE_PARENT,
             "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
         arguments(
-            "append postgres optimizer hint leading duplicate",
-            "/*+ SeqScan(foo) */ SELECT * FROM foo",
+            "postgres optimizer hint leading -- re-injecting already-commented SQL is a no-op",
+            "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/",
             "SqlCommenter",
             "Test",
             "my-service",
