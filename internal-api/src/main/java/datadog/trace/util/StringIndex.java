@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import java.lang.reflect.Array;
+import java.util.Collection;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 import java.util.function.ToLongFunction;
@@ -57,6 +58,15 @@ public final class StringIndex {
   public static StringIndex of(String... names) {
     Data data = Support.create(names);
     return new StringIndex(data.hashes, data.names);
+  }
+
+  /**
+   * Convenience instance over a collection of names -- e.g. a Config-driven set resolved at startup,
+   * where the names aren't compile-time-known so the folded static {@link Support} path isn't an
+   * option anyway. Empty in, empty (membership-always-false) index out.
+   */
+  public static StringIndex of(Collection<String> names) {
+    return of(names.toArray(new String[0]));
   }
 
   /** Slot of {@code name}, or -1. Delegates to {@link Support} on the instance's arrays. */

@@ -62,7 +62,10 @@ public final class TagInterceptor {
   private final boolean isServiceNameSetByUser;
   private final boolean splitByServletContext;
   private final String inferredServiceName;
-  private final Set<String> splitServiceTags;
+  // Config split-by-tags as a per-instance StringIndex (membership only; all map to SPLIT_SERVICE).
+  // Config-driven, so it can't be the folded static gate -- but it's the rare path (most deploys
+  // have none), gated by hasSplitTags, and checked only on a fixed-index miss.
+  private final StringIndex splitIndex;
 
   private final boolean shouldSet404ResourceName;
   private final boolean shouldSetUrlResourceAsName;
@@ -132,7 +135,7 @@ public final class TagInterceptor {
       boolean jeeSplitByDeployment) {
     this.isServiceNameSetByUser = isServiceNameSetByUser;
     this.inferredServiceName = inferredServiceName;
-    this.splitServiceTags = splitServiceTags;
+    this.splitIndex = StringIndex.of(splitServiceTags);
     this.ruleFlags = ruleFlags;
     splitByServletContext = splitServiceTags.contains(SERVLET_CONTEXT);
 
@@ -235,7 +238,7 @@ public final class TagInterceptor {
     if (slot >= 0) {
       return handlers[slot];
     }
-    return hasSplitTags && splitServiceTags.contains(tag) ? SPLIT_SERVICE : null;
+    return hasSplitTags && splitIndex.contains(tag) ? SPLIT_SERVICE : null;
   }
 
   /** Convenience: resolve the handler and dispatch. A miss short-circuits (not ours). */
