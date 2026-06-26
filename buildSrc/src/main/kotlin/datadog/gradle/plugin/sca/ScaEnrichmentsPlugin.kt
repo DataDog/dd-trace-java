@@ -10,8 +10,8 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 
 /**
- * Registers the [generateScaCvesJson] task that downloads GHSA enrichments from
- * `sca-reachability-database` and generates `sca_cves.json` bundled in the appsec JAR.
+ * Registers the [generateScaCvesJson] task that downloads GHSA symbol files from
+ * `sca-reachability-symbols` and generates `sca_cves.json` bundled in the appsec JAR.
  *
  * This is a **temporary** build-time approach. The symbol database will be delivered
  * via Remote Config in a future iteration, at which point this plugin and the committed
@@ -25,7 +25,7 @@ class ScaEnrichmentsPlugin : Plugin<Project> {
 
   companion object {
     private const val SCA_ENRICHMENTS_API_DEFAULT =
-        "https://api.github.com/repos/DataDog/sca-reachability-database/contents/enrichments"
+        "https://api.github.com/repos/DataDog/sca-reachability-symbols/contents/jvm"
   }
 
   override fun apply(project: Project) {
@@ -34,7 +34,7 @@ class ScaEnrichmentsPlugin : Plugin<Project> {
     val generateTask =
         project.tasks.register("generateScaCvesJson") {
           description =
-              "Downloads GHSA enrichments from sca-reachability-database and updates " +
+              "Downloads GHSA symbol files from sca-reachability-symbols and updates " +
                   "src/main/resources/sca_cves.json. Run with -PrefreshSca to force a refresh. " +
                   "Override the source URL with -PscaEnrichmentsUrl=<url>. " +
                   "sca_cves.json is committed to the repo so CI does not need network access."
@@ -51,27 +51,26 @@ class ScaEnrichmentsPlugin : Plugin<Project> {
             val apiUrl =
                 project.findProperty("scaEnrichmentsUrl")?.toString() ?: SCA_ENRICHMENTS_API_DEFAULT
 
-            logger.lifecycle("Fetching GHSA enrichment index from $apiUrl ...")
+            logger.lifecycle("Fetching GHSA symbol index from $apiUrl ...")
             @Suppress("UNCHECKED_CAST")
             val fileList = githubFetch(apiUrl, token) as List<Map<String, Any>>
             val ghsaFiles =
                 fileList.filter {
                   it["name"]?.toString()?.endsWith(".json") == true && it["type"] == "file"
                 }
-            logger.lifecycle("Found ${ghsaFiles.size} enrichment files")
+            logger.lifecycle("Found ${ghsaFiles.size} symbol files")
 
             val entries = mutableListOf<Any>()
             ghsaFiles.forEach { fileInfo ->
-              val ghsaId = fileInfo["name"]!!.toString().removeSuffix(".json")
               val rawContent = githubFetchRaw(fileInfo["download_url"]!!.toString(), token)
-              entries.addAll(GhsaEnrichmentParser.parse(ghsaId, rawContent))
+              entries.addAll(GhsaEnrichmentParser.parse(rawContent))
             }
 
             outputFile.writeText(JsonOutput.toJson(mapOf("version" to 1, "entries" to entries)))
             logger.lifecycle(
                 "sca_cves.json: ${entries.size} entries from ${ghsaFiles.size} GHSA files")
             logger.lifecycle(
-                "Remember to commit src/main/resources/sca_cves.json after updating the database.")
+                "Remember to commit src/main/resources/sca_cves.json after updating the symbols.")
           }
         }
 

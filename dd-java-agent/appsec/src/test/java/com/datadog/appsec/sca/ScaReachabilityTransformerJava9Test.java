@@ -1,11 +1,19 @@
 package com.datadog.appsec.sca;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import datadog.telemetry.dependency.Dependency;
 import java.io.StringReader;
+import java.lang.instrument.Instrumentation;
 import java.net.URLClassLoader;
+import java.util.Arrays;
+import java.util.Collections;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
@@ -41,7 +49,7 @@ class ScaReachabilityTransformerJava9Test {
           + "\"vuln_id\":\"GHSA-test-jackson\","
           + "\"artifact\":\"com.fasterxml.jackson.core:jackson-databind\","
           + "\"version_ranges\":[\"< 999.0.0\"],"
-          + "\"symbols\":[{\"class\":\"com/fasterxml/jackson/databind/ObjectMapper\",\"method\":null}]"
+          + "\"symbols\":[{\"class\":\"com/fasterxml/jackson/databind/ObjectMapper\",\"method\":\"readValue\"}]"
           + "}]}";
 
   @Test
@@ -84,6 +92,184 @@ class ScaReachabilityTransformerJava9Test {
     String version = transformer.findArtifactVersionInClasspath("com.example:nonexistent-artifact");
 
     assertNull(version, "Unknown artifacts must return null");
+  }
+
+  // ---------------------------------------------------------------------------
+  // matchVersion: artifact-ID-only fallback for JARs without pom.properties
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void matchVersion_exactMatchReturnsVersion() {
+    Dependency dep = new Dependency("com.github.junrar:junrar", "7.5.5", "junrar-7.5.5.jar", null);
+    assertEquals(
+        "7.5.5",
+        ScaReachabilityTransformer.matchVersion(
+            "com.github.junrar:junrar", Collections.singletonList(dep)));
+  }
+
+  @Test
+  void matchVersion_artifactIdOnlyFallbackForNoPomJar() {
+    // Models guessFallbackNoPom result: no pom.properties in junrar-7.5.5.jar,
+    // so DependencyResolver extracts only the artifact ID from the filename.
+    Dependency dep = new Dependency("junrar", "7.5.5", "junrar-7.5.5.jar", null);
+    assertEquals(
+        "7.5.5",
+        ScaReachabilityTransformer.matchVersion(
+            "com.github.junrar:junrar", Collections.singletonList(dep)),
+        "artifact-ID fallback must match 'junrar' against 'com.github.junrar:junrar'");
+  }
+
+  @Test
+  void matchVersion_artifactIdFallbackDoesNotMatchWhenGroupIdPresent() {
+    // If dep.name already contains ':' (from pom.properties), artifact-ID fallback must not fire:
+    // "org.other:junrar" should NOT match "com.github.junrar:junrar".
+    Dependency dep = new Dependency("org.other:junrar", "1.0.0", "junrar-1.0.0.jar", null);
+    assertNull(
+        ScaReachabilityTransformer.matchVersion(
+            "com.github.junrar:junrar", Collections.singletonList(dep)),
+        "artifact-ID fallback must not fire when dep.name already has a group ID");
+  }
+
+  @Test
+  void matchVersion_emptyListReturnsNull() {
+    assertNull(
+        ScaReachabilityTransformer.matchVersion(
+            "com.github.junrar:junrar", Collections.emptyList()));
+  }
+
+  @Test
+  void matchVersion_exactMatchTakesPrecedenceOverFallback() {
+    // Exact match must win even when an artifact-ID-only dep is also present.
+    Dependency exact = new Dependency("com.github.junrar:junrar", "7.5.5", "a.jar", null);
+    Dependency fallback = new Dependency("junrar", "1.0.0", "b.jar", null);
+    assertEquals(
+        "7.5.5",
+        ScaReachabilityTransformer.matchVersion(
+            "com.github.junrar:junrar", Arrays.asList(fallback, exact)));
+  }
+
+  /**
+   * Regression test for the snakeyaml deadlock (APPSEC-62260 follow-up):
+   *
+   * <p>JAR resolution (I/O via {@code resolveDependencies}) must happen on the telemetry thread
+   * BEFORE {@code retransformClasses()} acquires JVM locks. If I/O runs inside the retransform
+   * callback, libraries that trigger class loading during JAR resolution (e.g. snakeyaml) can
+   * deadlock because the JVM class-loading lock and the retransform lock are both held.
+   *
+   * <p>With a mock {@code Instrumentation}, the retransform callback never fires, so {@code
+   * resolveDependencies} (and therefore {@code jarCache}) can only be populated by the pre-warming
+   * step that runs before {@code retransformClasses()}. The test asserts that {@code jarCache} is
+   * non-empty after the call, which is only possible if the pre-warm loop ran.
+   */
+  @Test
+  void performPendingRetransforms_prewarms_jarCache_before_retransformClasses() throws Exception {
+    Instrumentation mockInstr = mock(Instrumentation.class);
+    when(mockInstr.isModifiableClass(any())).thenReturn(true);
+    when(mockInstr.getAllLoadedClasses()).thenReturn(new Class<?>[0]);
+
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
+    ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, mockInstr);
+
+    transformer.pendingRetransform.add(com.fasterxml.jackson.databind.ObjectMapper.class);
+    transformer.performPendingRetransforms();
+
+    assertFalse(
+        transformer.jarCache.isEmpty(),
+        "jarCache must be populated by the pre-warming step that runs before retransformClasses();"
+            + " with a mock Instrumentation the transform callback never fires, so an empty jarCache"
+            + " means the pre-warm loop was not executed");
+  }
+
+  /**
+   * Regression test for the aggregator-artifact deadlock gap (Codex P1 on PR #11614):
+   *
+   * <p>When the entry's artifact is not in the class's own JAR (aggregator/starter case, e.g.,
+   * {@code spring-boot-starter-web} whose watched classes live in {@code spring-context.jar}),
+   * {@code resolveVersionForArtifact()} falls through to {@code findArtifactVersionInClasspath()},
+   * which calls {@code resolveDependencies()} for every {@code java.class.path} entry — fresh JAR
+   * I/O that would deadlock if it ran inside the retransform callback.
+   *
+   * <p>The pre-warm step must also populate {@code classpathArtifactCache} before {@code
+   * retransformClasses()} acquires JVM locks. With a mock {@code Instrumentation} the callback
+   * never fires, so the only way {@code classpathArtifactCache} can be populated is via the
+   * pre-warm loop. {@code ObjectMapper} lives in {@code jackson-databind.jar}; the entry's artifact
+   * is {@code jackson-core} (a different JAR that is a transitive test dependency), so {@code
+   * matchVersion} fails on the class JAR and the classpath fallback must run during pre-warm.
+   */
+  @Test
+  void performPendingRetransforms_prewarms_classpathArtifactCache_for_aggregator_artifacts()
+      throws Exception {
+    // Entry artifact is jackson-core, but ObjectMapper is in jackson-databind.jar.
+    // matchVersion() returns null on classJarDeps → triggers findArtifactVersionInClasspath().
+    String crossJarJson =
+        "{\"version\":1,\"entries\":[{"
+            + "\"vuln_id\":\"GHSA-test-cross-jar\","
+            + "\"artifact\":\"com.fasterxml.jackson.core:jackson-core\","
+            + "\"version_ranges\":[\"< 999.0.0\"],"
+            + "\"symbols\":[{\"class\":\"com/fasterxml/jackson/databind/ObjectMapper\","
+            + "\"method\":\"readValue\"}]}]}";
+
+    Instrumentation mockInstr = mock(Instrumentation.class);
+    when(mockInstr.isModifiableClass(any())).thenReturn(true);
+    when(mockInstr.getAllLoadedClasses()).thenReturn(new Class<?>[0]);
+
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(crossJarJson));
+    ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, mockInstr);
+
+    transformer.pendingRetransform.add(com.fasterxml.jackson.databind.ObjectMapper.class);
+    transformer.performPendingRetransforms();
+
+    // jackson-core is on the test classpath (transitive dependency of jackson-databind).
+    // classpathArtifactCache must be populated during pre-warm — not by the callback (which never
+    // fires with a mock Instrumentation). An empty cache means findArtifactVersionInClasspath()
+    // would run under JVM retransform locks and risk the snakeyaml-style deadlock.
+    assertNotNull(
+        transformer.classpathArtifactCache.get("com.fasterxml.jackson.core:jackson-core"),
+        "classpathArtifactCache must be populated during pre-warm for aggregator artifacts; "
+            + "if empty, findArtifactVersionInClasspath() would run under JVM retransform locks");
+  }
+
+  @Test
+  void matchVersion_nullDepNameDoesNotThrow() {
+    // guessFallbackNoPom can produce Dependency(name=null, ...) for JARs with unrecognizable names.
+    Dependency nullName = new Dependency(null, "1.0", "foo.jar", null);
+    assertNull(
+        ScaReachabilityTransformer.matchVersion(
+            "com.example:foo", Collections.singletonList(nullName)));
+  }
+
+  /**
+   * Regression test for the registry key mismatch bug (PR #11614).
+   *
+   * <p>For JARs without {@code pom.properties}, {@code DependencyResolver.guessFallbackNoPom}
+   * produces a dep with {@code name = "junrar"} (artifactId only, no groupId). {@code
+   * resolveArtifactDep} must return that dep object so that callers ({@code processClass}) can use
+   * {@code dep.name} — not {@code entry.artifact()} — when calling {@code registerCve} and building
+   * {@code MethodCallbackSpec}. Using {@code entry.artifact()} would create a registry key ({@code
+   * "com.github.junrar:junrar@7.5.5"}) that mismatches the key {@code DependencyService} will use
+   * ({@code "junrar@7.5.5"}), causing the CVE telemetry to lose source/hash or appear under the
+   * wrong name.
+   */
+  @Test
+  void resolveArtifactDep_noPomJar_returnsArtifactIdOnlyName() throws Exception {
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
+    ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, null);
+
+    // Simulate guessFallbackNoPom: dep.name is artifactId only (no groupId).
+    Dependency noPomDep =
+        new Dependency("jackson-databind", "2.9.0", "jackson-databind-2.9.0.jar", null);
+
+    Dependency resolved =
+        transformer.resolveArtifactDep(
+            "com.fasterxml.jackson.core:jackson-databind", Collections.singletonList(noPomDep));
+
+    assertNotNull(resolved, "should resolve via artifactId-only fallback");
+    assertEquals(
+        "jackson-databind",
+        resolved.name,
+        "resolved dep.name must be the artifactId-only name from the jar, "
+            + "not entry.artifact() — so registerCve uses the same key as DependencyService");
+    assertEquals("2.9.0", resolved.version);
   }
 
   /**
