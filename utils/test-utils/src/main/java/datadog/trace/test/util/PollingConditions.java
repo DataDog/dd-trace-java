@@ -35,16 +35,17 @@ public class PollingConditions {
 
   /**
    * @param timeoutSeconds the timeout in seconds (the most common single setting).
+   * @throws IllegalArgumentException if {@code timeoutSeconds} is negative.
    */
   public PollingConditions(double timeoutSeconds) {
-    this.timeout = timeoutSeconds;
+    this.timeout = requireNonNegative(timeoutSeconds, "timeout");
   }
 
   /**
    * @param seconds how long to keep retrying before failing. Defaults to {@code 1}.
    */
   public PollingConditions timeout(double seconds) {
-    this.timeout = seconds;
+    this.timeout = requireNonNegative(seconds, "timeout");
     return this;
   }
 
@@ -52,7 +53,7 @@ public class PollingConditions {
    * @param seconds how long to wait before the very first attempt. Defaults to {@code 0}.
    */
   public PollingConditions initialDelay(double seconds) {
-    this.initialDelay = seconds;
+    this.initialDelay = requireNonNegative(seconds, "initialDelay");
     return this;
   }
 
@@ -60,7 +61,7 @@ public class PollingConditions {
    * @param seconds how long to wait between attempts. Defaults to {@code 0.1}.
    */
   public PollingConditions delay(double seconds) {
-    this.delay = seconds;
+    this.delay = requireNonNegative(seconds, "delay");
     return this;
   }
 
@@ -69,7 +70,7 @@ public class PollingConditions {
    *     Defaults to {@code 1.0} (constant delay).
    */
   public PollingConditions factor(double factor) {
-    this.factor = factor;
+    this.factor = requireNonNegative(factor, "factor");
     return this;
   }
 
@@ -83,7 +84,7 @@ public class PollingConditions {
    * {@link #timeout} for this call.
    */
   public void within(double seconds, ThrowingRunnable conditions) {
-    final long timeoutMillis = toMillis(seconds);
+    final long timeoutMillis = toMillis(requireNonNegative(seconds, "timeout"));
     final long start = System.currentTimeMillis();
     if (this.initialDelay > 0) {
       sleep(toMillis(this.initialDelay));
@@ -118,6 +119,13 @@ public class PollingConditions {
 
   private static long toMillis(final double seconds) {
     return Math.round(seconds * 1000);
+  }
+
+  private static double requireNonNegative(double value, String name) {
+    if (value < 0) {
+      throw new IllegalArgumentException(name + " must be >= 0 but was " + value);
+    }
+    return value;
   }
 
   // VisibleForTesting to allow test code to override it and avoid flaky timing-based assertions.

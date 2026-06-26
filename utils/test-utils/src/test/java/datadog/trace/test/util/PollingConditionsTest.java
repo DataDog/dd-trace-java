@@ -134,6 +134,22 @@ class PollingConditionsTest {
     }
   }
 
+  @Test
+  void rejectsNegativeOrNanConfiguration() {
+    // Check conditions parameters
+    assertThrows(IllegalArgumentException.class, () -> new PollingConditions(-1));
+    assertThrows(IllegalArgumentException.class, () -> new PollingConditions().timeout(-1));
+    assertThrows(IllegalArgumentException.class, () -> new PollingConditions().initialDelay(-1));
+    assertThrows(IllegalArgumentException.class, () -> new PollingConditions().factor(-2));
+    // Check delay and within
+    IllegalArgumentException error =
+        assertThrows(IllegalArgumentException.class, () -> new PollingConditions().delay(-0.5));
+    assertTrue(error.getMessage().contains("delay"), error.getMessage());
+    assertTrue(error.getMessage().contains("-0.5"), error.getMessage());
+    assertThrows(
+        IllegalArgumentException.class, () -> new PollingConditions().within(-1, () -> {}));
+  }
+
   /** Captures the requested delays instead of sleeping, for deterministic back-off assertions. */
   private static final class RecordingPollingConditions extends PollingConditions {
     final List<Long> requestedSleeps = new ArrayList<>();
