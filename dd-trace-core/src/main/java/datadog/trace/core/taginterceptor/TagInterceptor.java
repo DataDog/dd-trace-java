@@ -38,7 +38,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.util.StringIndex;
 import java.net.URI;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -69,10 +68,51 @@ public final class TagInterceptor {
   private final boolean shouldSetUrlResourceAsName;
   private final boolean jeeSplitByDeployment;
 
-  // Per-instance dispatch table: the membership index plus a slot-aligned handler array. Built once
-  // at construction, so config-driven split-by-tags fold into the same index as the compile-time
-  // fixed tags -- one lookup covers both, and the per-call splitServiceTags.contains is gone.
-  private final StringIndex index;
+  private final boolean hasSplitTags; // short-circuits the split check when none are configured
+
+  // The compile-time-fixed intercepted tags, held as the raw placed arrays in STATIC FINAL fields
+  // so handler()'s gate -- Support.indexOf over these -- folds the refs to constants (the hot path
+  // StringIndex recommends; a per-instance index instead costs a field-load + loses the fold, which
+  // measured ~40% slower on the monomorphic intercepted path). Split-by-tags are Config-driven, so
+  // they stay a per-instance check in handler() on a fixed miss and never enter this index.
+  private static final int[] FIXED_HASHES;
+  private static final String[] FIXED_NAMES;
+
+  static {
+    StringIndex.Data fixed =
+        StringIndex.Support.create(
+            DDTags.RESOURCE_NAME,
+            Tags.DB_STATEMENT,
+            DDTags.SERVICE_NAME,
+            "service",
+            Tags.PEER_SERVICE,
+            DDTags.MANUAL_KEEP,
+            DDTags.MANUAL_DROP,
+            Tags.ASM_KEEP,
+            Tags.AI_GUARD_KEEP,
+            Tags.SAMPLING_PRIORITY,
+            Tags.PROPAGATED_TRACE_SOURCE,
+            Tags.PROPAGATED_DEBUG,
+            SERVLET_CONTEXT,
+            SPAN_TYPE,
+            ANALYTICS_SAMPLE_RATE,
+            Tags.ERROR,
+            HTTP_STATUS,
+            HTTP_METHOD,
+            HTTP_URL,
+            ORIGIN_KEY,
+            MEASURED,
+            Tags.SPAN_KIND);
+    FIXED_HASHES = fixed.hashes;
+    FIXED_NAMES = fixed.names;
+  }
+
+  /** Singleton for Config split-by-tag service tags; returned by handler() on a fixed-index miss. */
+  private static final TagHandler SPLIT_SERVICE = TagInterceptor::interceptSplitService;
+
+  // Slot-aligned to FIXED_NAMES: handlers[indexOf(tag)] is tag's handler. Per-instance because some
+  // handler method refs close over config (ruleFlags, shouldSet404ResourceName, ...); the *lookup*
+  // over FIXED_HASHES/FIXED_NAMES still const-folds, only handlers[slot] is an instance array load.
   private final TagHandler[] handlers;
 
   public TagInterceptor(RuleFlags ruleFlags) {
@@ -103,42 +143,63 @@ public final class TagInterceptor {
     shouldSetUrlResourceAsName = ruleFlags.isEnabled(URL_AS_RESOURCE_NAME);
     this.jeeSplitByDeployment = jeeSplitByDeployment;
 
-    // Assemble the dispatch table. Fixed tags first; split-by-tags only fill slots a fixed tag
-    // didn't claim (putIfAbsent), preserving the original "fixed wins" precedence. Handlers keep
-    // their own ruleFlags checks for now (behavior-identical to the old switch); hoisting those
-    // gates into install/skip decisions here is a clean follow-up.
-    Map<String, TagHandler> byName = new HashMap<>();
-    byName.put(DDTags.RESOURCE_NAME, this::interceptResourceName);
-    byName.put(Tags.DB_STATEMENT, TagInterceptor::interceptDbStatement);
-    TagHandler service = this::interceptServiceName;
-    byName.put(DDTags.SERVICE_NAME, service);
-    byName.put("service", service);
-    byName.put(Tags.PEER_SERVICE, this::interceptPeerService);
-    byName.put(DDTags.MANUAL_KEEP, TagInterceptor::interceptManualKeep);
-    byName.put(DDTags.MANUAL_DROP, this::interceptManualDrop);
-    byName.put(Tags.ASM_KEEP, TagInterceptor::interceptAsmKeep);
-    byName.put(Tags.AI_GUARD_KEEP, TagInterceptor::interceptAiGuardKeep);
-    byName.put(Tags.SAMPLING_PRIORITY, this::interceptSamplingPriority);
-    byName.put(Tags.PROPAGATED_TRACE_SOURCE, TagInterceptor::interceptPropagatedTraceSource);
-    byName.put(Tags.PROPAGATED_DEBUG, TagInterceptor::interceptPropagatedDebug);
-    byName.put(SERVLET_CONTEXT, this::interceptServletContext);
-    byName.put(SPAN_TYPE, TagInterceptor::interceptSpanType);
-    byName.put(ANALYTICS_SAMPLE_RATE, TagInterceptor::interceptAnalyticsSampleRate);
-    byName.put(Tags.ERROR, TagInterceptor::interceptError);
-    byName.put(HTTP_STATUS, this::interceptHttpStatusCode);
-    TagHandler urlResource = this::interceptUrlResourceAsNameRule;
-    byName.put(HTTP_METHOD, urlResource);
-    byName.put(HTTP_URL, urlResource);
-    byName.put(ORIGIN_KEY, TagInterceptor::interceptOrigin);
-    byName.put(MEASURED, TagInterceptor::interceptMeasured);
-    byName.put(Tags.SPAN_KIND, TagInterceptor::interceptSpanKind);
-    for (String splitTag : splitServiceTags) {
-      byName.putIfAbsent(splitTag, TagInterceptor::interceptSplitService);
-    }
+    this.hasSplitTags = !splitServiceTags.isEmpty();
 
-    String[] names = byName.keySet().toArray(new String[0]);
-    this.index = StringIndex.of(names);
-    this.handlers = this.index.mapValues(TagHandler.class, byName::get);
+    // Build the slot-aligned handler array over the static FIXED_NAMES placement. Handlers keep
+    // their own ruleFlags checks (behavior-identical to the old switch). Split-by-tags are NOT in
+    // this array -- handler() checks them per-instance on a fixed miss, preserving "fixed wins".
+    this.handlers =
+        StringIndex.Support.mapValues(FIXED_NAMES, TagHandler.class, this::fixedHandler);
+  }
+
+  /** The handler for a compile-time-fixed tag (called once per slot at construction). */
+  private TagHandler fixedHandler(String tag) {
+    switch (tag) {
+      case DDTags.RESOURCE_NAME:
+        return this::interceptResourceName;
+      case Tags.DB_STATEMENT:
+        return TagInterceptor::interceptDbStatement;
+      case DDTags.SERVICE_NAME:
+      case "service":
+        return this::interceptServiceName;
+      case Tags.PEER_SERVICE:
+        return this::interceptPeerService;
+      case DDTags.MANUAL_KEEP:
+        return TagInterceptor::interceptManualKeep;
+      case DDTags.MANUAL_DROP:
+        return this::interceptManualDrop;
+      case Tags.ASM_KEEP:
+        return TagInterceptor::interceptAsmKeep;
+      case Tags.AI_GUARD_KEEP:
+        return TagInterceptor::interceptAiGuardKeep;
+      case Tags.SAMPLING_PRIORITY:
+        return this::interceptSamplingPriority;
+      case Tags.PROPAGATED_TRACE_SOURCE:
+        return TagInterceptor::interceptPropagatedTraceSource;
+      case Tags.PROPAGATED_DEBUG:
+        return TagInterceptor::interceptPropagatedDebug;
+      case SERVLET_CONTEXT:
+        return this::interceptServletContext;
+      case SPAN_TYPE:
+        return TagInterceptor::interceptSpanType;
+      case ANALYTICS_SAMPLE_RATE:
+        return TagInterceptor::interceptAnalyticsSampleRate;
+      case Tags.ERROR:
+        return TagInterceptor::interceptError;
+      case HTTP_STATUS:
+        return this::interceptHttpStatusCode;
+      case HTTP_METHOD:
+      case HTTP_URL:
+        return this::interceptUrlResourceAsNameRule;
+      case ORIGIN_KEY:
+        return TagInterceptor::interceptOrigin;
+      case MEASURED:
+        return TagInterceptor::interceptMeasured;
+      case Tags.SPAN_KIND:
+        return TagInterceptor::interceptSpanKind;
+      default:
+        return null; // unreachable: FIXED_NAMES only holds the names above
+    }
   }
 
   public boolean needsIntercept(TagMap map) {
@@ -156,25 +217,30 @@ public final class TagInterceptor {
   }
 
   public boolean needsIntercept(String tag) {
-    return index.contains(tag);
+    return handler(tag) != null;
   }
 
   /**
-   * Resolves {@code tag} to its {@link TagHandler}, or {@code null} when not intercepted. A single
-   * lookup decides everything -- the index unifies the compile-time fixed tags with the
-   * Config-driven split-by-tags. Returning the handler (rather than an int id routed back through a
-   * shared {@code handleIntercept}) lets each caller invoke {@code handler.handle(...)} at its own
-   * site, so each call site gets an independent type profile: a tag-stable caller can devirtualize
-   * and inline its one handler. {@code null} is the "store, don't intercept" sentinel callers use to
-   * skip boxing the value.
+   * Resolves {@code tag} to its {@link TagHandler}, or {@code null} when not intercepted. The gate
+   * is a {@code Support.indexOf} over the {@code static final} {@link #FIXED_HASHES}/{@link
+   * #FIXED_NAMES} -- C2 folds those refs to constants, so the resolve is near-free; a Config
+   * split-by-tag is checked per-instance only on a fixed miss (fixed wins, matching the original
+   * order). Returning the handler (rather than an int id routed back through a shared {@code
+   * handleIntercept}) lets each caller invoke {@code handler.handle(...)} at its own site, so each
+   * call site gets an independent type profile: a tag-stable caller can devirtualize and inline its
+   * one handler. {@code null} is the "store, don't intercept" sentinel callers use to skip boxing.
    */
   public TagHandler handler(String tag) {
-    return index.lookup(handlers, tag);
+    int slot = StringIndex.Support.indexOf(FIXED_HASHES, FIXED_NAMES, tag);
+    if (slot >= 0) {
+      return handlers[slot];
+    }
+    return hasSplitTags && splitServiceTags.contains(tag) ? SPLIT_SERVICE : null;
   }
 
   /** Convenience: resolve the handler and dispatch. A miss short-circuits (not ours). */
   public boolean interceptTag(DDSpanContext span, String tag, Object value) {
-    TagHandler handler = index.lookup(handlers, tag);
+    TagHandler handler = handler(tag);
     return handler != null && handler.handle(span, tag, value);
   }
 
