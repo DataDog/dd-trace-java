@@ -198,8 +198,8 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
    * Similar to {@link Map#putAll(Map)} but optimized to quickly copy from one TagMap to another
    *
    * <p>For optimized TagMaps, this method takes advantage of the consistent TagMap layout to
-   * quickly handle each bucket. And similar to {@link TagMap#(Entry)} this method shares Entry
-   * objects from the source TagMap
+   * quickly handle each bucket. And similar to {@link TagMap#getAndSet(Entry)} this method shares
+   * Entry objects from the source TagMap
    */
   void putAll(TagMap that);
 
@@ -989,7 +989,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
      * Provides the estimated size of the map created by the ledger Doesn't account for overwritten
      * entries or entry removal
      *
-     * @return
+     * @return the estimated size of the map created by the ledger
      */
     public int estimateSize() {
       return this.nextPos;
