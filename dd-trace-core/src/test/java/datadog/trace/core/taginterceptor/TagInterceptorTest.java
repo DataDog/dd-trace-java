@@ -750,7 +750,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
           new TagInterceptor(
               true, "my-service", Collections.singleton("servlet.context"), ruleFlags, false);
 
-      interceptor.interceptServletContext(mock(DDSpanContext.class), value);
+      interceptor.interceptServletContext(mock(DDSpanContext.class), "servlet.context", value);
 
       verify(extraServiceProvider, times(1)).addService(expected);
     } finally {
