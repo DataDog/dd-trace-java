@@ -100,6 +100,31 @@ public class RxJava3TracedMethods {
         });
   }
 
+  @WithSpan
+  public static Completable traceAsyncNeverCompletable() {
+    return Completable.never();
+  }
+
+  @WithSpan
+  public static Maybe<String> traceAsyncNeverMaybe() {
+    return Maybe.never();
+  }
+
+  @WithSpan
+  public static Single<String> traceAsyncNeverSingle() {
+    return Single.never();
+  }
+
+  @WithSpan
+  public static Observable<String> traceAsyncNeverObservable() {
+    return Observable.never();
+  }
+
+  @WithSpan
+  public static Flowable<String> traceAsyncNeverFlowable() {
+    return Flowable.never();
+  }
+
   private static void await(CountDownLatch latch) {
     try {
       if (!latch.await(5, SECONDS)) {
