@@ -15,6 +15,26 @@ public class ThreadUtils {
     void run() throws Throwable;
   }
 
+  /**
+   * Utility to easily run a piece of code in parallel, e.g. in a JUnit test like this:
+   *
+   * <pre>{@code
+   * runConcurrently(
+   *     10,
+   *     100,
+   *     () -> {
+   *       Object something = computeSomething();
+   *       Object other = computeOther();
+   *       assertEquals(something, other);
+   *     });
+   * }</pre>
+   *
+   * @param concurrency the number of concurrent invocations
+   * @param totalInvocations the total number of invocations
+   * @param runnable the code to run
+   * @return {@code true} if everything went well
+   * @throws Throwable if anything went wrong
+   */
   public static boolean runConcurrently(
       final int concurrency, final int totalInvocations, final ThrowingRunnable runnable)
       throws Throwable {
@@ -36,30 +56,7 @@ public class ThreadUtils {
         });
   }
 
-  /**
-   * Utility to easily run a Closure in parallel, i.e. in spock like this:
-   *
-   * <pre>{@code
-   * def "some test"() {
-   *   expect:
-   *   runConcurrently(10, 100, {
-   *     def something = ...
-   *     def other = ...
-   *     assert something == other
-   *   })
-   * }
-   * }</pre>
-   *
-   * Writing a spock extension was investigated, but it is not possible to run an Invocation
-   * multiple times concurrently since a lot of the spock internal state and mock scoping is not
-   * thread safe.
-   *
-   * @param concurrency the number of concurrent invocations
-   * @param totalInvocations the total number of invocations
-   * @param closure the closure to run
-   * @return {@code true} if everything went well
-   * @throws Throwable if anything went wrong
-   */
+  /** Groovy/Spock variant of {@link #runConcurrently(int, int, ThrowingRunnable)}. */
   public static boolean runConcurrently(
       final int concurrency, final int totalInvocations, final Closure<Void> closure)
       throws Throwable {
