@@ -9585,6 +9585,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_RXJAVA_ENABLED", "DD_INTEGRATION_RXJAVA_ENABLED"]
       }
     ],
+    "DD_TRACE_RXJAVA_3_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_RXJAVA_3_ENABLED", "DD_INTEGRATION_RXJAVA_3_ENABLED"]
+      }
+    ],
     "DD_TRACE_S3_ENABLED": [
       {
         "version": "A",
