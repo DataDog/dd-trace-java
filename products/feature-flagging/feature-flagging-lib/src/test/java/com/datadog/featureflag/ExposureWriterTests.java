@@ -25,7 +25,7 @@ import datadog.trace.api.featureflag.exposure.ExposuresRequest;
 import datadog.trace.api.featureflag.exposure.Flag;
 import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.exposure.Variant;
-import datadog.trace.test.util.ThreadUtils.ThrowingRunnable;
+import datadog.trace.test.util.PollingConditions;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,8 +56,9 @@ import org.tabletest.junit.TableTest;
 class ExposureWriterTests {
 
   private static final String EXPOSURES_ENDPOINT = "/evp_proxy/api/v2/exposures";
-  private static final long TIMEOUT_MILLIS = 5000;
+  private static final double TIMEOUT_SECONDS = 5;
 
+  private final PollingConditions poll = new PollingConditions(TIMEOUT_SECONDS);
   private Queue<ExposuresRequest> requests;
   private Set<String> failed;
   private JavaTestHttpServer server;
@@ -118,15 +119,14 @@ class ExposureWriterTests {
         writer.accept(exposure);
       }
 
-      eventually(
+      poll.eventually(
           () -> {
             assertFalse(requests.isEmpty());
             for (ExposuresRequest request : requests) {
               assertContext(request.context, service, env, version);
             }
             assertExposures(allExposures(), exposures);
-          },
-          TIMEOUT_MILLIS);
+          });
     }
   }
 
@@ -144,7 +144,7 @@ class ExposureWriterTests {
       }
 
       // all events are written
-      eventually(() -> assertEquals(exposures.size(), allExposures().size()), TIMEOUT_MILLIS);
+      poll.eventually(() -> assertEquals(exposures.size(), allExposures().size()));
 
       // publishing duplicate events
       for (ExposureEvent exposure : exposures) {
@@ -159,7 +159,7 @@ class ExposureWriterTests {
       writer.accept(buildExposure());
 
       // oldest event is evicted and the new one is submitted
-      eventually(() -> assertEquals(exposures.size() + 1, allExposures().size()), TIMEOUT_MILLIS);
+      poll.eventually(() -> assertEquals(exposures.size() + 1, allExposures().size()));
     }
   }
 
@@ -195,7 +195,7 @@ class ExposureWriterTests {
       for (Future<Boolean> future : futures) {
         assertTrue(future.get()); // wait for all threads to finish
       }
-      eventually(() -> assertExposures(allExposures(), exposures), TIMEOUT_MILLIS);
+      poll.eventually(() -> assertExposures(allExposures(), exposures));
     } finally {
       executor.shutdownNow();
     }
@@ -217,8 +217,7 @@ class ExposureWriterTests {
       if (finallyFail) {
         assertNull(found, requests.toString());
       } else {
-        eventually(
-            () -> assertNotNull(findRequest(serviceName), requests.toString()), TIMEOUT_MILLIS);
+        poll.eventually(() -> assertNotNull(findRequest(serviceName), requests.toString()));
       }
     }
   }
@@ -230,7 +229,7 @@ class ExposureWriterTests {
     try (ExposureWriterImpl writer =
         new ExposureWriterImpl(sharedCommunicationObjects, Config.get())) {
       writer.init();
-      eventually(() -> assertFalse(writer.isSerializerThreadAlive()), TIMEOUT_MILLIS);
+      poll.eventually(() -> assertFalse(writer.isSerializerThreadAlive()));
 
       FeatureFlaggingGateway.dispatch(buildExposure());
 
@@ -405,30 +404,5 @@ class ExposureWriterTests {
         new Flag("Flag_" + id),
         new Variant("Variant_" + id),
         new Subject("Subject_" + id, singletonMap("key_" + id, (Object) ("value_" + id))));
-  }
-
-  private static void eventually(ThrowingRunnable assertion, long timeoutMillis) throws Exception {
-    long deadline = System.nanoTime() + MILLISECONDS.toNanos(timeoutMillis);
-    Throwable lastFailure = null;
-    while (System.nanoTime() <= deadline) {
-      try {
-        assertion.run();
-        return;
-      } catch (AssertionError error) {
-        lastFailure = error;
-      } catch (Exception exception) {
-        lastFailure = exception;
-      } catch (Throwable throwable) {
-        throw new AssertionError("unexpected throwable while waiting", throwable);
-      }
-      MILLISECONDS.sleep(20);
-    }
-    if (lastFailure instanceof AssertionError) {
-      throw (AssertionError) lastFailure;
-    }
-    if (lastFailure instanceof Exception) {
-      throw (Exception) lastFailure;
-    }
-    throw new AssertionError("condition was not satisfied before timeout");
   }
 }
