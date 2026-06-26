@@ -41,7 +41,7 @@ fun getJdkFromCompilerOptions(co: CompileOptions): String? {
 fun printJdkForProjectTasks(project: Project, logFile: File) {
   project.tasks.forEach { task ->
     val data = mutableMapOf<String, String>()
-    data["task"] = task.path.toString()
+    data["task"] = task.path
     if (task is JavaExec) {
       val launcher = task.javaLauncher.get()
       data["jdk"] = launcher.metadata.languageVersion.toString()
