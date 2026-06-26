@@ -4,7 +4,7 @@ import datadog.gradle.sca.GhsaEnrichmentParser
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import java.net.HttpURLConnection
-import java.net.URL
+import java.net.URI
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -89,7 +89,7 @@ class ScaEnrichmentsPlugin : Plugin<Project> {
   }
 
   private fun githubConnect(url: String, token: String?): HttpURLConnection {
-    val connection = URL(url).openConnection() as HttpURLConnection
+    val connection = URI.create(url).toURL().openConnection() as HttpURLConnection
     connection.setRequestProperty("Accept", "application/vnd.github+json")
     connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
     if (!token.isNullOrEmpty()) {
