@@ -1,6 +1,26 @@
 /*
  * Gradle debugging plugin for dd-trace-java builds.
+ *
+ * Logs the JDK used by each scheduled task to diagnose unexpected Java versions.
+ *
+ * Usage:
+ *   ./gradlew <task> -PddGradleDebug      e.g. ./gradlew assemble -PddGradleDebug
+ *
+ * Only tasks in the execution graph of the requested command are reported, so run it
+ * against a real task (e.g. `build`, `:module:test`); `help` reports almost nothing.
+ *
+ * Output: build/datadog.gradle-debug.log (one JSON object per task), e.g.
+ *   {"task":":dd-trace-api:compileJava", "jdk":"8"}
+ *   {"task":":dd-trace-api:test", "jdk":"11"}
+ *
+ * "jdk":"unknown" means the task type carries no JVM (e.g. lifecycle/aggregate tasks like
+ * `classes` or `assemble`, copy/`Sync` tasks); only Java/Groovy/Scala compile, Test, JavaExec,
+ * Javadoc and Exec tasks report a version.
  */
+
+import org.gradle.api.Action
+import org.gradle.api.Task
+import org.gradle.api.execution.TaskExecutionGraph
 
 val ddGradleDebugEnabled = project.hasProperty("ddGradleDebug")
 val logPath = rootProject.layout.buildDirectory.file("datadog.gradle-debug.log")
@@ -38,8 +58,8 @@ fun getJdkFromCompilerOptions(co: CompileOptions): String? {
   return null
 }
 
-fun printJdkForProjectTasks(project: Project, logFile: File) {
-  project.tasks.forEach { task ->
+fun printJdkForTasks(tasks: Iterable<Task>, logFile: File) {
+  tasks.forEach { task ->
     val data = mutableMapOf<String, String>()
     data["task"] = task.path
     if (task is JavaExec) {
@@ -83,23 +103,12 @@ fun printJdkForProjectTasks(project: Project, logFile: File) {
   }
 }
 
-class DebugBuildListener : org.gradle.BuildListener {
-  override fun settingsEvaluated(settings: Settings) = Unit
-
-  override fun projectsLoaded(gradle: Gradle) = Unit
-
-  override fun buildFinished(result: BuildResult) = Unit
-
-  override fun projectsEvaluated(gradle: Gradle) {
-    val logFile = logPath.get().asFile
-    logFile.writeText("")
-    gradle.rootProject.allprojects.forEach { project ->
-      printJdkForProjectTasks(project, logFile)
-    }
-  }
-}
-
 if (ddGradleDebugEnabled) {
   logger.lifecycle("datadog.gradle-debug plugin is enabled")
-  gradle.addListener(DebugBuildListener())
+  // Inspect tasks once the execution graph is ready, when scheduled tasks are fully configured.
+  gradle.taskGraph.whenReady(Action<TaskExecutionGraph> {
+    val logFile = logPath.get().asFile
+    logFile.writeText("")
+    printJdkForTasks(allTasks, logFile)
+  })
 }
