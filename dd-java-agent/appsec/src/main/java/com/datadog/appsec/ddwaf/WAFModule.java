@@ -360,7 +360,6 @@ public class WAFModule implements AppSecModule {
 
         if (gwCtx.isRasp) {
           reqCtx.setRaspMatched(true);
-          WafMetricCollector.get().raspRuleMatch(gwCtx.raspRuleType);
         }
 
         String securityResponseId = null;
@@ -375,13 +374,17 @@ public class WAFModule implements AppSecModule {
             securityResponseId = (String) actionInfo.parameters.get("security_response_id");
             Flow.Action.RequestBlockingAction rba =
                 createBlockRequestAction(actionInfo, reqCtx, gwCtx.isRasp, securityResponseId);
-            flow.setAction(rba);
+            if (rba != null) {
+              flow.setAction(rba);
+            }
           } else if ("redirect_request".equals(actionInfo.type)) {
             // Extract security_response_id from action parameters for use in triggers
             securityResponseId = (String) actionInfo.parameters.get("security_response_id");
             Flow.Action.RequestBlockingAction rba =
                 createRedirectRequestAction(actionInfo, reqCtx, gwCtx.isRasp, securityResponseId);
-            flow.setAction(rba);
+            if (rba != null) {
+              flow.setAction(rba);
+            }
           } else if ("generate_stack".equals(actionInfo.type)) {
             if (Config.get().isAppSecStackTraceEnabled()) {
               String stackId = (String) actionInfo.parameters.get("stack_id");
@@ -416,6 +419,9 @@ public class WAFModule implements AppSecModule {
               reqCtx.setWafRequestBlockFailure();
             }
           }
+        }
+        if (gwCtx.isRasp) {
+          WafMetricCollector.get().raspRuleMatch(gwCtx.raspRuleType, flow.isBlocking());
         }
         Collection<AppSecEvent> events = buildEvents(resultWithData, securityResponseId);
         boolean isThrottled = reqCtx.isThrottled(rateLimiter);

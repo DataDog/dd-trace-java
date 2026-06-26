@@ -1,3 +1,5 @@
+import datadog.gradle.plugin.testJvmConstraints.TestJvmSpec
+
 plugins {
   id 'me.champeau.jmh'
   id 'dd-trace-java.version-file'
@@ -114,4 +116,14 @@ dependencies {
 jmh {
   jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  if (project.hasProperty('jmh.includes')) {
+    includes = [project.property('jmh.includes').replace(',', '|')]
+  }
+  if (project.hasProperty('jmh.profilers')) {
+    profilers = project.property('jmh.profilers').tokenize(',')
+  }
+  if (project.hasProperty('testJvm')) {
+    def testJvmSpec = new TestJvmSpec(project)
+    jvm = testJvmSpec.javaTestLauncher.map { it.executablePath.asFile.absolutePath }
+  }
 }
