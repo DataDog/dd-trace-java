@@ -30,7 +30,6 @@ import net.bytebuddy.asm.Advice;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.support.hierarchical.EngineExecutionContext;
 import org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutorService;
-import org.junit.platform.engine.support.hierarchical.Node;
 import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
 
 @AutoService(InstrumenterModule.class)
@@ -161,12 +160,13 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
       EngineExecutionContext parentContext = taskHandle.getParentContext();
       TestDescriptorHandle descriptorHandle = new TestDescriptorHandle(testDescriptor);
 
+      HierarchicalTestExecutorService.TestTask currentTask = testTask;
       int retryAttemptIdx = 0;
       while (true) {
         factory.setSuppressFailures(executionPolicy.suppressFailures());
 
         CallDepthThreadLocalMap.incrementCallDepth(HierarchicalTestExecutorService.TestTask.class);
-        testTask.execute();
+        currentTask.execute();
         CallDepthThreadLocalMap.decrementCallDepth(HierarchicalTestExecutorService.TestTask.class);
 
         factory.setSuppressFailures(false); // restore default behavior
@@ -185,13 +185,12 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
                 JUnitPlatformUtils.RETRY_DESCRIPTOR_ID_SUFFIX, String.valueOf(++retryAttemptIdx));
 
         TestDescriptor retryDescriptor = descriptorHandle.withIdSuffix(suffix);
-        taskHandle.setTestDescriptor(retryDescriptor);
-        taskHandle.setNode((Node<?>) retryDescriptor);
         taskHandle.getListener().dynamicTestRegistered(retryDescriptor);
         TestEventsHandlerHolder.setExecutionTracker(retryDescriptor, executionPolicy);
 
-        // restore parent context, since the reference is overwritten with null after execution
-        taskHandle.setParentContext(parentContext);
+        // build a fresh task for the retry and reuse the original parent context, since execution
+        // overwrites it with null
+        currentTask = taskHandle.createRetryTask(retryDescriptor, parentContext);
       }
       return Boolean.TRUE; // skip original method execution
     }
