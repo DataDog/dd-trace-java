@@ -128,6 +128,23 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
       }
     }
 
+    Object traceAsyncNever() {
+      switch (this) {
+        case COMPLETABLE:
+          return RxJava3TracedMethods.traceAsyncNeverCompletable();
+        case MAYBE:
+          return RxJava3TracedMethods.traceAsyncNeverMaybe();
+        case SINGLE:
+          return RxJava3TracedMethods.traceAsyncNeverSingle();
+        case OBSERVABLE:
+          return RxJava3TracedMethods.traceAsyncNeverObservable();
+        case FLOWABLE:
+          return RxJava3TracedMethods.traceAsyncNeverFlowable();
+        default:
+          throw new IllegalStateException("Unknown type: " + this);
+      }
+    }
+
     Object traceAsyncFailing(CountDownLatch latch, Exception exception) {
       switch (this) {
         case COMPLETABLE:
@@ -201,6 +218,22 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
     type.subscribeAndDispose(asyncType);
 
     String method = "traceAsync" + type.type;
+    assertTraces(
+        trace(
+            otelSpan("RxJava3TracedMethods." + method)
+                .tags(defaultTags(), otelComponent(), internalSpanKind())));
+  }
+
+  @ParameterizedTest(name = "test WithSpan annotated never async method cancelled {0}")
+  @EnumSource(ReactiveType.class)
+  void cancelledNever(ReactiveType type) {
+    Object asyncType = type.traceAsyncNever();
+
+    assertEquals(0, writer.size());
+
+    type.subscribeAndDispose(asyncType);
+
+    String method = "traceAsyncNever" + type.type;
     assertTraces(
         trace(
             otelSpan("RxJava3TracedMethods." + method)
