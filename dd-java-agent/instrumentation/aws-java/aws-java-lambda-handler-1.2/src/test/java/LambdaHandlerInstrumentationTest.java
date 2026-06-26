@@ -165,8 +165,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     new HandlerStreaming().handleRequest(input, output, newContext());
 
-    assertTraces(
-        trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -229,8 +228,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertEquals("application/json", capturedHeaders.get("content-type"));
     assertTrue(capturedBody instanceof Map);
     assertTrue(appSecEnded);
-    assertTraces(
-        trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -264,8 +262,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertEquals("session=abc123", capturedHeaders.get("cookie"));
     assertTrue(capturedBody instanceof Map);
     assertTrue(appSecEnded);
-    assertTraces(
-        trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -286,8 +283,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertNull(capturedMethod);
     assertFalse(appSecEnded);
     assertNull(capturedResponseStatus);
-    assertTraces(
-        trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -314,8 +310,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertEquals("ok", ((Map<?, ?>) capturedResponseBody).get("result"));
     assertTrue(responseHeaderDoneCalled);
     assertTrue(appSecEnded);
-    assertTraces(
-        trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -337,8 +332,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertEquals("text/html", capturedResponseHeaders.get("content-type"));
     assertEquals("Not Found", capturedResponseBody);
     assertTrue(appSecEnded);
-    assertTraces(
-        trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -371,8 +365,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertEquals("hello", ((Map<?, ?>) capturedResponseBody).get("result"));
     assertTrue(responseHeaderDoneCalled);
     assertTrue(appSecEnded);
-    assertTraces(
-        trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -388,8 +381,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertNull(capturedResponseBody);
     assertFalse(responseHeaderDoneCalled);
     assertTrue(appSecEnded);
-    assertTraces(
-        trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -421,8 +413,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTrue(capturedResponseBody instanceof Map);
 
     assertTrue(appSecEnded);
-    assertTraces(
-        trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test
@@ -485,8 +476,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTrue(callOrder.indexOf("responseStarted") < callOrder.indexOf("requestEnded"));
     assertTrue(callOrder.indexOf("responseHeaderDone") < callOrder.indexOf("requestEnded"));
     assertTrue(callOrder.indexOf("responseBody") < callOrder.indexOf("requestEnded"));
-    assertTraces(
-        trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+    assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
   @Test

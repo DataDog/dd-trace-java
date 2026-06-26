@@ -171,7 +171,8 @@ public class LambdaAppSecHandler {
               Collections.singletonMap("content-type", fallbackContentType);
           responseData = new LambdaResponseData(0, fallbackHeaders, fallbackBody);
         }
-        // else: responseData has explicit headers/body fields — keep them, just skip responseStarted
+        // else: responseData has explicit headers/body fields — keep them, just skip
+        // responseStarted
         // (statusCode remains 0, so the responseStarted guard below will not fire).
       }
 
