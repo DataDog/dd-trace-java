@@ -14,6 +14,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
@@ -38,8 +39,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -139,130 +142,133 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   void detectsApiGatewayV1RestTriggerType() {
-    Map<String, Object> event = new HashMap<>();
-    Map<String, Object> requestContext = new HashMap<>();
-    requestContext.put("httpMethod", "GET");
-    requestContext.put("requestId", "abc123");
-    event.put("requestContext", requestContext);
-    assertEquals(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST,
-        LambdaAppSecHandler.detectTriggerType(event));
+    Map<String, Object> event =
+        mapOf("requestContext", mapOf("httpMethod", "GET", "requestId", "abc123"));
+
+    LambdaAppSecHandler.LambdaTriggerType triggerType =
+        LambdaAppSecHandler.detectTriggerType(event);
+
+    assertEquals(LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V1_REST, triggerType);
   }
 
   @Test
   void detectsApiGatewayV2HttpTriggerType() {
-    Map<String, Object> http = new HashMap<>();
-    http.put("method", "POST");
-    http.put("path", "/api");
-    Map<String, Object> requestContext = new HashMap<>();
-    requestContext.put("http", http);
-    requestContext.put("domainName", "api.example.com");
-    Map<String, Object> event = new HashMap<>();
-    event.put("requestContext", requestContext);
-    assertEquals(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V2_HTTP,
-        LambdaAppSecHandler.detectTriggerType(event));
+    Map<String, Object> event =
+        mapOf(
+            "requestContext",
+            mapOf(
+                "http", mapOf("method", "POST", "path", "/api"), "domainName", "api.example.com"));
+
+    LambdaAppSecHandler.LambdaTriggerType triggerType =
+        LambdaAppSecHandler.detectTriggerType(event);
+
+    assertEquals(LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V2_HTTP, triggerType);
   }
 
   @Test
   void detectsLambdaFunctionUrlTriggerType() {
-    Map<String, Object> http = new HashMap<>();
-    http.put("method", "GET");
-    http.put("path", "/");
-    Map<String, Object> requestContext = new HashMap<>();
-    requestContext.put("http", http);
-    requestContext.put("domainName", "xyz123.lambda-url.us-east-1.on.aws");
-    Map<String, Object> event = new HashMap<>();
-    event.put("requestContext", requestContext);
-    assertEquals(
-        LambdaAppSecHandler.LambdaTriggerType.LAMBDA_URL,
-        LambdaAppSecHandler.detectTriggerType(event));
+    Map<String, Object> event =
+        mapOf(
+            "requestContext",
+            mapOf(
+                "http",
+                mapOf("method", "GET", "path", "/"),
+                "domainName",
+                "xyz123.lambda-url.us-east-1.on.aws"));
+
+    LambdaAppSecHandler.LambdaTriggerType triggerType =
+        LambdaAppSecHandler.detectTriggerType(event);
+
+    assertEquals(LambdaAppSecHandler.LambdaTriggerType.LAMBDA_URL, triggerType);
   }
 
   @Test
   void detectsAlbTriggerTypeWithoutMultiValueHeaders() {
-    Map<String, Object> elb = new HashMap<>();
-    elb.put("targetGroupArn", "arn:aws:...");
-    Map<String, Object> requestContext = new HashMap<>();
-    requestContext.put("elb", elb);
-    Map<String, Object> event = new HashMap<>();
-    event.put("httpMethod", "GET");
-    event.put("path", "/");
-    event.put("requestContext", requestContext);
-    assertEquals(
-        LambdaAppSecHandler.LambdaTriggerType.ALB, LambdaAppSecHandler.detectTriggerType(event));
+    Map<String, Object> event =
+        mapOf(
+            "httpMethod",
+            "GET",
+            "path",
+            "/",
+            "requestContext",
+            mapOf("elb", mapOf("targetGroupArn", "arn:aws:...")));
+
+    LambdaAppSecHandler.LambdaTriggerType triggerType =
+        LambdaAppSecHandler.detectTriggerType(event);
+
+    assertEquals(LambdaAppSecHandler.LambdaTriggerType.ALB, triggerType);
   }
 
   @Test
   void detectsAlbTriggerTypeWithMultiValueHeaders() {
-    Map<String, Object> elb = new HashMap<>();
-    elb.put("targetGroupArn", "arn:aws:...");
-    Map<String, Object> requestContext = new HashMap<>();
-    requestContext.put("elb", elb);
-    Map<String, Object> event = new HashMap<>();
-    event.put("httpMethod", "GET");
-    event.put("path", "/");
-    event.put("multiValueHeaders", new HashMap<>());
-    event.put("requestContext", requestContext);
-    assertEquals(
-        LambdaAppSecHandler.LambdaTriggerType.ALB_MULTI_VALUE,
-        LambdaAppSecHandler.detectTriggerType(event));
+    Map<String, Object> event =
+        mapOf(
+            "httpMethod",
+            "GET",
+            "path",
+            "/",
+            "multiValueHeaders",
+            mapOf("accept", Arrays.asList("text/html", "application/json")),
+            "requestContext",
+            mapOf("elb", mapOf("targetGroupArn", "arn:aws:...")));
+
+    LambdaAppSecHandler.LambdaTriggerType triggerType =
+        LambdaAppSecHandler.detectTriggerType(event);
+
+    assertEquals(LambdaAppSecHandler.LambdaTriggerType.ALB_MULTI_VALUE, triggerType);
   }
 
   @Test
   void detectsWebSocketTriggerTypeWithRouteKey() {
-    Map<String, Object> requestContext = new HashMap<>();
-    requestContext.put("connectionId", "conn-123");
-    requestContext.put("routeKey", "$connect");
-    Map<String, Object> event = new HashMap<>();
-    event.put("requestContext", requestContext);
-    assertEquals(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET,
-        LambdaAppSecHandler.detectTriggerType(event));
+    Map<String, Object> event =
+        mapOf("requestContext", mapOf("connectionId", "conn-123", "routeKey", "$connect"));
+
+    LambdaAppSecHandler.LambdaTriggerType triggerType =
+        LambdaAppSecHandler.detectTriggerType(event);
+
+    assertEquals(LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET, triggerType);
   }
 
   @Test
   void detectsWebSocketTriggerTypeWithEventType() {
-    Map<String, Object> requestContext = new HashMap<>();
-    requestContext.put("connectionId", "conn-456");
-    requestContext.put("eventType", "CONNECT");
-    Map<String, Object> event = new HashMap<>();
-    event.put("requestContext", requestContext);
-    assertEquals(
-        LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET,
-        LambdaAppSecHandler.detectTriggerType(event));
+    Map<String, Object> event =
+        mapOf("requestContext", mapOf("connectionId", "conn-456", "eventType", "CONNECT"));
+
+    LambdaAppSecHandler.LambdaTriggerType triggerType =
+        LambdaAppSecHandler.detectTriggerType(event);
+
+    assertEquals(LambdaAppSecHandler.LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET, triggerType);
   }
 
   @Test
   void detectsUnknownTriggerTypeForUnrecognizedEvents() {
-    Map<String, Object> event = new HashMap<>();
-    event.put("someUnknownField", "value");
-    assertEquals(
-        LambdaAppSecHandler.LambdaTriggerType.UNKNOWN,
-        LambdaAppSecHandler.detectTriggerType(event));
+    Map<String, Object> event = mapOf("someUnknownField", "value");
+
+    LambdaAppSecHandler.LambdaTriggerType triggerType =
+        LambdaAppSecHandler.detectTriggerType(event);
+
+    assertEquals(LambdaAppSecHandler.LambdaTriggerType.UNKNOWN, triggerType);
   }
 
   @Test
   void detectsUnknownTriggerTypeForEmptyRequestContext() {
-    Map<String, Object> event = new HashMap<>();
-    event.put("requestContext", new HashMap<>());
-    assertEquals(
-        LambdaAppSecHandler.LambdaTriggerType.UNKNOWN,
-        LambdaAppSecHandler.detectTriggerType(event));
+    Map<String, Object> event = mapOf("requestContext", mapOf());
+
+    LambdaAppSecHandler.LambdaTriggerType triggerType =
+        LambdaAppSecHandler.detectTriggerType(event);
+
+    assertEquals(LambdaAppSecHandler.LambdaTriggerType.UNKNOWN, triggerType);
   }
 
   @Test
   void detectsLambdaUrlWhenHttpPresentButNoDomainName() {
-    Map<String, Object> http = new HashMap<>();
-    http.put("method", "GET");
-    http.put("path", "/ambiguous");
-    Map<String, Object> requestContext = new HashMap<>();
-    requestContext.put("http", http);
-    Map<String, Object> event = new HashMap<>();
-    event.put("requestContext", requestContext);
-    assertEquals(
-        LambdaAppSecHandler.LambdaTriggerType.LAMBDA_URL,
-        LambdaAppSecHandler.detectTriggerType(event));
+    Map<String, Object> event =
+        mapOf("requestContext", mapOf("http", mapOf("method", "GET", "path", "/ambiguous")));
+
+    LambdaAppSecHandler.LambdaTriggerType triggerType =
+        LambdaAppSecHandler.detectTriggerType(event);
+
+    assertEquals(LambdaAppSecHandler.LambdaTriggerType.LAMBDA_URL, triggerType);
   }
 
   // ============================================================================
@@ -296,17 +302,20 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     Object[] capturedBody = {null};
 
     setupMockCallbacks(
-        (method, uri) -> {
-          capturedMethod[0] = method;
-          capturedPath[0] = uri.path();
-        },
-        capturedHeaders::put,
-        (ip, port) -> {
-          capturedSourceIp[0] = ip;
-          capturedSourcePort[0] = port;
-        },
-        params -> capturedPathParams[0] = params,
-        body -> capturedBody[0] = body);
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedMethod[0] = method;
+                  capturedPath[0] = uri.path();
+                })
+            .onHeader(capturedHeaders::put)
+            .onSocketAddress(
+                (ip, port) -> {
+                  capturedSourceIp[0] = ip;
+                  capturedSourcePort[0] = port;
+                })
+            .onPathParams(params -> capturedPathParams[0] = params)
+            .onBody(body -> capturedBody[0] = body));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -348,17 +357,19 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     Map[] capturedPathParams = {null};
 
     setupMockCallbacks(
-        (method, uri) -> {
-          capturedMethod[0] = method;
-          capturedPath[0] = uri.path();
-        },
-        capturedHeaders::put,
-        (ip, port) -> {
-          capturedSourceIp[0] = ip;
-          capturedSourcePort[0] = port;
-        },
-        params -> capturedPathParams[0] = params,
-        null);
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedMethod[0] = method;
+                  capturedPath[0] = uri.path();
+                })
+            .onHeader(capturedHeaders::put)
+            .onSocketAddress(
+                (ip, port) -> {
+                  capturedSourceIp[0] = ip;
+                  capturedSourcePort[0] = port;
+                })
+            .onPathParams(params -> capturedPathParams[0] = params));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -391,14 +402,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     String[] capturedPath = {null};
 
     setupMockCallbacks(
-        (method, uri) -> {
-          capturedMethod[0] = method;
-          capturedPath[0] = uri.path();
-        },
-        null,
-        null,
-        null,
-        null);
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedMethod[0] = method;
+                  capturedPath[0] = uri.path();
+                }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -425,14 +434,13 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     String[] capturedSourceIp = {null};
 
     setupMockCallbacks(
-        (method, uri) -> {
-          capturedMethod[0] = method;
-          capturedPath[0] = uri.path();
-        },
-        null,
-        (ip, port) -> capturedSourceIp[0] = ip,
-        null,
-        null);
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedMethod[0] = method;
+                  capturedPath[0] = uri.path();
+                })
+            .onSocketAddress((ip, port) -> capturedSourceIp[0] = ip));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -455,7 +463,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     Map<String, String> capturedHeaders = new HashMap<>();
 
-    setupMockCallbacks(null, capturedHeaders::put, null, null, null);
+    setupMockCallbacks(new Callbacks().onHeader(capturedHeaders::put));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -477,7 +485,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     Map<String, String> capturedHeaders = new HashMap<>();
 
-    setupMockCallbacks(null, capturedHeaders::put, null, null, null);
+    setupMockCallbacks(new Callbacks().onHeader(capturedHeaders::put));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -503,14 +511,13 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     String[] capturedSourceIp = {null};
 
     setupMockCallbacks(
-        (method, uri) -> {
-          capturedMethod[0] = method;
-          capturedPath[0] = uri.path();
-        },
-        null,
-        (ip, port) -> capturedSourceIp[0] = ip,
-        null,
-        null);
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedMethod[0] = method;
+                  capturedPath[0] = uri.path();
+                })
+            .onSocketAddress((ip, port) -> capturedSourceIp[0] = ip));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -536,7 +543,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     Object[] capturedBody = {null};
 
-    setupMockCallbacks(null, null, null, null, body -> capturedBody[0] = body);
+    setupMockCallbacks(new Callbacks().onBody(body -> capturedBody[0] = body));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -551,7 +558,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     String[] capturedBody = {"NOT_CALLED"};
 
-    setupMockCallbacks(null, null, null, null, body -> capturedBody[0] = String.valueOf(body));
+    setupMockCallbacks(new Callbacks().onBody(body -> capturedBody[0] = String.valueOf(body)));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -566,7 +573,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     Object[] capturedBody = {null};
 
-    setupMockCallbacks(null, null, null, null, body -> capturedBody[0] = body);
+    setupMockCallbacks(new Callbacks().onBody(body -> capturedBody[0] = body));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -587,14 +594,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     String[] capturedQuery = {null};
 
     setupMockCallbacks(
-        (method, uri) -> {
-          capturedPath[0] = uri.path();
-          capturedQuery[0] = uri.query();
-        },
-        null,
-        null,
-        null,
-        null);
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedPath[0] = uri.path();
+                  capturedQuery[0] = uri.query();
+                }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -617,14 +622,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     int[] capturedPort = {-1};
 
     setupMockCallbacks(
-        (method, uri) -> {
-          capturedScheme[0] = uri.scheme();
-          capturedPort[0] = uri.port();
-        },
-        null,
-        null,
-        null,
-        null);
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedScheme[0] = uri.scheme();
+                  capturedPort[0] = uri.port();
+                }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -647,14 +650,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     int[] capturedPort = {-1};
 
     setupMockCallbacks(
-        (method, uri) -> {
-          capturedScheme[0] = uri.scheme();
-          capturedPort[0] = uri.port();
-        },
-        null,
-        null,
-        null,
-        null);
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedScheme[0] = uri.scheme();
+                  capturedPort[0] = uri.port();
+                }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -677,14 +678,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     int[] capturedPort = {-1};
 
     setupMockCallbacks(
-        (method, uri) -> {
-          capturedScheme[0] = uri.scheme();
-          capturedPort[0] = uri.port();
-        },
-        null,
-        null,
-        null,
-        null);
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedScheme[0] = uri.scheme();
+                  capturedPort[0] = uri.port();
+                }));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -705,7 +704,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     String[] capturedBody = {"NOT_CALLED"};
 
-    setupMockCallbacks(null, null, null, null, body -> capturedBody[0] = String.valueOf(body));
+    setupMockCallbacks(new Callbacks().onBody(body -> capturedBody[0] = String.valueOf(body)));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -728,7 +727,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     Object[] capturedBody = {null};
 
-    setupMockCallbacks(null, null, null, null, body -> capturedBody[0] = body);
+    setupMockCallbacks(new Callbacks().onBody(body -> capturedBody[0] = body));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -748,7 +747,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     Object[] capturedBody = {null};
 
-    setupMockCallbacks(null, null, null, null, body -> capturedBody[0] = body);
+    setupMockCallbacks(new Callbacks().onBody(body -> capturedBody[0] = body));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -779,14 +778,14 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     String[] capturedSourceIp = {null};
 
     setupMockCallbacks(
-        (method, uri) -> {
-          capturedMethod[0] = method;
-          capturedPath[0] = uri.path();
-        },
-        capturedHeaders::put,
-        (ip, port) -> capturedSourceIp[0] = ip,
-        null,
-        null);
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedMethod[0] = method;
+                  capturedPath[0] = uri.path();
+                })
+            .onHeader(capturedHeaders::put)
+            .onSocketAddress((ip, port) -> capturedSourceIp[0] = ip));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -812,14 +811,13 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     String[] capturedSourceIp = {null};
 
     setupMockCallbacks(
-        (method, uri) -> {
-          capturedMethod[0] = method;
-          capturedPath[0] = uri.path();
-        },
-        null,
-        (ip, port) -> capturedSourceIp[0] = ip,
-        null,
-        null);
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedMethod[0] = method;
+                  capturedPath[0] = uri.path();
+                })
+            .onSocketAddress((ip, port) -> capturedSourceIp[0] = ip));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -841,7 +839,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     Map<String, String> capturedHeaders = new HashMap<>();
 
-    setupMockCallbacks(null, capturedHeaders::put, null, null, null);
+    setupMockCallbacks(new Callbacks().onHeader(capturedHeaders::put));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
@@ -861,12 +859,12 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     Map<String, String> capturedHeaders = new HashMap<>();
 
-    setupMockCallbacks(null, capturedHeaders::put, null, null, null);
+    setupMockCallbacks(new Callbacks().onHeader(capturedHeaders::put));
 
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
 
     assertNotNull(result);
-    assertTrue(!capturedHeaders.containsKey("cookie"));
+    assertFalse(capturedHeaders.containsKey("cookie"));
   }
 
   // ============================================================================
@@ -883,8 +881,10 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   void processRequestEndDoesNothingWhenAppSecIsDisabled() {
     ActiveSubsystems.APPSEC_ACTIVE = false;
     AgentSpan span = mock(AgentSpan.class);
+
     LambdaAppSecHandler.processRequestEnd(span);
-    verify(span, never()).getRequestContext();
+
+    verifyNoInteractions(span);
   }
 
   @Test
@@ -1603,7 +1603,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     LambdaAppSecHandler.processResponseData(span, result);
     assertEquals("text/html", capturedHeaders.get("content-type"));
     assertEquals("v1, v2", capturedHeaders.get("x-valid"));
-    assertTrue(!capturedHeaders.containsKey("x-scalar"));
+    assertFalse(capturedHeaders.containsKey("x-scalar"));
   }
 
   @Test
@@ -1702,32 +1702,49 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     return baos;
   }
 
-  @FunctionalInterface
-  interface MethodUriCapture {
-    void accept(String method, URIDataAdapter uri);
-  }
+  private static class Callbacks {
+    BiConsumer<String, URIDataAdapter> onMethodUri;
+    BiConsumer<String, String> onHeader;
+    BiConsumer<String, Integer> onSocketAddress;
+    Consumer<Map<String, Object>> onPathParams;
+    Consumer<Object> onBody;
 
-  @FunctionalInterface
-  interface IpPortCapture {
-    void accept(String ip, int port);
+    Callbacks onMethodUri(BiConsumer<String, URIDataAdapter> cb) {
+      this.onMethodUri = cb;
+      return this;
+    }
+
+    Callbacks onHeader(BiConsumer<String, String> cb) {
+      this.onHeader = cb;
+      return this;
+    }
+
+    Callbacks onSocketAddress(BiConsumer<String, Integer> cb) {
+      this.onSocketAddress = cb;
+      return this;
+    }
+
+    Callbacks onPathParams(Consumer<Map<String, Object>> cb) {
+      this.onPathParams = cb;
+      return this;
+    }
+
+    Callbacks onBody(Consumer<Object> cb) {
+      this.onBody = cb;
+      return this;
+    }
   }
 
   @SuppressWarnings("unchecked")
-  private void setupMockCallbacks(
-      MethodUriCapture onMethodUri,
-      BiConsumer<String, String> onHeader,
-      IpPortCapture onSocketAddress,
-      Consumer<Map<String, ?>> onPathParams,
-      Consumer<Object> onBody) {
-
+  private void setupMockCallbacks(Callbacks callbacks) {
     Object mockAppSecContext = new Object();
     Supplier<Flow<Object>> requestStartedCallback = mock(Supplier.class);
     when(requestStartedCallback.get()).thenReturn(new Flow.ResultFlow<>(mockAppSecContext));
 
     TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> methodUriCallback = null;
-    if (onMethodUri != null) {
+    if (callbacks.onMethodUri != null) {
       methodUriCallback = mock(TriFunction.class);
-      MethodUriCapture capture = onMethodUri;
+      BiConsumer<String, URIDataAdapter> capture = callbacks.onMethodUri;
       doAnswer(
               inv -> {
                 capture.accept(inv.getArgument(1), inv.getArgument(2));
@@ -1738,9 +1755,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     }
 
     TriConsumer<RequestContext, String, String> headerCallback = null;
-    if (onHeader != null) {
+    if (callbacks.onHeader != null) {
       headerCallback = mock(TriConsumer.class);
-      BiConsumer<String, String> capture = onHeader;
+      BiConsumer<String, String> capture = callbacks.onHeader;
       doAnswer(
               inv -> {
                 capture.accept(inv.getArgument(1), inv.getArgument(2));
@@ -1751,9 +1768,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     }
 
     TriFunction<RequestContext, String, Integer, Flow<Void>> socketAddressCallback = null;
-    if (onSocketAddress != null) {
+    if (callbacks.onSocketAddress != null) {
       socketAddressCallback = mock(TriFunction.class);
-      IpPortCapture capture = onSocketAddress;
+      BiConsumer<String, Integer> capture = callbacks.onSocketAddress;
       doAnswer(
               inv -> {
                 capture.accept(inv.getArgument(1), (Integer) inv.getArgument(2));
@@ -1767,9 +1784,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     when(headerDoneCallback.apply(any())).thenReturn(Flow.ResultFlow.empty());
 
     BiFunction<RequestContext, Map<String, ?>, Flow<Void>> pathParamsCallback = null;
-    if (onPathParams != null) {
+    if (callbacks.onPathParams != null) {
       pathParamsCallback = mock(BiFunction.class);
-      Consumer<Map<String, ?>> capture = onPathParams;
+      Consumer<Map<String, Object>> capture = callbacks.onPathParams;
       doAnswer(
               inv -> {
                 capture.accept(inv.getArgument(1));
@@ -1780,9 +1797,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     }
 
     BiFunction<RequestContext, Object, Flow<Void>> bodyCallback = null;
-    if (onBody != null) {
+    if (callbacks.onBody != null) {
       bodyCallback = mock(BiFunction.class);
-      Consumer<Object> capture = onBody;
+      Consumer<Object> capture = callbacks.onBody;
       doAnswer(
               inv -> {
                 capture.accept(inv.getArgument(1));
@@ -1810,6 +1827,14 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     when(mockTracer.getCallbackProvider(RequestContextSlot.APPSEC))
         .thenReturn(mockCallbackProvider);
     AgentTracer.forceRegister(mockTracer);
+  }
+
+  private static Map<String, Object> mapOf(Object... keysAndValues) {
+    Map<String, Object> map = new LinkedHashMap<>();
+    for (int i = 0; i < keysAndValues.length; i += 2) {
+      map.put((String) keysAndValues[i], keysAndValues[i + 1]);
+    }
+    return map;
   }
 
   @SuppressWarnings("unchecked")

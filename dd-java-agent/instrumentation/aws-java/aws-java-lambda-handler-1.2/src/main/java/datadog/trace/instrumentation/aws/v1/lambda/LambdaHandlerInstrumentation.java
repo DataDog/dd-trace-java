@@ -94,9 +94,9 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
       AgentSpanContext lambdaContext = AgentTracer.get().notifyLambdaStart(in, lambdaRequestId);
       final AgentSpan span;
       if (null == lambdaContext) {
-        span = startSpan(INVOCATION_SPAN_NAME);
+        span = startSpan("java-aws-sdk", INVOCATION_SPAN_NAME);
       } else {
-        span = startSpan(INVOCATION_SPAN_NAME, lambdaContext);
+        span = startSpan("java-aws-sdk", INVOCATION_SPAN_NAME, lambdaContext);
       }
       span.setSpanType(InternalSpanTypes.SERVERLESS);
       span.setTag("request_id", lambdaRequestId);
@@ -132,6 +132,15 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         // (filter_span_from_lambda_library_or_runtime in
         // bottlecap/src/traces/trace_processor.rs, which compares
         // span.resource == "dd-tracer-serverless-span") drops the placeholder.
+        // Other instrumentation (HTTP/JAX-RS) may have overwritten it with the
+        // route ("POST /") during the invocation, in which case the extension
+        // would fail to dedup, leading to the placeholder leaking to the backend
+        // with parent_id=0 and detaching the inferred apigateway root from the
+        // rest of the trace.
+        // Use TAG_INTERCEPTOR priority because DDSpanContext.setResourceName
+        // ignores writes whose priority is below the current resource priority,
+        // and the HTTP/JAX-RS instrumentation will already have written
+        // HTTP_FRAMEWORK_ROUTE (3) by this point.
         span.setResourceName(INVOCATION_SPAN_NAME, ResourceNamePriorities.TAG_INTERCEPTOR);
         span.finish();
         AgentTracer.get().notifyExtensionEnd(span, result, null != throwable, lambdaRequestId);
