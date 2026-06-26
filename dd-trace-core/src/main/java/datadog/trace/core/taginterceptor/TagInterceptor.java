@@ -159,24 +159,30 @@ public final class TagInterceptor {
   private TagHandler fixedHandler(String tag) {
     switch (tag) {
       case DDTags.RESOURCE_NAME:
-        return this::interceptResourceName;
+        // config-hoist: install only if enabled, so the handler body drops the per-call check
+        // (and stays static). Disabled -> null slot -> handler() returns null -> tag is stored.
+        return ruleFlags.isEnabled(RESOURCE_NAME) ? TagInterceptor::interceptResourceName : null;
       case Tags.DB_STATEMENT:
         return TagInterceptor::interceptDbStatement;
       case DDTags.SERVICE_NAME:
       case "service":
-        return this::interceptServiceName;
+        return ruleFlags.isEnabled(SERVICE_NAME) ? TagInterceptor::interceptServiceName : null;
       case Tags.PEER_SERVICE:
+        // not hoisted: it sets PEER_SERVICE_SOURCE even when PEER_SERVICE is disabled, so the
+        // enabled check must stay inside the handler (and it stays an instance ref).
         return this::interceptPeerService;
       case DDTags.MANUAL_KEEP:
         return TagInterceptor::interceptManualKeep;
       case DDTags.MANUAL_DROP:
-        return this::interceptManualDrop;
+        return ruleFlags.isEnabled(FORCE_MANUAL_DROP) ? TagInterceptor::interceptManualDrop : null;
       case Tags.ASM_KEEP:
         return TagInterceptor::interceptAsmKeep;
       case Tags.AI_GUARD_KEEP:
         return TagInterceptor::interceptAiGuardKeep;
       case Tags.SAMPLING_PRIORITY:
-        return this::interceptSamplingPriority;
+        return ruleFlags.isEnabled(FORCE_SAMPLING_PRIORITY)
+            ? TagInterceptor::interceptSamplingPriority
+            : null;
       case Tags.PROPAGATED_TRACE_SOURCE:
         return TagInterceptor::interceptPropagatedTraceSource;
       case Tags.PROPAGATED_DEBUG:
@@ -193,7 +199,7 @@ public final class TagInterceptor {
         return this::interceptHttpStatusCode;
       case HTTP_METHOD:
       case HTTP_URL:
-        return this::interceptUrlResourceAsNameRule;
+        return shouldSetUrlResourceAsName ? TagInterceptor::interceptUrlResourceAsNameRule : null;
       case ORIGIN_KEY:
         return TagInterceptor::interceptOrigin;
       case MEASURED:
@@ -247,17 +253,17 @@ public final class TagInterceptor {
     return handler != null && handler.handle(span, tag, value);
   }
 
-  private boolean interceptUrlResourceAsNameRule(DDSpanContext span, String tag, Object value) {
-    if (shouldSetUrlResourceAsName) {
-      if (HTTP_METHOD.equals(tag)) {
-        final Object url = span.unsafeGetTag(HTTP_URL);
-        if (url != null) {
-          setResourceFromUrl(span, value.toString(), url);
-        }
-      } else if (HTTP_URL.equals(tag)) {
-        final Object method = span.unsafeGetTag(HTTP_METHOD);
-        setResourceFromUrl(span, method != null ? method.toString() : null, value);
+  // Installed only when URL_AS_RESOURCE_NAME is enabled (shouldSetUrlResourceAsName), so the gate is
+  // gone from the body. Returns false so the method/url tag is still stored.
+  private static boolean interceptUrlResourceAsNameRule(DDSpanContext span, String tag, Object value) {
+    if (HTTP_METHOD.equals(tag)) {
+      final Object url = span.unsafeGetTag(HTTP_URL);
+      if (url != null) {
+        setResourceFromUrl(span, value.toString(), url);
       }
+    } else if (HTTP_URL.equals(tag)) {
+      final Object method = span.unsafeGetTag(HTTP_METHOD);
+      setResourceFromUrl(span, method != null ? method.toString() : null, value);
     }
     return false;
   }
@@ -286,19 +292,17 @@ public final class TagInterceptor {
     }
   }
 
-  private boolean interceptResourceName(DDSpanContext span, String tag, Object value) {
-    if (ruleFlags.isEnabled(RESOURCE_NAME)) {
-      if (null == value) {
-        return false;
-      }
-      if (value instanceof CharSequence) {
-        span.setResourceName((CharSequence) value, ResourceNamePriorities.TAG_INTERCEPTOR);
-      } else {
-        span.setResourceName(String.valueOf(value), ResourceNamePriorities.TAG_INTERCEPTOR);
-      }
-      return true;
+  // Installed only when RESOURCE_NAME is enabled, so the gate is gone from the body.
+  private static boolean interceptResourceName(DDSpanContext span, String tag, Object value) {
+    if (null == value) {
+      return false;
     }
-    return false;
+    if (value instanceof CharSequence) {
+      span.setResourceName((CharSequence) value, ResourceNamePriorities.TAG_INTERCEPTOR);
+    } else {
+      span.setResourceName(String.valueOf(value), ResourceNamePriorities.TAG_INTERCEPTOR);
+    }
+    return true;
   }
 
   private static boolean interceptDbStatement(DDSpanContext span, String tag, Object value) {
@@ -311,8 +315,13 @@ public final class TagInterceptor {
     return true;
   }
 
-  private boolean interceptServiceName(DDSpanContext span, String tag, Object value) {
-    return interceptServiceName(SERVICE_NAME, span, value);
+  // Installed only when SERVICE_NAME is enabled, so the gate is gone (the peer path below keeps the
+  // feature-checking overload, since it sets PEER_SERVICE_SOURCE regardless).
+  private static boolean interceptServiceName(DDSpanContext span, String tag, Object value) {
+    String serviceName = String.valueOf(value);
+    span.setServiceName(serviceName);
+    ServiceNameCollector.get().addService(serviceName);
+    return true;
   }
 
   private boolean interceptPeerService(DDSpanContext span, String tag, Object value) {
@@ -329,9 +338,12 @@ public final class TagInterceptor {
     return false;
   }
 
-  private boolean interceptManualDrop(DDSpanContext span, String tag, Object value) {
-    return interceptSamplingPriority(
-        FORCE_MANUAL_DROP, USER_DROP, SamplingMechanism.MANUAL, span, value);
+  // Installed only when FORCE_MANUAL_DROP is enabled.
+  private static boolean interceptManualDrop(DDSpanContext span, String tag, Object value) {
+    if (asBoolean(value)) {
+      span.setSamplingPriority(USER_DROP, SamplingMechanism.MANUAL);
+    }
+    return true;
   }
 
   private static boolean interceptAsmKeep(DDSpanContext span, String tag, Object value) {
@@ -408,34 +420,17 @@ public final class TagInterceptor {
     return false;
   }
 
-  private boolean interceptSamplingPriority(
-      RuleFlags.Feature feature,
-      int samplingPriority,
-      int samplingMechanism,
-      DDSpanContext span,
-      Object value) {
-    if (ruleFlags.isEnabled(feature)) {
-      if (asBoolean(value)) {
-        span.setSamplingPriority(samplingPriority, samplingMechanism);
+  // Installed only when FORCE_SAMPLING_PRIORITY is enabled, so the gate is gone from the body.
+  private static boolean interceptSamplingPriority(DDSpanContext span, String tag, Object value) {
+    Number samplingPriority = getOrTryParse(value);
+    if (null != samplingPriority) {
+      if (samplingPriority.intValue() > 0) {
+        span.forceKeep(SamplingMechanism.MANUAL);
+      } else {
+        span.setSamplingPriority(USER_DROP, SamplingMechanism.MANUAL);
       }
-      return true;
     }
-    return false;
-  }
-
-  private boolean interceptSamplingPriority(DDSpanContext span, String tag, Object value) {
-    if (ruleFlags.isEnabled(FORCE_SAMPLING_PRIORITY)) {
-      Number samplingPriority = getOrTryParse(value);
-      if (null != samplingPriority) {
-        if (samplingPriority.intValue() > 0) {
-          span.forceKeep(SamplingMechanism.MANUAL);
-        } else {
-          span.setSamplingPriority(USER_DROP, SamplingMechanism.MANUAL);
-        }
-      }
-      return true;
-    }
-    return false;
+    return true;
   }
 
   boolean interceptServletContext(DDSpanContext span, String tag, Object value) {
