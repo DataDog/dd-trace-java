@@ -56,7 +56,6 @@ public class ThreadUtils {
         });
   }
 
-  /** Groovy/Spock variant of {@link #runConcurrently(int, int, ThrowingRunnable)}. */
   public static boolean runConcurrently(
       final int concurrency, final int totalInvocations, final Closure<Void> closure)
       throws Throwable {
