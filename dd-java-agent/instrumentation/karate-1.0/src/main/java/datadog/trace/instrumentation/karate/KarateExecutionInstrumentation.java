@@ -38,7 +38,9 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "com.intuit.karate.core.ScenarioRuntime", "com.intuit.karate.core.ScenarioResult"
+      "com.intuit.karate.core.ScenarioRuntime",
+      "com.intuit.karate.core.ScenarioResult",
+      "com.intuit.karate.core.FeatureResult"
     };
   }
 
@@ -71,6 +73,13 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
             .and(takesArguments(1))
             .and(takesArgument(0, named("com.intuit.karate.core.StepResult"))),
         KarateExecutionInstrumentation.class.getName() + "$SuppressErrorAdvice");
+
+    // FeatureResult
+    transformer.applyAdvice(
+        named("addResult")
+            .and(takesArguments(1))
+            .and(takesArgument(0, named("com.intuit.karate.core.ScenarioResult"))),
+        KarateExecutionInstrumentation.class.getName() + "$ResultSubstitutionAdvice");
   }
 
   public static class RetryAdvice {
@@ -103,7 +112,8 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
         return;
       }
 
-      ScenarioResult finalResult = scenarioRuntime.result;
+      ScenarioResult originalResult = scenarioRuntime.result;
+      ScenarioResult finalResult = originalResult;
 
       TestExecutionPolicy executionPolicy = context.getExecutionPolicy();
       while (executionPolicy.applicable()) {
@@ -115,7 +125,12 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
         finalResult = retry.result;
       }
 
-      KarateUtils.setResult(scenarioRuntime, finalResult);
+      // The original runtime's result is registered with the FeatureResult by Karate once this
+      // method returns. Record the substitution so ResultSubstitutionAdvice repoints that canonical
+      // entry to the final attempt, instead of mutating the final ScenarioRuntime#result field.
+      if (finalResult != originalResult) {
+        context.recordResultSubstitution(originalResult, finalResult);
+      }
 
       CallDepthThreadLocalMap.reset(ScenarioRuntime.class);
     }
@@ -145,6 +160,29 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
           stepResult.setFailedReason(result.getError());
           stepResult.setErrorIgnored(true);
         }
+      }
+    }
+
+    // Karate 1.0.0 and above
+    public static void muzzleCheck(RuntimeHook runtimeHook) {
+      runtimeHook.beforeSuite(null);
+    }
+  }
+
+  public static class ResultSubstitutionAdvice {
+    @Advice.OnMethodEnter
+    public static void onAddResult(
+        @Advice.Argument(value = 0, readOnly = false) ScenarioResult result) {
+      ExecutionContext context =
+          InstrumentationContext.get(Scenario.class, ExecutionContext.class)
+              .get(result.getScenario());
+      if (context == null) {
+        return;
+      }
+
+      ScenarioResult substitute = context.substituteResult(result);
+      if (substitute != null) {
+        result = substitute;
       }
     }
 
