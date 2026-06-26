@@ -11,8 +11,8 @@ import java.util.List;
  * <em>nanoseconds</em>) onto the fixed explicit-bounds histogram layout mandated by the OTLP Trace
  * Metrics Export RFC.
  */
-final class OtlpHistogramBuckets {
-  private OtlpHistogramBuckets() {}
+final class OtlpStatsHistogramBuckets {
+  private OtlpStatsHistogramBuckets() {}
 
   private static final double NANOS_PER_SECOND = 1_000_000_000d;
 
@@ -42,9 +42,7 @@ final class OtlpHistogramBuckets {
 
   /**
    * Re-bins {@code histogram} (nanosecond-valued) into an {@link OtlpHistogramPoint} expressed in
-   * seconds with OTLP's fixed bucket layout. {@code count}, {@code min}, and {@code max} are taken
-   * directly from the sketch; {@code sumNanos} is the exact duration sum tracked alongside the
-   * sketch by {@link AggregateEntry} (the DDSketch-derived sum would only be approximate).
+   * seconds with OTLP's fixed bucket layout.
    */
   static OtlpHistogramPoint toHistogramPoint(Histogram histogram, long sumNanos) {
     long[] bucketCounts = new long[BOUNDS_SECONDS.length + 1];

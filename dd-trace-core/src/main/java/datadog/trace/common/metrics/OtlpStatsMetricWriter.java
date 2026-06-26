@@ -67,10 +67,12 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private static final String DATADOG_SPAN_TYPE = "datadog.span.type";
   private static final String DATADOG_SPAN_TOP_LEVEL = "datadog.span.top_level";
   private static final String DATADOG_ORIGIN = "datadog.origin";
+  private static final String SYNTHETICS_ORIGIN = "synthetics";
 
   @Nullable private final OtlpSender sender;
   private final boolean otelSemanticsMode;
 
+  // Need a temporary buffer to know what size to write for the final protobuf buffer
   private final GrowableBuffer buf = new GrowableBuffer(512);
   private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
 
@@ -85,12 +87,8 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     this(createSender(config), config.isTraceOtelSemanticsEnabled());
   }
 
-  // visible for testing: lets tests inject a capturing sender to decode the emitted protobuf
-  OtlpStatsMetricWriter(@Nullable OtlpSender sender) {
-    this(sender, false);
-  }
-
-  // visible for testing: lets tests inject a capturing sender and control the semantics mode
+  // visible for testing: lets tests inject a capturing sender to decode the emitted protobuf and
+  // control the semantics mode
   OtlpStatsMetricWriter(@Nullable OtlpSender sender, boolean otelSemanticsMode) {
     this.sender = sender;
     this.otelSemanticsMode = otelSemanticsMode;
@@ -154,7 +152,7 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     writeTag(buf, DP_TIME_FIELD, I64_WIRE_TYPE);
     writeI64(buf, endNanos);
     long sumNanos = error ? entry.getErrorDuration() : entry.getOkDuration();
-    OtlpHistogramPoint point = OtlpHistogramBuckets.toHistogramPoint(latencies, sumNanos);
+    OtlpHistogramPoint point = OtlpStatsHistogramBuckets.toHistogramPoint(latencies, sumNanos);
     metricBytes += recordDataPointMessage(buf, point, protobuf);
   }
 
@@ -165,16 +163,16 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     // OTel semconv attrs are emitted in both modes
     writeStringAttribute(SPAN_NAME, entry.getResource());
     writeStringAttribute(SPAN_KIND, entry.getSpanKind());
-    if (entry.getHttpMethod() != null) {
+    if (entry.hasHttpMethod()) {
       writeStringAttribute(HTTP_REQUEST_METHOD, entry.getHttpMethod());
     }
     if (entry.getHttpStatusCode() != 0) {
       writeLongAttribute(HTTP_RESPONSE_STATUS_CODE, entry.getHttpStatusCode());
     }
-    if (entry.getHttpEndpoint() != null) {
+    if (entry.hasHttpEndpoint()) {
       writeStringAttribute(HTTP_ROUTE, entry.getHttpEndpoint());
     }
-    if (entry.getGrpcStatusCode() != null) {
+    if (entry.hasGrpcStatusCode()) {
       writeStringAttribute(RPC_RESPONSE_STATUS_CODE, entry.getGrpcStatusCode());
     }
     // Default (Datadog) mode: emit datadog.* per-point attributes
@@ -183,9 +181,9 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
       writeStringAttribute(DATADOG_SPAN_TYPE, entry.getType());
       writeLongAttribute(
           DATADOG_SPAN_TOP_LEVEL, entry.getTopLevelCount() == entry.getHitCount() ? 1L : 0L);
-      // Emit the full origin (synthetics, synthetics-browser, rum, ciapp-test, lambda, ...) when
-      // present; writeStringAttribute no-ops on a null value.
-      writeStringAttribute(DATADOG_ORIGIN, entry.getOrigin());
+      if (entry.isSynthetics()) {
+        writeStringAttribute(DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
+      }
     }
   }
 

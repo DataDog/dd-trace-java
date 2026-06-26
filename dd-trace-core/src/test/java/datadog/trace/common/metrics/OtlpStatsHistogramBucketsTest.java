@@ -1,9 +1,9 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.common.metrics.OtlpHistogramBuckets.BOUNDS_SECONDS;
-import static datadog.trace.common.metrics.OtlpHistogramBuckets.EXPLICIT_BOUNDS;
-import static datadog.trace.common.metrics.OtlpHistogramBuckets.bucketIndex;
-import static datadog.trace.common.metrics.OtlpHistogramBuckets.toHistogramPoint;
+import static datadog.trace.common.metrics.OtlpStatsHistogramBuckets.BOUNDS_SECONDS;
+import static datadog.trace.common.metrics.OtlpStatsHistogramBuckets.EXPLICIT_BOUNDS;
+import static datadog.trace.common.metrics.OtlpStatsHistogramBuckets.bucketIndex;
+import static datadog.trace.common.metrics.OtlpStatsHistogramBuckets.toHistogramPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -20,13 +20,10 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Unit tests for {@link OtlpHistogramBuckets}, the helper that re-bins a nanosecond-valued DDSketch
- * onto the fixed OTLP explicit-bounds histogram layout (in seconds).
- *
- * <p>Both methods under test ({@code bucketIndex}, {@code toHistogramPoint}) are package-private,
- * so this test lives in {@code datadog.trace.common.metrics}.
+ * Unit tests for {@link OtlpStatsHistogramBuckets}, the helper that re-bins a nanosecond-valued
+ * DDSketch onto the fixed OTLP explicit-bounds histogram layout (in seconds).
  */
-class OtlpHistogramBucketsTest {
+class OtlpStatsHistogramBucketsTest {
 
   private static final double NANOS_PER_SECOND = 1_000_000_000d;
 
@@ -85,10 +82,8 @@ class OtlpHistogramBucketsTest {
   @Test
   void toHistogramPointSummary() {
     Histogram h = Histogram.newHistogram();
-    // Samples spanning the layout, including a 1ns duration — the upstream-clamped minimum
-    // (DDSpan#finishAndAddToTrace does Math.max(1, durationNano)). 1ns is far below the smallest
-    // bound (0.002s) and must land in bucket 0, not be dropped. 1ms also falls in bucket 0, so the
-    // two sub-2ms samples share it; 100ms → bucket 6, 3s → bucket 13.
+    // 1ns and 1ms are below the smallest bound (0.002s) and must land in bucket 0; 100ms → bucket
+    // 6, 3s → bucket 13.
     long[] samplesNanos = {
       1L,
       (long) (0.001 * NANOS_PER_SECOND),
@@ -122,9 +117,6 @@ class OtlpHistogramBucketsTest {
     // sum equals the sumNanos ARGUMENT converted to seconds, not the sketch sum.
     assertEquals(42.0, point.sum, EPS);
 
-    // The two sub-2ms samples (1ns + 1ms) both land in bucket 0; nothing is lost: bucket counts
-    // sum to the total count. The count==Σbuckets invariant guards against a future histogram
-    // config that parks tiny values in a zero/negative store (excluded from getBinCounts).
     long bucketTotal = 0;
     for (int i = 0; i < point.bucketCounts.size(); i++) {
       long c = (long) point.bucketCounts.get(i).doubleValue();

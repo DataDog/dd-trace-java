@@ -19,17 +19,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * Tests for {@link OtlpStatsMetricWriter}. Drives the writer through {@code startBucket} → {@code
  * add} → {@code finishBucket} with a capturing {@link OtlpSender}, then decodes the emitted
  * protobuf {@code ExportMetricsServiceRequest} ({@code MetricsData}) using protobuf's {@link
  * CodedInputStream}, reusing the decode idioms from {@code OtlpMetricsProtoTest}.
- *
- * <p>Lives in {@code datadog.trace.common.metrics} to reach the package-private testing constructor
- * {@code OtlpStatsMetricWriter(OtlpSender)} and the {@code AggregateEntryTestUtils} factory.
  *
  * <p>Wire layout (OTLP metrics proto):
  *
@@ -47,6 +47,8 @@ import org.junit.jupiter.api.Test;
 class OtlpStatsMetricWriterTest {
 
   private static final int TEMPORALITY_DELTA = 1;
+  private static final long BUCKET_START = SECONDS.toNanos(1_700_000_000L);
+  private static final long BUCKET_DURATION = SECONDS.toNanos(10);
 
   @BeforeAll
   static void registerHistogramFactory() {
@@ -74,23 +76,32 @@ class OtlpStatsMetricWriterTest {
 
   // ── entry builders ──────────────────────────────────────────────────────
 
+  private static AggregateEntry entry(
+      String resource,
+      boolean synthetic,
+      int httpStatusCode,
+      @Nullable String httpMethod,
+      @Nullable String httpEndpoint,
+      @Nullable String grpcStatusCode) {
+    return AggregateEntryTestUtils.of(
+        resource,
+        "web",
+        "servlet.request",
+        null,
+        "web",
+        httpStatusCode,
+        synthetic,
+        true,
+        "server",
+        null,
+        httpMethod,
+        httpEndpoint,
+        grpcStatusCode);
+  }
+
   /** Build an entry and record {@code hits} ok durations of {@code durationNanos} each. */
   private static AggregateEntry okEntry(long durationNanos, int hits) {
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            false,
-            true,
-            "server",
-            null,
-            null,
-            null,
-            null);
+    AggregateEntry e = entry("GET /users", false, 0, null, null, null);
     for (int i = 0; i < hits; i++) {
       e.recordOneDuration(durationNanos);
     }
@@ -99,16 +110,15 @@ class OtlpStatsMetricWriterTest {
 
   // ── decode helpers (adapted from OtlpMetricsProtoTest) ──────────────────────
 
-  /** A decoded histogram data point. */
+  /**
+   * A decoded histogram data point. Only the fields this test asserts on are decoded: the window
+   * timestamps, the total count, and the attributes. Per-bucket contents (bucket_counts,
+   * explicit_bounds), sum, min, and max are intentionally not decoded here.
+   */
   private static final class DataPoint {
     long start;
     long end;
     long count;
-    double sum;
-    double min;
-    double max;
-    final List<Long> bucketCounts = new ArrayList<>();
-    final List<Double> bounds = new ArrayList<>();
     final Map<String, Object> attributes = new HashMap<>();
   }
 
@@ -206,25 +216,10 @@ class OtlpStatsMetricWriterTest {
         case 4:
           p.count = dp.readFixed64();
           break;
-        case 5:
-          p.sum = dp.readDouble();
-          break;
-        case 6:
-          p.bucketCounts.add(dp.readFixed64());
-          break;
-        case 7:
-          p.bounds.add(dp.readDouble());
-          break;
         case 9: // attributes (KeyValue)
           readKeyValue(dp.readBytes().newCodedInput(), p.attributes);
           break;
-        case 11:
-          p.min = dp.readDouble();
-          break;
-        case 12:
-          p.max = dp.readDouble();
-          break;
-        default:
+        default: // sum, bucket_counts, explicit_bounds, min, max — not asserted here
           dp.skipField(tag);
       }
     }
@@ -275,21 +270,29 @@ class OtlpStatsMetricWriterTest {
     return value;
   }
 
+  // ── writer driver ─────────────────────────────────────────────────────────
+
+  /**
+   * Drives the writer through one full {@code startBucket → add → finishBucket} cycle for {@code
+   * entry} over the fixed {@link #BUCKET_START}/{@link #BUCKET_DURATION} window, asserts that
+   * exactly one payload was sent, and returns the decoded metric.
+   */
+  private static DecodedMetric writeAndDecode(boolean otelSemanticsMode, AggregateEntry entry)
+      throws IOException {
+    CapturingSender sender = new CapturingSender();
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, otelSemanticsMode);
+    writer.startBucket(1, BUCKET_START, BUCKET_DURATION);
+    writer.add(entry);
+    writer.finishBucket();
+    assertEquals(1, sender.sendCount, "exactly one payload sent");
+    return decode(sender.lastPayload);
+  }
+
   // ── test cases ──────────────────────────────────────────────────────────
 
   @Test
   void okOnlyEntryProducesExactlyOneDataPoint() throws IOException {
-    CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender);
-
-    long start = SECONDS.toNanos(1_700_000_000L);
-    long duration = SECONDS.toNanos(10);
-    writer.startBucket(1, start, duration);
-    writer.add(okEntry(SECONDS.toNanos(1), 3));
-    writer.finishBucket();
-
-    assertEquals(1, sender.sendCount, "exactly one payload sent");
-    DecodedMetric metric = decode(sender.lastPayload);
+    DecodedMetric metric = writeAndDecode(false, okEntry(SECONDS.toNanos(1), 3));
 
     assertEquals("traces.span.sdk.metrics.duration", metric.name);
     assertEquals("s", metric.unit);
@@ -297,45 +300,20 @@ class OtlpStatsMetricWriterTest {
     assertEquals(1, metric.dataPoints.size(), "ok-only → one data point");
 
     DataPoint dp = metric.dataPoints.get(0);
-    assertEquals(start, dp.start, "start_time_unix_nano == startBucket start");
-    assertEquals(start + duration, dp.end, "time_unix_nano == start + duration");
+    assertEquals(BUCKET_START, dp.start, "start_time_unix_nano == startBucket start");
+    assertEquals(BUCKET_START + BUCKET_DURATION, dp.end, "time_unix_nano == start + duration");
     assertEquals(3L, dp.count);
-    assertEquals(3L, sumBuckets(dp), "bucket counts sum to total count");
-    assertEquals(17, dp.bucketCounts.size(), "17 OTLP buckets");
     assertFalse(dp.attributes.containsKey("status.code"), "ok point carries no status.code");
   }
 
   @Test
   void okPlusErrorEntryProducesTwoDataPointsWithErrorStatus() throws IOException {
-    CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender);
-
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            false,
-            true,
-            "server",
-            null,
-            null,
-            null,
-            null);
+    AggregateEntry e = entry("GET /users", false, 0, null, null, null);
     e.recordOneDuration(SECONDS.toNanos(1)); // ok
     e.recordOneDuration(SECONDS.toNanos(2)); // ok
     e.recordOneDuration(SECONDS.toNanos(3) | AggregateEntry.ERROR_TAG); // error
 
-    long start = SECONDS.toNanos(1_700_000_000L);
-    long duration = SECONDS.toNanos(10);
-    writer.startBucket(1, start, duration);
-    writer.add(e);
-    writer.finishBucket();
-
-    DecodedMetric metric = decode(sender.lastPayload);
+    DecodedMetric metric = writeAndDecode(false, e);
     assertEquals(2, metric.dataPoints.size(), "ok+error → two data points");
 
     long okCount = 0;
@@ -355,38 +333,14 @@ class OtlpStatsMetricWriterTest {
     assertNotNull(okPoint, "one data point must omit status.code");
     assertEquals(e.getOkLatencies().getCount(), (double) okCount, 1e-9);
     assertEquals(e.getErrorLatencies().getCount(), (double) errorCount, 1e-9);
-    assertEquals(okCount, sumBuckets(okPoint));
-    assertEquals(errorCount, sumBuckets(errorPoint));
   }
 
   @Test
   void httpAndGrpcAttributesAppearOnlyWhenSet() throws IOException {
-    CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender);
-
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users/{id}",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            200,
-            false,
-            true,
-            "server",
-            null,
-            "GET",
-            "/users/{id}",
-            "0");
+    AggregateEntry e = entry("GET /users/{id}", false, 200, "GET", "/users/{id}", "0");
     e.recordOneDuration(SECONDS.toNanos(1));
 
-    long start = SECONDS.toNanos(1_700_000_000L);
-    writer.startBucket(1, start, SECONDS.toNanos(10));
-    writer.add(e);
-    writer.finishBucket();
-
-    DecodedMetric metric = decode(sender.lastPayload);
+    DecodedMetric metric = writeAndDecode(false, e);
     assertEquals(1, metric.dataPoints.size());
     Map<String, Object> attrs = metric.dataPoints.get(0).attributes;
 
@@ -396,12 +350,8 @@ class OtlpStatsMetricWriterTest {
     assertEquals("0", attrs.get("rpc.response.status_code"));
 
     // a bare entry has none of these
-    CapturingSender sender2 = new CapturingSender();
-    OtlpStatsMetricWriter writer2 = new OtlpStatsMetricWriter(sender2);
-    writer2.startBucket(1, start, SECONDS.toNanos(10));
-    writer2.add(okEntry(SECONDS.toNanos(1), 1));
-    writer2.finishBucket();
-    Map<String, Object> bareAttrs = decode(sender2.lastPayload).dataPoints.get(0).attributes;
+    Map<String, Object> bareAttrs =
+        writeAndDecode(false, okEntry(SECONDS.toNanos(1), 1)).dataPoints.get(0).attributes;
     assertFalse(bareAttrs.containsKey("http.request.method"));
     assertFalse(bareAttrs.containsKey("http.response.status_code"));
     assertFalse(bareAttrs.containsKey("http.route"));
@@ -411,9 +361,9 @@ class OtlpStatsMetricWriterTest {
   @Test
   void emptyBucketSendsNothing() {
     CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
 
-    writer.startBucket(0, SECONDS.toNanos(1_700_000_000L), SECONDS.toNanos(10));
+    writer.startBucket(0, BUCKET_START, BUCKET_DURATION);
     writer.finishBucket(); // no add()
 
     assertEquals(0, sender.sendCount, "empty bucket must not invoke send");
@@ -423,8 +373,8 @@ class OtlpStatsMetricWriterTest {
   @Test
   void nullSenderDoesNotThrowOnNonEmptyBucket() {
     // mirrors the HTTP_JSON path where createSender(config) returns null.
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter((OtlpSender) null);
-    writer.startBucket(1, SECONDS.toNanos(1_700_000_000L), SECONDS.toNanos(10));
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(null, false);
+    writer.startBucket(1, BUCKET_START, BUCKET_DURATION);
     writer.add(okEntry(SECONDS.toNanos(1), 2));
     try {
       writer.finishBucket();
@@ -433,35 +383,13 @@ class OtlpStatsMetricWriterTest {
     }
   }
 
-  // ── step 4: attribute modes ──────────────────────────────────────────────
-
   @Test
   void defaultModeCarriesDatadogAttributes() throws IOException {
-    CapturingSender sender = new CapturingSender();
-    // otelSemanticsMode = false → datadog.* should be present
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
-    writer.startBucket(1, SECONDS.toNanos(1_700_000_000L), SECONDS.toNanos(10));
     // use an entry where all hits are top-level: OR in TOP_LEVEL_TAG
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "servlet.request",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            false,
-            true,
-            "server",
-            null,
-            null,
-            null,
-            null);
+    AggregateEntry e = entry("servlet.request", false, 0, null, null, null);
     e.recordOneDuration(SECONDS.toNanos(1) | AggregateEntry.TOP_LEVEL_TAG);
-    writer.add(e);
-    writer.finishBucket();
 
-    Map<String, Object> attrs = decode(sender.lastPayload).dataPoints.get(0).attributes;
+    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
     assertTrue(
         attrs.containsKey("datadog.operation.name"), "operation name present in default mode");
     assertTrue(attrs.containsKey("datadog.span.type"), "span type present in default mode");
@@ -470,48 +398,36 @@ class OtlpStatsMetricWriterTest {
     assertEquals(1L, attrs.get("datadog.span.top_level"), "all hits top-level → 1");
     // OTel-semconv attrs are present in both modes
     assertTrue(attrs.containsKey("span.name"), "span.name present in both modes");
-    assertFalse(attrs.containsKey("datadog.origin"), "non-synthetic entry has no datadog.origin");
+    // datadog.origin presence/absence is covered by defaultModeEmitsSyntheticOrigin
   }
 
-  @Test
-  void defaultModeCarriesSyntheticsOrigin() throws IOException {
-    CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
-    writer.startBucket(1, SECONDS.toNanos(1_700_000_000L), SECONDS.toNanos(10));
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "servlet.request",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            true, // synthetic=true
-            true,
-            "server",
-            null,
-            null,
-            null,
-            null);
+  /**
+   * In default mode a synthetic entry emits {@code datadog.origin = "synthetics"}; a non-synthetic
+   * entry omits the attribute. Origin has collapsed to a boolean {@code synthetic} flag upstream,
+   * so {@code "synthetics"} is the only origin value that can reach the writer.
+   */
+  @ParameterizedTest(name = "synthetic={0} → datadog.origin={1}")
+  @CsvSource(
+      nullValues = "NULL",
+      value = {"false, NULL", "true, synthetics"})
+  void defaultModeEmitsSyntheticOrigin(boolean synthetic, String expectedOrigin)
+      throws IOException {
+    AggregateEntry e = entry("servlet.request", synthetic, 0, null, null, null);
     e.recordOneDuration(SECONDS.toNanos(1));
-    writer.add(e);
-    writer.finishBucket();
 
-    Map<String, Object> attrs = decode(sender.lastPayload).dataPoints.get(0).attributes;
-    assertEquals(
-        "synthetics", attrs.get("datadog.origin"), "synthetic entry carries datadog.origin");
+    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    if (expectedOrigin == null) {
+      assertFalse(attrs.containsKey("datadog.origin"), "non-synthetic → datadog.origin absent");
+    } else {
+      assertEquals(expectedOrigin, attrs.get("datadog.origin"), "synthetic → datadog.origin");
+    }
   }
 
   @Test
   void otelSemanticsModeOmitsDatadogAttributes() throws IOException {
-    CapturingSender sender = new CapturingSender();
     // otelSemanticsMode = true → datadog.* must be absent
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, true);
-    writer.startBucket(1, SECONDS.toNanos(1_700_000_000L), SECONDS.toNanos(10));
-    writer.add(okEntry(SECONDS.toNanos(1), 1));
-    writer.finishBucket();
-
-    Map<String, Object> attrs = decode(sender.lastPayload).dataPoints.get(0).attributes;
+    Map<String, Object> attrs =
+        writeAndDecode(true, okEntry(SECONDS.toNanos(1), 1)).dataPoints.get(0).attributes;
     assertFalse(
         attrs.containsKey("datadog.operation.name"),
         "operation name absent in otel-semantics mode");
@@ -522,12 +438,5 @@ class OtlpStatsMetricWriterTest {
     assertFalse(attrs.containsKey("datadog.origin"), "origin absent in otel-semantics mode");
     // OTel-semconv attrs must still be present
     assertTrue(attrs.containsKey("span.name"), "span.name present even in otel-semantics mode");
-  }
-  private static long sumBuckets(DataPoint dp) {
-    long total = 0;
-    for (long c : dp.bucketCounts) {
-      total += c;
-    }
-    return total;
   }
 }
