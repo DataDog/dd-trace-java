@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.config.inversion.ConfigHelper;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -126,6 +127,12 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         String lambdaRequestId = awsContext.getAwsRequestId();
 
         AgentTracer.get().notifyAppSecEnd(span, result);
+        // Force the resource name back to the literal placeholder marker right
+        // before finish so that the Datadog Lambda Extension's filter
+        // (filter_span_from_lambda_library_or_runtime in
+        // bottlecap/src/traces/trace_processor.rs, which compares
+        // span.resource == "dd-tracer-serverless-span") drops the placeholder.
+        span.setResourceName(INVOCATION_SPAN_NAME, ResourceNamePriorities.TAG_INTERCEPTOR);
         span.finish();
         AgentTracer.get().notifyExtensionEnd(span, result, null != throwable, lambdaRequestId);
       } finally {
