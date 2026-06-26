@@ -122,6 +122,18 @@ jmh {
   if (project.hasProperty('jmh.profilers')) {
     profilers = project.property('jmh.profilers').tokenize(',')
   }
+  if (project.hasProperty('jmh.jvmArgs')) {
+    jvmArgsAppend = project.property('jmh.jvmArgs').tokenize(' ')
+  }
+  if (project.hasProperty('jmh.fork')) {
+    fork = project.property('jmh.fork') as Integer
+  }
+  if (project.hasProperty('jmh.warmupIterations')) {
+    warmupIterations = project.property('jmh.warmupIterations') as Integer
+  }
+  if (project.hasProperty('jmh.iterations')) {
+    iterations = project.property('jmh.iterations') as Integer
+  }
   if (project.hasProperty('testJvm')) {
     def testJvmSpec = new TestJvmSpec(project)
     jvm = testJvmSpec.javaTestLauncher.map { it.executablePath.asFile.absolutePath }
