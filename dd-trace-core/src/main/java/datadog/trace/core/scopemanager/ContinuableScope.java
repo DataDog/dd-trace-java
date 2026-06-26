@@ -170,7 +170,7 @@ class ContinuableScope implements AgentScope {
       return;
     }
     try {
-      scopeState.activate(span.context());
+      scopeState.activate(span.spanContext());
     } catch (Throwable e) {
       ContinuableScopeManager.ratelimitedLog.warn(
           "ScopeState {} threw exception in beforeActivated()", scopeState.getClass(), e);

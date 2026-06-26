@@ -2,11 +2,11 @@ package datadog.telemetry.metric;
 
 import datadog.trace.api.telemetry.MetricCollector;
 import datadog.trace.api.telemetry.OtelEnvMetricCollectorImpl;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import javax.annotation.Nonnull;
 
 public class OtelEnvMetricPeriodicAction extends MetricPeriodicAction {
   @Override
-  @NonNull
+  @Nonnull
   public MetricCollector collector() {
     return OtelEnvMetricCollectorImpl.getInstance();
   }
