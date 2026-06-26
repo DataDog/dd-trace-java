@@ -34,6 +34,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
+import datadog.trace.core.taginterceptor.TagInterceptor.TagHandler;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
 import datadog.trace.util.TagsHelper;
 import java.io.Closeable;
@@ -881,7 +882,13 @@ public class DDSpanContext
     }
     if (null == value) {
       removeTag(tag);
-    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+      return;
+    }
+    // Dispatch inline (not via interceptTag) so this overload owns its handle() call site: each
+    // caller that inlines setTag gets its own type profile, letting a tag-stable caller
+    // devirtualize and inline its one handler.
+    TagHandler handler = tagInterceptor.handler(tag);
+    if (handler == null || !handler.handle(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -894,7 +901,10 @@ public class DDSpanContext
     }
     if (null == value) {
       removeTag(tag);
-    } else if (!tagInterceptor.interceptTag(this, tag, value)) {
+      return;
+    }
+    TagHandler handler = tagInterceptor.handler(tag);
+    if (handler == null || !handler.handle(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
       }
@@ -906,26 +916,12 @@ public class DDSpanContext
       return;
     }
 
-    // resolve the handler once; id 0 short-circuits without a second lookup
-    int handlerId = tagInterceptor.handlerId(entry.tag());
-    boolean intercepted =
-        handlerId != 0
-            && tagInterceptor.handleIntercept(this, handlerId, entry.tag(), entry.objectValue());
+    // resolve the handler once; a miss (null) short-circuits without a second lookup
+    TagHandler handler = tagInterceptor.handler(entry.tag());
+    boolean intercepted = handler != null && handler.handle(this, entry.tag(), entry.objectValue());
     if (!intercepted) {
       synchronized (unsafeTags) {
         unsafeTags.set(entry);
-      }
-    }
-  }
-
-  /*
-   * Used when handlerId determined the tag is intercepted (id != 0): the primitive must be boxed to
-   * pass to the interceptor. The box is reused -- the optimized TagMap caches it on store.
-   */
-  private void setBox(int handlerId, String tag, Object box) {
-    if (!tagInterceptor.handleIntercept(this, handlerId, tag, box)) {
-      synchronized (unsafeTags) {
-        unsafeTags.set(tag, box);
       }
     }
   }
@@ -934,9 +930,15 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    int handlerId = tagInterceptor.handlerId(tag);
-    if (handlerId != 0) {
-      this.setBox(handlerId, tag, value);
+    TagHandler handler = tagInterceptor.handler(tag);
+    if (handler != null) {
+      // intercepted: box once (the optimized TagMap caches it on store) and dispatch
+      Object box = value;
+      if (!handler.handle(this, tag, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.set(tag, box);
+        }
+      }
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
@@ -948,9 +950,14 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    int handlerId = tagInterceptor.handlerId(tag);
-    if (handlerId != 0) {
-      this.setBox(handlerId, tag, value);
+    TagHandler handler = tagInterceptor.handler(tag);
+    if (handler != null) {
+      Object box = value;
+      if (!handler.handle(this, tag, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.set(tag, box);
+        }
+      }
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
@@ -962,10 +969,15 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    // resolve once; handlerId 0 (not intercepted) stores the primitive without boxing
-    int handlerId = tagInterceptor.handlerId(tag);
-    if (handlerId != 0) {
-      this.setBox(handlerId, tag, value);
+    // resolve once; a miss (null) stores the primitive without boxing
+    TagHandler handler = tagInterceptor.handler(tag);
+    if (handler != null) {
+      Object box = value;
+      if (!handler.handle(this, tag, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.set(tag, box);
+        }
+      }
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
@@ -977,9 +989,14 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    int handlerId = tagInterceptor.handlerId(tag);
-    if (handlerId != 0) {
-      this.setBox(handlerId, tag, value);
+    TagHandler handler = tagInterceptor.handler(tag);
+    if (handler != null) {
+      Object box = value;
+      if (!handler.handle(this, tag, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.set(tag, box);
+        }
+      }
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
@@ -991,9 +1008,14 @@ public class DDSpanContext
     if (null == tag) {
       return;
     }
-    int handlerId = tagInterceptor.handlerId(tag);
-    if (handlerId != 0) {
-      this.setBox(handlerId, tag, value);
+    TagHandler handler = tagInterceptor.handler(tag);
+    if (handler != null) {
+      Object box = value;
+      if (!handler.handle(this, tag, box)) {
+        synchronized (unsafeTags) {
+          unsafeTags.set(tag, box);
+        }
+      }
     } else {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);

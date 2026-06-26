@@ -160,26 +160,22 @@ public final class TagInterceptor {
   }
 
   /**
-   * Resolves {@code tag} to a 1-based dispatch slot, or {@code 0} when not intercepted. The slot is
-   * just {@code indexOf + 1}: the index already unifies the compile-time fixed tags with the
-   * Config-driven split-by-tags, so a single lookup decides everything. {@link #handleIntercept}
-   * turns the slot back into a {@link TagHandler}. The 1-based scheme keeps {@code 0} as the
-   * "store, don't intercept" sentinel that {@code DDSpanContext} relies on to skip boxing.
+   * Resolves {@code tag} to its {@link TagHandler}, or {@code null} when not intercepted. A single
+   * lookup decides everything -- the index unifies the compile-time fixed tags with the
+   * Config-driven split-by-tags. Returning the handler (rather than an int id routed back through a
+   * shared {@code handleIntercept}) lets each caller invoke {@code handler.handle(...)} at its own
+   * site, so each call site gets an independent type profile: a tag-stable caller can devirtualize
+   * and inline its one handler. {@code null} is the "store, don't intercept" sentinel callers use to
+   * skip boxing the value.
    */
-  public int handlerId(String tag) {
-    return index.indexOf(tag) + 1;
+  public TagHandler handler(String tag) {
+    return index.lookup(handlers, tag);
   }
 
-  /**
-   * Convenience: resolve the handler and dispatch. A miss short-circuits (not ours).
-   */
+  /** Convenience: resolve the handler and dispatch. A miss short-circuits (not ours). */
   public boolean interceptTag(DDSpanContext span, String tag, Object value) {
     TagHandler handler = index.lookup(handlers, tag);
     return handler != null && handler.handle(span, tag, value);
-  }
-
-  public boolean handleIntercept(DDSpanContext span, int handlerId, String tag, Object value) {
-    return handlers[handlerId - 1].handle(span, tag, value);
   }
 
   private boolean interceptUrlResourceAsNameRule(DDSpanContext span, String tag, Object value) {
