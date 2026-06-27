@@ -207,7 +207,9 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   public void finishBucket() {
     try {
       if (metricBytes > 0) {
-        scopedBytes += recordMetricMessage(buf, METRIC_DESCRIPTOR, metricBytes, protobuf);
+        // trace stats histograms are inherently per-interval deltas (buckets are cleared after
+        // every flush), so always encode DELTA regardless of the temporality preference
+        scopedBytes += recordMetricMessage(buf, METRIC_DESCRIPTOR, metricBytes, protobuf, true);
       }
       if (scopedBytes > 0) {
         payloadBytes += recordScopedMetricsMessage(buf, SCOPE, scopedBytes, protobuf);
