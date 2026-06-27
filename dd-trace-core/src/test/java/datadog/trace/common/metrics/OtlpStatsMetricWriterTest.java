@@ -336,6 +336,41 @@ class OtlpStatsMetricWriterTest {
   }
 
   @Test
+  void errorSeriesDoesNotLingerAfterClearWhenBucketHasOnlyOkHits() throws IOException {
+    CapturingSender sender = new CapturingSender();
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
+
+    // Bucket 1: the entry sees an error, so its error histogram is allocated and emits a point.
+    AggregateEntry e = entry("GET /users", null, 0, null, null, null);
+    e.recordOneDuration(SECONDS.toNanos(1)); // ok
+    e.recordOneDuration(SECONDS.toNanos(3) | AggregateEntry.ERROR_TAG); // error
+
+    writer.startBucket(1, BUCKET_START, BUCKET_DURATION);
+    writer.add(e);
+    writer.finishBucket();
+    DecodedMetric bucket1 = decode(sender.lastPayload);
+    assertEquals(2, bucket1.dataPoints.size(), "bucket with an error → ok+error data points");
+    assertTrue(
+        bucket1.dataPoints.stream()
+            .anyMatch(dp -> "ERROR".equals(dp.attributes.get("status.code"))),
+        "bucket 1 must carry a status.code=ERROR point");
+
+    // Bucket 2: same entry, reset then only OK hits. errorLatencies survives clear() (cleared, not
+    // nulled), so a non-null-but-empty histogram must NOT emit a phantom zero-count error series.
+    e.clear();
+    e.recordOneDuration(SECONDS.toNanos(2)); // ok only
+
+    writer.startBucket(2, BUCKET_START + BUCKET_DURATION, BUCKET_DURATION);
+    writer.add(e);
+    writer.finishBucket();
+    DecodedMetric bucket2 = decode(sender.lastPayload);
+    assertEquals(1, bucket2.dataPoints.size(), "ok-only bucket → exactly one data point");
+    assertFalse(
+        bucket2.dataPoints.get(0).attributes.containsKey("status.code"),
+        "recovered entry must not emit a lingering status.code=ERROR series");
+  }
+
+  @Test
   void httpAndGrpcAttributesAppearOnlyWhenSet() throws IOException {
     AggregateEntry e = entry("GET /users/{id}", false, 200, "GET", "/users/{id}", "0");
     e.recordOneDuration(SECONDS.toNanos(1));

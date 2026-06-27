@@ -140,7 +140,7 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     }
 
     Histogram errorLatencies = entry.getErrorLatencies();
-    if (errorLatencies != null) {
+    if (errorLatencies != null && !errorLatencies.isEmpty()) {
       addDataPoint(entry, errorLatencies, true);
     }
   }
