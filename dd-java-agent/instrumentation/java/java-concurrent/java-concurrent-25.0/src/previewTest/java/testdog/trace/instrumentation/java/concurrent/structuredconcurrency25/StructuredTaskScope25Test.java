@@ -5,6 +5,7 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIM
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static java.util.Comparator.comparing;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDSpanId;
@@ -133,8 +134,56 @@ public class StructuredTaskScope25Test extends AbstractInstrumentationTest {
     assertTraces(trace(span().root().operationName("parent")));
   }
 
+  @Test
+  void testFailingTaskDoesNotLeakContinuation() {
+    var span = tracer.startSpan("test", "parent");
+    var parentSpanId = DDSpanId.toString(span.getSpanId());
+    try (var ignored = tracer.activateSpan(span)) {
+      try (var scope = StructuredTaskScope.open()) {
+        scope.fork(this::failingTask);
+        assertThrows(Exception.class, scope::join);
+      }
+      assertEquals(
+          parentSpanId, tracer.getSpanId(), "parent context should be restored after the scope");
+    }
+    span.finish();
+
+    assertTraces(trace(span().root().operationName("parent")));
+  }
+
+  @Test
+  void testForkIntoCancelledScopeDoesNotLeakContinuation() throws Exception {
+    var span = tracer.startSpan("test", "parent");
+    try (var ignored = tracer.activateSpan(span)) {
+      try (var scope = StructuredTaskScope.open(new CancelOnForkJoiner<>())) {
+        scope.fork(() -> task("child"));
+        scope.join();
+      }
+    }
+    span.finish();
+
+    assertTraces(trace(span().root().operationName("parent")));
+  }
+
   Void task(String name) {
     tracer.startSpan("test", name).finish();
     return null;
+  }
+
+  Void failingTask() {
+    throw new IllegalStateException("failing");
+  }
+
+  /** Cancels the scope as soon as the first subtask is forked. */
+  static final class CancelOnForkJoiner<T> implements StructuredTaskScope.Joiner<T, Void> {
+    @Override
+    public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
+      return true; // Cancel the scope as soon as the first subtask is forked.
+    }
+
+    @Override
+    public Void result() {
+      return null;
+    }
   }
 }
