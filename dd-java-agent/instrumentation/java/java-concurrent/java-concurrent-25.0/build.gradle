@@ -44,6 +44,3 @@ tasks.named("check") {
   dependsOn "previewTest"
 }
 
-dependencies {
-  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
-}
