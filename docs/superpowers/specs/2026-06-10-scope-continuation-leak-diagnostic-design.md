@@ -117,14 +117,18 @@ never-resolved, late-after-root, double/invalid, and the full cross-thread timel
 
 ### 3. Renderers
 
-- **Text Gantt → SLF4J logger** (default output while recording): one row per continuation —
-  seq, trace/span, source, `capture thread@callsite`, `activate +Δms thread@callsite`,
-  `resolve(type) +Δms`, and a flag column (`LEAK` / `LATE` / `DBL`). Times are relative to the
-  first event in the window.
+> **Addendum (2026-06):** The in-Java Gantt renderers (text `renderGantt()` and Mermaid
+> `toMermaidGantt()`) were removed, and subsequently the **JSON output was dropped too** (its only
+> consumer was an LLM, which reads structured text fine, and the hand-rolled serializer was a
+> liability). Java now emits **only the leak-only text summary** (`renderSummary()`), logged at the
+> end of each tracked test. The `investigate-continuation-leakage` skill reads that summary and
+> renders a DAG of the flagged leaks. Note: the summary is problem-only and carries no per-event
+> timeline, so a time-accurate Gantt requires re-enabling a structured feed. The
+> `@TrackScopeContinuations` attributes were reduced to just `failOnLeak` (default `false`);
+> `gantt()`/`mermaid()`/`json()` were all removed.
+
 - **Leak-only summary**: only the flagged problems, each with its callsite(s) — a quick scan
-  / failure message.
-- **JSON → `build/scope-diagnostics/<test>.json`**: events + derived findings, for CI
-  artifacts and later tooling.
+  / failure message, and the sole output consumed by the skill.
 
 ### 4. Harness integration (passive by default — no impact on existing tests)
 
@@ -139,8 +143,8 @@ never-resolved, late-after-root, double/invalid, and the full cross-thread timel
   `@TrackScopeContinuations` annotation (and/or an overridable `trackScopeContinuations()`
   returning `false` by default), reusing the same static `ScopeDiagnostics` engine.
 
-`@TrackScopeContinuations` attributes: `failOnLeak` (default `false`),
-`json` (default `true`), `gantt` (default `true`).
+`@TrackScopeContinuations` attributes: `failOnLeak` (default `false`). (The `gantt`/`mermaid`/`json`
+attributes were removed — see the Renderers addendum.)
 
 ## Data flow
 

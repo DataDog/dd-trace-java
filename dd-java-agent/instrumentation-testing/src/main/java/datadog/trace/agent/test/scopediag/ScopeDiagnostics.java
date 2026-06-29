@@ -2,11 +2,6 @@ package datadog.trace.agent.test.scopediag;
 
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -14,8 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Test-time engine that records scope/continuation lifecycle events and renders leak reports.
@@ -33,13 +26,12 @@ import org.slf4j.LoggerFactory;
  * <pre>
  *   ScopeDiagnostics.startRecording();
  *   ... exercise code under test ...
- *   log.info(ScopeDiagnostics.report().renderGantt());
+ *   System.out.println(ScopeDiagnostics.report().renderSummary());
  *   ScopeDiagnostics.assertNoLeaks();   // optional
  *   ScopeDiagnostics.stop();
  * </pre>
  */
 public final class ScopeDiagnostics {
-  private static final Logger log = LoggerFactory.getLogger(ScopeDiagnostics.class);
   private static final int DEFAULT_MAX_FRAMES = 6;
 
   private static final ScopeDiagnostics INSTANCE = new ScopeDiagnostics();
@@ -109,37 +101,13 @@ public final class ScopeDiagnostics {
   public static void assertNoLeaks() {
     ScopeDiagnosticsReport report = report();
     if (report.hasProblems()) {
-      throw new AssertionError(
-          "Scope continuation problems detected:\n"
-              + report.renderSummary()
-              + "\n"
-              + report.renderGantt());
+      throw new AssertionError("Scope continuation problems detected:\n" + report.renderSummary());
     }
-  }
-
-  /** Writes the JSON report under {@code build/scope-diagnostics/<name>.json}. */
-  public static Path writeJson(String name) {
-    return write(name, ".json", report().toJson());
-  }
-
-  /** Writes the Mermaid Gantt timeline under {@code build/scope-diagnostics/<name>.md}. */
-  public static Path writeMermaid(String name) {
-    return write(name, ".md", report().toMermaidGantt());
-  }
-
-  private static Path write(String name, String extension, String content) {
-    String safe = name.replaceAll("[^A-Za-z0-9._-]", "_");
-    Path path = Paths.get("build", "scope-diagnostics", safe + extension);
-    try {
-      Files.createDirectories(path.getParent());
-      Files.write(path, content.getBytes(StandardCharsets.UTF_8));
-    } catch (IOException e) {
-      log.warn("Failed to write scope diagnostics to {}", path, e);
-    }
-    return path;
   }
 
   // ---- listener implementation ---------------------------------------------
+
+  private static final StackTraceElement[] NO_STACK = new StackTraceElement[0];
 
   private ScopeEvent event(ScopeEvent.Type type) {
     return event(type, System.nanoTime());
@@ -147,11 +115,13 @@ public final class ScopeDiagnostics {
 
   /** Builds an event with an explicit timestamp (thread and stack are still captured now). */
   private ScopeEvent event(ScopeEvent.Type type, long nanos) {
-    return new ScopeEvent(
-        type,
-        Thread.currentThread().getName(),
-        nanos,
-        stackFilter.filter(new Throwable().getStackTrace()));
+    // Capturing a stack per event is the dominant cost and perturbs the very timings we record;
+    // skip it entirely when callsites are disabled (maxFrames <= 0) rather than walking then
+    // trimming.
+    StackFilter filter = stackFilter;
+    StackTraceElement[] stack =
+        filter.maxFrames() <= 0 ? NO_STACK : filter.filter(new Throwable().getStackTrace());
+    return new ScopeEvent(type, Thread.currentThread().getName(), nanos, stack);
   }
 
   // ---- static forwarders called by ScopeContinuationProbe ------------------
@@ -162,8 +132,13 @@ public final class ScopeDiagnostics {
   }
 
   static void recordActivate(
-      AgentScope.Continuation id, DDTraceId traceId, long spanId, String spanName, byte source) {
-    INSTANCE.listener.onActivate(id, traceId, spanId, spanName, source);
+      AgentScope.Continuation id,
+      DDTraceId traceId,
+      long spanId,
+      String spanName,
+      byte source,
+      long nanos) {
+    INSTANCE.listener.onActivate(id, traceId, spanId, spanName, source, nanos);
   }
 
   static void recordActivateFailed(AgentScope.Continuation id) {
@@ -216,9 +191,15 @@ public final class ScopeDiagnostics {
     }
 
     void onActivate(
-        AgentScope.Continuation id, DDTraceId traceId, long spanId, String spanName, byte source) {
+        AgentScope.Continuation id,
+        DDTraceId traceId,
+        long spanId,
+        String spanName,
+        byte source,
+        long nanos) {
       try {
-        recordFor(id, traceId, spanId, spanName, source).addResume(event(ScopeEvent.Type.ACTIVATE));
+        recordFor(id, traceId, spanId, spanName, source)
+            .addResume(event(ScopeEvent.Type.ACTIVATE, nanos));
       } catch (Throwable ignored) {
       }
     }

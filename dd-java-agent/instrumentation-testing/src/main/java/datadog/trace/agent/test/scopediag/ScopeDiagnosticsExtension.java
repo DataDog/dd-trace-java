@@ -14,8 +14,8 @@ import org.slf4j.LoggerFactory;
  * TrackScopeContinuations}. Registered on {@code AbstractInstrumentationTest} but dormant unless
  * the test class or method carries the annotation, so unannotated tests pay nothing.
  *
- * <p>Per test: resets and starts recording before; after, renders the Gantt to the log, writes the
- * JSON report, and optionally asserts no leaks.
+ * <p>Per test: resets and starts recording before; after, logs the problem summary and optionally
+ * asserts no leaks.
  */
 public final class ScopeDiagnosticsExtension implements BeforeEachCallback, AfterEachCallback {
   private static final Logger log = LoggerFactory.getLogger(ScopeDiagnosticsExtension.class);
@@ -35,20 +35,7 @@ public final class ScopeDiagnosticsExtension implements BeforeEachCallback, Afte
     }
     ScopeDiagnostics.stop();
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
-    if (config.gantt()) {
-      log.info("[{}] {}", context.getDisplayName(), report.renderGantt());
-    } else {
-      log.info("[{}] {}", context.getDisplayName(), report.renderSummary());
-    }
-    if (config.json()) {
-      ScopeDiagnostics.writeJson(context.getUniqueId());
-    }
-    if (config.mermaid()) {
-      log.info(
-          "[{}] Mermaid timeline written to {}",
-          context.getDisplayName(),
-          ScopeDiagnostics.writeMermaid(context.getUniqueId()));
-    }
+    log.info("[{}] {}", context.getDisplayName(), report.renderSummary());
     try {
       if (config.failOnLeak()) {
         ScopeDiagnostics.assertNoLeaks();

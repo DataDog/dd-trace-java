@@ -52,7 +52,8 @@ class ScopeDiagnosticsReportTest {
     assertEquals(ContinuationStatus.LEAKED, r.status());
     assertTrue(report.hasProblems());
     assertTrue(report.renderSummary().contains("LEAKED"));
-    assertTrue(report.renderGantt().contains("Worker.java:42"));
+    // the capture callsite is surfaced in the problem summary
+    assertTrue(report.renderSummary().contains("Worker.java:42"));
   }
 
   @Test
@@ -122,39 +123,6 @@ class ScopeDiagnosticsReportTest {
 
     assertEquals(1, report.activateAfterResolveCount());
     assertTrue(report.hasProblems());
-  }
-
-  @Test
-  void jsonContainsSummaryAndRecords() {
-    ContinuationRecord r = record(0, DDTraceId.from(15));
-    ScopeDiagnosticsReport report = report(list(r), map());
-
-    String json = report.toJson();
-    assertTrue(json.contains("\"summary\""));
-    assertTrue(json.contains("\"leaked\":1"));
-    assertTrue(json.contains("\"failures\":[\"LEAKED\"]"));
-    assertTrue(json.contains("\"scopes\":["));
-  }
-
-  @Test
-  void mermaidGanttGroupsByThreadAndMarksLeakCrit() {
-    DDTraceId trace = DDTraceId.from(20);
-    ContinuationRecord resolved = record(0, trace);
-    resolved.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
-    resolved.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3000));
-    ContinuationRecord leak = record(1, trace); // capture only -> leak
-
-    String mermaid = report(list(resolved, leak), map()).toMermaidGantt();
-
-    assertTrue(mermaid.startsWith("```mermaid"));
-    assertTrue(mermaid.contains("gantt"));
-    assertTrue(mermaid.contains("dateFormat x"));
-    assertTrue(mermaid.contains("section main")); // capture lane = capture thread
-    assertTrue(mermaid.contains("section pool-1")); // run lane = resolution thread
-    assertTrue(mermaid.contains("cap #0 Worker.submit :milestone")); // where captured
-    assertTrue(mermaid.contains("#0 fin Worker.submit :done")); // where finished
-    assertTrue(mermaid.contains("#1 LEAK cap Worker.submit :crit")); // leak in capture lane
-    assertTrue(mermaid.trim().endsWith("```"));
   }
 
   // ---- helpers -------------------------------------------------------------

@@ -21,17 +21,32 @@ public final class ContinuationAdvice {
     }
   }
 
-  /** {@code activate()} — a (possibly noop) activation; the probe filters the rollback branch. */
+  /**
+   * {@code activate()} — a (possibly noop) activation; the probe filters the rollback branch.
+   *
+   * <p>The activation timestamp is captured at method <em>entry</em>, not exit: the same-span reuse
+   * optimization ({@code ContinuableScopeManager.continueSpan}) cancels the continuation from
+   * <em>inside</em> {@code activate()} before it returns, so timestamping the resume at exit would
+   * order it after that internal resolution and spuriously flag {@code ACTIVATE_AFTER_RESOLVE}.
+   */
   public static final class Activate {
+    @Advice.OnMethodEnter
+    public static long enter() {
+      return System.nanoTime();
+    }
+
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void exit(@Advice.This Object self, @Advice.Return Object scope) {
-      ScopeContinuationProbe.onActivate(self, scope);
+    public static void exit(
+        @Advice.This Object self, @Advice.Enter long ddActivateNanos, @Advice.Return Object scope) {
+      ScopeContinuationProbe.onActivate(self, scope, ddActivateNanos);
     }
   }
 
   /**
    * Resolution detected via the {@code count} transition. Applied to both {@code cancel()} and
-   * {@code cancelFromContinuedScopeClose()} — they need identical before/after observation.
+   * {@code cancelFromContinuedScopeClose()} — they need identical before/after observation. The
+   * originating method name ({@code #m}) distinguishes an explicit cancel from a normal
+   * finish-on-scope-close.
    *
    * <p>The resolve timestamp is captured at method <em>entry</em> (the {@code ddResolveNanos}
    * local), not at exit: the body itself may call {@code removeContinuation() ->
@@ -51,10 +66,11 @@ public final class ContinuationAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void exit(
         @Advice.This Object self,
+        @Advice.Origin("#m") String method,
         @Advice.Enter int countBefore,
         @Advice.Local("ddResolveNanos") long ddResolveNanos,
         @Advice.FieldValue("count") int countAfter) {
-      ScopeContinuationProbe.onResolve(self, countBefore, countAfter, ddResolveNanos);
+      ScopeContinuationProbe.onResolve(self, method, countBefore, countAfter, ddResolveNanos);
     }
   }
 }

@@ -275,15 +275,7 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
         @Advice.Enter final boolean cleanupHttp2Continuation,
         @Advice.This final ChannelPipeline pipeline,
         @Advice.Return final ChannelFuture future) {
-      // Resolve the connect-parent continuation at connect-complete for HTTP/2 dd connections
-      // (existing behaviour) and for channels that never get a dd HTTP client tracing handler to
-      // consume it (e.g. armeria, which runs its own codec/pipeline). Otherwise it is captured and
-      // never resolved, leaking a pending reference. Channels that DO get a dd client handler keep
-      // the continuation for the HTTP/1 request write to consume, so they are left untouched here.
-      final boolean noDdClientHandler =
-          pipeline.get(HttpClientTracingHandler.class) == null
-              && pipeline.get(HttpClientRequestTracingHandler.class) == null;
-      if (!cleanupHttp2Continuation && !noDdClientHandler) {
+      if (!cleanupHttp2Continuation) {
         return;
       }
       if (future == null) {

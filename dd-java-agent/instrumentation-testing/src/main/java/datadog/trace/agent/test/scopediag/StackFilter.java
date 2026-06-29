@@ -42,6 +42,10 @@ final class StackFilter {
     this.maxFrames = maxFrames;
   }
 
+  int maxFrames() {
+    return maxFrames;
+  }
+
   StackTraceElement[] filter(StackTraceElement[] raw) {
     if (raw == null) {
       return new StackTraceElement[0];

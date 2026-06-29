@@ -19,13 +19,4 @@ import java.lang.annotation.Target;
 public @interface TrackScopeContinuations {
   /** Fail the test if a never-resolved leak or double/invalid resolution is detected. */
   boolean failOnLeak() default false;
-
-  /** Render the full text Gantt timeline to the log after the test. */
-  boolean gantt() default true;
-
-  /** Write the JSON report under {@code build/scope-diagnostics/}. */
-  boolean json() default true;
-
-  /** Write a Mermaid Gantt timeline ({@code .md}) under {@code build/scope-diagnostics/}. */
-  boolean mermaid() default true;
 }

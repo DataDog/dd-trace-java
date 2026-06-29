@@ -98,7 +98,7 @@ public final class ScopeContinuationProbe {
    * returns the {@link AgentTracer#noopScope() noop scope} singleton, so a returned noop scope is
    * skipped — this exactly reproduces the original "success branch only" semantics.
    */
-  public static void onActivate(Object self, Object returnedScope) {
+  public static void onActivate(Object self, Object returnedScope, long activateNanos) {
     if (!recording) {
       return;
     }
@@ -113,7 +113,12 @@ public final class ScopeContinuationProbe {
       AgentSpan span = continuation.span();
       if (span != null) {
         ScopeDiagnostics.recordActivate(
-            continuation, span.getTraceId(), span.getSpanId(), spanName(span), sourceOf(self));
+            continuation,
+            span.getTraceId(),
+            span.getSpanId(),
+            spanName(span),
+            sourceOf(self),
+            activateNanos);
       }
     } catch (Throwable ignored) {
     }
@@ -125,24 +130,29 @@ public final class ScopeContinuationProbe {
    * by observing the {@code count} field transition to {@link #CANCELLED} during this call. A
    * cancel with outstanding activations leaves {@code count} unchanged (not a resolution).
    */
-  public static void onResolve(Object self, int countBefore, int countAfter, long resolveNanos) {
+  public static void onResolve(
+      Object self, String method, int countBefore, int countAfter, long resolveNanos) {
     if (!recording) {
       return;
     }
     if (countAfter != CANCELLED) {
       return; // not a resolution
     }
+    // An explicit cancel() is a discard; cancelFromContinuedScopeClose() is a normal finish once
+    // the continued scope closes. (Caveat: the rare cancelFromContinuedScopeClose slow path
+    // delegates to cancel(), so a multi-activation finish is recorded as a cancel.)
+    boolean cancelled = "cancel".equals(method);
     try {
       AgentScope.Continuation continuation = (AgentScope.Continuation) self;
       if (countBefore == CANCELLED) {
         // already cancelled before this call: a genuine second finish/cancel (the slow-path
         // artifact always transitions 1->CANCELLED, never CANCELLED->CANCELLED). Surface it as a
         // double finish, bypassing the first-resolution dedup.
-        ScopeDiagnostics.recordResolve(continuation, false, resolveNanos);
+        ScopeDiagnostics.recordResolve(continuation, cancelled, resolveNanos);
       } else if (resolved.add(self)) {
         // first clean transition to CANCELLED; later observations of the SAME transition (the
         // cancelFromContinuedScopeClose slow path's nested cancel()) are suppressed
-        ScopeDiagnostics.recordResolve(continuation, false, resolveNanos);
+        ScopeDiagnostics.recordResolve(continuation, cancelled, resolveNanos);
       }
     } catch (Throwable ignored) {
     }

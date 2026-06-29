@@ -546,14 +546,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
     ScopeDiagnostics.stop()
     def report = ScopeDiagnostics.report()
-    println(config.gantt() ? report.renderGantt() : report.renderSummary())
-    def reportName = specificationContext.currentSpec.name + "." + specificationContext.currentIteration.name
-    if (config.json()) {
-      ScopeDiagnostics.writeJson(reportName)
-    }
-    if (config.mermaid()) {
-      println("Mermaid timeline written to " + ScopeDiagnostics.writeMermaid(reportName))
-    }
+    println(report.renderSummary())
     try {
       if (config.failOnLeak()) {
         ScopeDiagnostics.assertNoLeaks()

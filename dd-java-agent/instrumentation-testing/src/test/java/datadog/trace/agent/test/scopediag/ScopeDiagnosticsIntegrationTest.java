@@ -54,6 +54,35 @@ class ScopeDiagnosticsIntegrationTest {
   }
 
   @Test
+  void sameSpanReactivationIsNotFlaggedActivateAfterResolve() {
+    tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
+
+    ScopeDiagnostics.startRecording();
+
+    AgentSpan span = tracer.startSpan("test", "op");
+    AgentScope active = tracer.activateSpan(span); // span becomes the active top scope
+    // Capturing then immediately activating the already-active span hits the continueSpan reuse
+    // optimization: it cancels the continuation from inside activate() before activate() returns.
+    // The resume must be timestamped at activate() entry (not exit) so it does not appear to occur
+    // after that internal resolution and spuriously trip ACTIVATE_AFTER_RESOLVE.
+    AgentScope.Continuation continuation = tracer.captureSpan(span);
+    AgentScope reused = continuation.activate();
+    reused.close();
+    active.close();
+    span.finish();
+
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+
+    assertEquals(1, report.records().size());
+    assertEquals(
+        0,
+        report.activateAfterResolveCount(),
+        "a same-span re-activation resolved during activate() is not activate-after-resolve");
+    assertEquals(0, report.leakCount());
+    assertFalse(report.hasProblems());
+  }
+
+  @Test
   void resolvedContinuationDoesNotLeak() {
     tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
 

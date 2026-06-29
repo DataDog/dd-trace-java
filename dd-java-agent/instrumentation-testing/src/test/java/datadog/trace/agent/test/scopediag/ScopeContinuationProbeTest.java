@@ -29,6 +29,31 @@ class ScopeContinuationProbeTest {
   }
 
   @Test
+  void continuationHooksExist() throws Exception {
+    Class<?> scopeContinuation = Class.forName("datadog.trace.core.scopemanager.ScopeContinuation");
+    // methods woven by ScopeContinuationTransformer (matched by name)
+    assertNotNull(scopeContinuation.getDeclaredMethod("register"), "register() (capture)");
+    assertNotNull(scopeContinuation.getDeclaredMethod("activate"), "activate() (resume)");
+    assertNotNull(scopeContinuation.getDeclaredMethod("cancel"), "cancel() (resolve)");
+    assertNotNull(
+        scopeContinuation.getDeclaredMethod("cancelFromContinuedScopeClose"),
+        "cancelFromContinuedScopeClose() (resolve)");
+    // fields read by the Cancel advice (@Advice.FieldValue) and the probe (reflection)
+    assertNotNull(findField(scopeContinuation, "count"), "ScopeContinuation.count");
+    assertNotNull(findField(scopeContinuation, "source"), "ScopeContinuation.source");
+  }
+
+  @Test
+  void rootWrittenHookExists() throws Exception {
+    Class<?> pendingTrace = Class.forName("datadog.trace.core.PendingTrace");
+    // PendingTraceAdvice matches write(boolean) and reads these fields via @Advice.FieldValue
+    assertNotNull(
+        pendingTrace.getDeclaredMethod("write", boolean.class), "PendingTrace.write(boolean)");
+    assertNotNull(findField(pendingTrace, "rootSpanWritten"), "PendingTrace.rootSpanWritten");
+    assertNotNull(findField(pendingTrace, "traceId"), "PendingTrace.traceId");
+  }
+
+  @Test
   void scopeLifecycleHooksExist() throws Exception {
     Class<?> scope = Class.forName("datadog.trace.core.scopemanager.ContinuableScope");
     assertNotNull(scope.getDeclaredMethod("afterActivated"), "afterActivated() (scope open)");

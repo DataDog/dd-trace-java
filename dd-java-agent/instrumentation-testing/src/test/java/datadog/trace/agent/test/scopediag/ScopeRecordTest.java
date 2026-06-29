@@ -83,15 +83,4 @@ class ScopeRecordTest {
     assertEquals(1, report.closeWrongThreadCount());
     assertFalse(report.hasProblems()); // wrong-thread is report-only
   }
-
-  @Test
-  void jsonContainsScopeFields() {
-    ScopeRecord s = scope(3, 1L, "main", 1000);
-    s.setClose(event(ScopeEvent.Type.SCOPE_CLOSE, "main", 2000));
-
-    String json = report(s).toJson();
-    assertTrue(json.contains("\"scopes\":["));
-    assertTrue(json.contains("\"continuationSeq\":1"));
-    assertTrue(json.contains("\"closed\":true"));
-  }
 }
