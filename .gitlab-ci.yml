@@ -22,6 +22,7 @@ include:
 
 stages:
   - build
+  - shared-pipeline-system-tests
   - publish
   - java-spring-petclinic-parallel
   - java-spring-petclinic-parallel-slo
@@ -1226,7 +1227,7 @@ deploy_to_di_backend:manual:
 # If the deploy_to_maven_central job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
 deploy_to_maven_central:
   extends: .gradle_build
-  stage: shared-pipeline
+  stage: publish
   needs:
     - build
     - job: system_tests
@@ -1281,7 +1282,7 @@ deploy_snapshot_with_ddprof_snapshot:
       - 'workspace/dd-trace-ot/build/libs/*.jar'
 
 deploy_artifacts_to_github:
-  stage: shared-pipeline
+  stage: publish
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   id_tokens:
@@ -1325,6 +1326,7 @@ requirements_json_test:
     REQUIREMENTS_ALLOW_JSON_PATH: "metadata/requirements-allow.json"
 
 package-oci:
+  stage: shared-pipeline-system-tests
   needs: [ build ]
 
 override_verify_maven_central:
@@ -1348,7 +1350,7 @@ override_verify_maven_central:
 # Verify Maven Central deployment is publicly available before publishing OCI images
 verify_maven_central_deployment:
   image: registry.ddbuild.io/images/base/gbi-ubuntu_2204:release
-  stage: shared-pipeline
+  stage: publish
   needs: [ deploy_to_maven_central ]
   rules:
     - if: '$POPULATE_CACHE'
@@ -1400,15 +1402,33 @@ verify_maven_central_deployment:
       done
 
 publishing-gate:
-  stage: shared-pipeline
+  stage: publish
   needs:
     - job: verify_maven_central_deployment
       optional: true # Required for releases only
 
 configure_system_tests:
+  stage: shared-pipeline-system-tests
   variables:
     SYSTEM_TESTS_REF: "main" # system tests are pinned on release branches only
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,docker-ssi,lib-injection"
+
+# Restage from default `shared-pipeline` to local `shared-pipeline-system-tests`
+# Run before the `publish` stage so that Maven/GitHub publishing can depend on system-tests results
+system_tests:
+  stage: shared-pipeline-system-tests
+
+oci-internal-publish:
+  stage: shared-pipeline-system-tests
+
+oci-internal-test-publish:
+  stage: shared-pipeline-system-tests
+
+kubernetes-injection-test-ecr-publish:
+  stage: shared-pipeline-system-tests
+
+create-multiarch-lib-injection-image:
+  stage: shared-pipeline-system-tests
 
 create_key:
   stage: generate-signing-key
