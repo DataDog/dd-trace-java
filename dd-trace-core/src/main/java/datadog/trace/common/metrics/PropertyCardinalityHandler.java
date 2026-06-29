@@ -1,10 +1,16 @@
 package datadog.trace.common.metrics;
 
+import com.google.common.annotations.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Arrays;
 
 /**
- * Cardinality-capped UTF8 canonicalizer for one property field.
+ * Cardinality-capped UTF8 encoder and cache for one field in the aggregate key ({@code value}
+ * &rarr; {@code UTF8(value)}).
+ *
+ * <p>A reporting cycle is the interval between two client-stats flushes. Values seen in the same
+ * cycle share a cached {@link UTF8BytesString} instance; once the per-field budget is exhausted,
+ * further new values are replaced by a {@code tracer_blocked_value} sentinel.
  *
  * <p><b>Dual role -- limiter and cache.</b> Prior versions ran a per-field {@code DDCache} for UTF8
  * reuse with a separate global cardinality cap on top. Under high load that wasn't enough to stave
@@ -43,6 +49,10 @@ import java.util.Arrays;
  * short-circuit downstream equality to identity comparisons.
  */
 final class PropertyCardinalityHandler {
+  // Upper bound prevents int overflow in the (cardinalityLimit * 2 - 1) capacity calculation.
+  // Practical limits are 8..512; this cap is well beyond any realistic configuration.
+  private static final int MAX_CARDINALITY_LIMIT = 1 << 29;
+
   final String name;
   private final int cardinalityLimit;
   private final int capacityMask;
@@ -59,6 +69,8 @@ final class PropertyCardinalityHandler {
   // Single open-addressed table per cycle. The stored UTF8BytesString IS the slot identity --
   // equality is checked by comparing its underlying String against the incoming CharSequence.
   private UTF8BytesString[] curValues;
+  // Values from the previous reporting cycle, kept so values that persist across cycles can reuse
+  // their UTF8BytesString instance without re-allocating.
   private UTF8BytesString[] priorValues;
   private int curSize;
 
@@ -72,6 +84,7 @@ final class PropertyCardinalityHandler {
    * Test convenience: limits-enabled mode (blocked sentinel substitution active). Production uses
    * the three-argument constructor with the flag from {@code Config}.
    */
+  @VisibleForTesting
   PropertyCardinalityHandler(String name, int cardinalityLimit) {
     this(name, cardinalityLimit, true);
   }
@@ -81,11 +94,9 @@ final class PropertyCardinalityHandler {
     if (cardinalityLimit <= 0) {
       throw new IllegalArgumentException("cardinalityLimit must be positive: " + cardinalityLimit);
     }
-    // Upper bound prevents overflow in the (cardinalityLimit * 2 - 1) capacity calc below.
-    // Practical limits are 8..512; this cap is well beyond any realistic configuration.
-    if (cardinalityLimit > (1 << 29)) {
+    if (cardinalityLimit > MAX_CARDINALITY_LIMIT) {
       throw new IllegalArgumentException(
-          "cardinalityLimit must be at most 2^29: " + cardinalityLimit);
+          "cardinalityLimit must be at most " + MAX_CARDINALITY_LIMIT + ": " + cardinalityLimit);
     }
     this.cardinalityLimit = cardinalityLimit;
     this.useBlockedSentinel = useBlockedSentinel;
@@ -99,21 +110,25 @@ final class PropertyCardinalityHandler {
 
   /**
    * Canonicalizes {@code value} through the cardinality budget and per-cycle reuse cache. Null
-   * inputs map to {@link UTF8BytesString#EMPTY} -- callers don't need to pre-check.
+   * inputs map to {@link UTF8BytesString#EMPTY} -- {@link AggregateEntry} doesn't need to
+   * pre-check.
    *
-   * <p>Hash is computed once and reused as the probe start for both the current-cycle table and (on
-   * miss-with-budget) the prior-cycle table; mixing with the upper half ({@code h ^ (h >>> 16)})
-   * keeps inputs sharing a low-bit pattern off the same probe chain. {@link
-   * UTF8BytesString#hashCode} is content-stable with the underlying String, so a String input and a
-   * UTF8BytesString input carrying the same content map to the same slot.
+   * <p>The value hash is computed once and used as the initial probe slot in both tables. {@code h
+   * ^ (h >>> 16)} folds high hash bits into the low bits to reduce collisions for inputs that share
+   * a common low-bit pattern. {@link UTF8BytesString#hashCode} is content-stable with the
+   * underlying String, so a String input and a UTF8BytesString of the same content map to the same
+   * slot.
    */
   UTF8BytesString register(CharSequence value) {
     if (value == null) {
       return UTF8BytesString.EMPTY;
     }
+    // Initial table slot, used to probe current and prior tables.
     int h = value.hashCode();
     int start = (h ^ (h >>> 16)) & this.capacityMask;
 
+    // First, look in the current-cycle table.
+    // If found, this value already consumed cardinality budget in this cycle.
     int slot = start;
     UTF8BytesString existing;
     while ((existing = this.curValues[slot]) != null
@@ -122,16 +137,18 @@ final class PropertyCardinalityHandler {
       slot = (slot + 1) & this.capacityMask;
     }
     if (existing != null) {
-      // Already seen this cycle -- consumed a budget slot earlier; reuse the cached UTF8.
       return existing;
     }
     boolean capExhausted = this.curSize >= this.cardinalityLimit;
+    // If sentinel mode is enabled and the field is over budget, collapse this
+    // value to tracer_blocked_value and count it as blocked.
     if (capExhausted && this.useBlockedSentinel) {
       this.blockedCount++;
       return this.tracerBlockedValue();
     }
-    // Reuse from the prior cycle if possible to avoid re-allocation -- runs whether or not the
-    // current budget is exhausted, so persistent values keep their UTF8 instance across cycles.
+    // Otherwise, try to reuse from the prior cycle if possible to avoid re-allocation.
+    // Runs whether or not the current budget is exhausted, so persistent values keep their
+    // UTF8BytesString instance across cycles.
     int priorSlot = start;
     UTF8BytesString priorMatch;
     while ((priorMatch = this.priorValues[priorSlot]) != null
@@ -140,14 +157,13 @@ final class PropertyCardinalityHandler {
       priorSlot = (priorSlot + 1) & this.capacityMask;
     }
     UTF8BytesString utf8 = priorMatch != null ? priorMatch : UTF8BytesString.create(value);
+    // If there is still budget, remember this value in the current-cycle table.
     if (!capExhausted) {
-      // Budget remaining: claim a slot for future hits this cycle.
       this.curValues[slot] = utf8;
       this.curSize += 1;
     }
-    // capExhausted && !useBlockedSentinel: return the value without caching (cache is full).
-    // Repeat over-budget values pay the prior-cycle probe each call but skip allocation as long
-    // as the prior table still holds them.
+    // If capExhausted && !useBlockedSentinel, this returns the real value but
+    // does not cache it in the current cycle.
     return utf8;
   }
 

@@ -2,7 +2,6 @@ package datadog.trace.common.metrics;
 
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.Hashtable.MutatingTableIterator;
-import datadog.trace.util.Hashtable.Support;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -18,8 +17,8 @@ import java.util.function.Consumer;
  *
  * <p><b>Not thread-safe.</b> The aggregator thread is the sole writer of both this table and its
  * contained {@link AggregateEntry} state. Any cross-thread request that needs to mutate -- e.g.
- * {@link ConflatingMetricsAggregator#disable()} -- must funnel onto the aggregator thread via the
- * inbox (see the {@code ClearSignal} routing in {@link Aggregator}). The invariant is convention-
+ * {@link ClientStatsAggregator#disable()} -- must funnel onto the aggregator thread via the inbox
+ * (see the {@code ClearSignal} routing in {@link Aggregator}). The invariant is convention-
  * enforced; nothing here checks the calling thread at runtime, so a wrong-thread call would corrupt
  * bucket chains silently.
  */
@@ -38,7 +37,7 @@ final class AggregateTable {
   private int evictCursor;
 
   AggregateTable(int maxAggregates) {
-    this.buckets = Support.create(maxAggregates, Support.MAX_RATIO);
+    this.buckets = Hashtable.Support.create(maxAggregates, Hashtable.Support.MAX_RATIO);
     this.maxAggregates = maxAggregates;
   }
 
@@ -58,7 +57,7 @@ final class AggregateTable {
   AggregateEntry findOrInsert(SpanSnapshot snapshot) {
     canonical.populateFrom(snapshot);
     long keyHash = canonical.keyHash;
-    for (AggregateEntry candidate = Support.bucket(buckets, keyHash);
+    for (AggregateEntry candidate = Hashtable.Support.bucket(buckets, keyHash);
         candidate != null;
         candidate = candidate.next()) {
       if (candidate.keyHash == keyHash && canonical.matches(candidate)) {
@@ -69,7 +68,7 @@ final class AggregateTable {
       return null;
     }
     AggregateEntry entry = canonical.createEntry();
-    Support.insertHeadEntry(buckets, keyHash, entry);
+    Hashtable.Support.insertHeadEntry(buckets, keyHash, entry);
     size++;
     return entry;
   }
@@ -100,7 +99,7 @@ final class AggregateTable {
   /** Scans {@code [startBucket, endBucket)} for the first stale entry and unlinks it. */
   private boolean evictOneStaleInRange(int startBucket, int endBucket) {
     MutatingTableIterator<AggregateEntry> iter =
-        Support.mutatingTableIterator(buckets, startBucket, endBucket);
+        Hashtable.Support.mutatingTableIterator(buckets, startBucket, endBucket);
     while (iter.hasNext()) {
       AggregateEntry e = iter.next();
       if (e.getHitCount() == 0) {
@@ -115,7 +114,7 @@ final class AggregateTable {
   }
 
   void forEach(Consumer<AggregateEntry> consumer) {
-    Support.forEach(buckets, consumer);
+    Hashtable.Support.forEach(buckets, consumer);
   }
 
   /**
@@ -124,12 +123,13 @@ final class AggregateTable {
    * plus whatever side-band state it needs as {@code context}.
    */
   <T> void forEach(T context, BiConsumer<T, AggregateEntry> consumer) {
-    Support.forEach(buckets, context, consumer);
+    Hashtable.Support.forEach(buckets, context, consumer);
   }
 
   /** Removes entries whose {@code getHitCount() == 0}. */
   void expungeStaleAggregates() {
-    for (MutatingTableIterator<AggregateEntry> iter = Support.mutatingTableIterator(buckets);
+    for (MutatingTableIterator<AggregateEntry> iter =
+            Hashtable.Support.mutatingTableIterator(buckets);
         iter.hasNext(); ) {
       AggregateEntry e = iter.next();
       if (e.getHitCount() == 0) {
@@ -140,7 +140,7 @@ final class AggregateTable {
   }
 
   void clear() {
-    Support.clear(buckets);
+    Hashtable.Support.clear(buckets);
     size = 0;
     evictCursor = 0;
   }
