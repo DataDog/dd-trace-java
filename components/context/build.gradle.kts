@@ -8,16 +8,14 @@ extra["excludedClassesInstructionCoverage"] =
 extra["excludedClassesBranchCoverage"] =
   listOf("datadog.context.ThreadLocalContextManager.ContextContinuationImpl")
 
-afterEvaluate {
-  tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoTestCoverageVerification") {
-    violationRules {
-      rule {
-        element = "CLASS"
-        includes = listOf("datadog.context.ThreadLocalContextManager.ContextContinuationImpl")
-        limit {
-          counter = "BRANCH"
-          minimum = "0.8".toBigDecimal()
-        }
+tasks.named<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+  violationRules {
+    rule {
+      element = "CLASS"
+      includes = listOf("datadog.context.ThreadLocalContextManager.ContextContinuationImpl")
+      limit {
+        counter = "BRANCH"
+        minimum = "0.8".toBigDecimal()
       }
     }
   }
