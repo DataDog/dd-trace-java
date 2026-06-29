@@ -118,6 +118,30 @@ class HashtableD2Test {
     assertEquals(0, createCount[0]);
   }
 
+  @Test
+  void removeReturnsNullForMissingKey() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(8);
+    table.insert(new PairEntry("a", 1, 100));
+
+    assertNull(table.remove("a", 2));
+    assertNull(table.remove("z", 1));
+    assertEquals(1, table.size());
+  }
+
+  @Test
+  void clearEmptiesTable() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(8);
+    table.insert(new PairEntry("a", 1, 100));
+    table.insert(new PairEntry("b", 2, 200));
+    assertEquals(2, table.size());
+
+    table.clear();
+
+    assertEquals(0, table.size());
+    assertNull(table.get("a", 1));
+    assertNull(table.get("b", 2));
+  }
+
   private static final class PairEntry extends Hashtable.D2.Entry<String, Integer> {
     int value;
 
