@@ -234,6 +234,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor.NoOpSpanPostProcessor",
   "datadog.trace.util.TempLocationManager",
   "datadog.trace.util.TempLocationManager.*",
+  // constants only
+  "datadog.trace.bootstrap.instrumentation.api.ServiceNameSources",
 )
 
 extra["excludedClassesBranchCoverage"] = listOf(
