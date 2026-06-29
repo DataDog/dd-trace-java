@@ -157,7 +157,6 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.instrumentation.reactivestreams.ReactiveStreamsAsyncResultExtension:build_time,"
               + "datadog.trace.instrumentation.reactor.core.ReactorAsyncResultExtension:build_time,"
               + "datadog.trace.instrumentation.rxjava2.RxJavaAsyncResultExtension:build_time,"
-              + "datadog.trace.instrumentation.rxjava3.RxJavaAsyncResultExtension:build_time,"
               + "datadog.trace.logging.ddlogger.DDLogger:build_time,"
               + "datadog.trace.logging.ddlogger.DDLoggerFactory:build_time,"
               + "datadog.trace.logging.ddlogger.DDLoggerFactory$HelperWrapper:build_time,"

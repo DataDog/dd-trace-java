@@ -47,17 +47,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask");
   private static final ElementMatcher<TypeDescription> RXJAVA2_DISABLED_TYPE_INITIALIZERS =
       named("io.reactivex.internal.schedulers.AbstractDirectTask");
-
-  /**
-   * RxJava 3's AbstractDirectTask creates FINISHED/DISPOSED sentinel FutureTask instances in its
-   * static initializer. If that initializer runs while a trace is active (e.g. the first scheduled
-   * delay/timeout under a span), the executor instrumentation captures a continuation on those
-   * static singletons that is never cancelled, leaking the pending trace. Disable async propagation
-   * while the type initializer runs.
-   */
-  private static final ElementMatcher<TypeDescription> RXJAVA3_DISABLED_TYPE_INITIALIZERS =
-      named("io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask");
-
   private static final ElementMatcher<TypeDescription> NETTY_GLOBAL_EVENT_EXECUTOR =
       namedOneOf(
           "io.netty.util.concurrent.GlobalEventExecutor",
@@ -101,7 +90,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "org.apache.activemq.broker.TransactionBroker",
       "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
       "io.reactivex.internal.schedulers.AbstractDirectTask",
-      "io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask",
       "jdk.internal.net.http.HttpClientImpl",
       LETTUCE_HANDSHAKE_HANDLER,
       "io.netty.util.concurrent.GlobalEventExecutor",
@@ -122,7 +110,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS)
         .or(RXJAVA2_DISABLED_TYPE_INITIALIZERS)
-        .or(RXJAVA3_DISABLED_TYPE_INITIALIZERS)
         .or(JAVA_HTTP_CLIENT);
   }
 
@@ -209,8 +196,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(RXJAVA2_DISABLED_TYPE_INITIALIZERS)), advice);
-    transformer.applyAdvice(
-        isTypeInitializer().and(isDeclaredBy(RXJAVA3_DISABLED_TYPE_INITIALIZERS)), advice);
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(NETTY_GLOBAL_EVENT_EXECUTOR)), advice);
     transformer.applyAdvice(namedOneOf("sendAsync").and(isDeclaredBy(JAVA_HTTP_CLIENT)), advice);
