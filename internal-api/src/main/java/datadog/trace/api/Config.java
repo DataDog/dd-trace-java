@@ -5656,9 +5656,9 @@ public class Config {
   }
 
   /**
-   * @param integrationNames
-   * @param defaultEnabled
-   * @return
+   * @param integrationNames the integration names to check
+   * @param defaultEnabled the value to return when no integration name is configured
+   * @return {@code true} if the JMX fetch integration is enabled
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
    *     #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
    */
@@ -5825,9 +5825,9 @@ public class Config {
   }
 
   /**
-   * @param integrationNames
-   * @param defaultEnabled
-   * @return
+   * @param integrationNames the integration names to check
+   * @param defaultEnabled the value to return when no integration name is configured
+   * @return {@code true} if the trace analytics integration is enabled
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
    *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    */

@@ -40,7 +40,6 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-
 testJvmConstraints {
   // Test use Cassandra 3 which requires Java 8. (Currently incompatible with Java 9.)
   maxJavaVersion = JavaVersion.VERSION_1_8
@@ -49,6 +48,13 @@ testJvmConstraints {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
+  constraints {
+    testImplementation("com.google.guava:guava") {
+      version { strictly "19.0" }
+      because "cassandra-driver-core 3.x is not compatible with Guava 20+"
+    }
+  }
+
   compileOnly group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.0.0'
   compileOnly group: 'com.google.guava', name: 'guava', version: '18.0'
 
