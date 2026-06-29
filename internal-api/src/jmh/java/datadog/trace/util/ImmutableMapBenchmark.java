@@ -39,8 +39,10 @@ import org.openjdk.jmh.infra.Blackhole;
  * (Results pending a fresh multi-JVM run — {@code Map.copyOf} only materializes the compact form on
  * Java 10+.)
  */
-// @Fork(5): get_copyOf* (MapN reached via interface dispatch) is JIT-bimodal at fewer forks — 5
-// forks resolves it (get_copyOf_sameKey measured ±90% at @Fork(2) -> ±1.8% at @Fork(5)).
+// @Fork(5): get_tracerImmutableMap* (MapN reached via interface dispatch) is JIT-bimodal at fewer
+// forks — 5
+// forks resolves it (get_tracerImmutableMap_sameKey measured ±90% at @Fork(2) -> ±1.8% at
+// @Fork(5)).
 @Fork(5)
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
@@ -74,7 +76,7 @@ public class ImmutableMapBenchmark {
   LinkedHashMap<String, Integer> linkedHashMap;
   TreeMap<String, Integer> treeMap;
   TagMap tagMap;
-  Map<String, Integer> copyOfMap;
+  Map<String, Integer> tracerImmutableMap;
 
   @Setup(Level.Trial)
   public void setUp() {
@@ -89,7 +91,7 @@ public class ImmutableMapBenchmark {
       tagMap.set(INSERTION_KEYS[i], i); // primitive support
     }
     // JDK compact immutable map (MapN on Java 10+); the agent's actual fixed-map representation.
-    copyOfMap = CollectionUtils.tryMakeImmutableMap(hashMap);
+    tracerImmutableMap = CollectionUtils.tryMakeImmutableMap(hashMap);
   }
 
   /** Per-thread lookup cursor so each reader thread cycles keys independently. */
@@ -181,18 +183,18 @@ public class ImmutableMapBenchmark {
   }
 
   @Benchmark
-  public Integer get_copyOf(Cursor cursor) {
-    return copyOfMap.get(cursor.nextKey());
+  public Integer get_tracerImmutableMap(Cursor cursor) {
+    return tracerImmutableMap.get(cursor.nextKey());
   }
 
   @Benchmark
-  public Integer get_copyOf_sameKey(Cursor cursor) {
-    return copyOfMap.get(cursor.nextKey(INSERTION_KEYS));
+  public Integer get_tracerImmutableMap_sameKey(Cursor cursor) {
+    return tracerImmutableMap.get(cursor.nextKey(INSERTION_KEYS));
   }
 
   @Benchmark
-  public void iterate_copyOf(Blackhole blackhole) {
-    for (Map.Entry<String, Integer> entry : copyOfMap.entrySet()) {
+  public void iterate_tracerImmutableMap(Blackhole blackhole) {
+    for (Map.Entry<String, Integer> entry : tracerImmutableMap.entrySet()) {
       blackhole.consume(entry.getKey());
       blackhole.consume(entry.getValue());
     }
