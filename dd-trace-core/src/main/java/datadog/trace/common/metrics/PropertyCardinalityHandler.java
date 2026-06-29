@@ -13,6 +13,17 @@ import java.util.Arrays;
  * fresh allocation when sentinel mode is disabled). A prior-cycle table preserves {@link
  * UTF8BytesString} instances across the reset, so stable workloads pay zero allocations after the
  * first cycle.
+ *
+ * <p><b>Dual role -- limiter and cache.</b> Prior versions ran a per-field {@code DDCache} for UTF8
+ * reuse with a separate global cardinality cap on top. Under high load that wasn't enough to stave
+ * off long GC cycles: every miss still concatenated / UTF8-encoded the value before the cache could
+ * store it. A cardinality limiter and a recent-value cache are both <em>sets of recently used
+ * values</em>, so this class collapses them into one structure. Cardinality limiting happens first,
+ * which lets the blocked path skip the concatenation and encoding entirely.
+ *
+ * <p>A pure limiter would fully reset each reporting cycle and destroy the cache. To preserve UTF8
+ * reuse across resets, the handler keeps the previous cycle's entries verbatim in a parallel table
+ * and reuses any matching {@link UTF8BytesString} when a value first appears in the new cycle.
  */
 final class PropertyCardinalityHandler {
   // Upper bound prevents int overflow in the (cardinalityLimit * 2 - 1) capacity calculation.
