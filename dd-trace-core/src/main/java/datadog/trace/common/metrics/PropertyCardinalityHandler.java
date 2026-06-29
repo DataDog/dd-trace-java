@@ -1,6 +1,6 @@
 package datadog.trace.common.metrics;
 
-import com.google.common.annotations.VisibleForTesting;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Arrays;
 
@@ -139,6 +139,7 @@ final class PropertyCardinalityHandler {
     if (existing != null) {
       return existing;
     }
+    // This value is new for the current cycle.
     boolean capExhausted = this.curSize >= this.cardinalityLimit;
     // If sentinel mode is enabled and the field is over budget, collapse this
     // value to tracer_blocked_value and count it as blocked.

@@ -166,6 +166,39 @@ class CardinalityHandlerTest {
     assertSame(UTF8BytesString.EMPTY, h.register(null));
   }
 
+  @Test
+  void tagRegisterOfNullDoesNotConsumeBudget() {
+    TagCardinalityHandler h = new TagCardinalityHandler("peer.hostname", 2);
+    h.register(null);
+    h.register(null);
+    h.register(null);
+    // Three null registrations didn't consume the budget; two real values still fit.
+    assertEquals("peer.hostname:a", h.register("a").toString());
+    assertEquals("peer.hostname:b", h.register("b").toString());
+    // Third real value spills to the blocked sentinel (limit = 2).
+    assertEquals("peer.hostname:tracer_blocked_value", h.register("c").toString());
+  }
+
+  @Test
+  void propertyResetReturnsBlockedCount() {
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 1);
+    h.register("a"); // within limit
+    h.register("b"); // blocked
+    h.register("c"); // blocked
+    assertEquals(2, h.reset());
+    assertEquals(0, h.reset()); // no blocks in the empty new cycle
+  }
+
+  @Test
+  void tagResetReturnsBlockedCount() {
+    TagCardinalityHandler h = new TagCardinalityHandler("peer.hostname", 1);
+    h.register("a"); // within limit
+    h.register("b"); // blocked
+    h.register("c"); // blocked
+    assertEquals(2, h.reset());
+    assertEquals(0, h.reset()); // no blocks in the empty new cycle
+  }
+
   // ---- limits-disabled mode (Config flag off): cache size still capped, but over-cap values
   // get freshly-allocated UTF8 rather than the blocked sentinel.
 

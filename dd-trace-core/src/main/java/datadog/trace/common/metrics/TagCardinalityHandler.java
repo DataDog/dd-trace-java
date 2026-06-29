@@ -1,23 +1,36 @@
 package datadog.trace.common.metrics;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 
 /**
- * Cardinality-capped UTF8 canonicalizer for one peer-tag name. Output is the pre-encoded {@code
- * "tag:value"} form the serializer writes.
+ * Cardinality-capped UTF8 encoder and cache for <strong>one</strong> peer-tag name ({@code value}
+ * &rarr; {@code UTF8("tag:value")}).
  *
- * <p>Like {@link PropertyCardinalityHandler}, this serves a dual role -- cardinality limiter and
- * UTF8 cache fused into one set of recently used values, with the prior cycle's entries retained so
- * UTF8 reuse survives the per-cycle reset. See {@link PropertyCardinalityHandler} for the full
- * rationale and storage layout.
+ * <p>A reporting cycle is the interval between two client-stats flushes. Values seen in the same
+ * cycle share one cardinality budget. When the aggregator flushes client stats, this handler is
+ * reset for the next cycle.
  *
- * <p>The structural difference here is that the cached {@link UTF8BytesString} holds the {@code
- * "tag:value"} concatenation rather than the bare value, so a parallel {@code String[]} keys table
- * is needed to probe by the raw value.
+ * <p>A {@link PeerTagSchema} owns one handler per peer tag. For a tag such as {@code
+ * peer.hostname}, this handler accepts raw values such as {@code localhost} and returns the
+ * UTF8-encoded {@code "peer.hostname:localhost"} form used in the aggregate key.
+ *
+ * <p>The handler has the same reporting-cycle behavior as {@link PropertyCardinalityHandler}: it
+ * limits distinct values in the current cycle, keeps the previous cycle available for UTF8 reuse,
+ * and can return a {@code "tag:tracer_blocked_value"} sentinel when sentinel mode is enabled and
+ * the value budget is exhausted.
+ *
+ * <p>Unlike aggregate fields, the lookup key is the raw tag value, but the cached output is the
+ * encoded {@code "tag:value"} string. For that reason this class keeps parallel raw-value and UTF8
+ * tables.
  */
 final class TagCardinalityHandler {
+  // Upper bound prevents int overflow in the (cardinalityLimit * 2 - 1) capacity calculation.
+  // Practical limits are 8..512; this cap is well beyond any realistic configuration.
+  private static final int MAX_CARDINALITY_LIMIT = 1 << 29;
+
   private final String tag;
   private String[] statsDTag = null;
   private final int cardinalityLimit;
@@ -41,6 +54,7 @@ final class TagCardinalityHandler {
    * Test convenience: limits-enabled mode. Production uses the three-argument constructor with the
    * flag from {@code Config}.
    */
+  @VisibleForTesting
   TagCardinalityHandler(String tag, int cardinalityLimit) {
     this(tag, cardinalityLimit, true);
   }
@@ -49,10 +63,9 @@ final class TagCardinalityHandler {
     if (cardinalityLimit <= 0) {
       throw new IllegalArgumentException("cardinalityLimit must be positive: " + cardinalityLimit);
     }
-    // Upper bound prevents overflow in the (cardinalityLimit * 2 - 1) capacity calc below.
-    if (cardinalityLimit > (1 << 29)) {
+    if (cardinalityLimit > MAX_CARDINALITY_LIMIT) {
       throw new IllegalArgumentException(
-          "cardinalityLimit must be at most 2^29: " + cardinalityLimit);
+          "cardinalityLimit must be at most " + MAX_CARDINALITY_LIMIT + ": " + cardinalityLimit);
     }
     this.tag = tag;
     this.cardinalityLimit = cardinalityLimit;
@@ -66,12 +79,12 @@ final class TagCardinalityHandler {
   }
 
   /**
-   * Canonicalizes {@code value} through the cardinality budget and per-cycle reuse cache. Null
-   * inputs map to {@link UTF8BytesString#EMPTY} -- callers don't need to pre-check.
+   * Returns the UTF8 value to use for {@code value} in the current reporting cycle. Null inputs are
+   * returned as {@link UTF8BytesString#EMPTY}.
    *
-   * <p>Hash is computed once and reused as the probe start for both the current-cycle table and (on
-   * miss-with-budget) the prior-cycle table; mixing with the upper half ({@code h ^ (h >>> 16)})
-   * keeps inputs sharing a low-bit pattern off the same probe chain.
+   * <p>The value hash is computed once and used as the initial probe slot in both tables. The
+   * {@code h ^ (h >>> 16)} calculation folds high hash bits into the low bits, which reduces
+   * clustering when values share similar low-bit hash patterns.
    */
   @SuppressFBWarnings(
       value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ",
@@ -82,22 +95,33 @@ final class TagCardinalityHandler {
     if (value == null) {
       return UTF8BytesString.EMPTY;
     }
+    // Compute the initial probe slot once. The same start slot is used for the
+    // current-cycle table and, on miss, for the prior-cycle table.
     int h = value.hashCode();
     int start = (h ^ (h >>> 16)) & this.capacityMask;
 
+    // Look for the raw value in the current-cycle table.
     int slot = start;
-    String curKey;
-    while ((curKey = this.curKeys[slot]) != null && curKey != value && !curKey.equals(value)) {
+    String existing;
+    while ((existing = this.curKeys[slot]) != null
+        && existing != value
+        && !existing.equals(value)) {
       slot = (slot + 1) & this.capacityMask;
     }
-    if (curKey != null) {
+    // If found, return the already encoded "tag:value" UTF8 value.
+    if (existing != null) {
       return this.curValues[slot];
     }
+    // This value is new for the current cycle.
     boolean capExhausted = this.curSize >= this.cardinalityLimit;
+    // If sentinel mode is enabled and the tag has reached its value budget,
+    // collapse this value to "tag:tracer_blocked_value" and record the block.
     if (capExhausted && this.useBlockedSentinel) {
       this.blockedCount++;
       return this.tracerBlockedValue();
     }
+    // Try to find the same raw value in the previous-cycle table so the encoded
+    // UTF8 object can be reused after a reset.
     int priorSlot = start;
     String priorKey;
     while ((priorKey = this.priorKeys[priorSlot]) != null
@@ -105,15 +129,21 @@ final class TagCardinalityHandler {
         && !priorKey.equals(value)) {
       priorSlot = (priorSlot + 1) & this.capacityMask;
     }
+    // Reuse the previous encoded "tag:value" UTF8 value if present; otherwise
+    // create it from the fixed tag name and the raw value.
     UTF8BytesString utf8 =
         priorKey != null
             ? this.priorValues[priorSlot]
             : UTF8BytesString.create(this.tag + ":" + value);
+    // If still within budget, remember the raw value and its encoded UTF8
+    // output in the current-cycle table.
     if (!capExhausted) {
       this.curKeys[slot] = value;
       this.curValues[slot] = utf8;
       this.curSize += 1;
     }
+    // If capExhausted && !useBlockedSentinel, return the real "tag:value" value
+    // without caching it in the current cycle.
     return utf8;
   }
 
