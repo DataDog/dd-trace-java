@@ -1,6 +1,5 @@
 package datadog.trace.common.metrics;
 
-import datadog.trace.api.Config;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.Hashtable.MutatingTableIterator;
@@ -46,15 +45,12 @@ final class AggregateTable {
     this(
         maxAggregates,
         additionalTagsSchema,
-        // Read fresh from Config rather than the frozen MetricCardinalityLimits.ENABLED so tests
-        // can flip the flag via injectSysConfig before constructing the table. In production the
-        // two are identical (Config is immutable for the process lifetime).
-        new PropertyHandlers(Config.get().isTraceStatsCardinalityLimitsEnabled()));
+        new PropertyHandlers());
   }
 
   AggregateTable(
       int maxAggregates, AdditionalTagsSchema additionalTagsSchema, PropertyHandlers handlers) {
-    this.buckets = Support.create(maxAggregates, Support.MAX_RATIO);
+    this.buckets = Hashtable.Support.create(maxAggregates, Hashtable.Support.MAX_RATIO);
     this.maxAggregates = maxAggregates;
     this.canonical = new AggregateEntry.Canonical(additionalTagsSchema, handlers);
   }
@@ -77,7 +73,7 @@ final class AggregateTable {
    * caller should drop the data point in that case.
    */
   AggregateEntry findOrInsert(SpanSnapshot snapshot) {
-    canonical.populateFrom(snapshot);
+    canonical.populate(snapshot);
     long keyHash = canonical.keyHash;
     for (AggregateEntry candidate = Hashtable.Support.bucket(buckets, keyHash);
         candidate != null;

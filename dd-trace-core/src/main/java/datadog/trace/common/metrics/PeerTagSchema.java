@@ -73,19 +73,14 @@ final class PeerTagSchema {
     return new PeerTagSchema(names.toArray(new String[0]), state);
   }
 
-  /** Test-only factory: takes names array directly to build a schema in a specific order. */
-  static PeerTagSchema testSchema(String[] names) {
-    return new PeerTagSchema(names, NO_STATE);
-  }
-
-  private PeerTagSchema(String[] names, String state) {
+  PeerTagSchema(String[] names, String state) {
     this.names = names;
     this.state = state;
     this.handlers = new TagCardinalityHandler[names.length];
     for (int i = 0; i < names.length; i++) {
       this.handlers[i] =
           new TagCardinalityHandler(
-              names[i], MetricCardinalityLimits.PEER_TAG_VALUE, MetricCardinalityLimits.ENABLED);
+              names[i], MetricCardinalityLimits.PEER_TAG_VALUE, true);
     }
   }
 

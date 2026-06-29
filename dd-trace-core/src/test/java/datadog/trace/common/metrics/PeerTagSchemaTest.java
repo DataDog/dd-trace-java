@@ -90,8 +90,7 @@ class PeerTagSchemaTest {
     // Build a schema then replace its handler with a sentinel-mode instance at a low limit.
     // (Production schemas use AggregateEntry.LIMITS_ENABLED which is currently false; this test
     // exercises the reportingpath directly so it stays valid before and after the flag flips.)
-    PeerTagSchema schema =
-        new PeerTagSchema(new String[] {"peer.hostname"}, PeerTagSchema.NO_STATE);
+    PeerTagSchema schema = new PeerTagSchema(new String[] {"peer.hostname"}, PeerTagSchema.NO_STATE);
     schema.handlers[0] = new TagCardinalityHandler("peer.hostname", 1, true);
 
     schema.register(0, "host-a"); // within limit

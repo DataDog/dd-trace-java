@@ -1,7 +1,5 @@
 package datadog.trace.common.metrics;
 
-import datadog.trace.api.Config;
-
 /**
  * Per-field limits for distinct metric-key values seen during one reporting cycle. When a field
  * exceeds its limit, additional values are replaced with {@code tracer_blocked_value} so they share
@@ -13,14 +11,6 @@ import datadog.trace.api.Config;
  */
 final class MetricCardinalityLimits {
   private MetricCardinalityLimits() {}
-
-  /**
-   * Master switch for cardinality limiting, frozen at class-load from {@code Config}. When {@code
-   * false}, handlers still cap their working-set size but emit freshly-allocated values instead of
-   * the {@code blocked_by_tracer} sentinel. Tests construct handlers with an explicit {@code
-   * useBlockedSentinel} arg rather than flipping this.
-   */
-  static final boolean ENABLED = Config.get().isTraceStatsCardinalityLimitsEnabled();
 
   /**
    * Distinct {@code resource.name} values per cycle. Highest-cardinality field by far: DB-query

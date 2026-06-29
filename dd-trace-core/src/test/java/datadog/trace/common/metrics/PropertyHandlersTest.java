@@ -13,7 +13,7 @@ class PropertyHandlersTest {
 
   @Test
   void resetReportsBlockedCountForExhaustedHandler() {
-    PropertyHandlers handlers = new PropertyHandlers(true);
+    PropertyHandlers handlers = new PropertyHandlers();
     // Exhaust span_kind (limit = 8) and record 2 blocked values.
     for (int i = 0; i < MetricCardinalityLimits.SPAN_KIND; i++) {
       handlers.spanKind.register("kind-" + i);
@@ -30,7 +30,7 @@ class PropertyHandlersTest {
 
   @Test
   void resetReportsBlockedCountForAllNineHandlers() {
-    PropertyHandlers handlers = new PropertyHandlers(true);
+    PropertyHandlers handlers = new PropertyHandlers();
     exhaustAndBlock(handlers.resource, MetricCardinalityLimits.RESOURCE);
     exhaustAndBlock(handlers.service, MetricCardinalityLimits.SERVICE);
     exhaustAndBlock(handlers.operation, MetricCardinalityLimits.OPERATION);
@@ -58,22 +58,22 @@ class PropertyHandlersTest {
 
   @Test
   void resetRefreshesCapacityForNextCycle() {
-    PropertyHandlers handlers = new PropertyHandlers(true);
+    PropertyHandlers handlers = new PropertyHandlers();
     for (int i = 0; i < MetricCardinalityLimits.SPAN_KIND; i++) {
       handlers.spanKind.register("kind-" + i);
     }
-    assertEquals("blocked_by_tracer", handlers.spanKind.register("overflow").toString());
+    assertEquals("tracer_blocked_value", handlers.spanKind.register("overflow").toString());
 
     handlers.reset(HealthMetrics.NO_OP);
 
     // Overflow value should now be accepted as a real value.
-    assertNotEquals("blocked_by_tracer", handlers.spanKind.register("overflow").toString());
+    assertNotEquals("tracer_blocked_value", handlers.spanKind.register("overflow").toString());
     assertEquals("overflow", handlers.spanKind.register("overflow").toString());
   }
 
   @Test
   void resetWithNoBlockedValuesDoesNotCallHealthMetrics() {
-    PropertyHandlers handlers = new PropertyHandlers(true);
+    PropertyHandlers handlers = new PropertyHandlers();
     handlers.resource.register("r1");
     handlers.service.register("svc");
 

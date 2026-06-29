@@ -1701,7 +1701,6 @@ class ClientStatsAggregatorTest extends DDSpecification {
 
   def "cardinality limits reset between report cycles"() {
     setup:
-    injectSysConfig("trace.stats.cardinality.limits.enabled", "true")
     List<AggregateEntry> cycle1Entries = []
     List<AggregateEntry> cycle2Entries = []
     CountDownLatch latch1 = new CountDownLatch(1)
@@ -1722,11 +1721,11 @@ class ClientStatsAggregatorTest extends DDSpecification {
     aggregator.report()
     latch1.await(2, SECONDS)
 
-    then: "the overflow service maps to the blocked_by_tracer sentinel"
+    then: "the overflow service maps to the tracer_blocked_value sentinel"
     1 * writer.startBucket(MetricCardinalityLimits.SERVICE + 1, _, _)
     (1.._) * writer.add(_) >> { AggregateEntry e -> cycle1Entries << e }
     1 * writer.finishBucket() >> { latch1.countDown() }
-    cycle1Entries.count { it.getService().toString() == "blocked_by_tracer" } == 1
+    cycle1Entries.count { it.getService().toString() == "tracer_blocked_value" } == 1
 
     when: "publish the overflow service in the next cycle after the cardinality reset"
     aggregator.publish([

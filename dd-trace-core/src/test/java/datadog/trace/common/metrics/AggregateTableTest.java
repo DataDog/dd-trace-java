@@ -315,7 +315,7 @@ class AggregateTableTest {
   void resetHandlersClearsBlockedCountsAndRefreshesCapacity() {
     // Use limits-enabled handlers injected via the 3-arg constructor to test resetHandlers()
     // without relying on the Config flag being set.
-    PropertyHandlers handlers = new PropertyHandlers(true);
+    PropertyHandlers handlers = new PropertyHandlers();
     AggregateTable table = new AggregateTable(512, AdditionalTagsSchema.EMPTY, handlers);
 
     // Fill the service cardinality budget and push one value over the limit.

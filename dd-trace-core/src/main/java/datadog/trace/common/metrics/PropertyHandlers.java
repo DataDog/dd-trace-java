@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import datadog.trace.api.Config;
 import datadog.trace.core.monitor.HealthMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,30 +24,47 @@ final class PropertyHandlers {
 
   private final PropertyCardinalityHandler[] handlers;
 
-  PropertyHandlers(boolean limitsEnabled) {
+  PropertyHandlers() {
+    Config config = Config.get();
     this.resource =
-        new PropertyCardinalityHandler("resource", MetricCardinalityLimits.RESOURCE, limitsEnabled);
+        new PropertyCardinalityHandler(
+            "resource",
+            config.getTraceStatsCardinalityLimit("resource", MetricCardinalityLimits.RESOURCE));
     this.service =
-        new PropertyCardinalityHandler("service", MetricCardinalityLimits.SERVICE, limitsEnabled);
+        new PropertyCardinalityHandler(
+            "service",
+            config.getTraceStatsCardinalityLimit("service", MetricCardinalityLimits.SERVICE));
     this.operation =
         new PropertyCardinalityHandler(
-            "operation", MetricCardinalityLimits.OPERATION, limitsEnabled);
+            "operation",
+            config.getTraceStatsCardinalityLimit("operation", MetricCardinalityLimits.OPERATION));
     this.serviceSource =
         new PropertyCardinalityHandler(
-            "service_source", MetricCardinalityLimits.SERVICE_SOURCE, limitsEnabled);
-    this.type = new PropertyCardinalityHandler("type", MetricCardinalityLimits.TYPE, limitsEnabled);
+            "service_source",
+            config.getTraceStatsCardinalityLimit(
+                "service_source", MetricCardinalityLimits.SERVICE_SOURCE));
+    this.type =
+        new PropertyCardinalityHandler(
+            "type", config.getTraceStatsCardinalityLimit("type", MetricCardinalityLimits.TYPE));
     this.spanKind =
         new PropertyCardinalityHandler(
-            "span_kind", MetricCardinalityLimits.SPAN_KIND, limitsEnabled);
+            "span_kind",
+            config.getTraceStatsCardinalityLimit("span_kind", MetricCardinalityLimits.SPAN_KIND));
     this.httpMethod =
         new PropertyCardinalityHandler(
-            "http_method", MetricCardinalityLimits.HTTP_METHOD, limitsEnabled);
+            "http_method",
+            config.getTraceStatsCardinalityLimit(
+                "http_method", MetricCardinalityLimits.HTTP_METHOD));
     this.httpEndpoint =
         new PropertyCardinalityHandler(
-            "http_endpoint", MetricCardinalityLimits.HTTP_ENDPOINT, limitsEnabled);
+            "http_endpoint",
+            config.getTraceStatsCardinalityLimit(
+                "http_endpoint", MetricCardinalityLimits.HTTP_ENDPOINT));
     this.grpcStatusCode =
         new PropertyCardinalityHandler(
-            "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE, limitsEnabled);
+            "grpc_status_code",
+            config.getTraceStatsCardinalityLimit(
+                "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE));
     this.handlers =
         new PropertyCardinalityHandler[] {
           resource,
