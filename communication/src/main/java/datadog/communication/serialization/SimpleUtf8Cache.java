@@ -179,10 +179,6 @@ public final class SimpleUtf8Cache implements EncodingCache {
       this.valueUtf8 = utf8(value);
     }
 
-    boolean matches(CacheEntry thatEntry) {
-      return (this == thatEntry) || this.matches(thatEntry.adjHash, thatEntry.value);
-    }
-
     boolean matches(int adjHash, String value) {
       return (this.adjHash == adjHash) && value.equals(this.value);
     }
