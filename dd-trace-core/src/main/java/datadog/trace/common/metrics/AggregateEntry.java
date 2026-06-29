@@ -112,8 +112,8 @@ final class AggregateEntry extends Hashtable.Entry {
   private int topLevelCount;
   private long duration;
 
-  /** Field-bearing constructor used by both the hot path and the test factory. */
-  private AggregateEntry(
+  /** Field-bearing constructor. Package-private so {@link AggregateEntryTestUtils} can build expected entries. */
+  AggregateEntry(
       long keyHash,
       UTF8BytesString resource,
       UTF8BytesString service,
@@ -222,71 +222,6 @@ final class AggregateEntry extends Hashtable.Entry {
     if (this.errorLatencies != null) {
       this.errorLatencies.clear();
     }
-  }
-
-  /**
-   * Test-friendly factory for building expected aggregate entries with positional arguments.
-   *
-   * <p>Bypasses the cardinality handlers so tests can create expected values without mutating
-   * shared handler state. {@link UTF8BytesString}s are created directly. Content-equal entries from
-   * {@link Canonical#createEntry} still {@link #equals} an entry built via {@code of(...)}.
-   */
-  static AggregateEntry of(
-      CharSequence resource,
-      CharSequence service,
-      CharSequence operationName,
-      CharSequence serviceSource,
-      CharSequence type,
-      int httpStatusCode,
-      boolean synthetic,
-      boolean traceRoot,
-      CharSequence spanKind,
-      List<UTF8BytesString> peerTags,
-      CharSequence httpMethod,
-      CharSequence httpEndpoint,
-      CharSequence grpcStatusCode) {
-    UTF8BytesString resourceUtf = createUtf8(resource);
-    UTF8BytesString serviceUtf = createUtf8(service);
-    UTF8BytesString operationNameUtf = createUtf8(operationName);
-    UTF8BytesString serviceSourceUtf = createUtf8(serviceSource);
-    UTF8BytesString typeUtf = createUtf8(type);
-    UTF8BytesString spanKindUtf = createUtf8(spanKind);
-    UTF8BytesString httpMethodUtf = createUtf8(httpMethod);
-    UTF8BytesString httpEndpointUtf = createUtf8(httpEndpoint);
-    UTF8BytesString grpcUtf = createUtf8(grpcStatusCode);
-    List<UTF8BytesString> peerTagsList = peerTags == null ? Collections.emptyList() : peerTags;
-    UTF8BytesString[] peerTagsArr = peerTagsList.toArray(new UTF8BytesString[0]);
-    long keyHash =
-        hashOf(
-            resourceUtf,
-            serviceUtf,
-            operationNameUtf,
-            serviceSourceUtf,
-            typeUtf,
-            spanKindUtf,
-            httpMethodUtf,
-            httpEndpointUtf,
-            grpcUtf,
-            (short) httpStatusCode,
-            synthetic,
-            traceRoot,
-            peerTagsArr,
-            peerTagsArr.length);
-    return new AggregateEntry(
-        keyHash,
-        resourceUtf,
-        serviceUtf,
-        operationNameUtf,
-        serviceSourceUtf,
-        typeUtf,
-        spanKindUtf,
-        httpMethodUtf,
-        httpEndpointUtf,
-        grpcUtf,
-        (short) httpStatusCode,
-        synthetic,
-        traceRoot,
-        peerTagsList);
   }
 
   /** Resets the static per-field cardinality handlers. Does not cover {@link PeerTagSchema}. */
@@ -614,7 +549,7 @@ final class AggregateEntry extends Hashtable.Entry {
   // ----- helpers -----
 
   /** Direct {@link UTF8BytesString} creation that bypasses the cardinality handlers. */
-  private static UTF8BytesString createUtf8(CharSequence cs) {
+  static UTF8BytesString createUtf8(CharSequence cs) {
     if (cs == null) {
       return UTF8BytesString.EMPTY;
     }

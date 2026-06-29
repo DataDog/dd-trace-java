@@ -105,7 +105,7 @@ class AggregateEntryTest {
   @Test
   void presentOptionalFieldsCarryTheirValue() {
     AggregateEntry entry =
-        AggregateEntry.of(
+        AggregateEntryTestUtils.of(
             "resource",
             "svc",
             "op",
@@ -130,7 +130,7 @@ class AggregateEntryTest {
   }
 
   private static AggregateEntry newEntry() {
-    return AggregateEntry.of(
+    return AggregateEntryTestUtils.of(
         "resource", "svc", "op", null, "type", 200, false, true, "client", null, null, null, null);
   }
 }

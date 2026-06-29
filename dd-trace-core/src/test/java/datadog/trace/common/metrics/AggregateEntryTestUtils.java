@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -25,8 +26,10 @@ public final class AggregateEntryTestUtils {
   private AggregateEntryTestUtils() {}
 
   /**
-   * Builds an {@link AggregateEntry} from positional args. Passes through to {@link
-   * AggregateEntry#of} without touching the cardinality handlers.
+   * Builds an {@link AggregateEntry} from positional args. Bypasses the cardinality handlers so
+   * tests can create expected values without mutating shared handler state. Content-equal entries
+   * from {@link AggregateEntry.Canonical#createEntry} still compare equal via
+   * {@link #equals(AggregateEntry, AggregateEntry)}.
    */
   public static AggregateEntry of(
       CharSequence resource,
@@ -42,20 +45,48 @@ public final class AggregateEntryTestUtils {
       @Nullable CharSequence httpMethod,
       @Nullable CharSequence httpEndpoint,
       @Nullable CharSequence grpcStatusCode) {
-    return AggregateEntry.of(
-        resource,
-        service,
-        operationName,
-        serviceSource,
-        type,
-        httpStatusCode,
+    UTF8BytesString resourceUtf = AggregateEntry.createUtf8(resource);
+    UTF8BytesString serviceUtf = AggregateEntry.createUtf8(service);
+    UTF8BytesString operationNameUtf = AggregateEntry.createUtf8(operationName);
+    UTF8BytesString serviceSourceUtf = AggregateEntry.createUtf8(serviceSource);
+    UTF8BytesString typeUtf = AggregateEntry.createUtf8(type);
+    UTF8BytesString spanKindUtf = AggregateEntry.createUtf8(spanKind);
+    UTF8BytesString httpMethodUtf = AggregateEntry.createUtf8(httpMethod);
+    UTF8BytesString httpEndpointUtf = AggregateEntry.createUtf8(httpEndpoint);
+    UTF8BytesString grpcUtf = AggregateEntry.createUtf8(grpcStatusCode);
+    List<UTF8BytesString> peerTagsList = peerTags == null ? Collections.emptyList() : peerTags;
+    UTF8BytesString[] peerTagsArr = peerTagsList.toArray(new UTF8BytesString[0]);
+    long keyHash =
+        AggregateEntry.hashOf(
+            resourceUtf,
+            serviceUtf,
+            operationNameUtf,
+            serviceSourceUtf,
+            typeUtf,
+            spanKindUtf,
+            httpMethodUtf,
+            httpEndpointUtf,
+            grpcUtf,
+            (short) httpStatusCode,
+            synthetic,
+            traceRoot,
+            peerTagsArr,
+            peerTagsArr.length);
+    return new AggregateEntry(
+        keyHash,
+        resourceUtf,
+        serviceUtf,
+        operationNameUtf,
+        serviceSourceUtf,
+        typeUtf,
+        spanKindUtf,
+        httpMethodUtf,
+        httpEndpointUtf,
+        grpcUtf,
+        (short) httpStatusCode,
         synthetic,
         traceRoot,
-        spanKind,
-        peerTags,
-        httpMethod,
-        httpEndpoint,
-        grpcStatusCode);
+        peerTagsList);
   }
 
   /**
