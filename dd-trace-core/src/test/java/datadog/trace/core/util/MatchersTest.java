@@ -116,18 +116,57 @@ class MatchersTest {
   }
 
   @Test
-  void anyMatcherMatchesAllPrimitiveOverloads() {
-    Matcher any = Matchers.ANY;
-    assertTrue(any.matches("hello"));
-    assertTrue(any.matches((CharSequence) new StringBuilder("world")));
-    assertTrue(any.matches(true));
-    assertTrue(any.matches((byte) 1));
-    assertTrue(any.matches((short) 2));
-    assertTrue(any.matches(42));
-    assertTrue(any.matches(100L));
-    assertTrue(any.matches(1.5f));
-    assertTrue(any.matches(3.14));
-    assertTrue(any.matches(new BigInteger("123")));
-    assertTrue(any.matches(new BigDecimal("1.23")));
+  void anyMatcherMatchesString() {
+    assertTrue(Matchers.ANY.matches("hello"));
+  }
+
+  @Test
+  void anyMatcherMatchesCharSequence() {
+    assertTrue(Matchers.ANY.matches((CharSequence) new StringBuilder("world")));
+  }
+
+  @Test
+  void anyMatcherMatchesBoolean() {
+    assertTrue(Matchers.ANY.matches(true));
+  }
+
+  @Test
+  void anyMatcherMatchesByte() {
+    assertTrue(Matchers.ANY.matches((byte) 1));
+  }
+
+  @Test
+  void anyMatcherMatchesShort() {
+    assertTrue(Matchers.ANY.matches((short) 2));
+  }
+
+  @Test
+  void anyMatcherMatchesInt() {
+    assertTrue(Matchers.ANY.matches(42));
+  }
+
+  @Test
+  void anyMatcherMatchesLong() {
+    assertTrue(Matchers.ANY.matches(100L));
+  }
+
+  @Test
+  void anyMatcherMatchesFloat() {
+    assertTrue(Matchers.ANY.matches(1.5f));
+  }
+
+  @Test
+  void anyMatcherMatchesDouble() {
+    assertTrue(Matchers.ANY.matches(3.14));
+  }
+
+  @Test
+  void anyMatcherMatchesBigInteger() {
+    assertTrue(Matchers.ANY.matches(new BigInteger("123")));
+  }
+
+  @Test
+  void anyMatcherMatchesBigDecimal() {
+    assertTrue(Matchers.ANY.matches(new BigDecimal("1.23")));
   }
 }
