@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mockStatic;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import org.junit.jupiter.api.Assumptions;
 import org.mockito.MockedStatic;
 import org.tabletest.junit.TableTest;
 
@@ -26,6 +27,9 @@ class ForeignMemoryWriterFactoryTest {
       String architecture,
       boolean javaAtLeast22,
       String expectedClassFragment) {
+    // MemFDUnixWriterFFM uses java.lang.foreign and will fail to load on pre-22 JVMs
+    boolean realJavaAtLeast22 = JavaVirtualMachine.isJavaVersionAtLeast(22);
+    Assumptions.assumeTrue(!javaAtLeast22 || realJavaAtLeast22, "FFM writer requires Java 22+");
     try (MockedStatic<OperatingSystem> osMock = mockStatic(OperatingSystem.class);
         MockedStatic<JavaVirtualMachine> jvmMock = mockStatic(JavaVirtualMachine.class)) {
       osMock.when(OperatingSystem::type).thenReturn(OperatingSystem.Type.valueOf(osType));
