@@ -19,4 +19,23 @@ class TestJvmConstraintsPluginTest {
     assertThat(project.extensions.findByName(TEST_JVM_CONSTRAINTS)).isInstanceOf(TestJvmConstraintsExtension::class.java)
     assertThat(testTask.extensions.findByName(TEST_JVM_CONSTRAINTS)).isInstanceOf(TestJvmConstraintsExtension::class.java)
   }
+
+  @Test
+  fun `jacoco remains enabled for additional test jvm when coverage is checked`() {
+    val extension = testJvmConstraintsExtension()
+
+    assertThat(extension.shouldDisableJacocoForAdditionalJvm(true)).isFalse()
+  }
+
+  @Test
+  fun `jacoco is disabled for additional test jvm when coverage is not checked`() {
+    val extension = testJvmConstraintsExtension()
+
+    assertThat(extension.shouldDisableJacocoForAdditionalJvm(false)).isTrue()
+  }
+
+  private fun testJvmConstraintsExtension(): TestJvmConstraintsExtension {
+    val project = ProjectBuilder.builder().build()
+    return project.objects.newInstance(TestJvmConstraintsExtension::class.java)
+  }
 }

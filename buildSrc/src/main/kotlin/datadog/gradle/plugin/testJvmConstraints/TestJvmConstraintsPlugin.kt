@@ -47,8 +47,12 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
       project.tasks.withType<Test>().configureEach {
         // Disable jacoco for additional 'testJvm' tests to speed things up a bit
         if (testJvmSpec.javaTestLauncher.isPresent) {
-          extensions.configure<JacocoTaskExtension> {
-            isEnabled = false
+          val taskExtension = extensions.getByName(TEST_JVM_CONSTRAINTS) as TestJvmConstraintsExtension
+          val checkCoverage = project.rootProject.providers.gradleProperty("checkCoverage").isPresent
+          if (taskExtension.shouldDisableJacocoForAdditionalJvm(checkCoverage)) {
+            extensions.configure<JacocoTaskExtension> {
+              isEnabled = false
+            }
           }
         }
       }

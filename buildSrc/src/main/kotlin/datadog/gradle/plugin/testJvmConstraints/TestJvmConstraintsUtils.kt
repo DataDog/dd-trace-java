@@ -32,6 +32,11 @@ internal fun TestJvmConstraintsExtension.isTestJvmAllowed(testJvmSpec: TestJvmSp
   return true
 }
 
+internal fun TestJvmConstraintsExtension.shouldDisableJacocoForAdditionalJvm(
+  checkCoverage: Boolean
+): Boolean =
+  !checkCoverage
+
 /**
  * When [TestJvmConstraintsExtension.nativeImageCapable] is `true`, verify the chosen test
  * launcher ships the `native-image` tool. The actual binary lives under `lib/svm/bin/` on
