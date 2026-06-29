@@ -1,5 +1,6 @@
 package com.datadog.appsec.sca;
 
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -9,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -130,12 +130,12 @@ class ScaCveDatabaseTest {
 
   @Test
   void scaEntryExposesImmutableListsAndMatchesVersions() {
-    List<String> ranges = new ArrayList<>(Collections.singletonList("< 2.0.0"));
-    List<ScaSymbol> symbols =
-        new ArrayList<>(Collections.singletonList(new ScaSymbol("com/example/Foo", "op")));
+    List<String> expectedRanges = singletonList("< 2.0.0");
+    List<String> ranges = new ArrayList<>(expectedRanges);
+    List<ScaSymbol> symbols = singletonList(new ScaSymbol("com/example/Foo", "op"));
     ScaEntry entry = new ScaEntry("GHSA-entry", "com.example:lib", ranges, symbols);
 
-    assertEquals(Collections.singletonList("< 2.0.0"), entry.versionRanges());
+    assertEquals(expectedRanges, entry.versionRanges());
     assertTrue(entry.isVersionVulnerable("1.9.9"));
     assertFalse(entry.isVersionVulnerable("2.0.0"));
     assertThrows(UnsupportedOperationException.class, () -> entry.versionRanges().add("< 3.0.0"));

@@ -1,6 +1,8 @@
 package com.datadog.appsec.sca;
 
 import static com.datadog.appsec.sca.ScaBytecodeTestUtils.bytecodeOf;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -17,7 +19,6 @@ import java.io.StringReader;
 import java.lang.instrument.Instrumentation;
 import java.net.URLClassLoader;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -114,8 +115,7 @@ class ScaReachabilityTransformerJava9Test {
     Dependency dep = new Dependency("com.github.junrar:junrar", "7.5.5", "junrar-7.5.5.jar", null);
     assertEquals(
         "7.5.5",
-        ScaReachabilityTransformer.matchVersion(
-            "com.github.junrar:junrar", Collections.singletonList(dep)));
+        ScaReachabilityTransformer.matchVersion("com.github.junrar:junrar", singletonList(dep)));
   }
 
   @Test
@@ -125,8 +125,7 @@ class ScaReachabilityTransformerJava9Test {
     Dependency dep = new Dependency("junrar", "7.5.5", "junrar-7.5.5.jar", null);
     assertEquals(
         "7.5.5",
-        ScaReachabilityTransformer.matchVersion(
-            "com.github.junrar:junrar", Collections.singletonList(dep)),
+        ScaReachabilityTransformer.matchVersion("com.github.junrar:junrar", singletonList(dep)),
         "artifact-ID fallback must match 'junrar' against 'com.github.junrar:junrar'");
   }
 
@@ -136,16 +135,13 @@ class ScaReachabilityTransformerJava9Test {
     // "org.other:junrar" should NOT match "com.github.junrar:junrar".
     Dependency dep = new Dependency("org.other:junrar", "1.0.0", "junrar-1.0.0.jar", null);
     assertNull(
-        ScaReachabilityTransformer.matchVersion(
-            "com.github.junrar:junrar", Collections.singletonList(dep)),
+        ScaReachabilityTransformer.matchVersion("com.github.junrar:junrar", singletonList(dep)),
         "artifact-ID fallback must not fire when dep.name already has a group ID");
   }
 
   @Test
   void matchVersion_emptyListReturnsNull() {
-    assertNull(
-        ScaReachabilityTransformer.matchVersion(
-            "com.github.junrar:junrar", Collections.emptyList()));
+    assertNull(ScaReachabilityTransformer.matchVersion("com.github.junrar:junrar", emptyList()));
   }
 
   @Test
@@ -261,7 +257,7 @@ class ScaReachabilityTransformerJava9Test {
             .getCodeSource()
             .getLocation()
             .toURI(),
-        Collections.singletonList(new Dependency("com.example:lib", "1.2.3", "test.jar", null)));
+        singletonList(new Dependency("com.example:lib", "1.2.3", "test.jar", null)));
 
     byte[] transformed =
         transformer.transform(
@@ -334,16 +330,14 @@ class ScaReachabilityTransformerJava9Test {
     Dependency cached = new Dependency("com.example:lib", "1.0.0", "lib.jar", null);
     transformer.classpathArtifactCache.put("com.example:lib", cached);
 
-    assertSame(cached, transformer.resolveArtifactDep("com.example:lib", Collections.emptyList()));
+    assertSame(cached, transformer.resolveArtifactDep("com.example:lib", emptyList()));
   }
 
   @Test
   void matchVersion_nullDepNameDoesNotThrow() {
     // guessFallbackNoPom can produce Dependency(name=null, ...) for JARs with unrecognizable names.
     Dependency nullName = new Dependency(null, "1.0", "foo.jar", null);
-    assertNull(
-        ScaReachabilityTransformer.matchVersion(
-            "com.example:foo", Collections.singletonList(nullName)));
+    assertNull(ScaReachabilityTransformer.matchVersion("com.example:foo", singletonList(nullName)));
   }
 
   /**
@@ -369,7 +363,7 @@ class ScaReachabilityTransformerJava9Test {
 
     Dependency resolved =
         transformer.resolveArtifactDep(
-            "com.fasterxml.jackson.core:jackson-databind", Collections.singletonList(noPomDep));
+            "com.fasterxml.jackson.core:jackson-databind", singletonList(noPomDep));
 
     assertNotNull(resolved, "should resolve via artifactId-only fallback");
     assertEquals(

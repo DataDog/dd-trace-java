@@ -44,11 +44,13 @@ class ScaReachabilityMethodLevelTest {
     }
   }
 
+  /** Fixture compiled normally, then stripped of line numbers before callback injection. */
   public static class ClassToBeStrippedOfLineNumber {
-    public static int value = 7;
+    // Intentionally non-final so javac emits a field read instead of inlining a constant.
+    private static int runtimeFieldValue = 7;
 
     public static int readField() {
-      return value;
+      return runtimeFieldValue;
     }
 
     public static Object returnArgument(Object value) {
