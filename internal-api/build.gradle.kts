@@ -197,6 +197,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.cache.FixedSizeCache.IdentityHash",
   "datadog.trace.api.cache.FixedSizeWeakKeyCache",
   // Interface with default method
+  "datadog.trace.api.civisibility.execution.TestExecutionPolicy",
   "datadog.trace.api.iast.Taintable",
   "datadog.trace.api.Stateful",
   "datadog.trace.api.Stateful.1",
@@ -234,6 +235,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor.NoOpSpanPostProcessor",
   "datadog.trace.util.TempLocationManager",
   "datadog.trace.util.TempLocationManager.*",
+  // constants only
+  "datadog.trace.bootstrap.instrumentation.api.ServiceNameSources",
 )
 
 extra["excludedClassesBranchCoverage"] = listOf(
