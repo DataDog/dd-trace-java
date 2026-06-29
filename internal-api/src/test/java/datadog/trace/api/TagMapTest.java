@@ -15,6 +15,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -889,6 +890,55 @@ public class TagMapTest {
     for (int i = 0; i < size; ++i) {
       assertTrue(str.contains(key(i) + "=" + value(i)));
     }
+  }
+
+  @Test
+  public void stream() {
+    int size = randomSize();
+    TagMap map = createTagMap(size);
+
+    Set<String> keys = map.stream().map(TagMap.EntryReader::tag).collect(Collectors.toSet());
+
+    assertEquals(size, keys.size());
+    for (int i = 0; i < size; ++i) {
+      assertTrue(keys.contains(key(i)));
+    }
+  }
+
+  @Test
+  public void compute() {
+    TagMap map = TagMap.create();
+    map.set("key", "original");
+
+    map.compute("key", (k, v) -> "updated");
+    assertEquals("updated", map.get("key"));
+
+    map.compute("new-key", (k, v) -> "created");
+    assertEquals("created", map.get("new-key"));
+  }
+
+  @Test
+  public void computeIfAbsent() {
+    TagMap map = TagMap.create();
+    map.set("key", "existing");
+
+    map.computeIfAbsent("key", k -> "ignored");
+    assertEquals("existing", map.get("key"));
+
+    map.computeIfAbsent("new-key", k -> "added");
+    assertEquals("added", map.get("new-key"));
+  }
+
+  @Test
+  public void computeIfPresent() {
+    TagMap map = TagMap.create();
+    map.set("key", "original");
+
+    map.computeIfPresent("key", (k, v) -> "updated");
+    assertEquals("updated", map.get("key"));
+
+    map.computeIfPresent("missing", (k, v) -> "never");
+    assertNull(map.get("missing"));
   }
 
   @ParameterizedTest
