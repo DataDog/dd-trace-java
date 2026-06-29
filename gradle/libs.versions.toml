@@ -52,7 +52,7 @@ cafe_crypto = "0.1.0"
 
 # Common utils
 commons = "3.2"
-guava = "[16.0,20.0]" # Last version to support Java 7
+guava = "33.6.0-jre"
 javaparser = "3.28.2"
 jctools = "4.0.6"
 lz4 = "1.11.0"
