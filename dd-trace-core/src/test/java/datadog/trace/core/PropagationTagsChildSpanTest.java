@@ -54,7 +54,7 @@ class PropagationTagsChildSpanTest extends DDCoreJavaSpecification {
 
   /** What the Datadog codec would inject for {@code x-datadog-tags} from this span. */
   private static String injectedDdpHeader(AgentSpan span) {
-    return ((DDSpanContext) span.context())
+    return ((DDSpanContext) span.spanContext())
         .getPropagationTags()
         .headerValue(PropagationTags.HeaderType.DATADOG);
   }
@@ -80,7 +80,7 @@ class PropagationTagsChildSpanTest extends DDCoreJavaSpecification {
   @Test
   void localChildCarriesInboundDdpTags() {
     AgentSpan root = tracer.buildSpan("test", "root").asChildOf(extractedWithDdpTags()).start();
-    AgentSpan child = tracer.buildSpan("test", "child").asChildOf(root.context()).start();
+    AgentSpan child = tracer.buildSpan("test", "child").asChildOf(root.spanContext()).start();
     try {
       String header = injectedDdpHeader(child);
       assertTrue(
