@@ -30,5 +30,7 @@ extra["excludedClassesCoverage"] = listOf(
 )
 
 dependencies {
+  testImplementation(libs.bundles.junit5)
+  testImplementation(libs.bundles.mockito)
   testImplementation(project(":utils:test-utils"))
 }

@@ -1,9 +1,6 @@
 package datadog.context;
 
-import javax.annotation.ParametersAreNonnullByDefault;
-
 /** {@link Context} value that has its own implicit {@link ContextKey}. */
-@ParametersAreNonnullByDefault
 public interface ImplicitContextKeyed {
   /**
    * Creates a new context with this value under its chosen key.
