@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.context.SelfScopedContext;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
@@ -8,7 +9,7 @@ import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.sampling.PrioritySampling;
 
-class NoopSpan extends ImmutableSpan implements AgentSpan {
+class NoopSpan extends ImmutableSpan implements AgentSpan, SelfScopedContext {
   static final NoopSpan INSTANCE = new NoopSpan();
 
   NoopSpan() {}
