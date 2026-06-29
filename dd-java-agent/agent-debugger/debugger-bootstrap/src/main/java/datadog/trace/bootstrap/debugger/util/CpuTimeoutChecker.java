@@ -21,6 +21,6 @@ public class CpuTimeoutChecker implements TimeoutChecker {
 
   @Override
   public Duration getTimeOut() {
-    return null;
+    return timeOut;
   }
 }
