@@ -7,8 +7,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Consumer-side {@link AggregateEntry} store, keyed on the canonical UTF8-encoded labels of a
- * {@link SpanSnapshot}.
+ * The {@link AggregateEntry} store of the consuming aggregator thread, keyed on the canonical
+ * UTF8-encoded labels of a {@link SpanSnapshot}.
  *
  * <p>{@link #findOrInsert} canonicalizes the snapshot's fields through the cardinality handlers (so
  * cardinality-blocked values share a sentinel and collapse into one entry) and then computes the
@@ -56,7 +56,7 @@ final class AggregateTable {
    * caller should drop the data point in that case.
    */
   AggregateEntry findOrInsert(SpanSnapshot snapshot) {
-    canonical.populate(snapshot);
+    canonical.populateFrom(snapshot);
     long keyHash = canonical.keyHash;
     for (AggregateEntry candidate = Support.bucket(buckets, keyHash);
         candidate != null;
@@ -76,12 +76,12 @@ final class AggregateTable {
 
   /**
    * Unlinks the first entry whose {@code getHitCount() == 0}, resuming the scan from {@link
-   * #evictCursor} so back-to-back evictions amortize to O(1) per call. Worst case for a single call
+   * #evictCursor} so consecutive evictions amortize to O(1) per call. Worst case for a single call
    * is still O(N) when nearly every entry is hot, but a sustained eviction stream never re-scans
    * the hot prefix more than twice across N evictions.
    *
-   * <p>The semantic intent: at cap with all entries live, drop the new key (reported via {@code
-   * onStatsAggregateDropped}) rather than evicting an established one. Cap is sized to the
+   * <p>If the table is full and every entry was used in this cycle, drop the new key (reported via
+   * {@code onStatsAggregateDropped}) rather than evicting an established one. Cap is sized to the
    * steady-state working set, so eviction is rare in the common case.
    *
    * <p>How often this fires depends on {@link AggregateEntry#LIMITS_ENABLED}. With limits enabled,

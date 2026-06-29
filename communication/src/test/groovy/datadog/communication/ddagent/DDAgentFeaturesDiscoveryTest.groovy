@@ -50,7 +50,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
   static final String INFO_WITH_LONG_RUNNING_SPANS = loadJsonFile("agent-info-with-long-running-spans.json")
   static final String INFO_WITH_TELEMETRY_PROXY_RESPONSE = loadJsonFile("agent-info-with-telemetry-proxy.json")
   static final String INFO_WITH_OLD_EVP_PROXY = loadJsonFile("agent-info-with-old-evp-proxy.json")
-  static final String INFO_WITH_OPM = loadJsonFile("agent-info-with-opm.json")
   static final String PROBE_STATE = "probestate"
 
   def "test parse /info response"() {
@@ -207,34 +206,6 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     then:
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_LONG_RUNNING_SPANS) }
     features.supportsLongRunning()
-    0 * _
-  }
-
-  def "test parse /info response with org propagation marker"() {
-    setup:
-    OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_5, true, false)
-
-    when: "/info available"
-    features.discover()
-
-    then:
-    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_OPM) }
-    features.getOrgPropagationMarker() == "abc123def0"
-    0 * _
-  }
-
-  def "test parse /info response without org propagation marker"() {
-    setup:
-    OkHttpClient client = Mock(OkHttpClient)
-    DDAgentFeaturesDiscovery features = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_5, true, false)
-
-    when: "/info available"
-    features.discover()
-
-    then:
-    1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_RESPONSE) }
-    features.getOrgPropagationMarker() == null
     0 * _
   }
 

@@ -10,12 +10,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Parallel arrays of peer-tag names and their {@link TagCardinalityHandler}s, indexed in lockstep.
+ * Parallel arrays of peer-tag names and their {@link TagCardinalityHandler}s, using matching
+ * indexes.
  *
- * <p>Replaces the previous {@code Map<String, TagCardinalityHandler>} lookup with positional array
- * access: the producer captures span tag values into a {@code String[]} parallel to {@link #names},
- * and the consumer calls {@link #register(int, String)} at the same index to canonicalize the value
- * through the per-tag cardinality handler.
+ * <p>Each schema stores peer-tag names and their cardinality handlers by index. Producers capture
+ * span tag values into a {@code String[]} with the same ordering as {@link #names}. Consumers pass
+ * the index and captured value to {@link #register(int, String)} to canonicalize it through the
+ * per-tag cardinality handler.
  *
  * <p>Two schemas exist:
  *
@@ -34,9 +35,9 @@ import org.slf4j.LoggerFactory;
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
  *
- * <p><b>Thread-safety:</b> all mutable state ({@link TagCardinalityHandler}s and {@link #state}) is
- * exercised only on the aggregator thread. {@link #names} and {@link #handlers} are final and safe
- * to read from any thread; producer threads access them through the volatile {@code
+ * <p><b>Thread-safety:</b> the aggregator thread is the only thread that mutates this schema,
+ * including its {@link TagCardinalityHandler}s and {@link #state}. Producer threads may read {@link
+ * #names} and {@link #handlers} because they are final and published through the volatile {@code
  * cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
  */
 final class PeerTagSchema {
@@ -83,10 +84,10 @@ final class PeerTagSchema {
   }
 
   /**
-   * Whether this schema's tag names exactly match {@code other}. Used by the aggregator's reconcile
-   * path: when a feature discovery refresh changes {@link DDAgentFeaturesDiscovery#state()} but the
-   * resulting set is unchanged, the aggregator can keep this schema (and its warm cardinality
-   * handlers) and just update {@link #state} instead of rebuilding.
+   * Whether this schema contains exactly the same tag names as {@code other}. Used during
+   * reconciliation: if feature discovery has a new {@link DDAgentFeaturesDiscovery#state()} but the
+   * peer-tag set is unchanged, the aggregator can reuse this schema and update {@link #state}
+   * instead of rebuilding the handlers.
    */
   boolean hasSameTagsAs(Set<String> other) {
     if (this.names.length != other.size()) {

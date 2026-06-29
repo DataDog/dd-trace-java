@@ -74,20 +74,20 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final boolean includeEndpointInMetrics;
 
   /**
-   * Cached peer-aggregation schema. Producers read this reference once per trace and pass it
-   * through to the consumer in {@link SpanSnapshot}; they never inspect the schema's discovery
-   * state or rebuild it. Reconciliation is the aggregator thread's job: {@link
-   * #reconcilePeerTagSchema()} (called from {@link #resetCardinalityHandlers()}) compares the
-   * schema's {@link PeerTagSchema#state} against {@link DDAgentFeaturesDiscovery#state()} once per
-   * reporting cycle and either updates the state in place (when the tag set is unchanged,
-   * preserving the schema's warm cardinality handlers) or swaps in a freshly-built schema.
+   * Cached peer-aggregation schema read by producer threads.
+   *
+   * <p>Producers read this reference once per trace and store it on each {@link SpanSnapshot}. They
+   * do not inspect the schema's discovery state or rebuild it. The aggregator thread reconciles the
+   * schema once per reporting cycle in {@link #resetCardinalityHandlers()}: if feature discovery
+   * has a new state but the tag set is unchanged, it updates {@link PeerTagSchema#state} in-place
+   * to preserve the warm cardinality handlers; otherwise it swaps in a freshly-built schema.
    *
    * <p>An empty schema (size 0) represents the "peer tags unconfigured" state; {@code null} only on
    * the bootstrap window before {@link #bootstrapPeerTagSchema()} runs on the first publish.
    *
-   * <p>{@code volatile} so the consumer's reconcile-time replacement is visible to producer
-   * threads; the schema's own internal mutable state (handlers, block counters, {@link
-   * PeerTagSchema#state}) is exercised only on the aggregator thread.
+   * <p>{@code volatile} so producer threads always see the latest replacement. The schema's own
+   * internal mutable state (handlers, block counters, {@link PeerTagSchema#state}) is exercised
+   * only on the aggregator thread.
    */
   private volatile PeerTagSchema cachedPeerTagSchema;
 
@@ -279,8 +279,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span, isTopLevel)) {
           final CharSequence resourceName = span.getResourceName();
-          if (!ignoredResources.isEmpty()
-              && resourceName != null
+          if (resourceName != null
+              && !ignoredResources.isEmpty()
               && ignoredResources.contains(resourceName.toString())) {
             // skip publishing all children
             break;

@@ -16,18 +16,17 @@ import javax.annotation.Nullable;
  * keyed on {@link AggregateEntry#keyHash}, and no production code path invokes {@link
  * Object#equals}.
  *
- * <p>On this branch, peer tags live as a single pre-encoded {@code List<UTF8BytesString>} on the
- * entry (canonicalization through {@link PeerTagSchema#register} already collapsed identical
- * values), so equality compares the list directly. The hash side (computed in {@link
- * AggregateEntry#hashOf}) folds in the encoded list, so the contract stays consistent.
+ * <p>Peer tags live as a single pre-encoded {@code List<UTF8BytesString>} on the entry
+ * (canonicalization through {@link PeerTagSchema#register} already collapsed identical values), so
+ * equality compares the list directly. The hash side (computed in {@link AggregateEntry#hashOf})
+ * folds in the encoded list, so the contract stays consistent.
  */
 public final class AggregateEntryTestUtils {
   private AggregateEntryTestUtils() {}
 
   /**
-   * Builds an {@link AggregateEntry} from the same positional shape the prior {@code new
-   * MetricKey(...)} took. Passes through to {@link AggregateEntry#of} without touching the
-   * cardinality handlers.
+   * Builds an {@link AggregateEntry} from positional args. Passes through to {@link
+   * AggregateEntry#of} without touching the cardinality handlers.
    */
   public static AggregateEntry of(
       CharSequence resource,

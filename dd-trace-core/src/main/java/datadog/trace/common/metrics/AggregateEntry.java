@@ -13,9 +13,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Aggregator hashtable entry: UTF8 label fields + counter/histogram state; hashing runs after
- * canonicalization so overflow values collapse to a shared sentinel bucket rather than fragmenting.
- * Not thread-safe — all mutation is on the aggregator thread. Tests must call {@link
+ * {@link datadog.trace.util.Hashtable} entry used by the aggregator thread.
+ *
+ * <p>Stores the canonical UTF8 label values that identify one aggregate row, plus the mutable
+ * counter and histogram state for that row. Labels are canonicalized before hashing, so overflow
+ * values replaced with the sentinel use the same hash and map to the same row.
+ *
+ * <p>Not thread-safe — all mutation is on the aggregator thread. Tests must call {@link
  * #resetCardinalityHandlers()} in setup to avoid cross-test handler pollution (handlers are
  * static); tests using {@link PeerTagSchema} must also call {@link
  * PeerTagSchema#resetHandlers(HealthMetrics)} on the schema instance.
@@ -60,7 +64,7 @@ final class AggregateEntry extends Hashtable.Entry {
       new PropertyCardinalityHandler(
           "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE, LIMITS_ENABLED);
 
-  // Single authoritative list used by resetCardinalityHandlers(). populate() and hashOf() keep
+  // Single authoritative list used by resetCardinalityHandlers(). populateFrom() and hashOf() keep
   // named access for readability and to avoid per-span iteration overhead; this array ensures the
   // reset site stays in sync even if a new field is added without updating the loop by name.
   private static final PropertyCardinalityHandler[] FIELD_HANDLERS = {
@@ -221,10 +225,11 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   /**
-   * Test-friendly factory mirroring the prior {@code new MetricKey(...)} positional args. Bypasses
-   * the cardinality handlers so tests don't pollute their state -- {@link UTF8BytesString}s are
-   * created directly. Content-equal entries from {@link Canonical#createEntry} still {@link
-   * #equals} an entry built via {@code of(...)}.
+   * Test-friendly factory for building expected aggregate entries with positional arguments.
+   *
+   * <p>Bypasses the cardinality handlers so tests can create expected values without mutating
+   * shared handler state. {@link UTF8BytesString}s are created directly. Content-equal entries from
+   * {@link Canonical#createEntry} still {@link #equals} an entry built via {@code of(...)}.
    */
   static AggregateEntry of(
       CharSequence resource,
@@ -284,9 +289,7 @@ final class AggregateEntry extends Hashtable.Entry {
         peerTagsList);
   }
 
-  /**
-   * Resets the static per-field cardinality handlers. Does not cover {@link PeerTagSchema}.
-   */
+  /** Resets the static per-field cardinality handlers. Does not cover {@link PeerTagSchema}. */
   static void resetCardinalityHandlers() {
     resetCardinalityHandlers(HealthMetrics.NO_OP);
   }
@@ -478,7 +481,7 @@ final class AggregateEntry extends Hashtable.Entry {
     long keyHash;
 
     /** Canonicalize all fields from {@code s} through the handlers into this buffer. */
-    void populate(SpanSnapshot s) {
+    void populateFrom(SpanSnapshot s) {
       this.resource = RESOURCE_HANDLER.register(s.resourceName);
       this.service = SERVICE_HANDLER.register(s.serviceName);
       this.operationName = OPERATION_HANDLER.register(s.operationName);
@@ -511,11 +514,13 @@ final class AggregateEntry extends Hashtable.Entry {
     }
 
     /**
-     * Fills {@link #peerTagsBuffer} with canonical UTF8 forms, applying the schema's per-tag
-     * handler + warn-once notification at the same index. Skips null values rather than round-
-     * tripping them through the handler (which would return EMPTY and be filtered out anyway).
-     * Producer-side {@code capturePeerTagValues} produces sparse-null arrays, so the skip pays off
-     * whenever a span carries only a subset of the configured peer tags.
+     * Replaces the current peer-tag buffer contents with the canonical UTF8 forms for this
+     * snapshot.
+     *
+     * <p>Each non-null value is canonicalized with the handler at the same schema index. Null
+     * values are skipped because they would canonicalize to {@link UTF8BytesString#EMPTY} and be
+     * filtered out anyway. Producer-side {@code capturePeerTagValues} produces sparse-null arrays,
+     * so the skip pays off whenever a span carries only a subset of the configured peer tags.
      */
     private void populatePeerTags(PeerTagSchema schema, String[] values) {
       peerTagsSize = 0;
