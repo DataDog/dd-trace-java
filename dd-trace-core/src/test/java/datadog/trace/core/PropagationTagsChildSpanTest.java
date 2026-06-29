@@ -13,20 +13,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Characterization test for the open question in {@code ptags-allocation-findings.md}: when a
- * distributed trace arrives carrying {@code _dd.p.*} propagation tags, does a <b>non-root (local
- * child)</b> span still carry those inbound tags when it injects?
+ * Regression guard for the "local children share the parent's {@link PropagationTags}" optimization
+ * in {@code CoreTracer.buildSpanContext}: a non-root (local child) span must still carry the
+ * inbound distributed {@code _dd.p.*} tags when it injects.
  *
- * <p>Inbound {@code _dd.p.*} live on the root's {@link PropagationTags} (inherited from the {@link
- * ExtractedContext}, {@code CoreTracer} ~line 2031), but a local child currently receives a fresh
- * {@code propagationTagsFactory.empty()} instance (~line 2020). If {@link
- * #localChildCarriesInboundDdpTags()} <b>fails</b>, non-root injection is dropping inbound {@code
- * _dd.p.*} — a latent correctness bug, not merely the known per-span allocation waste. If it
- * <b>passes</b>, there is reconciliation and the per-span empties are pure waste (sharing the
- * parent's instance is then a safe allocation win).
- *
- * <p>Either way this test is the gate + safety net for the planned "share the parent's
- * PropagationTags for local children" fix.
+ * <p>Inbound {@code _dd.p.*} live on the root's {@code PropagationTags} (inherited from the {@link
+ * ExtractedContext}), and reads route to the root via {@code DDSpanContext.getPropagationTags()} —
+ * so a local child injects the same tags whether it holds its own instance or shares the root's.
+ * That invariant is what lets the child skip allocating its own {@code empty()} and share the
+ * root's instead. If {@link #localChildCarriesInboundDdpTags()} regresses, non-root injection is
+ * dropping inbound {@code _dd.p.*} on every hop.
  */
 class PropagationTagsChildSpanTest extends DDCoreJavaSpecification {
 
