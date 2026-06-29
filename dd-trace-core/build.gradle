@@ -36,7 +36,8 @@ excludedClassesCoverage += [
   'datadog.trace.core.DDSpan.1',
   'datadog.trace.core.tagprocessor.QueryObfuscator.1',
   'datadog.trace.common.writer.TraceProcessingWorker.NonDaemonTraceSerializingHandler',
-  // Interface with an empty defender method
+  // Interfaces with default methods that are overridden by all concrete implementations
+  'datadog.trace.core.CoreSpan',
   'datadog.trace.core.propagation.HttpCodec.Extractor',
   'datadog.trace.llmobs.writer.ddintake.LLMObsSpanMapper',
   'datadog.trace.llmobs.writer.ddintake.LLMObsSpanMapper.PayloadV1',
