@@ -286,7 +286,8 @@ public class LambdaAppSecHandler {
 
           // If JSON content-type or unknown, attempt JSON parsing
           // Normalise casing: media type tokens are case-insensitive per RFC 7231
-          String contentTypeLower = contentType == null ? null : contentType.toLowerCase(Locale.ROOT);
+          String contentTypeLower =
+              contentType == null ? null : contentType.toLowerCase(Locale.ROOT);
           if (contentTypeLower == null
               || contentTypeLower.contains("json")
               || contentTypeLower.contains("javascript")) {
