@@ -46,6 +46,7 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     SUPPORTED_PROXIES = new HashMap<>();
     SUPPORTED_PROXIES.put("aws-apigateway", "aws.apigateway");
     SUPPORTED_PROXIES.put("aws-httpapi", "aws.httpapi");
+    SUPPORTED_PROXIES.put("azure-apim", "azure.apim");
   }
 
   private final Map<String, String> headers;
