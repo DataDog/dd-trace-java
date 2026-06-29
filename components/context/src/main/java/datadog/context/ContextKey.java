@@ -3,7 +3,7 @@ package datadog.context;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * {@link Context} key that maps to a value of type {@link T}.
+ * {@link Context} key that maps to a value of type {@code T}.
  *
  * <p>Keys are compared by identity rather than by name. Each stored context type should either
  * share its key for re-use or implement {@link ImplicitContextKeyed} to keep its key private.

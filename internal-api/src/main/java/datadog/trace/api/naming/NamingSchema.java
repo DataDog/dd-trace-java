@@ -51,14 +51,14 @@ public interface NamingSchema {
   /**
    * Policy for peer service tags calculation
    *
-   * @return
+   * @return the peer service naming policy
    */
   ForPeerService peerService();
 
   /**
    * If true, the schema allows having service names != DD_SERVICE
    *
-   * @return
+   * @return {@code true} if the schema allows service names different from {@code DD_SERVICE}
    */
   boolean allowInferredServices();
 
@@ -222,7 +222,7 @@ public interface NamingSchema {
     /**
      * Whenever the schema supports peer service calculation
      *
-     * @return
+     * @return {@code true} if the schema supports peer service calculation
      */
     boolean supports();
 

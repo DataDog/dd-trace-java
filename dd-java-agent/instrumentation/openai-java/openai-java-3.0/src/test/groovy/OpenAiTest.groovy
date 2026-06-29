@@ -1,4 +1,5 @@
-import com.google.common.base.Charsets
+import static java.nio.charset.StandardCharsets.UTF_8
+
 import com.google.common.base.Strings
 import com.openai.client.OpenAIClient
 import com.openai.client.okhttp.OkHttpClient
@@ -61,7 +62,7 @@ abstract class OpenAiTest extends InstrumentationSpecification {
     handlers {
       prefix("/$API_VERSION/") {
         def requestBody = request.text
-        def recFile = RequestResponseRecord.requestToFileName("POST", requestBody.getBytes(Charsets.UTF_8))
+        def recFile = RequestResponseRecord.requestToFileName("POST", requestBody.getBytes(UTF_8))
         def rec = cache.get(recFile)
         if (rec == null) {
           String path = request.path
