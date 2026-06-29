@@ -241,7 +241,7 @@ class InferredProxySpanTests {
   }
 
   static Stream<Arguments> supportedProxySystems() {
-    return Stream.of(of("aws-apigateway", "aws.apigateway"), of("aws-httpapi", "aws.httpapi"));
+    return Stream.of(of("aws-apigateway", "aws.apigateway"), of("aws-httpapi", "aws.httpapi"), of("azure-apim", "azure.apim"));
   }
 
   @Test
