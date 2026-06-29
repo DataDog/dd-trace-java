@@ -197,6 +197,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.cache.FixedSizeCache.IdentityHash",
   "datadog.trace.api.cache.FixedSizeWeakKeyCache",
   // Interface with default method
+  "datadog.trace.api.civisibility.execution.TestExecutionPolicy",
   "datadog.trace.api.iast.Taintable",
   "datadog.trace.api.Stateful",
   "datadog.trace.api.Stateful.1",
