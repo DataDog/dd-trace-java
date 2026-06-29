@@ -117,8 +117,8 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
       }
 
       // When the scenario was retried, the original runtime's result must reflect the final
-      // attempt's outcome. To avoid final field modifications, the final attempt's failure is reflected onto
-      // the original result via addStepResult
+      // attempt's outcome. To avoid final field modifications, the final attempt's failure is
+      // reflected onto the original result via addStepResult
       if (finalResult.isFailed() && !originalResult.isFailed()) {
         originalResult.addStepResult(finalResult.getFailedStep());
       }
