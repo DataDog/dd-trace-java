@@ -4,9 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -123,6 +126,22 @@ class ScaCveDatabaseTest {
     List<ScaEntry> entries = db.entriesForClass("com/example/Shared");
     assertNotNull(entries);
     assertEquals(2, entries.size());
+  }
+
+  @Test
+  void scaEntryExposesImmutableListsAndMatchesVersions() {
+    List<String> ranges = new ArrayList<>(Collections.singletonList("< 2.0.0"));
+    List<ScaSymbol> symbols =
+        new ArrayList<>(Collections.singletonList(new ScaSymbol("com/example/Foo", "op")));
+    ScaEntry entry = new ScaEntry("GHSA-entry", "com.example:lib", ranges, symbols);
+
+    assertEquals(Collections.singletonList("< 2.0.0"), entry.versionRanges());
+    assertTrue(entry.isVersionVulnerable("1.9.9"));
+    assertFalse(entry.isVersionVulnerable("2.0.0"));
+    assertThrows(UnsupportedOperationException.class, () -> entry.versionRanges().add("< 3.0.0"));
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> entry.symbols().add(new ScaSymbol("com/example/Bar", "op")));
   }
 
   @Test
