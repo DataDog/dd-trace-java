@@ -8,6 +8,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -112,5 +113,21 @@ class MatchersTest {
     Matcher matcher = Matchers.compileGlob(pattern);
 
     assertEquals(matches, matcher.matches(value));
+  }
+
+  @Test
+  void anyMatcherMatchesAllPrimitiveOverloads() {
+    Matcher any = Matchers.ANY;
+    assertTrue(any.matches("hello"));
+    assertTrue(any.matches((CharSequence) new StringBuilder("world")));
+    assertTrue(any.matches(true));
+    assertTrue(any.matches((byte) 1));
+    assertTrue(any.matches((short) 2));
+    assertTrue(any.matches(42));
+    assertTrue(any.matches(100L));
+    assertTrue(any.matches(1.5f));
+    assertTrue(any.matches(3.14));
+    assertTrue(any.matches(new BigInteger("123")));
+    assertTrue(any.matches(new BigDecimal("1.23")));
   }
 }
