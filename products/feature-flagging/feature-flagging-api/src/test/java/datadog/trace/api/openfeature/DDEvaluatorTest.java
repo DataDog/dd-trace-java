@@ -198,6 +198,49 @@ public class DDEvaluatorTest {
   }
 
   @Test
+  public void testSerialIdSurfacedInFlagMetadata() {
+    final Map<String, Variant> variants = new HashMap<>();
+    variants.put("on", new Variant("on", "test-value"));
+    final List<Split> splits = singletonList(new Split(emptyList(), "on", null, 42));
+    final List<Allocation> allocations =
+        singletonList(new Allocation("alloc1", null, null, null, splits, false));
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "serial-id-flag",
+        new Flag("serial-id-flag", true, ValueType.STRING, variants, allocations));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration(null, null, null, flags));
+
+    final ProviderEvaluation<?> details =
+        evaluator.evaluate(
+            String.class, "serial-id-flag", "default", new MutableContext("user-123"));
+
+    assertThat(details.getFlagMetadata().getString("__dd_split_serial_id"), equalTo("42"));
+    assertThat(details.getFlagMetadata().getString("__dd_do_log"), equalTo("false"));
+  }
+
+  @Test
+  public void testNullSerialIdAbsentFromFlagMetadata() {
+    final Map<String, Variant> variants = new HashMap<>();
+    variants.put("on", new Variant("on", "test-value"));
+    final List<Split> splits = singletonList(new Split(emptyList(), "on", null, null));
+    final List<Allocation> allocations =
+        singletonList(new Allocation("alloc1", null, null, null, splits, false));
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "no-serial-id-flag",
+        new Flag("no-serial-id-flag", true, ValueType.STRING, variants, allocations));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration(null, null, null, flags));
+
+    final ProviderEvaluation<?> details =
+        evaluator.evaluate(
+            String.class, "no-serial-id-flag", "default", new MutableContext("user-123"));
+
+    assertThat(details.getFlagMetadata().getString("__dd_split_serial_id"), nullValue());
+  }
+
+  @Test
   public void testNoAllocations() {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("null-allocation", new Flag("target", true, null, null, null));
@@ -641,7 +684,7 @@ public class DDEvaluatorTest {
   private Flag createSimpleFlag(String key, ValueType type, Object value, String variantKey) {
     final Map<String, Variant> variants = new HashMap<>();
     variants.put(variantKey, new Variant(variantKey, value));
-    final List<Split> splits = singletonList(new Split(emptyList(), variantKey, null));
+    final List<Split> splits = singletonList(new Split(emptyList(), variantKey, null, null));
     final List<Allocation> allocations =
         singletonList(new Allocation("alloc1", null, null, null, splits, false));
     return new Flag(key, true, type, variants, allocations);
@@ -657,12 +700,12 @@ public class DDEvaluatorTest {
         singletonList(
             new ConditionConfiguration(ConditionOperator.MATCHES, "email", "@company\\.com$"));
     final List<Rule> premiumRules = singletonList(new Rule(premiumConditions));
-    final List<Split> premiumSplits = singletonList(new Split(emptyList(), "premium", null));
+    final List<Split> premiumSplits = singletonList(new Split(emptyList(), "premium", null, null));
     final Allocation premiumAllocation =
         new Allocation("premium-alloc", premiumRules, null, null, premiumSplits, false);
 
     // Fallback allocation for basic
-    final List<Split> basicSplits = singletonList(new Split(emptyList(), "basic", null));
+    final List<Split> basicSplits = singletonList(new Split(emptyList(), "basic", null, null));
     final Allocation basicAllocation =
         new Allocation("basic-alloc", null, null, null, basicSplits, false);
 
@@ -680,12 +723,12 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> vipConditions =
         singletonList(new ConditionConfiguration(ConditionOperator.GTE, "score", 800));
     final List<Rule> vipRules = singletonList(new Rule(vipConditions));
-    final List<Split> vipSplits = singletonList(new Split(emptyList(), "vip", null));
+    final List<Split> vipSplits = singletonList(new Split(emptyList(), "vip", null, null));
     final Allocation vipAllocation =
         new Allocation("vip-alloc", vipRules, null, null, vipSplits, false);
 
     // Fallback
-    final List<Split> regularSplits = singletonList(new Split(emptyList(), "regular", null));
+    final List<Split> regularSplits = singletonList(new Split(emptyList(), "regular", null, null));
     final Allocation regularAllocation =
         new Allocation("regular-alloc", null, null, null, regularSplits, false);
 
@@ -706,12 +749,12 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> noBetaConditions =
         singletonList(new ConditionConfiguration(ConditionOperator.IS_NULL, "beta_feature", true));
     final List<Rule> noBetaRules = singletonList(new Rule(noBetaConditions));
-    final List<Split> noBetaSplits = singletonList(new Split(emptyList(), "no-beta", null));
+    final List<Split> noBetaSplits = singletonList(new Split(emptyList(), "no-beta", null, null));
     final Allocation noBetaAllocation =
         new Allocation("no-beta-alloc", noBetaRules, null, null, noBetaSplits, false);
 
     // Fallback
-    final List<Split> hasBetaSplits = singletonList(new Split(emptyList(), "has-beta", null));
+    final List<Split> hasBetaSplits = singletonList(new Split(emptyList(), "has-beta", null, null));
     final Allocation hasBetaAllocation =
         new Allocation("has-beta-alloc", null, null, null, hasBetaSplits, false);
 
@@ -734,12 +777,13 @@ public class DDEvaluatorTest {
         singletonList(
             new ConditionConfiguration(ConditionOperator.ONE_OF, "region", allowedRegions));
     final List<Rule> regionalRules = singletonList(new Rule(regionalConditions));
-    final List<Split> regionalSplits = singletonList(new Split(emptyList(), "regional", null));
+    final List<Split> regionalSplits =
+        singletonList(new Split(emptyList(), "regional", null, null));
     final Allocation regionalAllocation =
         new Allocation("regional-alloc", regionalRules, null, null, regionalSplits, false);
 
     // Fallback
-    final List<Split> globalSplits = singletonList(new Split(emptyList(), "global", null));
+    final List<Split> globalSplits = singletonList(new Split(emptyList(), "global", null, null));
     final Allocation globalAllocation =
         new Allocation("global-alloc", null, null, null, globalSplits, false);
 
@@ -755,7 +799,7 @@ public class DDEvaluatorTest {
     final Map<String, Variant> variants = new HashMap<>();
     variants.put("time-limited", new Variant("time-limited", "time-limited"));
 
-    final List<Split> splits = singletonList(new Split(emptyList(), "time-limited", null));
+    final List<Split> splits = singletonList(new Split(emptyList(), "time-limited", null, null));
 
     // Allocation that ended in 2022 (should be inactive)
     final List<Allocation> allocations =
@@ -779,7 +823,7 @@ public class DDEvaluatorTest {
     final List<ShardRange> ranges = singletonList(new ShardRange(0, 50)); // 0-49 out of 100
     final List<Shard> shards = singletonList(new Shard("test-salt", ranges, 100));
 
-    final List<Split> splits = singletonList(new Split(shards, "shard-variant", null));
+    final List<Split> splits = singletonList(new Split(shards, "shard-variant", null, null));
 
     final List<Allocation> allocations =
         singletonList(new Allocation("shard-alloc", null, null, null, splits, false));
@@ -792,7 +836,7 @@ public class DDEvaluatorTest {
     final Map<String, Variant> variants = new HashMap<>();
     variants.put("existing", new Variant("existing", "value"));
 
-    final List<Split> splits = singletonList(new Split(emptyList(), "missing-variant", null));
+    final List<Split> splits = singletonList(new Split(emptyList(), "missing-variant", null, null));
 
     final List<Allocation> allocations =
         singletonList(new Allocation("alloc1", null, null, null, splits, false));
@@ -814,7 +858,7 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> conditions =
         singletonList(new ConditionConfiguration(operator, attribute, threshold));
     final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), variantKey, null));
+    final List<Split> splits = singletonList(new Split(emptyList(), variantKey, null, null));
     final Allocation allocation = new Allocation(allocKey, rules, null, null, splits, false);
 
     return new Flag(flagKey, true, ValueType.STRING, variants, singletonList(allocation));
@@ -849,7 +893,7 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> conditions =
         singletonList(new ConditionConfiguration(operator, attribute, value));
     final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), variantKey, null));
+    final List<Split> splits = singletonList(new Split(emptyList(), variantKey, null, null));
     final Allocation allocation = new Allocation(allocKey, rules, null, null, splits, false);
 
     return new Flag(flagKey, true, ValueType.STRING, variants, singletonList(allocation));
@@ -886,7 +930,7 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> piConditions =
         singletonList(new ConditionConfiguration(ConditionOperator.MATCHES, "rate", "3.14159"));
     final List<Rule> piRules = singletonList(new Rule(piConditions));
-    final List<Split> piSplits = singletonList(new Split(emptyList(), "pi", null));
+    final List<Split> piSplits = singletonList(new Split(emptyList(), "pi", null, null));
     final Allocation piAllocation =
         new Allocation("pi-alloc", piRules, null, null, piSplits, false);
 
@@ -903,7 +947,7 @@ public class DDEvaluatorTest {
         singletonList(
             new ConditionConfiguration(ConditionOperator.MATCHES, "user.profile.level", "premium"));
     final List<Rule> premiumRules = singletonList(new Rule(premiumConditions));
-    final List<Split> premiumSplits = singletonList(new Split(emptyList(), "premium", null));
+    final List<Split> premiumSplits = singletonList(new Split(emptyList(), "premium", null, null));
     final Allocation premiumAllocation =
         new Allocation("premium-nested-alloc", premiumRules, null, null, premiumSplits, false);
 
@@ -915,7 +959,7 @@ public class DDEvaluatorTest {
     final Map<String, Variant> variants = new HashMap<>();
     variants.put("tracked", new Variant("tracked", "tracked-value"));
 
-    final List<Split> splits = singletonList(new Split(emptyList(), "tracked", null));
+    final List<Split> splits = singletonList(new Split(emptyList(), "tracked", null, null));
     // Create allocation with doLog=true to trigger exposure logging
     final List<Allocation> allocations =
         singletonList(new Allocation("exposure-alloc", null, null, null, splits, true));
@@ -931,7 +975,7 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> exactConditions =
         singletonList(new ConditionConfiguration(ConditionOperator.LTE, "score", 3.14159));
     final List<Rule> exactRules = singletonList(new Rule(exactConditions));
-    final List<Split> exactSplits = singletonList(new Split(emptyList(), "exact", null));
+    final List<Split> exactSplits = singletonList(new Split(emptyList(), "exact", null, null));
     final Allocation exactAllocation =
         new Allocation("exact-alloc", exactRules, null, null, exactSplits, false);
 
@@ -947,7 +991,7 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> loggedConditions =
         singletonList(new ConditionConfiguration(ConditionOperator.MATCHES, "feature", "premium"));
     final List<Rule> loggedRules = singletonList(new Rule(loggedConditions));
-    final List<Split> loggedSplits = singletonList(new Split(emptyList(), "logged", null));
+    final List<Split> loggedSplits = singletonList(new Split(emptyList(), "logged", null, null));
     // Create allocation with doLog=true to trigger exposure logging and allocationKey method
     final Allocation loggedAllocation =
         new Allocation("logged-alloc", loggedRules, null, null, loggedSplits, true);
@@ -966,7 +1010,8 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> numericConditions =
         singletonList(new ConditionConfiguration(ConditionOperator.ONE_OF, "score", numericValues));
     final List<Rule> numericRules = singletonList(new Rule(numericConditions));
-    final List<Split> numericSplits = singletonList(new Split(emptyList(), "numeric-match", null));
+    final List<Split> numericSplits =
+        singletonList(new Split(emptyList(), "numeric-match", null, null));
     final Allocation numericAllocation =
         new Allocation("numeric-alloc", numericRules, null, null, numericSplits, false);
 
@@ -985,7 +1030,8 @@ public class DDEvaluatorTest {
         singletonList(
             new ConditionConfiguration(ConditionOperator.NOT_ONE_OF, "score", excludedValues));
     final List<Rule> excludedRules = singletonList(new Rule(excludedConditions));
-    final List<Split> excludedSplits = singletonList(new Split(emptyList(), "excluded", null));
+    final List<Split> excludedSplits =
+        singletonList(new Split(emptyList(), "excluded", null, null));
     final Allocation excludedAllocation =
         new Allocation("excluded-alloc", excludedRules, null, null, excludedSplits, false);
 
@@ -1005,7 +1051,7 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> notNullConditions =
         singletonList(new ConditionConfiguration(ConditionOperator.IS_NULL, "attr", false));
     final List<Rule> notNullRules = singletonList(new Rule(notNullConditions));
-    final List<Split> notNullSplits = singletonList(new Split(emptyList(), "not-null", null));
+    final List<Split> notNullSplits = singletonList(new Split(emptyList(), "not-null", null, null));
     final Allocation notNullAllocation =
         new Allocation("not-null-alloc", notNullRules, null, null, notNullSplits, false);
 
@@ -1022,7 +1068,7 @@ public class DDEvaluatorTest {
         singletonList(
             new ConditionConfiguration(ConditionOperator.IS_NULL, "missing_attr", "string"));
     final List<Rule> nullRules = singletonList(new Rule(nullConditions));
-    final List<Split> nullSplits = singletonList(new Split(emptyList(), "null-match", null));
+    final List<Split> nullSplits = singletonList(new Split(emptyList(), "null-match", null, null));
     final Allocation nullAllocation =
         new Allocation("null-alloc", nullRules, null, null, nullSplits, false);
 
@@ -1042,7 +1088,8 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> nullAttrConditions =
         singletonList(new ConditionConfiguration(ConditionOperator.MATCHES, null, "test"));
     final List<Rule> nullAttrRules = singletonList(new Rule(nullAttrConditions));
-    final List<Split> nullAttrSplits = singletonList(new Split(emptyList(), "fallback", null));
+    final List<Split> nullAttrSplits =
+        singletonList(new Split(emptyList(), "fallback", null, null));
     final Allocation nullAttrAllocation =
         new Allocation("null-attr-alloc", nullAttrRules, null, null, nullAttrSplits, false);
 
@@ -1059,7 +1106,8 @@ public class DDEvaluatorTest {
         singletonList(
             new ConditionConfiguration(ConditionOperator.NOT_MATCHES, "email", "@company\\.com"));
     final List<Rule> externalRules = singletonList(new Rule(externalConditions));
-    final List<Split> externalSplits = singletonList(new Split(emptyList(), "external", null));
+    final List<Split> externalSplits =
+        singletonList(new Split(emptyList(), "external", null, null));
     final Allocation externalAllocation =
         new Allocation("external-alloc", externalRules, null, null, externalSplits, false);
 
@@ -1081,7 +1129,7 @@ public class DDEvaluatorTest {
         singletonList(
             new ConditionConfiguration(ConditionOperator.NOT_ONE_OF, "region", excludedRegions));
     final List<Rule> otherRules = singletonList(new Rule(otherConditions));
-    final List<Split> otherSplits = singletonList(new Split(emptyList(), "other", null));
+    final List<Split> otherSplits = singletonList(new Split(emptyList(), "other", null, null));
     final Allocation otherAllocation =
         new Allocation("other-alloc", otherRules, null, null, otherSplits, false);
 
@@ -1101,7 +1149,8 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> highScoreConditions =
         singletonList(new ConditionConfiguration(ConditionOperator.GTE, "score", 800));
     final List<Rule> highScoreRules = singletonList(new Rule(highScoreConditions));
-    final List<Split> highScoreSplits = singletonList(new Split(emptyList(), "high-score", null));
+    final List<Split> highScoreSplits =
+        singletonList(new Split(emptyList(), "high-score", null, null));
     final Allocation highScoreAllocation =
         new Allocation("high-score-alloc", highScoreRules, null, null, highScoreSplits, false);
 
@@ -1131,7 +1180,7 @@ public class DDEvaluatorTest {
 
     // Rule with empty conditions list - this will be skipped, causing allocation to not match
     final Rule emptyConditionsRule = new Rule(emptyList());
-    final List<Split> splits = singletonList(new Split(emptyList(), "default", null));
+    final List<Split> splits = singletonList(new Split(emptyList(), "default", null, null));
     final Allocation allocation =
         new Allocation(
             "empty-conditions-alloc",
@@ -1153,7 +1202,7 @@ public class DDEvaluatorTest {
     final List<ShardRange> ranges =
         singletonList(new ShardRange(0, 100)); // Full range to ensure match
     final List<Shard> shards = singletonList(new Shard("test-salt", ranges, 100));
-    final List<Split> splits = singletonList(new Split(shards, "matched", null));
+    final List<Split> splits = singletonList(new Split(shards, "matched", null, null));
     final Allocation allocation =
         new Allocation("shard-matching-alloc", null, null, null, splits, false);
 
@@ -1165,7 +1214,7 @@ public class DDEvaluatorTest {
     final Map<String, Variant> variants = new HashMap<>();
     variants.put("future", new Variant("future", "future-value"));
 
-    final List<Split> splits = singletonList(new Split(emptyList(), "future", null));
+    final List<Split> splits = singletonList(new Split(emptyList(), "future", null, null));
 
     // Allocation that starts in the future (2050)
     final Allocation allocation =
@@ -1185,7 +1234,7 @@ public class DDEvaluatorTest {
         singletonList(
             new ConditionConfiguration(ConditionOperator.MATCHES, "id", "user-special-id"));
     final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "id-match", null));
+    final List<Split> splits = singletonList(new Split(emptyList(), "id-match", null, null));
     final Allocation allocation = new Allocation("id-attr-alloc", rules, null, null, splits, false);
 
     return new Flag(
@@ -1200,7 +1249,7 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> conditions =
         singletonList(new ConditionConfiguration(ConditionOperator.ONE_OF, "attr", "single-value"));
     final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "no-match", null));
+    final List<Split> splits = singletonList(new Split(emptyList(), "no-match", null, null));
     final Allocation allocation =
         new Allocation("non-iterable-alloc", rules, null, null, splits, false);
 
@@ -1250,7 +1299,7 @@ public class DDEvaluatorTest {
         singletonList(
             new ConditionConfiguration(ConditionOperator.NOT_MATCHES, "email", "@company\\.com"));
     final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "internal", null));
+    final List<Split> splits = singletonList(new Split(emptyList(), "internal", null, null));
     final Allocation allocation =
         new Allocation("not-matches-false-alloc", rules, null, null, splits, false);
 
@@ -1269,7 +1318,7 @@ public class DDEvaluatorTest {
         singletonList(
             new ConditionConfiguration(ConditionOperator.NOT_ONE_OF, "region", excludedRegions));
     final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "excluded", null));
+    final List<Split> splits = singletonList(new Split(emptyList(), "excluded", null, null));
     final Allocation allocation =
         new Allocation("not-one-of-false-alloc", rules, null, null, splits, false);
 
@@ -1285,7 +1334,7 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> conditions =
         singletonList(new ConditionConfiguration(ConditionOperator.IS_NULL, "nullAttr", true));
     final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "null-variant", null));
+    final List<Split> splits = singletonList(new Split(emptyList(), "null-variant", null, null));
     final Allocation allocation =
         new Allocation("null-context-alloc", rules, null, null, splits, false);
 
@@ -1303,12 +1352,12 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> usConditions =
         singletonList(new ConditionConfiguration(ConditionOperator.ONE_OF, "country", usCountries));
     final List<Rule> usRules = singletonList(new Rule(usConditions));
-    final List<Split> usSplits = singletonList(new Split(emptyList(), "us", null));
+    final List<Split> usSplits = singletonList(new Split(emptyList(), "us", null, null));
     final Allocation usAllocation =
         new Allocation("us-alloc", usRules, null, null, usSplits, false);
 
     // Fallback allocation (no rules, no shards)
-    final List<Split> globalSplits = singletonList(new Split(emptyList(), "global", null));
+    final List<Split> globalSplits = singletonList(new Split(emptyList(), "global", null, null));
     final Allocation globalAllocation =
         new Allocation("global-alloc", null, null, null, globalSplits, false);
 
@@ -1328,7 +1377,7 @@ public class DDEvaluatorTest {
     final List<ConditionConfiguration> conditions =
         singletonList(new ConditionConfiguration(ConditionOperator.MATCHES, "email", "[invalid"));
     final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "matched", null));
+    final List<Split> splits = singletonList(new Split(emptyList(), "matched", null, null));
     final Allocation allocation =
         new Allocation("invalid-regex-alloc", rules, null, null, splits, false);
 
@@ -1345,7 +1394,7 @@ public class DDEvaluatorTest {
         singletonList(
             new ConditionConfiguration(ConditionOperator.NOT_MATCHES, "email", "[invalid"));
     final List<Rule> rules = singletonList(new Rule(conditions));
-    final List<Split> splits = singletonList(new Split(emptyList(), "excluded", null));
+    final List<Split> splits = singletonList(new Split(emptyList(), "excluded", null, null));
     final Allocation allocation =
         new Allocation("invalid-regex-not-matches-alloc", rules, null, null, splits, false);
 
