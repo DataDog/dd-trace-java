@@ -5,48 +5,14 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Arrays;
 
 /**
- * Cardinality-capped UTF8 encoder and cache for one field in the aggregate key ({@code value}
- * &rarr; {@code UTF8(value)}).
+ * Cardinality-capped UTF8 encoder and cache for one aggregate-key field ({@code value} &rarr;
+ * {@code UTF8(value)}).
  *
- * <p>A reporting cycle is the interval between two client-stats flushes. Values seen in the same
- * cycle share a cached {@link UTF8BytesString} instance; once the per-field budget is exhausted,
- * further new values are replaced by a {@code tracer_blocked_value} sentinel.
- *
- * <p><b>Dual role -- limiter and cache.</b> Prior versions ran a per-field {@code DDCache} for UTF8
- * reuse with a separate global cardinality cap on top. Under high load that wasn't enough to stave
- * off long GC cycles: every miss still concatenated / UTF8-encoded the value before the cache could
- * store it. A cardinality limiter and a recent-value cache are both <em>sets of recently used
- * values</em>, so this class collapses them into one structure. Cardinality limiting happens first,
- * which lets the blocked path skip the concatenation and encoding entirely.
- *
- * <p>A pure limiter would fully reset each reporting cycle and destroy the cache. To preserve UTF8
- * reuse across resets, the handler keeps the previous cycle's entries verbatim in a parallel table
- * and reuses any matching {@link UTF8BytesString} when a value first appears in the new cycle.
- *
- * <p>Accepts any {@link CharSequence} input -- mixed {@code String}/{@code UTF8BytesString} of the
- * same content collapse to one slot because {@link UTF8BytesString#hashCode()} delegates to the
- * underlying String's hash and probe equality is the content-based {@code
- * stored.toString().contentEquals(value)} (which fast-paths to {@code String.equals} when the input
- * is a String).
- *
- * <p><b>Storage:</b> open-addressed flat arrays with linear probing. Two parallel {@code
- * UTF8BytesString[]} tables -- "current cycle" and "prior cycle". Capacity is the next power of two
- * {@code >= 2 * cardinalityLimit} so probes stay short even at the full budget. The stored
- * UTF8BytesString carries the slot's identity directly; no parallel keys array needed.
- *
- * <ul>
- *   <li>The current table tracks which values have consumed a slot of the cardinality budget this
- *       reporting cycle. Once {@link #cardinalityLimit} distinct values are present, further
- *       first-time values get the {@code tracer_blocked_value} sentinel.
- *   <li>The prior table holds the previous cycle's entries verbatim. A first-time-this-cycle value
- *       that hits in the prior table reuses its {@link UTF8BytesString} instance -- no
- *       re-allocation -- and stores that reference in the current table.
- * </ul>
- *
- * <p><b>Reset:</b> swap the current and prior pointers, then null the (now) current. One
- * O(capacity) pass; half the work of a copy-then-null. Workloads with a stable value set across
- * cycles pay zero UTF8 allocations after the first cycle, and the reused instances also
- * short-circuit downstream equality to identity comparisons.
+ * <p>Each reporting cycle (interval between client-stats flushes) has its own cardinality budget.
+ * Once the budget is exhausted, new values get the {@code tracer_blocked_value} sentinel (or a
+ * fresh allocation when sentinel mode is disabled). A prior-cycle table preserves {@link
+ * UTF8BytesString} instances across the reset, so stable workloads pay zero allocations after the
+ * first cycle.
  */
 final class PropertyCardinalityHandler {
   // Upper bound prevents int overflow in the (cardinalityLimit * 2 - 1) capacity calculation.

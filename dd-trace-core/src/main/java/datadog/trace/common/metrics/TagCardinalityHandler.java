@@ -6,25 +6,12 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 
 /**
- * Cardinality-capped UTF8 encoder and cache for <strong>one</strong> peer-tag name ({@code value}
- * &rarr; {@code UTF8("tag:value")}).
+ * Cardinality-capped UTF8 encoder and cache for one peer-tag name ({@code value} &rarr;
+ * {@code UTF8("tag:value")}).
  *
- * <p>A reporting cycle is the interval between two client-stats flushes. Values seen in the same
- * cycle share one cardinality budget. When the aggregator flushes client stats, this handler is
- * reset for the next cycle.
- *
- * <p>A {@link PeerTagSchema} owns one handler per peer tag. For a tag such as {@code
- * peer.hostname}, this handler accepts raw values such as {@code localhost} and returns the
- * UTF8-encoded {@code "peer.hostname:localhost"} form used in the aggregate key.
- *
- * <p>The handler has the same reporting-cycle behavior as {@link PropertyCardinalityHandler}: it
- * limits distinct values in the current cycle, keeps the previous cycle available for UTF8 reuse,
- * and can return a {@code "tag:tracer_blocked_value"} sentinel when sentinel mode is enabled and
- * the value budget is exhausted.
- *
- * <p>Unlike aggregate fields, the lookup key is the raw tag value, but the cached output is the
- * encoded {@code "tag:value"} string. For that reason this class keeps parallel raw-value and UTF8
- * tables.
+ * <p>Same per-cycle budget and prior-cycle reuse as {@link PropertyCardinalityHandler}. The
+ * difference is that the cached output is the pre-encoded {@code "tag:value"} string, so a
+ * parallel raw-value keys table is needed alongside the UTF8 values table.
  */
 final class TagCardinalityHandler {
   // Upper bound prevents int overflow in the (cardinalityLimit * 2 - 1) capacity calculation.
