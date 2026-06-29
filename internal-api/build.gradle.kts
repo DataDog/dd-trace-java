@@ -201,6 +201,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.iast.Taintable",
   "datadog.trace.api.Stateful",
   "datadog.trace.api.Stateful.1",
+  // an interface
+  "datadog.trace.bootstrap.instrumentation.api.ProfilerContext",
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
