@@ -642,6 +642,22 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     .contains("_dd.ol_service:databricks.job-cluster.some-run-name")
   }
 
+  def "test setupOpenLineage sets ol_env from dd.env"() {
+    setup:
+    injectSysConfig("dd.env", "my-env")
+    def listener = getTestDatadogSparkListener()
+    listener.openLineageSparkListener = Mock(SparkListenerInterface)
+    listener.openLineageSparkConf = new SparkConf()
+    listener.setupOpenLineage(Mock(DDTraceId))
+
+    expect:
+    assert listener
+    .openLineageSparkConf
+    .get("spark.openlineage.run.tags")
+    .split(";")
+    .contains("_dd.ol_env:my-env")
+  }
+
   def "test setupOpenLineage fills ProcessTags"() {
     setup:
     def listener = getTestDatadogSparkListener()
