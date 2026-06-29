@@ -443,7 +443,7 @@ publish-profiler-patched-agent-to-s3:
   dependencies: [ build ]
   timeout: 10 minutes
   before_script:
-    - yum install -y -q git unzip
+    - yum install -y -q git unzip zip
   script:
     - grep -Pq '^[A-Z_]+=\S*$' upstream.env || { echo "upstream.env has unexpected content"; exit 1; }
     - source upstream.env
