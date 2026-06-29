@@ -66,7 +66,9 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.profiling.RecordingType",
   // Data Streams Monitoring
   "datadog.trace.api.datastreams.Backlog",
+  "datadog.trace.api.datastreams.DataStreamsTransactionExtractor.Type", // enum
   "datadog.trace.api.datastreams.InboxItem",
+  "datadog.trace.api.datastreams.KafkaConfigReport", // pojo
   "datadog.trace.api.datastreams.NoopDataStreamsMonitoring",
   "datadog.trace.api.datastreams.NoopPathwayContext",
   "datadog.trace.api.datastreams.SchemaRegistryUsage",
