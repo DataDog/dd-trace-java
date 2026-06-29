@@ -546,7 +546,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
     ScopeDiagnostics.stop()
     def report = ScopeDiagnostics.report()
-    println(report.renderSummary())
+    // Always dump the full timeline so a graph/report can be built regardless of leaks.
+    println(report.renderTimeline())
     try {
       if (config.failOnLeak()) {
         ScopeDiagnostics.assertNoLeaks()

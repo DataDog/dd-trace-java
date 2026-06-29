@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
  * TrackScopeContinuations}. Registered on {@code AbstractInstrumentationTest} but dormant unless
  * the test class or method carries the annotation, so unannotated tests pay nothing.
  *
- * <p>Per test: resets and starts recording before; after, logs the problem summary and optionally
+ * <p>Per test: resets and starts recording before; after, logs the full timeline and optionally
  * asserts no leaks.
  */
 public final class ScopeDiagnosticsExtension implements BeforeEachCallback, AfterEachCallback {
@@ -35,7 +35,9 @@ public final class ScopeDiagnosticsExtension implements BeforeEachCallback, Afte
     }
     ScopeDiagnostics.stop();
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
-    log.info("[{}] {}", context.getDisplayName(), report.renderSummary());
+    // Always dump the full timeline so a graph/report can be built regardless of whether anything
+    // leaked; renderSummary() remains the concise problem-only view used by assertNoLeaks.
+    log.info("[{}] {}", context.getDisplayName(), report.renderTimeline());
     try {
       if (config.failOnLeak()) {
         ScopeDiagnostics.assertNoLeaks();

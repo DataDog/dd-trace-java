@@ -117,18 +117,25 @@ never-resolved, late-after-root, double/invalid, and the full cross-thread timel
 
 ### 3. Renderers
 
-> **Addendum (2026-06):** The in-Java Gantt renderers (text `renderGantt()` and Mermaid
-> `toMermaidGantt()`) were removed, and subsequently the **JSON output was dropped too** (its only
-> consumer was an LLM, which reads structured text fine, and the hand-rolled serializer was a
-> liability). Java now emits **only the leak-only text summary** (`renderSummary()`), logged at the
-> end of each tracked test. The `investigate-continuation-leakage` skill reads that summary and
-> renders a DAG of the flagged leaks. Note: the summary is problem-only and carries no per-event
-> timeline, so a time-accurate Gantt requires re-enabling a structured feed. The
-> `@TrackScopeContinuations` attributes were reduced to just `failOnLeak` (default `false`);
+> **Addendum (2026-06):** The Mermaid renderer (`toMermaidGantt()`) and the **JSON output** were
+> removed — visualization moved to the `investigate-continuation-leakage` skill (an LLM reads text
+> fine, and the hand-rolled JSON serializer was a liability). Java now emits two text views, both
+> logged at the end of each tracked test:
+>
+> - **`renderTimeline()`** — the complete dump: *every* continuation and scope with its full event
+>   lineage (capture → resume(s) → terminal, threads, `+Δms` relative timing, callsites, nested
+>   spawned scopes), emitted **regardless of whether anything leaked**. This is the feed the skill
+>   reads to render a Gantt or DAG, so a graph/report can always be produced. (This replaces the old
+>   `renderGantt()`, minus the chart framing.)
+> - **`renderSummary()`** — the problem-only view (flagged records + callsites), still used for
+>   `assertNoLeaks` failure messages.
+>
+> The `@TrackScopeContinuations` attributes were reduced to just `failOnLeak` (default `false`);
 > `gantt()`/`mermaid()`/`json()` were all removed.
 
-- **Leak-only summary**: only the flagged problems, each with its callsite(s) — a quick scan
-  / failure message, and the sole output consumed by the skill.
+- **Full timeline**: all continuations/scopes with per-event threads, relative timing, and
+  callsites — the feed the skill consumes to build a graph or report, leak or no leak.
+- **Leak-only summary**: just the flagged problems with callsites — the `assertNoLeaks` message.
 
 ### 4. Harness integration (passive by default — no impact on existing tests)
 

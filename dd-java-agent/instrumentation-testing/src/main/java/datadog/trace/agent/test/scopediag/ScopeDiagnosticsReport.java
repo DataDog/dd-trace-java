@@ -9,20 +9,23 @@ import java.util.Map;
 
 /**
  * An immutable snapshot of the recorded continuation and scope lifecycles plus the derived failure
- * findings. Exposes a problem-only text summary ({@link #renderSummary()}); richer visualizations
- * (Gantt, DAG) are produced by the {@code investigate-continuation-leakage} skill from the recorded
- * data rather than rendered here.
+ * findings. Exposes two text renderings: a problem-only summary ({@link #renderSummary()}) for
+ * quick triage / assertion messages, and a complete timeline ({@link #renderTimeline()}) that dumps
+ * <em>every</em> continuation and scope with its full event lineage — emitted on every tracked test
+ * regardless of whether anything leaked, so a graph or report can always be produced from it.
  *
  * <p>The two lifecycles are kept separate: {@link ContinuationRecord} (captured → resumed →
  * finished) and {@link ScopeRecord} (opened → closed). A scope spawned by resuming a continuation
  * is linked to it ({@link ContinuationRecord#scopeRecordSeqs()} / {@link
- * ScopeRecord#continuationSeq}).
+ * ScopeRecord#continuationSeq}) and rendered nested under it in the timeline.
  */
 public final class ScopeDiagnosticsReport {
   private final List<ContinuationRecord> continuations;
   private final List<ScopeRecord> scopes;
+  private final long t0;
   private final Map<ContinuationRecord, EnumSet<Failure>> continuationFailures;
   private final Map<ScopeRecord, EnumSet<Failure>> scopeFailures;
+  private final Map<Long, ScopeRecord> scopeBySeq;
 
   ScopeDiagnosticsReport(
       List<ContinuationRecord> continuations,
@@ -32,8 +35,24 @@ public final class ScopeDiagnosticsReport {
     this.continuations.sort((a, b) -> Long.compare(a.firstNanos(), b.firstNanos()));
     this.scopes = new ArrayList<>(scopes);
     this.scopes.sort((a, b) -> Long.compare(a.firstNanos(), b.firstNanos()));
+    this.t0 = computeT0(this.continuations, this.scopes);
     this.continuationFailures = classifyContinuations(this.continuations, rootWrittenNanos);
     this.scopeFailures = classifyScopes(this.scopes);
+    this.scopeBySeq = new LinkedHashMap<>();
+    for (ScopeRecord s : this.scopes) {
+      scopeBySeq.put(s.seq, s);
+    }
+  }
+
+  private static long computeT0(List<ContinuationRecord> continuations, List<ScopeRecord> scopes) {
+    long min = Long.MAX_VALUE;
+    for (ContinuationRecord r : continuations) {
+      min = Math.min(min, r.firstNanos());
+    }
+    for (ScopeRecord s : scopes) {
+      min = Math.min(min, s.firstNanos());
+    }
+    return min == Long.MAX_VALUE ? 0 : min;
   }
 
   private static Map<ContinuationRecord, EnumSet<Failure>> classifyContinuations(
@@ -186,5 +205,166 @@ public final class ScopeDiagnosticsReport {
           .append('\n');
     }
     return sb.toString();
+  }
+
+  // ---- rendering: complete timeline ----------------------------------------
+
+  private static final int TIMELINE_FRAMES = 3;
+
+  /**
+   * Complete cross-thread timeline: one block per continuation (capture → resume(s) → terminal),
+   * with the scopes it spawned nested under it, followed by any non-continuation scopes. Unlike
+   * {@link #renderSummary()} this lists <em>all</em> records, not just the flagged ones, so a graph
+   * (Gantt/DAG) or report can be reconstructed from it whether or not anything leaked. Each event
+   * carries its relative time ({@code +Δms} from the first recorded event), thread, and callsite.
+   */
+  public String renderTimeline() {
+    StringBuilder sb = new StringBuilder();
+    appendHeader(sb, "Scope/continuation timeline");
+    if (continuations.isEmpty() && scopes.isEmpty()) {
+      sb.append("  (nothing captured)\n");
+      return sb.toString();
+    }
+
+    for (ContinuationRecord r : continuations) {
+      EnumSet<Failure> failures =
+          continuationFailures.getOrDefault(r, EnumSet.noneOf(Failure.class));
+      sb.append("\n#")
+          .append(r.seq)
+          .append(' ')
+          .append(r.status())
+          .append(" trace=")
+          .append(r.traceId)
+          .append(" span=")
+          .append(r.spanId);
+      if (r.spanName != null) {
+        sb.append(" \"").append(r.spanName).append('"');
+      }
+      sb.append(" src=").append(r.sourceName());
+      if (r.orphan) {
+        sb.append(" [ORPHAN]");
+      }
+      if (r.threadHandoff()) {
+        sb.append(" [handoff]");
+      }
+      if (!failures.isEmpty()) {
+        sb.append(' ').append(failures);
+      }
+      sb.append(timing(r)).append('\n');
+
+      appendEvent(sb, "capture ", r.capture());
+      for (ScopeEvent a : r.resumes()) {
+        appendEvent(sb, "resume  ", a);
+      }
+      for (ScopeEvent f : r.failedActivations()) {
+        appendEvent(sb, "act-fail", f);
+      }
+      ScopeEvent terminal = r.terminal();
+      if (terminal != null) {
+        appendEvent(
+            sb,
+            terminal.type == ScopeEvent.Type.RESOLVE_CANCEL ? "cancel  " : "finish  ",
+            terminal);
+      }
+      for (ScopeEvent extra : r.extraTerminals()) {
+        appendEvent(sb, "DOUBLE  ", extra);
+      }
+      for (long scopeSeq : r.scopeRecordSeqs()) {
+        ScopeRecord scope = scopeBySeq.get(scopeSeq);
+        if (scope != null) {
+          appendScopeLine(sb, "  ", scope);
+        }
+      }
+      if (terminal == null) {
+        sb.append("  LEAKED   (never finished or cancelled)\n");
+      }
+    }
+
+    List<ScopeRecord> orphanScopes = new ArrayList<>();
+    for (ScopeRecord s : scopes) {
+      if (s.continuationSeq == null) {
+        orphanScopes.add(s);
+      }
+    }
+    if (!orphanScopes.isEmpty()) {
+      sb.append("\nNon-continuation scopes:\n");
+      for (ScopeRecord s : orphanScopes) {
+        appendScopeLine(sb, "  ", s);
+      }
+    }
+    return sb.toString();
+  }
+
+  private String timing(ContinuationRecord r) {
+    StringBuilder sb = new StringBuilder();
+    Long capToResume = r.captureToFirstResumeNanos();
+    Long age = r.ageAtTerminalNanos();
+    if (capToResume != null) {
+      sb.append("  cap->resume=").append(millis(capToResume)).append("ms");
+    }
+    if (age != null) {
+      sb.append("  age=").append(millis(age)).append("ms");
+    }
+    return sb.toString();
+  }
+
+  private void appendScopeLine(StringBuilder sb, String indent, ScopeRecord scope) {
+    EnumSet<Failure> failures = scopeFailures.getOrDefault(scope, EnumSet.noneOf(Failure.class));
+    sb.append(indent).append("scope#").append(scope.seq).append(' ').append(scope.sourceName());
+    if (scope.spanName != null) {
+      sb.append(" \"").append(scope.spanName).append('"');
+    }
+    ScopeEvent open = scope.open();
+    ScopeEvent close = scope.close();
+    if (open != null) {
+      sb.append("  open +").append(relMillis(open.nanos)).append("ms @ ").append(open.threadName);
+    }
+    if (close != null) {
+      sb.append("  close +")
+          .append(relMillis(close.nanos))
+          .append("ms @ ")
+          .append(close.threadName);
+      Long active = scope.activeDurationNanos();
+      if (active != null) {
+        sb.append(" (active ").append(millis(active)).append("ms)");
+      }
+    }
+    if (scope.threadHandoff()) {
+      sb.append(" [handoff]");
+    }
+    if (!failures.isEmpty()) {
+      sb.append(' ').append(failures);
+    }
+    sb.append('\n');
+  }
+
+  private void appendEvent(StringBuilder sb, String label, ScopeEvent event) {
+    if (event == null) {
+      sb.append("  ").append(label).append("  (not observed)\n");
+      return;
+    }
+    sb.append("  ")
+        .append(label)
+        .append("  +")
+        .append(relMillis(event.nanos))
+        .append("ms  @ ")
+        .append(event.threadName)
+        .append("  at ")
+        .append(event.callsite() == null ? "<filtered>" : event.callsite())
+        .append('\n');
+    StackTraceElement[] stack = event.stack;
+    if (stack != null) {
+      for (int i = 1; i < stack.length && i < TIMELINE_FRAMES; i++) {
+        sb.append("              from ").append(stack[i]).append('\n');
+      }
+    }
+  }
+
+  private String relMillis(long nanos) {
+    return String.format("%.3f", (nanos - t0) / 1_000_000.0);
+  }
+
+  private static String millis(long nanos) {
+    return String.format("%.3f", nanos / 1_000_000.0);
   }
 }

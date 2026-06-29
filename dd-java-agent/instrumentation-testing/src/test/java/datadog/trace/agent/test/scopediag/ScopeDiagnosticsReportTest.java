@@ -125,6 +125,28 @@ class ScopeDiagnosticsReportTest {
     assertTrue(report.hasProblems());
   }
 
+  @Test
+  void timelineRendersResolvedContinuationEvenWithoutProblems() {
+    ContinuationRecord r = record(0, DDTraceId.from(30));
+    r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
+    r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3000));
+
+    ScopeDiagnosticsReport report = report(list(r), map());
+
+    // a clean run: the summary reports no problems ...
+    assertFalse(report.hasProblems());
+    assertTrue(report.renderSummary().contains("(none)"));
+
+    // ... but the timeline still dumps the full lineage so a graph/report can be built
+    String timeline = report.renderTimeline();
+    assertTrue(timeline.contains("#0 FINISHED"));
+    assertTrue(timeline.contains("capture"));
+    assertTrue(timeline.contains("resume"));
+    assertTrue(timeline.contains("finish"));
+    assertTrue(timeline.contains("Worker.java:42")); // callsite preserved
+    assertTrue(timeline.contains("@ pool-1")); // resume/finish thread preserved
+  }
+
   // ---- helpers -------------------------------------------------------------
 
   private static ScopeDiagnosticsReport report(

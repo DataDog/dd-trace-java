@@ -5,7 +5,8 @@ description: >
   continuation leakage", "find scope leaks", "why does this integration leak continuations",
   "debug a leaked trace / pendingReferenceCount", or when a test needed strictTraceWrites(false)
   to pass. Runs the chosen instrumentation test with the scope-continuation diagnostic enabled,
-  reads the logged problem summary, recaps the findings, and renders a DAG of the leaks.
+  reads the logged full timeline, recaps the findings, and renders a Gantt or DAG (works whether
+  or not anything leaked).
 user-invocable: true
 context: fork
 allowed-tools:
@@ -27,9 +28,10 @@ a trace alive or drops a late span — and in tests forces `strictTraceWrites(fa
 bug instead of locating it.
 
 The test-time diagnostic in `datadog.trace.agent.test.scopediag` records the lifecycle and logs a
-problem summary. This skill drives that diagnostic, reads the logged summary, recaps it in plain
-language, and renders a diagram. **The Java code no longer renders Gantt/Mermaid — you (the LLM)
-produce the diagram from the recorded data.**
+full timeline of every continuation and scope (regardless of whether anything leaked). This skill
+drives that diagnostic, reads the logged timeline, recaps it in plain language, and renders a
+diagram. **The Java code no longer renders Gantt/Mermaid — you (the LLM) produce the diagram from
+the timeline.**
 
 Background: `docs/superpowers/specs/2026-06-10-scope-continuation-leak-diagnostic-design.md`.
 Test-run conventions: `docs/how_to_test.md`.
@@ -57,8 +59,10 @@ exact file path** — you will revert it in Step 7.
 
 ## Step 3 — Run the test, capturing the diagnostic output
 
-The diagnostic does **not** write a file; it logs a problem summary at the end of each test. Run
-with output captured so you can read that summary:
+The diagnostic does **not** write a file; at the end of every tracked test it logs the **full
+timeline** (`ScopeDiagnosticsReport.renderTimeline()`) — every continuation and scope with its
+events, threads, relative timing, and callsites, regardless of whether anything leaked. Run with
+output captured:
 
 ```bash
 ./gradlew :dd-java-agent:instrumentation:<framework>-<minVersion>:test --tests '<FQCN-or-pattern>' --info 2>&1 | tee /tmp/scopediag-run.txt
@@ -71,42 +75,56 @@ If the SLF4J line is not visible in console output, read the per-test captured s
 
 ## Step 4 — Collect the diagnostic output
 
-Find the summary block emitted by `ScopeDiagnosticsReport.renderSummary()` (Grep the captured output
-for `Scope/continuation problems`). Its shape:
+Grep the captured output for `Scope/continuation timeline` — one block per test. Shape:
 
 ```
-Scope/continuation problems (N continuations, M scopes; X leaked, Y late, Z double,
+Scope/continuation timeline (N continuations, M scopes; X leaked, Y late, Z double,
     W activate-after-resolve | scopes: P never-closed, Q wrong-thread)
-  [LEAKED] #<seq> trace=<id> src=<INSTRUMENTATION|MANUAL|ITERATION|CONTEXT> captured at <Class.method(File.java:line)>
-  [NEVER_CLOSED] scope#<seq> trace=<id> src=<...> opened at <Class.method(File.java:line)>
-  ...
+
+#<seq> <STATUS> trace=<id> span=<id> "<spanName>" src=<INSTRUMENTATION|MANUAL|ITERATION|CONTEXT> [ORPHAN] [handoff] {failures}  cap->resume=<ms>  age=<ms>
+  capture   +<Δms>  @ <thread>  at <Class.method(File.java:line)>
+  resume    +<Δms>  @ <thread>  at <...>
+  finish    +<Δms>  @ <thread>  at <...>          (or cancel / DOUBLE / act-fail)
+  scope#<seq> <src> "<spanName>"  open +<Δms> @ <thread>  close +<Δms> @ <thread> (active <ms>) [handoff] {failures}
+  LEAKED   (never finished or cancelled)          (only when unresolved)
+...
+Non-continuation scopes:
+  scope#<seq> ...
 ```
 
-> **Note (current limitation):** the machine-readable JSON feed was removed, so only the
-> **problem-only** summary is available — flagged continuations/scopes with their failure set and
-> capture/open callsite. The full per-event timeline (every resume/resolve, threads, per-event
-> timestamps) is **not** in this output, so a time-accurate Gantt cannot be reconstructed. If a
-> Gantt or richer analysis is needed, a structured data feed must be re-enabled in
-> `ScopeDiagnosticsReport` first.
+Every record is listed (not just flagged ones), so you can reconstruct the full graph whether or not
+anything leaked. `+Δms` is relative to the first recorded event. (`renderSummary()` — the
+problem-only view — still backs `assertNoLeaks` failure messages, but the timeline is the feed.)
 
 ## Step 5 — Summarize ("resume")
 
 Give a plain-language recap:
 
 - The header counts (leaked / late / double / activate-after-resolve / never-closed / wrong-thread).
-- For each flagged continuation/scope: its failure set, the **capture/open callsite** (cite it as
-  `file:line`), and the `source`.
-- A one-line hypothesis: which instrumentation advice captured the continuation and where it should
-  have resolved it.
+- The dominant flow: where continuations are captured (callsite/thread) and where they're resumed /
+  resolved (thread), plus any thread handoffs.
+- For each flagged record (if any): its failure set and capture/open callsite (cite `file:line`).
+- A one-line hypothesis when there's a problem: which advice captured the continuation and where it
+  should have resolved it.
 
-## Step 6 — Visualize
+## Step 6 — Visualize (auto-pick, user may override)
 
-Render a **DAG** (the summary lacks the per-event timing a Gantt needs). Mermaid `flowchart LR`:
-a node per flagged continuation (`#seq spanName` + failure) and per flagged scope, an edge from each
-to its trace/root, and from a scope to its owning continuation when that link is evident. Color
-`LEAKED` / `DOUBLE_FINISH` / `NEVER_CLOSED` nodes red, `LATE_FINISH` / `CLOSE_WRONG_THREAD` amber.
-Annotate nodes with the callsite. If the user explicitly wants a Gantt, explain the timeline data is
-not currently emitted (see the Step 4 note) and offer to re-enable the feed.
+Build the diagram from the **timeline** (works whether or not there are leaks):
+
+- **Gantt** — when the signal is **temporal / cross-thread** (thread handoffs, late-after-root,
+  never-closed, or the user wants the time view). Mermaid `gantt`, one `section` per thread; a bar
+  per continuation from capture→resolve and per scope from open→close using the `+Δms` offsets. Mark
+  leaks / never-closed `crit` to the window end; late / wrong-thread `active`; resolved-on-time
+  `done`; capture-only points as `milestone`.
+- **DAG** — when the signal is **structural / ownership** (orphans, double-finish,
+  activate-after-resolve, or continuation→scope lineage). Mermaid `flowchart LR`: a node per
+  continuation (`#seq spanName`), its spawned scopes (linked via the nested `scope#` lines), edges
+  capture→resume→resolve labelled with thread + `+Δms`. Color leaked / double red, late amber,
+  resolved green.
+
+If there are no problems, the diagram simply shows the healthy capture→continue→resolve flow (all
+green) — that is the expected "regardless of leak" output. If unsure which shape, ask with
+`AskUserQuestion`.
 
 ## Step 7 — Revert
 
