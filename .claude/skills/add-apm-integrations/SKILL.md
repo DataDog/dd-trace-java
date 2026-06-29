@@ -63,7 +63,7 @@ pattern before writing new code. Use it as a template.
    - `testImplementation` dependencies for tests
    - `muzzle { pass { } }` directives (see Step 9)
 4. Register the new module in `settings.gradle.kts` in **alphabetical order**
-5. Register the integration name in `metadata/supported-configurations.json` (see R29 below in Step 9), or
+5. Register the integration name in `metadata/supported-configurations.json` (see "Register new integration names" in Step 9), or
    `checkInstrumenterModuleConfigurations` fails. The name in `super(...)` maps to env var
    `DD_TRACE_<NAME>_ENABLED` (`.` and `-` become `_`, uppercased — `couchbase-3` →
    `DD_TRACE_COUCHBASE_3_ENABLED`). Add a `"type": "boolean"` entry, in alphabetical order, with
@@ -71,7 +71,7 @@ pattern before writing new code. Use it as a template.
    to the module's real default — `"true"`, or `"false"` if it overrides `defaultEnabled()` (e.g.
    OpenTelemetry, Hazelcast). Declaring several names (`super("a", "b")`) means one entry each.
 
-#### R32 — Module directory name must end with a version OR an allowed suffix
+#### Module directory name must end with a version OR an allowed suffix
 
 dd-trace-java's `dd-gitlab/check-instrumentation-naming` plugin
 (`buildSrc/.../naming/InstrumentationNamingPlugin.kt`) enforces:
@@ -82,7 +82,7 @@ Pick a directory name like `$framework-$minVersion` (e.g. `okhttp-3.0`, `jedis-3
 helpers/stubs/iast support code factored out across version-specific modules, use the documented
 suffixes above.
 
-## Step 4.4 – Library category: span-creating vs context-propagation (read BEFORE picking targets)
+## Step 4.1 – Library category: span-creating vs context-propagation (read BEFORE picking targets)
 
 **Before picking instrumentation targets**, classify the library along the `target_kind` axis:
 
@@ -144,7 +144,7 @@ If the library DOES perform I/O — sends HTTP requests, runs DB queries, makes 
 
 Hybrid libraries that BOTH coordinate work AND perform I/O usually get one span-creating instrumentation for the I/O path and (optionally) one context-propagation instrumentation for the coordination path. `lettuce-5.0` is an example: there is a span-creating instrumentation for Redis commands and a separate context-propagation instrumentation for the async command queue.
 
-## Step 4.5 – Java naming consistency (CRITICAL — non-negotiable)
+## Step 4.2 – Java naming consistency (CRITICAL — non-negotiable)
 
 The filename and the declared `public class` name MUST match exactly, character-for-character including case. Java will not compile a file where they differ.
 
@@ -229,7 +229,7 @@ public String[] instrumentationNames() {
 
 The version alias (e.g. `"jedis-3.0"`) lets users enable/disable this specific version independently.
 
-#### R13 — Do not create a helper class just for CallDepthThreadLocalMap when only one type is instrumented
+#### Do not create a helper class just for CallDepthThreadLocalMap when only one type is instrumented
 
 When only one type is being instrumented, use `CallDepthThreadLocalMap` directly in the Advice class. A separate helper class that just wraps `CallDepthThreadLocalMap.incrementCallDepth` / `decrementCallDepth` adds indirection without value:
 
@@ -252,7 +252,7 @@ CallDepthThreadLocalMap.reset(GsonInstrumentation.class);
 
 A helper class is appropriate when multiple instrumentation classes share the same depth counter — use the shared sentinel class as the key in that case.
 
-#### R30 — When regenerating an existing module, preserve master's integration name convention
+#### When regenerating an existing module, preserve master's integration name convention
 
 If you are modifying or regenerating instrumentation for a library that **already exists** in `dd-java-agent/instrumentation/` on master (e.g. `commons-httpclient-2.0/`), READ the existing module's `super(...)` and `instrumentationNames()` declarations and reuse them.
 
@@ -304,7 +304,7 @@ See `docs/how_instrumentations_work.md` section "Grouping Instrumentations" for 
   - `@Advice.Thrown` — the thrown exception (exit only)
   - `@Advice.Enter` — the return value of the enter method (exit only)
 - Use `CallDepthThreadLocalMap` to guard against recursive instrumentation of the same method
-- **Instrument the single delegate method, not all overloads (R15/R16/R17)**: when a library has multiple overloads of the same operation (e.g. `executeMethod(String)`, `executeMethod(HostConfig)`, `executeMethod(HostConfig, HttpMethod)`), check if they all delegate to a single internal method. If yes, instrument ONLY the delegate — not each overload. Instrumenting all overloads without a proper reentrancy guard creates **duplicate spans per request** (one per overload in the call chain) and injects context propagation headers multiple times. Use `CallDepthThreadLocalMap` when you must instrument at a higher level.
+- **Instrument the single delegate method, not all overloads**: when a library has multiple overloads of the same operation (e.g. `executeMethod(String)`, `executeMethod(HostConfig)`, `executeMethod(HostConfig, HttpMethod)`), check if they all delegate to a single internal method. If yes, instrument ONLY the delegate — not each overload. Instrumenting all overloads without a proper reentrancy guard creates **duplicate spans per request** (one per overload in the call chain) and injects context propagation headers multiple times. Use `CallDepthThreadLocalMap` when you must instrument at a higher level.
 
 ### Span lifecycle (in order)
 
@@ -353,7 +353,7 @@ import java.nio.charset.StandardCharsets;
 String cmd = new String(commandBytes, StandardCharsets.UTF_8);
 ```
 
-#### R33 — Do NOT catch `NullPointerException`; use null-check guards instead
+#### Do NOT catch `NullPointerException`; use null-check guards instead
 
 dd-trace-java enforces SpotBugs rule `DCN_NULLPOINTER_EXCEPTION` (no NPE catch). Defensive `try { ... } catch (NullPointerException e) { ... }` patterns will fail `:spotbugsMain` and block the PR.
 
@@ -449,7 +449,7 @@ Cover all mandatory test types:
 
 ### 1. Instrumentation test (mandatory)
 
-**Write Java tests (JUnit 5), NOT Groovy/Spock (R20).** dd-trace-java policy
+**Write Java tests (JUnit 5), NOT Groovy/Spock.** dd-trace-java policy
 forbids new `.groovy` files — the PR bot (`checkNewGroovyFiles`) rejects any PR containing them.
 All new tests must go in `src/test/java/`.
 
@@ -458,7 +458,7 @@ All new tests must go in `src/test/java/`.
 - Use `TEST_WRITER.waitForTraces(N)` for assertions
 - Use `runUnderTrace("root", () -> { ... })` for synchronous code (Java lambda, not Groovy closure)
 
-**Tests must cover error/exception scenarios, not just the happy path (R14).** At minimum, add a test that exercises an exception or error condition and asserts the span's error tags (`error.type`, `error.message`, `error.stack`) are set correctly:
+**Tests must cover error/exception scenarios, not just the happy path.** At minimum, add a test that exercises an exception or error condition and asserts the span's error tags (`error.type`, `error.message`, `error.stack`) are set correctly:
 
 ```java
 // Example error test (Java)
@@ -477,7 +477,7 @@ void testExceptionSetsErrorTags() throws Exception {
 
 For tests that need a separate JVM, suffix the test class with `ForkedTest` and run via the `forkedTest` task.
 
-#### R20 — No new .groovy files (Java tests only)
+#### No new .groovy files (Java tests only)
 
 dd-trace-java forbids new `.groovy` files (bot-enforced on every PR). Write Java:
 
@@ -498,7 +498,7 @@ public class Jedis3ClientTest extends AgentInstrumentationTest {
 
 The PR bot check (`checkNewGroovyFiles`) will fail the PR if any `.groovy` file is added.
 
-#### R29 — Register new integration names in `metadata/supported-configurations.json`
+#### Register new integration names in `metadata/supported-configurations.json`
 
 Every new integration name in your module (whether from `super("foo-X.Y")` in `InstrumenterModule`, or from `instrumentationNames()` in the decorator) MUST have a corresponding entry in `metadata/supported-configurations.json` at the repo root. The `dd-gitlab/config-inversion-linter` CI job fails otherwise.
 
@@ -542,7 +542,7 @@ If the decorator's `instrumentationNames()` returns a shared name (e.g. `"sparkj
 
 **How to discover whether entries are missing**: after writing the instrumentation, search `metadata/supported-configurations.json` for each name used in `super(...)` and `instrumentationNames()`. If any is absent, add it. Do not assume master already has it — version-specific integration names (e.g. `sparkjava-2.3` vs `sparkjava-2.4`) are not interchangeable.
 
-#### R28 — compileOnly and testImplementation may use different versions — explain why
+#### compileOnly and testImplementation may use different versions — explain why
 
 When `compileOnly` and `testImplementation` use different versions of the same library, add a
 comment that explains the specific API or class that requires the higher version, and why.
@@ -624,7 +624,7 @@ muzzle {
 }
 ```
 
-#### R31 — Do NOT use `assertInverse = true` unless the declared min is the actual minimum compatible version
+#### Do NOT use `assertInverse = true` unless the declared min is the actual minimum compatible version
 
 The `assertInverse = true` directive tells muzzle to auto-test versions below the declared minimum and assert they fail. If your instrumentation is actually compatible with versions below the declared minimum (a common case when only ONE of several instrumentation classes requires the new feature), this auto-assertion will fail with:
 
@@ -651,7 +651,7 @@ Add `assertInverse = true` only when you've empirically verified the min via loc
 
 **Background**: a typical greenfield generation produces a sync instrumentation class (works on older versions) and an async instrumentation class (requires a newer API). The agent picks the higher version as the declared min for muzzle, which is conservative for compileOnly. But `assertInverse = true` then auto-tests a lower version with ONLY the sync class hooks active, and that passes — creating the failure.
 
-#### R18 — Muzzle range must exclude incompatible major versions
+#### Muzzle range must exclude incompatible major versions
 
 If the library you are instrumenting has a major version break where a newer major version
 is published under the **same** `group:module` coordinates but with a completely different API
@@ -712,7 +712,7 @@ Use the `latestDepTestLibrary` helper in `build.gradle` to pin the latest availa
 ./gradlew :dd-java-agent:instrumentation:$framework-$version:latestDepTest
 ```
 
-**`latestDepTestImplementation` version range must match the instrumented range (R19).** If your module instruments version `2.x`, use `2+` as the version constraint, not `3+`:
+**`latestDepTestImplementation` version range must match the instrumented range.** If your module instruments version `2.x`, use `2+` as the version constraint, not `3+`:
 
 ```groovy
 // WRONG — latestDep tests against 3.x but the module only instruments 2.x
