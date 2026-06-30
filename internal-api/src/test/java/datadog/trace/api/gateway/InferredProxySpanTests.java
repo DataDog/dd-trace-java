@@ -5,15 +5,20 @@ import static datadog.trace.api.gateway.InferredProxySpan.PROXY_START_TIME_MS;
 import static datadog.trace.api.gateway.InferredProxySpan.PROXY_SYSTEM;
 import static datadog.trace.api.gateway.InferredProxySpan.fromContext;
 import static datadog.trace.api.gateway.InferredProxySpan.fromHeaders;
+import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.HTTP_SERVER_DECORATOR;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_USER_AGENT;
 import static java.util.Collections.emptyMap;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.of;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -577,6 +582,40 @@ class InferredProxySpanTests {
   }
 
   @Test
+  @DisplayName("optional API Gateway metadata should exercise ARN tag computation")
+  void testStartWithOptionalApiGatewayMetadata() {
+    Map<String, String> headers = new HashMap<>();
+    headers.put(PROXY_START_TIME_MS, "12345");
+    headers.put(PROXY_SYSTEM, "aws-apigateway");
+    headers.put(InferredProxySpan.PROXY_HTTP_METHOD, "GET");
+    headers.put(InferredProxySpan.PROXY_PATH, "/api/users/123");
+    headers.put(InferredProxySpan.PROXY_API_ID, "api-id");
+    headers.put(InferredProxySpan.PROXY_REGION, "us-east-1");
+    headers.put(InferredProxySpan.PROXY_ACCOUNT_ID, "123456789012");
+
+    InferredProxySpan inferredProxySpan = fromHeaders(headers);
+    assertNotNull(inferredProxySpan.start(null));
+
+    inferredProxySpan.finish();
+  }
+
+  @Test
+  @DisplayName("computeArn should support known proxy systems and reject unknown input")
+  void testComputeArn() {
+    InferredProxySpan inferredProxySpan = fromHeaders(null);
+
+    assertEquals(
+        "arn:aws:apigateway:us-east-1::/restapis/api-id",
+        inferredProxySpan.computeArn("aws-apigateway", "us-east-1", "api-id"));
+    assertEquals(
+        "arn:aws:apigateway:us-east-1::/apis/api-id",
+        inferredProxySpan.computeArn("aws-httpapi", "us-east-1", "api-id"));
+    assertNull(inferredProxySpan.computeArn("unknown", "us-east-1", "api-id"));
+    assertNull(inferredProxySpan.computeArn("aws-apigateway", null, "api-id"));
+    assertNull(inferredProxySpan.computeArn("aws-apigateway", "us-east-1", null));
+  }
+
+  @Test
   @DisplayName("Multiple InferredProxySpan instances should finish independently")
   void testMultipleProxySpansFinishIndependently() {
     // Create first proxy span
@@ -616,6 +655,7 @@ class InferredProxySpanTests {
     // Replace the real (noop) inferred span with a mock we can verify against. Drive through
     // the public finish() API so the test stays valid if the internal copy-helper is renamed.
     AgentSpan mockInferredSpan = mock(AgentSpan.class);
+    // Keep this reflected field name in sync with InferredProxySpan.span.
     Field spanField = InferredProxySpan.class.getDeclaredField("span");
     spanField.setAccessible(true);
     spanField.set(inferredProxySpan, mockInferredSpan);
@@ -631,5 +671,53 @@ class InferredProxySpanTests {
 
     verify(mockInferredSpan).setTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN, "scan-uuid");
     verify(mockInferredSpan).setTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST, "test-uuid");
+  }
+
+  @Test
+  @DisplayName("finish should phase child calls and publish after service-entry completion")
+  void testFinishPhasesChildCallAndPublishesOnServiceEntry() throws Exception {
+    InferredProxySpan inferredProxySpan = fromHeaders(validHeaders());
+
+    AgentSpan inferredSpan = mock(AgentSpan.class);
+    inferredProxySpan.span = inferredSpan;
+
+    AgentSpan childSpan = mock(AgentSpan.class);
+    when(childSpan.getTag("_dd.appsec.enabled")).thenReturn(Boolean.TRUE);
+    when(childSpan.getTag("_dd.appsec.json")).thenReturn("{\"triggers\":[]}");
+
+    AgentSpan serviceEntrySpan = mock(AgentSpan.class);
+    when(serviceEntrySpan.getHttpStatusCode()).thenReturn((short) 503);
+    when(serviceEntrySpan.getTag(HTTP_USER_AGENT)).thenReturn("curl/8.0");
+    when(serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN))
+        .thenReturn("scan-uuid");
+    when(serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST))
+        .thenReturn("test-uuid");
+
+    inferredProxySpan.registerServiceEntrySpan(serviceEntrySpan);
+
+    inferredProxySpan.finish(childSpan);
+    inferredProxySpan.finish(childSpan);
+    verify(inferredSpan).setMetric("_dd.appsec.enabled", 1);
+    verify(inferredSpan).setTag("_dd.appsec.json", "{\"triggers\":[]}");
+    verify(inferredSpan, times(1)).phasedFinish();
+    verify(inferredSpan, never()).finish();
+    verify(inferredSpan, never()).publish();
+
+    inferredProxySpan.finish(serviceEntrySpan);
+
+    verify(inferredSpan).setHttpStatusCode(503);
+    verify(inferredSpan).setError(true, HTTP_SERVER_DECORATOR);
+    verify(inferredSpan).setTag(HTTP_USER_AGENT, "curl/8.0");
+    verify(inferredSpan).setTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN, "scan-uuid");
+    verify(inferredSpan).setTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST, "test-uuid");
+    verify(inferredSpan).publish();
+    verify(inferredSpan, never()).finish();
+  }
+
+  private static Map<String, String> validHeaders() {
+    Map<String, String> headers = new HashMap<>();
+    headers.put(PROXY_START_TIME_MS, "12345");
+    headers.put(PROXY_SYSTEM, "aws-apigateway");
+    return headers;
   }
 }

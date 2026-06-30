@@ -1,5 +1,7 @@
 package com.datadog.appsec.sca;
 
+import static com.datadog.appsec.sca.ScaBytecodeTestUtils.bytecodeOf;
+import static com.datadog.appsec.sca.ScaBytecodeTestUtils.loadModified;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -9,9 +11,7 @@ import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.CveSnapshot
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.DependencySnapshot;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
 import datadog.trace.bootstrap.appsec.sca.ScaReachabilityCallback;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -197,25 +197,5 @@ class ScaRealLibraryBytecodeTest {
       String vulnId, String artifact, String version, String dotClass, String method) {
     return new ScaMethodCallbackInjector.MethodCallbackSpec(
         vulnId, artifact, version, dotClass, method);
-  }
-
-  private static byte[] bytecodeOf(Class<?> clazz) throws Exception {
-    String path = clazz.getName().replace('.', '/') + ".class";
-    try (InputStream is = clazz.getClassLoader().getResourceAsStream(path)) {
-      assertNotNull(is, "Cannot load bytecode for " + clazz.getName());
-      ByteArrayOutputStream buf = new ByteArrayOutputStream();
-      byte[] chunk = new byte[4096];
-      int n;
-      while ((n = is.read(chunk)) != -1) buf.write(chunk, 0, n);
-      return buf.toByteArray();
-    }
-  }
-
-  private static Class<?> loadModified(byte[] bytecode) {
-    return new ClassLoader(ScaRealLibraryBytecodeTest.class.getClassLoader()) {
-      Class<?> define() {
-        return defineClass(null, bytecode, 0, bytecode.length);
-      }
-    }.define();
   }
 }
