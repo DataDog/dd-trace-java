@@ -129,15 +129,22 @@ class ScaCveDatabaseTest {
   }
 
   @Test
-  void scaEntryExposesImmutableListsAndMatchesVersions() {
+  void scaEntryMatchesVersions() {
     List<String> expectedRanges = singletonList("< 2.0.0");
-    List<String> ranges = new ArrayList<>(expectedRanges);
     List<ScaSymbol> symbols = singletonList(new ScaSymbol("com/example/Foo", "op"));
-    ScaEntry entry = new ScaEntry("GHSA-entry", "com.example:lib", ranges, symbols);
+    ScaEntry entry = new ScaEntry("GHSA-entry", "com.example:lib", expectedRanges, symbols);
 
     assertEquals(expectedRanges, entry.versionRanges());
     assertTrue(entry.isVersionVulnerable("1.9.9"));
     assertFalse(entry.isVersionVulnerable("2.0.0"));
+  }
+
+  @Test
+  void scaEntryExposesImmutableLists() {
+    List<String> ranges = singletonList("< 2.0.0");
+    List<ScaSymbol> symbols = singletonList(new ScaSymbol("com/example/Foo", "op"));
+    ScaEntry entry = new ScaEntry("GHSA-entry", "com.example:lib", ranges, symbols);
+
     assertThrows(UnsupportedOperationException.class, () -> entry.versionRanges().add("< 3.0.0"));
     assertThrows(
         UnsupportedOperationException.class,
