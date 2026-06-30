@@ -22,8 +22,10 @@ include:
 
 stages:
   - build
-  - shared-pipeline-system-tests
+  - shared-pipeline-build
+  - shared-pipeline-test
   - publish
+  - shared-pipeline-publish
   - java-spring-petclinic-parallel
   - java-spring-petclinic-parallel-slo
   - java-startup-parallel
@@ -33,7 +35,6 @@ stages:
   - java-dacapo-parallel
   - java-dacapo-parallel-slo
   - java-post-pr-comment
-  - shared-pipeline
   - benchmarks
   - tests
   - tests-arm64
@@ -1326,7 +1327,6 @@ requirements_json_test:
     REQUIREMENTS_ALLOW_JSON_PATH: "metadata/requirements-allow.json"
 
 package-oci:
-  stage: shared-pipeline-system-tests
   needs: [ build ]
 
 override_verify_maven_central:
@@ -1402,33 +1402,14 @@ verify_maven_central_deployment:
       done
 
 publishing-gate:
-  stage: publish
   needs:
     - job: verify_maven_central_deployment
       optional: true # Required for releases only
 
 configure_system_tests:
-  stage: shared-pipeline-system-tests
   variables:
     SYSTEM_TESTS_REF: "main" # system tests are pinned on release branches only
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,docker-ssi,lib-injection"
-
-# Restage from default `shared-pipeline` to local `shared-pipeline-system-tests`
-# Run before the `publish` stage so that Maven/GitHub publishing can depend on system-tests results
-system_tests:
-  stage: shared-pipeline-system-tests
-
-oci-internal-publish:
-  stage: shared-pipeline-system-tests
-
-oci-internal-test-publish:
-  stage: shared-pipeline-system-tests
-
-kubernetes-injection-test-ecr-publish:
-  stage: shared-pipeline-system-tests
-
-create-multiarch-lib-injection-image:
-  stage: shared-pipeline-system-tests
 
 create_key:
   stage: generate-signing-key
