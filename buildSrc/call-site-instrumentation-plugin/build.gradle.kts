@@ -70,13 +70,8 @@ tasks {
 
   shadowJar {
     duplicatesStrategy = DuplicatesStrategy.FAIL
-    mergeServiceFiles()
-    // Service descriptors are intentionally merged by mergeServiceFiles(); let
-    // duplicate service entries reach that transformer instead of failing first.
-    filesMatching("META-INF/services/**") {
-      duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    }
-    filesNotMatching("META-INF/services/**") {
+    // Let's ignore license/notice since Let's ignore
+    filesMatching(listOf("META-INF/LICENSE*", "META-INF/NOTICE*")) {
       duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
     manifest {
