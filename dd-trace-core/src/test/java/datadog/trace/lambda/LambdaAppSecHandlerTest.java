@@ -1260,16 +1260,20 @@ public class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     when(headerDoneCallback.apply(any())).thenReturn(new Flow.ResultFlow<>(null));
 
     CallbackProvider mockCallbackProvider = mock(CallbackProvider.class);
-    when(mockCallbackProvider.getCallback(EVENTS.requestStarted())).thenReturn(requestStartedCallback);
-    when(mockCallbackProvider.getCallback(EVENTS.requestMethodUriRaw())).thenReturn(methodUriCallback);
+    when(mockCallbackProvider.getCallback(EVENTS.requestStarted()))
+        .thenReturn(requestStartedCallback);
+    when(mockCallbackProvider.getCallback(EVENTS.requestMethodUriRaw()))
+        .thenReturn(methodUriCallback);
     when(mockCallbackProvider.getCallback(EVENTS.requestHeader())).thenReturn(null);
     when(mockCallbackProvider.getCallback(EVENTS.requestClientSocketAddress())).thenReturn(null);
-    when(mockCallbackProvider.getCallback(EVENTS.requestHeaderDone())).thenReturn(headerDoneCallback);
+    when(mockCallbackProvider.getCallback(EVENTS.requestHeaderDone()))
+        .thenReturn(headerDoneCallback);
     when(mockCallbackProvider.getCallback(EVENTS.requestPathParams())).thenReturn(null);
     when(mockCallbackProvider.getCallback(EVENTS.requestBodyProcessed())).thenReturn(null);
 
     AgentTracer.TracerAPI mockTracer = mock(AgentTracer.TracerAPI.class);
-    when(mockTracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(mockCallbackProvider);
+    when(mockTracer.getCallbackProvider(RequestContextSlot.APPSEC))
+        .thenReturn(mockCallbackProvider);
     AgentTracer.forceRegister(mockTracer);
 
     LambdaAppSecHandler.processRequestStart(event);
