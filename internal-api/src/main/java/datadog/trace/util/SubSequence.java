@@ -81,10 +81,19 @@ public final class SubSequence implements CharSequence {
     if (beginIndex != endIndex) builder.append(this.str, beginIndex, endIndex);
   }
 
-  /** Returns the hash code as <code>backingStr.substr(beginIndex, endIndex).hashCode()</code> */
+  /**
+   * The same value as {@code toString().hashCode()} -- the {@link String} hash polynomial over this
+   * window -- but computed directly over the backing characters so hashing a view does not
+   * materialize a substring. Stays consistent with {@link #equals}: a view, its content-equal
+   * {@code String}, and an equal-content view all share this hash.
+   */
   @Override
   public int hashCode() {
-    return this.toString().hashCode();
+    int h = 0;
+    for (int i = this.beginIndex; i < this.endIndex; ++i) {
+      h = 31 * h + this.str.charAt(i);
+    }
+    return h;
   }
 
   /**
