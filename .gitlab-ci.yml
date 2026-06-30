@@ -1042,6 +1042,7 @@ test_debugger:
   extends: .test_job
   variables:
     GRADLE_TARGET: ":debuggerTest"
+    GRADLE_PARAMS: "-PcheckCoverage"
     CACHE_TYPE: "base"
     DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "tip" version is LTS v25
   parallel:
@@ -1051,6 +1052,7 @@ test_debugger_arm64:
   extends: .test_job_arm64
   variables:
     GRADLE_TARGET: ":debuggerTest"
+    GRADLE_PARAMS: "-PcheckCoverage"
     CACHE_TYPE: "base"
   parallel:
     matrix: *test_matrix
