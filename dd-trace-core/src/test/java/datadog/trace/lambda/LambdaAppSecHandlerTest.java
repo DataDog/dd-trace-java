@@ -15,15 +15,18 @@ import static org.mockito.Mockito.when;
 import datadog.trace.api.Config;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.core.DDCoreJavaSpecification;
@@ -1197,6 +1200,80 @@ public class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     AgentSpanContext result = LambdaAppSecHandler.processRequestStart(mockStream);
 
     assertNull(result); // Should return null on IO error
+  }
+
+  // ============================================================================
+  // TemporaryRequestContext Tests
+  // ============================================================================
+
+  @Test
+  void temporaryRequestContextProvidesAppSecDataViaGetData() {
+    Object mockAppSecContext = new Object();
+    RequestContext ctx = captureTemporaryRequestContext(mockAppSecContext);
+
+    assertNotNull(ctx);
+    assertEquals(mockAppSecContext, ctx.getData(RequestContextSlot.APPSEC));
+    assertNull(ctx.getData(RequestContextSlot.CI_VISIBILITY));
+  }
+
+  @Test
+  void temporaryRequestContextNoOpMethodsReturnExpectedDefaults() throws Exception {
+    RequestContext ctx = captureTemporaryRequestContext(new Object());
+
+    assertNotNull(ctx);
+    assertEquals(TraceSegment.NoOp.INSTANCE, ctx.getTraceSegment());
+    assertNull(ctx.getBlockResponseFunction());
+    assertNull(ctx.getOrCreateMetaStructTop("key", k -> new Object()));
+    assertNull(ctx.getClientIpAddressData());
+    // verify no-op methods don't throw
+    ctx.setBlockResponseFunction(mock(BlockResponseFunction.class));
+    ctx.setClientIpAddressData(mock(ClientIpAddressData.class));
+    ctx.close();
+  }
+
+  private RequestContext captureTemporaryRequestContext(Object appSecContext) {
+    String eventJson =
+        "{\n"
+            + "  \"path\": \"/test\",\n"
+            + "  \"requestContext\": {\n"
+            + "    \"httpMethod\": \"GET\"\n"
+            + "  }\n"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    RequestContext[] captured = {null};
+
+    Supplier<Flow<Object>> requestStartedCallback = mock(Supplier.class);
+    when(requestStartedCallback.get()).thenReturn(new Flow.ResultFlow<>(appSecContext));
+
+    TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>> methodUriCallback =
+        mock(TriFunction.class);
+    doAnswer(
+            inv -> {
+              captured[0] = inv.getArgument(0);
+              return new Flow.ResultFlow<>(null);
+            })
+        .when(methodUriCallback)
+        .apply(any(), any(), any());
+
+    Function<RequestContext, Flow<Void>> headerDoneCallback = mock(Function.class);
+    when(headerDoneCallback.apply(any())).thenReturn(new Flow.ResultFlow<>(null));
+
+    CallbackProvider mockCallbackProvider = mock(CallbackProvider.class);
+    when(mockCallbackProvider.getCallback(EVENTS.requestStarted())).thenReturn(requestStartedCallback);
+    when(mockCallbackProvider.getCallback(EVENTS.requestMethodUriRaw())).thenReturn(methodUriCallback);
+    when(mockCallbackProvider.getCallback(EVENTS.requestHeader())).thenReturn(null);
+    when(mockCallbackProvider.getCallback(EVENTS.requestClientSocketAddress())).thenReturn(null);
+    when(mockCallbackProvider.getCallback(EVENTS.requestHeaderDone())).thenReturn(headerDoneCallback);
+    when(mockCallbackProvider.getCallback(EVENTS.requestPathParams())).thenReturn(null);
+    when(mockCallbackProvider.getCallback(EVENTS.requestBodyProcessed())).thenReturn(null);
+
+    AgentTracer.TracerAPI mockTracer = mock(AgentTracer.TracerAPI.class);
+    when(mockTracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(mockCallbackProvider);
+    AgentTracer.forceRegister(mockTracer);
+
+    LambdaAppSecHandler.processRequestStart(event);
+    return captured[0];
   }
 
   // ============================================================================
