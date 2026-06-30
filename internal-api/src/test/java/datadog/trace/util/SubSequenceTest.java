@@ -148,4 +148,63 @@ public class SubSequenceTest {
     assertFalse(braceCall.startsWith("call")); // not the prefix
     assertFalse(braceCall.startsWith("{calls and more")); // prefix longer than sequence
   }
+
+  @Test
+  public void equalsString() {
+    // "call" sits at [6, 10) inside the backing string, flanked by other text.
+    SubSequence call = SubSequence.of("xxxxx call yyyyy", 6, 10);
+    assertTrue(call.equals("call"));
+    assertFalse(call.equals("CALL")); // case-sensitive
+    assertFalse(call.equals("cal")); // shorter
+    assertFalse(call.equals("calls")); // longer (would overshoot endIndex)
+    assertFalse(call.equals((Object) null));
+
+    // equals(Object) routes Strings through the region-compare fast path.
+    assertTrue(call.equals((Object) "call"));
+    // ... and still honors genuine CharSequence comparisons.
+    assertTrue(call.equals((Object) new StringBuilder("call")));
+    assertFalse(call.equals((Object) Integer.valueOf(4)));
+  }
+
+  @Test
+  public void equalsIgnoreCaseString() {
+    SubSequence call = SubSequence.of("xxxxx CaLl yyyyy", 6, 10);
+    assertTrue(call.equalsIgnoreCase("call"));
+    assertTrue(call.equalsIgnoreCase("CALL"));
+    assertFalse(call.equalsIgnoreCase("cal"));
+    assertFalse(call.equalsIgnoreCase("calls"));
+    assertFalse(call.equalsIgnoreCase(null)); // matches String.equalsIgnoreCase(null)
+  }
+
+  @Test
+  public void startsWithString() {
+    SubSequence view = SubSequence.of("xx{call}xx", 2, 8); // "{call}"
+    assertTrue(view.startsWith("{"));
+    assertTrue(view.startsWith("{call"));
+    assertTrue(view.startsWith("{call}"));
+    assertFalse(view.startsWith("call"));
+    assertFalse(view.startsWith("{call}x")); // overshoots endIndex even though backing has 'x'
+    assertTrue(view.startsWith("")); // empty prefix
+  }
+
+  @Test
+  public void endsWithString() {
+    SubSequence view = SubSequence.of("xx{call}xx", 2, 8); // "{call}"
+    assertTrue(view.endsWith("}"));
+    assertTrue(view.endsWith("call}"));
+    assertTrue(view.endsWith("{call}"));
+    assertFalse(view.endsWith("call"));
+    assertFalse(view.endsWith("x{call}")); // undershoots beginIndex even though backing has 'x'
+    assertTrue(view.endsWith("")); // empty suffix
+  }
+
+  @Test
+  public void indexOfString() {
+    SubSequence view = SubSequence.of("aa-bc-bc-aa", 3, 8); // "bc-bc"
+    assertEquals(0, view.indexOf("bc")); // window-relative offset of the first occurrence
+    assertEquals(2, view.indexOf("-bc")); // non-zero relative offset
+    assertEquals(2, view.indexOf("-"));
+    assertEquals(-1, view.indexOf("aa")); // present in backing string but outside the window
+    assertEquals(-1, view.indexOf("bc-bc-")); // overshoots endIndex
+  }
 }

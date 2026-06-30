@@ -92,9 +92,62 @@ public final class SubSequence implements CharSequence {
    */
   @Override
   public boolean equals(Object obj) {
-    if (!(obj instanceof CharSequence)) return false;
+    // Route Strings to the region-compare fast path; fall back to the charAt loop only for
+    // genuine non-String CharSequences.
+    if (obj instanceof String) return this.equals((String) obj);
+    if (obj instanceof CharSequence) return this.equals((CharSequence) obj);
 
-    return this.equals((CharSequence) obj);
+    return false;
+  }
+
+  /**
+   * Equivalent to {@code toString().equals(other)} -- compares this window against the whole {@code
+   * other} String with no substring materialized. Delegates to {@link String#regionMatches} so it
+   * reuses the JDK's backing-array compare rather than a per-char loop.
+   */
+  public final boolean equals(String other) {
+    return other != null
+        && other.length() == this.length()
+        && this.str.regionMatches(this.beginIndex, other, 0, other.length());
+  }
+
+  /**
+   * Case-insensitive counterpart of {@link #equals(String)}. Like {@link
+   * String#equalsIgnoreCase(String)}, a {@code null} argument is {@code false} rather than an
+   * error.
+   */
+  public final boolean equalsIgnoreCase(String other) {
+    return other != null
+        && other.length() == this.length()
+        && this.str.regionMatches(true, this.beginIndex, other, 0, other.length());
+  }
+
+  /**
+   * Equivalent to {@code toString().startsWith(prefix)}. The window guard ({@code prefix.length()
+   * <= length()}) keeps the delegated read inside {@code [beginIndex, endIndex)}.
+   */
+  public final boolean startsWith(String prefix) {
+    return prefix.length() <= this.length() && this.str.startsWith(prefix, this.beginIndex);
+  }
+
+  /**
+   * Equivalent to {@code toString().endsWith(suffix)}. Implemented as a prefix match anchored at
+   * {@code endIndex - suffix.length()} so the read stays inside this window.
+   */
+  public final boolean endsWith(String suffix) {
+    int suffixLen = suffix.length();
+    return suffixLen <= this.length() && this.str.startsWith(suffix, this.endIndex - suffixLen);
+  }
+
+  /**
+   * Equivalent to {@code toString().indexOf(needle)}: the offset of the first full occurrence of
+   * {@code needle} within this window relative to the window start, or {@code -1} if it does not
+   * occur fully in range. {@link String#indexOf(String, int)} returns the earliest occurrence at or
+   * after {@code beginIndex}, so a single bound check against {@code endIndex} is exact.
+   */
+  public final int indexOf(String needle) {
+    int idx = this.str.indexOf(needle, this.beginIndex);
+    return (idx >= 0 && idx + needle.length() <= this.endIndex) ? idx - this.beginIndex : -1;
   }
 
   public final boolean equals(CharSequence that) {
