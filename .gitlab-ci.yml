@@ -5,19 +5,19 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: 'main'
+    ref: 'sarahchen6/ensure-master-pipeline'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
-    ref: 'main'
+    ref: 'sarahchen6/ensure-master-pipeline'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-startup-parallel.yml'
-    ref: 'main'
+    ref: 'sarahchen6/ensure-master-pipeline'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-dacapo-parallel.yml'
-    ref: 'main'
+    ref: 'sarahchen6/ensure-master-pipeline'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-post-pr-comment.yml'
-    ref: 'main'
+    ref: 'sarahchen6/ensure-master-pipeline'
   - local: ".gitlab/java-benchmark-configs.yml"
 
 stages:
@@ -45,6 +45,7 @@ variables:
   # Gitlab runner features; see https://docs.gitlab.com/runner/configuration/feature-flags.html
   # Fold and time all script sections
   FF_SCRIPT_SECTIONS: 1
+  APM_SDKS_BENCHMARKS_BRANCH: 'sarahchen6/ensure-master-pipeline'
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
