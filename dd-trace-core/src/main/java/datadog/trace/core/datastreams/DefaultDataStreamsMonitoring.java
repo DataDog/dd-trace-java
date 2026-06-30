@@ -1,6 +1,7 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
+import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
@@ -309,6 +310,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     PathwayContext pathwayContext = span.spanContext().getPathwayContext();
     if (pathwayContext != null) {
       pathwayContext.setCheckpoint(context, this::add);
+      // Surface the pathway hash on the span so consume-side spans are correlatable too. The
+      // propagator only tags it on inject (produce); without this, consumers that checkpoint
+      // without injecting (e.g. RabbitMQ) would have no pathway.hash, unlike the JS/Python tracers
+      // which tag on every checkpoint.
+      if (pathwayContext.getHash() != 0) {
+        span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
+      }
     }
   }
 
