@@ -159,11 +159,23 @@ public class SubSequenceTest {
     assertFalse(call.equals("calls")); // longer (would overshoot endIndex)
     assertFalse(call.equals((Object) null));
 
-    // equals(Object) routes Strings through the region-compare fast path.
+    // equals(Object) routes a String through the region-compare fast path...
     assertTrue(call.equals((Object) "call"));
-    // ... and still honors genuine CharSequence comparisons.
+    // ...and any other CharSequence (incl. another SubSequence) through contentEquals.
     assertTrue(call.equals((Object) new StringBuilder("call")));
+    assertTrue(call.equals((Object) SubSequence.of("xxxxx call yyyyy", 6, 10)));
     assertFalse(call.equals((Object) Integer.valueOf(4)));
+  }
+
+  @Test
+  public void contentEqualsCharSequence() {
+    SubSequence call = SubSequence.of("xxxxx call yyyyy", 6, 10); // "call"
+    assertTrue(call.contentEquals("call")); // String is a CharSequence
+    assertTrue(call.contentEquals(new StringBuilder("call")));
+    assertTrue(call.contentEquals(SubSequence.of("a call b", 2, 6)));
+    assertFalse(call.contentEquals("CALL")); // case-sensitive
+    assertFalse(call.contentEquals("cal")); // length mismatch
+    assertFalse(call.contentEquals(null));
   }
 
   @Test
@@ -209,6 +221,15 @@ public class SubSequenceTest {
   }
 
   @Test
+  public void lastIndexOfString() {
+    SubSequence view = SubSequence.of("aa-bc-bc-aa", 3, 8); // "bc-bc"
+    assertEquals(3, view.lastIndexOf("bc")); // last "bc" -> relative 3
+    assertEquals(2, view.lastIndexOf("-"));
+    assertEquals(-1, view.lastIndexOf("aa")); // outside the window on both ends
+    assertEquals(-1, view.lastIndexOf("bc-bc-")); // overshoots endIndex
+  }
+
+  @Test
   public void startsWithChar() {
     SubSequence view = SubSequence.of("xx{call}xx", 2, 8); // "{call}"
     assertTrue(view.startsWith('{'));
@@ -233,5 +254,14 @@ public class SubSequenceTest {
     assertEquals(1, view.indexOf('c'));
     assertEquals(2, view.indexOf('-'));
     assertEquals(-1, view.indexOf('a')); // present in backing string but outside the window
+  }
+
+  @Test
+  public void lastIndexOfChar() {
+    SubSequence view = SubSequence.of("aa-bc-bc-aa", 3, 8); // "bc-bc"
+    assertEquals(3, view.lastIndexOf('b')); // last 'b' -> relative 3
+    assertEquals(4, view.lastIndexOf('c'));
+    assertEquals(2, view.lastIndexOf('-'));
+    assertEquals(-1, view.lastIndexOf('a')); // outside the window on both ends
   }
 }

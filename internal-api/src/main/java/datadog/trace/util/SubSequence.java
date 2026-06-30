@@ -88,14 +88,15 @@ public final class SubSequence implements CharSequence {
   }
 
   /**
-   * Also handles String comparisons this.equals(backingStr.substr(beginIndex, endIndex)) is true
+   * Dispatches on the argument's runtime type: a {@code String} takes the {@link #equals(String)}
+   * region-compare fast path; any other {@code CharSequence} is compared via {@link
+   * #contentEquals(CharSequence)}. So {@code this.equals(backingStr.substring(beginIndex,
+   * endIndex))} is true, and two views with equal content are equal.
    */
   @Override
   public boolean equals(Object obj) {
-    // Route Strings to the region-compare fast path; fall back to the charAt loop only for
-    // genuine non-String CharSequences.
     if (obj instanceof String) return this.equals((String) obj);
-    if (obj instanceof CharSequence) return this.equals((CharSequence) obj);
+    if (obj instanceof CharSequence) return this.contentEquals((CharSequence) obj);
 
     return false;
   }
@@ -109,6 +110,24 @@ public final class SubSequence implements CharSequence {
     return other != null
         && other.length() == this.length()
         && this.str.regionMatches(this.beginIndex, other, 0, other.length());
+  }
+
+  /**
+   * Equivalent to {@code toString().contentEquals(that)}: true when {@code that} has the same
+   * length and characters as this window. The general char-by-char comparison for any {@code
+   * CharSequence}; prefer {@link #equals(String)} when the argument is known to be a {@code
+   * String}.
+   */
+  public final boolean contentEquals(CharSequence that) {
+    if (that == null) return false;
+
+    int len = this.length();
+    if (len != that.length()) return false;
+
+    for (int i = 0; i < len; ++i) {
+      if (this.charAt(i) != that.charAt(i)) return false;
+    }
+    return true;
   }
 
   /**
@@ -175,16 +194,25 @@ public final class SubSequence implements CharSequence {
     return (idx >= 0 && idx < this.endIndex) ? idx - this.beginIndex : -1;
   }
 
-  public final boolean equals(CharSequence that) {
-    int thisLen = this.length();
-    int thatLen = that.length();
+  /**
+   * Equivalent to {@code toString().lastIndexOf(needle)}: the offset of the last full occurrence of
+   * {@code needle} within this window relative to the window start, or {@code -1} if it does not
+   * occur fully in range. Searches back from {@code endIndex - needle.length()} -- the latest start
+   * whose end still fits the window -- so the lower bound is a single check against {@code
+   * beginIndex}.
+   */
+  public final int lastIndexOf(String needle) {
+    int idx = this.str.lastIndexOf(needle, this.endIndex - needle.length());
+    return (idx >= this.beginIndex) ? idx - this.beginIndex : -1;
+  }
 
-    if (thisLen != thatLen) return false;
-
-    for (int i = 0; i < Math.min(this.length(), that.length()); ++i) {
-      if (this.charAt(i) != that.charAt(i)) return false;
-    }
-    return true;
+  /**
+   * Equivalent to {@code toString().lastIndexOf(c)}: the offset of the last {@code c} within this
+   * window relative to the window start, or {@code -1} if it does not occur in range.
+   */
+  public final int lastIndexOf(char c) {
+    int idx = this.str.lastIndexOf(c, this.endIndex - 1);
+    return (idx >= this.beginIndex) ? idx - this.beginIndex : -1;
   }
 
   /**
