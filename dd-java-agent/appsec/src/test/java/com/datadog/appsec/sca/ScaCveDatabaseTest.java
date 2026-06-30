@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.StringReader;
-import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
