@@ -25,7 +25,6 @@ import static org.mockito.Mockito.when;
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -602,21 +601,18 @@ class InferredProxySpanTests {
 
   @Test
   @DisplayName("computeArn should support known proxy systems and reject unknown input")
-  void testComputeArn() throws Exception {
+  void testComputeArn() {
     InferredProxySpan inferredProxySpan = fromHeaders(null);
-    Method computeArn =
-        InferredProxySpan.class.getDeclaredMethod(
-            "computeArn", String.class, String.class, String.class);
-    computeArn.setAccessible(true);
 
     assertEquals(
         "arn:aws:apigateway:us-east-1::/restapis/api-id",
-        computeArn.invoke(inferredProxySpan, "aws-apigateway", "us-east-1", "api-id"));
+        inferredProxySpan.computeArn("aws-apigateway", "us-east-1", "api-id"));
     assertEquals(
         "arn:aws:apigateway:us-east-1::/apis/api-id",
-        computeArn.invoke(inferredProxySpan, "aws-httpapi", "us-east-1", "api-id"));
-    assertNull(computeArn.invoke(inferredProxySpan, "unknown", "us-east-1", "api-id"));
-    assertNull(computeArn.invoke(inferredProxySpan, "aws-apigateway", null, "api-id"));
+        inferredProxySpan.computeArn("aws-httpapi", "us-east-1", "api-id"));
+    assertNull(inferredProxySpan.computeArn("unknown", "us-east-1", "api-id"));
+    assertNull(inferredProxySpan.computeArn("aws-apigateway", null, "api-id"));
+    assertNull(inferredProxySpan.computeArn("aws-apigateway", "us-east-1", null));
   }
 
   @Test
@@ -659,6 +655,7 @@ class InferredProxySpanTests {
     // Replace the real (noop) inferred span with a mock we can verify against. Drive through
     // the public finish() API so the test stays valid if the internal copy-helper is renamed.
     AgentSpan mockInferredSpan = mock(AgentSpan.class);
+    // Keep this reflected field name in sync with InferredProxySpan.span.
     Field spanField = InferredProxySpan.class.getDeclaredField("span");
     spanField.setAccessible(true);
     spanField.set(inferredProxySpan, mockInferredSpan);
@@ -682,9 +679,7 @@ class InferredProxySpanTests {
     InferredProxySpan inferredProxySpan = fromHeaders(validHeaders());
 
     AgentSpan inferredSpan = mock(AgentSpan.class);
-    Field spanField = InferredProxySpan.class.getDeclaredField("span");
-    spanField.setAccessible(true);
-    spanField.set(inferredProxySpan, inferredSpan);
+    inferredProxySpan.span = inferredSpan;
 
     AgentSpan childSpan = mock(AgentSpan.class);
     when(childSpan.getTag("_dd.appsec.enabled")).thenReturn(Boolean.TRUE);
