@@ -744,7 +744,6 @@ muzzle-dep-report:
   needs: []
   variables:
     <<: *tier_m_variables
-    # Note: ibm8 omitted as there is no arm64 image is published upstream.
     DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/
     GRADLE_PARAMS: "-PskipFlakyTests"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -757,6 +756,7 @@ muzzle-dep-report:
     - if: $testJvm =~ $DEFAULT_TEST_JVMS
       when: manual
       allow_failure: true
+      # Note: `ibm8` and `oracle8` omitted — no arm64 images published upstream.
     - if: '$NON_DEFAULT_JVMS == "true" && $testJvm != "ibm8" && $testJvm != "oracle8"'
       when: manual
       allow_failure: true
