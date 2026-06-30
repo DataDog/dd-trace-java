@@ -2,7 +2,6 @@ import static DbType.MYSQL
 import static DbType.ORACLE
 import static DbType.POSTGRESQL
 import static DbType.SQLSERVER
-import static datadog.environment.OperatingSystem.architecture
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
@@ -117,7 +116,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     // MS SQL Server has no arm64 images.
     return !(db == SQLSERVER
       && OperatingSystem.isLinux()
-      && architecture().isArm64())
+      && OperatingSystem.architecture().isArm64())
   }
 
   def peerConnectionProps(DbType db){
