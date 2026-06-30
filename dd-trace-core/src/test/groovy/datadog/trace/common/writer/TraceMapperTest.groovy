@@ -20,7 +20,7 @@ class TraceMapperTest extends DDCoreSpecification {
     DDSpan span = (DDSpan) tracer.buildSpan("datadog", null).withTag("service.name", "my-service")
       .withTag("elasticsearch.version", "7.0").start()
     span.setBaggageItem("baggage", "item")
-    span.context().setDataTop("mydata", "[1,2,3]")
+    span.spanContext().setDataTop("mydata", "[1,2,3]")
     def trace = [span]
 
     when:

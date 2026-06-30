@@ -10,11 +10,11 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -36,7 +36,7 @@ public class DDEvpProxyApi extends RemoteApi {
 
   public static class DDEvpProxyApiBuilder {
     private String apiVersion = DEFAULT_INTAKE_VERSION;
-    @NonNull private TrackType trackType = TrackType.NOOP;
+    @Nonnull private TrackType trackType = TrackType.NOOP;
     private long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_INTAKE_TIMEOUT);
 
     HttpUrl agentUrl = null;
@@ -44,7 +44,7 @@ public class DDEvpProxyApi extends RemoteApi {
     String evpProxyEndpoint;
     boolean compressionEnabled;
 
-    public DDEvpProxyApiBuilder trackType(@NonNull final TrackType trackType) {
+    public DDEvpProxyApiBuilder trackType(@Nonnull final TrackType trackType) {
       this.trackType = trackType;
       return this;
     }

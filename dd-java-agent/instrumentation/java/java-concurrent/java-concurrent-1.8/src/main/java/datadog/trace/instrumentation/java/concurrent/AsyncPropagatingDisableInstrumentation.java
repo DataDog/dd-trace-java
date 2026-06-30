@@ -93,7 +93,9 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "jdk.internal.net.http.HttpClientImpl",
       LETTUCE_HANDSHAKE_HANDLER,
       "io.netty.util.concurrent.GlobalEventExecutor",
-      "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor"
+      "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor",
+      "com.linecorp.armeria.client.HttpClientFactory",
+      "com.linecorp.armeria.client.HttpChannelPool"
     };
   }
 
@@ -199,6 +201,14 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     transformer.applyAdvice(namedOneOf("sendAsync").and(isDeclaredBy(JAVA_HTTP_CLIENT)), advice);
     transformer.applyAdvice(
         named("channelRegistered").and(isDeclaredBy(named(LETTUCE_HANDSHAKE_HANDLER))), advice);
+    // armeria runs its own codec/pipeline, so the active request span captured during connection
+    // pool creation and channel connect will have no consumers.
+    transformer.applyAdvice(
+        named("pool").and(isDeclaredBy(named("com.linecorp.armeria.client.HttpClientFactory"))),
+        advice);
+    transformer.applyAdvice(
+        named("connect").and(isDeclaredBy(named("com.linecorp.armeria.client.HttpChannelPool"))),
+        advice);
   }
 
   public static class DisableAsyncAdvice {

@@ -21,12 +21,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.util.AgentThreadFactory;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class TracingSession extends SessionWrapper implements CqlSession {
   private static final ExecutorService EXECUTOR_SERVICE =

@@ -57,7 +57,7 @@ public class ServiceNameCollector {
    * Get the list of unique services deduplicated by case. There is no locking on the addService map
    * so, the method is not thread safe.
    *
-   * @return
+   * @return the list of unique services, or {@code null} if none have been collected
    */
   @Nullable
   public List<String> getServices() {

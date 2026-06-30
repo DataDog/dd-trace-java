@@ -714,7 +714,7 @@ class OtlpTraceProtoTest {
             TRACER.startSpan(
                 "test",
                 spec.operationName,
-                spans.get(spec.parentIndex).context(),
+                spans.get(spec.parentIndex).spanContext(),
                 spec.startMicros);
       } else {
         agentSpan = TRACER.startSpan("test", spec.operationName, spec.startMicros);
@@ -756,7 +756,7 @@ class OtlpTraceProtoTest {
       for (LinkSpec link : spec.links) {
         agentSpan.addLink(
             SpanLink.from(
-                spans.get(link.targetIndex).context(),
+                spans.get(link.targetIndex).spanContext(),
                 link.traceFlags,
                 link.traceState,
                 link.attributes));

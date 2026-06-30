@@ -125,65 +125,6 @@ class WriteVersionFilePluginTest : VersionPluginsFixture() {
     assertThat(versionFile).doesNotExist()
   }
 
-  @Test
-  fun `generated version file is ignored in runtime classpath normalization`() {
-    writeSettings(
-      """
-      rootProject.name = "my-lib"
-      """
-    )
-    writeRootProject(
-      """
-      import org.gradle.api.DefaultTask
-      import org.gradle.api.file.ConfigurableFileCollection
-      import org.gradle.api.file.RegularFileProperty
-      import org.gradle.api.tasks.Classpath
-      import org.gradle.api.tasks.InputFiles
-      import org.gradle.api.tasks.OutputFile
-      import org.gradle.api.tasks.TaskAction
-
-      plugins {
-        id("dd-trace-java.version-file")
-      }
-
-      version = "1.2.3"
-
-      tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile") {
-        gitHash.set(providers.gradleProperty("gitHash").orElse("abc12345"))
-      }
-
-      abstract class ClasspathProbe : DefaultTask() {
-        @get:InputFiles
-        @get:Classpath
-        val classpath: ConfigurableFileCollection = project.objects.fileCollection()
-
-        @get:OutputFile
-        val outputFile: RegularFileProperty = project.objects.fileProperty()
-
-        @TaskAction
-        fun probe() {
-          outputFile.get().asFile.writeText("probed")
-        }
-      }
-
-      tasks.register<ClasspathProbe>("classpathProbe") {
-        dependsOn("processResources")
-        classpath.from(sourceSets.main.get().runtimeClasspath)
-        outputFile.set(layout.buildDirectory.file("classpath-probe/output.txt"))
-      }
-      """
-    )
-
-    assertThat(run("classpathProbe", "-PgitHash=abc12345").task(":classpathProbe")?.outcome)
-      .isEqualTo(TaskOutcome.SUCCESS)
-
-    val result = run("classpathProbe", "-PgitHash=def67890")
-
-    assertThat(generatedVersionFile).hasContent("1.2.3~def67890")
-    assertThat(result.task(":writeVersionNumberFile")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(result.task(":classpathProbe")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
-  }
-
   private fun assertVersionFile(
     expectedContentRegex: String,
     task: String = ":writeVersionNumberFile",

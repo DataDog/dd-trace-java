@@ -49,7 +49,7 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "9.5.1" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "9.6.0" # must match gradle-wrapper.properties
   MASS_READ_URL: "https://mass-read.us1.ddbuild.io"
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
@@ -242,8 +242,9 @@ default:
       EOF
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
-    # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
-    - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    # Apache Maven Wrapper supports MVNW_REPOURL for repository-manager downloads:
+    # https://maven.apache.org/tools/wrapper/#Using_a_Maven_Repository_Manager
+    - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
     # Route Gradle distribution download through MASS pull-through cache
     - |
       mass_read_host="${MASS_READ_URL#https://}"
@@ -336,7 +337,7 @@ build:
   script:
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
     - ./gradlew --version
-    - ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar -PskipTests $GRADLE_ARGS
+    - ./gradlew clean :dd-java-agent:shadowJar :dd-java-agent:check :dd-trace-api:jar :dd-trace-ot:shadowJar -PskipTests -x spotlessCheck $GRADLE_ARGS
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
     - echo "BUILD_JOB_ID=$CI_JOB_ID" >> build.env
@@ -784,7 +785,14 @@ muzzle-dep-report:
     # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
     - sudo chown -R 1001:1001 .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
-    - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    # Apache Maven Wrapper supports MVNW_REPOURL for repository-manager downloads:
+    # https://maven.apache.org/tools/wrapper/#Using_a_Maven_Repository_Manager
+    - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
+    # Route Gradle distribution download through MASS pull-through cache
+    - |
+      mass_read_host="${MASS_READ_URL#https://}"
+      mass_read_host="${mass_read_host%/}"
+      sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
     - *normalize_node_index
     - *prepare_test_env
     # Disable CDS in forked JVMs to avoid SIGSEGVs on Linux arm64.
@@ -1107,6 +1115,7 @@ test_smoke_graalvm:
   needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
@@ -1119,6 +1128,7 @@ test_smoke_graalvm_arm64:
   extends: .test_job_arm64
   tags: [ "arch:arm64" ]
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"

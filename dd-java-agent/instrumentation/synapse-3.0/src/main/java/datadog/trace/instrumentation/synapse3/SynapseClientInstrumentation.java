@@ -87,7 +87,7 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
 
       AgentSpan span;
       if (null != parentSpan) {
-        span = startSpan(SYNAPSE_CLIENT.toString(), SYNAPSE_REQUEST, parentSpan.context());
+        span = startSpan(SYNAPSE_CLIENT.toString(), SYNAPSE_REQUEST, parentSpan.spanContext());
       } else {
         span = startSpan(SYNAPSE_CLIENT.toString(), SYNAPSE_REQUEST);
       }

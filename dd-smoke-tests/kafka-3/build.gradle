@@ -12,7 +12,7 @@ testJvmConstraints {
 description = 'Kafka 3.x Smoke Tests.'
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'bootJar'
     artifactPath = 'libs/kafka-3-smoketest.jar'
     sysProperty = 'datadog.smoketest.springboot.shadowJar.path'

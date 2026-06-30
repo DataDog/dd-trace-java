@@ -151,7 +151,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onMessage(final ReqT message) {
       final AgentSpan msgSpan =
-          startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE, this.span.context())
+          startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE, this.span.spanContext())
               .setTag("message.type", message.getClass().getName());
       DECORATE.afterStart(msgSpan);
       try (AgentScope scope = activateSpan(msgSpan)) {
