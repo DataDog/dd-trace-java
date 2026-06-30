@@ -1088,10 +1088,16 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertNotNull(ctx);
     assertEquals(mockAppSecContext, ctx.getData(RequestContextSlot.APPSEC));
     assertNull(ctx.getData(RequestContextSlot.CI_VISIBILITY));
+    assertNull(ctx.getData(RequestContextSlot.IAST));
   }
 
   @Test
-  void temporaryRequestContextNoOpMethodsReturnExpectedDefaults() throws Exception {
+  void temporaryRequestContextIsNotCreatedWhenAppSecContextIsNull() {
+    assertNull(captureTemporaryRequestContext(null));
+  }
+
+  @Test
+  void temporaryRequestContextNoOpMethodsReturnExpectedDefaults() throws IOException {
     RequestContext ctx = captureTemporaryRequestContext(new Object());
 
     assertNotNull(ctx);
