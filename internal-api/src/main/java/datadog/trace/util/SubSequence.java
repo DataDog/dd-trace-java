@@ -131,12 +131,28 @@ public final class SubSequence implements CharSequence {
   }
 
   /**
+   * Equivalent to {@code length() > 0 && charAt(0) == c}, the single-character {@link
+   * #startsWith(String)}.
+   */
+  public final boolean startsWith(char c) {
+    return this.beginIndex < this.endIndex && this.str.charAt(this.beginIndex) == c;
+  }
+
+  /**
    * Equivalent to {@code toString().endsWith(suffix)}. Implemented as a prefix match anchored at
    * {@code endIndex - suffix.length()} so the read stays inside this window.
    */
   public final boolean endsWith(String suffix) {
     int suffixLen = suffix.length();
     return suffixLen <= this.length() && this.str.startsWith(suffix, this.endIndex - suffixLen);
+  }
+
+  /**
+   * Equivalent to {@code length() > 0 && charAt(length() - 1) == c}, the single-character {@link
+   * #endsWith(String)}.
+   */
+  public final boolean endsWith(char c) {
+    return this.beginIndex < this.endIndex && this.str.charAt(this.endIndex - 1) == c;
   }
 
   /**
@@ -148,6 +164,15 @@ public final class SubSequence implements CharSequence {
   public final int indexOf(String needle) {
     int idx = this.str.indexOf(needle, this.beginIndex);
     return (idx >= 0 && idx + needle.length() <= this.endIndex) ? idx - this.beginIndex : -1;
+  }
+
+  /**
+   * Equivalent to {@code toString().indexOf(c)}: the offset of the first {@code c} within this
+   * window relative to the window start, or {@code -1} if it does not occur in range.
+   */
+  public final int indexOf(char c) {
+    int idx = this.str.indexOf(c, this.beginIndex);
+    return (idx >= 0 && idx < this.endIndex) ? idx - this.beginIndex : -1;
   }
 
   public final boolean equals(CharSequence that) {

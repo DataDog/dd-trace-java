@@ -207,4 +207,31 @@ public class SubSequenceTest {
     assertEquals(-1, view.indexOf("aa")); // present in backing string but outside the window
     assertEquals(-1, view.indexOf("bc-bc-")); // overshoots endIndex
   }
+
+  @Test
+  public void startsWithChar() {
+    SubSequence view = SubSequence.of("xx{call}xx", 2, 8); // "{call}"
+    assertTrue(view.startsWith('{'));
+    assertFalse(view.startsWith('c')); // 'c' is at offset 1, not the start
+    assertFalse(view.startsWith('x')); // backing char before beginIndex, outside the window
+    assertFalse(SubSequence.EMPTY.startsWith('x')); // empty window
+  }
+
+  @Test
+  public void endsWithChar() {
+    SubSequence view = SubSequence.of("xx{call}xx", 2, 8); // "{call}"
+    assertTrue(view.endsWith('}'));
+    assertFalse(view.endsWith('l')); // 'l' is one before the end
+    assertFalse(view.endsWith('x')); // backing char at endIndex, outside the window
+    assertFalse(SubSequence.EMPTY.endsWith('x')); // empty window
+  }
+
+  @Test
+  public void indexOfChar() {
+    SubSequence view = SubSequence.of("aa-bc-bc-aa", 3, 8); // "bc-bc"
+    assertEquals(0, view.indexOf('b')); // window-relative offset of the first occurrence
+    assertEquals(1, view.indexOf('c'));
+    assertEquals(2, view.indexOf('-'));
+    assertEquals(-1, view.indexOf('a')); // present in backing string but outside the window
+  }
 }
