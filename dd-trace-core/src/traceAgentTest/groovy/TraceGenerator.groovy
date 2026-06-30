@@ -1,6 +1,7 @@
 import static datadog.trace.api.ProcessTags.tagsForSerialization
 import static datadog.trace.api.TagMap.fromMap
 import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
 import static java.lang.Thread.currentThread
 import static java.util.Collections.emptyList
 
@@ -13,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.Metadata
 import datadog.trace.core.MetadataConsumer
+import datadog.trace.core.SpanKindFilter
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 
@@ -174,6 +176,11 @@ class TraceGenerator {
     }
 
     @Override
+    CharSequence getServiceNameSource() {
+      return null
+    }
+
+    @Override
     CharSequence getOperationName() {
       return operationName
     }
@@ -298,6 +305,12 @@ class TraceGenerator {
       return false
     }
 
+    @Override
+    boolean isKind(SpanKindFilter filter) {
+      Object kind = unsafeGetTag(SPAN_KIND)
+      return filter.matches(kind == null ? null : kind.toString())
+    }
+
     Map<String, String> getBaggage() {
       return metadata.getBaggage()
     }
@@ -392,6 +405,16 @@ class TraceGenerator {
           value = tags.get(tag)
       }
       return value as U
+    }
+
+    @Override
+    <U> U unsafeGetTag(CharSequence name, U defaultValue) {
+      return getTag(name, defaultValue)
+    }
+
+    @Override
+    <U> U unsafeGetTag(CharSequence name) {
+      return getTag(name)
     }
 
     @Override
