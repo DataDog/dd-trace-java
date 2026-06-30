@@ -1,6 +1,7 @@
 package datadog.trace.lambda;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -1097,7 +1098,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void temporaryRequestContextNoOpMethodsReturnExpectedDefaults() throws IOException {
+  void temporaryRequestContextNoOpMethodsReturnExpectedDefaults() {
     RequestContext ctx = captureTemporaryRequestContext(new Object());
 
     assertNotNull(ctx);
@@ -1105,10 +1106,9 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertNull(ctx.getBlockResponseFunction());
     assertNull(ctx.getOrCreateMetaStructTop("key", k -> new Object()));
     assertNull(ctx.getClientIpAddressData());
-    // verify no-op methods don't throw
-    ctx.setBlockResponseFunction(mock(BlockResponseFunction.class));
-    ctx.setClientIpAddressData(mock(ClientIpAddressData.class));
-    ctx.close();
+    assertDoesNotThrow(() -> ctx.setBlockResponseFunction(mock(BlockResponseFunction.class)));
+    assertDoesNotThrow(() -> ctx.setClientIpAddressData(mock(ClientIpAddressData.class)));
+    assertDoesNotThrow(ctx::close);
   }
 
   private RequestContext captureTemporaryRequestContext(Object appSecContext) {
