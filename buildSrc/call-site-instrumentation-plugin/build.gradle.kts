@@ -69,10 +69,13 @@ tasks {
   }
 
   shadowJar {
-    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    duplicatesStrategy = DuplicatesStrategy.FAIL
     mergeServiceFiles()
     // Service descriptors are intentionally merged by mergeServiceFiles(); let
     // duplicate service entries reach that transformer instead of failing first.
+    filesMatching("META-INF/services/**") {
+      duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
     filesNotMatching("META-INF/services/**") {
       duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
