@@ -90,12 +90,11 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
 
     // Fix for Linux arm64 ByteBuddy error:
     // "Could not self-attach to current VM using external process"
-    if (project.isLinuxArm64()) {
-      conditionalJvmArgs(
-        JavaVersion.VERSION_1_9,
-        listOf("-Djdk.attach.allowAttachSelf=true")
-      )
-    }
+    conditionalJvmArgs(
+      JavaVersion.VERSION_1_9,
+      listOf("-Djdk.attach.allowAttachSelf=true"),
+      project.providers.provider { project.isLinuxArm64() }
+    )
   }
 
   /**
