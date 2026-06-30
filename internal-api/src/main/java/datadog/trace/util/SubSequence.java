@@ -117,6 +117,37 @@ public final class SubSequence implements CharSequence {
     return Strings.regionContains(this.str, this.beginIndex, this.endIndex, needle);
   }
 
+  /** Case-insensitive content comparison; mirrors {@link String#equalsIgnoreCase(String)}. */
+  public final boolean equalsIgnoreCase(CharSequence that) {
+    int len = this.length();
+    if (that == null || len != that.length()) return false;
+
+    for (int i = 0; i < len; ++i) {
+      char a = this.charAt(i);
+      char b = that.charAt(i);
+      if (a != b) {
+        // Same two-way fold String.regionMatches(ignoreCase) uses (handles locale edge cases).
+        char au = Character.toUpperCase(a);
+        char bu = Character.toUpperCase(b);
+        if (au != bu && Character.toLowerCase(au) != Character.toLowerCase(bu)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  /** True if this sub-sequence begins with {@code prefix} (content comparison, no allocation). */
+  public final boolean startsWith(CharSequence prefix) {
+    int prefixLen = prefix.length();
+    if (prefixLen > this.length()) return false;
+
+    for (int i = 0; i < prefixLen; ++i) {
+      if (this.charAt(i) != prefix.charAt(i)) return false;
+    }
+    return true;
+  }
+
   @Override
   public String toString() {
     String cached = this.cachedSubstr;

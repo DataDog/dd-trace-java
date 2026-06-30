@@ -81,11 +81,16 @@ workflow:
     - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue\//'
       when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
+      variables:
+        SYSTEM_TESTS_RUN_ALL_VMS: "true"
       auto_cancel:
         on_new_commit: none
     - if: '$CI_COMMIT_BRANCH =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       auto_cancel:
         on_new_commit: none
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      variables:
+        SYSTEM_TESTS_RUN_ALL_VMS: "true"
     - when: always
 
 .test_matrix: &test_matrix
@@ -1238,6 +1243,7 @@ deploy_to_maven_central:
     # Do not deploy release candidate versions
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
+      allow_failure: true
     - when: manual
       allow_failure: true
   script:

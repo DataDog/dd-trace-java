@@ -29,7 +29,7 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
   @MethodSource("testFindFirstWordArguments")
   void testFindFirstWord(String scenario, String sql, String firstWord) {
     // when
-    String word = SQLCommenter.getFirstWord(sql);
+    String word = SQLCommenter.getFirstWord(sql).toString();
 
     // then
     assertEquals(firstWord, word);
