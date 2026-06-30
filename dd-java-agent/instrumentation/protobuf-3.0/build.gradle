@@ -1,4 +1,5 @@
-import datadog.gradle.plugin.HostPlatform
+import static datadog.gradle.plugin.BuildPlatformExtensionsKt.isLinuxArm64
+import static datadog.gradle.plugin.BuildPlatformExtensionsKt.isMacArm64
 
 plugins {
   id 'com.google.protobuf' version '0.10.0'
@@ -20,7 +21,7 @@ muzzle {
 protobuf {
   protoc {
     // There is no macOS arm64 support for protoc 3.0.0, so require Rosetta.
-    if (HostPlatform.isMacArm64()) {
+    if (isMacArm64(project)) {
       artifact = "com.google.protobuf:protoc:3.0.0:osx-x86_64"
     } else {
       artifact = "com.google.protobuf:protoc:3.0.0"
@@ -29,7 +30,7 @@ protobuf {
 }
 
 // TODO: protobuf supports Linux arm64 since `3.12.0`, but it is not source-compatible with 3.0.0
-if (HostPlatform.isLinuxArm64()) {
+if (isLinuxArm64(project)) {
   tasks.matching {
     it.name in [
       "extractTestProto",

@@ -1,6 +1,6 @@
 package datadog.gradle.plugin.testJvmConstraints
 
-import datadog.gradle.plugin.HostPlatform
+import datadog.gradle.plugin.isLinuxArm64
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension.Companion.TEST_JVM_CONSTRAINTS
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
@@ -90,7 +90,7 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
 
     // Fix for Linux arm64 ByteBuddy error:
     // "Could not self-attach to current VM using external process"
-    if (HostPlatform.isLinuxArm64()) {
+    if (project.isLinuxArm64()) {
       conditionalJvmArgs(
         JavaVersion.VERSION_1_9,
         listOf("-Djdk.attach.allowAttachSelf=true")

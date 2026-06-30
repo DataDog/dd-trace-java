@@ -1,6 +1,6 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
-import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.ci.testAggregate
+import datadog.gradle.plugin.isLinuxArm64
 
 plugins {
   kotlin("jvm") version libs.versions.kotlin.plugin apply false
@@ -90,8 +90,6 @@ allprojects {
     dependsOn(tasks.withType<AbstractCompile>())
   }
 
-  val isLinuxArm64 = HostPlatform.isLinuxArm64()
-
   tasks.configureEach {
     if (this is JavaForkOptions) {
       maxHeapSize = System.getProperty("datadog.forkedMaxHeapSize")
@@ -101,7 +99,7 @@ allprojects {
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp"
       )
-      if (isLinuxArm64) {
+      if (isLinuxArm64()) {
         // Disable CDS to avoid SIGSEGVs on Linux arm64.
         jvmArgs("-Xshare:off")
       }
@@ -109,7 +107,7 @@ allprojects {
   }
 
   // Disable CDS to avoid SIGSEGVs on Linux arm64.
-  if (isLinuxArm64) {
+  if (isLinuxArm64()) {
     tasks.withType<JavaCompile>().configureEach {
       options.forkOptions.jvmArgs?.add("-Xshare:off")
     }

@@ -1,9 +1,9 @@
-import datadog.gradle.plugin.HostPlatform
+import static datadog.gradle.plugin.BuildPlatformExtensionsKt.isLinuxArm64
 
 // Fix for JVM crashes (SIGSEGV / SIGABRT, exit 134) when the
 // org.gradle.playframework `compilePlayRoutes` Worker Daemon starts up on Linux arm64.
 // No-op on every other host/arch combination.
-if (HostPlatform.isLinuxArm64()) {
+if (isLinuxArm64(project)) {
   tasks.named("compilePlayRoutes").configure { task ->
     // Find the class in the hierarchy that declares the private `workerExecutor` field.
     def workerExecutorField = null
