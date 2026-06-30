@@ -407,6 +407,8 @@ publish-artifacts-to-s3:
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
   stage: publish
   needs: [ build ]
+  before_script:
+    - yum install -y -q git unzip zip
   script:
     - source upstream.env
     - export VERSION="${UPSTREAM_TRACER_VERSION%~*}" # remove ~githash from the end of version
@@ -416,14 +418,27 @@ publish-artifacts-to-s3:
     - aws s3 cp workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar
     - aws s3 cp workspace/dd-trace-api/build/libs/dd-trace-api-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-api.jar
     - aws s3 cp workspace/dd-trace-ot/build/libs/dd-trace-ot-${VERSION}.jar s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-trace-ot.jar
+    - export AGENT_JAR="${CI_PROJECT_DIR}/workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar"
+    - export PATCHED_JAR="${CI_PROJECT_DIR}/workspace/dd-java-agent/build/libs/dd-java-agent-profiler-SNAPSHOT.jar"
+    - git clone --depth 1 https://github.com/DataDog/java-profiler.git java-profiler
+    - curl -fLo ddprof.jar https://github.com/DataDog/java-profiler/releases/latest/download/ddprof.jar
+    - DD_AGENT_JAR="${AGENT_JAR}" DDPROF_JAR="$(pwd)/ddprof.jar" OUTPUT_JAR="${PATCHED_JAR}" bash java-profiler/utils/patch-dd-java-agent.sh
+    - aws s3 cp "${PATCHED_JAR}" s3://dd-trace-java-builds/${CI_COMMIT_REF_NAME}/dd-java-agent-profiler-SNAPSHOT.jar
+    - aws s3 cp "${PATCHED_JAR}" s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent-profiler-SNAPSHOT.jar
     - |
-      cat << EOF > links.json 
+      cat << EOF > links.json
         {
           "S3 Links": [
             {
               "external_link": {
                 "label": "Public Link to dd-java-agent.jar",
                 "url": "https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent.jar"
+              }
+            },
+            {
+              "external_link": {
+                "label": "Public Link to dd-java-agent-profiler-SNAPSHOT.jar",
+                "url": "https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent-profiler-SNAPSHOT.jar"
               }
             }
           ]
@@ -433,38 +448,6 @@ publish-artifacts-to-s3:
     reports:
       annotations:
         - links.json
-
-
-
-publish-profiler-patched-agent-to-s3:
-  image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
-  stage: publish
-  needs: [ build ]
-  dependencies: [ build ]
-  timeout: 10 minutes
-  before_script:
-    - yum install -y -q git unzip zip
-  script:
-    - grep -Pq '^[A-Z_]+=\S*$' upstream.env || { echo "upstream.env has unexpected content"; exit 1; }
-    - source upstream.env
-    - export VERSION="${UPSTREAM_TRACER_VERSION%~*}"
-    - export AGENT_JAR="${CI_PROJECT_DIR}/workspace/dd-java-agent/build/libs/dd-java-agent-${VERSION}.jar"
-    - export PATCHED_JAR="${CI_PROJECT_DIR}/workspace/dd-java-agent/build/libs/dd-java-agent-profiler-SNAPSHOT.jar"
-    - git clone --depth 1 https://github.com/DataDog/java-profiler.git java-profiler
-    - curl -fLo ddprof.jar https://github.com/DataDog/java-profiler/releases/latest/download/ddprof.jar
-    - DD_AGENT_JAR="${AGENT_JAR}" DDPROF_JAR="$(pwd)/ddprof.jar" OUTPUT_JAR="${PATCHED_JAR}" bash java-profiler/utils/patch-dd-java-agent.sh
-    - SAFE_REF=$(printf '%s' "${CI_COMMIT_REF_NAME}" | tr -c 'A-Za-z0-9._-' '_')
-    - aws s3 cp "${PATCHED_JAR}" "s3://dd-trace-java-builds/${SAFE_REF}/dd-java-agent-profiler-SNAPSHOT.jar"
-    - aws s3 cp "${PATCHED_JAR}" "s3://dd-trace-java-builds/${CI_PIPELINE_ID}/dd-java-agent-profiler-SNAPSHOT.jar"
-    - |
-      printf '{"S3 Links":[{"external_link":{"label":"Public Link to dd-java-agent-profiler-SNAPSHOT.jar","url":"https://s3.us-east-1.amazonaws.com/dd-trace-java-builds/%s/dd-java-agent-profiler-SNAPSHOT.jar"}}]}' \
-        "${CI_PIPELINE_ID}" > links-profiler.json
-  artifacts:
-    paths:
-      - workspace/dd-java-agent/build/libs/dd-java-agent-profiler-SNAPSHOT.jar
-    reports:
-      annotations:
-        - links-profiler.json
 
 
 spotless:
