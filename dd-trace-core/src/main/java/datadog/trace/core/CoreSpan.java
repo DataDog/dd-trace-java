@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Map;
 
 public interface CoreSpan<T extends CoreSpan<T>> {
