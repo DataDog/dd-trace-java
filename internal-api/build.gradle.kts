@@ -55,6 +55,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.EndpointCheckpointerHolder",
   "datadog.trace.api.iast.IastAdvice.Kind",
   "datadog.trace.api.UserEventTrackingMode",
+  // Lazy holder idiom; exercised indirectly via TagMap.EMPTY
+  "datadog.trace.api.OptimizedTagMap.EmptyHolder",
   // These are almost fully abstract classes so nothing to test
   "datadog.trace.api.profiling.RecordingData",
   "datadog.trace.api.appsec.AppSecEventTracker",
