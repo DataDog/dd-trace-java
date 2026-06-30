@@ -14,8 +14,7 @@ class EventBridgeInterceptorTest {
         EventBridgeInterceptor.buildDataStreamsTags(
             "arn:aws:events:us-east-1:123456789012:event-bus/test-bus", "order.created");
 
-    assertEquals(
-        DataStreamsTags.DIRECTION_TAG + ":out", tags.getDirection());
+    assertEquals(DataStreamsTags.DIRECTION_TAG + ":out", tags.getDirection());
     assertEquals(DataStreamsTags.EXCHANGE_TAG + ":test-bus", tags.getExchange());
     assertEquals(DataStreamsTags.TOPIC_TAG + ":order.created", tags.getTopic());
     assertEquals(DataStreamsTags.TYPE_TAG + ":eventbridge", tags.getType());
