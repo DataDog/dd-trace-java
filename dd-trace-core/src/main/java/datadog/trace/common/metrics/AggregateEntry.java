@@ -112,7 +112,10 @@ final class AggregateEntry extends Hashtable.Entry {
   private int topLevelCount;
   private long duration;
 
-  /** Field-bearing constructor. Package-private so {@link AggregateEntryTestUtils} can build expected entries. */
+  /**
+   * Field-bearing constructor. Package-private so {@link AggregateEntryTestUtils} can build
+   * expected entries.
+   */
   AggregateEntry(
       long keyHash,
       UTF8BytesString resource,

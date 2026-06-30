@@ -6,12 +6,12 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 
 /**
- * Cardinality-capped UTF8 encoder and cache for one peer-tag name ({@code value} &rarr;
- * {@code UTF8("tag:value")}).
+ * Cardinality-capped UTF8 encoder and cache for one peer-tag name ({@code value} &rarr; {@code
+ * UTF8("tag:value")}).
  *
  * <p>Same per-cycle budget and prior-cycle reuse as {@link PropertyCardinalityHandler}. The
- * difference is that the cached output is the pre-encoded {@code "tag:value"} string, so a
- * parallel raw-value keys table is needed alongside the UTF8 values table.
+ * difference is that the cached output is the pre-encoded {@code "tag:value"} string, so a parallel
+ * raw-value keys table is needed alongside the UTF8 values table.
  */
 final class TagCardinalityHandler {
   // Upper bound prevents int overflow in the (cardinalityLimit * 2 - 1) capacity calculation.
