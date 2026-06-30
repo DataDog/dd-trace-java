@@ -66,8 +66,10 @@ public final class SubSequence implements CharSequence {
 
   @Override
   public SubSequence subSequence(int start, int end) {
+    // start/end are offsets in THIS view's coordinates (CharSequence contract), so the absolute
+    // end is beginIndex + end -- NOT beginIndex + start + end (which overshoots by `start`).
     int newBeginIndex = this.beginIndex + start;
-    int newEndIndex = this.beginIndex + start + end;
+    int newEndIndex = this.beginIndex + end;
 
     return new SubSequence(this.str, newBeginIndex, newEndIndex);
   }

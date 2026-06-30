@@ -125,6 +125,24 @@ public class SubSequenceTest {
   }
 
   @Test
+  public void subSequenceOfView() {
+    // Instance subSequence(start, end): start/end are in THIS view's coordinates (CharSequence
+    // contract), regardless of where the view sits in the backing string.
+    SubSequence view = SubSequence.of("abcdefghij", 2, 8); // "cdefgh"
+    SubSequence mid = view.subSequence(1, 4); // chars [1, 4) of "cdefgh" -> "def"
+    assertEquals("def", mid.toString());
+    assertEquals(3, mid.beginIndex()); // absolute begin = 2 + 1
+    assertEquals(6, mid.endIndex()); // absolute end = 2 + 4 (NOT 2 + 1 + 4)
+
+    // full window and empty are exact
+    assertEquals("cdefgh", view.subSequence(0, view.length()).toString());
+    assertEquals("", view.subSequence(2, 2).toString());
+
+    // nested: subSequence of a non-zero-start view stays correct (the case the old bug broke worst)
+    assertEquals("ef", mid.subSequence(1, 3).toString()); // chars [1, 3) of "def" -> "ef"
+  }
+
+  @Test
   public void equalsString() {
     // "call" sits at [6, 10) inside the backing string, flanked by other text.
     SubSequence call = SubSequence.of("xxxxx call yyyyy", 6, 10);
