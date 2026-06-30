@@ -243,6 +243,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.util.TempLocationManager.*",
   // constants only
   "datadog.trace.bootstrap.instrumentation.api.ServiceNameSources",
+  // POJO, covered by test suites in other gradle submodules (e.g. AIGuardInternalTests, HttpServerDecoratorTest)
+  "datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData",
 )
 
 extra["excludedClassesBranchCoverage"] = listOf(
