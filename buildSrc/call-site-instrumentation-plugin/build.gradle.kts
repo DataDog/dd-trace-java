@@ -1,7 +1,7 @@
 plugins {
   java
   id("com.diffplug.spotless") version "8.4.0"
-  id("com.gradleup.shadow") version "9.4.2"
+  alias(libs.plugins.shadow)
 }
 
 java {

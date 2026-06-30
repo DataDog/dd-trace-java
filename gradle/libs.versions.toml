@@ -6,6 +6,7 @@ develocity = "4.4.1"
 forbiddenapis = "3.10"
 gradle-tooling-api = "8.14.5"
 jsr305 = "3.0.2"
+shadow = "9.4.2"
 spotbugs_annotations = "4.9.8"
 
 # DataDog libs and forks
@@ -190,3 +191,6 @@ junit-platform = ["junit-platform-launcher"]
 mockito = ["mokito-core", "mokito-junit-jupiter", "bytebuddy", "bytebuddyagent"]
 groovy = ["groovy", "groovy-json"]
 spock = ["spock-core", "objenesis"]
+
+[plugins]
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
