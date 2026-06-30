@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -116,6 +117,38 @@ class HashtableD2Test {
     assertSame(seeded, got);
     assertEquals(1, table.size());
     assertEquals(0, createCount[0]);
+  }
+
+  @Test
+  void entryMatchesTrueWhenBothKeysEqual() {
+    PairEntry entry = new PairEntry("a", 1, 100);
+    assertTrue(entry.matches("a", 1));
+  }
+
+  @Test
+  void entryMatchesFalseWhenKey1Differs() {
+    PairEntry entry = new PairEntry("a", 1, 100);
+    assertFalse(entry.matches("b", 1));
+  }
+
+  @Test
+  void entryMatchesFalseWhenKey2Differs() {
+    PairEntry entry = new PairEntry("a", 1, 100);
+    assertFalse(entry.matches("a", 2));
+  }
+
+  @Test
+  void entryHashIsConsistentForSameKeys() {
+    long h1 = Hashtable.D2.Entry.hash("x", 42);
+    long h2 = Hashtable.D2.Entry.hash("x", 42);
+    assertEquals(h1, h2);
+  }
+
+  @Test
+  void entryHashDiffersForDifferentKeys() {
+    long h1 = Hashtable.D2.Entry.hash("x", 1);
+    long h2 = Hashtable.D2.Entry.hash("x", 2);
+    assertFalse(h1 == h2);
   }
 
   @Test
