@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import datadog.instrument.fieldinject.GlobalObjectStore;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
@@ -137,11 +138,11 @@ public final class FieldBackedContextStores {
 
   /** Injection helper that immediately delegates to the weak-map for the given context store. */
   public static Object weakGet(final Object key, final int storeId) {
-    return getContextStore(storeId).weakStore().get(key);
+    return GlobalObjectStore.get(key, storeId);
   }
 
   /** Injection helper that immediately delegates to the weak-map for the given context store. */
   public static void weakPut(final Object key, final int storeId, final Object context) {
-    getContextStore(storeId).weakStore().put(key, context);
+    GlobalObjectStore.put(key, storeId, context);
   }
 }
