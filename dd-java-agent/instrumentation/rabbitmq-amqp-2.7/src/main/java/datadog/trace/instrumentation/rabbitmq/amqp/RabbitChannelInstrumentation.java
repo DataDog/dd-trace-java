@@ -8,6 +8,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEnd
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithExchange;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -219,9 +220,17 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       if (TIME_IN_QUEUE_ENABLED) {
         RabbitDecorator.injectTimeInQueueStart(headers);
       }
-      DataStreamsTags tags =
-          createWithExchange(
-              "rabbitmq", OUTBOUND, exchange, routingKey != null && !routingKey.isEmpty());
+      final boolean hasRoutingKey = routingKey != null && !routingKey.isEmpty();
+      DataStreamsTags tags;
+      if ((exchange == null || exchange.isEmpty()) && hasRoutingKey) {
+        // Publishing to the default exchange: the routing key is the destination queue
+        // name, so record it as the topic (matching the consumer checkpoint). Without
+        // this the producer has neither a topic nor an exchange and shows up disconnected
+        // in the data streams map.
+        tags = create("rabbitmq", OUTBOUND, routingKey);
+      } else {
+        tags = createWithExchange("rabbitmq", OUTBOUND, exchange, hasRoutingKey);
+      }
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
       props =

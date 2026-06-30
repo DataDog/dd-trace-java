@@ -225,7 +225,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        tags.hasAllTags("direction:out", "exchange:", "has_routing_key:true", "type:rabbitmq")
+        tags.hasAllTags("direction:out", "topic:" + queueName, "type:rabbitmq")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
@@ -493,7 +493,7 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
       verifyAll(first) {
-        tags.hasAllTags("direction:out", "exchange:", "has_routing_key:true", "type:rabbitmq")
+        tags.hasAllTags("direction:out", "topic:some-routing-queue", "type:rabbitmq")
       }
 
       StatsGroup second = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == first.hash }
