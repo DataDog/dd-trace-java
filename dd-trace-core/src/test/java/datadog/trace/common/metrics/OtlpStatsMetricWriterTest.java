@@ -341,7 +341,7 @@ class OtlpStatsMetricWriterTest {
     OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
 
     // Bucket 1: the entry sees an error, so its error histogram is allocated and emits a point.
-    AggregateEntry e = entry("GET /users", null, 0, null, null, null);
+    AggregateEntry e = entry("GET /users", false, 0, null, null, null);
     e.recordOneDuration(SECONDS.toNanos(1)); // ok
     e.recordOneDuration(SECONDS.toNanos(3) | AggregateEntry.ERROR_TAG); // error
 
