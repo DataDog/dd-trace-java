@@ -27,6 +27,8 @@ dependencies {
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
   testImplementation libs.logback.classic
   testImplementation libs.jackson.databind
+
+
   testImplementation libs.bundles.mockito
 }
 
@@ -87,7 +89,9 @@ ext {
     'com.datadog.appsec.config.AppSecFeatures.AutoUserInstrum',
     'com.datadog.appsec.AppSecModule.AppSecModuleActivationException',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
+    'com.datadog.appsec.event.data.IntrospectionExcludedTypesTrie',
     'com.datadog.appsec.api.security.ApiSecuritySampler.NoOp',
+    'com.datadog.appsec.sca.ScaStackExclusionTrie',
   ]
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',

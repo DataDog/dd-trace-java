@@ -186,6 +186,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_STATS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
@@ -418,6 +419,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGAT
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
+import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
@@ -487,6 +489,7 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
@@ -997,6 +1000,9 @@ public class Config {
   private final int otlpMetricsTimeout;
   private final OtlpConfig.Temporality otlpMetricsTemporalityPreference;
 
+  private final boolean tracesSpanMetricsEnabled;
+  private final boolean traceOtelSemanticsEnabled;
+
   private final String traceOtelExporter;
   private final String otlpTracesEndpoint;
   private final Map<String, String> otlpTracesHeaders;
@@ -1015,6 +1021,7 @@ public class Config {
   private final boolean tracerMetricsBufferingEnabled;
   private final int tracerMetricsMaxAggregates;
   private final int tracerMetricsMaxPending;
+  private final int traceStatsInterval;
 
   private final boolean reportHostName;
 
@@ -2121,6 +2128,16 @@ public class Config {
             OtlpConfig.Temporality.class,
             OtlpConfig.Temporality.DELTA);
 
+    traceOtelSemanticsEnabled = configProvider.getBoolean(TRACE_OTEL_SEMANTICS_ENABLED, false);
+    // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
+    // export and OTLP metrics export are both enabled.
+    tracesSpanMetricsEnabled =
+        configProvider.getBoolean(
+            TRACES_SPAN_METRICS_ENABLED,
+            isTraceOtlpExporterEnabled()
+                && isMetricsOtelEnabled()
+                && isMetricsOtlpExporterEnabled());
+
     otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
     if (otlpTimeout < 0) {
       log.warn("Invalid OTLP traces timeout: {}. The value must be positive", otlpTimeout);
@@ -2200,6 +2217,18 @@ public class Config {
         configProvider.getBoolean(TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION, false);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
+    // Internal, test-only override of the stats flush interval. Read directly from the
+    // underscore-prefixed env var so it bypasses config-inversion validation and telemetry.
+    int statsInterval = DEFAULT_TRACE_STATS_INTERVAL;
+    String statsIntervalOverride = ConfigHelper.env("_DD_TRACE_STATS_INTERVAL");
+    if (statsIntervalOverride != null) {
+      try {
+        statsInterval = Integer.parseInt(statsIntervalOverride);
+      } catch (NumberFormatException ignored) {
+        // fall back to the default
+      }
+    }
+    traceStatsInterval = statsInterval;
     // The metrics inbox is an MpscArrayQueue<SpanSnapshot>; each saturated slot holds one
     // ~120 B SpanSnapshot. The historical default TRACER_METRICS_MAX_PENDING=2048 (logical) *
     // LEGACY_BATCH_SIZE=64 = 131072 slots was sized for the prior conflating-Batch model where
@@ -3829,6 +3858,10 @@ public class Config {
 
   public int getTracerMetricsMaxPending() {
     return tracerMetricsMaxPending;
+  }
+
+  public int getTraceStatsInterval() {
+    return traceStatsInterval;
   }
 
   public boolean isLogsInjectionEnabled() {
@@ -5575,6 +5608,14 @@ public class Config {
     return otlpMetricsTemporalityPreference;
   }
 
+  public boolean isTracesSpanMetricsEnabled() {
+    return tracesSpanMetricsEnabled;
+  }
+
+  public boolean isTraceOtelSemanticsEnabled() {
+    return traceOtelSemanticsEnabled;
+  }
+
   public boolean isTraceOtelEnabled() {
     return instrumenterConfig.isTraceOtelEnabled();
   }
@@ -5616,9 +5657,9 @@ public class Config {
   }
 
   /**
-   * @param integrationNames
-   * @param defaultEnabled
-   * @return
+   * @param integrationNames the integration names to check
+   * @param defaultEnabled the value to return when no integration name is configured
+   * @return {@code true} if the JMX fetch integration is enabled
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
    *     #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
    */
@@ -5785,9 +5826,9 @@ public class Config {
   }
 
   /**
-   * @param integrationNames
-   * @param defaultEnabled
-   * @return
+   * @param integrationNames the integration names to check
+   * @param defaultEnabled the value to return when no integration name is configured
+   * @return {@code true} if the trace analytics integration is enabled
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
    *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    */
@@ -6681,6 +6722,12 @@ public class Config {
         + otlpMetricsTimeout
         + ", otlpMetricsTemporalityPreference="
         + otlpMetricsTemporalityPreference
+        + ", tracesSpanMetricsEnabled="
+        + tracesSpanMetricsEnabled
+        + ", traceOtelSemanticsEnabled="
+        + traceOtelSemanticsEnabled
+        + ", traceStatsInterval="
+        + traceStatsInterval
         + ", traceOtelExporter="
         + traceOtelExporter
         + ", otlpTracesEndpoint="

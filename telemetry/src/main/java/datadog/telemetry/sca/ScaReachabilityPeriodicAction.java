@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Reports SCA Reachability state on each telemetry heartbeat, implementing the RFC stateful model.
@@ -103,23 +104,26 @@ public final class ScaReachabilityPeriodicAction
     if (dependencyService != null) {
       for (Dependency dep : dependencyService.drainDeterminedDependencies()) {
         String key = ScaReachabilityDependencyRegistry.depKey(dep.name, dep.version);
-        knownDeps.put(key, dep);
+        Dependency previous = knownDeps.put(key, dep);
         DependencySnapshot snapshot = snapshotByKey.remove(key);
-        if (snapshot == null) {
-          // CVE was drained in a prior heartbeat (pendingReport cleared) but DependencyService
-          // resolved this JAR only now. Peek at the current CVE state so we can enrich the
-          // emission instead of overwriting the backend's state with metadata:[].
+        if (snapshot == null && isNewPhysicalCopy(previous, dep)) {
+          // First detection of this physical JAR: peek CVE state so we can enrich the emission
+          // instead of overwriting the backend's state with metadata:[]. Skip when the same
+          // physical copy is re-detected (same source/hash from a different classloader) —
+          // peekSnapshot would re-emit a stale hit already reported.
           snapshot = ScaReachabilityDependencyRegistry.INSTANCE.peekSnapshot(dep.name, dep.version);
         }
         if (snapshot != null) {
-          // New dep AND has CVE state - emit the full picture in one entry.
           telService.addDependency(
               new Dependency(dep.name, dep.version, dep.source, dep.hash, buildMetadata(snapshot)));
-        } else {
-          // New dep, no CVE state yet - metadata:[] signals "SCA is monitoring this dep".
+        } else if (isNewPhysicalCopy(previous, dep)) {
+          // First detection of this physical copy, no CVE state yet — metadata:[] signals "SCA is
+          // monitoring this dep".
           telService.addDependency(
               new Dependency(dep.name, dep.version, dep.source, dep.hash, Collections.emptyList()));
         }
+        // Re-detection of the same physical copy (same source/hash) with no state change: nothing
+        // to emit. The backend already received this dep.
       }
     }
 
@@ -146,6 +150,46 @@ public final class ScaReachabilityPeriodicAction
                 snapshot.artifact, snapshot.version, null, null, buildMetadata(snapshot)));
       }
     }
+  }
+
+  /**
+   * Decides whether {@code dep} represents a new physical copy of an artifact that the backend has
+   * not yet seen, as opposed to a re-detection of a JAR already reported.
+   *
+   * <p>A "new physical copy" is a distinct file on disk. Two copies share the same {@code
+   * name@version} key but differ in {@code source} (the path/URI the JAR was loaded from) and/or
+   * {@code hash} (the content digest). A "re-detection" is the exact same physical file surfacing
+   * again, carrying an identical {@code source} and {@code hash}.
+   *
+   * <p>Returns {@code true} when:
+   *
+   * <ul>
+   *   <li>{@code previous == null} — first time we see this {@code name@version} key, or
+   *   <li>{@code dep.source} differs from {@code previous.source}, or
+   *   <li>{@code dep.hash} differs from {@code previous.hash}.
+   * </ul>
+   *
+   * <p>{@link Objects#equals} is used for both comparisons because {@code source} and {@code hash}
+   * may legitimately be {@code null} (e.g. JARs whose origin or digest could not be resolved), and
+   * a plain {@code ==}/{@code .equals} would either NPE or misclassify two null values.
+   *
+   * <p>Case this protects (must emit both): a Tomcat container running two webapps that each ship
+   * their own physical copy of the same artifact under different {@code WEB-INF/lib} paths. The
+   * copies have different {@code source}/{@code hash}, so both are reported — matching the behavior
+   * of the legacy {@link datadog.telemetry.dependency.DependencyPeriodicAction}.
+   *
+   * <p>Case this suppresses (re-detection, do not re-emit): a Spring Boot fat JAR where {@code
+   * LaunchedURLClassLoader} reports the same nested JAR from the same URI on multiple heartbeats.
+   * The {@code source}/{@code hash} are identical, so the dep is emitted only once.
+   */
+  private static boolean isNewPhysicalCopy(Dependency previous, Dependency dep) {
+    if (previous == null) {
+      return true;
+    }
+    if (!Objects.equals(dep.source, previous.source)) {
+      return true;
+    }
+    return !Objects.equals(dep.hash, previous.hash);
   }
 
   private static List<String> buildMetadata(DependencySnapshot snapshot) {
