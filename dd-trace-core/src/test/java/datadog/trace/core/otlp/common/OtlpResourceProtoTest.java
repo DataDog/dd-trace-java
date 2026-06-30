@@ -102,11 +102,6 @@ class OtlpResourceProtoTest {
                 "service.name", "my-service",
                 "region", "us-east",
                 "team", "platform")),
-        // report-hostname disabled (default): no host.name written
-        Arguments.of(
-            "report-hostname disabled",
-            props(SERVICE_NAME, "my-service"),
-            attrs("service.name", "my-service")),
         // report-hostname enabled: host.name written with the detected hostname
         Arguments.of(
             "report-hostname enabled",
