@@ -132,7 +132,7 @@ public interface AgentSpan
 
   boolean isSameTrace(AgentSpan otherSpan);
 
-  AgentSpanContext context();
+  AgentSpanContext spanContext();
 
   String getBaggageItem(String key);
 

@@ -365,8 +365,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                         pathwayContext.setCheckpoint(
                             create(tags, arrivalTime.toEpochMilli(), 0),
                             dataStreamsMonitoring::add);
-                        if (!span.context().getPathwayContext().isStarted()) {
-                          span.context().mergePathwayContext(pathwayContext);
+                        if (!span.spanContext().getPathwayContext().isStarted()) {
+                          span.spanContext().mergePathwayContext(pathwayContext);
                         }
                       }
                     }

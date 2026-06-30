@@ -85,9 +85,10 @@ class DDTracerTest extends DDJavaSpecification {
     assertEquals(1, writer.size());
     assertEquals(2, writer.firstTrace().size());
     assertEquals(
-        Long.toString(writer.firstTrace().get(0).context().getSpanId()), span.context().toSpanId());
+        Long.toString(writer.firstTrace().get(0).spanContext().getSpanId()),
+        span.context().toSpanId());
     assertEquals(
-        Long.toString(writer.firstTrace().get(1).context().getSpanId()),
+        Long.toString(writer.firstTrace().get(1).spanContext().getSpanId()),
         visibleSpan.context().toSpanId());
 
     tracer.close();

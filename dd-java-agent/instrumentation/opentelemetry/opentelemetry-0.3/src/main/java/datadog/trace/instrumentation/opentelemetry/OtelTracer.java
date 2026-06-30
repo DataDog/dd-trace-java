@@ -58,7 +58,7 @@ public class OtelTracer implements Tracer {
     @Override
     public Span.Builder setParent(final Span parent) {
       parentSet = true;
-      delegate.asChildOf(converter.toAgentSpan(parent).context());
+      delegate.asChildOf(converter.toAgentSpan(parent).spanContext());
       return this;
     }
 
@@ -163,7 +163,7 @@ public class OtelTracer implements Tracer {
     @Override
     public Span startSpan() {
       final AgentSpan agentSpan = delegate.start();
-      agentSpan.context().setIntegrationName("otel");
+      agentSpan.spanContext().setIntegrationName("otel");
       return converter.toSpan(agentSpan);
     }
   }

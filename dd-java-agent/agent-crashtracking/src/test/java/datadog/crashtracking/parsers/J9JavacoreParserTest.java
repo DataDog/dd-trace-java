@@ -212,6 +212,23 @@ public class J9JavacoreParserTest {
         "Expected ISO-8601 format, got: " + crashLog.timestamp);
   }
 
+  @TableTest({
+    "scenario        | filename                          | expectedJreVersion                                                              ",
+    "OpenJ9 11 GPF   | sample-j9-javacore-gpf.txt        | JRE 11.0.12 Linux amd64-64                                                      ",
+    "OpenJ9 17 OOM   | sample-j9-javacore-oom.txt        | JRE 17.0.6 Linux amd64-64                                                       ",
+    "OpenJ9 11 aarch | sample-openj9-11-javacore-gpf.txt | JRE 11 Linux aarch64-64 (build 11.0.28+6)                                       ",
+    "IBM J9 8        | sample-ibmj9-8-javacore-gpf.txt   | JRE 1.8.0 Linux amd64-64 (build 8.0.8.51 - pxa6480sr8fp51-20250819_01(SR8 FP51))"
+  })
+  public void testRuntimeInfoParsing(String filename, String expectedJreVersion) throws Exception {
+    CrashLog crashLog =
+        new J9JavacoreParser().parse(UUID.randomUUID().toString(), readFileAsString(filename));
+
+    assertNotNull(crashLog.experimental, "experimental should be populated");
+    assertNotNull(crashLog.experimental.runtimeInfo, "runtimeInfo should be populated");
+    assertNotNull(crashLog.experimental.runtimeInfo.jreVersion, "jreVersion should be populated");
+    assertEquals(expectedJreVersion, crashLog.experimental.runtimeInfo.jreVersion);
+  }
+
   @Test
   public void testNoSignalProducesInternalError() throws Exception {
     // A javacore with a THREADS section but no 1TISIGINFO line

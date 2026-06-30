@@ -134,7 +134,7 @@ class ExtractedSpan extends ImmutableSpan {
   }
 
   @Override
-  public AgentSpanContext context() {
+  public AgentSpanContext spanContext() {
     return this.spanContext;
   }
 

@@ -103,11 +103,11 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
       final AgentSpanContext parent;
       if (servletSpan == null || (parentSpan != null && servletSpan.isSameTrace(parentSpan))) {
         // Use the parentSpan if the servletSpan is null or part of the same trace.
-        parent = parentSpan.context();
+        parent = parentSpan.spanContext();
       } else {
         // parentSpan is part of a different trace, so lets ignore it.
         // This can happen with the way Tomcat does error handling.
-        parent = servletSpan.context();
+        parent = servletSpan.spanContext();
       }
 
       final AgentSpan span =

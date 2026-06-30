@@ -118,7 +118,7 @@ class OpenTracing32Test extends InstrumentationSpecification {
             }
             defaultTags(addReference != null)
           }
-          assert span.context().integrationName == "opentracing"
+          assert span.spanContext().integrationName == "opentracing"
         }
       }
     }

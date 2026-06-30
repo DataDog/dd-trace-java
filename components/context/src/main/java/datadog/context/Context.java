@@ -102,6 +102,15 @@ public interface Context {
   }
 
   /**
+   * Captures this (attached) context so it can be resumed in another execution unit.
+   *
+   * @return continuation capturing this context.
+   */
+  default ContextContinuation capture() {
+    return manager().capture(this);
+  }
+
+  /**
    * Gets the value stored in this context under the given key.
    *
    * @param <T> the type of the value.
@@ -158,5 +167,14 @@ public interface Context {
       return this;
     }
     return value.storeInto(this);
+  }
+
+  /**
+   * Wraps context as a scope without attaching it to the current execution unit.
+   *
+   * @return a scope that has no effect on execution units.
+   */
+  default ContextScope asScope() {
+    return new NoopContextScope(this);
   }
 }
