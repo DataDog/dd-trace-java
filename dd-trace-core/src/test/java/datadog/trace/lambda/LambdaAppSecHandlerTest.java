@@ -474,6 +474,97 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void albMultiValueQueryParamsHandlesListValues() {
+    String eventJson =
+        "{"
+            + "\"path\": \"/test\","
+            + "\"httpMethod\": \"GET\","
+            + "\"multiValueHeaders\": {\"accept\": [\"text/html\"]},"
+            + "\"multiValueQueryStringParameters\": {\"foo\": [\"bar\", \"baz\"], \"x\": [null, \"val\"]},"
+            + "\"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:...\"}}"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    String[] capturedQuery = {null};
+
+    setupMockCallbacks(
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedQuery[0] = uri.query();
+                }));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertNotNull(capturedQuery[0]);
+    assertTrue(capturedQuery[0].contains("foo=bar") || capturedQuery[0].contains("foo=baz"));
+    assertTrue(capturedQuery[0].contains("x=val"));
+  }
+
+  @Test
+  void albMultiValueHeadersHandlesNonListValue() {
+    String eventJson =
+        "{"
+            + "\"path\": \"/test\","
+            + "\"httpMethod\": \"GET\","
+            + "\"multiValueHeaders\": {\"content-type\": \"text/plain\", \"accept\": [\"application/json\"]},"
+            + "\"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:...\"}}"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    Map<String, String> capturedHeaders = new HashMap<>();
+
+    setupMockCallbacks(new Callbacks().onHeader(capturedHeaders::put));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertEquals("text/plain", capturedHeaders.get("content-type"));
+    assertEquals("application/json", capturedHeaders.get("accept"));
+  }
+
+  @Test
+  void nullJsonEventReturnsEmpty() {
+    // MAP_ADAPTER.fromJson("null") returns null, triggering LambdaEventData.EMPTY path
+    ByteArrayInputStream event = createInputStream("null");
+
+    setupMockCallbacks(new Callbacks());
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNull(result);
+  }
+
+  @Test
+  void albMultiValueQueryParamsHandlesNonListValue() {
+    String eventJson =
+        "{"
+            + "\"path\": \"/test\","
+            + "\"httpMethod\": \"GET\","
+            + "\"multiValueHeaders\": {\"accept\": [\"text/html\"]},"
+            + "\"multiValueQueryStringParameters\": {\"foo\": \"plain-string\"},"
+            + "\"requestContext\": {\"elb\": {\"targetGroupArn\": \"arn:aws:...\"}}"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    String[] capturedQuery = {null};
+
+    setupMockCallbacks(
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedQuery[0] = uri.query();
+                }));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertNotNull(capturedQuery[0]);
+    assertTrue(capturedQuery[0].contains("foo=plain-string"));
+  }
+
+  @Test
   void handlesMultiValueHeadersWithEmptyList() {
     String eventJson =
         "{"
@@ -607,6 +698,75 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     assertNotNull(result);
     assertEquals("/api/users", capturedPath[0]);
     assertEquals("id=123&filter=active", capturedQuery[0]);
+  }
+
+  @Test
+  void extractsQueryStringParametersAndBuildsFullUri() {
+    String eventJson =
+        "{"
+            + "\"path\": \"/api/items\","
+            + "\"queryStringParameters\": {\"page\": \"2\", \"sort\": \"asc\"},"
+            + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-456\"}"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    String[] capturedPath = {null};
+    String[] capturedQuery = {null};
+    String[] capturedRawPath = {null};
+    String[] capturedRawQuery = {null};
+    String[] capturedHost = {"NOT_CALLED"};
+    String[] capturedFragment = {"NOT_CALLED"};
+
+    setupMockCallbacks(
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedPath[0] = uri.path();
+                  capturedQuery[0] = uri.query();
+                  capturedRawPath[0] = uri.rawPath();
+                  capturedRawQuery[0] = uri.rawQuery();
+                  capturedHost[0] = uri.host();
+                  capturedFragment[0] = uri.fragment();
+                }));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertEquals("/api/items", capturedPath[0]);
+    assertNotNull(capturedQuery[0]);
+    assertTrue(capturedQuery[0].contains("page=2"));
+    assertTrue(capturedQuery[0].contains("sort=asc"));
+    assertEquals("/api/items", capturedRawPath[0]);
+    assertEquals(capturedQuery[0], capturedRawQuery[0]);
+    assertNull(capturedHost[0]);
+    assertNull(capturedFragment[0]);
+  }
+
+  @Test
+  void extractQueryParametersFiltersNullEntries() {
+    String eventJson =
+        "{"
+            + "\"path\": \"/filter-test\","
+            + "\"queryStringParameters\": {\"valid\": \"keep\", \"nullval\": null},"
+            + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-789\"}"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    String[] capturedQuery = {null};
+
+    setupMockCallbacks(
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedQuery[0] = uri.query();
+                }));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertNotNull(capturedQuery[0]);
+    assertTrue(capturedQuery[0].contains("valid=keep"));
+    assertFalse(capturedQuery[0].contains("nullval"));
   }
 
   @Test
@@ -829,6 +989,30 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void genericExtractionUsesHttpMethodFromRequestContext() {
+    String eventJson =
+        "{\"path\": \"/ctx-method\", \"requestContext\": {\"httpMethod\": \"DELETE\"}}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    String[] capturedMethod = {null};
+    String[] capturedPath = {null};
+
+    setupMockCallbacks(
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedMethod[0] = method;
+                  capturedPath[0] = uri.path();
+                }));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertEquals("DELETE", capturedMethod[0]);
+    assertEquals("/ctx-method", capturedPath[0]);
+  }
+
+  @Test
   void handlesCookiesMergingWithExistingCookieHeader() {
     String eventJson =
         "{"
@@ -1043,6 +1227,73 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     when(mockCallbackProvider.getCallback(EVENTS.requestClientSocketAddress())).thenReturn(null);
     Function<RequestContext, Flow<Void>> headerDoneCallback = mock(Function.class);
     when(headerDoneCallback.apply(any())).thenReturn(new Flow.ResultFlow<>(null));
+    when(mockCallbackProvider.getCallback(EVENTS.requestHeaderDone()))
+        .thenReturn(headerDoneCallback);
+    when(mockCallbackProvider.getCallback(EVENTS.requestPathParams())).thenReturn(null);
+    when(mockCallbackProvider.getCallback(EVENTS.requestBodyProcessed())).thenReturn(null);
+
+    AgentTracer.TracerAPI mockTracer = mock(AgentTracer.TracerAPI.class);
+    when(mockTracer.getCallbackProvider(RequestContextSlot.APPSEC))
+        .thenReturn(mockCallbackProvider);
+    AgentTracer.forceRegister(mockTracer);
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertInstanceOf(TagContext.class, result);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void processRequestStartHandlesNullHeaderDoneCallbackGracefully() {
+    String eventJson = "{\"path\": \"/test\", \"requestContext\": {\"httpMethod\": \"GET\"}}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    Object mockAppSecContext = new Object();
+    Supplier<Flow<Object>> requestStartedCallback = mock(Supplier.class);
+    when(requestStartedCallback.get()).thenReturn(new Flow.ResultFlow<>(mockAppSecContext));
+
+    CallbackProvider mockCallbackProvider = mock(CallbackProvider.class);
+    when(mockCallbackProvider.getCallback(EVENTS.requestStarted()))
+        .thenReturn(requestStartedCallback);
+    when(mockCallbackProvider.getCallback(EVENTS.requestMethodUriRaw())).thenReturn(null);
+    when(mockCallbackProvider.getCallback(EVENTS.requestHeader())).thenReturn(null);
+    when(mockCallbackProvider.getCallback(EVENTS.requestClientSocketAddress())).thenReturn(null);
+    when(mockCallbackProvider.getCallback(EVENTS.requestHeaderDone())).thenReturn(null);
+    when(mockCallbackProvider.getCallback(EVENTS.requestPathParams())).thenReturn(null);
+    when(mockCallbackProvider.getCallback(EVENTS.requestBodyProcessed())).thenReturn(null);
+
+    AgentTracer.TracerAPI mockTracer = mock(AgentTracer.TracerAPI.class);
+    when(mockTracer.getCallbackProvider(RequestContextSlot.APPSEC))
+        .thenReturn(mockCallbackProvider);
+    AgentTracer.forceRegister(mockTracer);
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertInstanceOf(TagContext.class, result);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void processRequestStartHandlesNullPathParamsCallbackGracefully() {
+    String eventJson =
+        "{\"path\": \"/test\", \"pathParameters\": {\"id\": \"42\"}, \"requestContext\": {\"httpMethod\": \"GET\"}}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    Object mockAppSecContext = new Object();
+    Supplier<Flow<Object>> requestStartedCallback = mock(Supplier.class);
+    when(requestStartedCallback.get()).thenReturn(new Flow.ResultFlow<>(mockAppSecContext));
+
+    Function<RequestContext, Flow<Void>> headerDoneCallback = mock(Function.class);
+    when(headerDoneCallback.apply(any())).thenReturn(new Flow.ResultFlow<>(null));
+
+    CallbackProvider mockCallbackProvider = mock(CallbackProvider.class);
+    when(mockCallbackProvider.getCallback(EVENTS.requestStarted()))
+        .thenReturn(requestStartedCallback);
+    when(mockCallbackProvider.getCallback(EVENTS.requestMethodUriRaw())).thenReturn(null);
+    when(mockCallbackProvider.getCallback(EVENTS.requestHeader())).thenReturn(null);
+    when(mockCallbackProvider.getCallback(EVENTS.requestClientSocketAddress())).thenReturn(null);
     when(mockCallbackProvider.getCallback(EVENTS.requestHeaderDone()))
         .thenReturn(headerDoneCallback);
     when(mockCallbackProvider.getCallback(EVENTS.requestPathParams())).thenReturn(null);
@@ -1669,6 +1920,33 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     LambdaAppSecHandler.processResponseData(span, result);
     // no exception expected — all null callbacks must be silently skipped
+  }
+
+  @Test
+  void processResponseDataSkipsResponseStartedWhenCallbackIsNull() {
+    String json = "{\"statusCode\": 200, \"headers\": {\"content-type\": \"text/plain\"}}";
+    ByteArrayOutputStream result = createOutputStream(json);
+    Map<String, String> capturedHeaders = new HashMap<>();
+    boolean[] headerDoneCalled = {false};
+    AgentSpan span =
+        setupMockResponseCallbacks(
+            null, capturedHeaders::put, () -> headerDoneCalled[0] = true, null);
+    assertDoesNotThrow(() -> LambdaAppSecHandler.processResponseData(span, result));
+    assertTrue(headerDoneCalled[0]);
+  }
+
+  @Test
+  void processResponseDataSkipsResponseHeaderWhenCallbackIsNull() {
+    String json = "{\"statusCode\": 200, \"headers\": {\"content-type\": \"text/plain\"}}";
+    ByteArrayOutputStream result = createOutputStream(json);
+    Integer[] capturedStatus = {null};
+    boolean[] headerDoneCalled = {false};
+    AgentSpan span =
+        setupMockResponseCallbacks(
+            status -> capturedStatus[0] = status, null, () -> headerDoneCalled[0] = true, null);
+    assertDoesNotThrow(() -> LambdaAppSecHandler.processResponseData(span, result));
+    assertEquals(200, capturedStatus[0]);
+    assertTrue(headerDoneCalled[0]);
   }
 
   // ============================================================================
