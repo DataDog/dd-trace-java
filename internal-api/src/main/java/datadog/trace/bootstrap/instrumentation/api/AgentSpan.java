@@ -205,6 +205,14 @@ public interface AgentSpan
 
   void addLink(AgentSpanLink link);
 
+  /**
+   * Records a structured span event. The default implementation is a no-op; spans backed by real
+   * span data (e.g. {@code DDSpan}) override it to retain the event for serialization.
+   *
+   * @param event The span event to record.
+   */
+  default void addSpanEvent(AgentSpanEvent event) {}
+
   AgentSpan setMetaStruct(final String field, final Object value);
 
   boolean isOutbound();

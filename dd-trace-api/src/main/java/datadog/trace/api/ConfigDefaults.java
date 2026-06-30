@@ -89,7 +89,7 @@ public final class ConfigDefaults {
       Arrays.asList("user.id", "session.id", "account.id");
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
 
-  static final String DEFAULT_TRACE_AGENT_PROTOCOL_VERSION = ProtocolVersion.V0_4.asConfigValue();
+  static final String DEFAULT_TRACE_AGENT_PROTOCOL_VERSION = ProtocolVersion.V1_0.asConfigValue();
 
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 

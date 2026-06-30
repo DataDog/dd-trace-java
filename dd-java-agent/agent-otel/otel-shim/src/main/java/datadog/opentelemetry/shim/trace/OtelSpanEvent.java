@@ -2,18 +2,20 @@ package datadog.opentelemetry.shim.trace;
 
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nonnull;
 
-public class OtelSpanEvent {
+public class OtelSpanEvent implements AgentSpanEvent {
   public static final String EXCEPTION_SPAN_EVENT_NAME = "exception";
   public static final AttributeKey<String> EXCEPTION_MESSAGE_ATTRIBUTE_KEY =
       AttributeKey.stringKey("exception.message");
@@ -26,33 +28,53 @@ public class OtelSpanEvent {
   private static TimeSource timeSource = SystemTimeSource.INSTANCE;
 
   private final String name;
-  private final String attributes;
+  private final Attributes attributes;
 
   /** Event timestamp in nanoseconds. */
   private final long timestamp;
 
   public OtelSpanEvent(String name, Attributes attributes) {
-    this.name = name;
-    this.attributes = AttributesJsonParser.toJson(attributes);
-    this.timestamp = OtelSpanEvent.timeSource.getCurrentTimeNanos();
+    this(name, attributes, OtelSpanEvent.timeSource.getCurrentTimeNanos());
   }
 
   public OtelSpanEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
-    this.name = name;
-    this.attributes = AttributesJsonParser.toJson(attributes);
-    this.timestamp = unit.toNanos(timestamp);
+    this(name, attributes, unit.toNanos(timestamp));
   }
 
-  @Nonnull
-  public static String toTag(List<OtelSpanEvent> events) {
-    StringBuilder builder = new StringBuilder("[");
-    for (OtelSpanEvent event : events) {
-      if (builder.length() > 1) {
-        builder.append(',');
-      }
-      builder.append(event.toJson());
+  private OtelSpanEvent(String name, Attributes attributes, long timestampNanos) {
+    this.name = name;
+    this.attributes = attributes;
+    this.timestamp = timestampNanos;
+  }
+
+  @Override
+  public long timeNanos() {
+    return this.timestamp;
+  }
+
+  @Override
+  public String name() {
+    return this.name;
+  }
+
+  /**
+   * Exposes the event attributes as typed values for native (V1) encoding. OpenTelemetry attribute
+   * values are already {@link String}, {@link Boolean}, {@link Long}, {@link Double} or a {@link
+   * List} of those, so they are passed through unchanged.
+   */
+  @Override
+  public Map<String, Object> attributes() {
+    if (this.attributes == null || this.attributes.isEmpty()) {
+      return Collections.emptyMap();
     }
-    return builder.append(']').toString();
+    Map<String, Object> map = new LinkedHashMap<>(this.attributes.size());
+    this.attributes.forEach((key, value) -> map.put(key.getKey(), value));
+    return map;
+  }
+
+  @Override
+  public CharSequence toJsonTag() {
+    return toJson();
   }
 
   /**
@@ -174,8 +196,9 @@ public class OtelSpanEvent {
     StringBuilder builder =
         new StringBuilder(
             "{\"time_unix_nano\":" + this.timestamp + ",\"name\":\"" + this.name + "\"");
-    if (!this.attributes.isEmpty()) {
-      builder.append(",\"attributes\":").append(this.attributes);
+    String attributesJson = AttributesJsonParser.toJson(this.attributes);
+    if (!attributesJson.isEmpty()) {
+      builder.append(",\"attributes\":").append(attributesJson);
     }
     return builder.append('}').toString();
   }
@@ -186,8 +209,8 @@ public class OtelSpanEvent {
         + this.timestamp
         + ", name='"
         + this.name
-        + "', attributes='"
+        + "', attributes="
         + this.attributes
-        + "'}";
+        + '}';
   }
 }

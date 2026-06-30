@@ -27,6 +27,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
@@ -119,6 +120,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
 
   private static final List<AgentSpanLink> EMPTY = Collections.emptyList();
   protected volatile List<AgentSpanLink> links;
+
+  private static final List<AgentSpanEvent> NO_EVENTS = Collections.emptyList();
+  protected volatile List<AgentSpanEvent> spanEvents = NO_EVENTS;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -781,10 +785,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   }
 
   @Override
-  public void processTagsAndBaggage(
-      final MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
-    context.processTagsAndBaggage(
-        consumer, longRunningVersion, this, injectLinksAsTags, injectBaggageAsTags);
+  public void processTagsAndBaggageWithStructuredLinks(final MetadataConsumer consumer) {
+    // injectBaggageAsTags=true; links and events stay structured rather than flattened into tags
+    context.processTagsAndBaggage(consumer, longRunningVersion, this, true, false, false);
   }
 
   @Override
@@ -900,6 +903,35 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
 
   public List<? extends AgentSpanLink> getLinks() {
     return this.links;
+  }
+
+  public List<? extends AgentSpanEvent> getSpanEvents() {
+    return this.spanEvents;
+  }
+
+  @Override
+  public void addSpanEvent(AgentSpanEvent event) {
+    if (event == null) {
+      return;
+    }
+
+    // Mirrors addLink: spanEvents starts as the shared immutable NO_EVENTS placeholder (safe to
+    // read, not to write). On first write, double-checked locking promotes it to a per-span
+    // CopyOnWriteArrayList.
+    List<AgentSpanEvent> events = this.spanEvents;
+    if (events != NO_EVENTS) {
+      events.add(event);
+      return;
+    }
+
+    synchronized (this) {
+      events = this.spanEvents;
+      if (events != NO_EVENTS) {
+        events.add(event);
+      } else {
+        this.spanEvents = new CopyOnWriteArrayList<>(Collections.singletonList(event));
+      }
+    }
   }
 
   @Override
