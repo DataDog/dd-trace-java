@@ -310,8 +310,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     PathwayContext pathwayContext = span.spanContext().getPathwayContext();
     if (pathwayContext != null) {
       pathwayContext.setCheckpoint(context, this::add);
-      if (pathwayContext.getHash() != 0) {
-        span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayContext.getHash()));
+      long pathwayHash = pathwayContext.getHash();
+      if (pathwayHash != 0) {
+        span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayHash));
       }
     }
   }

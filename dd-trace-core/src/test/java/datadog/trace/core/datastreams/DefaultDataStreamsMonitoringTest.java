@@ -1580,8 +1580,11 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
   void setCheckpointTagsTheSpanWithThePathwayHash() {
     DefaultDataStreamsMonitoring dataStreams = newDataStreamsMonitoring();
 
+    // Negative so the signed and unsigned string representations differ, proving the tag uses
+    // Long.toUnsignedString (pathway hashes are unsigned 64-bit values).
+    long hash = -1234567890123456789L;
     PathwayContext pathwayContext = mock(PathwayContext.class);
-    when(pathwayContext.getHash()).thenReturn(1234567890123456789L);
+    when(pathwayContext.getHash()).thenReturn(hash);
     AgentSpanContext spanContext = mock(AgentSpanContext.class);
     when(spanContext.getPathwayContext()).thenReturn(pathwayContext);
     AgentSpan span = mock(AgentSpan.class);
@@ -1591,7 +1594,7 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.setCheckpoint(span, context);
 
     verify(pathwayContext).setCheckpoint(eq(context), any());
-    verify(span).setTag(DDTags.PATHWAY_HASH, Long.toUnsignedString(1234567890123456789L));
+    verify(span).setTag(DDTags.PATHWAY_HASH, Long.toUnsignedString(hash));
   }
 
   @Test
