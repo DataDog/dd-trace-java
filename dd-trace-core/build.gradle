@@ -51,6 +51,12 @@ excludedClassesCoverage += [
   'datadog.trace.core.TracingConfigPoller.Updater',
   // covered with dd-trace-core/src/test/groovy/datadog/trace/core/datastreams/CheckpointerTest.groovy
   'datadog.trace.core.datastreams.DefaultDataStreamsMonitoring',
+  // no-op
+  'datadog.trace.core.datastreams.DisabledDataStreamsMonitoring',
+  // pojo
+  'datadog.trace.core.datastreams.DataStreamsTransactionExtractors.DataStreamsTransactionExtractorImpl',
+  // it's a private inner class. Tested indirectly via deserialize in DataStreamsTransactionExtractorsTest
+  'datadog.trace.core.datastreams.DataStreamsTransactionExtractors.JsonDataStreamsTransactionExtractor',
   // TODO CorePropagation will be removed during context refactoring
   'datadog.trace.core.propagation.CorePropagation',
   // TODO DSM propagator will be tested once fully migrated
