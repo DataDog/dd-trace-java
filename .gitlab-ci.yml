@@ -442,6 +442,10 @@ publish-profiler-patched-agent-to-s3:
   needs: [ build ]
   dependencies: [ build ]
   timeout: 10 minutes
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - *master_only
   before_script:
     - yum install -y -q git unzip zip
   script:
