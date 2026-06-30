@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import datadog.trace.api.DDTraceId;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Map;
 
 public interface CoreSpan<T extends CoreSpan<T>> {
@@ -10,9 +9,7 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   String getServiceName();
 
-  default CharSequence getServiceNameSource() {
-    return null;
-  }
+  CharSequence getServiceNameSource();
 
   CharSequence getOperationName();
 
@@ -62,13 +59,9 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   <U> U getTag(CharSequence name);
 
-  default <U> U unsafeGetTag(CharSequence name, U defaultValue) {
-    return getTag(name, defaultValue);
-  }
+  <U> U unsafeGetTag(CharSequence name, U defaultValue);
 
-  default <U> U unsafeGetTag(CharSequence name) {
-    return getTag(name);
-  }
+  <U> U unsafeGetTag(CharSequence name);
 
   boolean hasSamplingPriority();
 
@@ -81,10 +74,7 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   boolean isForceKeep();
 
-  default boolean isKind(SpanKindFilter filter) {
-    Object kind = unsafeGetTag(Tags.SPAN_KIND);
-    return filter.matches(kind == null ? null : kind.toString());
-  }
+  boolean isKind(SpanKindFilter filter);
 
   CharSequence getType();
 
