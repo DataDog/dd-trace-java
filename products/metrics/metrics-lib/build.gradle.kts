@@ -36,15 +36,8 @@ tasks.named<ShadowJar>("shadowJar") {
 extra["minimumBranchCoverage"] = 0.5
 extra["minimumInstructionCoverage"] = 0.8
 extra["excludedClassesCoverage"] = listOf(
-  "datadog.communication.monitor.DDAgentStatsDConnection",
-  "datadog.communication.monitor.DDAgentStatsDConnection.*",
-  "datadog.communication.monitor.LoggingStatsDClient",
+  "datadog.metrics.impl.statsd.DDAgentStatsDClientManager",
+  "datadog.metrics.impl.statsd.DDAgentStatsDConnection",
+  "datadog.metrics.impl.statsd.DDAgentStatsDConnection.*",
+  "datadog.metrics.impl.statsd.LoggingStatsDClient",
 )
-// val excludedClassesBranchCoverage by extra(
-//   listOf(
-//   )
-// )
-// val excludedClassesInstructionCoverage by extra(
-//   listOf(
-//   )
-// )

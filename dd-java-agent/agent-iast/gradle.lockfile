@@ -51,7 +51,6 @@ com.google.errorprone:error_prone_type_annotations:2.23.0=annotationProcessor,er
 com.google.errorprone:javac:9+181-r4173-1=errorproneJavac
 com.google.guava:failureaccess:1.0.1=annotationProcessor,errorprone,jmhAnnotationProcessor,jmhRuntimeClasspath,testAnnotationProcessor,testCompileProtoPath,testRuntimeClasspath
 com.google.guava:guava-parent:32.1.1-jre=annotationProcessor,errorprone,jmhAnnotationProcessor,testAnnotationProcessor
-com.google.guava:guava:20.0=testCompileClasspath
 com.google.guava:guava:30.1.1-android=jmhRuntimeClasspath,testCompileProtoPath,testRuntimeClasspath
 com.google.guava:guava:32.1.1-jre=annotationProcessor,errorprone,jmhAnnotationProcessor,testAnnotationProcessor
 com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava=jmhRuntimeClasspath,testCompileProtoPath,testRuntimeClasspath

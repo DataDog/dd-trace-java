@@ -66,7 +66,9 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.profiling.RecordingType",
   // Data Streams Monitoring
   "datadog.trace.api.datastreams.Backlog",
+  "datadog.trace.api.datastreams.DataStreamsTransactionExtractor.Type", // enum
   "datadog.trace.api.datastreams.InboxItem",
+  "datadog.trace.api.datastreams.KafkaConfigReport", // pojo
   "datadog.trace.api.datastreams.NoopDataStreamsMonitoring",
   "datadog.trace.api.datastreams.NoopPathwayContext",
   "datadog.trace.api.datastreams.SchemaRegistryUsage",
@@ -197,9 +199,12 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.cache.FixedSizeCache.IdentityHash",
   "datadog.trace.api.cache.FixedSizeWeakKeyCache",
   // Interface with default method
+  "datadog.trace.api.civisibility.execution.TestExecutionPolicy",
   "datadog.trace.api.iast.Taintable",
   "datadog.trace.api.Stateful",
   "datadog.trace.api.Stateful.1",
+  // an interface
+  "datadog.trace.bootstrap.instrumentation.api.ProfilerContext",
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
@@ -234,6 +239,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor.NoOpSpanPostProcessor",
   "datadog.trace.util.TempLocationManager",
   "datadog.trace.util.TempLocationManager.*",
+  // constants only
+  "datadog.trace.bootstrap.instrumentation.api.ServiceNameSources",
 )
 
 extra["excludedClassesBranchCoverage"] = listOf(
