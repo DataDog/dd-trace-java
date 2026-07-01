@@ -756,14 +756,10 @@ muzzle-dep-report:
     # `ibm8`/`oracle8` have no arm64 images published upstream — never run them on arm64.
     - if: '$testJvm == "ibm8" || $testJvm == "oracle8"'
       when: never
-    # On the merge queue, run the full matrix (both default and non-default JVMs) on arm64.
-    # (`gh-readonly-queue` needs no handling — the `workflow:` rules skip its pipeline entirely.)
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
       when: on_success
-    # On master, run the default JVMs automatically (gating).
-    - if: '$CI_COMMIT_BRANCH == "master" && $testJvm =~ $DEFAULT_TEST_JVMS'
+    - if: '$CI_COMMIT_BRANCH == "master"
       when: on_success
-    # On merge requests, allow the default JVMs to be triggered manually (non-blocking).
     - if: $testJvm =~ $DEFAULT_TEST_JVMS
       when: manual
       allow_failure: true
