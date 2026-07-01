@@ -53,8 +53,7 @@ final class AggregateEntry extends Hashtable.Entry {
                   "service_source", MetricCardinalityLimits.SERVICE_SOURCE));
   static final PropertyCardinalityHandler TYPE_HANDLER =
       new PropertyCardinalityHandler(
-          "type",
-          Config.get().getTraceStatsCardinalityLimit("type", MetricCardinalityLimits.TYPE));
+          "type", Config.get().getTraceStatsCardinalityLimit("type", MetricCardinalityLimits.TYPE));
   static final PropertyCardinalityHandler SPAN_KIND_HANDLER =
       new PropertyCardinalityHandler(
           "span_kind",

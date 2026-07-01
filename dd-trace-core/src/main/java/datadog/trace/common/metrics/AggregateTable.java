@@ -86,8 +86,8 @@ final class AggregateTable {
    * <p>With per-field cardinality limits enabled, over-cap values for a given field collapse into a
    * shared {@code tracer_blocked_value} bucket, so the table itself rarely reaches {@code
    * maxAggregates}. Without per-field limits, over-cap values flow to distinct buckets and {@code
-   * maxAggregates} becomes the load-bearing
-   * backstop -- the cursor-resumed scan was added specifically for this regime.
+   * maxAggregates} becomes the load-bearing backstop -- the cursor-resumed scan was added
+   * specifically for this regime.
    */
   private boolean evictOneStale() {
     // Two passes -- [cursor, length) then [0, cursor) -- using the half-open-range iterator. The
