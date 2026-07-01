@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.junit5;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -51,7 +51,7 @@ public class BeforeAfterOperationsTracer implements InvocationInterceptor {
       Invocation<Void> invocation, Method executable, String operationName) throws Throwable {
     AgentSpan agentSpan = AgentTracer.startSpan("junit", executable.getName());
     agentSpan.setTag(Tags.TEST_CALLBACK, operationName);
-    try (AgentScope agentScope = AgentTracer.activateSpan(agentSpan)) {
+    try (ContextScope agentScope = AgentTracer.activateSpan(agentSpan)) {
       invocation.proceed();
     } catch (Throwable t) {
       agentSpan.addThrowable(t);
