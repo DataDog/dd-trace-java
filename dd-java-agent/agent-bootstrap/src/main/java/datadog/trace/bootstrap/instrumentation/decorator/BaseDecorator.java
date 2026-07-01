@@ -7,6 +7,7 @@ import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
+import datadog.trace.api.SpanPrototype;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -48,6 +49,10 @@ public abstract class BaseDecorator {
   // Deliberately not volatile, reading null and repeating the calculation is safe
   private TagMap.Entry cachedComponentEntry = null;
 
+  // Deliberately not volatile, same benign-race reasoning as cachedComponentEntry: baking twice is
+  // safe because the constant tags are identical.
+  private SpanPrototype cachedPrototype = null;
+
   protected BaseDecorator() {
     final Config config = Config.get();
     final String[] instrumentationNames = instrumentationNames();
@@ -88,6 +93,36 @@ public abstract class BaseDecorator {
 
   protected boolean traceAnalyticsDefault() {
     return false;
+  }
+
+  /**
+   * The baked-once {@link SpanPrototype} for this decorator: the constant tags {@link #afterStart}
+   * would otherwise stamp one at a time. Composed across the hierarchy via {@link
+   * #buildPrototype(TagMap)} and cached (lazily, to respect the same static-init ordering caution
+   * as {@link #componentEntry()}).
+   *
+   * <p>Not yet wired into span creation — this is the provider surface; the seed hook comes next.
+   */
+  public final SpanPrototype prototype() {
+    SpanPrototype prototype = cachedPrototype;
+    if (prototype == null) {
+      final TagMap tags = TagMap.create();
+      buildPrototype(tags);
+      cachedPrototype = prototype = SpanPrototype.of(tags);
+    }
+    return prototype;
+  }
+
+  /**
+   * Contributes this decorator's constant tags to the prototype under construction. Overrides must
+   * call {@code super.buildPrototype(tags)} first, then add their own — mirroring the {@link
+   * #afterStart} super-chain, but run once at bake time rather than per span.
+   */
+  protected void buildPrototype(final TagMap tags) {
+    tags.set(componentEntry());
+    if (traceAnalyticsEntry != null) {
+      tags.set(traceAnalyticsEntry);
+    }
   }
 
   public AgentSpan afterStart(final AgentSpan span) {

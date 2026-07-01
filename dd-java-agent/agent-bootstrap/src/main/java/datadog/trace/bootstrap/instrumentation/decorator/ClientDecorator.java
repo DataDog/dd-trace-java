@@ -43,4 +43,10 @@ public abstract class ClientDecorator extends BaseDecorator {
     span.setMeasured(true);
     return super.afterStart(span);
   }
+
+  @Override
+  protected void buildPrototype(final TagMap tags) {
+    super.buildPrototype(tags);
+    tags.set(spanKindEntry());
+  }
 }

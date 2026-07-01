@@ -18,4 +18,11 @@ public abstract class ServerDecorator extends BaseDecorator {
 
     return super.afterStart(span);
   }
+
+  @Override
+  protected void buildPrototype(final TagMap tags) {
+    super.buildPrototype(tags);
+    tags.set(SPAN_KIND_ENTRY);
+    tags.set(LANG_ENTRY);
+  }
 }
