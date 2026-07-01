@@ -2,15 +2,12 @@ package datadog.trace.common.metrics;
 
 import datadog.metrics.api.Histogram;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@link datadog.trace.util.Hashtable} entry used by the aggregator thread.
@@ -21,12 +18,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Not thread-safe — all mutation is on the aggregator thread. Tests must call {@link
  * #resetCardinalityHandlers()} in setup to avoid cross-test handler pollution (handlers are
- * static); tests using {@link PeerTagSchema} must also call {@link
- * PeerTagSchema#resetHandlers(HealthMetrics)} on the schema instance.
+ * static); tests using {@link PeerTagSchema} must also call {@code PeerTagSchema#resetHandlers} on
+ * the schema instance.
  */
 final class AggregateEntry extends Hashtable.Entry {
-
-  private static final Logger log = LoggerFactory.getLogger(AggregateEntry.class);
 
   static final long ERROR_TAG = 0x8000000000000000L;
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
@@ -67,7 +62,7 @@ final class AggregateEntry extends Hashtable.Entry {
   // Single authoritative list used by resetCardinalityHandlers(). populateFrom() and hashOf() keep
   // named access for readability and to avoid per-span iteration overhead; this array ensures the
   // reset site stays in sync even if a new field is added without updating the loop by name.
-  private static final PropertyCardinalityHandler[] FIELD_HANDLERS = {
+  static final PropertyCardinalityHandler[] FIELD_HANDLERS = {
     RESOURCE_HANDLER,
     SERVICE_HANDLER,
     OPERATION_HANDLER,
@@ -229,24 +224,8 @@ final class AggregateEntry extends Hashtable.Entry {
 
   /** Resets the static per-field cardinality handlers. Does not cover {@link PeerTagSchema}. */
   static void resetCardinalityHandlers() {
-    resetCardinalityHandlers(HealthMetrics.NO_OP);
-  }
-
-  static void resetCardinalityHandlers(HealthMetrics healthMetrics) {
     for (PropertyCardinalityHandler handler : FIELD_HANDLERS) {
-      reportIfBlocked(healthMetrics, handler);
-    }
-    PeerTagSchema.INTERNAL.resetHandlers(healthMetrics);
-  }
-
-  private static void reportIfBlocked(
-      HealthMetrics healthMetrics, PropertyCardinalityHandler handler) {
-    long blocked = handler.reset();
-    if (blocked > 0) {
-      log.warn(
-          "Cardinality limit reached for stats field '{}'; further values will be reported as tracer_blocked_value",
-          handler.name);
-      healthMetrics.onTagCardinalityBlocked(handler.statsDTag(), blocked);
+      handler.reset();
     }
   }
 
