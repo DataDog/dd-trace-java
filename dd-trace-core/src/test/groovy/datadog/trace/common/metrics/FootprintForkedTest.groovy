@@ -37,7 +37,7 @@ class FootprintForkedTest extends DDSpecification {
       it.supportsMetrics() >> true
       it.peerTags() >> []
     }
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
       new WellKnownTags("runtimeid","hostname", "env", "service", "version","language"),
       [].toSet() as Set<String>,
       features,

@@ -10,9 +10,7 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   String getServiceName();
 
-  default CharSequence getServiceNameSource() {
-    return null;
-  }
+  CharSequence getServiceNameSource();
 
   CharSequence getOperationName();
 
@@ -62,13 +60,9 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   <U> U getTag(CharSequence name);
 
-  default <U> U unsafeGetTag(CharSequence name, U defaultValue) {
-    return getTag(name, defaultValue);
-  }
+  <U> U unsafeGetTag(CharSequence name, U defaultValue);
 
-  default <U> U unsafeGetTag(CharSequence name) {
-    return getTag(name);
-  }
+  <U> U unsafeGetTag(CharSequence name);
 
   boolean hasSamplingPriority();
 
@@ -81,9 +75,16 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   boolean isForceKeep();
 
-  default boolean isKind(SpanKindFilter filter) {
-    Object kind = unsafeGetTag(Tags.SPAN_KIND);
-    return filter.matches(kind == null ? null : kind.toString());
+  boolean isKind(SpanKindFilter filter);
+
+  /**
+   * Returns the {@code span.kind} tag value as a String, or {@code null} if not set. Default
+   * implementation reads the tag map; {@link DDSpan} overrides to use a cached ordinal that
+   * resolves via a small lookup array, skipping the tag-map lookup on the hot path.
+   */
+  default String getSpanKindString() {
+    Object v = unsafeGetTag(Tags.SPAN_KIND);
+    return v == null ? null : v.toString();
   }
 
   CharSequence getType();

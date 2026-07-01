@@ -136,7 +136,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     return this.tenuredEntries.length;
   }
 
-  /** Updates access time used @link {@link #getUtf8(String, String)} to the provided value */
+  /** Updates the access time used by {@link #getUtf8(String)} to the provided value. */
   @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
   public void updateAccessTime(long accessTimeMs) {
     this.accessTimeMs = accessTimeMs;

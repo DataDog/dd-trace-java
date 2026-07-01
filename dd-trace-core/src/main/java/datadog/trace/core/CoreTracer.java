@@ -904,7 +904,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
     if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
       TagMap tmp = TagMap.fromMap(localRootSpanTags);
-      tmp.put(PROFILING_CONTEXT_ENGINE, profilingContextIntegration.name());
+      tmp.set(PROFILING_CONTEXT_ENGINE, profilingContextIntegration.name());
       this.localRootSpanTags = tmp.freeze();
     } else {
       this.localRootSpanTags = TagMap.fromMapImmutable(localRootSpanTags);
@@ -1790,6 +1790,18 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
       // Handle remote terminated span context as span links
       if (parentSpanContext != null && parentSpanContext.isRemote()) {
+        // Preserve AppSec/IAST request context before dropping the remote parent: when
+        // extract=IGNORE or RESTART the TagContext parent is nulled before buildSpanContext
+        // can copy requestContextDataAppSec/Iast into DDSpanContext.
+        if (parentSpanContext instanceof TagContext) {
+          TagContext tc = (TagContext) parentSpanContext;
+          if (builderRequestContextDataAppSec == null) {
+            builderRequestContextDataAppSec = tc.getRequestContextDataAppSec();
+          }
+          if (builderRequestContextDataIast == null) {
+            builderRequestContextDataIast = tc.getRequestContextDataIast();
+          }
+        }
         switch (Config.get().getTracePropagationBehaviorExtract()) {
           case RESTART:
             links = addParentSpanLink(links, parentSpanContext);

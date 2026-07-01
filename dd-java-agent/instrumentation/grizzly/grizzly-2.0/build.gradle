@@ -30,3 +30,10 @@ configurations.named('testRuntimeOnly') {
   // jersey-container-grizzly2-http transitively imports its own set repackaged asm classes
   exclude group: 'org.ow2.asm'
 }
+
+// Jersey 2.0 links to Guava's removed MoreExecutors.sameThreadExecutor method.
+['testCompileClasspath', 'testRuntimeClasspath'].each {
+  configurations.named(it) {
+    resolutionStrategy.force 'com.google.guava:guava:20.0'
+  }
+}
