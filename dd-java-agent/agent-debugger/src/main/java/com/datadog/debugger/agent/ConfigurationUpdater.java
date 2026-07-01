@@ -41,6 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -211,7 +212,9 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     List<Class<?>> changedClasses =
         finder.getAllLoadedChangedClasses(instrumentation.getAllLoadedClasses(), changes);
     changedClasses = detectMethodParameters(changes, changedClasses);
-    changedClasses = detectRecordWithTypeAnnotation(changes, changedClasses);
+    changedClasses =
+        RecordHelper.detectRecordWithTypeAnnotation(
+            errorMsg -> reportError(changes, errorMsg), changedClasses);
     retransformClasses(changedClasses);
     // ensures that we have at least re-transformed 1 class
     if (changedClasses.size() > 0) {
@@ -273,66 +276,6 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       }
     }
     return result;
-  }
-
-  private List<Class<?>> detectRecordWithTypeAnnotation(
-      ConfigurationComparer changes, List<Class<?>> changedClasses) {
-    if (!JAVA_AT_LEAST_16) {
-      // records introduced in JDK 16 (final version)
-      return changedClasses;
-    }
-    List<Class<?>> result = new ArrayList<>();
-    for (Class<?> changedClass : changedClasses) {
-      boolean addClass = true;
-      try {
-        if (changedClass.getSuperclass() != null
-            && changedClass.getSuperclass().getTypeName().equals("java.lang.Record")
-            && Modifier.isFinal(changedClass.getModifiers())) {
-          if (hasTypeAnnotationOnRecordComponent(changedClass)) {
-            LOGGER.debug(
-                "Record with type annotation detected, instrumentation not supported for {}",
-                changedClass.getTypeName());
-            reportError(
-                changes,
-                "Record with type annotation detected, instrumentation not supported for "
-                    + changedClass.getTypeName());
-            addClass = false;
-          }
-        }
-      } catch (Exception e) {
-        LOGGER.debug("Exception detecting record with type annotation", e);
-      }
-      if (addClass) {
-        result.add(changedClass);
-      }
-    }
-    return result;
-  }
-
-  private boolean hasTypeAnnotationOnRecordComponent(Class<?> recordClass) {
-    if (GET_RECORD_COMPONENTS_METHOD == null || GET_ANNOTATED_TYPES_METHOD == null) {
-      return false;
-    }
-    try {
-      Object recordComponentsArray = GET_RECORD_COMPONENTS_METHOD.invoke(recordClass);
-      int len = Array.getLength(recordComponentsArray);
-      for (int i = 0; i < len; i++) {
-        Object recordComponent = Array.get(recordComponentsArray, i);
-        AnnotatedType annotatedType =
-            (AnnotatedType) GET_ANNOTATED_TYPES_METHOD.invoke(recordComponent);
-        for (Annotation annotation : annotatedType.getAnnotations()) {
-          Target annotationTarget = annotation.annotationType().getAnnotation(Target.class);
-          if (annotationTarget != null
-              && Arrays.stream(annotationTarget.value())
-                  .anyMatch(it -> it == ElementType.TYPE_USE)) {
-            return true;
-          }
-        }
-      }
-      return false;
-    } catch (Exception ex) {
-      return false;
-    }
   }
 
   private void reportReceived(ConfigurationComparer changes) {
@@ -460,5 +403,67 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
   Map<String, InstrumentationResult> getInstrumentationResults() {
     return instrumentationResults;
+  }
+
+  private static class RecordHelper {
+
+    public static List<Class<?>> detectRecordWithTypeAnnotation(
+        Consumer<String> reportError, List<Class<?>> changedClasses) {
+      if (!JAVA_AT_LEAST_16) {
+        // records introduced in JDK 16 (final version)
+        return changedClasses;
+      }
+      List<Class<?>> result = new ArrayList<>();
+      for (Class<?> changedClass : changedClasses) {
+        boolean addClass = true;
+        try {
+          if (changedClass.getSuperclass() != null
+              && changedClass.getSuperclass().getTypeName().equals("java.lang.Record")
+              && Modifier.isFinal(changedClass.getModifiers())) {
+            if (hasTypeAnnotationOnRecordComponent(changedClass)) {
+              LOGGER.debug(
+                  "Record with type annotation detected, instrumentation not supported for {}",
+                  changedClass.getTypeName());
+              reportError.accept(
+                  "Record with type annotation detected, instrumentation not supported for "
+                      + changedClass.getTypeName());
+              addClass = false;
+            }
+          }
+        } catch (Exception e) {
+          LOGGER.debug("Exception detecting record with type annotation", e);
+        }
+        if (addClass) {
+          result.add(changedClass);
+        }
+      }
+      return result;
+    }
+
+    private static boolean hasTypeAnnotationOnRecordComponent(Class<?> recordClass) {
+      if (GET_RECORD_COMPONENTS_METHOD == null || GET_ANNOTATED_TYPES_METHOD == null) {
+        return false;
+      }
+      try {
+        Object recordComponentsArray = GET_RECORD_COMPONENTS_METHOD.invoke(recordClass);
+        int len = Array.getLength(recordComponentsArray);
+        for (int i = 0; i < len; i++) {
+          Object recordComponent = Array.get(recordComponentsArray, i);
+          AnnotatedType annotatedType =
+              (AnnotatedType) GET_ANNOTATED_TYPES_METHOD.invoke(recordComponent);
+          for (Annotation annotation : annotatedType.getAnnotations()) {
+            Target annotationTarget = annotation.annotationType().getAnnotation(Target.class);
+            if (annotationTarget != null
+                && Arrays.stream(annotationTarget.value())
+                    .anyMatch(it -> it == ElementType.TYPE_USE)) {
+              return true;
+            }
+          }
+        }
+        return false;
+      } catch (Exception ex) {
+        return false;
+      }
+    }
   }
 }
