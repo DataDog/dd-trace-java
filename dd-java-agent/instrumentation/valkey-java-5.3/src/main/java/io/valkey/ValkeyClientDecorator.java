@@ -41,11 +41,6 @@ public class ValkeyClientDecorator extends DBTypeProcessingDatabaseClientDecorat
   }
 
   @Override
-  protected String dbUser(final Connection connection) {
-    return null;
-  }
-
-  @Override
   protected String dbInstance(final Connection connection) {
     return null;
   }

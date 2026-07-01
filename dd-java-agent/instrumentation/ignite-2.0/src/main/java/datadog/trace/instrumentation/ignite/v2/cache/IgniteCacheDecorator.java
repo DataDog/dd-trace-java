@@ -57,11 +57,6 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
   }
 
   @Override
-  protected String dbUser(IgniteCache igniteCache) {
-    return null;
-  }
-
-  @Override
   protected String dbInstance(IgniteCache igniteCache) {
     return null;
   }

@@ -42,11 +42,6 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   }
 
   @Override
-  protected String dbUser(final RedisURI connection) {
-    return null;
-  }
-
-  @Override
   protected String dbInstance(final RedisURI connection) {
     return null;
   }

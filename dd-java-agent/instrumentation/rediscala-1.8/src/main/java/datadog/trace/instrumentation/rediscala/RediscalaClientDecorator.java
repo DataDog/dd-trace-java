@@ -44,11 +44,6 @@ public class RediscalaClientDecorator
   }
 
   @Override
-  protected String dbUser(final RedisConnectionInfo redisConnectionInfo) {
-    return null;
-  }
-
-  @Override
   protected String dbInstance(final RedisConnectionInfo redisConnectionInfo) {
     return null;
   }

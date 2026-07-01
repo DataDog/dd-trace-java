@@ -53,11 +53,6 @@ public abstract class MongoDecorator
   }
 
   @Override
-  protected final String dbUser(final CommandStartedEvent event) {
-    return null;
-  }
-
-  @Override
   protected final String dbHostname(CommandStartedEvent event) {
     final ConnectionDescription connectionDescription = event.getConnectionDescription();
     if (connectionDescription != null) {

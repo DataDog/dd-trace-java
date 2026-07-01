@@ -41,11 +41,6 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   }
 
   @Override
-  protected String dbUser(final Connection connection) {
-    return null;
-  }
-
-  @Override
   protected String dbInstance(final Connection connection) {
     return null;
   }
