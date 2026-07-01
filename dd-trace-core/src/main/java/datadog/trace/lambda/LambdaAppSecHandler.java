@@ -148,16 +148,17 @@ public class LambdaAppSecHandler {
       String json = new String(bytes, StandardCharsets.UTF_8);
       LambdaResponseData responseData = extractResponseData(json);
 
+      // Only process responses for known HTTP trigger types
+      LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
+      if (triggerType == null || !triggerType.isHttp()) {
+        return;
+      }
+
       if (responseData == null || responseData.statusCode == 0) {
         // No statusCode means this is not an API-GW formatted response, or JSON parsing failed.
-        // Only process for known HTTP trigger types, mirroring Python's asm_start_response.
-        LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
-        if (triggerType == null || !triggerType.isHttp()) {
-          return;
-        }
         if (responseData == null || (responseData.headers.isEmpty() && responseData.body == null)) {
           // Parse failed or response has no API-GW structure (plain JSON body).
-          // Treat the full response as the body, mirroring Python's asm_start_response.
+          // Treat the full response as the body
           Object fallbackBody;
           String fallbackContentType;
           try {
@@ -666,13 +667,11 @@ public class LambdaAppSecHandler {
         for (Map.Entry<?, ?> entry : rawHeaders.entrySet()) {
           if (entry.getKey() != null && entry.getValue() != null) {
             String key = String.valueOf(entry.getKey());
-            if (entry.getValue() instanceof java.util.List) {
-              java.util.List<?> values = (java.util.List<?>) entry.getValue();
+            if (entry.getValue() instanceof List) {
+              List<?> values = (List<?>) entry.getValue();
               // Join multiple values with comma
               String joinedValue =
-                  values.stream()
-                      .map(String::valueOf)
-                      .collect(java.util.stream.Collectors.joining(", "));
+                  values.stream().map(String::valueOf).collect(Collectors.joining(", "));
               headers.put(key, joinedValue);
             } else {
               headers.put(key, String.valueOf(entry.getValue()));
@@ -821,7 +820,7 @@ public class LambdaAppSecHandler {
         if (entry.getKey() != null && entry.getValue() != null) {
           String key = String.valueOf(entry.getKey());
           String value = String.valueOf(entry.getValue());
-          result.put(key, java.util.Collections.singletonList(value));
+          result.put(key, Collections.singletonList(value));
         }
       }
     }
@@ -840,8 +839,8 @@ public class LambdaAppSecHandler {
       for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
         if (entry.getKey() != null && entry.getValue() != null) {
           String key = String.valueOf(entry.getKey());
-          if (entry.getValue() instanceof java.util.List) {
-            java.util.List<?> values = (java.util.List<?>) entry.getValue();
+          if (entry.getValue() instanceof List) {
+            List<?> values = (List<?>) entry.getValue();
             List<String> stringValues = new ArrayList<>();
             for (Object value : values) {
               if (value != null) {
@@ -850,7 +849,7 @@ public class LambdaAppSecHandler {
             }
             result.put(key, stringValues);
           } else {
-            result.put(key, java.util.Collections.singletonList(String.valueOf(entry.getValue())));
+            result.put(key, Collections.singletonList(String.valueOf(entry.getValue())));
           }
         }
       }
@@ -898,14 +897,12 @@ public class LambdaAppSecHandler {
 
     // API Gateway v2 provides a pre-parsed cookies array
     Object cookiesObj = event.get("cookies");
-    if (cookiesObj instanceof java.util.List) {
-      java.util.List<?> cookiesList = (java.util.List<?>) cookiesObj;
+    if (cookiesObj instanceof List) {
+      List<?> cookiesList = (List<?>) cookiesObj;
       if (!cookiesList.isEmpty()) {
         // Join cookies with "; " separator per RFC 6265
         String cookieValue =
-            cookiesList.stream()
-                .map(String::valueOf)
-                .collect(java.util.stream.Collectors.joining("; "));
+            cookiesList.stream().map(String::valueOf).collect(Collectors.joining("; "));
 
         // Merge with existing cookie header if present
         String existingCookie = headers.get("cookie");
