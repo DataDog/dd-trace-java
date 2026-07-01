@@ -219,7 +219,6 @@ default:
         - .gradle/notifications
         - .mvn/caches
       policy: $DEPENDENCY_CACHE_POLICY
-      unprotect: true
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
         - 'dependency-base'
         - 'dependency-lib'
@@ -771,7 +770,6 @@ muzzle-dep-report:
       fallback_keys:
         - dependency-base
         - dependency-lib
-      unprotect: true
   before_script:
     - git config --global --add safe.directory "$CI_PROJECT_DIR"
     # Akka token added to SSM from https://account.akka.io/token
