@@ -31,11 +31,6 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
   private static long submittedTimeMs = 0L;
   private static long runningTimeMs = 0L;
 
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // This listener lives in the agent's instrumentation classloader and is not handed to application
-  // code in a way that lets it lock on the same Class. The Class lock is deliberately shared with
-  // the synchronized blocks in stateChanged/infoChanged/shutdown-hook to guard the launcherSpan
-  // state; a private static final lock object would be a cleaner equivalent. Risk is low.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification =
@@ -80,11 +75,6 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
     }
   }
 
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // This listener lives in the agent's instrumentation classloader and is not handed to application
-  // code in a way that lets it lock on the same Class. The Class lock is deliberately shared with
-  // the synchronized blocks in stateChanged/infoChanged/shutdown-hook to guard the launcherSpan
-  // state; a private static final lock object would be a cleaner equivalent. Risk is low.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification =
@@ -104,11 +94,6 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
     launcherSpan = null;
   }
 
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // This listener lives in the agent's instrumentation classloader and is not handed to application
-  // code in a way that lets it lock on the same Class. The Class lock is deliberately shared with
-  // the synchronized blocks in stateChanged/infoChanged/shutdown-hook to guard the launcherSpan
-  // state; a private static final lock object would be a cleaner equivalent. Risk is low.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification =

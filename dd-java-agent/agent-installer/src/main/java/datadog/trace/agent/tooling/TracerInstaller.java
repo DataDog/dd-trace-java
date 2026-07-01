@@ -20,10 +20,6 @@ public class TracerInstaller {
   private static final Logger log = LoggerFactory.getLogger(TracerInstaller.class);
 
   /** Register a global tracer if no global tracer is already registered. */
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // TracerInstaller is an agent-internal class loaded in the agent class loader; its Class object
-  // is not exposed to application code that could lock it, and the lock only serializes one-time
-  // global tracer installation.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification =

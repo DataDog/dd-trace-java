@@ -34,7 +34,6 @@ if (hasProperty('apiJar')) {
 }
 
 dependencies {
-  compileOnly 'com.github.spotbugs:spotbugs-annotations:4.10.2'
   implementation 'org.springframework.boot:spring-boot-starter-web'
   // OpenTracing 0.32.0 is the last release and is intentionally pinned: this smoke test
   // exercises the legacy OpenTracing bridge in dd-trace-ot. Do not "upgrade" — there is

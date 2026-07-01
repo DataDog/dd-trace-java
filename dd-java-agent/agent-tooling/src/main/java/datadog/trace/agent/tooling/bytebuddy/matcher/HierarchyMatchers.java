@@ -99,9 +99,6 @@ public final class HierarchyMatchers {
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // HierarchyMatchers is an agent-internal holder; its Class object is not exposed to application
-  // code, and the lock only guards one-time registration of the supplier.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification =

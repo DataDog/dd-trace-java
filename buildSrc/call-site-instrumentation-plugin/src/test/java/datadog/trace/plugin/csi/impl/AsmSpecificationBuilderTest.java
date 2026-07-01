@@ -552,8 +552,6 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     assertEquals(Arrays.asList("true"), result.getEnabled().getArguments());
   }
 
-  // Mirrors the real StringBuilderCallSite.aroundAppend advice: a single method carrying two
-  // @CallSite.Around annotations. The test below asserts the builder yields two advices from it.
   @CallSite(spi = CallSites.class)
   static class TestWithOtherAnnotations {
     @CallSite.Around("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.Object)")

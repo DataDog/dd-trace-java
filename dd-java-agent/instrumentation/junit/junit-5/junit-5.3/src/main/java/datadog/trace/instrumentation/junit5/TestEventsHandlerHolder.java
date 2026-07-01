@@ -23,10 +23,6 @@ public abstract class TestEventsHandlerHolder {
   private static volatile ContextStore<TestDescriptor, TestExecutionTracker>
       EXECUTION_TRACKER_STORE;
 
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // This holder lives in the agent's instrumentation classloader and is not exposed to application
-  // code that could lock on its Class. Real-world contention risk is low; a private static final
-  // lock object would be a cleaner fix.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification = "Holder class not exposed to application code; locking on its Class is safe")
@@ -52,10 +48,6 @@ public abstract class TestEventsHandlerHolder {
     }
   }
 
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // This holder lives in the agent's instrumentation classloader and is not exposed to application
-  // code that could lock on its Class. Real-world contention risk is low; a private static final
-  // lock object would be a cleaner fix.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification = "Holder class not exposed to application code; locking on its Class is safe")
@@ -77,10 +69,6 @@ public abstract class TestEventsHandlerHolder {
   }
 
   /** Used by instrumentation tests */
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // This holder lives in the agent's instrumentation classloader and is not exposed to application
-  // code that could lock on its Class. Real-world contention risk is low; a private static final
-  // lock object would be a cleaner fix.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification = "Holder class not exposed to application code; locking on its Class is safe")

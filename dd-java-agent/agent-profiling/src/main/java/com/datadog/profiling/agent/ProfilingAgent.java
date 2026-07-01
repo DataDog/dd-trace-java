@@ -96,10 +96,6 @@ public class ProfilingAgent {
    * Main entry point into profiling Note: this must be reentrant because we may want to start
    * profiling before any other tool, and then attempt to start it again at normal time
    */
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // ProfilingAgent is an agent-internal class; its Class object does not escape to application
-  // code, and the lock exists to make this reentrant startup method serialize one-time profiler
-  // initialization.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification =
