@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
@@ -12,11 +10,8 @@ import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
-import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutionException;
@@ -149,31 +144,12 @@ public abstract class BaseDecorator {
     return scope;
   }
 
-  /**
-   * Extracts peer-connection tags (hostname / IPv4 / IPv6 / port) from a remote {@link
-   * InetSocketAddress}. This is the extrinsic {@link TagExtractor} form of the peer-connection
-   * tagging that used to live only in {@link #onPeerConnection(AgentSpan, InetSocketAddress)} — a
-   * static-final, non-capturing lambda over a JDK type we don't own, so it can be applied at a
-   * monomorphic call site ({@code span.setTags(addr, PEER_CONNECTION_EXTRACTOR)}) and inlined. The
-   * logic (and the {@code hostName} resolver cache it uses) is unchanged.
-   */
-  public static final TagExtractor<InetSocketAddress> PEER_CONNECTION_EXTRACTOR =
-      (remoteConnection, span) -> {
-        if (remoteConnection != null) {
-          setPeerAddress(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
-          final int port = remoteConnection.getPort();
-          if (port > UNSET_PORT) {
-            span.setTag(Tags.PEER_PORT, port);
-          }
-        }
-      };
-
   public AgentSpan onPeerConnection(
       final AgentSpan span, final InetSocketAddress remoteConnection) {
     // Invoke the extractor directly rather than via span.setTags(...): this legacy plumbing path
     // is behavior-identical to the old inline code, and a direct call runs on test doubles too
     // (the span-first span.setTags(...) sugar is for hand-written integration call sites).
-    PEER_CONNECTION_EXTRACTOR.extract(remoteConnection, span);
+    PeerConnectionExtractor.INSTANCE.extract(remoteConnection, span);
     return span;
   }
 
@@ -182,23 +158,8 @@ public abstract class BaseDecorator {
   }
 
   public AgentSpan onPeerConnection(AgentSpan span, InetAddress remoteAddress, boolean resolved) {
-    setPeerAddress(span, remoteAddress, resolved);
+    PeerConnectionExtractor.setPeerAddress(span, remoteAddress, resolved);
     return span;
-  }
-
-  private static void setPeerAddress(
-      final AgentSpan span, final InetAddress remoteAddress, final boolean resolved) {
-    if (remoteAddress != null) {
-      String ip = remoteAddress.getHostAddress();
-      if (resolved && Config.get().isPeerHostNameEnabled()) {
-        span.setTag(Tags.PEER_HOSTNAME, hostName(remoteAddress, ip));
-      }
-      if (remoteAddress instanceof Inet4Address) {
-        span.setTag(Tags.PEER_HOST_IPV4, ip);
-      } else if (remoteAddress instanceof Inet6Address) {
-        span.setTag(Tags.PEER_HOST_IPV6, ip);
-      }
-    }
   }
 
   public AgentSpan setPeerPort(AgentSpan span, String port) {
