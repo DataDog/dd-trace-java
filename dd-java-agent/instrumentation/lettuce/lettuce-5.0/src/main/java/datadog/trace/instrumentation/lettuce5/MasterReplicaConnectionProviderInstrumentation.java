@@ -3,8 +3,9 @@ package datadog.trace.instrumentation.lettuce5;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -63,57 +64,19 @@ public class MasterReplicaConnectionProviderInstrumentation extends Instrumenter
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    // Legacy provider, used directly by MasterSlaveChannelWriter.
+    // Intent argument types move across Lettuce versions, but only the returned connection is used.
     transformer.applyAdvice(
         isMethod()
+            .and(isPublic())
             .and(named("getConnection"))
-            .and(
-                takesArgument(
-                    0, named("io.lettuce.core.masterslave.MasterSlaveConnectionProvider$Intent")))
+            .and(takesArguments(1))
             .and(returns(named("io.lettuce.core.api.StatefulRedisConnection"))),
         MasterReplicaConnectionProviderInstrumentation.class.getName() + "$SyncAdvice");
-    // Newer masterreplica provider still exposes a synchronous accessor for blocking callers.
     transformer.applyAdvice(
         isMethod()
-            .and(named("getConnection"))
-            .and(takesArgument(0, named("io.lettuce.core.protocol.ConnectionIntent")))
-            .and(returns(named("io.lettuce.core.api.StatefulRedisConnection"))),
-        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$SyncAdvice");
-    // Lettuce 5.1-5.3 command writers use the async accessor with the legacy intent.
-    transformer.applyAdvice(
-        isMethod()
+            .and(isPublic())
             .and(named("getConnectionAsync"))
-            .and(
-                takesArgument(
-                    0, named("io.lettuce.core.masterslave.MasterSlaveConnectionProvider$Intent")))
-            .and(returns(named("java.util.concurrent.CompletableFuture"))),
-        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$AsyncAdvice");
-    // Lettuce 6.0 command writers use a transitional upstream/replica provider.
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("getConnectionAsync"))
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "io.lettuce.core.masterreplica.UpstreamReplicaConnectionProvider$Intent")))
-            .and(returns(named("java.util.concurrent.CompletableFuture"))),
-        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$AsyncAdvice");
-    // Lettuce 6.1 uses the masterreplica provider with its own nested intent.
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("getConnectionAsync"))
-            .and(
-                takesArgument(
-                    0,
-                    named("io.lettuce.core.masterreplica.MasterReplicaConnectionProvider$Intent")))
-            .and(returns(named("java.util.concurrent.CompletableFuture"))),
-        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$AsyncAdvice");
-    // Newer command writers use the async accessor, so update the command span when it resolves.
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("getConnectionAsync"))
-            .and(takesArgument(0, named("io.lettuce.core.protocol.ConnectionIntent")))
+            .and(takesArguments(1))
             .and(returns(named("java.util.concurrent.CompletableFuture"))),
         MasterReplicaConnectionProviderInstrumentation.class.getName() + "$AsyncAdvice");
   }
