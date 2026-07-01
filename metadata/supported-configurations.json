@@ -10644,7 +10644,7 @@
     "DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT": [
       {
         "version": "A",
-        "type": "integer",
+        "type": "int",
         "default": "1024",
         "aliases": []
       }
@@ -10652,7 +10652,7 @@
     "DD_TRACE_STATS_SERVICE_CARDINALITY_LIMIT": [
       {
         "version": "A",
-        "type": "integer",
+        "type": "int",
         "default": "32",
         "aliases": []
       }
@@ -10660,7 +10660,7 @@
     "DD_TRACE_STATS_OPERATION_CARDINALITY_LIMIT": [
       {
         "version": "A",
-        "type": "integer",
+        "type": "int",
         "default": "64",
         "aliases": []
       }
@@ -10668,7 +10668,7 @@
     "DD_TRACE_STATS_SERVICE_SOURCE_CARDINALITY_LIMIT": [
       {
         "version": "A",
-        "type": "integer",
+        "type": "int",
         "default": "16",
         "aliases": []
       }
@@ -10676,7 +10676,7 @@
     "DD_TRACE_STATS_TYPE_CARDINALITY_LIMIT": [
       {
         "version": "A",
-        "type": "integer",
+        "type": "int",
         "default": "16",
         "aliases": []
       }
@@ -10684,7 +10684,7 @@
     "DD_TRACE_STATS_SPAN_KIND_CARDINALITY_LIMIT": [
       {
         "version": "A",
-        "type": "integer",
+        "type": "int",
         "default": "8",
         "aliases": []
       }
@@ -10692,7 +10692,7 @@
     "DD_TRACE_STATS_HTTP_METHOD_CARDINALITY_LIMIT": [
       {
         "version": "A",
-        "type": "integer",
+        "type": "int",
         "default": "16",
         "aliases": []
       }
@@ -10700,7 +10700,7 @@
     "DD_TRACE_STATS_HTTP_ENDPOINT_CARDINALITY_LIMIT": [
       {
         "version": "A",
-        "type": "integer",
+        "type": "int",
         "default": "64",
         "aliases": []
       }
@@ -10708,7 +10708,7 @@
     "DD_TRACE_STATS_GRPC_STATUS_CODE_CARDINALITY_LIMIT": [
       {
         "version": "A",
-        "type": "integer",
+        "type": "int",
         "default": "24",
         "aliases": []
       }
@@ -10716,7 +10716,7 @@
     "DD_TRACE_STATS_PEER_TAG_CARDINALITY_LIMIT": [
       {
         "version": "A",
-        "type": "integer",
+        "type": "int",
         "default": "512",
         "aliases": []
       }
