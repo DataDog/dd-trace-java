@@ -19,6 +19,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
@@ -73,6 +74,19 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       Config.get().isDbMetadataFetchingOnConnectEnabled();
   private static final boolean FETCH_DB_METADATA_ON_QUERY =
       Config.get().isDbMetadataFetchingOnQueryEnabled();
+
+  // Canary for the TagExtractor mechanism: the JDBC-specific, pure field->tag connection tags
+  // (warehouse / schema / pool — no derivation). A static-final non-capturing lambda applied via
+  // span.setTags(...) at the single onConnection site — a monomorphic call site the JIT inlines
+  // (the span.setTags indirection folds away). Behavior-identical to the previous inline
+  // setTagIfPresent block. (DB_TYPE / instance / hostname stay in the decorator for now: their
+  // values feed service-name/naming derivation — bucket (c), a later declarative step.)
+  private static final TagExtractor<DBInfo> CONNECTION_INFO_EXTRACTOR =
+      (info, span) -> {
+        setTagIfPresent(span, DB_WAREHOUSE, info.getWarehouse());
+        setTagIfPresent(span, DB_SCHEMA, info.getSchema());
+        setTagIfPresent(span, DB_POOL_NAME, info.getPoolName());
+      };
 
   private volatile boolean warnedAboutDBMPropagationMode = false; // to log a warning only once
   private volatile boolean loggedInjectionError = false;
@@ -147,7 +161,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return info.getHost();
   }
 
-  private void setTagIfPresent(final AgentSpan span, final String key, final String value) {
+  private static void setTagIfPresent(final AgentSpan span, final String key, final String value) {
     if (value != null && !value.isEmpty()) {
       span.setTag(key, value);
     }
@@ -157,9 +171,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
 
-      setTagIfPresent(span, DB_WAREHOUSE, dbInfo.getWarehouse());
-      setTagIfPresent(span, DB_SCHEMA, dbInfo.getSchema());
-      setTagIfPresent(span, DB_POOL_NAME, dbInfo.getPoolName());
+      span.setTags(dbInfo, CONNECTION_INFO_EXTRACTOR);
     }
     return super.onConnection(span, dbInfo);
   }
