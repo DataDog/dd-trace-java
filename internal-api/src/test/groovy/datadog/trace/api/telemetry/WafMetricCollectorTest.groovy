@@ -432,6 +432,7 @@ class WafMetricCollectorTest extends DDSpecification {
   void 'test waf request metrics'() {
     given:
     def collector = WafMetricCollector.get()
+    collector.wafInit('waf_ver1', 'rules.1', true)
 
     when:
     collector.wafRequest(
@@ -441,7 +442,8 @@ class WafMetricCollectorTest extends DDSpecification {
       wafTimeout,
       blockFailure,
       rateLimited,
-      inputTruncated
+      inputTruncated,
+      requestExcluded
       )
 
     then:
@@ -449,10 +451,12 @@ class WafMetricCollectorTest extends DDSpecification {
     def metrics = collector.drain()
     def requestMetrics = metrics.findAll { it.metricName == 'waf.requests' }
 
+    requestMetrics.size() == 1
     final metric = requestMetrics[0]
     metric.type == 'count'
     metric.metricName == 'waf.requests'
     metric.namespace == 'appsec'
+    metric.value == 1
     metric.tags == [
       "waf_version:waf_ver1",
       "event_rules_version:rules.1",
@@ -462,11 +466,21 @@ class WafMetricCollectorTest extends DDSpecification {
       "waf_timeout:${wafTimeout}",
       "block_failure:${blockFailure}",
       "rate_limited:${rateLimited}",
-      "input_truncated:${inputTruncated}"
+      "input_truncated:${inputTruncated}",
+      "request_excluded:${requestExcluded ? 'full' : 'none'}"
     ]
 
     where:
-    [triggered, blocked, wafError, wafTimeout, blockFailure, rateLimited, inputTruncated] << allBooleanCombinations(7)
+    [
+      triggered,
+      blocked,
+      wafError,
+      wafTimeout,
+      blockFailure,
+      rateLimited,
+      inputTruncated,
+      requestExcluded
+    ] << allBooleanCombinations(8)
   }
 
   void 'test waf input truncated metrics'() {

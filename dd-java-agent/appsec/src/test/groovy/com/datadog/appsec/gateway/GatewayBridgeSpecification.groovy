@@ -210,7 +210,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * mockAppSecCtx.isWafRequestBlockFailure()
     1 * mockAppSecCtx.isWafRateLimited()
     1 * mockAppSecCtx.isWafTruncated()
-    1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _) // call waf request metric
+    1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _, _) // call waf request metric
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
