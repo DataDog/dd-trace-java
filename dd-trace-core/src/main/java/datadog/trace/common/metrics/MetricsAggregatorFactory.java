@@ -24,11 +24,6 @@ public class MetricsAggregatorFactory {
                 + "exclusive).");
       }
       if (!config.isMetricsOtlpExporterEnabled()) {
-        // Reachable only via an explicit OTEL_TRACES_SPAN_METRICS_ENABLED=true: the implicit
-        // default already requires the OTLP metrics exporter. The span-metrics writer is not
-        // gated by metrics.otel.exporter -- it builds its sender from the otlp.metrics.* transport
-        // settings -- so metrics still leave over OTLP even though the general OTel metrics
-        // exporter is not OTLP. Warn so this is not a silent surprise.
         log.warn(
             "OTLP trace span metrics are enabled but the OTLP metrics exporter is not "
                 + "(metrics.otel.exporter is not 'otlp'); span metrics will still be exported over "
