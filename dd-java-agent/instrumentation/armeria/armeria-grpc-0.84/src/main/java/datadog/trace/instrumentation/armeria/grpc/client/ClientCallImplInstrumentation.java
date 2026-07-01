@@ -27,6 +27,7 @@ import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import java.util.Arrays;
 import net.bytebuddy.asm.Advice;
 
@@ -60,11 +61,16 @@ public final class ClientCallImplInstrumentation
     transformer.applyAdvice(
         named("sendMessage").and(isMethod()), getClass().getName() + "$SendMessage");
     transformer.applyAdvice(
+        // matches the method signature for versions until 1.40 excluded
+        named("close").and(isMethod().and(takesArguments(2))),
+        getClass().getName() + "$CloseObserver");
+    transformer.applyAdvice(
+        // matches the signature after v1.40
         named("close")
             .and(isMethod())
-            .and(takesArgument(0, named("io.grpc.Status")))
-            .and(takesArgument(1, named("io.grpc.Metadata"))),
-        getClass().getName() + "$CloseObserver");
+            .and(takesArguments(3))
+            .and(takesArgument(2, named("java.lang.Throwable"))),
+        getClass().getName() + "$CloseObserverWithCause");
     if (InstrumenterConfig.get()
         .isIntegrationEnabled(Arrays.asList("armeria-grpc-message", "grpc-message"), false)) {
       transformer.applyAdvice(
@@ -179,7 +185,9 @@ public final class ClientCallImplInstrumentation
         @Advice.This ClientCall<?, ?> call, @Advice.Argument(1) Throwable cause) {
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
       if (null != span) {
-        if (cause instanceof StatusException) {
+        if (cause instanceof StatusRuntimeException) {
+          DECORATE.onClose(span, ((StatusRuntimeException) cause).getStatus());
+        } else if (cause instanceof StatusException) {
           DECORATE.onClose(span, ((StatusException) cause).getStatus());
         }
         span.finish();
@@ -204,6 +212,42 @@ public final class ClientCallImplInstrumentation
       if (null != scope) {
         DECORATE.onClose(scope.span(), status);
         scope.span().finish();
+        scope.close();
+      }
+    }
+  }
+
+  /**
+   * After armeria 1.40 and <a href="https://github.com/line/armeria/pull/6717">this PR</a>, it is
+   * possible that the first call to close would not be the real close. We need to rely on the
+   * internal boolean `closed` to know if we are dealing with the real closing.
+   */
+  public static final class CloseObserverWithCause {
+    @Advice.OnMethodEnter
+    public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
+      // could create a message span here for the request
+      AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
+      if (span != null) {
+        return activateSpan(span);
+      }
+      return null;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static void closeObserver(
+        @Advice.This ClientCall<?, ?> call,
+        @Advice.Enter AgentScope scope,
+        @Advice.Argument(0) Status status,
+        @Advice.FieldValue("closed") boolean closed) {
+      if (null != scope) {
+        if (closed) {
+          AgentSpan span =
+              InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
+          if (span != null) {
+            DECORATE.onClose(span, status);
+            span.finish();
+          }
+        }
         scope.close();
       }
     }
