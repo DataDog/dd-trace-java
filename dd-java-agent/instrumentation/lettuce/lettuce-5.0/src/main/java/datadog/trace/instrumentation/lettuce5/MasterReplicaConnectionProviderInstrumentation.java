@@ -37,9 +37,11 @@ public class MasterReplicaConnectionProviderInstrumentation extends Instrumenter
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      // Legacy Lettuce [5,7)
+      // Legacy Lettuce 5.x
       "io.lettuce.core.masterslave.MasterSlaveConnectionProvider",
-      // Newer Lettuce [7,)
+      // Transitional Lettuce 6.0 provider
+      "io.lettuce.core.masterreplica.UpstreamReplicaConnectionProvider",
+      // Lettuce 6.1+
       "io.lettuce.core.masterreplica.MasterReplicaConnectionProvider"
     };
   }
@@ -77,6 +79,36 @@ public class MasterReplicaConnectionProviderInstrumentation extends Instrumenter
             .and(takesArgument(0, named("io.lettuce.core.protocol.ConnectionIntent")))
             .and(returns(named("io.lettuce.core.api.StatefulRedisConnection"))),
         MasterReplicaConnectionProviderInstrumentation.class.getName() + "$SyncAdvice");
+    // Lettuce 5.1-5.3 command writers use the async accessor with the legacy intent.
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("getConnectionAsync"))
+            .and(
+                takesArgument(
+                    0, named("io.lettuce.core.masterslave.MasterSlaveConnectionProvider$Intent")))
+            .and(returns(named("java.util.concurrent.CompletableFuture"))),
+        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$AsyncAdvice");
+    // Lettuce 6.0 command writers use a transitional upstream/replica provider.
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("getConnectionAsync"))
+            .and(
+                takesArgument(
+                    0,
+                    named(
+                        "io.lettuce.core.masterreplica.UpstreamReplicaConnectionProvider$Intent")))
+            .and(returns(named("java.util.concurrent.CompletableFuture"))),
+        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$AsyncAdvice");
+    // Lettuce 6.1 uses the masterreplica provider with its own nested intent.
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("getConnectionAsync"))
+            .and(
+                takesArgument(
+                    0,
+                    named("io.lettuce.core.masterreplica.MasterReplicaConnectionProvider$Intent")))
+            .and(returns(named("java.util.concurrent.CompletableFuture"))),
+        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$AsyncAdvice");
     // Newer command writers use the async accessor, so update the command span when it resolves.
     transformer.applyAdvice(
         isMethod()
