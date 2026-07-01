@@ -3870,8 +3870,7 @@ public class Config {
    * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
    */
   public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
-    return configProvider.getInteger(
-        "trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+    return configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
   }
 
   public boolean isLogsInjectionEnabled() {
