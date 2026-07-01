@@ -1042,11 +1042,15 @@ test_debugger:
   extends: .test_job
   variables:
     GRADLE_TARGET: ":debuggerTest"
-    GRADLE_PARAMS: "-PcheckCoverage"
     CACHE_TYPE: "base"
     DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "tip" version is LTS v25
   parallel:
     matrix: *test_matrix
+  # avoid running coverage for semeru8 as some tests are disabled and therefore cannot reach the
+  # exepected coverage
+  script:
+    - if [ "$testJvm" != "semeru8" ]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
+    - !reference [.test_job, script]
 
 test_debugger_arm64:
   extends: .test_job_arm64
