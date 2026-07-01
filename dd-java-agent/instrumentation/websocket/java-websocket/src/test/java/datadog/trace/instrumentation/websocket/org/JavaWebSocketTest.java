@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.websocket.org;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -33,6 +35,7 @@ class JavaWebSocketTest extends AbstractInstrumentationTest {
 
     TestClient client = new TestClient(new URI("ws://localhost:" + server.getPort()));
     client.connect();
+    assertNull(activeSpan());
     assertTrue(client.opened.await(5, TimeUnit.SECONDS));
     assertTrue(server.opened.await(5, TimeUnit.SECONDS));
 

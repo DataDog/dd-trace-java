@@ -86,7 +86,10 @@ public class WebsocketClientInstrumentation
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void onExit(@Advice.Enter AgentScope scope, @Advice.Thrown Throwable throwable) {
+    public static void onExit(
+        @Advice.Enter AgentScope scope,
+        @Advice.Thrown Throwable throwable,
+        @Advice.This WebSocketClient client) {
 
       CallDepthThreadLocalMap.decrementCallDepth(WebSocketClient.class);
       if (scope == null) {
@@ -95,8 +98,10 @@ public class WebsocketClientInstrumentation
       if (throwable != null) {
         CLIENT_DECORATE.onError(scope.span(), throwable);
         CLIENT_DECORATE.beforeFinish(scope.span());
-
-        scope.close();
+        InstrumentationContext.get(WebSocketClient.class, AgentSpan.class).remove(client);
+      }
+      scope.close();
+      if (throwable != null) {
         scope.span().finish();
       }
     }
