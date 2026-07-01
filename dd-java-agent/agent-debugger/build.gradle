@@ -30,8 +30,8 @@ excludedClassesCoverage += [
   'com.datadog.debugger.symboltest.SymbolExtraction*',
   // Depends on multiple versions of Spring to be tested while we have dep lockfiles
   'com.datadog.debugger.util.SpringHelper*',
-  // Used for Records only and therefore only for JDK16+
-  'com.datadog.debugger.agent.ConfigurationUpdater.RecordHelper'
+  // Used for helper methods that are JDK version specific
+  'com.datadog.debugger.agent.ConfigurationUpdater.JDKVersionSpecificHelper'
 ]
 
 dependencies {
