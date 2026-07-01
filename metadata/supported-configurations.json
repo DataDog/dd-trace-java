@@ -1233,7 +1233,7 @@
         "aliases": []
       }
     ],
-    "DD_DYNAMIC_INSTRUMENTATION_EVALUATION_TIMEOUT": [
+    "DD_DYNAMIC_INSTRUMENTATION_EVALUATION_TIMEOUT_MS": [
       {
         "version": "A",
         "type": "int",
