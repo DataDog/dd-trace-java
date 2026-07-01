@@ -219,6 +219,22 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this.reportingIntervalTimeUnit = timeUnit;
   }
 
+  // ── visible for testing ─────────────────────────────────────────────────────
+  // Expose the writer-selection outcome and reporting cadence so tests can assert
+  // the native-vs-OTLP XOR choice without reflecting into private fields.
+
+  boolean isOtlpStatsExportEnabled() {
+    return otlpStatsExportEnabled;
+  }
+
+  long reportingInterval() {
+    return reportingInterval;
+  }
+
+  TimeUnit reportingIntervalTimeUnit() {
+    return reportingIntervalTimeUnit;
+  }
+
   @Override
   public void start() {
     sink.register(this);
@@ -239,10 +255,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   }
 
   private boolean isMetricsEnabled() {
-    // The discovery refresh only helps the native path, which is gated on the agent advertising
-    // v0.6/stats. The OTLP path uses its own sender and never depends on that capability -- even
-    // when a Datadog Agent is present (the OTLP endpoint may itself be the agent's OTLP receiver),
-    // so refreshing agent features here would be pointless for it.
+    // The discovery refresh only helps the native path.
     if (!otlpStatsExportEnabled && features.getMetricsEndpoint() == null) {
       features.discoverIfOutdated();
     }

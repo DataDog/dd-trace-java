@@ -179,10 +179,6 @@ class OtlpResourceProtoTest {
     assertFalse(plain.containsKey("datadog.runtime_id"), "plain variant omits datadog.runtime_id");
   }
 
-  /**
-   * FR15: the {@code includeStatsComputed} variant adds the {@code _dd.stats_computed=true} marker
-   * (used on the OTLP trace payload so a downstream Agent skips recompute); the default omits it.
-   */
   @Test
   void statsComputedVariantCarriesMarker() throws IOException {
     Config config = Config.get(props(SERVICE_NAME, "my-service"));

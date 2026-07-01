@@ -187,15 +187,14 @@ public class WriterFactory {
               commObjects.agentUrl,
               featuresDiscovery,
               commObjects.monitoring,
-              config.isTracerMetricsEnabled() || config.isTracesSpanMetricsEnabled());
+              config.isTracerMetricsEnabled());
 
       if (sampler instanceof RemoteResponseListener) {
         ddAgentApi.addResponseListener((RemoteResponseListener) sampler);
       }
 
       // Drop p0 (sampled-out) traces when client-side stats are being computed -- either via the
-      // native agent-stats path (featuresDiscovery) or the OTLP trace metrics path -- so the
-      // now-redundant traces aren't shipped.
+      // native agent-stats path (featuresDiscovery) or the OTLP trace metrics path
       final boolean otlpSpanMetricsEnabled = config.isTracesSpanMetricsEnabled();
       final DroppingPolicy droppingPolicy =
           () -> otlpSpanMetricsEnabled || featuresDiscovery.active();
