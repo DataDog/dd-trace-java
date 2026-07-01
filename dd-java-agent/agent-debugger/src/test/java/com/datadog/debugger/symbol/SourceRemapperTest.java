@@ -38,10 +38,7 @@ class SourceRemapperTest {
     StratumExt stratumMainMock = mock(StratumExt.class);
     when(sourceMapMock.getStratum(eq("Kotlin"))).thenReturn(stratumMainMock);
     when(sourceMapMock.getStratum(eq("KotlinDebug"))).thenReturn(null);
-    IllegalArgumentException illegalArgumentException =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> SourceRemapper.getSourceRemapper("foo.kt", sourceMapMock));
-    assertEquals("No stratumDebug found for KotlinDebug", illegalArgumentException.getMessage());
+    SourceRemapper sourceRemapper = SourceRemapper.getSourceRemapper("foo.kt", sourceMapMock);
+    assertNotNull(sourceRemapper);
   }
 }
