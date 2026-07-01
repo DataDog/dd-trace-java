@@ -16,7 +16,7 @@ class ExtractedSpanTest extends Specification {
     expect:
     extractedSpan.getTraceId() == traceId
     extractedSpan.getSpanId() == context.getSpanId()
-    extractedSpan.context() == context
+    extractedSpan.spanContext() == context
     extractedSpan.getTags() == tags
     extractedSpan.getTag('tag-1') == 'value-1'
     extractedSpan.getBaggageItem('baggage-2') == 'value-2'
@@ -43,7 +43,7 @@ class ExtractedSpanTest extends Specification {
     expect:
     extractedSpan.getTraceId() == context.getTraceId()
     extractedSpan.getSpanId() == context.getSpanId()
-    extractedSpan.context() == context
+    extractedSpan.spanContext() == context
     extractedSpan.getTags().isEmpty()
     extractedSpan.getTag('tag-1') == null
     extractedSpan.getBaggageItem('baggage-2') == null

@@ -8,7 +8,7 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'Vert.x 3.9 RestEasy Smoke Tests.'
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'vertxBuild'
     nestedTasks = ['assemble']
     artifactPath = 'libs/vertx-3.9-resteasy-1.0.0-SNAPSHOT-fat.jar'

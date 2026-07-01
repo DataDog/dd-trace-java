@@ -81,11 +81,16 @@ workflow:
     - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue\//'
       when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
+      variables:
+        SYSTEM_TESTS_RUN_ALL_VMS: "true"
       auto_cancel:
         on_new_commit: none
     - if: '$CI_COMMIT_BRANCH =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       auto_cancel:
         on_new_commit: none
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      variables:
+        SYSTEM_TESTS_RUN_ALL_VMS: "true"
     - when: always
 
 .test_matrix: &test_matrix
@@ -242,8 +247,9 @@ default:
       EOF
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
-    # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
-    - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    # Apache Maven Wrapper supports MVNW_REPOURL for repository-manager downloads:
+    # https://maven.apache.org/tools/wrapper/#Using_a_Maven_Repository_Manager
+    - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
     # Route Gradle distribution download through MASS pull-through cache
     - |
       mass_read_host="${MASS_READ_URL#https://}"
@@ -336,7 +342,7 @@ build:
   script:
     - if [ $CI_PIPELINE_SOURCE == "schedule" ] ; then ./gradlew resolveAndLockAll --write-locks $GRADLE_ARGS; fi
     - ./gradlew --version
-    - ./gradlew clean :dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar -PskipTests $GRADLE_ARGS
+    - ./gradlew clean :dd-java-agent:shadowJar :dd-java-agent:check :dd-trace-api:jar :dd-trace-ot:shadowJar -PskipTests -x spotlessCheck $GRADLE_ARGS
     - echo UPSTREAM_TRACER_VERSION=$(java -jar workspace/dd-java-agent/build/libs/*.jar) >> upstream.env
     - echo "BUILD_JOB_NAME=$CI_JOB_NAME" >> build.env
     - echo "BUILD_JOB_ID=$CI_JOB_ID" >> build.env
@@ -738,7 +744,6 @@ muzzle-dep-report:
   needs: []
   variables:
     <<: *tier_m_variables
-    # arm64 does not include JDK 7 or ibm8 (upstream images not published for arm64).
     DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/
     GRADLE_PARAMS: "-PskipFlakyTests"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -751,6 +756,7 @@ muzzle-dep-report:
     - if: $testJvm =~ $DEFAULT_TEST_JVMS
       when: manual
       allow_failure: true
+      # Note: `ibm8` and `oracle8` omitted — no arm64 images published upstream.
     - if: '$NON_DEFAULT_JVMS == "true" && $testJvm != "ibm8" && $testJvm != "oracle8"'
       when: manual
       allow_failure: true
@@ -784,7 +790,14 @@ muzzle-dep-report:
     # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
     - sudo chown -R 1001:1001 .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
-    - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    # Apache Maven Wrapper supports MVNW_REPOURL for repository-manager downloads:
+    # https://maven.apache.org/tools/wrapper/#Using_a_Maven_Repository_Manager
+    - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
+    # Route Gradle distribution download through MASS pull-through cache
+    - |
+      mass_read_host="${MASS_READ_URL#https://}"
+      mass_read_host="${mass_read_host%/}"
+      sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
     - *normalize_node_index
     - *prepare_test_env
     # Disable CDS in forked JVMs to avoid SIGSEGVs on Linux arm64.
@@ -1033,11 +1046,17 @@ test_debugger:
     DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "tip" version is LTS v25
   parallel:
     matrix: *test_matrix
+  # avoid running coverage for semeru8, semeru11, semeru17 and ibm8 as some tests are disabled and therefore cannot reach the
+  # exepected coverage
+  script:
+    - if [[ "$testJvm" != "semeru8" && "$testJvm" != "semeru11" && "$testJvm" != "semeru17" && "$testJvm" != "ibm8" ]]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
+    - !reference [.test_job, script]
 
 test_debugger_arm64:
   extends: .test_job_arm64
   variables:
     GRADLE_TARGET: ":debuggerTest"
+    GRADLE_PARAMS: "-PcheckCoverage"
     CACHE_TYPE: "base"
   parallel:
     matrix: *test_matrix
@@ -1107,6 +1126,7 @@ test_smoke_graalvm:
   needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
@@ -1119,6 +1139,7 @@ test_smoke_graalvm_arm64:
   extends: .test_job_arm64
   tags: [ "arch:arm64" ]
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
@@ -1228,6 +1249,7 @@ deploy_to_maven_central:
     # Do not deploy release candidate versions
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
+      allow_failure: true
     - when: manual
       allow_failure: true
   script:
@@ -1235,7 +1257,7 @@ deploy_to_maven_central:
     - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
-    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
+    - ./gradlew publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'

@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-smoke-tests:spring-boot-2.6-webmvc:dependencies --write-locks
 antlr:antlr:2.7.7=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:curve25519-elisabeth:0.1.0=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
@@ -30,15 +31,19 @@ com.github.jnr:jnr-ffi:2.2.19=runtimeClasspath,testFixturesRuntimeClasspath,test
 com.github.jnr:jnr-posix:3.1.22=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-unixsocket:0.38.25=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-x86asm:1.0.2=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
-com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
+com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,spotbugs
 com.github.spotbugs:spotbugs:4.9.8=spotbugs
 com.github.stephenc.jcip:jcip-annotations:1.0-1=spotbugs
 com.google.code.findbugs:jsr305:3.0.2=compileClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
 com.google.code.gson:gson:2.10=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.google.code.gson:gson:2.13.2=spotbugs
 com.google.errorprone:error_prone_annotations:2.41.0=spotbugs
-com.google.guava:guava:20.0=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
-com.google.re2j:re2j:1.7=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.google.errorprone:error_prone_annotations:2.47.0=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.google.guava:failureaccess:1.0.3=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.google.guava:guava:33.6.0-jre=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.google.j2objc:j2objc-annotations:3.1=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.google.re2j:re2j:1.8=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.h2database:h2:2.1.214=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.squareup.moshi:moshi:1.11.0=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.squareup.okhttp3:logging-interceptor:3.12.12=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
@@ -126,6 +131,7 @@ org.jboss.logging:jboss-logging:3.4.2.Final=compileClasspath,runtimeClasspath,te
 org.jboss:jandex:2.2.3.Final=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 org.jctools:jctools-core-jdk11:4.0.6=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 org.jctools:jctools-core:4.0.6=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+org.jspecify:jspecify:1.0.0=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-api:5.14.1=testCompileClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-engine:5.14.1=testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-params:5.14.1=testCompileClasspath,testRuntimeClasspath

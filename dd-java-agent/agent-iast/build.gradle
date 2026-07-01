@@ -45,12 +45,12 @@ dependencies {
   implementation libs.moshi
   implementation libs.bundles.asm
   implementation libs.instrument.java
+  implementation libs.re2j
 
   testImplementation project(':utils:test-utils')
   testImplementation project(':dd-java-agent:agent-bootstrap')
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
   testImplementation(libs.bytebuddy)
-  testImplementation(libs.guava)
 
   testImplementation(libs.groovy.yaml)
 

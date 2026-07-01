@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DB
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.INSTRUMENTATION_TIME_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
@@ -15,7 +16,6 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -276,7 +276,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     } else {
       span.setResourceName(DB_QUERY);
     }
-    span.context().setIntegrationName(component);
+    span.spanContext().setIntegrationName(component);
     return span.setTag(Tags.COMPONENT, component);
   }
 
@@ -343,7 +343,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
             .start();
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, dbInfo);
-    try (AgentScope scope = activateSpan(instrumentationSpan)) {
+    try (ContextScope scope = activateSpan(instrumentationSpan)) {
       final byte samplingDecision =
           (byte) (instrumentationSpan.forceSamplingDecision() > 0 ? 1 : 0);
       final byte versionAndSamplingDecision =

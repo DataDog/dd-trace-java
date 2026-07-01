@@ -32,6 +32,7 @@ dependencies {
   implementation(libs.asm.tree)
   implementation(libs.javaparser.symbol.solver)
 
+  testCompileOnly(libs.jsr305)
   testImplementation(libs.bytebuddy)
   testImplementation(libs.bundles.junit5)
   testRuntimeOnly(libs.junit.platform.launcher)

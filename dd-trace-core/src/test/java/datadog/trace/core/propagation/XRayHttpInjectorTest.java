@@ -15,47 +15,35 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
-import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.common.writer.ListWriter;
-import datadog.trace.core.CoreTracer;
-import datadog.trace.core.DDCoreJavaSpecification;
+import datadog.trace.core.CoreTracer.CoreTracerBuilder;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
-class XRayHttpInjectorTest extends DDCoreJavaSpecification {
-  private HttpCodec.Injector injector;
-  private CoreTracer tracer;
+class XRayHttpInjectorTest extends AbstractHttpInjectorTest {
 
-  @BeforeEach
-  void setup() {
-    this.injector =
-        XRayHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
+  @Override
+  protected CoreTracerBuilder tracerBuilder() {
     TimeSource timeSource = mock(TimeSource.class);
     when(timeSource.getCurrentTimeMillis()).thenReturn(1_664_906_869_196L);
     when(timeSource.getCurrentTimeNanos()).thenReturn(1_664_906_869_196_787_813L);
     when(timeSource.getNanoTicks()).thenReturn(1_664_906_869_196L);
-    this.tracer =
-        tracerBuilder()
-            .dataStreamsMonitoring(mock(DataStreamsMonitoring.class))
-            .writer(new ListWriter())
-            .timeSource(timeSource)
-            .build();
+    return super.tracerBuilder()
+        .dataStreamsMonitoring(mock(DataStreamsMonitoring.class))
+        .timeSource(timeSource);
   }
 
-  @AfterEach
-  void tearDown() {
-    this.tracer.close();
+  @Override
+  protected HttpCodec.Injector newInjector() {
+    return XRayHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
   }
 
   @TableTest({
@@ -137,25 +125,6 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
 
   private DDSpanContext createContext(
       DDTraceId traceId, long spanId, int samplingPriority, Map<String, String> baggage) {
-    return new DDSpanContext(
-        traceId,
-        spanId,
-        DDSpanId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        samplingPriority,
-        "fakeOrigin",
-        baggage,
-        false,
-        "fakeType",
-        0,
-        this.tracer.createTraceCollector(DDTraceId.ONE),
-        null,
-        null,
-        NoopPathwayContext.INSTANCE,
-        false,
-        null);
+    return mockSpanContext(traceId, spanId, samplingPriority, "fakeOrigin", baggage, null);
   }
 }

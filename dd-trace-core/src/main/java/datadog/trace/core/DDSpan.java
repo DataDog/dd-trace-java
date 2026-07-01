@@ -9,6 +9,7 @@ import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.context.SelfScopedContext;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
@@ -50,7 +51,8 @@ import org.slf4j.LoggerFactory;
  * <p>Spans are created by the {@link CoreTracer#buildSpan}. This implementation adds some features
  * according to the DD agent.
  */
-public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
+@SuppressWarnings("resource")
+public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, SelfScopedContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
   static DDSpan create(
@@ -544,7 +546,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   @Nonnull
-  public final DDSpanContext context() {
+  public final DDSpanContext spanContext() {
     return context;
   }
 
@@ -965,9 +967,14 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
+  public String getSpanKindString() {
+    return context.getSpanKindString();
+  }
+
+  @Override
   public void copyPropagationAndBaggage(final AgentSpan source) {
     if (source instanceof DDSpan) {
-      final DDSpanContext sourceSpanContext = ((DDSpan) source).context();
+      final DDSpanContext sourceSpanContext = ((DDSpan) source).spanContext();
       // align the sampling priority for this span context
       setSamplingPriority(sourceSpanContext.getSamplingPriority(), DEFAULT);
       // the sampling mechanism determine the dm tag hence we need to override and lock the current

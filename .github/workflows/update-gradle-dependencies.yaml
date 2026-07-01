@@ -21,11 +21,11 @@ jobs:
           policy: self.update-gradle-dependencies.create-pr
 
       - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # 6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
         with:
           submodules: "recursive"
 
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -68,6 +68,9 @@ jobs:
             --min-age-hours "${MIN_DEPENDENCY_AGE_HOURS}" \
             --repo-url "https://repo1.maven.org/maven2" \
             --repo-url "https://repo.akka.io/${AKKA_REPO_TOKEN}/secure" \
+            --repo-url "https://packages.confluent.io/maven" \
+            --repo-url "https://repository.mulesoft.org/releases" \
+            --repo-url "https://repository.mulesoft.org/nexus/content/repositories/public" \
             --github-output "$GITHUB_OUTPUT"
 
       - name: Save instrumentation lock files

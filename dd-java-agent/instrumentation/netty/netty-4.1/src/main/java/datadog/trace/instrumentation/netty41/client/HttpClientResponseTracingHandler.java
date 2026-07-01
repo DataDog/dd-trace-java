@@ -8,7 +8,7 @@ import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIB
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.DECORATE;
 
 import datadog.context.Context;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -43,7 +43,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
                   || "websocket"
                       .equals(((HttpResponse) msg).headers().get(HttpHeaderNames.UPGRADE)));
       if (finishSpan) {
-        try (final AgentScope scope = activateSpan(span)) {
+        try (final ContextScope scope = activateSpan(span)) {
           DECORATE.onResponse(span, (HttpResponse) msg);
           DECORATE.beforeFinish(span);
           span.finish();
@@ -56,7 +56,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     }
 
     // We want the callback in the scope of the parent, not the client span
-    try (final AgentScope scope = activateSpan(parent)) {
+    try (final ContextScope scope = activateSpan(parent)) {
       ctx.fireChannelRead(msg);
     }
   }
@@ -77,14 +77,14 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     if (span != null) {
       // If an exception is passed to this point, it likely means it was unhandled and the
       // client span won't be finished with a proper response, so we should finish the span here.
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final ContextScope scope = activateSpan(span)) {
         DECORATE.onError(span, cause);
         DECORATE.beforeFinish(span);
         span.finish();
       }
     }
     // We want the callback in the scope of the parent, not the client span
-    try (final AgentScope scope = activateSpan(parent)) {
+    try (final ContextScope scope = activateSpan(parent)) {
       super.exceptionCaught(ctx, cause);
     }
   }
@@ -103,13 +103,13 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     }
 
     if (span != null && span != parent) {
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final ContextScope scope = activateSpan(span)) {
         DECORATE.beforeFinish(span);
         span.finish();
       }
     }
     // We want the callback in the scope of the parent, not the client span
-    try (final AgentScope scope = activateSpan(parent)) {
+    try (final ContextScope scope = activateSpan(parent)) {
       super.channelInactive(ctx);
     }
   }

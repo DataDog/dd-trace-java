@@ -33,10 +33,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final BlockingQueue<WafMetric> rawMetricsQueue =
       new ArrayBlockingQueue<>(RAW_QUEUE_SIZE);
 
-  private static final AtomicInteger wafInitCounter = new AtomicInteger();
-  private static final AtomicInteger wafUpdatesCounter = new AtomicInteger();
-
-  private static final int WAF_REQUEST_COMBINATIONS = 128; // 2^7
+  private static final int WAF_REQUEST_COMBINATIONS = 256; // 2^8
   private final AtomicLongArray wafRequestCounter = new AtomicLongArray(WAF_REQUEST_COMBINATIONS);
 
   private static final AtomicLongArray wafInputTruncatedCounter =
@@ -47,7 +44,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicLongArray raspRuleSkippedCounter =
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspRuleMatchCounter =
-      new AtomicLongArray(RuleType.getNumValues());
+      new AtomicLongArray(RuleType.getNumValues() * 2);
   private static final AtomicLongArray raspTimeoutCounter =
       new AtomicLongArray(RuleType.getNumValues());
   private static final AtomicLongArray raspErrorCodeCounter =
@@ -80,14 +77,11 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   public void wafInit(final String wafVersion, final String rulesVersion, final boolean success) {
     WafMetricCollector.wafVersion = wafVersion;
     WafMetricCollector.rulesVersion = rulesVersion;
-    rawMetricsQueue.offer(
-        new WafInitRawMetric(wafInitCounter.incrementAndGet(), wafVersion, rulesVersion, success));
+    rawMetricsQueue.offer(new WafInitRawMetric(1L, wafVersion, rulesVersion, success));
   }
 
   public void wafUpdates(final String rulesVersion, final boolean success) {
-    rawMetricsQueue.offer(
-        new WafUpdatesRawMetric(
-            wafUpdatesCounter.incrementAndGet(), wafVersion, rulesVersion, success));
+    rawMetricsQueue.offer(new WafUpdatesRawMetric(1L, wafVersion, rulesVersion, success));
 
     // Flush request metrics to get the new version.
     if (rulesVersion != null
@@ -105,7 +99,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       final boolean wafTimeout,
       final boolean blockFailure,
       final boolean rateLimited,
-      final boolean inputTruncated) {
+      final boolean inputTruncated,
+      final boolean requestExcluded) {
     int index =
         computeWafRequestIndex(
             ruleTriggered,
@@ -114,7 +109,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
             wafTimeout,
             blockFailure,
             rateLimited,
-            inputTruncated);
+            inputTruncated,
+            requestExcluded);
     wafRequestCounter.incrementAndGet(index);
   }
 
@@ -131,7 +127,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       boolean wafTimeout,
       boolean blockFailure,
       boolean rateLimited,
-      boolean inputTruncated) {
+      boolean inputTruncated,
+      boolean requestExcluded) {
     int index = 0;
     if (ruleTriggered) index |= 1;
     if (requestBlocked) index |= 1 << 1;
@@ -140,6 +137,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     if (blockFailure) index |= 1 << 4;
     if (rateLimited) index |= 1 << 5;
     if (inputTruncated) index |= 1 << 6;
+    if (requestExcluded) index |= 1 << 7;
     return index;
   }
 
@@ -160,8 +158,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     raspRuleSkippedCounter.incrementAndGet(ruleType.ordinal());
   }
 
-  public void raspRuleMatch(final RuleType ruleType) {
-    raspRuleMatchCounter.incrementAndGet(ruleType.ordinal());
+  public void raspRuleMatch(final RuleType ruleType, final boolean blocked) {
+    raspRuleMatchCounter.incrementAndGet(ruleType.ordinal() * 2 + (blocked ? 1 : 0));
   }
 
   public void raspTimeout(final RuleType ruleType) {
@@ -239,6 +237,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         boolean blockFailure = (i & (1 << 4)) != 0;
         boolean rateLimited = (i & (1 << 5)) != 0;
         boolean inputTruncated = (i & (1 << 6)) != 0;
+        boolean requestExcluded = (i & (1 << 7)) != 0;
 
         if (!rawMetricsQueue.offer(
             new WafRequestsRawMetric(
@@ -251,7 +250,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
                 wafTimeout,
                 blockFailure,
                 rateLimited,
-                inputTruncated))) {
+                inputTruncated,
+                requestExcluded))) {
           return;
         }
       }
@@ -278,12 +278,20 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       }
     }
 
-    // RASP rule match per rule type
+    // RASP rule match per rule type: two slots per RuleType: ordinal*2 (non-blocked),
+    // ordinal*2+1 (blocked)
     for (RuleType ruleType : RuleType.values()) {
-      long counter = raspRuleMatchCounter.getAndSet(ruleType.ordinal(), 0);
-      if (counter > 0) {
+      long blockedCount = raspRuleMatchCounter.getAndSet(ruleType.ordinal() * 2 + 1, 0);
+      if (blockedCount > 0) {
         if (!rawMetricsQueue.offer(
-            new RaspRuleMatch(counter, ruleType, WafMetricCollector.wafVersion))) {
+            new RaspRuleMatch(blockedCount, ruleType, WafMetricCollector.wafVersion, true))) {
+          return;
+        }
+      }
+      long nonBlockedCount = raspRuleMatchCounter.getAndSet(ruleType.ordinal() * 2, 0);
+      if (nonBlockedCount > 0) {
+        if (!rawMetricsQueue.offer(
+            new RaspRuleMatch(nonBlockedCount, ruleType, WafMetricCollector.wafVersion, false))) {
           return;
         }
       }
@@ -495,7 +503,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         final boolean wafTimeout,
         final boolean blockFailure,
         final boolean rateLimited,
-        final boolean inputTruncated) {
+        final boolean inputTruncated,
+        final boolean requestExcluded) {
       super(
           "waf.requests",
           counter,
@@ -507,7 +516,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           "waf_timeout:" + wafTimeout,
           "block_failure:" + blockFailure,
           "rate_limited:" + rateLimited,
-          "input_truncated:" + inputTruncated);
+          "input_truncated:" + inputTruncated,
+          "request_excluded:" + (requestExcluded ? "full" : "none"));
     }
   }
 
@@ -558,7 +568,11 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   }
 
   public static class RaspRuleMatch extends WafMetric {
-    public RaspRuleMatch(final long counter, final RuleType ruleType, final String wafVersion) {
+    public RaspRuleMatch(
+        final long counter,
+        final RuleType ruleType,
+        final String wafVersion,
+        final boolean blocked) {
       super(
           "rasp.rule.match",
           counter,
@@ -567,9 +581,12 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
                 "rule_type:" + ruleType.type,
                 "rule_variant:" + ruleType.variant,
                 "waf_version:" + wafVersion,
-                "event_rules_version:" + rulesVersion
+                "event_rules_version:" + rulesVersion,
+                "block:" + blocked
               }
-              : new String[] {"rule_type:" + ruleType.type, "waf_version:" + wafVersion});
+              : new String[] {
+                "rule_type:" + ruleType.type, "waf_version:" + wafVersion, "block:" + blocked
+              });
     }
   }
 
