@@ -9,6 +9,7 @@ import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.context.SelfScopedContext;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
@@ -19,6 +20,7 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.debugger.DebuggerConfigBridge;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.metrics.SpanMetrics;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -31,7 +33,6 @@ import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.core.util.StackTraces;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.List;
@@ -50,7 +51,8 @@ import org.slf4j.LoggerFactory;
  * <p>Spans are created by the {@link CoreTracer#buildSpan}. This implementation adds some features
  * according to the DD agent.
  */
-public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
+@SuppressWarnings("resource")
+public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, SelfScopedContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpan.class);
 
   static DDSpan create(
@@ -125,7 +127,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  // @VisibleForTesting
+  @VisibleForTesting
   DDSpan(
       @Nonnull String instrumentationName,
       final long timestampMicro,
@@ -544,7 +546,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   @Nonnull
-  public final DDSpanContext context() {
+  public final DDSpanContext spanContext() {
     return context;
   }
 
@@ -681,7 +683,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     return durationNano;
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   void setDurationNano(long duration) {
     DURATION_NANO_UPDATER.set(this, duration);
   }
@@ -875,7 +877,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
-  public void attachWrapper(@NonNull SpanWrapper wrapper) {
+  public void attachWrapper(@Nonnull SpanWrapper wrapper) {
     WRAPPER_FIELD_UPDATER.compareAndSet(this, null, wrapper);
   }
 
@@ -965,9 +967,14 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
+  public String getSpanKindString() {
+    return context.getSpanKindString();
+  }
+
+  @Override
   public void copyPropagationAndBaggage(final AgentSpan source) {
     if (source instanceof DDSpan) {
-      final DDSpanContext sourceSpanContext = ((DDSpan) source).context();
+      final DDSpanContext sourceSpanContext = ((DDSpan) source).spanContext();
       // align the sampling priority for this span context
       setSamplingPriority(sourceSpanContext.getSamplingPriority(), DEFAULT);
       // the sampling mechanism determine the dm tag hence we need to override and lock the current

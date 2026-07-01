@@ -7,8 +7,8 @@ import spock.util.environment.Jvm
 class SeleniumLatestTest extends AbstractSeleniumTest {
 
   def "test Selenium #testcaseName"() {
-    // Latest Selenium versions require Java 11
-    Assumptions.assumeTrue(Jvm.current.java11Compatible)
+    // Latest HtmlUnit versions require Java 17
+    Assumptions.assumeTrue(Jvm.current.java17Compatible)
 
     runTests(tests)
 

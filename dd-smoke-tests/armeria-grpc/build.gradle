@@ -43,7 +43,7 @@ protobuf {
 }
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'armeriaBuild'
     nestedTasks = ['build']
     artifactPath = 'libs/armeria-smoketest-all.jar'

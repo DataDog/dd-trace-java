@@ -114,6 +114,35 @@ final class JUnitReport {
     }
   }
 
+  /// Tags every attempt of a retried test except the final one with `skip`, so Test Optimization
+  /// counts only the decisive (last) attempt and ignores intermediate retries.
+  ///
+  /// Gradle's Develocity test-retry plugin re-runs a failing test and appends each attempt to the
+  /// same per-class JUnit report as another `<testcase>` with an identical `classname#name`. The
+  /// plugin stops retrying once a test passes or retries are exhausted, so the last such element in
+  /// document order is the decisive attempt and every earlier duplicate is tagged `skip`.
+  ///
+  /// **Must run before {@link #normalizeStableTestNames()}.** Keys are matched on raw names so two
+  /// genuinely distinct tests whose names differ only in an unstable token (e.g. `localhost:12345`
+  /// vs `localhost:23456`, which normalization collapses to `localhost:PORT`) are not mistaken for
+  /// retries of each other.
+  ///
+  /// Tagging uses the same `addFinalStatusProperty` path as {@link #tagFinalStatuses()}, which then
+  /// leaves the already-tagged earlier attempts untouched and assigns the natural pass/fail status
+  /// only to the final attempt.
+  void tagRetriedAttempts() {
+    var attemptsByKey = new LinkedHashMap<String, List<Element>>();
+    for (var testcase : testcases()) {
+      var key = testcase.getAttribute("classname") + "#" + testcase.getAttribute("name");
+      attemptsByKey.computeIfAbsent(key, ignored -> new ArrayList<>()).add(testcase);
+    }
+    for (var attempts : attemptsByKey.values()) {
+      for (var i = 0; i < attempts.size() - 1; i++) {
+        addFinalStatusProperty(attempts.get(i), "skip", MissingPropertiesPlacement.FIRST_CHILD);
+      }
+    }
+  }
+
   void tagFinalStatuses() {
     for (var testcase : testcases()) {
       if (hasFinalStatusProperty(testcase)) {

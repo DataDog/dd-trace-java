@@ -15,6 +15,7 @@ import com.datadog.debugger.util.SpringHelper;
 import datadog.environment.JavaVirtualMachine;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
@@ -40,6 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -209,128 +211,16 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     }
     List<Class<?>> changedClasses =
         finder.getAllLoadedChangedClasses(instrumentation.getAllLoadedClasses(), changes);
-    changedClasses = detectMethodParameters(changes, changedClasses);
-    changedClasses = detectRecordWithTypeAnnotation(changes, changedClasses);
+    changedClasses =
+        JDKVersionSpecificHelper.detectMethodParameters(
+            errorMsg -> reportError(changes, errorMsg), instrumentation, changedClasses);
+    changedClasses =
+        JDKVersionSpecificHelper.detectRecordWithTypeAnnotation(
+            errorMsg -> reportError(changes, errorMsg), changedClasses);
     retransformClasses(changedClasses);
     // ensures that we have at least re-transformed 1 class
     if (changedClasses.size() > 0) {
       LOGGER.debug("Re-transformation done");
-    }
-  }
-
-  /*
-   * Because of this bug (https://bugs.openjdk.org/browse/JDK-8240908), classes compiled with
-   * method parameters (javac -parameters) strip this attribute once retransformed
-   * Spring 6/Spring boot 3 rely exclusively on this attribute and may throw an exception
-   * if no attribute found.
-   */
-  private List<Class<?>> detectMethodParameters(
-      ConfigurationComparer changes, List<Class<?>> changedClasses) {
-    if (JAVA_AT_LEAST_19) {
-      // bug is fixed since JDK19, no need to perform detection
-      return changedClasses;
-    }
-    List<Class<?>> result = new ArrayList<>();
-    for (Class<?> changedClass : changedClasses) {
-      boolean addClass = true;
-      try {
-        Method[] declaredMethods = changedClass.getDeclaredMethods();
-        // capping scanning of methods to 100 to avoid generated class with thousand of methods
-        // assuming that in those first 100 methods there is at least one with at least one
-        // parameter
-        for (int methodIdx = 0;
-            methodIdx < declaredMethods.length && methodIdx < 100;
-            methodIdx++) {
-          Method method = declaredMethods[methodIdx];
-          Parameter[] parameters = method.getParameters();
-          if (parameters.length == 0) {
-            continue;
-          }
-          if (parameters[0].isNamePresent()) {
-            if (!SpringHelper.isSpringUsingOnlyMethodParameters(instrumentation)) {
-              return changedClasses;
-            }
-            LOGGER.debug(
-                "Detecting method parameter: method={} param={}, Skipping retransforming this class",
-                method.getName(),
-                parameters[0].getName());
-            // skip the class: compiled with -parameters
-            reportError(
-                changes,
-                "Method Parameters detected, instrumentation not supported for "
-                    + changedClass.getTypeName());
-            addClass = false;
-          }
-          // we found at leat a method with one parameter if name is not present we can stop there
-          break;
-        }
-      } catch (Exception e) {
-        LOGGER.debug("Exception scanning method parameters", e);
-      }
-      if (addClass) {
-        result.add(changedClass);
-      }
-    }
-    return result;
-  }
-
-  private List<Class<?>> detectRecordWithTypeAnnotation(
-      ConfigurationComparer changes, List<Class<?>> changedClasses) {
-    if (!JAVA_AT_LEAST_16) {
-      // records introduced in JDK 16 (final version)
-      return changedClasses;
-    }
-    List<Class<?>> result = new ArrayList<>();
-    for (Class<?> changedClass : changedClasses) {
-      boolean addClass = true;
-      try {
-        if (changedClass.getSuperclass() != null
-            && changedClass.getSuperclass().getTypeName().equals("java.lang.Record")
-            && Modifier.isFinal(changedClass.getModifiers())) {
-          if (hasTypeAnnotationOnRecordComponent(changedClass)) {
-            LOGGER.debug(
-                "Record with type annotation detected, instrumentation not supported for {}",
-                changedClass.getTypeName());
-            reportError(
-                changes,
-                "Record with type annotation detected, instrumentation not supported for "
-                    + changedClass.getTypeName());
-            addClass = false;
-          }
-        }
-      } catch (Exception e) {
-        LOGGER.debug("Exception detecting record with type annotation", e);
-      }
-      if (addClass) {
-        result.add(changedClass);
-      }
-    }
-    return result;
-  }
-
-  private boolean hasTypeAnnotationOnRecordComponent(Class<?> recordClass) {
-    if (GET_RECORD_COMPONENTS_METHOD == null || GET_ANNOTATED_TYPES_METHOD == null) {
-      return false;
-    }
-    try {
-      Object recordComponentsArray = GET_RECORD_COMPONENTS_METHOD.invoke(recordClass);
-      int len = Array.getLength(recordComponentsArray);
-      for (int i = 0; i < len; i++) {
-        Object recordComponent = Array.get(recordComponentsArray, i);
-        AnnotatedType annotatedType =
-            (AnnotatedType) GET_ANNOTATED_TYPES_METHOD.invoke(recordComponent);
-        for (Annotation annotation : annotatedType.getAnnotations()) {
-          Target annotationTarget = annotation.annotationType().getAnnotation(Target.class);
-          if (annotationTarget != null
-              && Arrays.stream(annotationTarget.value())
-                  .anyMatch(it -> it == ElementType.TYPE_USE)) {
-            return true;
-          }
-        }
-      }
-      return false;
-    } catch (Exception ex) {
-      return false;
     }
   }
 
@@ -445,7 +335,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     currentTransformer = null;
   }
 
-  // only visible for tests
+  @VisibleForTesting
   Map<String, ProbeDefinition> getAppliedDefinitions() {
     if (currentTransformer == null) {
       return Collections.emptyMap();
@@ -459,5 +349,124 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
   Map<String, InstrumentationResult> getInstrumentationResults() {
     return instrumentationResults;
+  }
+
+  private static class JDKVersionSpecificHelper {
+
+    public static List<Class<?>> detectRecordWithTypeAnnotation(
+        Consumer<String> reportError, List<Class<?>> changedClasses) {
+      if (!JAVA_AT_LEAST_16) {
+        // records introduced in JDK 16 (final version)
+        return changedClasses;
+      }
+      List<Class<?>> result = new ArrayList<>();
+      for (Class<?> changedClass : changedClasses) {
+        boolean addClass = true;
+        try {
+          if (changedClass.getSuperclass() != null
+              && changedClass.getSuperclass().getTypeName().equals("java.lang.Record")
+              && Modifier.isFinal(changedClass.getModifiers())) {
+            if (hasTypeAnnotationOnRecordComponent(changedClass)) {
+              LOGGER.debug(
+                  "Record with type annotation detected, instrumentation not supported for {}",
+                  changedClass.getTypeName());
+              reportError.accept(
+                  "Record with type annotation detected, instrumentation not supported for "
+                      + changedClass.getTypeName());
+              addClass = false;
+            }
+          }
+        } catch (Exception e) {
+          LOGGER.debug("Exception detecting record with type annotation", e);
+        }
+        if (addClass) {
+          result.add(changedClass);
+        }
+      }
+      return result;
+    }
+
+    private static boolean hasTypeAnnotationOnRecordComponent(Class<?> recordClass) {
+      if (GET_RECORD_COMPONENTS_METHOD == null || GET_ANNOTATED_TYPES_METHOD == null) {
+        return false;
+      }
+      try {
+        Object recordComponentsArray = GET_RECORD_COMPONENTS_METHOD.invoke(recordClass);
+        int len = Array.getLength(recordComponentsArray);
+        for (int i = 0; i < len; i++) {
+          Object recordComponent = Array.get(recordComponentsArray, i);
+          AnnotatedType annotatedType =
+              (AnnotatedType) GET_ANNOTATED_TYPES_METHOD.invoke(recordComponent);
+          for (Annotation annotation : annotatedType.getAnnotations()) {
+            Target annotationTarget = annotation.annotationType().getAnnotation(Target.class);
+            if (annotationTarget != null
+                && Arrays.stream(annotationTarget.value())
+                    .anyMatch(it -> it == ElementType.TYPE_USE)) {
+              return true;
+            }
+          }
+        }
+        return false;
+      } catch (Exception ex) {
+        return false;
+      }
+    }
+
+    /*
+     * Because of this bug (https://bugs.openjdk.org/browse/JDK-8240908), classes compiled with
+     * method parameters (javac -parameters) strip this attribute once retransformed
+     * Spring 6/Spring boot 3 rely exclusively on this attribute and may throw an exception
+     * if no attribute found.
+     */
+    public static List<Class<?>> detectMethodParameters(
+        Consumer<String> reportError,
+        Instrumentation instrumentation,
+        List<Class<?>> changedClasses) {
+      if (JAVA_AT_LEAST_19) {
+        // bug is fixed since JDK19, no need to perform detection
+        return changedClasses;
+      }
+      List<Class<?>> result = new ArrayList<>();
+      for (Class<?> changedClass : changedClasses) {
+        boolean addClass = true;
+        try {
+          Method[] declaredMethods = changedClass.getDeclaredMethods();
+          // capping scanning of methods to 100 to avoid generated class with thousand of methods
+          // assuming that in those first 100 methods there is at least one with at least one
+          // parameter
+          for (int methodIdx = 0;
+              methodIdx < declaredMethods.length && methodIdx < 100;
+              methodIdx++) {
+            Method method = declaredMethods[methodIdx];
+            Parameter[] parameters = method.getParameters();
+            if (parameters.length == 0) {
+              continue;
+            }
+            if (parameters[0].isNamePresent()) {
+              if (!SpringHelper.isSpringUsingOnlyMethodParameters(instrumentation)) {
+                return changedClasses;
+              }
+              LOGGER.debug(
+                  "Detecting method parameter: method={} param={}, Skipping retransforming this class",
+                  method.getName(),
+                  parameters[0].getName());
+              // skip the class: compiled with -parameters
+              reportError.accept(
+                  "Method Parameters detected, instrumentation not supported for "
+                      + changedClass.getTypeName());
+              addClass = false;
+            }
+            // we found at leat a method with one parameter if name is not present we can stop there
+            break;
+          }
+        } catch (Exception e) {
+          LOGGER.debug("Exception scanning method parameters", e);
+        }
+        if (addClass) {
+          result.add(changedClass);
+        }
+      }
+      return result;
+    }
   }
 }

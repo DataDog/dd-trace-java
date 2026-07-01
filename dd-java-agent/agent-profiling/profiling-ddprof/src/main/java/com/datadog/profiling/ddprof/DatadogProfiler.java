@@ -38,15 +38,18 @@ import com.datadoghq.profiler.JavaProfiler;
 import datadog.environment.JavaVirtualMachine;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
 import datadog.trace.util.TempLocationManager;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -107,6 +110,133 @@ public final class DatadogProfiler {
 
   private final List<String> orderedContextAttributes;
 
+  // True for each attribute slot that was configured by the application (e.g. foo, bar).
+  // ddprof wipes all custom slots on setContext; these slots are re-applied via
+  // reapplyAppContext() on span activation.
+  private final boolean[] isAppOffset;
+
+  private final boolean hasAppContext;
+
+  /**
+   * Per-thread snapshot of application attribute values. Lazily allocated; only threads that call
+   * setContextValue for an app attribute ever allocate. Holds the ddprof constant ID and
+   * pre-encoded UTF-8 bytes for each slot, ready for a zero-allocation reapply via
+   * setContextValuesByIdAndBytes.
+   */
+  private final ThreadLocal<AppContextSnapshot> appContextValues = new ThreadLocal<>();
+
+  private final ThreadLocal<ScopeStack> scopeStack = new ThreadLocal<>();
+  // Scratch buffer for snapshotTags in recordAppContextValue; per-thread, sized to context slots.
+  // Lives here rather than on AppContextSnapshot so save-slots in ScopeStack don't carry it.
+  private final ThreadLocal<int[]> contextScratch =
+      new ThreadLocal<int[]>() {
+        @Override
+        protected int[] initialValue() {
+          return new int[isAppOffset.length];
+        }
+      };
+
+  /** Per-thread stack of pre-allocated save slots for {@link DatadogProfilingScope}. */
+  static final class ScopeStack {
+    private final int attrCount;
+    AppContextSnapshot[] slots;
+    int depth;
+
+    ScopeStack(int attrCount) {
+      this.attrCount = attrCount;
+      slots = new AppContextSnapshot[8];
+      for (int i = 0; i < slots.length; i++) {
+        slots[i] = new AppContextSnapshot(attrCount);
+      }
+    }
+
+    AppContextSnapshot borrow() {
+      if (depth >= slots.length) {
+        AppContextSnapshot[] grown = new AppContextSnapshot[slots.length * 2];
+        System.arraycopy(slots, 0, grown, 0, slots.length);
+        // Eagerly fill the newly added slots so every index is non-null.
+        for (int i = slots.length; i < grown.length; i++) {
+          grown[i] = new AppContextSnapshot(attrCount);
+        }
+        slots = grown;
+      }
+      return slots[depth++];
+    }
+
+    void release() {
+      if (depth > 0) slots[--depth].reset();
+    }
+  }
+
+  // Package-private so DatadogProfilingScope can hold a typed reference for save/restore.
+  static final class AppContextSnapshot {
+    private final int[] ids;
+    private final byte[][] utf8;
+    // Cached string values for change detection — avoids re-encoding and re-snapshotting
+    // the constant ID when the same value is set again on the same thread.
+    private final String[] strings;
+    // Count of slots with a non-zero constant ID; allows O(1) isEmpty().
+    private int nonZeroCount;
+
+    AppContextSnapshot(int size) {
+      ids = new int[size];
+      utf8 = new byte[size][];
+      strings = new String[size];
+    }
+
+    void record(int offset, int constantId, byte[] utf8Bytes, String value) {
+      if (ids[offset] == 0 && constantId != 0) {
+        nonZeroCount++;
+      } else if (ids[offset] != 0 && constantId == 0) {
+        nonZeroCount--;
+      }
+      ids[offset] = constantId;
+      utf8[offset] = utf8Bytes;
+      strings[offset] = value;
+    }
+
+    void clear(int offset) {
+      if (ids[offset] != 0) nonZeroCount--;
+      ids[offset] = 0;
+      utf8[offset] = null;
+      strings[offset] = null;
+    }
+
+    boolean isEmpty() {
+      return nonZeroCount == 0;
+    }
+
+    int nonZeroCount() {
+      return nonZeroCount;
+    }
+
+    String stringAt(int offset) {
+      return strings[offset];
+    }
+
+    int[] ids() {
+      return ids;
+    }
+
+    byte[][] utf8() {
+      return utf8;
+    }
+
+    void copyFrom(AppContextSnapshot src) {
+      System.arraycopy(src.ids, 0, ids, 0, ids.length);
+      System.arraycopy(src.utf8, 0, utf8, 0, utf8.length);
+      System.arraycopy(src.strings, 0, strings, 0, strings.length);
+      nonZeroCount = src.nonZeroCount;
+    }
+
+    void reset() {
+      Arrays.fill(ids, 0);
+      Arrays.fill(utf8, null);
+      Arrays.fill(strings, null);
+      nonZeroCount = 0;
+    }
+  }
+
   private final long queueTimeThresholdMillis;
 
   private final Path recordingsPath;
@@ -115,7 +245,7 @@ public final class DatadogProfiler {
     this(configProvider, getContextAttributes(configProvider));
   }
 
-  // visible for testing
+  @VisibleForTesting
   DatadogProfiler(ConfigProvider configProvider, Set<String> contextAttributes) {
     this.configProvider = configProvider;
     this.profiler = DdprofLibraryLoader.javaProfiler().getComponent();
@@ -150,6 +280,19 @@ public final class DatadogProfiler {
       orderedContextAttributes.add(RESOURCE);
     }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
+    // ContextSetter deduplicates and truncates to 10 internally; size arrays to its actual size.
+    int contextSize = contextSetter.snapshotTags().length;
+    boolean[] appOffsets = new boolean[contextSize];
+    boolean anyApp = false;
+    for (String attribute : contextAttributes) {
+      int idx = contextSetter.offsetOf(attribute);
+      if (idx >= 0) {
+        appOffsets[idx] = true;
+        anyApp = true;
+      }
+    }
+    this.isAppOffset = appOffsets;
+    this.hasAppContext = anyApp;
     this.queueTimeThresholdMillis =
         configProvider.getLong(
             PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
@@ -360,6 +503,7 @@ public final class DatadogProfiler {
     } catch (Throwable e) {
       log.debug("Failed to clear context", e);
     }
+    reapplyAppContext();
   }
 
   public void clearSpanContext() {
@@ -369,20 +513,26 @@ public final class DatadogProfiler {
     } catch (Throwable e) {
       log.debug("Failed to set context", e);
     }
+    reapplyAppContext();
   }
 
-  public boolean setContextValue(int offset, CharSequence value) {
+  public boolean setContextValue(int offset, String value) {
     if (contextSetter != null && offset >= 0 && value != null) {
       try {
-        return contextSetter.setContextValue(offset, value.toString());
+        // Native call first; snapshot updated only on success so Java and ddprof state stay in
+        // sync.
+        if (contextSetter.setContextValue(offset, value)) {
+          recordAppContextValue(offset, value);
+          return true;
+        }
       } catch (Throwable e) {
-        log.debug("Failed to set context", e);
+        log.debug("Failed to set context value", e);
       }
     }
     return false;
   }
 
-  public boolean setContextValue(String attribute, CharSequence value) {
+  public boolean setContextValue(String attribute, String value) {
     if (contextSetter != null) {
       return setContextValue(contextSetter.offsetOf(attribute), value);
     }
@@ -399,12 +549,166 @@ public final class DatadogProfiler {
   public boolean clearContextValue(int offset) {
     if (contextSetter != null && offset >= 0) {
       try {
-        return contextSetter.clearContextValue(offset);
+        // Native call first; snapshot updated only after it returns so a throw leaves both sides
+        // consistent.
+        boolean cleared = contextSetter.clearContextValue(offset);
+        recordAppContextValue(offset, null);
+        return cleared;
       } catch (Throwable t) {
-        log.debug("Failed to clear context", t);
+        log.debug("Failed to clear context value", t);
       }
     }
     return false;
+  }
+
+  /**
+   * Re-applies this thread's application-managed context attributes after a span activation or
+   * deactivation. ddprof's {@code setContext} clears all custom attribute slots; this restores only
+   * the app-owned ones so they remain visible during the new span's lifetime (or after the last
+   * span closes). No-op when no application attributes are configured or none have been set on this
+   * thread.
+   *
+   * <p>Fast path (span activation): uses the pre-computed constant IDs and UTF-8 bytes from {@link
+   * #recordAppContextValue} in a single {@code setContextValuesByIdAndBytes} call — no String
+   * allocation, no hash lookup.
+   *
+   * <p>Fallback (span deactivation via {@code setContext(0,0,0,0)}): {@code clearContextDirect}
+   * calls {@code detach()} but not {@code attach()}, leaving the thread's {@code validOffset=0}.
+   * {@code setContextValuesByIdAndBytes} returns {@code false} in that state, so we fall back to
+   * individual {@code setContextValue} calls which go through the proper detach/attach cycle.
+   */
+  public void reapplyAppContext() {
+    if (!hasAppContext) {
+      return;
+    }
+    AppContextSnapshot snapshot = appContextValues.get();
+    if (snapshot == null) {
+      return;
+    }
+    try {
+      if (!contextSetter.setContextValuesByIdAndBytes(snapshot.ids(), snapshot.utf8())) {
+        // validOffset=0 after clearContextDirect (setContext(0,0,0,0) path) — fall back to
+        // individual writes which go through the proper detach/attach cycle.
+        int remaining = snapshot.nonZeroCount();
+        for (int i = 0; i < isAppOffset.length && remaining > 0; i++) {
+          String s = snapshot.stringAt(i);
+          if (s != null) {
+            contextSetter.setContextValue(i, s);
+            remaining--;
+          }
+        }
+      }
+    } catch (Throwable e) {
+      log.debug("Failed to reapply context", e);
+    }
+  }
+
+  /** Clears the per-thread app-context snapshot. Used in tests and internally. */
+  void clearAppContextSnapshot() {
+    appContextValues.remove();
+    scopeStack.remove();
+    contextScratch.remove();
+  }
+
+  /**
+   * Immediately writes {@code snapshot} into the ddprof native slots for every app-context offset,
+   * clearing any offset not present in the snapshot. Reads the restored state from the per-thread
+   * {@code appContextValues} TL (already updated by {@link #restoreAppContext}) rather than from
+   * the saved slot directly, because {@link ScopeStack#release()} resets the slot before this
+   * method is called. Called by {@link DatadogProfilingScope#close} so that native state matches
+   * the restored Java-side snapshot right away, without waiting for the next span activation.
+   */
+  void syncNativeAppContext() {
+    if (!hasAppContext || contextSetter == null) {
+      return;
+    }
+    AppContextSnapshot snapshot = appContextValues.get();
+    try {
+      for (int i = 0; i < isAppOffset.length; i++) {
+        if (!isAppOffset[i]) {
+          continue;
+        }
+        String value = snapshot != null ? snapshot.stringAt(i) : null;
+        if (value != null) {
+          contextSetter.setContextValue(i, value);
+        } else {
+          contextSetter.clearContextValue(i);
+        }
+      }
+    } catch (Throwable e) {
+      log.debug("Failed to sync native app context on scope close", e);
+    }
+  }
+
+  /**
+   * Returns a copy of the current app-context snapshot for later restoration, or {@code null} if
+   * nothing is set. Called by {@link DatadogProfilingScope} on construction to implement
+   * save/restore across scope boundaries.
+   */
+  AppContextSnapshot saveAppContext() {
+    AppContextSnapshot current = appContextValues.get();
+    if (current == null || current.isEmpty()) {
+      return null;
+    }
+    ScopeStack stack = scopeStack.get();
+    if (stack == null) {
+      stack = new ScopeStack(isAppOffset.length);
+      scopeStack.set(stack);
+    }
+    AppContextSnapshot slot = stack.borrow();
+    slot.copyFrom(current);
+    return slot;
+  }
+
+  /**
+   * Restores a previously saved app-context snapshot. If {@code saved} is {@code null} the
+   * ThreadLocal is removed, otherwise the current snapshot is overwritten with {@code saved}.
+   * Called by {@link DatadogProfilingScope#close()}.
+   */
+  void restoreAppContext(AppContextSnapshot saved) {
+    if (saved == null) {
+      appContextValues.remove();
+    } else {
+      AppContextSnapshot current = appContextValues.get();
+      if (current == null) {
+        current = new AppContextSnapshot(isAppOffset.length);
+        appContextValues.set(current);
+      }
+      current.copyFrom(saved);
+      ScopeStack stack = scopeStack.get();
+      if (stack != null) {
+        stack.release();
+      }
+    }
+  }
+
+  private void recordAppContextValue(int offset, String value) {
+    if (!hasAppContext || offset < 0 || offset >= isAppOffset.length || !isAppOffset[offset]) {
+      return;
+    }
+    AppContextSnapshot snapshot = appContextValues.get();
+    if (value == null) {
+      if (snapshot == null) {
+        return;
+      }
+      snapshot.clear(offset);
+      if (snapshot.isEmpty()) {
+        appContextValues.remove();
+      }
+      return;
+    }
+    if (snapshot == null) {
+      snapshot = new AppContextSnapshot(isAppOffset.length);
+      appContextValues.set(snapshot);
+    }
+    if (!value.equals(snapshot.stringAt(offset))) {
+      byte[] utf8Bytes = value.getBytes(StandardCharsets.UTF_8);
+      // ContextSetter has no single-slot readback API; snapshotTags fills all slots at once.
+      // The scratch array is per-thread and reused across calls, so this is allocation-free.
+      int[] scratch = contextScratch.get();
+      contextSetter.snapshotTags(scratch);
+      snapshot.record(offset, scratch[offset], utf8Bytes, value);
+    }
   }
 
   private void debugLogging(long localRootSpanId) {

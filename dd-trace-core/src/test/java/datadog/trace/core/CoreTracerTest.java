@@ -200,7 +200,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     localRootSpanTags.put("only_root", "value");
     CoreTracer tracer = tracerBuilder().localRootSpanTags(localRootSpanTags).build();
     AgentSpan root = tracer.buildSpan("datadog", "my_root").start();
-    AgentSpan child = tracer.buildSpan("datadog", "my_child").asChildOf(root.context()).start();
+    AgentSpan child = tracer.buildSpan("datadog", "my_child").asChildOf(root.spanContext()).start();
     try {
       assertTrue(root.getTags().containsKey("only_root"));
       assertFalse(child.getTags().containsKey("only_root"));
@@ -232,7 +232,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     try {
       DDSpan root = (DDSpan) tracer.buildSpan("datadog", "operation").start();
       DDSpan child =
-          (DDSpan) tracer.buildSpan("datadog", "my_child").asChildOf(root.context()).start();
+          (DDSpan) tracer.buildSpan("datadog", "my_child").asChildOf(root.spanContext()).start();
       root.finish();
 
       assertNull(root.getSamplingPriority());

@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import datadog.metrics.api.Recording;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
@@ -139,7 +140,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   private static final AtomicLongFieldUpdater<PendingTrace> LAST_REFERENCED =
       AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "lastReferenced");
 
-  // @VisibleForTesting
+  @VisibleForTesting
   PendingTrace(
       @Nonnull CoreTracer tracer,
       @Nonnull DDTraceId traceId,
@@ -209,6 +210,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   }
 
   Integer evaluateSamplingPriority() {
+    @SuppressWarnings("resource")
     DDSpan span = spans.peek();
     if (span == null) {
       return null;
@@ -224,37 +226,37 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     return LONG_RUNNING_STATE.compareAndSet(this, expected, newState);
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   int getLongRunningTrackedState() {
     return longRunningTrackedState;
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   void setLongRunningTrackedState(int state) {
     LONG_RUNNING_STATE.set(this, state);
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   int getPendingReferenceCount() {
     return pendingReferenceCount;
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   PendingTraceBuffer getPendingTraceBuffer() {
     return pendingTraceBuffer;
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   DDTraceId getTraceId() {
     return traceId;
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   boolean isRootSpanWritten() {
     return rootSpanWritten;
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   int getIsEnqueued() {
     return isEnqueued;
   }
@@ -492,7 +494,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
       return duration;
     }
     DDSpan ddSpan = (DDSpan) span;
-    TraceCollector traceCollector = ddSpan.context().getTraceCollector();
+    TraceCollector traceCollector = ddSpan.spanContext().getTraceCollector();
     if (!(traceCollector instanceof PendingTrace)) {
       throw new IllegalArgumentException(
           "Expected "

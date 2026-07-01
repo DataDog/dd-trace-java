@@ -1,6 +1,8 @@
 package datadog.trace.common.writer;
 
 import static datadog.json.JsonMapper.toJson;
+import static datadog.trace.api.civisibility.CIConstants.MAX_META_STRING_VALUE_LENGTH;
+import static datadog.trace.util.Strings.truncate;
 
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
@@ -383,20 +385,21 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
       w.beginObject();
       for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
         if (!isExcludedTag(entry.getKey())) {
-          w.name(entry.getKey()).value(entry.getValue());
+          w.name(entry.getKey()).value(truncate(entry.getValue(), MAX_META_STRING_VALUE_LENGTH));
         }
       }
       if (metadata.getHttpStatusCode() != null) {
-        w.name(Tags.HTTP_STATUS).value(metadata.getHttpStatusCode().toString());
+        w.name(Tags.HTTP_STATUS)
+            .value(truncate(metadata.getHttpStatusCode().toString(), MAX_META_STRING_VALUE_LENGTH));
       }
       for (Map.Entry<String, Object> entry : tags.entrySet()) {
         Object value = entry.getValue();
         if (!(value instanceof Number) && !isExcludedTag(entry.getKey())) {
           w.name(entry.getKey());
           if (value instanceof Iterable) {
-            w.value(toJson((Collection<String>) value));
+            w.value(truncate(toJson((Collection<String>) value), MAX_META_STRING_VALUE_LENGTH));
           } else {
-            w.value(String.valueOf(value));
+            w.value(truncate(String.valueOf(value), MAX_META_STRING_VALUE_LENGTH));
           }
         }
       }

@@ -361,22 +361,6 @@
         "aliases": []
       }
     ],
-    "DD_APPSEC_REPORTING_INBAND": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
-        "aliases": []
-      }
-    ],
-    "DD_APPSEC_REPORT_TIMEOUT": [
-      {
-        "version": "A",
-        "type": "int",
-        "default": "60",
-        "aliases": []
-      }
-    ],
     "DD_APPSEC_RULES": [
       {
         "version": "C",
@@ -390,6 +374,14 @@
         "version": "B",
         "type": "boolean",
         "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1000",
         "aliases": []
       }
     ],
@@ -2417,19 +2409,19 @@
         "aliases": []
       }
     ],
+    "DD_METRICS_OTEL_EXPERIMENTAL_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_OBFUSCATION_QUERY_STRING_REGEXP": [
       {
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
-      }
-    ],
-    "DD_OPTIMIZED_MAP_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
         "aliases": []
       }
     ],
@@ -5761,6 +5753,22 @@
         "aliases": ["DD_TRACE_INTEGRATION_FREEMARKER_ENABLED", "DD_INTEGRATION_FREEMARKER_ENABLED"]
       }
     ],
+    "DD_TRACE_GAX_1_4_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_GAX_1_4_ENABLED", "DD_INTEGRATION_GAX_1_4_ENABLED"]
+      }
+    ],
+    "DD_TRACE_GAX_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_GAX_ENABLED", "DD_INTEGRATION_GAX_ENABLED"]
+      }
+    ],
     "DD_TRACE_GIT_METADATA_ENABLED": [
       {
         "version": "A",
@@ -7489,14 +7497,6 @@
         "aliases": ["DD_JMXFETCH_WEBSPHERE_ENABLED"]
       }
     ],
-    "DD_TRACE_JMXFETCH_{CHECK_NAME}_ENABLED": [
-      {
-        "version": "B",
-        "type": "boolean",
-        "default": "false",
-        "aliases": ["DD_JMXFETCH_{CHECK_NAME}_ENABLED"]
-      }
-    ],
     "DD_TRACE_JMX_TAGS": [
       {
         "version": "A",
@@ -8605,6 +8605,46 @@
       {
         "version": "A",
         "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_OTEL_SEMANTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACES_SPAN_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_STRICT": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_TRUSTED_OPMS": [
+      {
+        "version": "A",
+        "type": "array",
         "default": null,
         "aliases": []
       }
@@ -10915,9 +10955,9 @@
     ],
     "DD_TRACE_TRACER_METRICS_MAX_PENDING": [
       {
-        "version": "A",
+        "version": "B",
         "type": "int",
-        "default": "2048",
+        "default": "128",
         "aliases": []
       }
     ],
@@ -11489,6 +11529,14 @@
         "aliases": []
       }
     ],
+    "OTEL_INSTRUMENTATION_RUNTIME_TELEMETRY_EMIT_EXPERIMENTAL_METRICS": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "OTEL_JAVAAGENT_CONFIGURATION_FILE": [
       {
         "version": "A",
@@ -11565,6 +11613,14 @@
       {
         "version": "C",
         "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_TRACES_SPAN_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
         "default": null,
         "aliases": []
       }

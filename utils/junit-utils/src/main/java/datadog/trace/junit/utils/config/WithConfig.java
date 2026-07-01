@@ -18,16 +18,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
  *
  * <p>Examples:
  *
- * <pre>{@code
- * @WithConfig(key = "service", value = "my_service")
- * @WithConfig(key = "trace.resolver.enabled", value = "false")
+ * <pre>
+ * &#64;WithConfig(key = "service", value = "my_service")
+ * &#64;WithConfig(key = "trace.resolver.enabled", value = "false")
  * class MyTest extends DDJavaSpecification {
  *
- *   @Test
- *   @WithConfig(key = "AGENT_HOST", value = "localhost", env = true)
+ *   &#64;Test
+ *   &#64;WithConfig(key = "AGENT_HOST", value = "localhost", env = true)
  *   void testWithEnv() { ... }
  * }
- * }</pre>
+ * </pre>
  */
 @Retention(RUNTIME)
 @Target({TYPE, METHOD})

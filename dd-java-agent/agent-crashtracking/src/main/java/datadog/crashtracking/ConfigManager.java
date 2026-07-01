@@ -8,6 +8,7 @@ import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.RandomUtils;
 import java.io.BufferedReader;
@@ -137,7 +138,7 @@ public class ConfigManager {
         return this;
       }
 
-      // @VisibleForTesting
+      @VisibleForTesting
       Builder reportUUID(String reportUUID) {
         this.reportUUID = reportUUID;
         return this;
@@ -170,7 +171,7 @@ public class ConfigManager {
     return filename.substring(0, dotIndex);
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   static String getMergedTagsForSerialization(Config config) {
     return config.getMergedCrashTrackingTags().entrySet().stream()
         .filter(e -> e.getValue() != null)
@@ -195,7 +196,7 @@ public class ConfigManager {
     writeConfigToFile(Config.get(), cfgFile, additionalEntries);
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   static void writeConfigToFile(Config config, File cfgFile, String... additionalEntries) {
     final WellKnownTags wellKnownTags = config.getWellKnownTags();
 

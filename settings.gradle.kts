@@ -29,7 +29,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.4.1"
+  id("com.gradle.develocity") version "4.5.0"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
@@ -112,6 +112,7 @@ include(
 
 include(
   ":communication",
+  ":components:annotations",
   ":components:context",
   ":components:environment",
   ":components:http:http-api",
@@ -358,6 +359,7 @@ include(
   ":dd-java-agent:instrumentation:finatra-2.9",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.24",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.9",
+  ":dd-java-agent:instrumentation:gax-1.4",
   ":dd-java-agent:instrumentation:glassfish-3.0",
   ":dd-java-agent:instrumentation:google-http-client-1.19",
   ":dd-java-agent:instrumentation:google-pubsub-1.116",
@@ -427,6 +429,8 @@ include(
   ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-8.1.3",
   ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.2",
   ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3",
+  ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.4",
+  ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-11.0",
   ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-10.0",
   ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-12.0",
   ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-9.1",

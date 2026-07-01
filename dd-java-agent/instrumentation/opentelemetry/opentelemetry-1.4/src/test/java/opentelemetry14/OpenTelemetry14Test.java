@@ -590,7 +590,7 @@ class OpenTelemetry14Test extends AbstractOpenTelemetry14Test {
 
     writer.waitForTraces(1);
     DDSpan ddSpan = writer.firstTrace().get(0);
-    assertEquals("otel", ddSpan.context().getIntegrationName().toString());
+    assertEquals("otel", ddSpan.spanContext().getIntegrationName().toString());
   }
 
   static Stream<Arguments> testSpanKindsArguments() {

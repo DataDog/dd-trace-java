@@ -59,7 +59,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(writer).build();
     DDTraceId traceId = DDTraceId.from(value);
     long spanId = DDSpanId.from(value);
-    DDSpanContext context = createContext(spanType, tracer, traceId, spanId);
+    DDSpanContext context = createSpanContext(spanType, tracer, traceId, spanId);
     DDSpan span = DDSpan.create("test", 0, context, null);
     CaptureBuffer capture = new CaptureBuffer();
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, capture));
@@ -116,7 +116,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(writer).build();
     DDTraceId traceId = DDTraceId.from(value);
     long spanId = DDSpanId.from(value);
-    DDSpanContext context = createContext(spanType, tracer, traceId, spanId);
+    DDSpanContext context = createSpanContext(spanType, tracer, traceId, spanId);
     DDSpan span = DDSpan.create("test", 0, context, null);
     CaptureBuffer capture = new CaptureBuffer();
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, capture));
@@ -455,7 +455,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     }
   }
 
-  private DDSpanContext createContext(
+  private DDSpanContext createSpanContext(
       String spanType, CoreTracer tracer, DDTraceId traceId, long spanId) {
     Map<String, String> baggage = new HashMap<>();
     baggage.put("a-baggage", "value");

@@ -5,6 +5,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -93,7 +94,7 @@ class JvmOptions {
 
   // Be aware that when running a native image, the command line in /proc/self/cmdline is just the
   // executable
-  // Visible for testing
+  @VisibleForTesting
   List<String> findVmOptionsFromProcFs(String[] procfsCmdline) {
     // Create the list of VM options
     List<String> vmOptions = new ArrayList<>();

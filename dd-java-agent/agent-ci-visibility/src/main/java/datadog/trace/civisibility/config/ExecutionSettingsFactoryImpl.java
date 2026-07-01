@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.civisibility.ci.PullRequestInfo;
+import datadog.trace.civisibility.config.api.dto.request.TracerEnvironment;
 import datadog.trace.civisibility.diff.Diff;
 import datadog.trace.civisibility.diff.LineDiff;
 import datadog.trace.civisibility.git.tree.GitClient;

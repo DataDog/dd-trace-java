@@ -3,6 +3,7 @@ package datadog.trace.api.remoteconfig;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -56,7 +57,7 @@ public class ServiceNameCollector {
    * Get the list of unique services deduplicated by case. There is no locking on the addService map
    * so, the method is not thread safe.
    *
-   * @return
+   * @return the list of unique services, or {@code null} if none have been collected
    */
   @Nullable
   public List<String> getServices() {
@@ -73,7 +74,7 @@ public class ServiceNameCollector {
     services.clear();
   }
 
-  // Visible for testing
+  @VisibleForTesting
   static void setInstance(ServiceNameCollector instance) {
     INSTANCE = instance;
   }

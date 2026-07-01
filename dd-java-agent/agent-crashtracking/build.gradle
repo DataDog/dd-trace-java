@@ -28,7 +28,6 @@ dependencies {
   testImplementation libs.assertj.core
   testImplementation libs.json.unit.assertj
   testImplementation libs.jackson.databind
-  testImplementation libs.testcontainers
   testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
 }
 

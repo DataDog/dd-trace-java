@@ -3,6 +3,7 @@ package datadog.trace.core.tagprocessor;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
@@ -22,7 +23,7 @@ public final class PeerServiceCalculator extends TagsPostProcessor {
     this(SpanNaming.instance().namingSchema().peerService(), Config.get().getPeerServiceMapping());
   }
 
-  // Visible for testing
+  @VisibleForTesting
   PeerServiceCalculator(
       @Nonnull final NamingSchema.ForPeerService peerServiceNaming,
       @Nonnull final Map<String, String> peerServiceMapping) {

@@ -45,7 +45,7 @@ public class CheckpointerTest extends DDCoreJavaSpecification {
         carrier.entries().stream()
             .anyMatch(entry -> "dd-pathway-ctx-base64".equals(entry.getKey()));
     assertTrue(hasPathwayCtxBase64);
-    assertNotEquals(0L, ((DDSpan) span).context().getPathwayContext().getHash());
+    assertNotEquals(0L, ((DDSpan) span).spanContext().getPathwayContext().getHash());
   }
 
   static class CustomContextCarrier implements DataStreamsContextCarrier {

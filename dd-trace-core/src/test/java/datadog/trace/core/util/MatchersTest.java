@@ -8,6 +8,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -112,5 +113,60 @@ class MatchersTest {
     Matcher matcher = Matchers.compileGlob(pattern);
 
     assertEquals(matches, matcher.matches(value));
+  }
+
+  @Test
+  void anyMatcherMatchesString() {
+    assertTrue(Matchers.ANY.matches("hello"));
+  }
+
+  @Test
+  void anyMatcherMatchesCharSequence() {
+    assertTrue(Matchers.ANY.matches((CharSequence) new StringBuilder("world")));
+  }
+
+  @Test
+  void anyMatcherMatchesBoolean() {
+    assertTrue(Matchers.ANY.matches(true));
+  }
+
+  @Test
+  void anyMatcherMatchesByte() {
+    assertTrue(Matchers.ANY.matches((byte) 1));
+  }
+
+  @Test
+  void anyMatcherMatchesShort() {
+    assertTrue(Matchers.ANY.matches((short) 2));
+  }
+
+  @Test
+  void anyMatcherMatchesInt() {
+    assertTrue(Matchers.ANY.matches(42));
+  }
+
+  @Test
+  void anyMatcherMatchesLong() {
+    assertTrue(Matchers.ANY.matches(100L));
+  }
+
+  @Test
+  void anyMatcherMatchesFloat() {
+    assertTrue(Matchers.ANY.matches(1.5f));
+  }
+
+  @Test
+  void anyMatcherMatchesDouble() {
+    assertTrue(Matchers.ANY.matches(3.14));
+  }
+
+  @Test
+  void anyMatcherMatchesBigInteger() {
+    assertTrue(Matchers.ANY.matches(new BigInteger("123")));
+  }
+
+  @Test
+  void anyMatcherMatchesBigDecimal() {
+    assertTrue(Matchers.ANY.matches(new BigDecimal("1.23")));
   }
 }

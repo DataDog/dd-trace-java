@@ -20,6 +20,7 @@ import com.datadog.profiling.controller.ProfilerSettingsSupport;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.ddprof.DatadogProfiler;
 import datadog.environment.JavaVirtualMachine;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import java.time.Instant;
@@ -52,7 +53,7 @@ public class DatadogProfilerOngoingRecording implements OngoingRecording {
     return recording.stop();
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   final RecordingData snapshot(final Instant start) {
     return snapshot(start, ProfilingSnapshot.Kind.PERIODIC);
   }

@@ -1,11 +1,13 @@
 package datadog.trace.api;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.function.Function.identity;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.Base64;
 import java.util.Locale;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -174,4 +176,16 @@ public final class Functions {
       }
     }
   }
+
+  public static final Function<byte[], String> UTF8_BYTES_TO_STRING =
+      bytes -> new String(bytes, UTF_8);
+
+  public static final Function<byte[], String> BASE64_DECODE =
+      bytes -> {
+        try {
+          return new String(Base64.getDecoder().decode(bytes), UTF_8);
+        } catch (final Exception ignored) {
+          return null;
+        }
+      };
 }

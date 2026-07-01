@@ -1,5 +1,6 @@
 package datadog.crashtracking.parsers;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -215,7 +216,7 @@ public final class RedactUtils {
    * java.lang.Class} oop) use {@link #redactRegisterToMemoryMapping} which detects the oop type
    * automatically.
    */
-  // @VisibleForTesting
+  @VisibleForTesting
   static String redactDottedClassOopRef(String line) {
     return redactStringOopRef(line, false);
   }

@@ -27,6 +27,9 @@ public final class AttributeKeys {
       CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY =
           attributeKey("datadog.connect.parent.continuation");
 
+  public static final AttributeKey<Boolean> HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY =
+      attributeKey("datadog.http2.connection.codec");
+
   public static final AttributeKey<Context> PARENT_CONTEXT_ATTRIBUTE_KEY =
       attributeKey("datadog.server.parent-context");
 

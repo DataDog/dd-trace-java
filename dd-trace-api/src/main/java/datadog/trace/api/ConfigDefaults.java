@@ -82,6 +82,7 @@ public final class ConfigDefaults {
       new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT, BAGGAGE));
   static final Set<PropagationStyle> DEFAULT_PROPAGATION_STYLE =
       new LinkedHashSet<>(asList(PropagationStyle.DATADOG));
+  public static final boolean DEFAULT_PROPAGATION_B3_PADDING_ENABLED = true;
   static final int DEFAULT_TRACE_BAGGAGE_MAX_ITEMS = 64;
   static final int DEFAULT_TRACE_BAGGAGE_MAX_BYTES = 8192;
   static final List<String> DEFAULT_TRACE_BAGGAGE_TAG_KEYS =
@@ -114,6 +115,10 @@ public final class ConfigDefaults {
   static final int DEFAULT_METRICS_OTEL_TIMEOUT = 7_500; // ms
   static final int DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT = 2_000;
 
+  static final int DEFAULT_TRACE_STATS_INTERVAL = 10_000; // ms
+
+  public static final boolean DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED = true;
+
   public static final int DEFAULT_OTLP_TRACES_TIMEOUT = 10_000; // ms
 
   static final String DEFAULT_OTLP_HTTP_LOGS_ENDPOINT = "v1/logs";
@@ -137,7 +142,6 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APP_LOGS_COLLECTION_ENABLED = false;
 
   static final String DEFAULT_APPSEC_ENABLED = "inactive";
-  static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
   static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
@@ -155,6 +159,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT = 10_000_000;
   static final int DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES = 4096;
   static final int DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT = 25;
+  static final int DEFAULT_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES = 1_000;
   static final String DEFAULT_IAST_ENABLED = "false";
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;
@@ -165,9 +170,9 @@ public final class ConfigDefaults {
   static final String DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS =
       "^(?:PBEWITH(?:HMACSHA(?:2(?:24ANDAES_(?:128|256)|56ANDAES_(?:128|256))|384ANDAES_(?:128|256)|512ANDAES_(?:128|256)|1ANDAES_(?:128|256))|SHA1AND(?:RC(?:2_(?:128|40)|4_(?:128|40))|DESEDE)|MD5AND(?:TRIPLEDES|DES))|DES(?:EDE(?:WRAP)?)?|BLOWFISH|ARCFOUR|RC2).*$";
   static final boolean DEFAULT_IAST_REDACTION_ENABLED = true;
-  static final String DEFAULT_IAST_REDACTION_NAME_PATTERN =
+  public static final String DEFAULT_IAST_REDACTION_NAME_PATTERN =
       "(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|public_?|access_?|secret_?)key(?:_?id)?|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)";
-  static final String DEFAULT_IAST_REDACTION_VALUE_PATTERN =
+  public static final String DEFAULT_IAST_REDACTION_VALUE_PATTERN =
       "(?:bearer\\s+[a-z0-9\\._\\-]+|glpat-[\\w\\-]{20}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L][\\w=\\-]+\\.ey[I-L][\\w=\\-]+(?:\\.[\\w.+/=\\-]+)?|(?:[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}[^\\-]+[\\-]{5}END[a-z\\s]+PRIVATE\\sKEY[\\-]{5}|ssh-rsa\\s*[a-z0-9/\\.+]{100,}))";
   public static final int DEFAULT_IAST_MAX_RANGE_COUNT = 10;
   static final boolean DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS = false;

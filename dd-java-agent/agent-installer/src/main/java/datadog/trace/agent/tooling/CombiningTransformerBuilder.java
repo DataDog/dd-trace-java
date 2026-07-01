@@ -274,7 +274,7 @@ public final class CombiningTransformerBuilder
     }
     AgentBuilder.Transformer.ForAdvice forAdvice =
         new AgentBuilder.Transformer.ForAdvice(customMapping)
-            .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
+            .withExceptionHandler(ExceptionHandlers.exceptionHandlerFor(adviceClass))
             .include(Utils.getBootstrapProxy());
     ClassLoader adviceLoader = Utils.getExtendedClassLoader();
     if (adviceShader != null) {
