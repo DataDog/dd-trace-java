@@ -50,6 +50,12 @@ include ':dd-java-agent:instrumentation:google-http-client'
    see [Type Matching](./how_instrumentations_work.md#type-matching))
 7. Pass the instrumentation name to the superclass constructor
 
+> [!NOTE]
+> **Need reflective access to a named Java module (Java 9+)?** If your instrumentation performs reflection on types
+> inside a module whose packages are not opened by the host application, also implement
+> `JavaModuleOpenProvider` on your `InstrumenterModule` and return the trigger classes from `triggerClasses()`.
+> See [JPMS Module Opening](./how_instrumentations_work.md#jpms-module-opening) for details.
+
 ```java
 
 @AutoService(InstrumenterModule.class)
@@ -60,6 +66,17 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing 
     // ...
 }
 ```
+
+> [!IMPORTANT]
+> **The instrumentation name controls a config flag that must be registered.** The name passed to
+> `super(...)` becomes the config key `dd.trace.<name>.enabled` → environment variable
+> `DD_TRACE_<NAME>_ENABLED` (`.` and `-` become `_`, then uppercased — e.g. `couchbase-3` →
+> `DD_TRACE_COUCHBASE_3_ENABLED`). Every such name must be registered in
+> `metadata/supported-configurations.json` with the two standard aliases
+> (`DD_TRACE_INTEGRATION_<NAME>_ENABLED` and `DD_INTEGRATION_<NAME>_ENABLED`), or the
+> `checkInstrumenterModuleConfigurations` Gradle task fails the build. A module declaring multiple
+> names (`super("a", "b")`) needs **one entry per name**. See
+> [Add new configurations](./add_new_configurations.md) for the JSON entry shape.
 
 ## Match the target class
 
@@ -431,6 +448,22 @@ There are four verification strategies, three of which are mandatory.
 - [Instrumentation Tests](./how_instrumentations_work.md#instrumentation-tests) (Required)
 - [Latest Dependency Tests](./how_instrumentations_work.md#latest-dependency-tests) (Required)
 - [Smoke tests](./how_instrumentations_work.md#smoke-tests) (Not required)
+
+### Agent jar integrations golden file
+
+The agent jar check task `verifyAgentJarIntegrations` verifies that the set of integrations
+listed under the `expected.integrations` key in `metadata/agent-jar-checks.properties`
+exactly matches the integrations shipped in the built agent jar. This catches accidental additions or removals.
+
+When you add or remove an integration, update the properties file:
+
+```shell
+./gradlew :dd-java-agent:updateAgentJarIntegrationsGoldenFile
+```
+
+Then commit `metadata/agent-jar-checks.properties` alongside your instrumentation changes.
+The `check` task runs `verifyAgentJarIntegrations` automatically, so CI will fail if the file
+is out of date.
 
 All integrations must include sufficient test coverage. This HTTP client integration will include
 a [standard HTTP test class](../dd-java-agent/instrumentation/google-http-client/src/test/groovy/GoogleHttpClientTest.groovy)

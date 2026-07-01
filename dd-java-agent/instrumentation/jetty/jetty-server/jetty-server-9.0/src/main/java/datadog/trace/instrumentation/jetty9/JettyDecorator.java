@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import datadog.trace.instrumentation.jetty.JettyBlockResponseFunction;
+import java.net.InetSocketAddress;
 import javax.servlet.ServletException;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
@@ -21,6 +22,7 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
       UTF8BytesString.create(DECORATE.operationName());
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
+  public static final String DD_PARENT_CONTEXT_ATTRIBUTE = "datadog.parent-context";
 
   @Override
   protected String[] instrumentationNames() {
@@ -59,11 +61,28 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
 
   @Override
   protected String peerHostIP(final Request request) {
+    // Avoid Request.getRemoteAddr() since ForwardedRequestCustomizer (used by default in
+    // Dropwizard) overrides it with the value resolved from x-forwarded-for and similar
+    // proxy headers. Peer information must be the actual socket peer.
+    HttpChannel<?> channel = request.getHttpChannel();
+    if (channel != null) {
+      InetSocketAddress remote = channel.getRemoteAddress();
+      if (remote != null && remote.getAddress() != null) {
+        return remote.getAddress().getHostAddress();
+      }
+    }
     return request.getRemoteAddr();
   }
 
   @Override
   protected int peerPort(final Request request) {
+    HttpChannel<?> channel = request.getHttpChannel();
+    if (channel != null) {
+      InetSocketAddress remote = channel.getRemoteAddress();
+      if (remote != null) {
+        return remote.getPort();
+      }
+    }
     return request.getRemotePort();
   }
 

@@ -12,11 +12,11 @@ import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
@@ -97,8 +97,8 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     private final PackageResolver packageResolver;
     private final ResourceResolver resourceResolver;
     private final ClassNameTrie.Builder trieBuilder;
-    private final Map<String, String> trieKeyToPath;
-    private final Collection<String> duplicateTrieKeys;
+    private final Map<String, Integer> trieKeyToSourceRootIdx;
+    private final Map<String, List<Integer>> duplicateSourceRootIndices;
     private final Map<RepoIndex.SourceRoot, Integer> sourceRoots;
     private final PackageTree packageTree;
     private final RepoIndexingStats indexingStats;
@@ -115,8 +115,8 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       this.resourceResolver = resourceResolver;
       this.repoRoot = repoRoot;
       trieBuilder = new ClassNameTrie.Builder();
-      trieKeyToPath = new HashMap<>();
-      duplicateTrieKeys = new HashSet<>();
+      trieKeyToSourceRootIdx = new HashMap<>();
+      duplicateSourceRootIndices = new HashMap<>();
       sourceRoots = new HashMap<>();
       packageTree = new PackageTree(config);
       indexingStats = new RepoIndexingStats();
@@ -124,6 +124,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       followSymlinks = config.isCiVisibilityRepoIndexFollowSymlinks();
     }
 
+    @Nonnull
     @Override
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
       if (Files.isSymbolicLink(dir)) {
@@ -151,6 +152,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       }
     }
 
+    @Nonnull
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
       indexingStats.filesVisited++;
@@ -177,10 +179,18 @@ public class RepoIndexBuilder implements RepoIndexProvider {
             String key = Utils.toTrieKey(relativePath);
             trieBuilder.put(key, sourceRootIdx);
 
-            String existingPath = trieKeyToPath.put(key, file.toString());
-            if (existingPath != null) {
-              log.debug("Duplicate repo index key: {} - {}", existingPath, file);
-              duplicateTrieKeys.add(key);
+            Integer existingSourceRootIdx = trieKeyToSourceRootIdx.put(key, sourceRootIdx);
+            if (existingSourceRootIdx != null) {
+              log.debug("Duplicate repo index key: {}", key);
+              duplicateSourceRootIndices
+                  .computeIfAbsent(
+                      key,
+                      k -> {
+                        List<Integer> indices = new ArrayList<>();
+                        indices.add(existingSourceRootIdx); // Initialize with original source root
+                        return indices;
+                      })
+                  .add(sourceRootIdx);
             }
           }
         }
@@ -220,6 +230,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       return resourceResolver.getResourceRoot(file);
     }
 
+    @Nonnull
     @Override
     public FileVisitResult visitFileFailed(Path file, IOException exc) {
       if (exc != null) {
@@ -228,6 +239,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       return FileVisitResult.CONTINUE;
     }
 
+    @Nonnull
     @Override
     public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
       if (exc != null) {
@@ -242,8 +254,23 @@ public class RepoIndexBuilder implements RepoIndexProvider {
         roots[e.getValue()] = e.getKey();
       }
 
+      Map<String, List<String>> duplicateTrieKeyPaths =
+          new HashMap<>(duplicateSourceRootIndices.size() * 4 / 3);
+      for (Map.Entry<String, List<Integer>> entry : duplicateSourceRootIndices.entrySet()) {
+        String key = entry.getKey();
+        List<String> paths = new ArrayList<>(entry.getValue().size());
+        for (int idx : entry.getValue()) {
+          RepoIndex.SourceRoot sr = roots[idx];
+          paths.add(sr.resolveSourcePath(key));
+        }
+        duplicateTrieKeyPaths.put(key, paths);
+      }
+
       return new RepoIndex(
-          trieBuilder.buildTrie(), duplicateTrieKeys, Arrays.asList(roots), packageTree.asList());
+          trieBuilder.buildTrie(),
+          duplicateTrieKeyPaths,
+          Arrays.asList(roots),
+          packageTree.asList());
     }
   }
 

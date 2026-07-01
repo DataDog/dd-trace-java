@@ -7,14 +7,14 @@ muzzle {
   }
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+
 configurations.configureEach {
   // shut up about broken xml-api pom relocation
   resolutionStrategy {
     force 'xml-apis:xml-apis:1.4.01'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 addTestSuiteForDir('latestDepTest', 'test')

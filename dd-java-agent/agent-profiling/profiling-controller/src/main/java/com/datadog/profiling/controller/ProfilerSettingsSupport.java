@@ -140,7 +140,7 @@ public abstract class ProfilerSettingsSupport {
             ProfilingSupport.isObjectAllocationSampleAvailable());
     heapProfilingEnabled =
         configProvider.getBoolean(
-            ProfilingConfig.PROFILING_HEAP_ENABLED, ProfilingConfig.PROFILING_HEAP_ENABLED_DEFAULT);
+            ProfilingConfig.PROFILING_HEAP_ENABLED, ProfilingSupport.isLiveHeapProfilingSafe());
     startForceFirst =
         configProvider.getBoolean(
             ProfilingConfig.PROFILING_START_FORCE_FIRST,

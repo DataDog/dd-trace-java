@@ -14,12 +14,10 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.StringSerializer
-import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.EmbeddedKafkaBroker
-import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Shared
@@ -34,9 +32,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPro
 abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
 
-  @Rule
-  EmbeddedKafkaRule kafkaRule = new EmbeddedKafkaRule(1, true, SHARED_TOPIC)
-  EmbeddedKafkaBroker embeddedKafka = kafkaRule.embeddedKafka
+  protected EmbeddedKafkaBroker embeddedKafka
 
   @Override
   void configurePreAgent() {
@@ -96,7 +92,13 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   }
 
   def setup() {
+    embeddedKafka = new EmbeddedKafkaBroker(1, true, SHARED_TOPIC)
+    embeddedKafka.afterPropertiesSet()
     TEST_WRITER.setFilter(DROP_KAFKA_POLL)
+  }
+
+  def cleanup() {
+    embeddedKafka?.destroy()
   }
 
   @Override
@@ -302,9 +304,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
         "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$SHARED_TOPIC"
-        if (partitioned) {
-          "$InstrumentationTags.PARTITION" { it >= 0 }
-        }
+        "$InstrumentationTags.PARTITION" { it >= 0 }
+        "$InstrumentationTags.OFFSET" { it >= 0 }
+        "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
         if (tombstone) {
           "$InstrumentationTags.TOMBSTONE" true
         }
@@ -381,6 +383,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         "$InstrumentationTags.OFFSET" { offset.containsWithinBounds(it as int) }
         "$InstrumentationTags.CONSUMER_GROUP" "sender"
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
+        "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
         "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
         "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$SHARED_TOPIC"

@@ -1,11 +1,13 @@
 package datadog.opentelemetry.shim.trace;
 
+import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.util.Strings;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.TracerBuilder;
 import io.opentelemetry.api.trace.TracerProvider;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,19 +19,17 @@ public final class OtelTracerProvider implements TracerProvider {
 
   public static final TracerProvider INSTANCE = new OtelTracerProvider();
 
-  /** Tracer shims, indexed by instrumentation scope name. */
-  private final Map<String, OtelTracer> tracers = new ConcurrentHashMap<>();
+  /** Tracer shims, indexed by instrumentation scope. */
+  private final Map<OtelInstrumentationScope, OtelTracer> tracers = new ConcurrentHashMap<>();
 
   @Override
   public Tracer get(String instrumentationScopeName) {
-    return getTracerShim(instrumentationScopeName);
+    return getTracerShim(instrumentationScopeName, null, null);
   }
 
   @Override
-  public Tracer get(
-      String instrumentationScopeName,
-      @SuppressWarnings("unused") String instrumentationScopeVersion) {
-    return getTracerShim(instrumentationScopeName);
+  public Tracer get(String instrumentationScopeName, String instrumentationScopeVersion) {
+    return getTracerShim(instrumentationScopeName, instrumentationScopeVersion, null);
   }
 
   @Override
@@ -37,11 +37,17 @@ public final class OtelTracerProvider implements TracerProvider {
     return new OtelTracerBuilder(this, instrumentationScopeName);
   }
 
-  OtelTracer getTracerShim(String instrumentationScopeName) {
+  OtelTracer getTracerShim(
+      String instrumentationScopeName,
+      @Nullable String instrumentationScopeVersion,
+      @Nullable String schemaUrl) {
     if (Strings.isBlank(instrumentationScopeName)) {
       LOGGER.debug("Tracer requested without instrumentation scope name.");
       instrumentationScopeName = DEFAULT_TRACER_NAME;
     }
-    return tracers.computeIfAbsent(instrumentationScopeName, OtelTracer::new);
+    return tracers.computeIfAbsent(
+        new OtelInstrumentationScope(
+            instrumentationScopeName, instrumentationScopeVersion, schemaUrl),
+        OtelTracer::new);
   }
 }

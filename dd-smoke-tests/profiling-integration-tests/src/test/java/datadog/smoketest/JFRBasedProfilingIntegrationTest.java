@@ -1,5 +1,6 @@
 package datadog.smoketest;
 
+import static com.datadog.profiling.controller.ProfilingSupport.isOldObjectSampleAvailable;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -700,6 +701,8 @@ class JFRBasedProfilingIntegrationTest {
       assertEquals(
           JavaVirtualMachine.isJavaVersionAtLeast(11),
           events.apply(ItemFilters.type("datadog.ObjectSample")).hasItems());
+      // Check live heap events
+      // ddprof is active — jdk.OldObjectSample should NOT be present since ddprof takes over
       // TODO ddprof (async) profiler seems to be having some issues with stack depth limit and
       // native frames
     } else {
@@ -713,6 +716,12 @@ class JFRBasedProfilingIntegrationTest {
           assertNotNull(stackTrace);
           assertTrue(stackTrace.getFrames().size() <= STACK_DEPTH_LIMIT);
         }
+      }
+      // Check JFR live heap events
+      if (isOldObjectSampleAvailable()) {
+        assertTrue(
+            events.apply(ItemFilters.type("jdk.OldObjectSample")).hasItems(),
+            "Expected jdk.OldObjectSample events on JFR-only mode with supported JVM");
       }
     }
 

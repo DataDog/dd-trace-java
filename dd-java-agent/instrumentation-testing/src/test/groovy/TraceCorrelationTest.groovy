@@ -1,10 +1,18 @@
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.api.CorrelationIdentifier
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED
 
 class TraceCorrelationTest extends InstrumentationSpecification {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   def "access trace correlation only under trace"() {
     when:
@@ -28,6 +36,8 @@ class Trace128bitCorrelationTest extends TraceCorrelationTest {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
     injectSysConfig(TRACE_128_BIT_TRACEID_GENERATION_ENABLED, "true")
     injectSysConfig(TRACE_128_BIT_TRACEID_LOGGING_ENABLED, "true")
   }

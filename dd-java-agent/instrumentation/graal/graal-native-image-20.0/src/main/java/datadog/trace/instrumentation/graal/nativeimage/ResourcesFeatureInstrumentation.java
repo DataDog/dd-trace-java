@@ -54,6 +54,7 @@ public final class ResourcesFeatureInstrumentation
 
       // tracer's jmxfetch configs
       tracerResources.add("jmxfetch/jmxfetch-config.yaml");
+      tracerResources.add("jmxfetch/jmxfetch-config-no-jvm-defaults.yaml");
       tracerResources.add("jmxfetch/jmxfetch-websphere-config.yaml");
 
       // jmxfetch integrations metricconfigs

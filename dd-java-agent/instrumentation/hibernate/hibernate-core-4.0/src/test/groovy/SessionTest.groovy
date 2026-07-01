@@ -466,7 +466,7 @@ class SessionTest extends AbstractHibernateTest {
   def "test hibernate overlapping Sessions"() {
     setup:
 
-    AgentScope scope = activateSpan(startSpan("overlapping Sessions"))
+    AgentScope scope = activateSpan(startSpan("test", "overlapping Sessions"))
 
     def session1 = sessionFactory.openSession()
     session1.beginTransaction()

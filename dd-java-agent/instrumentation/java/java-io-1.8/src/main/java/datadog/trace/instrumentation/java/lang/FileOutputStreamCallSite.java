@@ -7,12 +7,13 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.PathTraversalModule;
+import java.io.File;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
 @CallSite(
     spi = {IastCallSites.class, RaspCallSites.class},
-    helpers = FileLoadedRaspHelper.class)
+    helpers = FileIORaspHelper.class)
 public class FileOutputStreamCallSite {
 
   @CallSite.Before("void java.io.FileOutputStream.<init>(java.lang.String)")
@@ -21,6 +22,14 @@ public class FileOutputStreamCallSite {
     if (path != null) {
       iastCallback(path);
       raspCallback(path);
+    }
+  }
+
+  @CallSite.Before("void java.io.FileOutputStream.<init>(java.io.File)")
+  @CallSite.Before("void java.io.FileOutputStream.<init>(java.io.File, boolean)")
+  public static void beforeConstructorFile(@CallSite.Argument(0) @Nullable final File file) {
+    if (file != null) {
+      raspCallback(file.getPath());
     }
   }
 
@@ -36,6 +45,6 @@ public class FileOutputStreamCallSite {
   }
 
   private static void raspCallback(String path) {
-    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(path);
+    FileIORaspHelper.INSTANCE.beforeFileWritten(path);
   }
 }

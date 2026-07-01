@@ -22,6 +22,7 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
 
 import datadog.environment.JavaVirtualMachine;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.ProfilerFlareLogger;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
@@ -238,7 +239,7 @@ public final class ProfilingSystem {
     return started;
   }
 
-  /** VisibleForTesting */
+  @VisibleForTesting
   final Duration getStartupDelay() {
     return startupDelay;
   }

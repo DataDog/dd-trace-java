@@ -2,11 +2,14 @@ package datadog.trace.config.inversion;
 
 import datadog.environment.EnvironmentVariables;
 import datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +18,7 @@ public class ConfigHelper {
 
   /** Config Inversion strictness policy for enforcement of undocumented environment variables */
   public enum StrictnessPolicy {
-    STRICT,
+    STRICT_TEST,
     WARNING,
     TEST;
 
@@ -49,6 +52,9 @@ public class ConfigHelper {
   // Default to production source
   private SupportedConfigurationSource configSource = new SupportedConfigurationSource();
 
+  // Collects unsupported config keys encountered in STRICT_TEST mode
+  private final Set<String> unsupportedConfigs = ConcurrentHashMap.newKeySet();
+
   public static ConfigHelper get() {
     return INSTANCE;
   }
@@ -75,7 +81,16 @@ public class ConfigHelper {
   void resetToDefaults() {
     configSource = new SupportedConfigurationSource();
     this.configInversionStrict = StrictnessPolicy.WARNING;
+    unsupportedConfigs.clear();
     resetCache();
+  }
+
+  /** Returns and clears the set of unsupported config keys encountered in STRICT_TEST mode. */
+  public List<String> drainUnsupportedConfigs() {
+    List<String> result = new ArrayList<>(unsupportedConfigs);
+    unsupportedConfigs.clear();
+    Collections.sort(result);
+    return result;
   }
 
   public static Map<String, String> env() {
@@ -142,8 +157,13 @@ public class ConfigHelper {
         ConfigInversionMetricCollectorProvider.get().setUndocumentedEnvVarMetric(name);
       }
 
-      if (configInversionStrict == StrictnessPolicy.STRICT) {
-        return null; // If strict mode is enabled, return null for unsupported configs
+      if (configInversionStrict == StrictnessPolicy.STRICT_TEST) {
+        unsupportedConfigs.add(name);
+        throw new IllegalArgumentException(
+            "Unsupported configuration: "
+                + name
+                + " is not in GeneratedSupportedConfigurations. "
+                + "Add it to metadata/supported-configurations.json or remove the usage.");
       }
     }
 

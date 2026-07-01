@@ -9,7 +9,7 @@ public final class GlobPattern {
     return Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
   }
 
-  private static String globToRegex(String globPattern) {
+  static String globToRegex(String globPattern) {
     StringBuilder sb = new StringBuilder(64);
     sb.append('^');
     for (int i = 0; i < globPattern.length(); i++) {

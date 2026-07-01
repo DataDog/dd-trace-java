@@ -14,16 +14,17 @@ class CompilerAidedSourcePathResolverTest extends Specification {
     def sourcePathResolver = new CompilerAidedSourcePathResolver(REPO_ROOT)
 
     when:
-    def path = sourcePathResolver.getSourcePath(clazz)
+    def path = sourcePathResolver.getSourcePaths(clazz)
 
     then:
-    path == expectedPath
+    path.size() == expectedPath.size()
+    path.containsAll(expectedPath)
 
     where:
     clazz                             | expectedPath
-    AClassWithNoSourceInfoInjected    | null
-    AClassWithSourceInfoInjected      | "path/to/AClassWithSourceInfoInjected.java"
-    AClassWithSourceOutsideRepository | null
+    AClassWithNoSourceInfoInjected    | []
+    AClassWithSourceInfoInjected      | ["path/to/AClassWithSourceInfoInjected.java"]
+    AClassWithSourceOutsideRepository | []
   }
 
   private static final class AClassWithNoSourceInfoInjected {}

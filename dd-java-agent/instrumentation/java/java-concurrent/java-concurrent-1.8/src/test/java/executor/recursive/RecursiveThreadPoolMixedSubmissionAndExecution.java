@@ -26,7 +26,7 @@ public class RecursiveThreadPoolMixedSubmissionAndExecution implements Runnable 
     if (depth == maxDepth) {
       return;
     }
-    AgentSpan span = startSpan(String.valueOf(depth));
+    AgentSpan span = startSpan("test", String.valueOf(depth));
     try (AgentScope scope = activateSpan(span)) {
       if (depth % 2 == 0) {
         executor.submit(

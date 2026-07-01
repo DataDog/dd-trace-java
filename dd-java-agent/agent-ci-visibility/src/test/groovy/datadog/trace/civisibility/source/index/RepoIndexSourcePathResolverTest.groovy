@@ -4,7 +4,6 @@ import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs
 import datadog.trace.api.Config
 import datadog.trace.api.civisibility.domain.Language
-import datadog.trace.civisibility.source.SourceResolutionException
 import groovy.transform.PackageScope
 import spock.lang.Specification
 
@@ -25,9 +24,11 @@ class RepoIndexSourcePathResolverTest extends Specification {
 
     when:
     def sourcePathResolver = new RepoIndexSourcePathResolver(new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem))
+    def sourcePaths = sourcePathResolver.getSourcePaths(RepoIndexSourcePathResolverTest)
 
     then:
-    sourcePathResolver.getSourcePath(RepoIndexSourcePathResolverTest) == expectedSourcePath
+    sourcePaths.size() == 1
+    sourcePaths.contains(expectedSourcePath)
   }
 
   def "test source path resolution for inner class"() {
@@ -36,9 +37,11 @@ class RepoIndexSourcePathResolverTest extends Specification {
 
     when:
     def sourcePathResolver = new RepoIndexSourcePathResolver(new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem))
+    def sourcePaths = sourcePathResolver.getSourcePaths(InnerClass)
 
     then:
-    sourcePathResolver.getSourcePath(InnerClass) == expectedSourcePath
+    sourcePaths.size() == 1
+    sourcePaths.contains(expectedSourcePath)
   }
 
   def "test source path resolution for nested inner class"() {
@@ -47,9 +50,11 @@ class RepoIndexSourcePathResolverTest extends Specification {
 
     when:
     def sourcePathResolver = new RepoIndexSourcePathResolver(new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem))
+    def sourcePaths = sourcePathResolver.getSourcePaths(InnerClass.NestedInnerClass)
 
     then:
-    sourcePathResolver.getSourcePath(InnerClass.NestedInnerClass) == expectedSourcePath
+    sourcePaths.size() == 1
+    sourcePaths.contains(expectedSourcePath)
   }
 
   def "test source path resolution for anonymous class"() {
@@ -61,9 +66,11 @@ class RepoIndexSourcePathResolverTest extends Specification {
     def r = new Runnable() {
         void run() {}
       }
+    def sourcePaths = sourcePathResolver.getSourcePaths(r.getClass())
 
     then:
-    sourcePathResolver.getSourcePath(r.getClass()) == expectedSourcePath
+    sourcePaths.size() == 1
+    sourcePaths.contains(expectedSourcePath)
   }
 
   def "test source path resolution for package-private class"() {
@@ -72,9 +79,11 @@ class RepoIndexSourcePathResolverTest extends Specification {
 
     when:
     def sourcePathResolver = new RepoIndexSourcePathResolver(new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem))
+    def sourcePaths = sourcePathResolver.getSourcePaths(PackagePrivateClass)
 
     then:
-    sourcePathResolver.getSourcePath(PackagePrivateClass) == expectedSourcePath
+    sourcePaths.size() == 1
+    sourcePaths.contains(expectedSourcePath)
   }
 
   def "test source path resolution for class nested into package-private class"() {
@@ -83,9 +92,11 @@ class RepoIndexSourcePathResolverTest extends Specification {
 
     when:
     def sourcePathResolver = new RepoIndexSourcePathResolver(new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem))
+    def sourcePaths = sourcePathResolver.getSourcePaths(PackagePrivateClass.NestedIntoPackagePrivateClass)
 
     then:
-    sourcePathResolver.getSourcePath(PackagePrivateClass.NestedIntoPackagePrivateClass) == expectedSourcePath
+    sourcePaths.size() == 1
+    sourcePaths.contains(expectedSourcePath)
   }
 
   def "test source path resolution for non-java class whose file name is different from class name"() {
@@ -94,9 +105,11 @@ class RepoIndexSourcePathResolverTest extends Specification {
 
     when:
     def sourcePathResolver = new RepoIndexSourcePathResolver(new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem))
+    def sourcePaths = sourcePathResolver.getSourcePaths(PublicClassWhoseNameDoesNotCorrespondToFileName)
 
     then:
-    sourcePathResolver.getSourcePath(PublicClassWhoseNameDoesNotCorrespondToFileName) == expectedSourcePath
+    sourcePaths.size() == 1
+    sourcePaths.contains(expectedSourcePath)
   }
 
   def "test source path for non-indexed class"() {
@@ -106,7 +119,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     def sourcePathResolver = new RepoIndexSourcePathResolver(new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem))
 
     then:
-    sourcePathResolver.getSourcePath(RepoIndexSourcePathResolver) == null
+    sourcePathResolver.getSourcePaths(RepoIndexSourcePathResolver).isEmpty()
   }
 
   def "test source path for non-indexed package-private class"() {
@@ -116,7 +129,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     def sourcePathResolver = new RepoIndexSourcePathResolver(new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem))
 
     then:
-    sourcePathResolver.getSourcePath(PackagePrivateClass) == null
+    sourcePathResolver.getSourcePaths(PackagePrivateClass).isEmpty()
   }
 
   def "test file-indexing failure"() {
@@ -131,7 +144,7 @@ class RepoIndexSourcePathResolverTest extends Specification {
     def sourcePathResolver = new RepoIndexSourcePathResolver(new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem))
 
     then:
-    sourcePathResolver.getSourcePath(RepoIndexSourcePathResolverTest) == null
+    sourcePathResolver.getSourcePaths(RepoIndexSourcePathResolverTest).isEmpty()
   }
 
   def "test source path resolution for repo with multiple files"() {
@@ -143,25 +156,32 @@ class RepoIndexSourcePathResolverTest extends Specification {
 
     when:
     def sourcePathResolver = new RepoIndexSourcePathResolver(new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem))
+    def sourcePathsOne = sourcePathResolver.getSourcePaths(RepoIndexSourcePathResolverTest)
+    def sourcePathsTwo = sourcePathResolver.getSourcePaths(InnerClass)
+    def sourcePathsThree = sourcePathResolver.getSourcePaths(RepoIndexSourcePathResolver)
 
     then:
-    sourcePathResolver.getSourcePath(RepoIndexSourcePathResolverTest) == expectedSourcePathOne
-    sourcePathResolver.getSourcePath(InnerClass) == expectedSourcePathOne
-    sourcePathResolver.getSourcePath(RepoIndexSourcePathResolver) == expectedSourcePathTwo
+    sourcePathsOne.size() == 1
+    sourcePathsOne.contains(expectedSourcePathOne)
+    sourcePathsTwo.size() == 1
+    sourcePathsTwo.contains(expectedSourcePathOne)
+    sourcePathsThree.size() == 1
+    sourcePathsThree.contains(expectedSourcePathTwo)
   }
 
-  def "test trying to resolve a duplicate key throws exception"() {
+  def "test trying to resolve a duplicate key returns both candidates"() {
     setup:
-    givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src/java")
-    givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src/scala")
+    def expectedJavaPath = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src/java")
+    def expectedScalaPath = givenSourceFile(RepoIndexSourcePathResolverTest, repoRoot + "/src/scala")
 
     def sourcePathResolver = new RepoIndexSourcePathResolver(new RepoIndexBuilder(config, repoRoot, packageResolver, resourceResolver, fileSystem))
 
     when:
-    sourcePathResolver.getSourcePath(RepoIndexSourcePathResolverTest)
+    def sourcePaths = sourcePathResolver.getSourcePaths(RepoIndexSourcePathResolverTest)
 
     then:
-    thrown SourceResolutionException
+    sourcePaths.size() == 2
+    sourcePaths.containsAll([expectedJavaPath, expectedScalaPath])
   }
 
   private String givenSourceFile(Class c, String sourceRoot, Language language = Language.GROOVY) {

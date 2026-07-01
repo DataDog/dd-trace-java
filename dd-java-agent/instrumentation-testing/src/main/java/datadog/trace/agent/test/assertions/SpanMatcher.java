@@ -10,7 +10,9 @@ import static datadog.trace.agent.test.assertions.Matchers.matches;
 import static datadog.trace.agent.test.assertions.Matchers.validates;
 import static datadog.trace.core.DDSpanAccessor.spanLinks;
 import static java.time.Duration.ofNanos;
+import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.core.DDSpan;
@@ -48,8 +50,10 @@ import org.opentest4j.AssertionFailedError;
  * </ul>
  */
 public final class SpanMatcher {
+  private Matcher<DDTraceId> traceIdMatcher;
   private Matcher<Long> idMatcher;
   private Matcher<Long> parentIdMatcher;
+  private int parentSpanIndex;
   private Matcher<String> serviceNameMatcher;
   private Matcher<CharSequence> operationNameMatcher;
   private Matcher<CharSequence> resourceNameMatcher;
@@ -62,6 +66,7 @@ public final class SpanMatcher {
   private static final Matcher<Long> CHILD_OF_PREVIOUS_MATCHER = is(0L);
 
   private SpanMatcher() {
+    this.parentSpanIndex = -1;
     this.serviceNameMatcher = validates(s -> s != null && !s.isEmpty());
     this.typeMatcher = isNull();
     this.errorMatcher = isFalse();
@@ -74,6 +79,18 @@ public final class SpanMatcher {
    */
   public static SpanMatcher span() {
     return new SpanMatcher();
+  }
+
+  /**
+   * Checks the trace identifier matches the given value.
+   *
+   * @param traceId The trace identifier to match against.
+   * @return The current {@link SpanMatcher} instance with the specified trace identifier constraint
+   *     applied.
+   */
+  public SpanMatcher traceId(DDTraceId traceId) {
+    this.traceIdMatcher = Matchers.is(traceId);
+    return this;
   }
 
   /**
@@ -105,6 +122,7 @@ public final class SpanMatcher {
    */
   public SpanMatcher childOf(long parentId) {
     this.parentIdMatcher = is(parentId);
+    this.parentSpanIndex = -1;
     return this;
   }
 
@@ -115,6 +133,19 @@ public final class SpanMatcher {
    */
   public SpanMatcher childOfPrevious() {
     this.parentIdMatcher = CHILD_OF_PREVIOUS_MATCHER;
+    this.parentSpanIndex = -1;
+    return this;
+  }
+
+  /**
+   * Checks the span is a direct child of the span at the specified index in the trace.
+   *
+   * @param parentSpanIndex The index of the parent span in the trace.
+   * @return The current {@link SpanMatcher} instance with the child-of constraint applied.
+   */
+  public SpanMatcher childOfIndex(int parentSpanIndex) {
+    this.parentIdMatcher = null;
+    this.parentSpanIndex = parentSpanIndex;
     return this;
   }
 
@@ -286,20 +317,30 @@ public final class SpanMatcher {
     return this;
   }
 
-  void assertSpan(DDSpan span, DDSpan previousSpan) {
+  void assertSpan(List<DDSpan> trace, int spanIndex) {
+    DDSpan span = trace.get(spanIndex);
+    // Apply parent span index
+    if (this.parentSpanIndex >= 0) {
+      this.parentIdMatcher = is(trace.get(this.parentSpanIndex).getSpanId());
+    }
     // Apply parent id matcher from the previous span
-    if (this.parentIdMatcher == CHILD_OF_PREVIOUS_MATCHER) {
+    else if (this.parentIdMatcher == CHILD_OF_PREVIOUS_MATCHER) {
+      if (spanIndex == 0) {
+        throw new IllegalStateException("Cannot use childOfPrevious() matcher on the first span");
+      }
+      DDSpan previousSpan = trace.get(spanIndex - 1);
       this.parentIdMatcher = is(previousSpan.getSpanId());
     }
     // Assert span values
-    assertValue(this.idMatcher, span.getSpanId(), "Expected identifier");
-    assertValue(this.parentIdMatcher, span.getParentId(), "Expected parent identifier");
-    assertValue(this.serviceNameMatcher, span.getServiceName(), "Expected service name");
-    assertValue(this.operationNameMatcher, span.getOperationName(), "Expected operation name");
-    assertValue(this.resourceNameMatcher, span.getResourceName(), "Expected resource name");
-    assertValue(this.durationMatcher, ofNanos(span.getDurationNano()), "Expected duration");
-    assertValue(this.typeMatcher, span.getSpanType(), "Expected span type");
-    assertValue(this.errorMatcher, span.isError(), "Expected error status");
+    assertValue(this.traceIdMatcher, span.getTraceId(), "Unexpected trace identifier");
+    assertValue(this.idMatcher, span.getSpanId(), "Unexpected identifier");
+    assertValue(this.parentIdMatcher, span.getParentId(), "Unexpected parent identifier");
+    assertValue(this.serviceNameMatcher, span.getServiceName(), "Unexpected service name");
+    assertValue(this.operationNameMatcher, span.getOperationName(), "Unexpected operation name");
+    assertValue(this.resourceNameMatcher, span.getResourceName(), "Unexpected resource name");
+    assertValue(this.durationMatcher, ofNanos(span.getDurationNano()), "Unexpected duration");
+    assertValue(this.typeMatcher, span.getSpanType(), "Unexpected span type");
+    assertValue(this.errorMatcher, span.isError(), "Unexpected error status");
     assertSpanTags(span.getTags());
     assertSpanLinks(spanLinks(span));
   }
@@ -322,7 +363,7 @@ public final class SpanMatcher {
           if (matcher == null) {
             uncheckedTagNames.add(key);
           } else {
-            assertValue(matcher, value, "Unexpected " + key + " tag value.");
+            assertValue(matcher, value, "Unexpected " + key + " tag value");
           }
         });
     // Remove matchers that accept missing tags
@@ -344,10 +385,18 @@ public final class SpanMatcher {
    * It might evolve into partial link collection testing, matching links using TID/SIP.
    */
   private void assertSpanLinks(List<AgentSpanLink> links) {
+    // Check if links should be asserted at all
+    if (this.linkMatchers == null) {
+      return;
+    }
     int linkCount = links == null ? 0 : links.size();
-    int expectedLinkCount = this.linkMatchers == null ? 0 : this.linkMatchers.length;
+    int expectedLinkCount = this.linkMatchers.length;
     if (linkCount != expectedLinkCount) {
-      throw new AssertionFailedError("Unexpected span link count", expectedLinkCount, linkCount);
+      assertionFailure()
+          .message("Unexpected span link count")
+          .expected(expectedLinkCount)
+          .actual(linkCount)
+          .buildAndThrow();
     }
     for (int i = 0; i < expectedLinkCount; i++) {
       SpanLinkMatcher linkMatcher = this.linkMatchers[expectedLinkCount];

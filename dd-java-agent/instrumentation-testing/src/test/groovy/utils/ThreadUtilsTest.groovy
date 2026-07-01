@@ -1,6 +1,7 @@
 package utils
 
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.test.util.ThreadUtils
 import org.spockframework.runtime.ConditionNotSatisfiedError
 import spock.lang.FailsWith
@@ -10,6 +11,13 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 class ThreadUtilsTest extends InstrumentationSpecification {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   @Shared
   def counter = new AtomicInteger()

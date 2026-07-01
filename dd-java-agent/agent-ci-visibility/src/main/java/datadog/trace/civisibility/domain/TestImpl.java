@@ -40,10 +40,10 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.ConfigurationErrors;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.test.ExecutionResults;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -77,6 +77,7 @@ public class TestImpl implements DDTest {
       String testName,
       @Nullable String testParameters,
       @Nullable String itrCorrelationId,
+      boolean testSkippingEnabled,
       @Nullable Long startTime,
       @Nullable Class<?> testClass,
       @Nullable Method testMethod,
@@ -90,6 +91,7 @@ public class TestImpl implements DDTest {
       Codeowners codeowners,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionResults executionResults,
+      @Nonnull ConfigurationErrors configurationErrors,
       @Nonnull Collection<LibraryCapability> capabilities,
       Consumer<AgentSpan> onSpanFinish) {
     this.instrumentation = instrumentation;
@@ -157,6 +159,12 @@ public class TestImpl implements DDTest {
 
     testDecorator.afterStart(span);
 
+    if (testSkippingEnabled) {
+      span.setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
+    }
+
+    configurationErrors.applyTags(span);
+
     metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, instrumentation, EventType.TEST);
 
     if (instrumentationType == InstrumentationType.MANUAL_API) {
@@ -175,17 +183,13 @@ public class TestImpl implements DDTest {
       return;
     }
 
-    String sourcePath;
-    try {
-      sourcePath = sourcePathResolver.getSourcePath(testClass);
-      if (sourcePath == null || sourcePath.isEmpty()) {
-        return;
-      }
-    } catch (SourceResolutionException e) {
-      log.debug("Could not populate source path for {}", testClass, e);
+    Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(testClass);
+    if (sourcePaths.size() != 1) {
+      log.debug("Could not populate source path for {}", testClass);
       return;
     }
 
+    String sourcePath = sourcePaths.iterator().next();
     span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
 
     if (testMethod != null) {

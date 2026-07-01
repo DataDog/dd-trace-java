@@ -2,13 +2,10 @@ package datadog.trace.common.metrics;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.trace.common.metrics.SignalItem.ClearSignal;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
-import datadog.trace.core.util.LRUCache;
+import datadog.trace.core.monitor.HealthMetrics;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
@@ -20,18 +17,25 @@ final class Aggregator implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
-  private final MessagePassingQueue<Batch> batchPool;
   private final MessagePassingQueue<InboxItem> inbox;
-  private final LRUCache<MetricKey, AggregateMetric> aggregates;
-  private final ConcurrentMap<MetricKey, Batch> pending;
-  private final Set<MetricKey> commonKeys;
+  private final AggregateTable aggregates;
   private final MetricWriter writer;
+  private final HealthMetrics healthMetrics;
   // the reporting interval controls how much history will be buffered
   // when the agent is unresponsive (only 10 pending requests will be
   // buffered by OkHttpSink)
   private final long reportingIntervalNanos;
 
   private final long sleepMillis;
+
+  /**
+   * Per-cycle hook run on the aggregator thread at the start of each report cycle, before the
+   * flush. Used by {@link ClientStatsAggregator} to reconcile its cached peer-tag schema against
+   * {@link datadog.communication.ddagent.DDAgentFeaturesDiscovery}; running before the flush
+   * guarantees that any test awaiting {@code writer.finishBucket()} observes the schema in its
+   * post-reconcile state. May be {@code null}.
+   */
+  private final Runnable onReportCycle;
 
   @SuppressFBWarnings(
       value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
@@ -40,49 +44,39 @@ final class Aggregator implements Runnable {
 
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<Batch> batchPool,
       MessagePassingQueue<InboxItem> inbox,
-      ConcurrentMap<MetricKey, Batch> pending,
-      final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
-      TimeUnit reportingIntervalTimeUnit) {
+      TimeUnit reportingIntervalTimeUnit,
+      HealthMetrics healthMetrics,
+      Runnable onReportCycle) {
     this(
         writer,
-        batchPool,
         inbox,
-        pending,
-        commonKeys,
         maxAggregates,
         reportingInterval,
         reportingIntervalTimeUnit,
-        DEFAULT_SLEEP_MILLIS);
+        DEFAULT_SLEEP_MILLIS,
+        healthMetrics,
+        onReportCycle);
   }
 
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<Batch> batchPool,
       MessagePassingQueue<InboxItem> inbox,
-      ConcurrentMap<MetricKey, Batch> pending,
-      final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
-      long sleepMillis) {
+      long sleepMillis,
+      HealthMetrics healthMetrics,
+      Runnable onReportCycle) {
     this.writer = writer;
-    this.batchPool = batchPool;
     this.inbox = inbox;
-    this.commonKeys = commonKeys;
-    this.aggregates =
-        new LRUCache<>(
-            new CommonKeyCleaner(commonKeys), maxAggregates * 4 / 3, 0.75f, maxAggregates);
-    this.pending = pending;
+    this.aggregates = new AggregateTable(maxAggregates);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
-  }
-
-  public void clearAggregates() {
-    this.aggregates.clear();
+    this.healthMetrics = healthMetrics;
+    this.onReportCycle = onReportCycle;
   }
 
   @Override
@@ -111,7 +105,31 @@ final class Aggregator implements Runnable {
 
     @Override
     public void accept(InboxItem item) {
-      if (item instanceof SignalItem) {
+      if (item == ClearSignal.CLEAR) {
+        // ClearSignal is routed through the inbox (rather than letting the caller mutate
+        // AggregateTable directly) so the aggregator thread stays the sole writer. AggregateTable
+        // is not thread-safe; a direct clear() from e.g. the OkHttpSink callback thread would
+        // race with Drainer.accept on this thread.
+        //
+        // We deliberately do NOT call inbox.clear() here. Doing so would erase any queued STOP
+        // (or REPORT) signals that happen to sit behind CLEAR -- a real concern when a
+        // downgrade is followed quickly by close(), where the trampled STOP leaves the
+        // aggregator thread spinning until thread.join times out. features.supportsMetrics() is
+        // already false by the time CLEAR was offered, so producers have stopped publishing;
+        // any in-flight snapshots will drain naturally into the just-cleared table, get
+        // re-aggregated, and flushed on the next report -- where the agent rejects them again,
+        // triggering another DOWNGRADED -> disable() -> CLEAR cycle. Worst case: one extra
+        // reporting cycle of wasted work, which we accept for the safety of preserving STOP.
+        if (!stopped) {
+          aggregates.clear();
+          // Clear dirty too -- without this, the next report() would see dirty=true, run
+          // expungeStaleAggregates against the (now-empty) table, find isEmpty()=true, and skip
+          // the flush anyway. Same observable outcome, but resetting here keeps the invariant
+          // "dirty implies there's data to flush" honest.
+          dirty = false;
+        }
+        ((SignalItem) item).complete();
+      } else if (item instanceof SignalItem) {
         SignalItem signal = (SignalItem) item;
         if (!stopped) {
           report(wallClockTime(), signal);
@@ -122,32 +140,42 @@ final class Aggregator implements Runnable {
         } else {
           signal.ignore();
         }
-      } else if (item instanceof Batch && !stopped) {
-        Batch batch = (Batch) item;
-        MetricKey key = batch.getKey();
-        // important that it is still *this* batch pending, must not remove otherwise
-        pending.remove(key, batch);
-        AggregateMetric aggregate = aggregates.computeIfAbsent(key, k -> new AggregateMetric());
-        batch.contributeTo(aggregate);
-        dirty = true;
-        // return the batch for reuse
-        batchPool.offer(batch);
+      } else if (item instanceof SpanSnapshot && !stopped) {
+        SpanSnapshot snapshot = (SpanSnapshot) item;
+        AggregateEntry entry = aggregates.findOrInsert(snapshot);
+        if (entry != null) {
+          entry.recordOneDuration(snapshot.tagAndDuration);
+          dirty = true;
+        } else {
+          // table at cap with no stale entry available to evict
+          healthMetrics.onStatsAggregateDropped();
+        }
       }
     }
   }
 
   private void report(long when, SignalItem signal) {
+    // Per-cycle hook on the aggregator thread -- used by ClientStatsAggregator to reconcile the
+    // cached peer-tag schema against feature discovery. Runs before the flush so any test that
+    // awaits writer.finishBucket() observes the schema in its post-reconcile state, and so
+    // subsequent producer publishes (which may happen as soon as the flush completes) see the new
+    // schema without an additional handoff.
+    if (onReportCycle != null) {
+      onReportCycle.run();
+    }
     boolean skipped = true;
     if (dirty) {
       try {
-        expungeStaleAggregates();
+        aggregates.expungeStaleAggregates();
         if (!aggregates.isEmpty()) {
           skipped = false;
           writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
-          for (Map.Entry<MetricKey, AggregateMetric> aggregate : aggregates.entrySet()) {
-            writer.add(aggregate.getKey(), aggregate.getValue());
-            aggregate.getValue().clear();
-          }
+          aggregates.forEach(
+              writer,
+              (w, entry) -> {
+                w.add(entry);
+                entry.clear();
+              });
           // note that this may do IO and block
           writer.finishBucket();
         }
@@ -163,34 +191,7 @@ final class Aggregator implements Runnable {
     }
   }
 
-  private void expungeStaleAggregates() {
-    Iterator<Map.Entry<MetricKey, AggregateMetric>> it = aggregates.entrySet().iterator();
-    while (it.hasNext()) {
-      Map.Entry<MetricKey, AggregateMetric> pair = it.next();
-      AggregateMetric metric = pair.getValue();
-      if (metric.getHitCount() == 0) {
-        it.remove();
-        commonKeys.remove(pair.getKey());
-      }
-    }
-  }
-
   private long wallClockTime() {
     return MILLISECONDS.toNanos(System.currentTimeMillis());
-  }
-
-  private static final class CommonKeyCleaner
-      implements LRUCache.ExpiryListener<MetricKey, AggregateMetric> {
-
-    private final Set<MetricKey> commonKeys;
-
-    private CommonKeyCleaner(Set<MetricKey> commonKeys) {
-      this.commonKeys = commonKeys;
-    }
-
-    @Override
-    public void accept(Map.Entry<MetricKey, AggregateMetric> expired) {
-      commonKeys.remove(expired.getKey());
-    }
   }
 }

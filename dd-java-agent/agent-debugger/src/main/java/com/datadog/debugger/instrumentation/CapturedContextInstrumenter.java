@@ -119,7 +119,15 @@ public class CapturedContextInstrumenter extends Instrumenter {
       int till = sourceLine.getTill();
 
       boolean isSingleLine = from == till;
-
+      if (isSingleLine) {
+        List<MethodNode> methods = classFileLines.getMethodsByLine(from);
+        if (methods.size() == 1 && "<init>".equals(methods.get(0).name)) {
+          if (from == classFileLines.getMethodStart(methodNode)) {
+            reportError("Cannot instrument the first line of a constructor");
+            return false;
+          }
+        }
+      }
       LabelNode beforeLabel = classFileLines.getLineLabel(from);
       // single line N capture translates to line range (N, N+1)
       LabelNode afterLabel = classFileLines.getLineLabel(till + (isSingleLine ? 1 : 0));

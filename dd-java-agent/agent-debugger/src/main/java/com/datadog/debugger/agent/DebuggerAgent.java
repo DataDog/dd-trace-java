@@ -126,7 +126,8 @@ public class DebuggerAgent {
       Redaction.addUserDefinedTypes(config);
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery =
           sharedCommunicationObjects.featuresDiscovery(config);
-      ddAgentFeaturesDiscovery.discoverIfOutdated();
+      // force to discover because commonInit can be retried if previously failed
+      ddAgentFeaturesDiscovery.discover();
       agentVersion = ddAgentFeaturesDiscovery.getVersion();
       String diagnosticEndpoint = getDiagnosticEndpoint(config, ddAgentFeaturesDiscovery);
       ProbeStatusSink probeStatusSink =
@@ -152,6 +153,8 @@ public class DebuggerAgent {
       return true;
     } catch (Exception ex) {
       LOGGER.debug("Failed to init common component for debugger agent", ex);
+      // reset commonInitDone to be able to retry commonInit next time
+      commonInitDone.set(false);
       return false;
     }
   }
@@ -185,7 +188,7 @@ public class DebuggerAgent {
       return;
     }
     if (configurationPoller != null) {
-      subscribeLiveDebugging(config, configurationUpdater);
+      subscribeLiveDebugging(configurationUpdater);
     } else {
       LOGGER.debug("No configuration poller available from SharedCommunicationObjects");
     }
@@ -208,11 +211,10 @@ public class DebuggerAgent {
     }
   }
 
-  private static void subscribeLiveDebugging(
-      Config config, ConfigurationUpdater configurationUpdater) {
+  private static void subscribeLiveDebugging(ConfigurationUpdater configurationUpdater) {
     LOGGER.debug("Subscribing to Live Debugging...");
     configurationPoller.addListener(
-        Product.LIVE_DEBUGGING, new DebuggerProductChangesListener(config, configurationUpdater));
+        Product.LIVE_DEBUGGING, new DebuggerProductChangesListener(configurationUpdater));
   }
 
   public static void startSymbolDatabase(Config config) {
@@ -371,9 +373,15 @@ public class DebuggerAgent {
   }
 
   public static String getDefaultTagsMergedWithGlobalTags(Config config) {
-    GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
-    String gitSha = gitInfo.getCommit().getSha();
-    String gitUrl = gitInfo.getRepositoryURL();
+    String gitSha = null;
+    String gitUrl = null;
+    try {
+      GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
+      gitSha = gitInfo.getCommit().getSha();
+      gitUrl = gitInfo.getRepositoryURL();
+    } catch (Exception e) {
+      LOGGER.error("Failed to retrieve git info: ", e);
+    }
     String debuggerTags =
         TagsHelper.concatTags(
             "env:" + config.getEnv(),

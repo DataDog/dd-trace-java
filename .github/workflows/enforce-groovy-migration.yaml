@@ -1,0 +1,129 @@
+name: Enforce Groovy Migration
+on:
+  pull_request:
+    types: [opened, edited, ready_for_review, labeled, unlabeled, synchronize]
+    branches:
+      - master
+      - "release/v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  enforce_groovy_migration:
+    name: Enforce Groovy migration
+    permissions:
+      id-token: write # Required for OIDC token federation
+      issues: write # Required to create a comment on the pull request
+      pull-requests: write # Required to create a comment on the pull request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get GitHub Token via dd-octo-sts
+        id: generate-token
+        uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
+        with:
+          scope: DataDog/dd-trace-java
+          policy: self.enforce-groovy-migration
+      - name: Check for new Groovy files
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # 9.0.0
+        with:
+          github-token: ${{ steps.generate-token.outputs.token }}
+          script: |
+            const managedMarker = '<!-- dd-trace-java-groovy-enforcement -->'
+
+            const deleteManagedComment = async () => {
+              const comments = await github.rest.issues.listComments({
+                issue_number: context.payload.pull_request.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              })
+
+              const existingComment = comments.data.find(comment =>
+                comment.body.includes(managedMarker)
+              )
+
+              if (existingComment) {
+                await github.rest.issues.deleteComment({
+                  comment_id: existingComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo
+                })
+              }
+            }
+
+            // Check for override label — skip all checks if label present
+            const labels = context.payload.pull_request.labels.map(l => l.name)
+            if (labels.includes('tag: override-groovy-enforcement')) {
+              await deleteManagedComment()
+              console.log('tag: override-groovy-enforcement label detected — skipping all checks.')
+              return
+            }
+
+            // Get all files changed in this PR
+            const allFiles = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            })
+
+            // Fail if the PR introduces any new .groovy file
+            // "renamed" only counts when the previous filename was not already Groovy.
+            const introducedGroovy = allFiles.filter(file => {
+              if (!file.filename.endsWith('.groovy')) {
+                return false
+              }
+
+              if (file.status === 'added' || file.status === 'copied') {
+                return true
+              }
+
+              return file.status === 'renamed' &&
+                (!file.previous_filename || !file.previous_filename.endsWith('.groovy'))
+            })
+
+            // Fetch existing comments once
+            const comments = await github.rest.issues.listComments({
+              issue_number: context.payload.pull_request.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            })
+
+            const existingComment = comments.data.find(comment => comment.body.includes(managedMarker))
+
+            if (introducedGroovy.length > 0) {
+              const fileList = introducedGroovy
+                .map(({ filename }) => `- \`${filename}\``)
+                .join('\n')
+              const body = `**❌ New Groovy Files Detected**\n\n` +
+                `Please avoid introducing new \`.groovy\` files to this repository.\n\n` +
+                `${fileList}\n\n` +
+                `Instead, rewrite the new file(s) in Java / JUnit. See the [How to Test With JUnit Guide](https://github.com/DataDog/dd-trace-java/blob/master/docs/how_to_test_with_junit.md) for more details.\n\n` +
+                `If this PR needs an exception, add the \`tag: override-groovy-enforcement\` label to bypass this workflow.\n\n` +
+                managedMarker
+              if (existingComment) {
+                await github.rest.issues.updateComment({
+                  comment_id: existingComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body
+                })
+              } else {
+                await github.rest.issues.createComment({
+                  issue_number: context.payload.pull_request.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body
+                })
+              }
+            } else if (existingComment) {
+              await github.rest.issues.deleteComment({
+                comment_id: existingComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              })
+            }
+
+            if (introducedGroovy.length > 0) {
+              core.setFailed(`${introducedGroovy.length} new Groovy file(s) detected. See PR comment for details. To bypass this workflow, add the 'tag: override-groovy-enforcement' label.`)
+            }

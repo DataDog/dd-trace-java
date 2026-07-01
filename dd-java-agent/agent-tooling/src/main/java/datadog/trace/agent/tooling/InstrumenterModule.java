@@ -90,6 +90,7 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   public List<Instrumenter> typeInstrumentations() {
+    preloadClasses();
     return singletonList(this);
   }
 
@@ -214,6 +215,28 @@ public abstract class InstrumenterModule implements Instrumenter {
         .isIntegrationShortcutMatchingEnabled(singletonList(name()), defaultToShortcut);
   }
 
+  /**
+   * Force loading of classes that need to be instrumented, but are using during instrumentation.
+   */
+  @SuppressForbidden // allow this use of Class.forName()
+  protected void preloadClasses() {
+    String[] list = preloadClassNames();
+    if (list != null) {
+      for (String clazz : list) {
+        try {
+          Class.forName(clazz);
+        } catch (Throwable t) {
+          log.debug("Error force loading {} class", clazz);
+        }
+      }
+    }
+  }
+
+  /** Get classes to force load */
+  public String[] preloadClassNames() {
+    return null;
+  }
+
   /** Parent class for all tracing related instrumentations */
   public abstract static class Tracing extends InstrumenterModule {
     public Tracing(String instrumentationName, String... additionalNames) {
@@ -258,16 +281,9 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /** Parent class for all IAST related instrumentations */
-  @SuppressForbidden
   public abstract static class Iast extends InstrumenterModule {
     public Iast(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
-    }
-
-    @Override
-    public List<Instrumenter> typeInstrumentations() {
-      preloadClassNames();
-      return super.typeInstrumentations();
     }
 
     @Override
@@ -280,27 +296,6 @@ public abstract class InstrumenterModule implements Instrumenter {
         return false;
       }
       return cfg.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
-    }
-
-    /**
-     * Force loading of classes that need to be instrumented, but are using during instrumentation.
-     */
-    private void preloadClassNames() {
-      String[] list = getClassNamesToBePreloaded();
-      if (list != null) {
-        for (String clazz : list) {
-          try {
-            Class.forName(clazz);
-          } catch (Throwable t) {
-            log.debug("Error force loading {} class", clazz);
-          }
-        }
-      }
-    }
-
-    /** Get classes to force load* */
-    public String[] getClassNamesToBePreloaded() {
-      return null;
     }
 
     @Override

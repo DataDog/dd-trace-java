@@ -112,6 +112,11 @@ abstract class Liberty23Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
   boolean testSessionId() {
     true
   }

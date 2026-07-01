@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class InputStreamInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  private static final String[] FORCE_LOADING = {"java.io.PushbackInputStream"};
+  private static final String[] PRELOAD_CLASS_NAMES = {"java.io.PushbackInputStream"};
 
   public InputStreamInstrumentation() {
     super("inputStream");
@@ -44,8 +44,8 @@ public class InputStreamInstrumentation extends InstrumenterModule.Iast
   }
 
   @Override
-  public String[] getClassNamesToBePreloaded() {
-    return FORCE_LOADING;
+  public String[] preloadClassNames() {
+    return PRELOAD_CLASS_NAMES;
   }
 
   public static class InputStreamAdvice {

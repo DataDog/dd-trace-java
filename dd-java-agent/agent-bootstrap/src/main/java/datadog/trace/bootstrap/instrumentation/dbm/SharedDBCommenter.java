@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.UnsupportedEncodingException;
@@ -32,36 +33,55 @@ public class SharedDBCommenter {
   private static final String TRACEPARENT = encode("traceparent");
   private static final String DD_SERVICE_HASH = encode("ddsh");
 
-  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection
+  // Pre-built "<key>=" needles for containsTraceComment, computed once at class init. The keys
+  // are assigned via encode(...), so "KEY + =" is a runtime concat, not a compile-time constant;
+  // doing it per call allocated nine throwaway Strings on every non-matching check.
+  private static final String PARENT_SERVICE_EQ = PARENT_SERVICE + "=";
+  private static final String DATABASE_SERVICE_EQ = DATABASE_SERVICE + "=";
+  private static final String DD_HOSTNAME_EQ = DD_HOSTNAME + "=";
+  private static final String DD_DB_NAME_EQ = DD_DB_NAME + "=";
+  private static final String DD_PEER_SERVICE_EQ = DD_PEER_SERVICE + "=";
+  private static final String DD_ENV_EQ = DD_ENV + "=";
+  private static final String DD_VERSION_EQ = DD_VERSION + "=";
+  private static final String TRACEPARENT_EQ = TRACEPARENT + "=";
+  private static final String DD_SERVICE_HASH_EQ = DD_SERVICE_HASH + "=";
+
+  // Pre-encoded "key='encoded_value'" fragments for the invariant fields (the values
+  // come from Config are effectively immutable post-init in production).
+  // Note about the visibility: needs to be visible but can tolerate races (reason why it's not
+  // atomic)
+  private static volatile boolean staticPrefixComputed = false;
+  private static volatile String staticPrefix;
+
+  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection.
+  // Note: the contains-chain could still be done "better" (a single scan), but the per-call
+  // "KEY + =" concatenation -- the allocating part -- is now hoisted to the *_EQ constants above.
   public static boolean containsTraceComment(String commentContent) {
-    return commentContent.contains(PARENT_SERVICE + "=")
-        || commentContent.contains(DATABASE_SERVICE + "=")
-        || commentContent.contains(DD_HOSTNAME + "=")
-        || commentContent.contains(DD_DB_NAME + "=")
-        || commentContent.contains(DD_PEER_SERVICE + "=")
-        || commentContent.contains(DD_ENV + "=")
-        || commentContent.contains(DD_VERSION + "=")
-        || commentContent.contains(TRACEPARENT + "=")
-        || commentContent.contains(DD_SERVICE_HASH + "=");
+    return commentContent.contains(PARENT_SERVICE_EQ)
+        || commentContent.contains(DATABASE_SERVICE_EQ)
+        || commentContent.contains(DD_HOSTNAME_EQ)
+        || commentContent.contains(DD_DB_NAME_EQ)
+        || commentContent.contains(DD_PEER_SERVICE_EQ)
+        || commentContent.contains(DD_ENV_EQ)
+        || commentContent.contains(DD_VERSION_EQ)
+        || commentContent.contains(TRACEPARENT_EQ)
+        || commentContent.contains(DD_SERVICE_HASH_EQ);
   }
 
   // Build database comment content without comment delimiters such as /* */
   public static String buildComment(
       String dbService, String dbType, String hostname, String dbName, String traceParent) {
+    ensureStaticPrefixComputed();
 
-    Config config = Config.get();
-    StringBuilder sb = new StringBuilder();
-
+    // we can calculate the precise size - having a rough estimation is perhaps faster
+    StringBuilder sb = new StringBuilder(1024).append(staticPrefix);
     int initSize = 0; // No initial content for pure comment
-    append(sb, PARENT_SERVICE, config.getServiceName(), initSize);
     append(sb, DATABASE_SERVICE, dbService, initSize);
     append(sb, DD_HOSTNAME, hostname, initSize);
     append(sb, DD_DB_NAME, dbName, initSize);
     append(sb, DD_PEER_SERVICE, getPeerService(), initSize);
-    append(sb, DD_ENV, config.getEnv(), initSize);
-    append(sb, DD_VERSION, config.getVersion(), initSize);
     append(sb, TRACEPARENT, traceParent, initSize);
-
+    final Config config = Config.get();
     if (config.isDbmInjectSqlBaseHash() && config.isExperimentalPropagateProcessTagsEnabled()) {
       append(sb, DD_SERVICE_HASH, BaseHash.getBaseHashStr(), initSize);
     }
@@ -69,10 +89,30 @@ public class SharedDBCommenter {
     return sb.length() > 0 ? sb.toString() : null;
   }
 
+  private static void ensureStaticPrefixComputed() {
+    if (staticPrefixComputed) {
+      return;
+    }
+    Config config = Config.get();
+    final StringBuilder sb = new StringBuilder(512); // big enough not to be resized
+
+    append(sb, PARENT_SERVICE, config.getServiceName(), 0);
+    append(sb, DD_ENV, config.getEnv(), 0);
+    append(sb, DD_VERSION, config.getVersion(), 0);
+    staticPrefix = sb.toString();
+    staticPrefixComputed = true;
+  }
+
+  @VisibleForTesting
+  public static void resetStaticPrefixForTesting() {
+    staticPrefixComputed = false;
+  }
+
   private static String getPeerService() {
     AgentSpan span = activeSpan();
     Object peerService = null;
     if (span != null) {
+      // FIXME: this will never work since peer service is computed later if enabled
       peerService = span.getTag(Tags.PEER_SERVICE);
     }
     return peerService != null ? peerService.toString() : null;

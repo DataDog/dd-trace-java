@@ -1,8 +1,16 @@
 package synthetic
 
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 
 abstract class SyntheticForkedTestBase extends InstrumentationSpecification {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   def "test Synthetic methods"() {
     expect:
@@ -25,6 +33,8 @@ class SyntheticForkedTest extends SyntheticForkedTestBase {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
 
     System.setProperty("synthetic.test.enabled", "true")
   }

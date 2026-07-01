@@ -56,7 +56,7 @@ public final class ValkeyInstrumentation extends InstrumenterModule.Tracing
     public static AgentScope onEnter(
         @Advice.Argument(0) final CommandObject<?> commandObject,
         @Advice.This final Connection thiz) {
-      final AgentSpan span = startSpan("valkey", ValkeyClientDecorator.OPERATION_NAME);
+      final AgentSpan span = startSpan("valkey-command", ValkeyClientDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, thiz);
 

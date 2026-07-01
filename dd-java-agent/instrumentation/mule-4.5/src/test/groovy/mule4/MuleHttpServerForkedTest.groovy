@@ -4,15 +4,10 @@ import static org.mule.runtime.api.util.MuleTestUtil.muleSpan
 
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.config.inversion.ConfigHelper
 import spock.lang.Shared
 
 class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
-
-  // TODO since mule uses reactor core, things sometime propagate to places where they're not closed
-  @Override
-  boolean useStrictTraceWrites() {
-    return false
-  }
 
   @Override
   boolean testRedirect() {
@@ -56,6 +51,7 @@ class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
     injectSysConfig("integration.mule.enabled", "true")
   }
 

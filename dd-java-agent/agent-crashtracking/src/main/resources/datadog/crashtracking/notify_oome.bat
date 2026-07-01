@@ -34,6 +34,12 @@ echo Tags: %tags%
 echo JAVA_HOME: %java_home%
 echo PID: %PID%
 
+:: Clear environment variables that the parent JVM may have set so the child JVM
+:: starts with a minimal configuration (avoids port conflicts, memory contention, etc.)
+set JDK_JAVA_OPTIONS=
+set JAVA_TOOL_OPTIONS=
+set _JAVA_OPTIONS=
+
 :: Execute the Java command with the loaded values
 "%java_home%\bin\java" -Ddd.dogstatsd.start-delay=0 -jar "%agent%" sendOomeEvent "%tags%"
 set RC=%ERRORLEVEL%

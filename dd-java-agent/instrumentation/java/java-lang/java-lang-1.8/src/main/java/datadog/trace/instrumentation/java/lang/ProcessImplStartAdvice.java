@@ -1,26 +1,36 @@
 package datadog.trace.instrumentation.java.lang;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 class ProcessImplStartAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentSpan beforeStart(@Advice.Argument(0) final String[] command) {
-    if (!ProcessImplInstrumentationHelpers.ONLINE) {
+  public static AgentSpan beforeStart(
+      @Advice.Argument(0) final String[] command,
+      @Advice.Argument(1) final Map<String, String> environment) {
+
+    if (!AgentTracer.isRegistered()) {
       return null;
     }
 
-    if (command.length == 0 || !AgentTracer.isRegistered()) {
+    String rootSessionId = Config.get().getRootSessionId();
+    if (rootSessionId != null && environment != null) {
+      environment.put("_DD_ROOT_JAVA_SESSION_ID", rootSessionId);
+    }
+
+    if (!ProcessImplInstrumentationHelpers.ONLINE || command.length == 0) {
       return null;
     }
 
-    final AgentSpan span = AgentTracer.startSpan("appsec", "command_execution");
+    final AgentSpan span = AgentTracer.startSpan("subprocess", "command_execution");
     span.setSpanType("system");
     span.setResourceName(ProcessImplInstrumentationHelpers.determineResource(command));
     span.setTag("component", "subprocess");
-    span.context().setIntegrationName("subprocess");
+    span.spanContext().setIntegrationName("subprocess");
     ProcessImplInstrumentationHelpers.setTags(span, command);
     ProcessImplInstrumentationHelpers.cmdiRaspCheck(command);
     return span;

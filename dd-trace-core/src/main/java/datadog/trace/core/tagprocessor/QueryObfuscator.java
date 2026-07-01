@@ -5,11 +5,9 @@ import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.util.Strings;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,18 +46,25 @@ public final class QueryObfuscator extends TagsPostProcessor {
   }
 
   private String obfuscate(String query) {
-    if (pattern != null) {
-      Matcher matcher = pattern.matcher(query);
-      while (matcher.find()) {
-        query = Strings.replace(query, matcher.group(), "<redacted>");
-      }
+    if (pattern == null) {
+      return query;
     }
-    return query;
+    final Matcher matcher = pattern.matcher(query);
+    if (!matcher.find()) {
+      return query;
+    }
+    // TODO consider an upstream length cap too
+    final StringBuffer sb = new StringBuffer(query.length());
+    do {
+      matcher.appendReplacement(sb, "<redacted>");
+    } while (matcher.find());
+    matcher.appendTail(sb);
+    return sb.toString();
   }
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
     Object query = unsafeTags.getObject(DDTags.HTTP_QUERY);
     if (query instanceof CharSequence) {
       query = obfuscate(query.toString());

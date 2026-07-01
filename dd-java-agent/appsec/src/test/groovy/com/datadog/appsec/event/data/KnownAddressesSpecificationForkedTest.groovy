@@ -26,6 +26,7 @@ class KnownAddressesSpecificationForkedTest extends Specification {
       'server.request.body.files_field_names',
       'server.request.body.filenames',
       'server.request.body.combined_file_size',
+      'server.request.body.files_content',
       'server.request.query',
       'server.request.headers.no_cookies',
       'grpc.server.method',
@@ -49,6 +50,7 @@ class KnownAddressesSpecificationForkedTest extends Specification {
       'server.io.net.response.headers',
       'server.io.net.response.body',
       'server.io.fs.file',
+      'server.io.fs.file_write',
       'server.sys.exec.cmd',
       'server.sys.shell.cmd',
       'waf.context.processor'
@@ -57,7 +59,7 @@ class KnownAddressesSpecificationForkedTest extends Specification {
 
   void 'number of known addresses is expected number'() {
     expect:
-    Address.instanceCount() == 45
+    Address.instanceCount() == 47
     KnownAddresses.WAF_CONTEXT_PROCESSOR.serial == Address.instanceCount() - 1
   }
 }

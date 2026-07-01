@@ -39,7 +39,9 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
       "org.apache.spark.util.Utils",
       "org.apache.spark.util.SparkClassUtils",
       "org.apache.spark.scheduler.LiveListenerBus",
-      "org.apache.spark.sql.execution.SparkPlanInfo$"
+      "org.apache.spark.sql.execution.SparkPlanInfo$",
+      "org.apache.spark.sql.SparkSession",
+      "org.apache.spark.sql.execution.QueryExecution"
     };
   }
 
@@ -66,6 +68,23 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
             .and(named("finish"))
             .and(isDeclaredBy(named("org.apache.spark.deploy.yarn.ApplicationMaster"))),
         AbstractSparkInstrumentation.class.getName() + "$YarnFinishAdvice");
+
+    // SparkSession.sql(String, ...) — catch AnalysisException failures that fire during Catalyst
+    // analysis before any Spark job is submitted and are invisible to the listener bus
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("sql"))
+            .and(takesArgument(0, String.class))
+            .and(isDeclaredBy(named("org.apache.spark.sql.SparkSession"))),
+        AbstractSparkInstrumentation.class.getName() + "$SparkSqlFailureAdvice");
+
+    // QueryExecution.assertAnalyzed() — catch all Catalyst analysis failures regardless of
+    // entry point (SparkSession.sql, Dataset.select, Dataset.filter, etc.)
+    transformer.applyAdvice(
+        isMethod()
+            .and(named("assertAnalyzed"))
+            .and(isDeclaredBy(named("org.apache.spark.sql.execution.QueryExecution"))),
+        AbstractSparkInstrumentation.class.getName() + "$QueryExecutionFailureAdvice");
 
     // LiveListenerBus class is used to manage spark listeners
     transformer.applyAdvice(
@@ -118,6 +137,24 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
       if (AbstractDatadogSparkListener.listener != null) {
         AbstractDatadogSparkListener.listener.finishApplication(
             System.currentTimeMillis(), null, exitCode, msg);
+      }
+    }
+  }
+
+  public static class SparkSqlFailureAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void exit(@Advice.Thrown Throwable throwable) {
+      if (throwable != null && AbstractDatadogSparkListener.listener != null) {
+        AbstractDatadogSparkListener.listener.onSqlFailure(throwable);
+      }
+    }
+  }
+
+  public static class QueryExecutionFailureAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void exit(@Advice.Thrown Throwable throwable) {
+      if (throwable != null && AbstractDatadogSparkListener.listener != null) {
+        AbstractDatadogSparkListener.listener.onSqlFailure(throwable);
       }
     }
   }

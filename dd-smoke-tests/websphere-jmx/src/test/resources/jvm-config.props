@@ -1,0 +1,6 @@
+ResourceType=JavaVirtualMachine
+ImplementingResourceType=Server
+ResourceId=Cell=!{cellName}:Node=!{nodeName}:Server=!{serverName}:JavaProcessDef=:JavaVirtualMachine=
+AttributeInfo=jvmEntries
+
+genericJvmArguments=-javaagent:/opt/dd-java-agent.jar -Ddd.trace.debug=true -Ddd.jmxfetch.websphere.enabled=true

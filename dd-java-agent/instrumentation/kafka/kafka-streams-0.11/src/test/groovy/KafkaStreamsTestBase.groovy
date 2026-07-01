@@ -10,7 +10,6 @@ import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.apache.kafka.streams.kstream.ValueMapper
-import org.junit.ClassRule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
@@ -31,8 +30,16 @@ abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
   static final STREAM_PROCESSED = "test.processed"
 
   @Shared
-  @ClassRule
-  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, 1, STREAM_PENDING, STREAM_PROCESSED)
+  protected KafkaEmbedded embeddedKafka
+
+  def setupSpec() {
+    embeddedKafka = new KafkaEmbedded(1, true, 1, STREAM_PENDING, STREAM_PROCESSED)
+    embeddedKafka.before()
+  }
+
+  def cleanupSpec() {
+    embeddedKafka?.after()
+  }
 
   abstract boolean hasQueueSpan()
 
@@ -158,6 +165,9 @@ abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PENDING"
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" { it >= 0 }
+            "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
             if ({ isDataStreamsEnabled() }){
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -226,6 +236,9 @@ abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PROCESSED"
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" { it >= 0 }
+            "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
             if ({isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -269,6 +282,7 @@ abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PROCESSED"
             "testing" 123

@@ -34,4 +34,15 @@ class GatewayBridgeIGRegistrationSpecification extends DDSpecification {
     then:
     1 * ig.registerCallback(Events.REQUEST_BODY_DONE, _)
   }
+
+  void 'requestFilesContent is registered via data address'() {
+    given:
+    1 * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_FILES_CONTENT]
+
+    when:
+    bridge.init()
+
+    then:
+    1 * ig.registerCallback(Events.get().requestFilesContent(), _)
+  }
 }

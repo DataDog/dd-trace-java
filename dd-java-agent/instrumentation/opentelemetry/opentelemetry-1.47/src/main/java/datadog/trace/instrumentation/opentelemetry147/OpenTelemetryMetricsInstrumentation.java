@@ -11,6 +11,7 @@ import datadog.opentelemetry.shim.metrics.OtelMeterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
+import io.opentelemetry.api.metrics.DoubleGauge;
 import io.opentelemetry.api.metrics.MeterProvider;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -27,7 +28,7 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
     implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   public OpenTelemetryMetricsInstrumentation() {
-    super("opentelemetry-metrics", "opentelemetry-1.47");
+    super("opentelemetry-metrics", "opentelemetry-1.47", "opentelemetry-1");
   }
 
   @Override
@@ -61,29 +62,9 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.opentelemetry.shim.OtelInstrumentationScope",
       "datadog.opentelemetry.shim.metrics.OtelMeter",
       "datadog.opentelemetry.shim.metrics.OtelMeterBuilder",
       "datadog.opentelemetry.shim.metrics.OtelMeterProvider",
-      "datadog.opentelemetry.shim.metrics.OtelInstrumentType",
-      "datadog.opentelemetry.shim.metrics.OtelInstrumentDescriptor",
-      "datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder",
-      "datadog.opentelemetry.shim.metrics.OtelInstrument",
-      "datadog.opentelemetry.shim.metrics.data.OtelPoint",
-      "datadog.opentelemetry.shim.metrics.data.OtelAggregator",
-      "datadog.opentelemetry.shim.metrics.data.OtelDoublePoint",
-      "datadog.opentelemetry.shim.metrics.data.OtelDoubleSum",
-      "datadog.opentelemetry.shim.metrics.data.OtelDoubleValue",
-      "datadog.opentelemetry.shim.metrics.data.OtelHistogramPoint",
-      "datadog.opentelemetry.shim.metrics.data.OtelHistogramSketch",
-      "datadog.opentelemetry.shim.metrics.data.OtelLongPoint",
-      "datadog.opentelemetry.shim.metrics.data.OtelLongSum",
-      "datadog.opentelemetry.shim.metrics.data.OtelLongValue",
-      "datadog.opentelemetry.shim.metrics.data.OtelMetricStorage",
-      "datadog.opentelemetry.shim.metrics.data.OtelMetricStorage$Recording",
-      "datadog.opentelemetry.shim.metrics.export.OtelInstrumentVisitor",
-      "datadog.opentelemetry.shim.metrics.export.OtelMeterVisitor",
-      "datadog.opentelemetry.shim.metrics.export.OtelMetricsVisitor",
       "datadog.opentelemetry.shim.metrics.OtelDoubleCounter",
       "datadog.opentelemetry.shim.metrics.OtelDoubleCounter$Builder",
       "datadog.opentelemetry.shim.metrics.OtelDoubleGauge",
@@ -120,6 +101,10 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void returnProvider(@Advice.Return(readOnly = false) MeterProvider result) {
       result = OtelMeterProvider.INSTANCE;
+    }
+
+    public static void muzzleCheck(DoubleGauge doubleGauge) {
+      doubleGauge.set(0); // not available before 1.38
     }
   }
 }

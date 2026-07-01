@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.azure.functions;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.azure.functions.AzureFunctionsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -18,6 +20,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -54,12 +57,27 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
   }
 
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(isPublic())
             .and(takesArgument(0, named("com.microsoft.azure.functions.HttpRequestMessage")))
             .and(takesArgument(1, named("com.microsoft.azure.functions.ExecutionContext"))),
+        AzureFunctionsInstrumentation.class.getName() + "$ContextTrackingAdvice",
         AzureFunctionsInstrumentation.class.getName() + "$AzureFunctionsAdvice");
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextTrackingAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope onEnter(@Advice.Argument(0) final HttpRequestMessage<?> request) {
+      Context parentContext = DECORATE.extract(request);
+      return parentContext.attach();
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void closeScope(@Advice.Enter final ContextScope scope) {
+      scope.close();
+    }
   }
 
   public static class AzureFunctionsAdvice {
@@ -67,7 +85,8 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
     public static ContextScope methodEnter(
         @Advice.Argument(0) final HttpRequestMessage<?> request,
         @Advice.Argument(1) final ExecutionContext executionContext) {
-      final Context parentContext = DECORATE.extract(request);
+      final Context parentContext =
+          getCurrentContext(); // parent context attached by ContextTrackingAdvice
       final Context context = DECORATE.startSpan(request, parentContext);
       final AgentSpan span = fromContext(context);
       DECORATE.afterStart(span, executionContext.getFunctionName());

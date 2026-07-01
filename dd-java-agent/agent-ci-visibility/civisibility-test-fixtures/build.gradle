@@ -1,5 +1,8 @@
+plugins {
+  id 'dd-trace-java.version-file'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/version.gradle"
 
 dependencies {
   api project(':dd-java-agent:agent-ci-visibility')
@@ -12,8 +15,11 @@ dependencies {
   api group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
   api group: 'org.xmlunit', name: 'xmlunit-core', version: '2.10.3'
 
-  compileOnly(libs.junit.jupiter)
-  compileOnly(libs.bundles.groovy)
-  compileOnly(libs.bundles.spock)
+  api(libs.bundles.junit5)
+  api(libs.tabletest)
 }
+
+// civisibility-test-fixtures is a test-support module — every consumer pulls it on their test
+// classpath. Production-code-quality gates like forbidden APIs don't apply here.
+tasks.named('forbiddenApisMain').configure { enabled = false }
 

@@ -1,11 +1,13 @@
+import datadog.gradle.plugin.testJvmConstraints.TestJvmSpec
+
 plugins {
   id 'me.champeau.jmh'
+  id 'dd-trace-java.version-file'
 }
 
 description = 'dd-trace-core'
 
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/version.gradle"
 
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.6
@@ -49,10 +51,21 @@ excludedClassesCoverage += [
   'datadog.trace.core.TracingConfigPoller.Updater',
   // covered with dd-trace-core/src/test/groovy/datadog/trace/core/datastreams/CheckpointerTest.groovy
   'datadog.trace.core.datastreams.DefaultDataStreamsMonitoring',
+  // no-op
+  'datadog.trace.core.datastreams.DisabledDataStreamsMonitoring',
+  // pojo
+  'datadog.trace.core.datastreams.DataStreamsTransactionExtractors.DataStreamsTransactionExtractorImpl',
+  // it's a private inner class. Tested indirectly via deserialize in DataStreamsTransactionExtractorsTest
+  'datadog.trace.core.datastreams.DataStreamsTransactionExtractors.JsonDataStreamsTransactionExtractor',
   // TODO CorePropagation will be removed during context refactoring
   'datadog.trace.core.propagation.CorePropagation',
   // TODO DSM propagator will be tested once fully migrated
-  'datadog.trace.core.datastreams.DataStreamPropagator'
+  'datadog.trace.core.datastreams.DataStreamPropagator',
+  // send() requires live HTTP/2 server
+  'datadog.trace.core.otlp.common.OtlpGrpcSender',
+  // covered by OTLP system-tests
+  'datadog.trace.core.otlp.logs.OtlpLogsService',
+  'datadog.trace.core.otlp.metrics.OtlpMetricsService'
 ]
 
 addTestSuite('traceAgentTest')
@@ -73,15 +86,17 @@ dependencies {
   implementation project(':components:json')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
+  implementation project(':utils:logging-utils')
   implementation project(':utils:queue-utils')
+  // for OTLP support
+  compileOnly project(':dd-java-agent:agent-otel:otel-bootstrap')
   // for span exception debugging
   compileOnly project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
   implementation libs.slf4j
   implementation libs.moshi
   implementation libs.jctools
-
-  implementation group: 'com.google.re2j', name: 're2j', version: '1.7'
+  implementation libs.re2j
 
   // sketches-java is shared
   compileOnly group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'
@@ -93,6 +108,8 @@ dependencies {
   testCompileOnly libs.autoservice.annotation
 
   testImplementation project(':dd-java-agent:testing')
+  testImplementation libs.bundles.mockito
+  testImplementation project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':products:metrics:metrics-lib')
   testImplementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
@@ -102,6 +119,7 @@ dependencies {
   testImplementation group: 'com.amazonaws', name: 'aws-lambda-java-events', version:'3.11.0'
   testImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.14.0'
   testImplementation libs.testcontainers
+  testImplementation project(':utils:junit-utils')
 
   traceAgentTestImplementation libs.testcontainers
 }
@@ -109,4 +127,14 @@ dependencies {
 jmh {
   jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  if (project.hasProperty('jmh.includes')) {
+    includes = [project.property('jmh.includes').replace(',', '|')]
+  }
+  if (project.hasProperty('jmh.profilers')) {
+    profilers = project.property('jmh.profilers').tokenize(',')
+  }
+  if (project.hasProperty('testJvm')) {
+    def testJvmSpec = new TestJvmSpec(project)
+    jvm = testJvmSpec.javaTestLauncher.map { it.executablePath.asFile.absolutePath }
+  }
 }

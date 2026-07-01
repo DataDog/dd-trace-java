@@ -1,9 +1,14 @@
 package datadog.trace.agent.tooling
 
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
 class InstrumenterIndexTest extends DDSpecification {
+
+  def setupSpec() {
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   @Shared
   def unknownInstrumentation = new InstrumenterModule('unknown') {}
@@ -77,5 +82,27 @@ class InstrumenterIndexTest extends DDSpecification {
 
     index.instrumentationId(unknownInstrumentation) == -1
     index.transformationId(unknownTransformation) == -1
+  }
+
+  def "JavaModuleOpenProvider-only module gets NEEDS_EARLY_LOAD_FLAG"() {
+    given:
+    def jpmsOnlyModule = new TestJpmsOnlyModule()
+
+    when:
+    byte flags = InstrumenterIndex.encodeModuleFlags(jpmsOnlyModule, false)
+
+    then:
+    InstrumenterIndex.decodeModuleNeedsEarlyLoad(flags)
+  }
+}
+
+class TestJpmsOnlyModule extends InstrumenterModule implements JavaModuleOpenProvider {
+  TestJpmsOnlyModule() {
+    super('jpms-test-only')
+  }
+
+  @Override
+  Collection<String> triggerClasses() {
+    return []
   }
 }

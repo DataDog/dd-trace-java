@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
+import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.scheduler.AccumulableInfo;
 import org.apache.spark.scheduler.JobFailed;
 import org.apache.spark.scheduler.SparkListener;
@@ -64,6 +65,7 @@ import org.apache.spark.sql.streaming.SourceProgress;
 import org.apache.spark.sql.streaming.StateOperatorProgress;
 import org.apache.spark.sql.streaming.StreamingQueryListener;
 import org.apache.spark.sql.streaming.StreamingQueryProgress;
+import org.apache.spark.util.AccumulatorV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -126,11 +128,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   protected final HashMap<Long, SparkPlanInfo> sqlPlans = new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
-  // There is no easy way to know if an accumulator is not useful anymore (meaning it is not part of
-  // an active SQL query)
-  // so capping the size of the collection storing them
-  private final Map<Long, SparkSQLUtils.AccumulatorWithStage> accumulators =
-      new RemoveEldestHashMap<>(MAX_ACCUMULATOR_SIZE);
+  private final Map<Long, Integer> accumulatorToStageID = new HashMap<>();
 
   private volatile boolean isStreamingJob = false;
   private final boolean isRunningOnDatabricks;
@@ -141,6 +139,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
   private String lastJobFailedStackTrace;
+  private boolean lastSqlFailed = false;
+  private String lastSqlFailedMessage;
+  private String lastSqlFailedStackTrace;
   private int jobCount = 0;
   private int currentExecutorCount = 0;
   private int maxExecutorCount = 0;
@@ -229,6 +230,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   /** Parent Ids of a Stage. Provide an implementation based on a specific scala version */
   protected abstract int[] getStageParentIds(StageInfo info);
 
+  /**
+   * All External Accumulators associated with a given task. Provide an implementation based on a
+   * specific scala version
+   */
+  protected abstract List<AccumulatorV2> getExternalAccumulators(TaskMetrics metrics);
+
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     this.applicationStart = applicationStart;
@@ -277,6 +284,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     captureApplicationParameters(builder);
     captureEmrStepId(builder);
+    captureOpenlineageJobInfo(builder);
 
     Optional<OpenlineageParentContext> openlineageParentContext =
         OpenlineageParentContext.from(sparkConf);
@@ -292,6 +300,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     applicationSpan.setMeasured(true);
   }
 
+  private void captureOpenlineageJobInfo(AgentTracer.SpanBuilder builder) {
+    String olAppName = sparkConf.get("spark.openlineage.appName", null);
+    if (olAppName != null) {
+      builder.withTag("spark.openlineage.appName", olAppName);
+    }
+  }
+
   private void captureOpenlineageContextIfPresent(
       AgentTracer.SpanBuilder builder, OpenlineageParentContext context) {
     builder.asChildOf(context);
@@ -304,6 +319,23 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     builder.withTag("openlineage_root_parent_job_namespace", context.getRootParentJobNamespace());
     builder.withTag("openlineage_root_parent_job_name", context.getRootParentJobName());
     builder.withTag("openlineage_root_parent_run_id", context.getRootParentRunId());
+  }
+
+  /**
+   * Called by SparkSqlFailureAdvice when a SQL call (e.g. SparkSession.sql()) throws an exception
+   * during Catalyst analysis, before any Spark job is submitted. This ensures finishApplication()
+   * has an error signal even when no job/stage/task events fire.
+   */
+  public synchronized void onSqlFailure(Throwable throwable) {
+    if (applicationEnded) {
+      return;
+    }
+    lastSqlFailed = true;
+    lastSqlFailedMessage = throwable.getMessage();
+
+    StringWriter sw = new StringWriter();
+    throwable.printStackTrace(new PrintWriter(sw));
+    lastSqlFailedStackTrace = sw.toString();
   }
 
   @Override
@@ -329,11 +361,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     applicationEnded = true;
 
-    if (applicationSpan == null && jobCount > 0) {
+    if ((applicationSpan == null && jobCount > 0) || isRunningOnDatabricks) {
       // If the application span is not initialized, but spark jobs have been executed, all those
       // spark jobs were databricks or streaming. In this case we don't send the application span
       return;
     }
+
     initApplicationSpanIfNotInitialized();
 
     if (throwable != null) {
@@ -351,6 +384,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark Application Failed");
       applicationSpan.setTag(DDTags.ERROR_MSG, lastJobFailedMessage);
       applicationSpan.setTag(DDTags.ERROR_STACK, lastJobFailedStackTrace);
+    } else if (lastSqlFailed) {
+      applicationSpan.setError(true);
+      applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark SQL Failed");
+      applicationSpan.setTag(DDTags.ERROR_MSG, lastSqlFailedMessage);
+      applicationSpan.setTag(DDTags.ERROR_STACK, lastSqlFailedStackTrace);
     }
 
     applicationMetrics.setSpanMetrics(applicationSpan);
@@ -396,7 +434,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (properties != null) {
       String databricksJobId = getDatabricksJobId(properties);
       String databricksJobRunId = getDatabricksJobRunId(properties, databricksClusterName);
-      String databricksTaskRunId = getDatabricksTaskRunId(properties);
+      String databricksTaskRunId = getDatabricksTaskRunId(properties, databricksJobRunId);
 
       // ids to link those spans to databricks job/task traces
       builder.withTag("databricks_job_id", databricksJobId);
@@ -440,12 +478,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (batchKey != null) {
       AgentSpan batchSpan =
           getOrCreateStreamingBatchSpan(batchKey, queryStart.time(), jobProperties);
-      spanBuilder.asChildOf(batchSpan.context());
+      spanBuilder.asChildOf(batchSpan.spanContext());
     } else if (isRunningOnDatabricks) {
       addDatabricksSpecificTags(spanBuilder, jobProperties, true);
     } else {
       initApplicationSpanIfNotInitialized();
-      spanBuilder.asChildOf(applicationSpan.context());
+      spanBuilder.asChildOf(applicationSpan.spanContext());
     }
 
     AgentSpan sqlSpan = spanBuilder.start();
@@ -485,18 +523,18 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
      *                      spark.job
      */
     if (sqlSpan != null) {
-      jobSpanBuilder.asChildOf(sqlSpan.context());
+      jobSpanBuilder.asChildOf(sqlSpan.spanContext());
     } else if (batchKey != null) {
       isStreamingJob = true;
       AgentSpan batchSpan =
           getOrCreateStreamingBatchSpan(batchKey, jobStart.time(), jobStart.properties());
-      jobSpanBuilder.asChildOf(batchSpan.context());
+      jobSpanBuilder.asChildOf(batchSpan.spanContext());
     } else if (isRunningOnDatabricks) {
       addDatabricksSpecificTags(jobSpanBuilder, jobStart.properties(), true);
     } else {
       // In non-databricks, non-streaming env, the spark application is the local root span
       initApplicationSpanIfNotInitialized();
-      jobSpanBuilder.asChildOf(applicationSpan.context());
+      jobSpanBuilder.asChildOf(applicationSpan.spanContext());
     }
 
     jobSpanBuilder.withTag(DDTags.RESOURCE_NAME, getSparkJobName(jobStart));
@@ -539,6 +577,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       }
     } else {
       lastJobFailed = false;
+      lastSqlFailed = false;
     }
 
     SparkAggregatedTaskMetrics metrics = jobMetrics.remove(jobEnd.jobId());
@@ -584,7 +623,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     AgentSpan stageSpan =
         buildSparkSpan("spark.stage", stageSubmitted.properties())
-            .asChildOf(jobSpan.context())
+            .asChildOf(jobSpan.spanContext())
             .withStartTimestamp(submissionTimeMs * 1000)
             .withTag("stage_id", stageId)
             .withTag(
@@ -639,7 +678,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     for (AccumulableInfo info :
         JavaConverters.asJavaCollection(stageInfo.accumulables().values())) {
-      accumulators.put(info.id(), new SparkSQLUtils.AccumulatorWithStage(stageId, info));
+      accumulatorToStageID.put(info.id(), stageId);
     }
 
     Properties prop = stageProperties.remove(stageSpanKey);
@@ -671,7 +710,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     SparkPlanInfo sqlPlan = sqlPlans.get(sqlExecutionId);
     if (sqlPlan != null) {
-      SparkSQLUtils.addSQLPlanToStageSpan(span, sqlPlan, accumulators, stageId);
+      SparkSQLUtils.addSQLPlanToStageSpan(
+          span, sqlPlan, accumulatorToStageID, stageMetric, stageId);
     }
 
     span.finish(completionTimeMs * 1000);
@@ -685,7 +725,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     SparkAggregatedTaskMetrics stageMetric = stageMetrics.get(stageSpanKey);
     if (stageMetric != null) {
-      stageMetric.addTaskMetrics(taskEnd);
+      // Not happy that we have to extract external accumulators here, but needed as we're dealing
+      // with Seq which varies across Scala versions
+      stageMetric.addTaskMetrics(taskEnd, getExternalAccumulators(taskEnd.taskMetrics()));
     }
 
     if (taskEnd.taskMetrics() != null) {
@@ -736,7 +778,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       AgentSpan stageSpan, SparkListenerTaskEnd taskEnd, Properties properties) {
     AgentSpan taskSpan =
         buildSparkSpan("spark.task", properties)
-            .asChildOf(stageSpan.context())
+            .asChildOf(stageSpan.spanContext())
             .withStartTimestamp(taskEnd.taskInfo().launchTime() * 1000)
             .withTag("task_id", taskEnd.taskInfo().taskId())
             .withTag("task_attempt_id", taskEnd.taskInfo().attemptNumber())
@@ -1050,7 +1092,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private AgentTracer.SpanBuilder buildSparkSpan(String spanName, Properties properties) {
     AgentTracer.SpanBuilder builder =
-        tracer.buildSpan(spanName).withSpanType("spark").withTag("app_id", appId);
+        tracer.buildSpan("spark", spanName).withSpanType("spark").withTag("app_id", appId);
 
     if (databricksServiceName != null) {
       builder.withServiceName(databricksServiceName);
@@ -1143,10 +1185,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   @SuppressForbidden // split with one-char String use a fast-path without regex usage
-  private static String getDatabricksTaskRunId(Properties properties) {
-    // spark.databricks.job.runId is the runId of the task, not of the Job
+  private static String getDatabricksTaskRunId(Properties properties, String jobRunId) {
+    // spark.databricks.job.runId is the runId of the task, not of the Job, until Databricks 18.2
     String taskRunId = properties.getProperty("spark.databricks.job.runId");
-    if (taskRunId != null) {
+    // On Databricks 18.2+, spark.databricks.job.runId now returns the job run ID
+    // There is no easy config key to extract the task run ID, so we use the fallback extraction
+    // methods
+    // Task run ID is crucial for the spans parent-child relationship inside the trace
+    if (taskRunId != null && !taskRunId.equals(jobRunId)) {
       return taskRunId;
     }
 

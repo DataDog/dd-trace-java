@@ -33,6 +33,10 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     return get(0);
   }
 
+  public int getTraceCount() {
+    return traceCount.get();
+  }
+
   @SuppressFBWarnings("NN_NAKED_NOTIFY")
   @Override
   public void write(List<DDSpan> trace) {

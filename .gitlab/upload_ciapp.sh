@@ -9,8 +9,23 @@ TEST_JVM=${2:-}
 JAVA_PROPS=""
 if [ -n "$TEST_JVM" ]; then
     JAVA_BIN=""
-    if [[ "$TEST_JVM" =~ ^[A-Za-z0-9_]+$ ]]; then
-        JAVA_HOME_VAR="JAVA_${TEST_JVM}_HOME"
+    RESOLVED_JVM="$TEST_JVM"
+    if [ "$TEST_JVM" = "tip" ]; then
+        # Resolve "tip" to the highest available JAVA_*_HOME version
+        MAX_VER=0
+        for var in $(compgen -v JAVA_ | grep -E '^JAVA_[0-9]+_HOME$'); do
+            ver="${var#JAVA_}"
+            ver="${ver%_HOME}"
+            if [ "$ver" -gt "$MAX_VER" ] 2>/dev/null; then
+                MAX_VER="$ver"
+            fi
+        done
+        if [ "$MAX_VER" -gt 0 ] 2>/dev/null; then
+            RESOLVED_JVM="$MAX_VER"
+        fi
+    fi
+    if [[ "$RESOLVED_JVM" =~ ^[A-Za-z0-9_]+$ ]]; then
+        JAVA_HOME_VAR="JAVA_${RESOLVED_JVM}_HOME"
         JAVA_HOME_VALUE="${!JAVA_HOME_VAR}"
         if [ -n "$JAVA_HOME_VALUE" ] && [ -x "$JAVA_HOME_VALUE/bin/java" ]; then
             JAVA_BIN="$JAVA_HOME_VALUE/bin/java"

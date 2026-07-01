@@ -4,6 +4,7 @@ import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.CONSU
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_CONSUME;
 
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
@@ -22,7 +23,7 @@ public class ListAdvice {
       String group = KafkaConsumerInstrumentationHelper.extractGroup(kafkaConsumerInfo);
       String clusterId =
           KafkaConsumerInstrumentationHelper.extractClusterId(
-              kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
+              kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
       String bootstrapServers =
           KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
       iterable =

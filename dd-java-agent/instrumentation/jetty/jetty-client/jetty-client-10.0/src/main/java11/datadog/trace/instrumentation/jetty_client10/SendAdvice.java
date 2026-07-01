@@ -1,8 +1,6 @@
 package datadog.trace.instrumentation.jetty_client10;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
-import static datadog.trace.instrumentation.jetty_client.HeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jetty_client10.JettyClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.jetty_client10.JettyClientDecorator.HTTP_REQUEST;
 
@@ -24,7 +22,6 @@ public class SendAdvice {
     responseListeners.add(0, new SpanFinishingCompleteListener(span));
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
-    DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
     return span;
   }
 

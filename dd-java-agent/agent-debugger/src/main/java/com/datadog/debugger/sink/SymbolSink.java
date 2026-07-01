@@ -10,6 +10,7 @@ import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.trace.api.Config;
+import datadog.trace.util.RandomUtils;
 import datadog.trace.util.TagsHelper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -21,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPOutputStream;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -36,21 +38,34 @@ public class SymbolSink {
   public static final BatchUploader.RetryPolicy RETRY_POLICY = new BatchUploader.RetryPolicy(10);
   private static final JsonAdapter<ServiceVersion> SERVICE_VERSION_ADAPTER =
       MoshiHelper.createMoshiSymbol().adapter(ServiceVersion.class);
+  // The upload event message JSON. The "final" field is hard-coded to false:
+  // the Java tracer continuously uploads new code as classes get loaded, so
+  // there is no defined end-of-upload point.
   private static final String EVENT_FORMAT =
       "{%n"
           + "\"ddsource\": \"dd_debugger\",%n"
           + "\"service\": \"%s\",%n"
+          + "\"version\": \"%s\",%n"
+          + "\"language\": \"java\",%n"
           + "\"runtimeId\": \"%s\",%n"
-          + "\"type\": \"symdb\"%n"
+          + "\"type\": \"symdb\",%n"
+          + "\"uploadId\": \"%s\",%n"
+          + "\"batchNum\": %d,%n"
+          + "\"final\": false,%n"
+          + "\"attachmentSize\": %d%n"
           + "}";
   static final int MAX_SYMDB_UPLOAD_SIZE = 50 * 1024 * 1024;
 
   private final String serviceName;
   private final String env;
   private final String version;
+  private final String runtimeId;
   private final BatchUploader symbolUploader;
   private final int maxPayloadSize;
-  private final BatchUploader.MultiPartContent event;
+  // uploadId is shared by all batches uploaded by this sink. The backend uses
+  // it to group batches belonging to the same logical upload.
+  private final String uploadId = RandomUtils.randomUUID().toString();
+  private final AtomicLong batchNum = new AtomicLong(0);
   private final BlockingQueue<Scope> scopes = new ArrayBlockingQueue<>(CAPACITY);
   private final Stats stats = new Stats();
   private final boolean isCompressed;
@@ -66,15 +81,10 @@ public class SymbolSink {
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.env = TagsHelper.sanitize(config.getEnv());
     this.version = TagsHelper.sanitize(config.getVersion());
+    this.runtimeId = config.getRuntimeId();
     this.symbolUploader = symbolUploader;
     this.maxPayloadSize = maxPayloadSize;
     this.isCompressed = config.isSymbolDatabaseCompressed();
-    byte[] eventContent =
-        String.format(
-                EVENT_FORMAT, TagsHelper.sanitize(config.getServiceName()), config.getRuntimeId())
-            .getBytes(StandardCharsets.UTF_8);
-    this.event =
-        new BatchUploader.MultiPartContent(eventContent, "event", "event.json", APPLICATION_JSON);
   }
 
   public void stop() {
@@ -111,22 +121,35 @@ public class SymbolSink {
   }
 
   private void serializeAndUpload(List<Scope> scopesToSerialize) {
+    // Determine the batch number once so the attachment body and the EvP event
+    // message agree on it.
+    long currentBatch = batchNum.incrementAndGet();
     try {
       ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(2 * 1024 * 1024);
       try (OutputStream outputStream =
           isCompressed ? new GZIPOutputStream(byteArrayOutputStream) : byteArrayOutputStream) {
         BufferedSink sink = Okio.buffer(Okio.sink(outputStream));
         SERVICE_VERSION_ADAPTER.toJson(
-            sink, new ServiceVersion(serviceName, env, version, "JAVA", scopesToSerialize));
+            sink,
+            new ServiceVersion(
+                serviceName,
+                env,
+                version,
+                "JAVA",
+                scopesToSerialize,
+                uploadId,
+                currentBatch,
+                false /* isFinal */));
         sink.flush();
       }
-      doUpload(scopesToSerialize, byteArrayOutputStream.toByteArray(), isCompressed);
+      doUpload(scopesToSerialize, byteArrayOutputStream.toByteArray(), isCompressed, currentBatch);
     } catch (IOException e) {
       LOGGER.debug("Error serializing scopes", e);
     }
   }
 
-  private void doUpload(List<Scope> scopesToSerialize, byte[] payload, boolean isCompressed) {
+  private void doUpload(
+      List<Scope> scopesToSerialize, byte[] payload, boolean isCompressed, long currentBatch) {
     if (payload.length > maxPayloadSize) {
       LOGGER.warn(
           "Payload is too big: {}/{} isCompressed={}",
@@ -138,18 +161,36 @@ public class SymbolSink {
     }
     updateStats(scopesToSerialize, payload.length);
     LOGGER.debug(
-        "Sending {} jar scopes size={} isCompressed={}",
+        "Sending {} jar scopes size={} isCompressed={} uploadId={} batchNum={}",
         scopesToSerialize.size(),
         payload.length,
-        isCompressed);
+        isCompressed,
+        uploadId,
+        currentBatch);
     String fileName = "file.json";
     MediaType mediaType = APPLICATION_JSON;
     if (isCompressed) {
       fileName = "file.gz";
       mediaType = APPLICATION_GZIP;
     }
+    BatchUploader.MultiPartContent event = buildEvent(currentBatch, payload.length);
     symbolUploader.uploadAsMultipart(
         "", event, new BatchUploader.MultiPartContent(payload, "file", fileName, mediaType));
+  }
+
+  private BatchUploader.MultiPartContent buildEvent(long currentBatch, int attachmentSize) {
+    byte[] eventContent =
+        String.format(
+                EVENT_FORMAT,
+                serviceName,
+                version,
+                runtimeId,
+                uploadId.toString(),
+                currentBatch,
+                attachmentSize)
+            .getBytes(StandardCharsets.UTF_8);
+    return new BatchUploader.MultiPartContent(
+        eventContent, "event", "event.json", APPLICATION_JSON);
   }
 
   private static byte[] compressPayload(byte[] jsonBytes) {

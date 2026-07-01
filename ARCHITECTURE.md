@@ -54,7 +54,7 @@ to `.classdata` to prevent unintended loading. See [`docs/how_to_work_with_gradl
   utilities. Visible to all classloaders, so instrumentation advice and helpers can use them directly.
   See [`docs/bootstrap_design_guidelines.md`](docs/bootstrap_design_guidelines.md).
 
-- **`agent-builder/`** — ByteBuddy integration layer. Class transformer pipeline:
+- **`agent-installer/`** — Product installers and ByteBuddy integration layer. Class transformer pipeline:
   `DDClassFileTransformer` intercepts every class load, `GlobalIgnoresMatcher` applies early
   filtering, `CombiningMatcher` evaluates instrumentation matchers, `SplittingTransformer`
   applies matched transformations. The `ignored_class_name.trie` is a compiled trie built at

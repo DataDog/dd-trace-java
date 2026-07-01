@@ -49,6 +49,14 @@ public abstract class PropagationTags {
     PropagationTags empty();
 
     PropagationTags fromHeaderValue(HeaderType headerType, String value);
+
+    /**
+     * Returns a fresh PropagationTags that re-encodes only the non-{@code dd} vendor sections of
+     * the supplied W3C tracestate. All Datadog-side state (sampling priority, origin, {@code
+     * _dd.p.*} tags) is dropped. If {@code originalTracestate} is {@code null} or empty, behaves
+     * like {@link #empty()}.
+     */
+    PropagationTags emptyW3C(String originalTracestate);
   }
 
   /**
@@ -129,6 +137,30 @@ public abstract class PropagationTags {
   public abstract void updateDebugPropagation(String value);
 
   public abstract String getDebugPropagation();
+
+  /**
+   * Updates the Knuth sampling rate (_dd.p.ksr) propagated tag. This records the sampling rate that
+   * was applied when making an agent-based or rule-based sampling decision. The rate is formatted
+   * with up to 6 significant digits and no trailing zeros, matching the Go/Python reference
+   * implementations (%.6g format).
+   *
+   * @param rate the sampling rate value
+   */
+  public abstract void updateKnuthSamplingRate(double rate);
+
+  /**
+   * Returns the Org Propagation Marker (OPM) currently held in these tags, encoded as {@code
+   * _dd.p.opm} in Datadog headers and {@code t.opm} in W3C tracestate. Returns {@code null} if no
+   * OPM is set.
+   */
+  public abstract CharSequence getOrgPropagationMarker();
+
+  /**
+   * Sets the Org Propagation Marker (OPM). Passing {@code null} clears the marker. The injection
+   * codecs call this just before serializing so that, when the local tracer knows its own OPM, it
+   * overrides any inbound OPM.
+   */
+  public abstract void updateOrgPropagationMarker(CharSequence opm);
 
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();

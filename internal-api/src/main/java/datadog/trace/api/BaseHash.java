@@ -5,12 +5,17 @@ import datadog.trace.util.FNV64Hash;
 public final class BaseHash {
   private static volatile long baseHash;
   private static volatile String baseHashStr;
+  private static volatile String lastContainerTagsHash;
 
   private BaseHash() {}
 
   public static void recalcBaseHash(String containerTagsHash) {
-    long hash = calc(containerTagsHash);
-    updateBaseHash(hash);
+    lastContainerTagsHash = containerTagsHash;
+    updateBaseHash(calc(containerTagsHash));
+  }
+
+  static void recalcBaseHash() {
+    updateBaseHash(calc(lastContainerTagsHash));
   }
 
   public static void updateBaseHash(long hash) {

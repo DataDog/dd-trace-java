@@ -21,7 +21,6 @@ dependencies {
 
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
-  testImplementation files(project(':dd-java-agent:agent-profiling:profiling-controller-jfr').sourceSets.test.output)
   testImplementation project(':dd-java-agent:agent-profiling')
 }
 

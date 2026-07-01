@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.ENV;
@@ -8,19 +9,39 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_BATCH_SIZE;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_EXPORTER;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_INTERVAL;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_QUEUE_SIZE;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPERIMENTAL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_COMPRESSION;
+import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_ENDPOINT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_HEADERS;
+import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_PROTOCOL;
+import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_COMPRESSION;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.TRACES_SPAN_METRICS_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.RESPONSE_HEADER_TAGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
@@ -83,7 +104,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
 
   OtelEnvironmentConfigSource(Properties datadogConfigFile) {
     this.datadogConfigFile = datadogConfigFile;
-    this.enabled = traceOtelEnabled() || metricsOtelEnabled();
+    this.enabled = traceOtelEnabled() || metricsOtelEnabled() || logsOtelEnabled();
 
     if (enabled) {
       setupOtelEnvironment();
@@ -97,6 +118,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     if ("true".equalsIgnoreCase(sdkDisabled)) {
       capture(TRACE_OTEL_ENABLED, "false");
       capture(METRICS_OTEL_ENABLED, "false");
+      capture(LOGS_OTEL_ENABLED, "false");
       return;
     }
     String logLevel = getOtelProperty("otel.log.level", "dd." + LOG_LEVEL);
@@ -122,7 +144,11 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       capture(RUNTIME_METRICS_ENABLED, mapDataCollection("metrics"));
     }
 
-    mapDataCollection("logs"); // check setting, but no need to capture it
+    if (logsOtelEnabled()) {
+      setupLogsOtelEnvironment();
+    } else {
+      mapDataCollection("logs");
+    }
   }
 
   private void setupTraceOtelEnvironment() {
@@ -133,10 +159,34 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     String extensions = getOtelProperty("otel.javaagent.extensions", "dd." + TRACE_EXTENSIONS_PATH);
     capture(TRACE_PROPAGATION_STYLE, mapPropagationStyle(propagators));
     capture(TRACE_SAMPLE_RATE, mapSampleRate(tracesSampler));
-    capture(TRACE_ENABLED, mapDataCollection("traces"));
     capture(REQUEST_HEADER_TAGS, mapHeaderTags("http.request.header.", requestHeaders));
     capture(RESPONSE_HEADER_TAGS, mapHeaderTags("http.response.header.", responseHeaders));
     capture(TRACE_EXTENSIONS_PATH, extensions);
+    capture(
+        TRACES_SPAN_METRICS_ENABLED,
+        getOtelProperty("otel.traces.span.metrics.enabled", "dd." + TRACES_SPAN_METRICS_ENABLED));
+
+    String exporter = getOtelProperty("otel.traces.exporter");
+    if ("otlp".equalsIgnoreCase(exporter)) { // traces defaults to non-OTLP (i.e. datadog)
+      capture(TRACE_OTEL_EXPORTER, "otlp");
+      capture(
+          OTLP_TRACES_HEADERS,
+          getOtelOtlpProperty("traces", "headers", "dd." + OTLP_TRACES_HEADERS));
+      capture(
+          OTLP_TRACES_PROTOCOL,
+          getOtelOtlpProperty("traces", "protocol", "dd." + OTLP_TRACES_PROTOCOL));
+      capture(
+          OTLP_TRACES_COMPRESSION,
+          getOtelOtlpProperty("traces", "compression", "dd." + OTLP_TRACES_COMPRESSION));
+      capture(
+          OTLP_TRACES_TIMEOUT,
+          getOtelOtlpProperty("traces", "timeout", "dd." + OTLP_TRACES_TIMEOUT));
+      capture(
+          OTLP_TRACES_ENDPOINT,
+          getOtelOtlpProperty("traces", "endpoint", "dd." + OTLP_TRACES_ENDPOINT));
+    } else {
+      capture(TRACE_ENABLED, mapDataCollection("traces"));
+    }
   }
 
   private void setupMetricsOtelEnvironment() {
@@ -150,9 +200,15 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
         METRICS_OTEL_CARDINALITY_LIMIT,
         getOtelProperty(
             "otel.java.metrics.cardinality.limit", "dd." + METRICS_OTEL_CARDINALITY_LIMIT));
+    capture(
+        METRICS_OTEL_EXPERIMENTAL_ENABLED,
+        getOtelProperty(
+            "otel.instrumentation.runtime-telemetry.emit-experimental-metrics",
+            "dd." + METRICS_OTEL_EXPERIMENTAL_ENABLED));
 
     String exporter = getOtelProperty("otel.metrics.exporter");
-    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) {
+    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) { // metrics defaults to OTLP
+      capture(METRICS_OTEL_EXPORTER, "otlp");
       capture(
           OTLP_METRICS_HEADERS,
           getOtelOtlpProperty("metrics", "headers", "dd." + OTLP_METRICS_HEADERS));
@@ -178,6 +234,35 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
   }
 
+  private void setupLogsOtelEnvironment() {
+    capture(
+        LOGS_OTEL_INTERVAL,
+        getOtelProperty("otel.blrp.schedule.delay", "dd." + LOGS_OTEL_INTERVAL));
+    capture(
+        LOGS_OTEL_TIMEOUT, getOtelProperty("otel.blrp.export.timeout", "dd." + LOGS_OTEL_TIMEOUT));
+    capture(
+        LOGS_OTEL_QUEUE_SIZE,
+        getOtelProperty("otel.blrp.max.queue.size", "dd." + LOGS_OTEL_QUEUE_SIZE));
+    capture(
+        LOGS_OTEL_BATCH_SIZE,
+        getOtelProperty("otel.blrp.max.export.batch.size", "dd." + LOGS_OTEL_BATCH_SIZE));
+    String exporter = getOtelProperty("otel.logs.exporter");
+    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) { // logs defaults to OTLP
+      capture(LOGS_OTEL_EXPORTER, "otlp");
+      capture(OTLP_LOGS_HEADERS, getOtelOtlpProperty("logs", "headers", "dd." + OTLP_LOGS_HEADERS));
+      capture(
+          OTLP_LOGS_PROTOCOL, getOtelOtlpProperty("logs", "protocol", "dd." + OTLP_LOGS_PROTOCOL));
+      capture(
+          OTLP_LOGS_COMPRESSION,
+          getOtelOtlpProperty("logs", "compression", "dd." + OTLP_LOGS_COMPRESSION));
+      capture(OTLP_LOGS_TIMEOUT, getOtelOtlpProperty("logs", "timeout", "dd." + OTLP_LOGS_TIMEOUT));
+      capture(
+          OTLP_LOGS_ENDPOINT, getOtelOtlpProperty("logs", "endpoint", "dd." + OTLP_LOGS_ENDPOINT));
+    } else {
+      mapDataCollection("logs");
+    }
+  }
+
   private boolean traceOtelEnabled() {
     String enabled = getDatadogProperty("dd." + TRACE_OTEL_ENABLED);
     if (null != enabled) {
@@ -193,6 +278,15 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       return Boolean.parseBoolean(enabled);
     } else {
       return DEFAULT_METRICS_OTEL_ENABLED;
+    }
+  }
+
+  private boolean logsOtelEnabled() {
+    String enabled = getDatadogProperty("dd." + LOGS_OTEL_ENABLED);
+    if (null != enabled) {
+      return Boolean.parseBoolean(enabled);
+    } else {
+      return DEFAULT_LOGS_OTEL_ENABLED;
     }
   }
 
@@ -244,12 +338,20 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       // fall back to general configuration
       otelKey = "otel.exporter.otlp." + subkey;
       otelValue = getOtelProperty(otelKey);
-      // special case when using general endpoint as fallback: append appropriate metric suffix
-      if ("metrics".equals(signal)
-          && "endpoint".equals(subkey)
-          && otelValue != null
-          && !"grpc".equalsIgnoreCase(otelEnvironment.get(OTLP_METRICS_PROTOCOL))) {
-        otelValue = otelValue + "/v1/metrics";
+      // special case when using general endpoint as fallback: append appropriate suffix
+      if ("endpoint".equals(subkey) && otelValue != null && !otelValue.startsWith("unix://")) {
+        if ("logs".equals(signal)
+            && !"grpc".equalsIgnoreCase(otelEnvironment.get(OTLP_LOGS_PROTOCOL))) {
+          otelValue = otelValue + (otelValue.endsWith("/") ? "v1/logs" : "/v1/logs");
+        }
+        if ("metrics".equals(signal)
+            && !"grpc".equalsIgnoreCase(otelEnvironment.get(OTLP_METRICS_PROTOCOL))) {
+          otelValue = otelValue + (otelValue.endsWith("/") ? "v1/metrics" : "/v1/metrics");
+        }
+        if ("traces".equals(signal)
+            && !"grpc".equalsIgnoreCase(otelEnvironment.get(OTLP_TRACES_PROTOCOL))) {
+          otelValue = otelValue + (otelValue.endsWith("/") ? "v1/traces" : "/v1/traces");
+        }
       }
     }
     if (null == otelValue) {
@@ -285,9 +387,12 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
    * <p>Checks system properties and environment variables.
    */
   private static String getProperty(String sysProp) {
-    String value = SystemProperties.get(sysProp);
-    if (null == value) {
-      value = ConfigHelper.env(toEnvVar(sysProp));
+    // Always validate through ConfigHelper so STRICT_TEST mode can detect unsupported configs
+    String value = ConfigHelper.env(toEnvVar(sysProp));
+    // System property takes precedence over environment variable
+    String sysPropValue = SystemProperties.get(sysProp);
+    if (sysPropValue != null) {
+      value = sysPropValue;
     }
     return value;
   }
@@ -439,7 +544,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
 
     if ("none".equalsIgnoreCase(exporter)) {
-      return "false"; // currently we only accept "none" which maps to disable data collection
+      return "false"; // "none" maps to disable data collection
     }
 
     log.warn("OTEL_{}_EXPORTER={} is not supported", signal, exporter.toUpperCase(Locale.ROOT));

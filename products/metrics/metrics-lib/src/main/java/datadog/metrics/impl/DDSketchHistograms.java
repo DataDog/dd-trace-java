@@ -11,6 +11,7 @@ import com.datadoghq.sketch.ddsketch.mapping.IndexMapping;
 import com.datadoghq.sketch.ddsketch.mapping.LogarithmicMapping;
 import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore;
 import datadog.metrics.api.Histogram;
+import datadog.metrics.api.HistogramWithSum;
 import datadog.metrics.api.Histograms;
 import java.util.List;
 
@@ -44,7 +45,13 @@ public final class DDSketchHistograms implements Histograms.Factory {
   }
 
   @Override
-  public Histogram newHistogram(List<Double> binBoundaries) {
+  public HistogramWithSum newHistogramWithSum(double relativeAccuracy, int maxNumBins) {
+    DDSketch sketch = DDSketches.logarithmicCollapsingLowestDense(relativeAccuracy, maxNumBins);
+    return new DDSketchHistogramWithSum(sketch);
+  }
+
+  @Override
+  public HistogramWithSum newHistogramWithSum(List<Double> binBoundaries) {
     validateBoundaries(binBoundaries);
     DDSketch sketch =
         new DDSketch(
@@ -52,7 +59,7 @@ public final class DDSketchHistograms implements Histograms.Factory {
             () -> new CollapsingLowestDenseStore(0), // negative store not used
             () -> new CollapsingLowestDenseStore(binBoundaries.size() + 1),
             Double.NEGATIVE_INFINITY); // assign all negative/zero values to first bin
-    return new DDSketchHistogram(sketch);
+    return new DDSketchHistogramWithSum(sketch);
   }
 
   static void validateBoundaries(List<Double> boundaries) {

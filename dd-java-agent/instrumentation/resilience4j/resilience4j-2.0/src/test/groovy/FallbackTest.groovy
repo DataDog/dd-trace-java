@@ -21,7 +21,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 class FallbackTest extends InstrumentationSpecification {
   static singleThreadExecutor = Executors.newSingleThreadExecutor()
 
-  def "ofSupplier"(DecorateSupplier<String> decorateSupplier) {
+  def "ofSupplier #iterationIndex"(DecorateSupplier<String> decorateSupplier) {
     setup:
     def supplier = decorateSupplier.decorate()
 
@@ -55,7 +55,7 @@ class FallbackTest extends InstrumentationSpecification {
     ]
   }
 
-  def "ofCheckedSupplier"(DecorateCheckedSupplier<String> decorateCheckedSupplier) {
+  def "ofCheckedSupplier #iterationIndex"(DecorateCheckedSupplier<String> decorateCheckedSupplier) {
     setup:
     CheckedSupplier<String> supplier = decorateCheckedSupplier.decorate()
 
@@ -89,7 +89,7 @@ class FallbackTest extends InstrumentationSpecification {
     ]
   }
 
-  def "ofCallable"(DecorateCallable<String> decorateCallable) {
+  def "ofCallable #iterationIndex"(DecorateCallable<String> decorateCallable) {
     setup:
     def callable = decorateCallable.decorate()
 
@@ -123,7 +123,7 @@ class FallbackTest extends InstrumentationSpecification {
     ]
   }
 
-  def "ofCompletionStage"(Supplier<CompletionStage<String>> supplier) {
+  def "ofCompletionStage #iterationIndex"(Supplier<CompletionStage<String>> supplier) {
     when:
     def future = runUnderTrace("parent") { supplier.get().toCompletableFuture() }
 

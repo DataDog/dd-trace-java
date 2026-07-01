@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
 
@@ -80,5 +81,13 @@ class AkkaActorTest extends InstrumentationSpecification {
         }
       }
     }
+  }
+}
+
+class AkkaActorContextSwapTest extends AkkaActorTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }

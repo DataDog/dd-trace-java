@@ -50,11 +50,12 @@ public class JettyHttpClientInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isConstructor(), packageName + ".RequestCreateAdvice");
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("send"))
             .and(takesArgument(0, named("org.eclipse.jetty.client.Response$CompleteListener"))),
-        packageName + ".SendAdvice");
+        packageName + ".SendAdvice",
+        packageName + ".SendContextPropagationAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())

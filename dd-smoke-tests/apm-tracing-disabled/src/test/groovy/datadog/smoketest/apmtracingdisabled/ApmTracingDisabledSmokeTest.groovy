@@ -2,7 +2,7 @@ package datadog.smoketest.apmtracingdisabled
 
 import okhttp3.Request
 
-class ApmTracingDisabledSmokeTest extends AbstractApmTracingDisabledSmokeTest {
+abstract class ApmTracingDisabledSmokeTest extends AbstractApmTracingDisabledSmokeTest {
 
   private static final String APM_TRACING_DISABLED_SERVICE_NAME = "asm-standalone-billing-smoketest-app"
   private static final String APM_ENABLED_SERVICE_NAME = "apm-enabled-smoketest-app"
@@ -89,5 +89,19 @@ class ApmTracingDisabledSmokeTest extends AbstractApmTracingDisabledSmokeTest {
       "http://localhost:${httpPorts[0]}/rest-api/appsec/appscan_fingerprint?",
       "http://localhost:${httpPorts[0]}/rest-api/iast?injection=vulnerable&"
     ]
+  }
+}
+
+class ApmTracingDisabledSmokeV04Test extends ApmTracingDisabledSmokeTest {
+  @Override
+  protected String traceAgentProtocolVersion() {
+    return '0.4'
+  }
+}
+
+class ApmTracingDisabledSmokeV1Test extends ApmTracingDisabledSmokeTest {
+  @Override
+  protected String traceAgentProtocolVersion() {
+    return '1.0'
   }
 }

@@ -214,6 +214,13 @@ public class MsgPackWriter implements WritableFormatter {
   }
 
   @Override
+  public void writeBinary(long hi, long lo) {
+    writeBinaryHeader(16);
+    buffer.putLong(hi);
+    buffer.putLong(lo);
+  }
+
+  @Override
   public void writeBinary(ByteBuffer binary) {
     ByteBuffer slice = binary.slice();
     writeBinaryHeader(slice.limit() - slice.position());

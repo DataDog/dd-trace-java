@@ -1,10 +1,10 @@
 package datadog.trace.core.propagation.ptags;
 
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -63,6 +63,7 @@ final class DatadogPTagsCodec extends PTagsCodec {
     TagValue decisionMakerTagValue = null;
     TagValue traceIdTagValue = null;
     int traceSource = 0;
+    TagValue orgPropagationMarkerTagValue = null;
     while (tagPos < len) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -99,6 +100,8 @@ final class DatadogPTagsCodec extends PTagsCodec {
             traceIdTagValue = tagValue;
           } else if (tagKey.equals(TRACE_SOURCE_TAG)) {
             traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
+          } else if (tagKey.equals(ORG_PROPAGATION_MARKER_TAG)) {
+            orgPropagationMarkerTagValue = tagValue;
           } else {
             if (tagPairs == null) {
               // This is roughly the size of a two element linked list but can hold six
@@ -111,7 +114,12 @@ final class DatadogPTagsCodec extends PTagsCodec {
       }
       tagPos = tagValueEndsAt + 1;
     }
-    return tagsFactory.createValid(tagPairs, decisionMakerTagValue, traceIdTagValue, traceSource);
+    return tagsFactory.createValid(
+        tagPairs,
+        decisionMakerTagValue,
+        traceIdTagValue,
+        traceSource,
+        orgPropagationMarkerTagValue);
   }
 
   @Override

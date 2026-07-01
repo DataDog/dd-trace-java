@@ -162,10 +162,13 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
 
   private volatile boolean wafBlocked;
+  private volatile String blockingResponseContentType;
+  private volatile Integer blockingResponseContentLength;
   private volatile boolean wafErrors;
   private volatile boolean wafTruncated;
   private volatile boolean wafRequestBlockFailure;
   private volatile boolean wafRateLimited;
+  private volatile boolean wafRequestExcluded;
 
   private volatile int wafTimeouts;
   private volatile int raspTimeouts;
@@ -237,6 +240,22 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return wafBlocked;
   }
 
+  public void setBlockingResponseContentType(String contentType) {
+    this.blockingResponseContentType = contentType;
+  }
+
+  public String getBlockingResponseContentType() {
+    return blockingResponseContentType;
+  }
+
+  public void setBlockingResponseContentLength(Integer contentLength) {
+    this.blockingResponseContentLength = contentLength;
+  }
+
+  public Integer getBlockingResponseContentLength() {
+    return blockingResponseContentLength;
+  }
+
   public void setWafErrors() {
     this.wafErrors = true;
   }
@@ -267,6 +286,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public boolean isWafRateLimited() {
     return wafRateLimited;
+  }
+
+  // placeholder: libddwaf does not yet expose exclusion filter results
+  public void setWafRequestExcluded() {
+    wafRequestExcluded = true;
+  }
+
+  public boolean isWafRequestExcluded() {
+    return wafRequestExcluded;
   }
 
   public void increaseWafTimeouts() {

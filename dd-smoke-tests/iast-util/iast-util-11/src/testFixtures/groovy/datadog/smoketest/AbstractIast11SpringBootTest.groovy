@@ -33,6 +33,11 @@ abstract class AbstractIast11SpringBootTest extends AbstractIastServerSmokeTest 
     ]
   }
 
+  @Override
+  protected boolean withExternalServer() {
+    true
+  }
+
   void 'ssrf is present (#path)'() {
     setup:
     final url = "http://localhost:${httpPort}/ssrf/${path}"
@@ -60,9 +65,9 @@ abstract class AbstractIast11SpringBootTest extends AbstractIastServerSmokeTest 
     }
 
     where:
-    path       | parameter | value                     | async   | promise
-    "java-net" | "url"     | "https://dd.datad0g.com/" | "false" | "false"
-    "java-net" | "url"     | "https://dd.datad0g.com/" | "true"  | "false"
-    "java-net" | "url"     | "https://dd.datad0g.com/" | "true"  | "true"
+    path       | parameter | value                             | async   | promise
+    "java-net" | "url"     | externalServer.address.toString() | "false" | "false"
+    "java-net" | "url"     | externalServer.address.toString() | "true"  | "false"
+    "java-net" | "url"     | externalServer.address.toString() | "true"  | "true"
   }
 }

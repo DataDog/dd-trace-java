@@ -98,23 +98,27 @@ public class SourceFileTrackingTransformer implements ClassFileTransformer {
   }
 
   private void registerSourceFile(String className, byte[] classfileBuffer) {
-    String javaClassName = Strings.getClassName(className);
-    if (classNameFilter.isExcluded(javaClassName)) {
-      return;
+    try {
+      String javaClassName = Strings.getClassName(className);
+      if (classNameFilter.isExcluded(javaClassName)) {
+        return;
+      }
+      String sourceFile = ClassFileHelper.extractSourceFile(classfileBuffer);
+      if (sourceFile == null) {
+        return;
+      }
+      if (!isExtensionAllowed(sourceFile)) {
+        return;
+      }
+      String simpleClassName = stripPackagePath(className);
+      String simpleSourceFile = removeExtension(sourceFile);
+      if (simpleClassName.equals(simpleSourceFile)) {
+        return;
+      }
+      finder.register(sourceFile, className);
+    } catch (Exception e) {
+      LOGGER.debug("Error registering source file {}: {}", className, e);
     }
-    String sourceFile = ClassFileHelper.extractSourceFile(classfileBuffer);
-    if (sourceFile == null) {
-      return;
-    }
-    if (!isExtensionAllowed(sourceFile)) {
-      return;
-    }
-    String simpleClassName = stripPackagePath(className);
-    String simpleSourceFile = removeExtension(sourceFile);
-    if (simpleClassName.equals(simpleSourceFile)) {
-      return;
-    }
-    finder.register(sourceFile, className);
   }
 
   private boolean isExtensionAllowed(String sourceFile) {

@@ -27,6 +27,9 @@ public final class DollarVariableDatadogAdvice {
         return;
       }
       String charSec = DollarVariable24Helper.fetchCharSec(self, environment);
+      if (charSec == null) {
+        return;
+      }
       final String templateName = environment.getMainTemplate().getName();
       final int line = DollarVariable24Helper.fetchBeginLine(self);
       xssModule.onXss(charSec, templateName, line);

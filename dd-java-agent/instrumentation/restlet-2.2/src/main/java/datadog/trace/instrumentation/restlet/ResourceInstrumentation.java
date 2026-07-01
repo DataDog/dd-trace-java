@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.restlet.ResourceDecorator.DECORATE;
+import static datadog.trace.instrumentation.restlet.ResourceDecorator.RESTLET_CONTROLLER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -62,7 +63,7 @@ public final class ResourceInstrumentation extends InstrumenterModule.Tracing
         @Advice.Argument(0) final AnnotationInfo annotationInfo) {
       final AgentSpan parent = activeSpan();
 
-      final AgentSpan span = startSpan(RESTLET_HTTP_OPERATION_NAME);
+      final AgentSpan span = startSpan(RESTLET_CONTROLLER.toString(), RESTLET_HTTP_OPERATION_NAME);
       span.setMeasured(true);
       DECORATE.onRestletSpan(span, parent, serverResource, annotationInfo.getJavaMethod());
       DECORATE.afterStart(span);

@@ -25,7 +25,7 @@ public class CapturedSnapshot28 {
 
   public static int main(String arg) {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
-    AgentSpan span = tracerAPI.buildSpan("process").start();
+    AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "process").start();
     try (AgentScope scope = tracerAPI.activateManualSpan(span)) {
       return new CapturedSnapshot28().process(arg);
     } finally {

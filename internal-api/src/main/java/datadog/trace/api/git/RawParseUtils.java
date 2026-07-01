@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 /**
@@ -17,8 +18,8 @@ public final class RawParseUtils {
 
   private RawParseUtils() {}
 
-  public static final byte[] COMMITTER = "committer ".getBytes();
-  public static final byte[] AUTHOR = "author ".getBytes();
+  public static final byte[] COMMITTER = "committer ".getBytes(StandardCharsets.UTF_8);
+  public static final byte[] AUTHOR = "author ".getBytes(StandardCharsets.UTF_8);
 
   private static final byte[] digits10;
 

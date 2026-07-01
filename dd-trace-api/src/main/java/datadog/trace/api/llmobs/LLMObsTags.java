@@ -12,4 +12,5 @@ public class LLMObsTags {
   public static final String MODEL_NAME = "model_name";
   public static final String MODEL_VERSION = "model_version";
   public static final String MODEL_PROVIDER = "model_provider";
+  public static final String TOOL_DEFINITIONS = "tool_definitions";
 }

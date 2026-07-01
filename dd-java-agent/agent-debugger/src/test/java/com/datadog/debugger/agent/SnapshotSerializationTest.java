@@ -789,7 +789,10 @@ public class SnapshotSerializationTest {
   @Test
   public void capturesAdapterNull() {
     MoshiSnapshotHelper.CapturesAdapter capturesAdapter =
-        new MoshiSnapshotHelper.CapturesAdapter(MoshiHelper.createMoshiSnapshot(), null);
+        new MoshiSnapshotHelper.CapturesAdapter(
+            MoshiSnapshotTestHelper.createMoshiSnapshot(),
+            Duration.of(5, ChronoUnit.SECONDS),
+            null);
     Assertions.assertEquals("null", capturesAdapter.toJson(null));
   }
 
@@ -921,7 +924,9 @@ public class SnapshotSerializationTest {
   public void timeOut() throws IOException {
     DebuggerContext.initValueSerializer(
         new TimeoutSnapshotSerializer(Duration.of(150, ChronoUnit.MILLIS)));
-    JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+    JsonAdapter<Snapshot> adapter =
+        MoshiHelper.createMoshiSnapshot(Duration.of(100, ChronoUnit.MILLIS))
+            .adapter(Snapshot.class);
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
     CapturedContext.CapturedValue arg1 = CapturedContext.CapturedValue.of("arg1", "int", 42);

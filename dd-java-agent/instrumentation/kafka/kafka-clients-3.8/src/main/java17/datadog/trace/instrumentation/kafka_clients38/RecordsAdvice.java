@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_RECORDS_COUNT;
+import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_POLL;
 
 import datadog.trace.api.Config;
@@ -11,6 +12,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -30,14 +32,14 @@ public class RecordsAdvice {
     if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
       String clusterId =
           KafkaConsumerInstrumentationHelper.extractClusterId(
-              kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
+              kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
       if (clusterId != null) {
         ClusterIdHolder.set(clusterId);
       }
     }
 
     if (traceConfig().isDataStreamsEnabled()) {
-      final AgentSpan span = startSpan(KAFKA_POLL);
+      final AgentSpan span = startSpan(JAVA_KAFKA.toString(), KAFKA_POLL);
       return activateSpan(span);
     }
     return null;

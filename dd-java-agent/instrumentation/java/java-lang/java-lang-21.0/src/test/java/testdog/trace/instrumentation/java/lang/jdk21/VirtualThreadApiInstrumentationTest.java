@@ -6,14 +6,13 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.Trace;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+/** Test the {@code VirtualThread} and {@code Thread.Builder} API. */
 public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentationTest {
-
   @DisplayName("test Thread.Builder.OfVirtual.start()")
   @Test
   void testBuilderOfVirtualStart() throws InterruptedException, TimeoutException {
@@ -96,7 +95,6 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
   @Test
   void testNestedVirtualThreads() throws InterruptedException, TimeoutException {
     Thread.Builder.OfVirtual threadBuilder = Thread.ofVirtual();
-    CountDownLatch latch = new CountDownLatch(3);
 
     new Runnable() {
       @Trace(operationName = "parent")
@@ -118,19 +116,17 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
                               @Override
                               public void run() {
                                 System.out.println("complete");
-                                latch.countDown();
                               }
                             });
-                        latch.countDown();
                       }
                     });
-                latch.countDown();
               }
             });
       }
     }.run();
 
-    latch.await();
+    // Block test thread until child spans are reported
+    blockUntilTracesMatch(traces -> traces.size() == 1 && traces.get(0).size() == 4);
 
     assertTraces(
         trace(
@@ -147,5 +143,17 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
         trace(
             span().root().operationName("parent"),
             span().childOfPrevious().operationName("asyncChild")));
+  }
+
+  private static void tryUnmount() {
+    try {
+      // Multiple sleeps to attempt triggering repeated park/unpark cycles.
+      // This is not guaranteed to work, but there is no API to force mount/unmount.
+      for (int i = 0; i < 5; i++) {
+        Thread.sleep(10);
+      }
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

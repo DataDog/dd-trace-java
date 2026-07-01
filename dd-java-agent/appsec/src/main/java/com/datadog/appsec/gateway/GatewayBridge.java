@@ -26,6 +26,7 @@ import com.datadog.appsec.event.data.SingletonDataBundle;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.appsec.report.AppSecEventWrapper;
 import com.datadog.appsec.util.BodyParser;
+import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.appsec.HttpClientPayload;
@@ -42,6 +43,8 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.telemetry.LoginEvent;
 import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
+import datadog.trace.bootstrap.blocking.BlockingActionHelper;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.util.stacktrace.StackTraceEvent;
@@ -120,12 +123,15 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo httpClientRequestSubInfo;
   private volatile DataSubscriberInfo httpClientResponseSubInfo;
   private volatile DataSubscriberInfo ioFileSubInfo;
+  private volatile DataSubscriberInfo ioFileWriteSubInfo;
   private volatile DataSubscriberInfo sessionIdSubInfo;
   private volatile DataSubscriberInfo userIdSubInfo;
   private final ConcurrentHashMap<String, DataSubscriberInfo> loginEventSubInfo =
       new ConcurrentHashMap<>();
   private volatile DataSubscriberInfo execCmdSubInfo;
   private volatile DataSubscriberInfo shellCmdSubInfo;
+  private volatile DataSubscriberInfo requestFilesFilenamesSubInfo;
+  private volatile DataSubscriberInfo requestFilesContentSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -184,6 +190,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.httpClientRequest(), this::onHttpClientRequest);
     subscriptionService.registerCallback(EVENTS.httpClientResponse(), this::onHttpClientResponse);
     subscriptionService.registerCallback(EVENTS.fileLoaded(), this::onFileLoaded);
+    subscriptionService.registerCallback(EVENTS.fileWritten(), this::onFileWritten);
     subscriptionService.registerCallback(EVENTS.requestSession(), this::onRequestSession);
     subscriptionService.registerCallback(EVENTS.execCmd(), this::onExecCmd);
     subscriptionService.registerCallback(EVENTS.shellCmd(), this::onShellCmd);
@@ -197,6 +204,14 @@ public class GatewayBridge {
     if (additionalIGEvents.contains(EVENTS.requestBodyProcessed())) {
       subscriptionService.registerCallback(
           EVENTS.requestBodyProcessed(), this::onRequestBodyProcessed);
+    }
+    if (additionalIGEvents.contains(EVENTS.requestFilesFilenames())) {
+      subscriptionService.registerCallback(
+          EVENTS.requestFilesFilenames(), this::onRequestFilesFilenames);
+    }
+    if (additionalIGEvents.contains(EVENTS.requestFilesContent())) {
+      subscriptionService.registerCallback(
+          EVENTS.requestFilesContent(), this::onRequestFilesContent);
     }
   }
 
@@ -224,6 +239,8 @@ public class GatewayBridge {
     loginEventSubInfo.clear();
     execCmdSubInfo = null;
     shellCmdSubInfo = null;
+    requestFilesFilenamesSubInfo = null;
+    requestFilesContentSubInfo = null;
   }
 
   private Flow<Void> onUser(final RequestContext ctx_, final String user) {
@@ -539,6 +556,86 @@ public class GatewayBridge {
     }
   }
 
+  private Flow<Void> onFileWritten(RequestContext ctx_, String path) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = ioFileWriteSubInfo;
+      if (subInfo == null) {
+        subInfo =
+            producerService.getDataSubscribers(
+                KnownAddresses.IO_FS_FILE, KnownAddresses.IO_FS_FILE_WRITE);
+        ioFileWriteSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new MapDataBundle.Builder(CAPACITY_0_2)
+              .add(KnownAddresses.IO_FS_FILE, path)
+              .add(KnownAddresses.IO_FS_FILE_WRITE, path)
+              .build();
+      try {
+        GatewayContext gwCtx = new GatewayContext(true, RuleType.LFI);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        ioFileWriteSubInfo = null;
+      }
+    }
+  }
+
+  private Flow<Void> onRequestFilesFilenames(RequestContext ctx_, List<String> filenames) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null || filenames == null || filenames.isEmpty()) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = requestFilesFilenamesSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_FILES_FILENAMES);
+        requestFilesFilenamesSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new SingletonDataBundle<>(KnownAddresses.REQUEST_FILES_FILENAMES, filenames);
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        requestFilesFilenamesSubInfo = null;
+      }
+    }
+  }
+
+  private Flow<Void> onRequestFilesContent(RequestContext ctx_, List<String> filesContent) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null || filesContent == null || filesContent.isEmpty()) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = requestFilesContentSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_FILES_CONTENT);
+        requestFilesContentSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new SingletonDataBundle<>(KnownAddresses.REQUEST_FILES_CONTENT, filesContent);
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        requestFilesContentSubInfo = null;
+      }
+    }
+  }
+
   private Flow<Void> onDatabaseSqlQuery(RequestContext ctx_, String sql) {
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
     if (ctx == null) {
@@ -847,6 +944,7 @@ public class GatewayBridge {
     }
     ctx.setRequestEndCalled();
 
+    AgentSpan span = (AgentSpan) spanInfo;
     TraceSegment traceSeg = ctx_.getTraceSegment();
     Map<String, Object> tags = spanInfo.getTags();
 
@@ -861,8 +959,11 @@ public class GatewayBridge {
 
     // AppSec report metric and events for web span only
     if (traceSeg != null) {
-      traceSeg.setTagTop("_dd.appsec.enabled", 1);
-      traceSeg.setTagTop("_dd.runtime_family", "jvm");
+      // Set AppSec tags on the service-entry span (where detection occurs).
+      // When an inferred proxy span is present, InferredProxySpan.finish() will copy
+      // these tags to the inferred proxy span as required by RFC-1081.
+      span.setMetric("_dd.appsec.enabled", 1);
+      span.setTag("_dd.runtime_family", "jvm");
 
       Collection<AppSecEvent> collectedEvents = ctx.transferCollectedEvents();
 
@@ -882,17 +983,19 @@ public class GatewayBridge {
           traceSeg.setTagTop(Tags.ASM_KEEP, true);
           traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
         }
-        traceSeg.setTagTop("appsec.event", true);
-        traceSeg.setTagTop("network.client.ip", ctx.getPeerAddress());
+
+        span.setTag("appsec.event", true);
 
         // Reflect client_ip as actor.ip for backward compatibility
         Object clientIp = tags.get(Tags.HTTP_CLIENT_IP);
         if (clientIp != null) {
-          traceSeg.setTagTop("actor.ip", clientIp);
+          span.setTag("actor.ip", clientIp.toString());
         }
 
-        // Report AppSec events via "_dd.appsec.json" tag
+        // Report AppSec events on the service-entry span; also stored in meta_struct on the
+        // root span via setDataTop for agent processing
         AppSecEventWrapper wrapper = new AppSecEventWrapper(collectedEvents);
+        span.setTag("_dd.appsec.json", wrapper);
         traceSeg.setDataTop("appsec", wrapper);
 
         // Report collected request and response headers based on allow list
@@ -929,6 +1032,18 @@ public class GatewayBridge {
         writeResponseHeaders(
             ctx, traceSeg, RESPONSE_HEADERS_ALLOW_LIST, ctx.getResponseHeaders(), false);
       }
+      // For blocking responses the normal response-header collection is bypassed; write the
+      // content-type and content-length that were determined when the blocking action was raised.
+      String blockingContentType = ctx.getBlockingResponseContentType();
+      if (blockingContentType != null) {
+        traceSeg.setTagTop("http.response.headers.content-type", blockingContentType);
+        Integer blockingContentLength = ctx.getBlockingResponseContentLength();
+        if (blockingContentLength != null) {
+          traceSeg.setTagTop(
+              "http.response.headers.content-length", String.valueOf(blockingContentLength));
+        }
+      }
+
       // If extracted any derivatives - commit them
       if (!ctx.commitDerivatives(traceSeg)) {
         log.debug("Unable to commit, derivatives will be skipped {}", ctx.getDerivativeKeys());
@@ -942,7 +1057,8 @@ public class GatewayBridge {
               ctx.getWafTimeouts() > 0, // wafTimeout,
               ctx.isWafRequestBlockFailure(), // blockFailure,
               ctx.isWafRateLimited(), // rateLimited,
-              ctx.isWafTruncated() // inputTruncated
+              ctx.isWafTruncated(), // inputTruncated
+              ctx.isWafRequestExcluded() // requestExcluded
               );
     }
 
@@ -1177,7 +1293,6 @@ public class GatewayBridge {
 
   private Flow<Void> maybePublishRequestData(AppSecRequestContext ctx) {
     String savedRawURI = ctx.getSavedRawURI();
-
     if (savedRawURI == null || !ctx.isFinishedRequestHeaders() || ctx.getPeerAddress() == null) {
       return NoopFlow.INSTANCE;
     }
@@ -1230,7 +1345,9 @@ public class GatewayBridge {
 
       try {
         GatewayContext gwCtx = new GatewayContext(false);
-        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        maybeRecordBlockingContentType(ctx, flow);
+        return flow;
       } catch (ExpiredSubscriberInfoException e) {
         this.initialReqDataSubInfo = null;
       }
@@ -1263,7 +1380,9 @@ public class GatewayBridge {
 
       try {
         GatewayContext gwCtx = new GatewayContext(false);
-        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        Flow<Void> flow = producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+        maybeRecordBlockingContentType(ctx, flow);
+        return flow;
       } catch (ExpiredSubscriberInfoException e) {
         respDataSubInfo = null;
       }
@@ -1275,6 +1394,26 @@ public class GatewayBridge {
       downstreamSampler = new ApiSecurityDownstreamSamplerImpl();
     }
     return downstreamSampler;
+  }
+
+  private static void maybeRecordBlockingContentType(AppSecRequestContext ctx, Flow<?> flow) {
+    Flow.Action action = flow.getAction();
+    if (!(action instanceof Flow.Action.RequestBlockingAction)) {
+      return;
+    }
+    Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+    BlockingContentType bct = rba.getBlockingContentType();
+    if (bct == BlockingContentType.NONE) {
+      return; // redirect — no response body
+    }
+    List<String> acceptValues = ctx.getRequestHeaders().get("accept");
+    String acceptHeader =
+        (acceptValues == null || acceptValues.isEmpty()) ? null : acceptValues.get(0);
+    BlockingActionHelper.TemplateType tt =
+        BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+    byte[] template = BlockingActionHelper.getTemplate(tt, rba.getSecurityResponseId());
+    ctx.setBlockingResponseContentType(BlockingActionHelper.getContentType(tt));
+    ctx.setBlockingResponseContentLength(template.length);
   }
 
   private static Map<String, List<String>> parseQueryStringParams(
@@ -1352,6 +1491,9 @@ public class GatewayBridge {
           KnownAddresses.REQUEST_BODY_RAW, l(EVENTS.requestBodyStart(), EVENTS.requestBodyDone()));
       DATA_DEPENDENCIES.put(KnownAddresses.REQUEST_PATH_PARAMS, l(EVENTS.requestPathParams()));
       DATA_DEPENDENCIES.put(KnownAddresses.REQUEST_BODY_OBJECT, l(EVENTS.requestBodyProcessed()));
+      DATA_DEPENDENCIES.put(
+          KnownAddresses.REQUEST_FILES_FILENAMES, l(EVENTS.requestFilesFilenames()));
+      DATA_DEPENDENCIES.put(KnownAddresses.REQUEST_FILES_CONTENT, l(EVENTS.requestFilesContent()));
     }
 
     private static Collection<datadog.trace.api.gateway.EventType<?>> l(

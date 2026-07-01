@@ -12,7 +12,6 @@ import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.Produced
 import org.apache.kafka.streams.kstream.ValueMapper
-import org.junit.ClassRule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
@@ -20,7 +19,6 @@ import org.springframework.kafka.listener.ContainerProperties
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.EmbeddedKafkaBroker
-import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Shared
@@ -34,10 +32,16 @@ class KafkaStreamsTest extends InstrumentationSpecification {
   static final STREAM_PROCESSED = "test.processed"
 
   @Shared
-  @ClassRule
-  EmbeddedKafkaRule kafkaRule = new EmbeddedKafkaRule(1, true, 1, STREAM_PENDING, STREAM_PROCESSED)
-  @Shared
-  EmbeddedKafkaBroker embeddedKafka = kafkaRule.embeddedKafka
+  private EmbeddedKafkaBroker embeddedKafka
+
+  def setupSpec() {
+    embeddedKafka = new EmbeddedKafkaBroker(1, true, 1, STREAM_PENDING, STREAM_PROCESSED)
+    embeddedKafka.afterPropertiesSet()
+  }
+
+  def cleanupSpec() {
+    embeddedKafka?.destroy()
+  }
 
   @Override
   protected boolean isDataStreamsEnabled() {
@@ -132,6 +136,9 @@ class KafkaStreamsTest extends InstrumentationSpecification {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PENDING"
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" { it >= 0 }
+            "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -183,6 +190,9 @@ class KafkaStreamsTest extends InstrumentationSpecification {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PROCESSED"
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" { it >= 0 }
+            "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
             if ({ isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -206,6 +216,7 @@ class KafkaStreamsTest extends InstrumentationSpecification {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PROCESSED"
             "testing" 123

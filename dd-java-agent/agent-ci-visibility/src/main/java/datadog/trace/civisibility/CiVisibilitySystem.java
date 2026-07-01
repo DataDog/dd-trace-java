@@ -18,6 +18,7 @@ import datadog.trace.api.debugger.DebuggerConfigUpdate;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.civisibility.compiler.CompilerModuleExporter;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.file.instrumentation.CoverageClassTransformer;
@@ -74,6 +75,10 @@ public class CiVisibilitySystem {
     }
 
     sco.createRemaining(config);
+
+    if (config.isCiVisibilityCompilerPluginAutoConfigurationEnabled()) {
+      inst.addTransformer(new CompilerModuleExporter(inst));
+    }
 
     CiVisibilityMetricCollector metricCollector =
         config.isCiVisibilityTelemetryEnabled()

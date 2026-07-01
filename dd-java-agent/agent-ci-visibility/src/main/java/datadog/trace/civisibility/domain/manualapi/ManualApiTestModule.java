@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.ConfigurationErrors;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.InstrumentationType;
@@ -64,10 +65,11 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
       boolean parallelized) {
     TestSuiteImpl suite =
         new TestSuiteImpl(
-            span.context(),
+            span.spanContext(),
             moduleName,
             testSuiteName,
             null,
+            false,
             testClass,
             startTime,
             parallelized,
@@ -81,6 +83,7 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
             linesResolver,
             coverageStoreFactory,
             executionResults,
+            ConfigurationErrors.NONE,
             Collections.emptyList(),
             tagsPropagator::propagateCiVisibilityTags);
 

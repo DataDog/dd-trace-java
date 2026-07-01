@@ -12,20 +12,18 @@ apply(from = rootDir.resolve("gradle/java.gradle"))
 apply(from = rootDir.resolve("gradle/publish.gradle"))
 
 // TODO raise these when equals() and hashCode() are excluded
-val minimumBranchCoverage by extra(0.5)
-val minimumInstructionCoverage by extra(0.5)
+extra["minimumBranchCoverage"] = 0.5
+extra["minimumInstructionCoverage"] = 0.5
 
-val excludedClassesCoverage by extra(
-  listOf(
-    // This is mainly equals() and hashCode()
-    "datadog.opentracing.OTScopeManager.OTScope",
-    "datadog.opentracing.OTScopeManager.FakeScope",
-    "datadog.opentracing.OTSpan",
-    "datadog.opentracing.OTSpanContext",
-    "datadog.opentracing.CustomScopeManagerWrapper.CustomScopeState",
-    // The builder is generated
-    "datadog.opentracing.DDTracer.DDTracerBuilder"
-  )
+extra["excludedClassesCoverage"] = listOf(
+  // This is mainly equals() and hashCode()
+  "datadog.opentracing.OTScopeManager.OTScope",
+  "datadog.opentracing.OTScopeManager.FakeScope",
+  "datadog.opentracing.OTSpan",
+  "datadog.opentracing.OTSpanContext",
+  "datadog.opentracing.CustomScopeManagerWrapper.CustomScopeState",
+  // The builder is generated
+  "datadog.opentracing.DDTracer.DDTracerBuilder"
 )
 
 // Helper extensions for custom methods from Groovy DSL
@@ -66,6 +64,11 @@ dependencies {
   implementation(project(":dd-trace-ot:correlation-id-injection"))
 
   testImplementation(project(":dd-java-agent:testing"))
+  testImplementation(project(":utils:junit-utils"))
+  testImplementation(libs.bundles.mockito)
+
+  add("ot31CompatibilityTestImplementation", project(":utils:junit-utils"))
+  add("ot33CompatibilityTestImplementation", project(":utils:junit-utils"))
 
   // Kotlin accessors not generated if not coming from plugin
   add("ot33CompatibilityTestImplementation", "io.opentracing:opentracing-api") {

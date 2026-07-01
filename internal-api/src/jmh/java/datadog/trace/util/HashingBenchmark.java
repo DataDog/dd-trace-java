@@ -9,9 +9,18 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * In contrast to java.util.Objects.hash, datadog.util.HashingUtils.hash has overrides for different
- * parameter counts that allow most callers to avoid calling the var-arg version. This avoids the
- * common situation where the JIT's escape analysis is unable to elide the var-arg array allocation.
+ *
+ *
+ * <ul>
+ *   Benchmark comparing HashingUtils.hash to Objects.hash
+ *   <li>(RECOMMENDED) HashingUtils.hash - avoids var-arg creation
+ *   <li>Object.hash - high allocation overhead from var-ags
+ * </ul>
+ *
+ * <p>In contrast to java.util.Objects.hash, datadog.util.HashingUtils.hash has overrides for
+ * different parameter counts that allow most callers to avoid calling the var-arg version. This
+ * avoids the common situation where the JIT's escape analysis is unable to elide the var-arg array
+ * allocation.
  *
  * <p>This results in 3-4x throughput, but more importantly no allocation as compared to GiBs / sec
  * with var-args. <code>

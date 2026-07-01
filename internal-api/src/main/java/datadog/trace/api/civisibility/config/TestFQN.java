@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.config;
 
+import datadog.trace.util.HashingUtils;
 import java.util.Objects;
 
 /**
@@ -37,7 +38,7 @@ public class TestFQN {
 
   @Override
   public int hashCode() {
-    return Objects.hash(suite, name);
+    return HashingUtils.hash(suite, name);
   }
 
   @Override

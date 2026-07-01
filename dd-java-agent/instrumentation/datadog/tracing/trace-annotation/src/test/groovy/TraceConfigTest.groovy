@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import java.util.concurrent.Callable
@@ -8,6 +9,7 @@ class TraceConfigTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
     injectSysConfig("dd.trace.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call];${ConfigTracedCallable2.name}[*];${Animal.name}[animalSound];${DictionaryElement.name}[*];${Floor.name}[setNumber];${Mammal.name}[*]")
   }
 

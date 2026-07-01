@@ -23,6 +23,7 @@ import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.InboxItem;
+import datadog.trace.api.datastreams.KafkaConfigReport;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.SchemaRegistryUsage;
@@ -261,7 +262,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               DataStreamsContextCarrierAdapter.INSTANCE,
               this.timeSource,
               getThreadServiceName());
-      ((DDSpan) span).context().mergePathwayContext(pathwayContext);
+      ((DDSpan) span).spanContext().mergePathwayContext(pathwayContext);
     }
   }
 
@@ -291,8 +292,21 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public void reportKafkaConfig(
+      String type, String kafkaClusterId, String consumerGroup, Map<String, String> config) {
+    inbox.offer(
+        new KafkaConfigReport(
+            type,
+            kafkaClusterId,
+            consumerGroup,
+            config,
+            timeSource.getCurrentTimeNanos(),
+            getThreadServiceName()));
+  }
+
+  @Override
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
-    PathwayContext pathwayContext = span.context().getPathwayContext();
+    PathwayContext pathwayContext = span.spanContext().getPathwayContext();
     if (pathwayContext != null) {
       pathwayContext.setCheckpoint(context, this::add);
     }
@@ -449,6 +463,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               StatsBucket statsBucket =
                   getStatsBucket(usage.getTimestampNanos(), usage.getServiceNameOverride());
               statsBucket.addSchemaRegistryUsage(usage);
+            } else if (payload instanceof KafkaConfigReport) {
+              KafkaConfigReport configReport = (KafkaConfigReport) payload;
+              StatsBucket statsBucket =
+                  getStatsBucket(
+                      configReport.getTimestampNanos(), configReport.getServiceNameOverride());
+              statsBucket.addKafkaConfig(configReport);
             }
           }
         } catch (Exception e) {

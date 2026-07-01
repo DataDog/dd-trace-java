@@ -22,7 +22,6 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameConte
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isTrackingGenerations;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.omitLineNumbers;
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.useJvmtiWallclockSampler;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
 import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
@@ -39,6 +38,7 @@ import com.datadoghq.profiler.JavaProfiler;
 import datadog.environment.JavaVirtualMachine;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
@@ -116,7 +116,7 @@ public final class DatadogProfiler {
     this(configProvider, getContextAttributes(configProvider));
   }
 
-  // visible for testing
+  @VisibleForTesting
   DatadogProfiler(ConfigProvider configProvider, Set<String> contextAttributes) {
     this.configProvider = configProvider;
     this.profiler = DdprofLibraryLoader.javaProfiler().getComponent();
@@ -313,9 +313,6 @@ public final class DatadogProfiler {
       } else {
         cmd.append(",filter=");
       }
-      if (useJvmtiWallclockSampler(configProvider)) {
-        cmd.append(",wallsampler=jvmti");
-      }
     }
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
     if (profilingModes.contains(ALLOCATION) || profilingModes.contains(MEMLEAK)) {
@@ -357,10 +354,10 @@ public final class DatadogProfiler {
     return contextSetter.offsetOf(attribute);
   }
 
-  public void setSpanContext(long spanId, long rootSpanId) {
+  public void setSpanContext(long rootSpanId, long spanId, long traceIdHigh, long traceIdLow) {
     debugLogging(rootSpanId);
     try {
-      profiler.setContext(spanId, rootSpanId);
+      profiler.setContext(rootSpanId, spanId, traceIdHigh, traceIdLow);
     } catch (Throwable e) {
       log.debug("Failed to clear context", e);
     }
@@ -369,28 +366,16 @@ public final class DatadogProfiler {
   public void clearSpanContext() {
     debugLogging(0L);
     try {
-      profiler.setContext(0L, 0L);
+      profiler.setContext(0L, 0L, 0L, 0L);
     } catch (Throwable e) {
       log.debug("Failed to set context", e);
     }
   }
 
-  public boolean setContextValue(int offset, int encoding) {
-    if (contextSetter != null && offset >= 0) {
-      try {
-        return contextSetter.setContextValue(offset, encoding);
-      } catch (Throwable e) {
-        log.debug("Failed to set context", e);
-      }
-    }
-    return false;
-  }
-
   public boolean setContextValue(int offset, CharSequence value) {
-    if (contextSetter != null && offset >= 0) {
-      int encoding = encode(value);
+    if (contextSetter != null && offset >= 0 && value != null) {
       try {
-        return contextSetter.setContextValue(offset, encoding);
+        return contextSetter.setContextValue(offset, value.toString());
       } catch (Throwable e) {
         log.debug("Failed to set context", e);
       }
@@ -427,13 +412,6 @@ public final class DatadogProfiler {
     if (detailedDebugLogging && log.isDebugEnabled()) {
       log.debug("localRootSpanId={}", localRootSpanId, new Throwable());
     }
-  }
-
-  int encode(CharSequence constant) {
-    if (constant != null && profiler != null) {
-      return contextSetter.encode(constant.toString());
-    }
-    return 0;
   }
 
   public int[] snapshot() {

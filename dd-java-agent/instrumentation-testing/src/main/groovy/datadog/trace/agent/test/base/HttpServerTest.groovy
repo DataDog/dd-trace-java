@@ -65,6 +65,8 @@ import java.util.function.Supplier
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART_COMBINED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART_REPEATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
@@ -135,6 +137,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ss.registerCallback(events.requestBodyStart(), callbacks.requestBodyStartCb)
     ss.registerCallback(events.requestBodyDone(), callbacks.requestBodyEndCb)
     ss.registerCallback(events.requestBodyProcessed(), callbacks.requestBodyObjectCb)
+    ss.registerCallback(events.requestFilesFilenames(), callbacks.requestFilesFilenamesCb)
+    ss.registerCallback(events.requestFilesContent(), callbacks.requestFilesContentCb)
     ss.registerCallback(events.responseBody(), callbacks.responseBodyObjectCb)
     ss.registerCallback(events.responseStarted(), callbacks.responseStartedCb)
     ss.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
@@ -367,6 +371,22 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testBodyFilenamesCalledOnce() {
+    false
+  }
+
+  boolean testBodyFilenamesCalledOnceCombined() {
+    false
+  }
+
+  boolean testBodyFilenames() {
+    false
+  }
+
+  boolean testBodyFilesContent() {
+    false
+  }
+
   boolean testBodyJson() {
     false
   }
@@ -471,6 +491,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     CREATED_IS("created_input_stream", 201, "created"),
     BODY_URLENCODED("body-urlencoded?ignore=pair", 200, '[a:[x]]'),
     BODY_MULTIPART("body-multipart?ignore=pair", 200, '[a:[x]]'),
+    BODY_MULTIPART_REPEATED("body-multipart-repeated", 200, "ok"),
+    BODY_MULTIPART_COMBINED("body-multipart-combined", 200, "ok"),
     BODY_JSON("body-json", 200, '{"a":"x"}'),
     BODY_XML("body-xml", 200, '<foo attr="attr_value">mytext<bar/></foo>'),
     REDIRECT("redirect", 302, "/redirected"),
@@ -1165,6 +1187,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     response.body().contentLength() < 1 || redirectHasBody()
+    response.close()
 
     and:
     assertTraces(1) {
@@ -1205,6 +1228,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (bubblesResponse()) {
       assert response.body().string().contains(ERROR.body)
       assert response.code() == ERROR.status
+    } else {
+      response.close()
     }
 
     and:
@@ -1235,7 +1260,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/9396", suites = ["PekkoHttpServerInstrumentationAsyncHttp2Test"])
-  def "test exception"() {
+  def "Instrumentation test exception"() {
     setup:
     def method = "GET"
     def body = null
@@ -1250,6 +1275,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.code() == EXCEPTION.status
     if (testExceptionBody()) {
       assert response.body().string() == EXCEPTION.body
+    } else {
+      response.close()
     }
 
     and:
@@ -1294,6 +1321,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     expect:
     response.code() == NOT_FOUND.status
+    response.close()
 
     and:
     assertTraces(1) {
@@ -1618,6 +1646,153 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  def 'test instrumentation gateway file upload filenames'() {
+    setup:
+    assumeTrue(testBodyFilenames())
+    RequestBody fileBody = RequestBody.create(MediaType.parse('application/octet-stream'), 'file content')
+    def body = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'evil.php', fileBody)
+    .build()
+    def httpRequest = request(BODY_MULTIPART, 'POST', body).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.filenames') == "[evil.php]"
+    }
+
+    cleanup:
+    response.close()
+  }
+
+  def 'test instrumentation gateway file upload filenames called once'() {
+    setup:
+    assumeTrue(testBodyFilenamesCalledOnce())
+    RequestBody fileBody = RequestBody.create(MediaType.parse('application/octet-stream'), 'file content')
+    def body = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'evil.php', fileBody)
+    .build()
+    def httpRequest = request(BODY_MULTIPART_REPEATED, 'POST', body).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.filenames') == "[evil.php]"
+      && it.getTag('_dd.appsec.filenames.cb.calls') == 1
+    }
+
+    cleanup:
+    response.close()
+  }
+
+  def 'test instrumentation gateway file upload filenames called once via parameter map'() {
+    setup:
+    assumeTrue(testBodyFilenamesCalledOnceCombined())
+    RequestBody fileBody = RequestBody.create(MediaType.parse('application/octet-stream'), 'file content')
+    def body = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'evil.php', fileBody)
+    .build()
+    def httpRequest = request(BODY_MULTIPART_COMBINED, 'POST', body).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.filenames') == "[evil.php]"
+      && it.getTag('_dd.appsec.filenames.cb.calls') == 1
+    }
+
+    cleanup:
+    response.close()
+  }
+
+  def 'test instrumentation gateway file upload content'() {
+    setup:
+    assumeTrue(testBodyFilesContent())
+    RequestBody fileBody = RequestBody.create(MediaType.parse('application/octet-stream'), 'file content')
+    def body = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'test.bin', fileBody)
+    .build()
+    def httpRequest = request(BODY_MULTIPART, 'POST', body).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.files_content') == '[file content]'
+    }
+
+    cleanup:
+    response.close()
+  }
+
+  def 'test instrumentation gateway file upload content truncated at max size'() {
+    setup:
+    assumeTrue(testBodyFilesContent())
+    def maxContentBytes = Config.get().getAppSecMaxFileContentBytes()
+    def body = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'large.bin',
+    RequestBody.create(MediaType.parse('application/octet-stream'), 'X' * (maxContentBytes + 500)))
+    .build()
+    def httpRequest = request(BODY_MULTIPART, 'POST', body).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      span ->
+      span.getTag('request.body.files_content') == '[' + 'X' * maxContentBytes + ']'
+    }
+
+    cleanup:
+    response.close()
+  }
+
+  def 'test instrumentation gateway file upload content max files limit'() {
+    setup:
+    assumeTrue(testBodyFilesContent())
+    def maxFilesToInspect = Config.get().getAppSecMaxFileContentCount()
+    def bodyBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM)
+    (1..maxFilesToInspect + 1).each {
+      i ->
+      bodyBuilder.addFormDataPart("file$i", "file${i}.bin",
+      RequestBody.create(MediaType.parse('application/octet-stream'), "content_of_file_$i"))
+    }
+    def httpRequest = request(BODY_MULTIPART, 'POST', bodyBuilder.build()).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      span ->
+      def tag = span.getTag('request.body.files_content') as String
+      tag?.contains("content_of_file_$maxFilesToInspect") &&
+      !tag.contains("content_of_file_${maxFilesToInspect + 1}")
+    }
+
+    cleanup:
+    response.close()
+  }
+
   def 'test instrumentation gateway json request body'() {
     setup:
     assumeTrue(testBodyJson())
@@ -1808,6 +1983,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.code() == 301
     response.header('location') == 'https://www.google.com/'
     !handlerRan
+    response.close()
 
     when:
     TEST_WRITER.waitForTraces(1)
@@ -2089,6 +2265,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
     response.code() == 301
     response.header("Location") == 'https://www.google.com/'
+    response.close()
     TEST_WRITER.waitForTraces(1)
     def trace = TEST_WRITER.get(0)
 
@@ -2454,22 +2631,18 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (hasPeerPort) {
             "$Tags.PEER_PORT" Integer
           }
+          def peerHostTag = Tags.PEER_HOST_IPV4
+          def expectedPeerIp = "127.0.0.1"
           if (span.getTag(Tags.PEER_HOST_IPV6) != null) {
-            "$Tags.PEER_HOST_IPV6" {
-              it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
-            "$Tags.HTTP_CLIENT_IP" {
-              it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
-          } else {
-            "$Tags.PEER_HOST_IPV4" {
-              it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
-            "$Tags.HTTP_CLIENT_IP" {
-              it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
+            peerHostTag = Tags.PEER_HOST_IPV6
+            expectedPeerIp = "0:0:0:0:0:0:0:1"
           }
+          tag(peerHostTag, expectedPeerIp)
+          "$Tags.HTTP_CLIENT_IP" clientIp ?: expectedPeerIp
+          "$Tags.NETWORK_CLIENT_IP" expectedPeerIp
         } else {
+          // http.client_ip is inferred from forwarded headers; network.client.ip requires peerIp.
+          "$Tags.NETWORK_CLIENT_IP" null
           "$Tags.HTTP_CLIENT_IP" clientIp
         }
         "$Tags.HTTP_HOSTNAME" address.host
@@ -2552,6 +2725,9 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       boolean responseHeadersInTags
       boolean responseBodyTag
       Object responseBody
+      List<String> uploadedFilenames
+      List<String> uploadedFilesContent
+      int uploadedFilenamesCallCount = 0
     }
 
     static final String stringOrEmpty(String string) {
@@ -2718,6 +2894,26 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         Flow.ResultFlow.empty()
       }
     } as BiFunction<RequestContext, Object, Flow<Void>>)
+
+    final BiFunction<RequestContext, List<String>, Flow<Void>> requestFilesFilenamesCb =
+    ({
+      RequestContext rqCtxt, List<String> filenames ->
+      rqCtxt.traceSegment.setTagTop('request.body.filenames', filenames as String)
+      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      context.uploadedFilenames = filenames
+      context.uploadedFilenamesCallCount++
+      rqCtxt.traceSegment.setTagTop('_dd.appsec.filenames.cb.calls', context.uploadedFilenamesCallCount)
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext, List<String>, Flow<Void>>)
+
+    final BiFunction<RequestContext, List<String>, Flow<Void>> requestFilesContentCb =
+    ({
+      RequestContext rqCtxt, List<String> contents ->
+      rqCtxt.traceSegment.setTagTop('request.body.files_content', contents as String)
+      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      context.uploadedFilesContent = contents
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext, List<String>, Flow<Void>>)
 
     final BiFunction<RequestContext, Object, Flow<Void>> responseBodyObjectCb =
     ({

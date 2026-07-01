@@ -52,6 +52,7 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
       packageName + ".JettyDecorator",
       packageName + ".RequestURIDataAdapter",
       packageName + ".JettyServerAdvice",
+      packageName + ".JettyServerAdvice$ContextTrackingAdvice",
       packageName + ".JettyServerAdvice$HandleAdvice",
       packageName + ".JettyServerAdvice$ResetAdvice",
       "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
@@ -66,8 +67,10 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        takesNoArguments().and(named("handle")), packageName + ".JettyServerAdvice$HandleAdvice");
+    transformer.applyAdvices(
+        takesNoArguments().and(named("handle")),
+        packageName + ".JettyServerAdvice$ContextTrackingAdvice",
+        packageName + ".JettyServerAdvice$HandleAdvice");
     transformer.applyAdvice(
         named("recycle").and(takesNoArguments()), packageName + ".JettyServerAdvice$ResetAdvice");
   }

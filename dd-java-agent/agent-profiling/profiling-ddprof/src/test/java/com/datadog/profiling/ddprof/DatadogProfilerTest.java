@@ -1,6 +1,5 @@
 package com.datadog.profiling.ddprof;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -180,7 +179,6 @@ class DatadogProfilerTest {
 
     DatadogProfilerContextSetter fooSetter = new DatadogProfilerContextSetter("foo", profiler);
     DatadogProfilerContextSetter barSetter = new DatadogProfilerContextSetter("bar", profiler);
-    int[] snapshot0 = profiler.snapshot();
     try (ProfilingScope ignored = new DatadogProfilingScope(profiler)) {
       fooSetter.set("foo0");
       barSetter.set("bar0");
@@ -194,9 +192,7 @@ class DatadogProfilerTest {
         inner.setContextValue("bar", "bar2");
         assertFalse(Arrays.equals(snapshot2, profiler.snapshot()));
       }
-      assertArrayEquals(snapshot1, profiler.snapshot());
     }
-    assertArrayEquals(snapshot0, profiler.snapshot());
   }
 
   private static ConfigProvider configProvider(

@@ -1,5 +1,6 @@
 package datadog.trace.api.civisibility.config;
 
+import datadog.trace.util.HashingUtils;
 import java.lang.reflect.Method;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -67,7 +68,7 @@ public class TestSourceData {
 
   @Override
   public int hashCode() {
-    return Objects.hash(testClass, testMethod, testMethodName);
+    return HashingUtils.hash(testClass, testMethod, testMethodName);
   }
 
   @Override

@@ -5,6 +5,7 @@ import datadog.trace.util.json.PathCursor;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import okio.BufferedSource;
 import okio.Okio;
 
@@ -60,7 +61,7 @@ public class JsonStreamParser {
    */
   public static boolean tryToParse(String raw, Visitor visitor, PathCursor pathCursor) {
     if (raw.startsWith("{") && raw.endsWith("}") || raw.startsWith("[") && raw.endsWith("]")) {
-      try (InputStream is = new ByteArrayInputStream(raw.getBytes())) {
+      try (InputStream is = new ByteArrayInputStream(raw.getBytes(StandardCharsets.UTF_8))) {
         return tryToParse(is, visitor, pathCursor.copy());
       } catch (Exception e) {
         visitor.expandValueFailed(pathCursor, e);

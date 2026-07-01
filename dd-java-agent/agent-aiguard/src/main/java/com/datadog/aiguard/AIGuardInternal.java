@@ -24,10 +24,12 @@ import datadog.trace.api.aiguard.AIGuard.ToolCall;
 import datadog.trace.api.aiguard.AIGuard.ToolCall.Function;
 import datadog.trace.api.aiguard.Evaluator;
 import datadog.trace.api.aiguard.noop.NoOpEvaluator;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -69,9 +71,21 @@ public class AIGuardInternal implements Evaluator {
   static final String ACTION_TAG = "ai_guard.action";
   static final String REASON_TAG = "ai_guard.reason";
   static final String BLOCKED_TAG = "ai_guard.blocked";
+  static final String EVENT_TAG = "ai_guard.event";
   static final String META_STRUCT_TAG = "ai_guard";
   static final String META_STRUCT_MESSAGES = "messages";
   static final String META_STRUCT_CATEGORIES = "attack_categories";
+  static final String META_STRUCT_SDS = "sds";
+  static final String META_STRUCT_TAG_PROBS = "tag_probs";
+
+  /**
+   * Anomaly detection tags copied from the local root span onto every {@code ai_guard} span with
+   * the {@code ai_guard.} prefix, so the AI Guard backend can correlate AI Guard requests with the
+   * request context (client IP, user, session) without depending on the local root span.
+   */
+  static final String[] ANOMALY_DETECTION_TAGS = {
+    Tags.HTTP_CLIENT_IP, Tags.NETWORK_CLIENT_IP, Tags.HTTP_USER_AGENT, "usr.id", "usr.session_id"
+  };
 
   public static void install() {
     final Config config = Config.get();
@@ -204,7 +218,46 @@ public class AIGuardInternal implements Evaluator {
   }
 
   private boolean isBlockingEnabled(final Options options, final Object isBlockingEnabled) {
+    if (isBlockingEnabled == null) {
+      return false;
+    }
     return options.block() && "true".equalsIgnoreCase(isBlockingEnabled.toString());
+  }
+
+  /**
+   * Applies the {@link ClientIpAddressData} captured during HTTP server request decoration to the
+   * local root span. This is the lazy half of AI Guard client IP collection: {@code
+   * HttpServerDecorator} resolves the IP eagerly and stashes it on the {@link RequestContext}; we
+   * consume it here once an {@code ai_guard} span is created, so IP tags are not added to spans of
+   * non-AI requests in services that have AI Guard enabled.
+   */
+  private static void applyClientIpTags(final AgentSpan localRootSpan) {
+    final RequestContext requestContext = localRootSpan.getRequestContext();
+    if (requestContext == null) {
+      return;
+    }
+    final ClientIpAddressData clientIpAddressData = requestContext.getClientIpAddressData();
+    if (clientIpAddressData == null) {
+      return;
+    }
+    final String peerIp = clientIpAddressData.getPeerIp();
+    if (peerIp != null && localRootSpan.getTag(Tags.NETWORK_CLIENT_IP) == null) {
+      localRootSpan.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
+    }
+    final String inferredClientIp = clientIpAddressData.getInferredClientIp();
+    if (inferredClientIp != null && localRootSpan.getTag(Tags.HTTP_CLIENT_IP) == null) {
+      localRootSpan.setTag(Tags.HTTP_CLIENT_IP, inferredClientIp);
+    }
+  }
+
+  private static void copyAnomalyDetectionTags(
+      final AgentSpan span, final AgentSpan localRootSpan) {
+    for (final String tag : ANOMALY_DETECTION_TAGS) {
+      final Object value = localRootSpan.getTag(tag);
+      if (value != null) {
+        span.setTag("ai_guard." + tag, value.toString());
+      }
+    }
   }
 
   @Override
@@ -216,12 +269,17 @@ public class AIGuardInternal implements Evaluator {
     final AgentTracer.SpanBuilder builder = tracer.buildSpan(SPAN_NAME, SPAN_NAME);
     final AgentSpan parent = AgentTracer.activeSpan();
     if (parent != null) {
-      builder.asChildOf(parent.context());
+      builder.asChildOf(parent.spanContext());
     }
     final AgentSpan span = builder.start();
     final AgentSpan localRootSpan = span.getLocalRootSpan();
     if (localRootSpan != null) {
       localRootSpan.setTag(Tags.AI_GUARD_KEEP, true);
+      localRootSpan.setTag(EVENT_TAG, true);
+      applyClientIpTags(localRootSpan);
+      // copyAnomalyDetectionTags MUST run after applyClientIpTags, to make
+      // sure client IP tags were populated.
+      copyAnomalyDetectionTags(span, localRootSpan);
     }
     try (final AgentScope scope = tracer.activateSpan(span)) {
       final Message last = messages.get(messages.size() - 1);
@@ -252,6 +310,10 @@ public class AIGuardInternal implements Evaluator {
         final String reason = (String) result.get("reason");
         @SuppressWarnings("unchecked")
         final List<String> tags = (List<String>) result.get("tags");
+        @SuppressWarnings("unchecked")
+        final List<?> sdsFindings = (List<?>) result.get("sds_findings");
+        @SuppressWarnings("unchecked")
+        final Map<String, Number> tagProbs = (Map<String, Number>) result.get("tag_probs");
         span.setTag(ACTION_TAG, action);
         if (reason != null) {
           span.setTag(REASON_TAG, reason);
@@ -259,14 +321,20 @@ public class AIGuardInternal implements Evaluator {
         if (tags != null && !tags.isEmpty()) {
           metaStruct.put(META_STRUCT_CATEGORIES, tags);
         }
+        if (tagProbs != null && !tagProbs.isEmpty()) {
+          metaStruct.put(META_STRUCT_TAG_PROBS, tagProbs);
+        }
+        if (sdsFindings != null && !sdsFindings.isEmpty()) {
+          metaStruct.put(META_STRUCT_SDS, sdsFindings);
+        }
         final boolean shouldBlock =
             isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
         WafMetricCollector.get().aiGuardRequest(action, shouldBlock);
         if (shouldBlock) {
           span.setTag(BLOCKED_TAG, true);
-          throw new AIGuardAbortError(action, reason, tags);
+          throw new AIGuardAbortError(action, reason, tags, tagProbs, sdsFindings);
         }
-        return new Evaluation(action, reason, tags);
+        return new Evaluation(action, reason, tags, tagProbs, sdsFindings);
       }
     } catch (AIGuardAbortError e) {
       span.addThrowable(e);

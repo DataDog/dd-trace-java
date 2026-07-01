@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.synapse3;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.DECORATE;
@@ -14,6 +16,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.http.HttpRequest;
@@ -45,10 +48,11 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public void methodAdvice(final MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("requestReceived"))
             .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
+        getClass().getName() + "$ServerRequestContextTrackingAdvice",
         getClass().getName() + "$ServerRequestAdvice");
     transformer.applyAdvice(
         isMethod()
@@ -62,6 +66,21 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
         getClass().getName() + "$ServerErrorResponseAdvice");
   }
 
+  @AppliesOn(CONTEXT_TRACKING)
+  public static final class ServerRequestContextTrackingAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ContextScope onEnter(@Advice.Argument(0) final NHttpServerConnection connection) {
+      HttpRequest request = connection.getHttpRequest();
+      Context parentContext = DECORATE.extract(request);
+      return parentContext.attach();
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void onExit(@Advice.Enter final ContextScope scope) {
+      scope.close();
+    }
+  }
+
   public static final class ServerRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginRequest(
@@ -69,7 +88,8 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
 
       // check incoming request for distributed trace ids
       HttpRequest request = connection.getHttpRequest();
-      Context parentContext = DECORATE.extract(request);
+      Context parentContext =
+          getCurrentContext(); // parent context attached by ContextTrackingAdvice
       Context context = DECORATE.startSpan(request, parentContext);
       ContextScope scope = context.attach();
       AgentSpan span = spanFromContext(context);

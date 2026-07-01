@@ -3,6 +3,7 @@ package datadog.trace.core;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.List;
@@ -138,5 +139,15 @@ public class LongRunningTracesTracker {
     dropped = 0;
     write = 0;
     expired = 0;
+  }
+
+  @VisibleForTesting
+  int trackedCount() {
+    return traceArray.size();
+  }
+
+  @VisibleForTesting
+  int getDropped() {
+    return dropped;
   }
 }

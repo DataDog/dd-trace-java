@@ -53,6 +53,7 @@
       "test.browser.name" : "htmlunit",
       "test.browser.version" : "2.70.0",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
+      "test.final_status" : "pass",
       "test.framework" : "junit5",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.is_rum_active" : "true",

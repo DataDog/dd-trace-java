@@ -4,6 +4,7 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import com.datadog.profiling.scrubber.DefaultScrubDefinition;
 import com.datadog.profiling.scrubber.JfrScrubber;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.api.profiling.RecordingInputStream;
@@ -45,7 +46,7 @@ final class ScrubRecordingDataListener implements RecordingDataListener {
     this(delegate, scrubber, failOpen, null);
   }
 
-  // visible for testing
+  @VisibleForTesting
   ScrubRecordingDataListener(
       RecordingDataListener delegate, JfrScrubber scrubber, boolean failOpen, Path tempDir) {
     this.delegate = delegate;

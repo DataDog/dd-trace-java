@@ -4,6 +4,7 @@ import datadog.trace.agent.tooling.bytebuddy.csi.Advices
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteInstrumentation
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteSupplier
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.test.util.DDSpecification
 import groovy.transform.CompileDynamic
 import net.bytebuddy.agent.builder.AgentBuilder
@@ -30,6 +31,10 @@ import static net.bytebuddy.matcher.ElementMatchers.named
 
 @CompileDynamic
 class BaseCallSiteTest extends DDSpecification {
+
+  def setupSpec() {
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   protected CallSites mockCallSites(final byte type = BEFORE, final CallSiteAdvice advice, final Pointcut target, final String... helpers) {
     return Stub(CallSites) {

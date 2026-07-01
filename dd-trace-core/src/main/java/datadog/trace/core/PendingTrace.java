@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import datadog.metrics.api.Recording;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
@@ -131,11 +132,16 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
 
   /**
    * Updated with the latest nanoTicks each time getCurrentTimeNano is called (at the start and
-   * finish of each span).
+   * finish of each span). Uses lazySet for writes (release-store semantics) since the value is only
+   * read for approximate timeout detection by the PendingTraceBuffer background thread.
    */
   private volatile long lastReferenced = 0;
 
-  private PendingTrace(
+  private static final AtomicLongFieldUpdater<PendingTrace> LAST_REFERENCED =
+      AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "lastReferenced");
+
+  @VisibleForTesting
+  PendingTrace(
       @Nonnull CoreTracer tracer,
       @Nonnull DDTraceId traceId,
       @Nonnull PendingTraceBuffer pendingTraceBuffer,
@@ -163,25 +169,27 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   @Override
   public long getCurrentTimeNano() {
     long nanoTicks = timeSource.getNanoTicks();
-    lastReferenced = nanoTicks;
+    LAST_REFERENCED.lazySet(this, nanoTicks);
     return tracer.getTimeWithNanoTicks(nanoTicks);
   }
 
   @Override
   void touch() {
-    lastReferenced = timeSource.getNanoTicks();
+    LAST_REFERENCED.lazySet(this, timeSource.getNanoTicks());
   }
 
   @Override
   public boolean lastReferencedNanosAgo(long nanos) {
     long currentNanoTicks = timeSource.getNanoTicks();
-    long age = currentNanoTicks - lastReferenced;
+    long age = currentNanoTicks - LAST_REFERENCED.get(this);
     return nanos < age;
   }
 
   @Override
   void registerSpan(final DDSpan span) {
-    ROOT_SPAN.compareAndSet(this, null, span);
+    if (rootSpan == null) {
+      ROOT_SPAN.compareAndSet(this, null, span);
+    }
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
     healthMetrics.onCreateSpan();
     if (pendingTraceBuffer.longRunningSpansEnabled()) {
@@ -202,6 +210,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   }
 
   Integer evaluateSamplingPriority() {
+    @SuppressWarnings("resource")
     DDSpan span = spans.peek();
     if (span == null) {
       return null;
@@ -215,6 +224,41 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
 
   boolean compareAndSetLongRunningState(int expected, int newState) {
     return LONG_RUNNING_STATE.compareAndSet(this, expected, newState);
+  }
+
+  @VisibleForTesting
+  int getLongRunningTrackedState() {
+    return longRunningTrackedState;
+  }
+
+  @VisibleForTesting
+  void setLongRunningTrackedState(int state) {
+    LONG_RUNNING_STATE.set(this, state);
+  }
+
+  @VisibleForTesting
+  int getPendingReferenceCount() {
+    return pendingReferenceCount;
+  }
+
+  @VisibleForTesting
+  PendingTraceBuffer getPendingTraceBuffer() {
+    return pendingTraceBuffer;
+  }
+
+  @VisibleForTesting
+  DDTraceId getTraceId() {
+    return traceId;
+  }
+
+  @VisibleForTesting
+  boolean isRootSpanWritten() {
+    return rootSpanWritten;
+  }
+
+  @VisibleForTesting
+  int getIsEnqueued() {
+    return isEnqueued;
   }
 
   boolean empty() {
@@ -327,7 +371,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     if (!spans.isEmpty()) {
       try (Recording recording = tracer.writeTimer()) {
         // Only one writer at a time
-        final List<DDSpan> trace;
+        final SpanList trace;
         int completedSpans = 0;
         synchronized (this) {
           if (!isPartial) {
@@ -346,10 +390,10 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
           // count(s) will be incremented, and any new spans added during the period that the count
           // was negative will be written by someone even if we don't write them right now.
           if (size > 0 && (!isPartial || size >= tracer.getPartialFlushMinSpans())) {
-            trace = new ArrayList<>(size);
+            trace = new SpanList(size);
             completedSpans = enqueueSpansToWrite(trace, writeRunningSpans);
           } else {
-            trace = EMPTY;
+            trace = SpanList.EMPTY;
           }
         }
         if (!trace.isEmpty()) {
@@ -450,7 +494,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
       return duration;
     }
     DDSpan ddSpan = (DDSpan) span;
-    TraceCollector traceCollector = ddSpan.context().getTraceCollector();
+    TraceCollector traceCollector = ddSpan.spanContext().getTraceCollector();
     if (!(traceCollector instanceof PendingTrace)) {
       throw new IllegalArgumentException(
           "Expected "

@@ -1,0 +1,15 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  testImplementation project(':dd-smoke-tests')
+  testImplementation libs.testcontainers
+}
+
+testJvmConstraints {
+  // there is no need to run it multiple times since it runs on a container
+  maxJavaVersion = JavaVersion.VERSION_1_8
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

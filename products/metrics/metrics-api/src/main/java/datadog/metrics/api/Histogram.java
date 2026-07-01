@@ -39,7 +39,11 @@ public interface Histogram {
     return Histograms.factory.newHistogram(relativeAccuracy, maxNumBins);
   }
 
-  static Histogram newHistogram(List<Double> binBoundaries) {
-    return Histograms.factory.newHistogram(binBoundaries);
+  static HistogramWithSum newHistogramWithSum(double relativeAccuracy, int maxNumBins) {
+    return Histograms.factory.newHistogramWithSum(relativeAccuracy, maxNumBins);
+  }
+
+  static HistogramWithSum newHistogramWithSum(List<Double> binBoundaries) {
+    return Histograms.factory.newHistogramWithSum(binBoundaries);
   }
 }

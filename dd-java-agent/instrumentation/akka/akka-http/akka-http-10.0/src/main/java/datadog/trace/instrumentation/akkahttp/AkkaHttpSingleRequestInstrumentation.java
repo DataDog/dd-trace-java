@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.akkahttp;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST;
+import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.AKKA_HTTP_CLIENT;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientHelpers.AkkaHttpHeaders;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientHelpers.OnCompleteHandler;
@@ -16,6 +18,7 @@ import akka.http.scaladsl.model.HttpResponse;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -47,20 +50,23 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     // This is mainly for compatibility with 10.0
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         named("singleRequest").and(takesArgument(0, named("akka.http.scaladsl.model.HttpRequest"))),
-        AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice");
+        AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice",
+        AkkaHttpSingleRequestInstrumentation.class.getName()
+            + "$SingleRequestContextPropagationAdvice");
     // This is for 10.1+
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         named("singleRequestImpl")
             .and(takesArgument(0, named("akka.http.scaladsl.model.HttpRequest"))),
-        AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice");
+        AkkaHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice",
+        AkkaHttpSingleRequestInstrumentation.class.getName()
+            + "$SingleRequestContextPropagationAdvice");
   }
 
   public static class SingleRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(
-        @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+    public static AgentScope methodEnter(@Advice.Argument(value = 0) final HttpRequest request) {
       /*
       Versions 10.0 and 10.1 have slightly different structure that is hard to distinguish so here
       we cast 'wider net' and avoid instrumenting twice.
@@ -72,15 +78,9 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
         return null;
       }
 
-      final AgentSpan span = startSpan("akka-http", AKKA_CLIENT_REQUEST);
+      final AgentSpan span = startSpan(AKKA_HTTP_CLIENT.toString(), AKKA_CLIENT_REQUEST);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
-
-      if (request != null) {
-        DECORATE.injectContext(getCurrentContext().with(span), request, headers);
-        // Request is immutable, so we have to assign new value once we update headers
-        request = headers.getRequest();
-      }
       return activateSpan(span);
     }
 
@@ -104,6 +104,20 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
         span.finish();
       }
       scope.close();
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class SingleRequestContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(
+        @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+      if (request == null) {
+        return;
+      }
+      final AkkaHttpHeaders headers = new AkkaHttpHeaders(request);
+      DECORATE.injectContext(getCurrentContext(), request, headers);
+      request = headers.getRequest();
     }
   }
 }

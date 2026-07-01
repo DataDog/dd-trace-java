@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 public class ContextPayload {
 
   private static final Logger log = LoggerFactory.getLogger(ContextPayload.class);
+  private static final int MAX_CONTEXT_SIZE = 1000;
   private final Map<String, String> context;
   public static final InjectAdapter SETTER = new InjectAdapter();
 
@@ -39,20 +40,26 @@ public class ContextPayload {
   }
 
   public static ContextPayload read(final ObjectInput oi) throws IOException {
-    try {
-      final Object object = oi.readObject();
-      if (object instanceof Map) {
-        return new ContextPayload((Map<String, String>) object);
-      }
-    } catch (final ClassCastException | ClassNotFoundException ex) {
-      log.debug("Error reading object", ex);
+    final int size = oi.readInt();
+    if (size < 0 || size > MAX_CONTEXT_SIZE) {
+      log.debug("Dropping RMI context payload: size {} exceeds maximum {}", size, MAX_CONTEXT_SIZE);
+      return null;
     }
-
-    return null;
+    final Map<String, String> context = new HashMap<>(size * 2);
+    for (int i = 0; i < size; i++) {
+      final String key = oi.readUTF();
+      final String value = oi.readUTF();
+      context.put(key, value);
+    }
+    return new ContextPayload(context);
   }
 
   public void write(final ObjectOutput out) throws IOException {
-    out.writeObject(context);
+    out.writeInt(context.size());
+    for (final Map.Entry<String, String> entry : context.entrySet()) {
+      out.writeUTF(entry.getKey());
+      out.writeUTF(entry.getValue());
+    }
   }
 
   @ParametersAreNonnullByDefault

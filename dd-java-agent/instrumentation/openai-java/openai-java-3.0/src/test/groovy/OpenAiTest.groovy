@@ -1,9 +1,11 @@
-import com.google.common.base.Charsets
+import static java.nio.charset.StandardCharsets.UTF_8
+
 import com.google.common.base.Strings
 import com.openai.client.OpenAIClient
 import com.openai.client.okhttp.OkHttpClient
 import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.core.ClientOptions
+import com.openai.core.ObjectMappers
 import com.openai.credential.BearerTokenCredential
 import com.openai.core.JsonValue
 import com.openai.models.ChatModel
@@ -13,6 +15,7 @@ import com.openai.models.Reasoning
 import com.openai.models.ReasoningEffort
 import com.openai.models.chat.completions.ChatCompletionCreateParams
 import com.openai.models.chat.completions.ChatCompletionFunctionTool
+import com.openai.models.chat.completions.ChatCompletionNamedToolChoice
 import com.openai.models.chat.completions.ChatCompletionStreamOptions
 import com.openai.models.completions.CompletionCreateParams
 import com.openai.models.embeddings.EmbeddingCreateParams
@@ -21,6 +24,11 @@ import com.openai.models.responses.ResponseCreateParams
 import com.openai.models.responses.ResponseFunctionToolCall
 import com.openai.models.responses.ResponseIncludable
 import com.openai.models.responses.ResponseInputItem
+import com.openai.models.responses.ResponsePrompt
+import com.openai.models.responses.FunctionTool
+import com.openai.models.responses.CustomTool
+import com.openai.models.responses.Tool
+import com.openai.models.responses.ToolChoiceCustom
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.config.LlmObsConfig
@@ -35,6 +43,7 @@ abstract class OpenAiTest extends InstrumentationSpecification {
   // openai token - will use real openai backend and record request/responses to use later in the mock mode
   // empty or null - will use mockOpenAiBackend and read recorded request/responses
   static final String OPENAI_TOKEN = ""
+  static final String MOCK_OPENAI_TOKEN = "mock-openai-token"
 
   private static final Path RECORDS_DIR = Paths.get("src/test/resources/http-records")
   private static final String API_VERSION = "v1"
@@ -53,7 +62,7 @@ abstract class OpenAiTest extends InstrumentationSpecification {
     handlers {
       prefix("/$API_VERSION/") {
         def requestBody = request.text
-        def recFile = RequestResponseRecord.requestToFileName("POST", requestBody.getBytes(Charsets.UTF_8))
+        def recFile = RequestResponseRecord.requestToFileName("POST", requestBody.getBytes(UTF_8))
         def rec = cache.get(recFile)
         if (rec == null) {
           String path = request.path
@@ -87,7 +96,7 @@ abstract class OpenAiTest extends InstrumentationSpecification {
       OpenAIOkHttpClient.Builder b = OpenAIOkHttpClient.builder()
       openAiBaseApi = "${mockOpenAiBackend.address.toURL()}/$API_VERSION"
       b.baseUrl(openAiBaseApi)
-      b.credential(BearerTokenCredential.create(""))
+      b.credential(BearerTokenCredential.create(MOCK_OPENAI_TOKEN))
       openAiClient = b.build()
     } else {
       // real openai backend, with custom httpClient to capture and save request/response records
@@ -256,6 +265,42 @@ He hopes to pursue a career in software engineering after graduating.""")
     .build()
   }
 
+  ChatCompletionCreateParams chatCompletionCreateParamsWithToolChoice() {
+    chatCompletionCreateParamsWithTools().toBuilder()
+    .toolChoice(ChatCompletionNamedToolChoice.builder()
+    .type(JsonValue.from("function"))
+    .function(ChatCompletionNamedToolChoice.Function.builder()
+    .name("extract_student_info")
+    .build())
+    .build())
+    .build()
+  }
+
+  ChatCompletionCreateParams chatCompletionCreateParamsWithRawTools() {
+    def functionMap = [
+      name: "extract_student_info_raw",
+      description: "Extract student information from the input text",
+      parameters: [
+        type: "object",
+        properties: [
+          name: [type: "string", description: "Name of the student"],
+          major: [type: "string", description: "Major subject"],
+        ],
+        required: ["name"],
+      ]
+    ]
+
+    ChatCompletionCreateParams.builder()
+    .model("gpt-4o-mini")
+    .addUserMessage("""Extract the student's name and major.
+Alice Johnson majors in mathematics at UCLA.""")
+    .addTool(ChatCompletionFunctionTool.builder()
+    .type(JsonValue.from("function"))
+    .function(JsonValue.from(functionMap))
+    .build())
+    .build()
+  }
+
   ResponseCreateParams responseCreateParamsWithToolInput(boolean json) {
     if (json) {
       def rawInputJson = [
@@ -310,6 +355,148 @@ He hopes to pursue a career in software engineering after graduating.""")
     }
   }
 
+  ResponseCreateParams responseCreateParamsWithPromptTracking(boolean json) {
+    if (json) {
+      def rawPrompt = JsonValue.from([
+        id: "pmpt_69201db75c4c81959c01ea6987ab023c070192cd2843dec0",
+        variables: [
+          user_message: [type: "input_text", text: "Analyze these images and document"],
+          user_image_1: [type: "input_image", image_url: "https://raw.githubusercontent.com/github/explore/main/topics/python/python.png"],
+          user_file: [type: "input_file", file_url: "https://www.berkshirehathaway.com/letters/2024ltr.pdf"],
+          user_image_2: [type: "input_image", file_id: "file-BCuhT1HQ24kmtsuuzF1mh2"],
+        ],
+        version: "2",
+      ])
+
+      ResponseCreateParams.builder()
+      .prompt(rawPrompt)
+      .build()
+    } else {
+      def variables = ResponsePrompt.Variables.builder()
+      .putAdditionalProperty("user_message", JsonValue.from([type: "input_text", text: "Analyze these images and document"]))
+      .putAdditionalProperty("user_image_1", JsonValue.from([type: "input_image", image_url: "https://raw.githubusercontent.com/github/explore/main/topics/python/python.png"]))
+      .putAdditionalProperty("user_file", JsonValue.from([type: "input_file", file_url: "https://www.berkshirehathaway.com/letters/2024ltr.pdf"]))
+      .putAdditionalProperty("user_image_2", JsonValue.from([type: "input_image", file_id: "file-BCuhT1HQ24kmtsuuzF1mh2"]))
+      .build()
+
+      def prompt = ResponsePrompt.builder()
+      .id("pmpt_69201db75c4c81959c01ea6987ab023c070192cd2843dec0")
+      .version("2")
+      .variables(variables)
+      .build()
+
+      ResponseCreateParams.builder()
+      .prompt(prompt)
+      .build()
+    }
+  }
+
+  ResponseCreateParams responseCreateParamsWithCustomToolCall(boolean json) {
+    def customTool = CustomTool.builder()
+    .name("custom_weather")
+    .description("Return weather for a location")
+    .formatText()
+    .build()
+
+    def toolChoice = ToolChoiceCustom.builder()
+    .name("custom_weather")
+    .type(JsonValue.from("custom"))
+    .build()
+
+    if (json) {
+      ResponseCreateParams.builder()
+      .model("gpt-5")
+      .input("Use the custom_weather tool to answer: What's the weather in Boston?")
+      .addTool(customTool)
+      .toolChoice(toolChoice)
+      .build()
+    } else {
+      ResponseCreateParams.builder()
+      .model(ChatModel.GPT_5)
+      .input("Use the custom_weather tool to answer: What's the weather in Boston?")
+      .addTool(customTool)
+      .toolChoice(toolChoice)
+      .build()
+    }
+  }
+
+  ResponseCreateParams responseCreateParamsWithFunctionTool(boolean json) {
+    def functionTool = FunctionTool.builder()
+    .name("extract_student_info")
+    .description("Extract student information from the input text")
+    .strict(false)
+    .parameters(FunctionTool.Parameters.builder()
+    .putAdditionalProperty("type", JsonValue.from("object"))
+    .putAdditionalProperty("properties", JsonValue.from([
+      name: [type: "string", description: "Name of the student"],
+      major: [type: "string", description: "Major subject"],
+    ]))
+    .putAdditionalProperty("required", JsonValue.from(["name"]))
+    .build())
+    .build()
+
+    if (json) {
+      ResponseCreateParams.builder()
+      .model("gpt-4.1")
+      .input("Extract the student's name and major from: Alice Johnson majors in mathematics at UCLA.")
+      .addTool(functionTool)
+      .build()
+    } else {
+      ResponseCreateParams.builder()
+      .model(ChatModel.GPT_4_1)
+      .input("Extract the student's name and major from: Alice Johnson majors in mathematics at UCLA.")
+      .addTool(functionTool)
+      .build()
+    }
+  }
+
+  ResponseCreateParams responseCreateParamsWithRawFunctionTool() {
+    def rawTools = ObjectMappers.jsonMapper().readValue(
+    """[
+        {
+          "type": "function",
+          "name": "extract_student_info_raw",
+          "description": "Extract student information from the input text",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string", "description": "Name of the student"},
+              "major": {"type": "string", "description": "Major subject"}
+            },
+            "required": ["name"]
+          }
+        }
+      ]""",
+    com.openai.core.JsonField
+    )
+
+    ResponseCreateParams params = ResponseCreateParams.builder()
+    .model(ChatModel.GPT_4_1)
+    .input("Extract the student's name and major from: Alice Johnson majors in mathematics at UCLA.")
+    .build()
+
+    def toolsField = params._body().class.getDeclaredField("tools")
+    toolsField.accessible = true
+    toolsField.set(params._body(), rawTools)
+
+    params
+  }
+
+  ResponseCreateParams responseCreateParamsWithMcpToolCall() {
+    def mcpTool = Tool.Mcp.builder()
+    .serverLabel("openai_docs")
+    .serverDescription("OpenAI documentation MCP server.")
+    .serverUrl("https://developers.openai.com/mcp")
+    .requireApproval(Tool.Mcp.RequireApproval.McpToolApprovalSetting.NEVER)
+    .build()
+
+    ResponseCreateParams.builder()
+    .model(ChatModel.GPT_5)
+    .input("Use the OpenAI docs MCP server to find the Responses API MCP tool documentation and summarize the require_approval option.")
+    .addTool(mcpTool)
+    .build()
+  }
+
   ChatCompletionCreateParams chatCompletionCreateParamsMultiChoice(boolean json) {
     if (json) {
       ChatCompletionCreateParams.builder()
@@ -328,4 +515,3 @@ He hopes to pursue a career in software engineering after graduating.""")
     }
   }
 }
-

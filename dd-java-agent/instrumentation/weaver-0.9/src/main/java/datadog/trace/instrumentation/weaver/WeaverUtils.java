@@ -36,6 +36,10 @@ public abstract class WeaverUtils {
   private static final String RESULT_FAILURES_FAILURE_CLASS_NAME = "weaver.Result$Failures$Failure";
   // - Failure.source changed from Optional<Throwable> to Throwable
   public static final MethodHandle GET_FAILURE_SOURCE_HANDLE = createFailureSourceHandle();
+  // - In v0.12.0, ExpectationFailed is no longer a Throwable
+  private static final String EXPECTATION_FAILED_CLASS_NAME = "weaver.ExpectationFailed";
+  private static final MethodHandle GET_EXPECTATION_FAILED_MESSAGE_HANDLE =
+      METHOD_HANDLES.method(getClass(EXPECTATION_FAILED_CLASS_NAME), "message");
 
   public static final List<LibraryCapability> CAPABILITIES = Collections.emptyList();
 
@@ -102,5 +106,32 @@ public abstract class WeaverUtils {
     } else {
       return type.cast(value);
     }
+  }
+
+  /**
+   * Converts a failure source to a Throwable. In weaver v0.9–v0.11, the source is a Throwable (or
+   * Option&lt;Throwable&gt;). In v0.12.0+, ExpectationFailed is no longer a Throwable, so we
+   * extract its message and wrap it in a RuntimeException.
+   */
+  @Nullable
+  public static Throwable toThrowable(@Nullable Object source) {
+    if (source == null) {
+      return null;
+    }
+    if (source instanceof Option) {
+      source = ((Option<?>) source).getOrElse(null);
+      if (source == null) {
+        return null;
+      }
+    }
+    if (source instanceof Throwable) {
+      return (Throwable) source;
+    }
+    // v0.12.0+: ExpectationFailed is no longer a Throwable
+    if (GET_EXPECTATION_FAILED_MESSAGE_HANDLE != null) {
+      String message = METHOD_HANDLES.invoke(GET_EXPECTATION_FAILED_MESSAGE_HANDLE, source);
+      return new RuntimeException(message);
+    }
+    return new RuntimeException(source.toString());
   }
 }

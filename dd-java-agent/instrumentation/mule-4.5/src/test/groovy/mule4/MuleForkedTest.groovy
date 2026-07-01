@@ -8,6 +8,7 @@ import static org.mule.runtime.api.util.MuleTestUtil.muleSpan
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.trace.agent.test.base.WithHttpServer
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -21,15 +22,12 @@ import spock.lang.Shared
 
 class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
-  // TODO since mule uses reactor core, things sometime propagate to places where they're not closed
-  @Override
-  boolean useStrictTraceWrites() {
-    return false
-  }
-
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
+    // Opt out of strict config validation because this test loads HttpServerTestHandlerInstrumentation
+    // which uses the fake instrumentation name "mule4-http-server-test-handler"
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
     injectSysConfig("integration.mule.enabled", "true")
   }
 
@@ -111,6 +109,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
             defaultTags()
           }
@@ -170,6 +169,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             "$Tags.PEER_PORT" { Integer }
             defaultTags()
           }

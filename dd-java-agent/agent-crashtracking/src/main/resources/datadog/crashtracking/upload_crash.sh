@@ -7,6 +7,14 @@ set +e
 if [ -z "$1" ]; then
   echo "Warn: No PID provided. Running in legacy mode."
 
+  # Clear environment variables that the parent JVM may have set
+  unset JDK_JAVA_OPTIONS
+  unset JAVA_TOOL_OPTIONS
+  unset _JAVA_OPTIONS
+  # Prevent the instrumentation injector from re-injecting the agent into the child JVM
+  unset LD_PRELOAD
+  unset DYLD_INSERT_LIBRARIES
+
   "!JAVA_HOME!/bin/java" -jar "!AGENT_JAR!" uploadCrash "!JAVA_ERROR_FILE!"
   if [ $? -eq 0 ]; then
     echo "Error file !JAVA_ERROR_FILE! was uploaded successfully"
@@ -118,6 +126,15 @@ echo "Agent Jar: $config_agent"
 echo "Error Log: $config_hs_err"
 echo "JAVA_HOME: $config_java_home"
 echo "PID: $PID"
+
+# Clear environment variables that the parent JVM may have set so the child JVM
+# starts with a minimal configuration (avoids port conflicts, memory contention, etc.)
+unset JDK_JAVA_OPTIONS
+unset JAVA_TOOL_OPTIONS
+unset _JAVA_OPTIONS
+# Prevent the instrumentation injector from re-injecting the agent into the child JVM
+unset LD_PRELOAD
+unset DYLD_INSERT_LIBRARIES
 
 # Execute the Java command with the loaded values
 "$config_java_home/bin/java" -jar "$config_agent" uploadCrash -c "$configFile" "$config_hs_err"

@@ -1,6 +1,6 @@
 package datadog.communication.http;
 
-import static datadog.common.socket.SocketUtils.discoverApmSocket;
+import static datadog.communication.http.SocketUtils.discoverApmSocket;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import okhttp3.EventListener;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
+import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
@@ -62,22 +64,47 @@ public final class OkHttpUtils {
   }
 
   public static OkHttpClient buildHttpClient(
-      final boolean isHttp,
+      final boolean isPlainHttp,
       final String unixDomainSocketPath,
       final String namedPipe,
       final long timeoutMillis) {
     return buildHttpClient(
         unixDomainSocketPath,
+        Config.get().isJdkSocketEnabled(),
         namedPipe,
         null,
-        isHttp,
+        isPlainHttp,
+        false,
         null,
         null,
         null,
         null,
         null,
         null,
-        timeoutMillis);
+        timeoutMillis,
+        Config.get().isAgentConfiguredUsingDefault());
+  }
+
+  public static OkHttpClient buildHttp2Client(
+      final boolean isPlainHttp,
+      final String unixDomainSocketPath,
+      final String namedPipe,
+      final long timeoutMillis) {
+    return buildHttpClient(
+        unixDomainSocketPath,
+        Config.get().isJdkSocketEnabled(),
+        namedPipe,
+        null,
+        isPlainHttp,
+        true,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        timeoutMillis,
+        Config.get().isAgentConfiguredUsingDefault());
   }
 
   public static OkHttpClient buildHttpClient(
@@ -93,32 +120,38 @@ public final class OkHttpUtils {
       final long timeoutMillis) {
     return buildHttpClient(
         discoverApmSocket(config),
+        config.isJdkSocketEnabled(),
         config.getAgentNamedPipe(),
         dispatcher,
         isPlainHttp(url),
+        false,
         retryOnConnectionFailure,
         maxRunningRequests,
         proxyHost,
         proxyPort,
         proxyUsername,
         proxyPassword,
-        timeoutMillis);
+        timeoutMillis,
+        config.isAgentConfiguredUsingDefault());
   }
 
   public abstract static class CustomListener extends EventListener {}
 
   private static OkHttpClient buildHttpClient(
       final String unixDomainSocketPath,
+      final boolean useJdkUnixDomainSocket,
       final String namedPipe,
       final Dispatcher dispatcher,
-      final boolean isHttp,
+      final boolean isPlainHttp,
+      final boolean isHttp2,
       final Boolean retryOnConnectionFailure,
       final Integer maxRunningRequests,
       final String proxyHost,
       final Integer proxyPort,
       final String proxyUsername,
       final String proxyPassword,
-      final long timeoutMillis) {
+      final long timeoutMillis,
+      final boolean agentConfiguredUsingDefault) {
     final OkHttpClient.Builder builder = new OkHttpClient.Builder();
 
     try {
@@ -144,16 +177,26 @@ public final class OkHttpUtils {
             dispatcher != null ? dispatcher : new Dispatcher(RejectingExecutorService.INSTANCE));
 
     if (unixDomainSocketPath != null) {
-      builder.socketFactory(new UnixDomainSocketFactory(new File(unixDomainSocketPath)));
+      builder.socketFactory(
+          new UnixDomainSocketFactory(
+              new File(unixDomainSocketPath), useJdkUnixDomainSocket, agentConfiguredUsingDefault));
       log.debug("Using UnixDomainSocket as http transport");
     } else if (namedPipe != null) {
       builder.socketFactory(new NamedPipeSocketFactory(namedPipe));
       log.debug("Using NamedPipe as http transport");
     }
 
-    if (isHttp) {
+    if (isPlainHttp) {
       // force clear text when using http to avoid failures for JVMs without TLS
       builder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
+    }
+
+    if (isHttp2) {
+      if (isPlainHttp) {
+        builder.protocols(Collections.singletonList(Protocol.H2_PRIOR_KNOWLEDGE));
+      } else {
+        builder.protocols(Arrays.asList(Protocol.HTTP_2, Protocol.HTTP_1_1));
+      }
     }
 
     if (retryOnConnectionFailure != null) {

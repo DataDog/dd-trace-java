@@ -6,12 +6,15 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.grpc.server.GrpcExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC_MESSAGE;
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC_SERVER;
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.SERVER_PATHWAY_EDGE_TAGS;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -43,6 +46,10 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 public class TracingServerInterceptor implements ServerInterceptor {
+  private static final Function<String, Metadata.Key<String>> KEY_MAKER =
+      key -> Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER);
+  private static final DDCache<String, Metadata.Key<String>> KEY_CACHE =
+      DDCaches.newFixedSizeCache(64);
 
   public static final TracingServerInterceptor INSTANCE = new TracingServerInterceptor();
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredInboundMethods();
@@ -67,7 +74,8 @@ public class TracingServerInterceptor implements ServerInterceptor {
     spanContext = callIGCallbackRequestStarted(tracer, spanContext);
 
     CallbackProvider cbp = tracer.getCallbackProvider(RequestContextSlot.APPSEC);
-    final AgentSpan span = startSpan(GRPC_SERVER, spanContext).setMeasured(true);
+    final AgentSpan span =
+        startSpan(COMPONENT_NAME.toString(), GRPC_SERVER, spanContext).setMeasured(true);
 
     AgentTracer.get()
         .getDataStreamsMonitoring()
@@ -143,7 +151,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onMessage(final ReqT message) {
       final AgentSpan msgSpan =
-          startSpan(GRPC_MESSAGE, this.span.context())
+          startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE, this.span.spanContext())
               .setTag("message.type", message.getClass().getName());
       DECORATE.afterStart(msgSpan);
       try (AgentScope scope = activateSpan(msgSpan)) {
@@ -293,7 +301,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     }
     for (String key : metadata.keys()) {
       if (!key.endsWith(Metadata.BINARY_HEADER_SUFFIX)) {
-        Metadata.Key<String> mdKey = Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER);
+        Metadata.Key<String> mdKey = KEY_CACHE.computeIfAbsent(key, KEY_MAKER);
         for (String value : metadata.getAll(mdKey)) {
           headerCb.accept(reqCtx, key, value);
         }

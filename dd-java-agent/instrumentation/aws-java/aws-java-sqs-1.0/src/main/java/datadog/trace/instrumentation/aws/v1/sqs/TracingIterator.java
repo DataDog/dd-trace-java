@@ -7,9 +7,12 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.instrumentation.aws.v1.sqs.MessageExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.BROKER_DECORATE;
+import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.SQS_INBOUND_OPERATION;
 import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.SQS_TIME_IN_QUEUE_OPERATION;
@@ -18,6 +21,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.amazonaws.services.sqs.model.Message;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -43,7 +47,14 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
     boolean moreMessages = delegate.hasNext();
     if (!moreMessages) {
       // no more messages, use this as a signal to close the last iteration scope
-      closePrevious(true);
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        closePrevious(true);
+      } else {
+        final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+        if (previousSpan != null) {
+          previousSpan.finishWithEndToEnd();
+        }
+      }
     }
     return moreMessages;
   }
@@ -57,7 +68,14 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
 
   protected void startNewMessageSpan(Message message) {
     try {
-      closePrevious(true);
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        closePrevious(true);
+      } else if (message == null) { // previous message span was the last
+        final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+        if (previousSpan != null) {
+          previousSpan.finishWithEndToEnd();
+        }
+      }
       if (message != null) {
         AgentSpan queueSpan = null;
         if (batchContext == null) {
@@ -72,12 +90,13 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
             if (timeInQueueStart > 0) {
               queueSpan =
                   startSpan(
+                      COMPONENT_NAME.toString(),
                       SQS_TIME_IN_QUEUE_OPERATION,
                       spanContext,
                       MILLISECONDS.toMicros(timeInQueueStart));
               BROKER_DECORATE.afterStart(queueSpan);
               BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl);
-              spanContext = queueSpan.context();
+              spanContext = queueSpan.spanContext();
               // The queueSpan will be finished after inner span has been activated to ensure that
               // spans are written out together by TraceStructureWriter when running in strict mode
             }
@@ -85,14 +104,21 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
           // re-use this context for any other messages received in this batch
           batchContext = spanContext;
         }
-        AgentSpan span = startSpan(SQS_INBOUND_OPERATION, batchContext);
+        AgentSpan span = startSpan(COMPONENT_NAME.toString(), SQS_INBOUND_OPERATION, batchContext);
 
         DataStreamsTags tags = create("sqs", INBOUND, urlFileName(queueUrl));
         AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, create(tags, 0, 0));
 
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, queueUrl);
-        activateNext(span);
+        if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+          activateNext(span);
+        } else {
+          final AgentSpan previousSpan = spanFromContext(span.swap());
+          if (previousSpan != null) {
+            previousSpan.finishWithEndToEnd();
+          }
+        }
         if (queueSpan != null) {
           BROKER_DECORATE.beforeFinish(queueSpan);
           queueSpan.finish();

@@ -18,6 +18,8 @@ import datadog.trace.api.appsec.MediaType
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.function.TriConsumer
 import datadog.trace.api.function.TriFunction
+import datadog.appsec.api.blocking.BlockingContentType
+import datadog.trace.bootstrap.blocking.BlockingActionHelper
 import datadog.trace.api.gateway.BlockResponseFunction
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.IGSpanInfo
@@ -26,6 +28,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.internal.TraceSegment
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData
 import datadog.trace.api.telemetry.LoginEvent
 import datadog.trace.api.telemetry.RuleType
 import datadog.trace.api.telemetry.WafMetricCollector
@@ -78,6 +81,14 @@ class GatewayBridgeSpecification extends DDSpecification {
     }
 
     @Override
+    void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+
+    @Override
+    ClientIpAddressData getClientIpAddressData() {
+      return null
+    }
+
+    @Override
     void close() throws IOException {}
   }
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
@@ -119,6 +130,9 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, HttpClientResponse, Flow<Void>> httpClientResponseCB
   BiFunction<RequestContext, Long, Flow<Void>> httpClientSamplingCB
   BiFunction<RequestContext, String, Flow<Void>> fileLoadedCB
+  BiFunction<RequestContext, String, Flow<Void>> fileWrittenCB
+  BiFunction<RequestContext, List<String>, Flow<Void>> requestFilesFilenamesCB
+  BiFunction<RequestContext, List<String>, Flow<Void>> requestFilesContentCB
   BiFunction<RequestContext, String, Flow<Void>> requestSessionCB
   BiFunction<RequestContext, String[], Flow<Void>> execCmdCB
   BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
@@ -184,22 +198,19 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * spanInfo.getTags() >> TagMap.fromMap(['http.client_ip': '1.1.1.1'])
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
-    1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close()
-    1 * traceSegment.setTagTop("_dd.appsec.enabled", 1)
-    1 * traceSegment.setTagTop("_dd.runtime_family", "jvm")
-    1 * traceSegment.setTagTop('appsec.event', true)
+    1 * spanInfo.setMetric("_dd.appsec.enabled", 1)
+    1 * spanInfo.setTag("_dd.runtime_family", "jvm")
+    1 * spanInfo.setTag('appsec.event', true)
+    1 * spanInfo.setTag('actor.ip', '1.1.1.1')
     1 * traceSegment.setDataTop('appsec', new AppSecEventWrapper([event]))
-    1 * traceSegment.setTagTop('http.request.headers.accept', 'header_value')
-    1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html; charset=UTF-8')
-    1 * traceSegment.setTagTop('network.client.ip', '2001::1')
     1 * mockAppSecCtx.isWafBlocked()
     1 * mockAppSecCtx.hasWafErrors()
     1 * mockAppSecCtx.getWafTimeouts()
     1 * mockAppSecCtx.isWafRequestBlockFailure()
     1 * mockAppSecCtx.isWafRateLimited()
     1 * mockAppSecCtx.isWafTruncated()
-    1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _) // call waf request metric
+    1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _, _) // call waf request metric
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
@@ -222,7 +233,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * mockAppSecCtx.transferCollectedEvents() >> [Stub(AppSecEvent)]
     1 * spanInfo.getTags() >> TagMap.fromMap(['http.client_ip': '8.8.8.8'])
-    1 * traceSegment.setTagTop('actor.ip', '8.8.8.8')
+    1 * spanInfo.setTag('actor.ip', '8.8.8.8')
   }
 
   void 'bridge can collect headers'() {
@@ -460,7 +471,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void callInitAndCaptureCBs() {
     // force all callbacks to be registered
-    _ * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT]
+    _ * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT, KnownAddresses.REQUEST_FILES_FILENAMES, KnownAddresses.REQUEST_FILES_CONTENT]
 
     1 * ig.registerCallback(EVENTS.requestStarted(), _) >> {
       requestStartedCB = it[1]; null
@@ -534,6 +545,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.fileLoaded(), _) >> {
       fileLoadedCB = it[1]; null
     }
+    1 * ig.registerCallback(EVENTS.fileWritten(), _) >> {
+      fileWrittenCB = it[1]; null
+    }
     1 * ig.registerCallback(EVENTS.requestSession(), _) >> {
       requestSessionCB = it[1]; null
     }
@@ -551,6 +565,12 @@ class GatewayBridgeSpecification extends DDSpecification {
     }
     1 * ig.registerCallback(EVENTS.httpRoute(), _) >> {
       httpRouteCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestFilesFilenames(), _) >> {
+      requestFilesFilenamesCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestFilesContent(), _) >> {
+      requestFilesContentCB = it[1]; null
     }
     0 * ig.registerCallback(_, _)
 
@@ -1077,6 +1097,94 @@ class GatewayBridgeSpecification extends DDSpecification {
     gatewayContext.isRasp == true
   }
 
+  void 'process file written'() {
+    setup:
+    final path = '/tmp/output.txt'
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.IO_FS_FILE in it && KnownAddresses.IO_FS_FILE_WRITE in it
+    }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = fileWrittenCB.apply(ctx, path)
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
+    bundle.get(KnownAddresses.IO_FS_FILE) == path
+    bundle.get(KnownAddresses.IO_FS_FILE_WRITE) == path
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == true
+    gatewayContext.isRasp == true
+  }
+
+  void 'process request files filenames'() {
+    setup:
+    final filenames = ['malicious.php', 'document.pdf']
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_FILES_FILENAMES in it
+    }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = requestFilesFilenamesCB.apply(ctx, filenames)
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
+    bundle.get(KnownAddresses.REQUEST_FILES_FILENAMES) == filenames
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
+  }
+
+  void 'process request files filenames with empty list returns noop'() {
+    when:
+    Flow<?> flow = requestFilesFilenamesCB.apply(ctx, [])
+
+    then:
+    flow == NoopFlow.INSTANCE
+    0 * eventDispatcher.publishDataEvent(*_)
+  }
+
+  void 'process request files content'() {
+    setup:
+    final filesContent = ['%PDF-1.4 malicious content', '#!/bin/bash\nrm -rf /']
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_FILES_CONTENT in it
+    }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = requestFilesContentCB.apply(ctx, filesContent)
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
+    bundle.get(KnownAddresses.REQUEST_FILES_CONTENT) == filesContent
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
+  }
+
+  void 'process request files content with empty list returns noop'() {
+    when:
+    Flow<?> flow = requestFilesContentCB.apply(ctx, [])
+
+    then:
+    flow == NoopFlow.INSTANCE
+    0 * eventDispatcher.publishDataEvent(*_)
+  }
+
   void 'process exec cmd'() {
     setup:
     final cmd = ['/bin/../usr/bin/reboot', '-f'] as String[]
@@ -1151,6 +1259,14 @@ class GatewayBridgeSpecification extends DDSpecification {
 
       @Override
       def <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+        return null
+      }
+
+      @Override
+      void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+
+      @Override
+      ClientIpAddressData getClientIpAddressData() {
         return null
       }
 
@@ -1635,6 +1751,60 @@ class GatewayBridgeSpecification extends DDSpecification {
       final body = bundle.get(KnownAddresses.RESPONSE_BODY_OBJECT)
       assert body['test'] == 'this is a test'
     }
+  }
+
+  void 'blocking response content-type span tag is written for AUTO bct resolved to application/json'() {
+    setup:
+    def rba = new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO)
+    def blockingFlow = [getAction: {
+        rba
+      }, getResult: {
+        null
+      }] as Flow
+    IGSpanInfo spanInfo = Stub(AgentSpan) {
+      getTags() >> TagMap.fromMap([:])
+    }
+
+    when:
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/'))
+    reqHeaderCB.accept(ctx, 'accept', 'application/json')
+    reqHeadersDoneCB.apply(ctx)
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> blockingFlow
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
+    requestEndedCB.apply(ctx, spanInfo)
+
+    then:
+    1 * traceSegment.setTagTop('http.response.headers.content-type', 'application/json')
+    1 * traceSegment.setTagTop('http.response.headers.content-length',
+    String.valueOf(BlockingActionHelper.getTemplate(BlockingActionHelper.TemplateType.JSON, null).length))
+  }
+
+  void 'blocking response content-type span tag is written for AUTO bct resolved to text/html'() {
+    setup:
+    def rba = new Flow.Action.RequestBlockingAction(403, BlockingContentType.AUTO)
+    def blockingFlow = [getAction: {
+        rba
+      }, getResult: {
+        null
+      }] as Flow
+    IGSpanInfo spanInfo = Stub(AgentSpan) {
+      getTags() >> TagMap.fromMap([:])
+    }
+
+    when:
+    requestMethodURICB.apply(ctx, 'GET', TestURIDataAdapter.create('/'))
+    reqHeaderCB.accept(ctx, 'accept', 'text/html,application/xhtml+xml')
+    reqHeadersDoneCB.apply(ctx)
+    eventDispatcher.getDataSubscribers(_) >> nonEmptyDsInfo
+    eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> blockingFlow
+    requestSocketAddressCB.apply(ctx, '0.0.0.0', 5555)
+    requestEndedCB.apply(ctx, spanInfo)
+
+    then:
+    1 * traceSegment.setTagTop('http.response.headers.content-type', 'text/html;charset=utf-8')
+    1 * traceSegment.setTagTop('http.response.headers.content-length',
+    String.valueOf(BlockingActionHelper.getTemplate(BlockingActionHelper.TemplateType.HTML, null).length))
   }
 
   static toLowerCaseHeaders(final Map<String, List<String>> headers) {

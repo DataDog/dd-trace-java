@@ -67,7 +67,7 @@ public class ProcessHierarchy {
   private boolean isWrapper() {
     // Maven Wrapper runs in the same JVM as Maven itself,
     // so it is not included here
-    return isGradleLauncher();
+    return isGradleLauncher() || isGradleWrapper();
   }
 
   private boolean isMavenParent() {
@@ -91,6 +91,15 @@ public class ProcessHierarchy {
     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
     return contextClassLoader.getResource("org/gradle/launcher/Main.class") != null
         || contextClassLoader.getResource("org/gradle/launcher/GradleMain.class") != null;
+  }
+
+  private boolean isGradleWrapper() {
+    // The Gradle Wrapper bootstraps before the launcher classes are on the classpath,
+    // so at premain only the wrapper's own class is visible.
+    return Thread.currentThread()
+            .getContextClassLoader()
+            .getResource("org/gradle/wrapper/GradleWrapperMain.class")
+        != null;
   }
 
   @Nullable

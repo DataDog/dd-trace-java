@@ -4,6 +4,8 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.CoreSpan;
 import java.util.Collections;
@@ -24,8 +26,21 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
   public static final String SAMPLING_AGENT_RATE = "_dd.agent_psr";
 
   private static final double DEFAULT_RATE = 1.0;
+  private static final double MAX_RATE_INCREASE_FACTOR = 2.0;
+  static final long RAMP_UP_INTERVAL_NANOS = 1_000_000_000L;
+
+  private final TimeSource timeSource;
 
   private volatile RateSamplersByEnvAndService serviceRates = new RateSamplersByEnvAndService();
+  private long lastCappedNanos;
+
+  public RateByServiceTraceSampler() {
+    this(SystemTimeSource.INSTANCE);
+  }
+
+  RateByServiceTraceSampler(TimeSource timeSource) {
+    this.timeSource = timeSource;
+  }
 
   @Override
   public <T extends CoreSpan<T>> boolean sample(final T span) {
@@ -62,6 +77,14 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     return span.getTag("env", "");
   }
 
+  static boolean shouldCap(double oldRate, double newRate) {
+    return oldRate != 0 && newRate > oldRate * MAX_RATE_INCREASE_FACTOR;
+  }
+
+  static double cappedRate(double oldRate) {
+    return oldRate * MAX_RATE_INCREASE_FACTOR;
+  }
+
   @Override
   public void onResponse(
       final String endpoint, final Map<String, Map<String, Number>> responseJson) {
@@ -72,6 +95,13 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     }
 
     log.debug("Update service sampler rates: {} -> {}", endpoint, responseJson);
+
+    final RateSamplersByEnvAndService currentSnapshot = serviceRates;
+    final long now = timeSource.getNanoTicks();
+    final boolean canIncrease =
+        lastCappedNanos == 0 || (now - lastCappedNanos) >= RAMP_UP_INTERVAL_NANOS;
+    boolean anyCapped = false;
+
     final TreeMap<String, TreeMap<String, RateSampler>> updatedEnvServiceRates =
         new TreeMap<>(String::compareToIgnoreCase);
 
@@ -84,16 +114,41 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
       EnvAndService envAndService = EnvAndService.fromString(entry.getKey());
       if (envAndService.isFallback()) {
+        double oldRate = currentSnapshot.getFallbackSampler().getSampleRate();
+        if (shouldCap(oldRate, rate)) {
+          if (canIncrease) {
+            rate = cappedRate(oldRate);
+            anyCapped = true;
+          } else {
+            rate = oldRate;
+          }
+        }
         fallbackSampler = RateByServiceTraceSampler.createRateSampler(rate);
       } else {
+        double oldRate =
+            currentSnapshot
+                .getSampler(envAndService.lowerEnv, envAndService.lowerService)
+                .getSampleRate();
+        if (shouldCap(oldRate, rate)) {
+          if (canIncrease) {
+            rate = cappedRate(oldRate);
+            anyCapped = true;
+          } else {
+            rate = oldRate;
+          }
+        }
+        final double effectiveRate = rate;
         Map<String, RateSampler> serviceRates =
             updatedEnvServiceRates.computeIfAbsent(
                 envAndService.lowerEnv, env -> new TreeMap<>(String::compareToIgnoreCase));
 
         serviceRates.computeIfAbsent(
             envAndService.lowerService,
-            service -> RateByServiceTraceSampler.createRateSampler(rate));
+            service -> RateByServiceTraceSampler.createRateSampler(effectiveRate));
       }
+    }
+    if (canIncrease && anyCapped) {
+      lastCappedNanos = now;
     }
     serviceRates = new RateSamplersByEnvAndService(updatedEnvServiceRates, fallbackSampler);
   }
@@ -126,6 +181,10 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
         Map<String, TreeMap<String, RateSampler>> envServiceRates, RateSampler fallbackSampler) {
       this.envServiceRates = envServiceRates;
       this.fallbackSampler = fallbackSampler;
+    }
+
+    RateSampler getFallbackSampler() {
+      return fallbackSampler;
     }
 
     // used in tests only

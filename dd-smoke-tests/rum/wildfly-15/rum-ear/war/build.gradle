@@ -1,6 +1,12 @@
 apply plugin: 'java'
 apply plugin: 'war'
 
+// Pin bytecode target: the nested daemon now runs on JDK 21, but the WAR is deployed in
+// WildFly on Java 8.
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+}
+
 repositories {
   mavenLocal()
   if (project.rootProject.hasProperty("mavenRepositoryProxy")) {

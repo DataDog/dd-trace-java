@@ -124,6 +124,8 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   @Override
   public void end(@Nullable Long endTime) {
     ExecutionSettings executionSettings = executionStrategy.getExecutionSettings();
+    executionSettings.getConfigurationErrors().applyTags(span);
+
     if (executionSettings.isCodeCoverageEnabled()) {
       setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
     }
@@ -168,10 +170,11 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       boolean parallelized,
       TestFrameworkInstrumentation instrumentation) {
     return new TestSuiteImpl(
-        span.context(),
+        span.spanContext(),
         moduleName,
         testSuiteName,
         executionStrategy.getExecutionSettings().getItrCorrelationId(),
+        executionStrategy.getExecutionSettings().isTestSkippingEnabled(),
         testClass,
         startTime,
         parallelized,
@@ -185,6 +188,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         linesResolver,
         coverageStoreFactory,
         executionResults,
+        executionStrategy.getExecutionSettings().getConfigurationErrors(),
         capabilities,
         tagsPropagator::propagateCiVisibilityTags);
   }

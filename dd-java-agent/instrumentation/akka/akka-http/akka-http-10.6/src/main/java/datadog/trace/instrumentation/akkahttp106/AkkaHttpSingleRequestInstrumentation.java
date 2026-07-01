@@ -32,8 +32,9 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         named("singleRequest").and(takesArgument(0, named("akka.http.scaladsl.model.HttpRequest"))),
-        packageName + ".SingleRequestAdvice");
+        packageName + ".SingleRequestAdvice",
+        packageName + ".SingleRequestContextPropagationAdvice");
   }
 }

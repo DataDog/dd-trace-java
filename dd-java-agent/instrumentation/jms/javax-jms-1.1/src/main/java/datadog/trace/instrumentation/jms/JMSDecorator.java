@@ -19,10 +19,13 @@ import java.util.function.Supplier;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.Message;
+import javax.jms.MessageProducer;
 import javax.jms.Queue;
+import javax.jms.QueueSender;
 import javax.jms.TemporaryQueue;
 import javax.jms.TemporaryTopic;
 import javax.jms.Topic;
+import javax.jms.TopicPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -263,6 +266,18 @@ public final class JMSDecorator extends MessagingClientDecorator {
       return resourceName;
     }
     return joiner.apply(destinationName);
+  }
+
+  public Destination getDestination(final MessageProducer messageProducer) throws JMSException {
+    try {
+      return messageProducer.getDestination(); // >= 1.1
+    } catch (AbstractMethodError ignored) {
+      // <=1.1 getDestination is not available so we need to pay an additional instanceOf
+      if (messageProducer instanceof QueueSender) {
+        return ((QueueSender) messageProducer).getQueue();
+      }
+      return ((TopicPublisher) messageProducer).getTopic();
+    }
   }
 
   public String getDestinationName(Destination destination) {

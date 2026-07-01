@@ -24,6 +24,11 @@ public class HystrixOnSubscribe extends TracedOnSubscribe {
   }
 
   @Override
+  protected String instrumentationName() {
+    return "hystrix";
+  }
+
+  @Override
   protected void afterStart(final AgentSpan span) {
     super.afterStart(span);
 

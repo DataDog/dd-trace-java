@@ -4,6 +4,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceApiInfo
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.telemetry.LLMObsMetricCollector
@@ -134,6 +135,8 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
     tagVersion instanceof UTF8BytesString
     "v1" == tagVersion.toString()
+
+    DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
   }
 
   def "test span with overwrites"() {
@@ -219,6 +222,8 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
     tagVersion instanceof UTF8BytesString
     "v1" == tagVersion.toString()
+
+    DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
   }
 
   def "test llm span string input formatted to messages"() {
@@ -270,6 +275,8 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
     tagVersion instanceof UTF8BytesString
     "v1" == tagVersion.toString()
+
+    DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
   }
 
   def "test llm span with messages"() {
@@ -326,6 +333,8 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
     tagVersion instanceof UTF8BytesString
     "v1" == tagVersion.toString()
+
+    DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
   }
 
   def "finish records span.finished telemetry when LLMObs enabled"() {
@@ -400,6 +409,107 @@ class DDLLMObsSpanTest  extends DDSpecification{
     sessionId     | expectedHasSessionIdTag
     "session-123" | "has_session_id:1"
     null          | "has_session_id:0"
+  }
+
+  def "child LLMObs span inherits session_id from parent context when none is passed"() {
+    setup:
+    def expectedSessionId = "session-abc-123"
+    def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", expectedSessionId)
+    // Activate the parent's AgentScope so the child span is created in the same trace.
+    // Without this, the child gets a fresh trace_id and the trace-consistency gate in
+    // DDLLMObsSpan would (correctly) skip session_id inheritance.
+    def parentScope = AgentTracer.activateSpan((AgentSpan) parent.span)
+
+    when:
+    // Child created with null sessionId — should inherit from the parent's LLMObsContext.
+    def child = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "child-llm", null)
+
+    then:
+    def innerChild = (AgentSpan) child.span
+    expectedSessionId == innerChild.getTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID)
+
+    cleanup:
+    child.finish()
+    parentScope.close()
+    parent.finish()
+  }
+
+  def "child LLMObs span has no session_id when neither parent nor child passes one"() {
+    setup:
+    def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", null)
+
+    when:
+    def child = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "child-llm", null)
+
+    then:
+    def innerChild = (AgentSpan) child.span
+    null == innerChild.getTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID)
+
+    cleanup:
+    child.finish()
+    parent.finish()
+  }
+
+  def "grandchild LLMObs span transitively inherits session_id through intermediate span"() {
+    setup:
+    def expectedSessionId = "session-grandparent-xyz"
+    def grandparent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "grandparent-workflow", expectedSessionId)
+    // Activate each ancestor's AgentScope so descendants stay in the same trace —
+    // session_id inheritance is gated on trace-id consistency in DDLLMObsSpan.
+    def grandparentScope = AgentTracer.activateSpan((AgentSpan) grandparent.span)
+    def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", null)
+    def parentScope = AgentTracer.activateSpan((AgentSpan) parent.span)
+
+    when:
+    // Grandchild created with null sessionId — should inherit transitively
+    // through parent's re-attached LLMObsContext (which itself inherited from grandparent).
+    def grandchild = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "grandchild-llm", null)
+
+    then:
+    def innerGrandchild = (AgentSpan) grandchild.span
+    expectedSessionId == innerGrandchild.getTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID)
+
+    cleanup:
+    grandchild.finish()
+    parentScope.close()
+    parent.finish()
+    grandparentScope.close()
+    grandparent.finish()
+  }
+
+  def "child does NOT inherit session_id when stale LLMObsContext is from a different trace (e.g. async boundary leak)"() {
+    setup:
+    // Simulates a stale LLMObsContext (e.g. leaked across an async boundary). The parent's
+    // LLMObsContext is attached, but its AgentScope is deliberately NOT activated — so the
+    // next span we create starts a fresh trace and the trace-consistency gate must skip
+    // session_id inheritance.
+    def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "stale-workflow", "stale-session-id")
+
+    when:
+    def child = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "child-llm", null)
+
+    then:
+    def innerParent = (AgentSpan) parent.span
+    def innerChild = (AgentSpan) child.span
+    // Sanity: traces differ — confirms the scenario is set up correctly.
+    innerParent.getTraceId() != innerChild.getTraceId()
+    // Session_id from the stale-trace context must NOT leak into the new span.
+    null == innerChild.getTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID)
+
+    cleanup:
+    child.finish()
+    parent.finish()
+  }
+
+  def "global dd_tags are included in LLMObs span tags"() {
+    setup:
+    injectSysConfig("trace.global.tags", "team:backend,owner:ml-platform")
+    def test = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "test-span")
+
+    expect:
+    def innerSpan = (AgentSpan) test.span
+    innerSpan.getTag(LLMOBS_TAG_PREFIX + "team") == "backend"
+    innerSpan.getTag(LLMOBS_TAG_PREFIX + "owner") == "ml-platform"
   }
 
   private LLMObsSpan llmObsSpan(String kind, name) {

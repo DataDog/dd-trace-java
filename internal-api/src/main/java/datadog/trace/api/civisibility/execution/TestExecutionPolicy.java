@@ -28,4 +28,15 @@ public interface TestExecutionPolicy extends TestExecutionTracker {
    *     result
    */
   boolean suppressFailures();
+
+  /**
+   * Must be called after the execution is registered by {@link
+   * TestExecutionTracker#registerExecution(TestStatus, long)}.
+   *
+   * @return {@code true} if a passing test result should be converted to failure because the
+   *     aggregated results indicate the test should fail the build
+   */
+  default boolean propagateFailure() {
+    return false;
+  }
 }

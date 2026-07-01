@@ -10,6 +10,7 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.codeowners.NoCodeowners
+import datadog.trace.civisibility.config.ConfigurationErrors
 import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
@@ -61,7 +62,7 @@ class TestSuiteImplTest extends SpanWriterTest {
     linesResolver.getClassLines(MyClass) >> classLines
 
     def resolver = Stub(SourcePathResolver)
-    resolver.getSourcePath(MyClass) >> "MyClass.java"
+    resolver.getSourcePaths(MyClass) >> ["MyClass.java"]
 
     def codeowners = Stub(NoCodeowners)
     codeowners.getOwners("MyClass.java") >> ["@global-owner1", "@global-owner2"]
@@ -71,6 +72,7 @@ class TestSuiteImplTest extends SpanWriterTest {
       "moduleName",
       "suiteName",
       "",
+      false,
       MyClass,
       null,
       false,
@@ -84,6 +86,7 @@ class TestSuiteImplTest extends SpanWriterTest {
       linesResolver,
       coverageStoreFactory,
       executionResults,
+      ConfigurationErrors.NONE,
       [],
       SpanTagsPropagator.NOOP_PROPAGATOR
       )

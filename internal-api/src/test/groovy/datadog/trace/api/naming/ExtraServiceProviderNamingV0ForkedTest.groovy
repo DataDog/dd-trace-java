@@ -7,6 +7,7 @@ import datadog.trace.api.remoteconfig.ServiceNameCollector
 class ExtraServiceProviderNamingV0ForkedTest extends DDSpecification {
 
   void "Naming schema calls ExtraServicesProvider if provides a service name"() {
+    def origServiceNameCollector = ServiceNameCollector.INSTANCE
     setup:
     final extraServiceProvider = Mock(ServiceNameCollector)
     ServiceNameCollector.INSTANCE = extraServiceProvider
@@ -67,5 +68,8 @@ class ExtraServiceProviderNamingV0ForkedTest extends DDSpecification {
 
     then:
     1 * extraServiceProvider.addService("anything")
+
+    cleanup:
+    ServiceNameCollector.INSTANCE = origServiceNameCollector
   }
 }

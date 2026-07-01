@@ -4529,6 +4529,61 @@
       ]
     },
     {
+      "id": "crs-944-140",
+      "name": "Java Injection Attack: Java Script File Upload Found",
+      "tags": {
+        "type": "unrestricted_file_upload",
+        "crs_id": "944140",
+        "category": "attack_attempt",
+        "cwe": "434",
+        "capec": "1000/152/242",
+        "confidence": "1",
+        "module": "waf"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.body.filenames"
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x-filename"
+                ]
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x_filename"
+                ]
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x.filename"
+                ]
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x-file-name"
+                ]
+              }
+            ],
+            "regex": "\\.jspx?$",
+            "options": {
+              "case_sensitive": true,
+              "min_length": 5
+            }
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": []
+    },
+    {
       "id": "crs-944-260",
       "name": "Remote Command Execution: Malicious class-loading payload",
       "tags": {
@@ -5450,6 +5505,129 @@
             "regex": "^(?:Bearer )?ey[A-Za-z0-9+_\\-/]*([QY][UW]x[Hn]Ij([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gOiAi[Tb][km]9[Ou][RZ][Q-Za-f]|[QY][UW]x[Hn]Ij([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ciID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]IDogI[km]5[Pv][Tb][km][U-X]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[QY][UW]x[Hn]IiA6ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]IDoi[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]Ij([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gOiAi[Tb][km]9[Ou][RZ][Q-Za-f]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ciOiAi[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*IDogI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]IDogI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]yIgO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ciIDoi[Tb][km]9[Ou][RZ][Q-Za-f]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*IDogI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]yIgOiJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ciO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]IDoi[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ciID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]IDogI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]yI6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]yI6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]IiA6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*IDogI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]yIgO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]Ij([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ciOiJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*IDoi[Tb][km]9[Ou][RZ][Q-Za-f]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gOiJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ciO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]yIgOiAi[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]IDoi[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ciID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]IjogI[km]5[Pv][Tb][km][U-X]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ciO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[QY][UW]x[Hn]IiA6I[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ciID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6I[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]yI6I[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]yI6ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ciIDogI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[QY][UW]x[Hn]IiA6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]IiA6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*IDoi[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ciO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6I[km]5[Pv][Tb][km][U-X]|[QY][UW]x[Hn]IiA6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]yI6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]yIgO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gOiJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ID([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gI[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]yIgO([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[\\x2b\\x2f-9A-Za-z]ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*ICJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]I([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*IDoi[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]A6I[km]5[Pv][Tb][km][U-X]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]y([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gOiJ[Ou][Tb][02]5[Fl]|[QY][UW]x[Hn]Ijoi[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z]{2}[159BFJNRVZdhlptx][Bh][Tb][EG]ci([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[048AEIMQUYcgkosw]gOiAi[Tb][km]9[Ou][RZ][Q-Za-f]|[\\x2b\\x2f-9A-Za-z][02EGUWkm]F[Ms][RZ]yI6([048ACEIMQSUYcgikoswy]|[\\x2b\\x2f-9A-Za-z]I)*[CSiy]Ai[Tb][km]9[Ou][RZ][Q-Za-f])[A-Za-z0-9+-/]*\\.[A-Za-z0-9+_\\-/]+\\.(?:[A-Za-z0-9+_\\-/]+)?$",
             "options": {
               "case_sensitive": true
+            }
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": []
+    },
+    {
+      "id": "dog-920-100",
+      "name": "File upload with double extension",
+      "tags": {
+        "type": "http_protocol_violation",
+        "category": "attack_attempt",
+        "cwe": "176",
+        "capec": "1000/255/153/267/71",
+        "confidence": "0",
+        "module": "waf"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.body.filenames"
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x-filename"
+                ]
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x_filename"
+                ]
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x.filename"
+                ]
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x-file-name"
+                ]
+              }
+            ],
+            "regex": "\\w\\.[a-zA-Z0-9]{2,5}\\.[a-zA-Z0-9]{2,5}$",
+            "options": {
+              "case_sensitive": true,
+              "min_length": 6
+            }
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": []
+    },
+    {
+      "id": "dog-920-110",
+      "name": "Zipslip Attack - Unsafe Zip extraction",
+      "tags": {
+        "type": "http_protocol_violation",
+        "category": "attack_attempt",
+        "cwe": "502",
+        "capec": "1000/152/586",
+        "confidence": "0",
+        "module": "waf"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.body.filenames"
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x-filename"
+                ]
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x_filename"
+                ]
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x.filename"
+                ]
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x-file-name"
+                ]
+              }
+            ],
+            "regex": "\\.zip$",
+            "options": {
+              "case_sensitive": true,
+              "min_length": 5
+            }
+          },
+          "operator": "match_regex"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.fs.file_write"
+              }
+            ],
+            "regex": "(?:^|[/\\\\])\\.\\.[/\\\\]",
+            "options": {
+              "case_sensitive": true,
+              "min_length": 4
             }
           },
           "operator": "match_regex"

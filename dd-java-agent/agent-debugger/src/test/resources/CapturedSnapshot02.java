@@ -10,7 +10,7 @@ public class CapturedSnapshot02 {
   private CapturedSnapshot02 cause;
 
   CapturedSnapshot02() {
-    this(new Object().toString(), createObject());
+    this(new Object().toString(), createObject()); // beae1817-f3b0-4ea8-a74f-000000000002
   }
 
   CapturedSnapshot02(Throwable throwable) {

@@ -3,6 +3,8 @@ package datadog.trace.core.propagation.ptags;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.KNUTH_SAMPLING_RATE_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.ORG_PROPAGATION_MARKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_SOURCE_TAG;
 
@@ -48,7 +50,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   @Override
   public final PropagationTags empty() {
-    return createValid(null, null, null, ProductTraceSource.UNSET);
+    return createValid(null, null, null, ProductTraceSource.UNSET, null);
   }
 
   @Override
@@ -56,12 +58,27 @@ public class PTagsFactory implements PropagationTags.Factory {
     return DEC_ENC_MAP.get(headerType).fromHeaderValue(this, value);
   }
 
+  @Override
+  public final PropagationTags emptyW3C(String originalTracestate) {
+    if (originalTracestate == null || originalTracestate.isEmpty()) {
+      return empty();
+    }
+    return W3CPTagsCodec.empty(this, originalTracestate);
+  }
+
   PropagationTags createValid(
       List<TagElement> tagPairs,
       TagValue decisionMakerTagValue,
       TagValue traceIdTagValue,
-      int productTraceSource) {
-    return new PTags(this, tagPairs, decisionMakerTagValue, traceIdTagValue, productTraceSource);
+      int productTraceSource,
+      TagValue orgPropagationMarkerTagValue) {
+    return new PTags(
+        this,
+        tagPairs,
+        decisionMakerTagValue,
+        traceIdTagValue,
+        productTraceSource,
+        orgPropagationMarkerTagValue);
   }
 
   PropagationTags createInvalid(String error) {
@@ -89,6 +106,17 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     private volatile int traceSource;
     private volatile String debugPropagation;
+
+    private volatile double knuthSamplingRate = Double.NaN;
+    private volatile TagValue knuthSamplingRateTagValue;
+
+    private volatile TagValue orgPropagationMarkerTagValue;
+
+    // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
+    // rate, so this eliminates the char[] + String allocation on every new PTags instance.
+    // Writes are benign-racy: two threads computing the same rate produce equal TagValues.
+    private static volatile double cachedKsrRate = Double.NaN;
+    private static volatile TagValue cachedKsrTagValue;
 
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
     private volatile int xDatadogTagsSize = -1;
@@ -124,12 +152,13 @@ public class PTagsFactory implements PropagationTags.Factory {
      */
     private volatile CharSequence lastParentId;
 
-    public PTags(
+    PTags(
         PTagsFactory factory,
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
-        int traceSource) {
+        int traceSource,
+        TagValue orgPropagationMarkerTagValue) {
       this(
           factory,
           tagPairs,
@@ -138,7 +167,8 @@ public class PTagsFactory implements PropagationTags.Factory {
           traceSource,
           PrioritySampling.UNSET,
           null,
-          null);
+          null,
+          orgPropagationMarkerTagValue);
     }
 
     PTags(
@@ -149,7 +179,8 @@ public class PTagsFactory implements PropagationTags.Factory {
         int traceSource,
         int samplingPriority,
         CharSequence origin,
-        CharSequence lastParentId) {
+        CharSequence lastParentId,
+        TagValue orgPropagationMarkerTagValue) {
       assert tagPairs == null || tagPairs.size() % 2 == 0;
       this.factory = factory;
       this.tagPairs = tagPairs;
@@ -159,6 +190,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.samplingPriority = samplingPriority;
       this.origin = origin;
       this.lastParentId = lastParentId;
+      this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
         this.traceIdHighOrderBits =
@@ -178,6 +210,7 @@ public class PTagsFactory implements PropagationTags.Factory {
               null,
               ProductTraceSource.UNSET,
               PrioritySampling.UNSET,
+              null,
               null,
               null);
       pTags.error = error;
@@ -263,6 +296,85 @@ public class PTagsFactory implements PropagationTags.Factory {
     @Override
     public String getDebugPropagation() {
       return debugPropagation;
+    }
+
+    @Override
+    public void updateKnuthSamplingRate(double rate) {
+      if (Double.compare(knuthSamplingRate, rate) != 0) {
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+        knuthSamplingRate = rate;
+        if (Double.isNaN(rate)) {
+          knuthSamplingRateTagValue = null;
+        } else {
+          TagValue tv;
+          if (Double.compare(cachedKsrRate, rate) == 0) {
+            tv = cachedKsrTagValue;
+          } else {
+            tv = TagValue.from(formatKnuthSamplingRate(rate));
+            cachedKsrTagValue = tv;
+            cachedKsrRate = rate;
+          }
+          knuthSamplingRateTagValue = tv;
+        }
+      }
+    }
+
+    /**
+     * Formats a sampling rate with up to 6 decimal digits of precision and no trailing zeros.
+     *
+     * <p>Values below 0.0000005 (which round to zero at 6 decimal places) return {@code "0"}.
+     * Values at or above 0.9999995 return {@code "1"}.
+     *
+     * <p>Uses char-array arithmetic to avoid {@link java.util.Formatter} allocations entirely.
+     */
+    static String formatKnuthSamplingRate(double rate) {
+      if (rate <= 0.0) return "0";
+      if (rate >= 1.0) return "1";
+
+      // Round to 6 decimal places.
+      long rounded = Math.round(rate * 1_000_000L);
+      if (rounded == 0) return "0";
+      if (rounded >= 1_000_000L) return "1";
+
+      // Build "0.DDDDDD" and trim trailing zeros in a single right-to-left pass.
+      char[] buf = new char[8]; // "0." + 6 digits
+      buf[0] = '0';
+      buf[1] = '.';
+      int end = 2; // exclusive end; updated on first non-zero digit found from the right
+      for (int i = 7; i >= 2; i--) {
+        int d = (int) (rounded % 10);
+        rounded /= 10;
+        buf[i] = (char) ('0' + d);
+        if (d != 0 && end == 2) {
+          end = i + 1;
+        }
+      }
+
+      return new String(buf, 0, end);
+    }
+
+    TagValue getKnuthSamplingRateTagValue() {
+      return knuthSamplingRateTagValue;
+    }
+
+    @Override
+    public CharSequence getOrgPropagationMarker() {
+      return orgPropagationMarkerTagValue;
+    }
+
+    @Override
+    public void updateOrgPropagationMarker(CharSequence opm) {
+      TagValue newValue = opm == null ? null : TagValue.from(opm);
+      if (!Objects.equals(this.orgPropagationMarkerTagValue, newValue)) {
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+        this.orgPropagationMarkerTagValue = newValue;
+      }
+    }
+
+    TagValue getOrgPropagationMarkerTagValue() {
+      return orgPropagationMarkerTagValue;
     }
 
     @Override
@@ -390,6 +502,12 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(getTagPairs());
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
+        size =
+            PTagsCodec.calcXDatadogTagsSize(
+                size, KNUTH_SAMPLING_RATE_TAG, getKnuthSamplingRateTagValue());
+        size =
+            PTagsCodec.calcXDatadogTagsSize(
+                size, ORG_PROPAGATION_MARKER_TAG, getOrgPropagationMarkerTagValue());
         int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
           size =

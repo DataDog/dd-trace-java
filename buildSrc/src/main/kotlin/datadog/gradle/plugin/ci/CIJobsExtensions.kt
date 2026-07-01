@@ -22,6 +22,12 @@ val Project.isInSelectedSlot: Provider<Boolean>
       return@map true
     }
 
+    // When CI_NODE_INDEX or CI_NODE_TOTAL is unset in non-parallel jobs, one part may be empty (e.g. slot="/1") — treat as no filtering
+    if (parts[0].isBlank() || parts[1].isBlank()) {
+      project.logger.info("Incomplete slot value '{}', CI_NODE_INDEX or CI_NODE_TOTAL not set. Treating all projects as selected.", slot)
+      return@map true
+    }
+
     val selectedSlot = parts[0].toIntOrNull()
     val totalSlots = parts[1].toIntOrNull()
 

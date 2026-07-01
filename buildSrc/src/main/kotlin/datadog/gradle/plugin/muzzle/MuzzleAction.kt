@@ -9,10 +9,14 @@ import java.net.URLClassLoader
 abstract class MuzzleAction : WorkAction<MuzzleWorkParameters> {
     companion object {
         private val lock = Any()
-        private var bootCL: ClassLoader? = null
-        private var toolCL: ClassLoader? = null
+        @Volatile
+        private var lastBootCL: ClassLoader? = null
+        @Volatile
+        private var lastToolCL: ClassLoader? = null
         @Volatile
         private var lastBuildStamp: Long = 0
+        @Volatile
+        private var lastBuildPathCount: Int = 0
 
         fun createClassLoader(cp: FileCollection, parent: ClassLoader = ClassLoader.getSystemClassLoader()): ClassLoader {
             val urls = cp.map { it.toURI().toURL() }.toTypedArray()
@@ -22,12 +26,21 @@ abstract class MuzzleAction : WorkAction<MuzzleWorkParameters> {
 
     override fun execute() {
         val buildStamp = parameters.buildStartedTime.get()
-        if (bootCL == null || toolCL == null || lastBuildStamp < buildStamp) {
+        val buildPathCount = parameters.bootstrapClassPath.count() + parameters.toolingClassPath.count()
+        var bootCL : ClassLoader? = lastBootCL
+        var toolCL : ClassLoader? = lastToolCL
+        // cache boot and tool classloaders for each run; rebuild if either class-path is extended mid-build
+        if (bootCL == null || toolCL == null || lastBuildStamp < buildStamp || lastBuildPathCount < buildPathCount) {
             synchronized(lock) {
-                if (bootCL == null || toolCL == null || lastBuildStamp < buildStamp) {
+                bootCL = lastBootCL
+                toolCL = lastToolCL
+                if (bootCL == null || toolCL == null || lastBuildStamp < buildStamp || lastBuildPathCount < buildPathCount) {
                     bootCL = createClassLoader(parameters.bootstrapClassPath)
                     toolCL = createClassLoader(parameters.toolingClassPath, bootCL!!)
+                    lastBootCL = bootCL
+                    lastToolCL = toolCL
                     lastBuildStamp = buildStamp
+                    lastBuildPathCount = buildPathCount
                 }
             }
         }

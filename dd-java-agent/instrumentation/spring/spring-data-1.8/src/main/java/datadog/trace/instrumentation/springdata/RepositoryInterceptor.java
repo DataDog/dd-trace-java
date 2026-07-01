@@ -31,7 +31,7 @@ final class RepositoryInterceptor implements MethodInterceptor {
       return methodInvocation.proceed();
     }
 
-    final AgentSpan span = startSpan(REPOSITORY_OPERATION);
+    final AgentSpan span = startSpan("spring-data", REPOSITORY_OPERATION);
     DECORATOR.afterStart(span);
     DECORATOR.onOperation(span, invokedMethod, repositoryInterface);
 

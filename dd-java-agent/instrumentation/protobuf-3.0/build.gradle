@@ -1,5 +1,7 @@
+import datadog.gradle.plugin.HostPlatform
+
 plugins {
-  id 'com.google.protobuf' version '0.9.4'
+  id 'com.google.protobuf' version '0.10.0'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -14,13 +16,11 @@ muzzle {
   }
 }
 
+
 protobuf {
   protoc {
-    def os = System.getProperty("os.name").toLowerCase()
-    def arch = System.getProperty("os.arch").toLowerCase()
-
-    // There is no m1 support for protoc 3.0.0, so require Rosetta
-    if (os.contains("mac") && arch.contains("aarch64")) {
+    // There is no macOS arm64 support for protoc 3.0.0, so require Rosetta.
+    if (HostPlatform.isMacArm64()) {
       artifact = "com.google.protobuf:protoc:3.0.0:osx-x86_64"
     } else {
       artifact = "com.google.protobuf:protoc:3.0.0"
@@ -28,16 +28,25 @@ protobuf {
   }
 }
 
+// TODO: protobuf supports Linux arm64 since `3.12.0`, but it is not source-compatible with 3.0.0
+if (HostPlatform.isLinuxArm64()) {
+  tasks.matching {
+    it.name in [
+      "extractTestProto",
+      "generateTestProto",
+      "compileTestJava",
+      "compileTestGroovy",
+      "processTestResources",
+      "testClasses",
+      "test"
+    ]
+  }.configureEach {
+    enabled = false
+  }
+}
+
 
 dependencies {
   compileOnly group: 'com.google.protobuf', name: 'protobuf-java', version: '3.0.0'
   testImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.0.0'
-}
-
-sourceSets {
-  test {
-    java {
-      srcDir "$buildDir/generated/source/proto/test/java"
-    }
-  }
 }

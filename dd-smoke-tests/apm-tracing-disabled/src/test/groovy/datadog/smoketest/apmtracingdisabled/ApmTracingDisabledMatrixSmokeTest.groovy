@@ -1,9 +1,10 @@
 package datadog.smoketest.apmtracingdisabled
 
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.test.agent.decoder.DecodedTrace
 import okhttp3.Request
 
-class ApmTracingDisabledMatrixSmokeTest extends AbstractApmTracingDisabledSmokeTest {
+abstract class ApmTracingDisabledMatrixSmokeTest extends AbstractApmTracingDisabledSmokeTest {
 
   static final String APM_TRACING_DISABLED_SERVICE_NAME = "apm-tracing-disabled-matrix-smoketest-app"
   static final String APM_TRACING_DISABLED_SERVICE_NAME_2 = "apm-tracing-disabled-matrix-smoketest-app2"
@@ -314,5 +315,24 @@ class ApmTracingDisabledMatrixSmokeTest extends AbstractApmTracingDisabledSmokeT
     !hasApmDisabledTag (downstreamTrace)
     def downstreamTraceId = getServiceTrace(ASM_ENABLED_SERVICE_NAME).spans[0].traceId
     standAloneBillingTraceId == downstreamTraceId //There is propagation
+  }
+}
+
+class ApmTracingDisabledMatrixSmokeV04Test extends ApmTracingDisabledMatrixSmokeTest {
+  @Override
+  protected String traceAgentProtocolVersion() {
+    return '0.4'
+  }
+}
+
+class ApmTracingDisabledMatrixSmokeV1Test extends ApmTracingDisabledMatrixSmokeTest {
+  @Override
+  protected String traceAgentProtocolVersion() {
+    return '1.0'
+  }
+
+  @Override
+  protected Object samplingPriority(DecodedTrace trace) {
+    return trace.samplingPriority
   }
 }

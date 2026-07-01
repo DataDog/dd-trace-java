@@ -7,6 +7,7 @@ import cafe.cryptography.curve25519.InvalidEncodingException;
 import cafe.cryptography.ed25519.Ed25519PublicKey;
 import cafe.cryptography.ed25519.Ed25519Signature;
 import com.squareup.moshi.Moshi;
+import datadog.logging.RatelimitedLogger;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.remoteconfig.state.ProductState;
@@ -18,7 +19,6 @@ import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState;
 import datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState.ConfigState;
 import datadog.remoteconfig.tuf.RemoteConfigResponse;
 import datadog.trace.api.Config;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.SizeCheckedInputStream;
@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
+import java.nio.channels.ClosedSelectorException;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
@@ -378,7 +379,14 @@ public class DefaultConfigurationPoller
       fleetResponse = maybeFleetResp.get();
     } catch (Exception e) {
       // no error can be reported, as we don't have the data client.state.targets_version avail
-      ratelimitedLogger.warn("Error parsing remote config response", e);
+      if (e instanceof ClosedSelectorException) {
+        // expected when the selector is closed mid-poll, e.g. during pod shutdown
+        ratelimitedLogger.warn(
+            "Error parsing remote config response, which is expected when the selector is closed mid-poll: {}",
+            e.getMessage());
+      } else {
+        ratelimitedLogger.warn("Error parsing remote config response", e);
+      }
       return;
     }
 

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jaxrs.v1;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -9,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.ge
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jaxrs.v1.InjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator.DECORATE;
+import static datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator.JAX_RS_CLIENT;
 import static datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator.JAX_RS_CLIENT_CALL;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -19,6 +21,7 @@ import com.sun.jersey.api.client.ClientRequest;
 import com.sun.jersey.api.client.ClientResponse;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -52,11 +55,12 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         named("handle")
             .and(takesArgument(0, extendsClass(named("com.sun.jersey.api.client.ClientRequest"))))
             .and(returns(extendsClass(named("com.sun.jersey.api.client.ClientResponse")))),
-        JaxRsClientV1Instrumentation.class.getName() + "$HandleAdvice");
+        JaxRsClientV1Instrumentation.class.getName() + "$HandleAdvice",
+        JaxRsClientV1Instrumentation.class.getName() + "$HandleContextPropagationAdvice");
   }
 
   public static class HandleAdvice {
@@ -69,11 +73,10 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
       // WARNING: this might be a chain...so we only have to trace the first in the chain.
       final boolean isRootClientHandler = null == request.getProperties().get(DD_CONTEXT_ATTRIBUTE);
       if (isRootClientHandler) {
-        final AgentSpan span = startSpan(JAX_RS_CLIENT_CALL);
+        final AgentSpan span = startSpan(JAX_RS_CLIENT.toString(), JAX_RS_CLIENT_CALL);
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, request);
         request.getProperties().put(DD_CONTEXT_ATTRIBUTE, span);
-        DECORATE.injectContext(getCurrentContext().with(span), request.getHeaders(), SETTER);
         return activateSpan(span);
       }
       return null;
@@ -93,6 +96,14 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
       DECORATE.beforeFinish(span);
       scope.close();
       scope.span().finish();
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class HandleContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(0) final ClientRequest request) {
+      DECORATE.injectContext(getCurrentContext(), request.getHeaders(), SETTER);
     }
   }
 }

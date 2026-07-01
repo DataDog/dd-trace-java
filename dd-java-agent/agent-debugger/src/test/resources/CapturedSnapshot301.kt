@@ -15,6 +15,12 @@ class CapturedSnapshot301 {
     return value
   }
 
+  fun f3(value: Int): Int {
+    val list = listOf(value, 2, 3)
+    val max = list.maxOf { it -> it > 0 }
+    return value
+  }
+
   companion object {
     fun main(arg: String): Int {
       val c = CapturedSnapshot301()

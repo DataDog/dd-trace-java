@@ -1,81 +1,78 @@
+import java.util.concurrent.Callable
 import java.util.regex.Pattern
 
+plugins {
+  id 'dd-trace-java.smoke-test-app'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
+
+description = 'Quarkus Native Smoke Tests.'
 
 dependencies {
   testImplementation project(':dd-smoke-tests')
   testImplementation libs.bundles.jmc
 }
-// Check 'testJvm' gradle command parameter is GraalVM (e.g., -PtestJvm=graalvm21),
-// if not nothing is done
+
+// Quarkus 3.12.1's native-image step requires at least Mandrel/GraalVM 23.1 (JDK 21-based)
+// No `maxJavaVersion` as it currently runs on GraalVM25
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_21
+  nativeImageCapable = true
+}
+
+// The following makes `quarkusNativeBuild` only run when Gradle is passed `-PtestJvm=graalvm21` or later.
 def testJvm = gradle.startParameter.projectProperties.getOrDefault('testJvm', '')
 def graalvmMatcher = Pattern.compile("graalvm([0-9]+)").matcher(testJvm?.toLowerCase(Locale.ROOT) ?: '')
 def testGraalvmVersion = graalvmMatcher.find() ? Integer.parseInt(graalvmMatcher.group(1)) : -1
+def isSupportedGraalvm = testGraalvmVersion >= 21
+Provider<String> graalvmHome = providers.provider({
+  if (!isSupportedGraalvm) {
+    throw new GradleException("Set -PtestJvm=graalvm<N> (N >= 21) to build the native image for this smoke test.")
+  }
+  getLazyJavaHomeFor(testGraalvmVersion, true).toString()
+} as Callable<String>)
 
-if (testGraalvmVersion >= 17) {
-  // GraalVM with native-image capability for native compilation
-  def graalvmHome = getLazyJavaHomeFor(testGraalvmVersion, true)
-  // For GraalVM 21+ we need Java 17+ to run Gradle, for earlier versions use GraalVM itself
-  def gradleJavaHome = testGraalvmVersion >= 21 ? getLazyJavaHomeFor(17) : graalvmHome
-  // Configure build directory for application
-  def appDir = "$projectDir/application"
-  def appBuildDir = "$buildDir/application"
-  def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
-  def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
-
-  // Define the task that builds the project
-  tasks.register('quarkusNativeBuild', Exec) {
-    workingDir "$appDir"
-    environment += [
-      'GRADLE_OPTS' : "-Dorg.gradle.jvmargs='-Xmx512M'",
-      'JAVA_HOME'   : gradleJavaHome,
-      'GRAALVM_HOME': graalvmHome
-    ]
-    commandLine(
-      "$rootDir/${gradlewCommand}",
-      'build',
-      '--no-daemon',
+smokeTestApp {
+  gradleApp {
+    taskName = 'quarkusNativeBuild'
+    nestedTasks = ['build']
+    artifactPath = 'quarkus-native-smoketest--runner'
+    sysProperty = 'datadog.smoketest.quarkus.native.executable'
+    buildArguments.addAll(
       '--max-workers=4',
-      "-Dquarkus.native.enabled=true",
-      "-Dquarkus.package.jar.enabled=false",
-      "-PappBuildDir=$appBuildDir",
-      "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}",
-      "-Dquarkus.native.additional-build-args=-J-javaagent:${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}," +
-      "-J-Ddatadog.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ss.SSS'Z [dd.trace]'," +
-      "-J-Ddd.profiling.enabled=true,-march=native"
+      '-Dquarkus.native.enabled=true',
+      '-Dquarkus.package.jar.enabled=false',
       )
-    outputs.cacheIf { true }
-    outputs.dir(appBuildDir)
-      .withPropertyName('nativeApplication')
-    inputs.files(fileTree(appDir) {
-      include '**/*'
-      exclude '.gradle/**'
-    }).withPropertyName('application')
-    .withPathSensitivity(PathSensitivity.RELATIVE)
-    inputs.file(project(':dd-trace-api').tasks.jar.archiveFile.get()).withPropertyName('apiJar')
-    inputs.file(project(':dd-java-agent').tasks.shadowJar.archiveFile.get()).withPropertyName('agentJar')
+    environment.put('GRAALVM_HOME', graalvmHome)
   }
+  projectJar('apiJar', project(':dd-trace-api'))
+  projectJar('agentJar', project(':dd-java-agent'), 'shadow')
+}
 
-  tasks.named('quarkusNativeBuild') {
-    dependsOn project(':dd-trace-api').tasks.named("jar") // Use dev @Trace annotation
-    dependsOn project(':dd-java-agent').tasks.named('shadowJar') // Use dev agent
-  }
+tasks.named('quarkusNativeBuild') {
+  onlyIf("Requires -PtestJvm=graalvm<N> (N >= 21)") { isSupportedGraalvm }
+}
 
-  tasks.named('compileTestGroovy') {
-    dependsOn 'quarkusNativeBuild'
-    outputs.upToDateWhen {
-      !quarkusNativeBuild.didWork
-    }
+tasks.named('compileTestGroovy', GroovyCompile) {
+  dependsOn 'quarkusNativeBuild'
+  onlyIf { isSupportedGraalvm }
+  outputs.upToDateWhen {
+    !tasks.named('quarkusNativeBuild').get().didWork
   }
+}
 
-  tasks.withType(Test).configureEach {
-    jvmArgs "-Ddatadog.smoketest.quarkus.native.executable=$appBuildDir/quarkus-native-smoketest--runner"
-    jvmArgs "-Ddd.profiling.enabled=true"
-  }
-} else {
-  tasks.withType(Test).configureEach {
-    enabled = false
-  }
+tasks.withType(Test).configureEach {
+  // Skip when no supported GraalVM was selected — `testJvmConstraints` only checks for a
+  // native-image-capable launcher, so a daemon JVM that happens to be GraalVM 21 would
+  // Keep the tests tied to the explicit GraalVM selection used to build the native
+  // executable. Without this, `testJvmConstraints` may allow the `Test` task when the
+  // daemon itself is native-image capable, even though `quarkusNativeBuild` was skipped.
+  onlyIf("Requires -PtestJvm=graalvm<N> (N >= 21)") { isSupportedGraalvm }
+  // The test JVM is only a harness that starts the native executable, so run it with
+  // the default project toolchain instead of the selected GraalVM.
+  javaLauncher = javaToolchains.launcherFor(java.toolchain)
+  jvmArgs "-Ddd.profiling.enabled=true"
 }
 
 spotless {

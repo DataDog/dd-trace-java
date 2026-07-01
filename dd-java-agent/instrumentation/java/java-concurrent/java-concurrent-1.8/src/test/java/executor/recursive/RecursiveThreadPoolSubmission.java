@@ -25,7 +25,7 @@ public class RecursiveThreadPoolSubmission implements Runnable {
     if (depth == maxDepth) {
       return;
     }
-    AgentSpan span = startSpan(String.valueOf(depth));
+    AgentSpan span = startSpan("test", String.valueOf(depth));
     try (AgentScope scope = activateSpan(span)) {
       executor.submit(new RecursiveThreadPoolSubmission(executor, maxDepth, depth + 1));
     } finally {

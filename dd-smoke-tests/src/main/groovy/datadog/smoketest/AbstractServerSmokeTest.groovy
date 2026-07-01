@@ -183,7 +183,7 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
 
     and: 'received tracer dependencies'
     // Not exhaustive list of tracer dependencies.
-    Set<String> missingDependencyNames = ['com.github.jnr:jnr-ffi', 'net.bytebuddy:byte-buddy-agent',].toSet()
+    Set<String> missingDependencyNames = ['com.datadoghq:dd-java-agent', 'com.github.jnr:jnr-ffi', 'net.bytebuddy:byte-buddy-agent',].toSet()
     missingDependencyNames.removeAll(dependencyNames) || true
     missingDependencyNames.isEmpty()
 

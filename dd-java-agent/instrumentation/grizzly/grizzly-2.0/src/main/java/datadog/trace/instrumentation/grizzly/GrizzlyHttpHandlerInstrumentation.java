@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.grizzly;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
@@ -10,6 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -27,12 +30,35 @@ public class GrizzlyHttpHandlerInstrumentation
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("doHandle"))
             .and(takesArgument(0, named("org.glassfish.grizzly.http.server.Request")))
             .and(takesArgument(1, named("org.glassfish.grizzly.http.server.Response"))),
+        GrizzlyHttpHandlerInstrumentation.class.getName() + "$ContextTrackingAdvice",
         GrizzlyHttpHandlerInstrumentation.class.getName() + "$HandleAdvice");
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextTrackingAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.Local("parentScope") ContextScope parentScope,
+        @Advice.Argument(0) final Request request) {
+      if (request.getAttribute(DD_CONTEXT_ATTRIBUTE) != null) {
+        return; // re-entry: HandleAdvice will return false (no-op)
+      }
+      Context parentContext = DECORATE.extract(request);
+      parentScope = parentContext.attach();
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
+      if (parentScope != null) {
+        parentScope.close();
+      }
+    }
   }
 
   public static class HandleAdvice {
@@ -46,7 +72,8 @@ public class GrizzlyHttpHandlerInstrumentation
         return false;
       }
 
-      final Context parentContext = DECORATE.extract(request);
+      final Context parentContext =
+          getCurrentContext(); // parent context attached by ContextTrackingAdvice
       final Context context = DECORATE.startSpan(request, parentContext);
       final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);

@@ -16,11 +16,11 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
         with:
           submodules: 'recursive'
       - name: Cache Gradle dependencies
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ~/.gradle/caches
@@ -30,7 +30,7 @@ jobs:
             ${{ runner.os }}-gradle-
         
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@89a39a4e59826350b863aa6b6252a07ad50cf83e # v4.32.4
+        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           languages: 'java'
           build-mode: 'manual'
@@ -39,17 +39,11 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
-          JAVA_HOME=$JAVA_HOME_8_X64 \
-          JAVA_8_HOME=$JAVA_HOME_8_X64 \
-          JAVA_11_HOME=$JAVA_HOME_11_X64 \
-          JAVA_17_HOME=$JAVA_HOME_17_X64 \
-          JAVA_21_HOME=$JAVA_HOME_21_X64 \
-          ./gradlew clean :dd-java-agent:shadowJar \
-            --build-cache --parallel --stacktrace --no-daemon --max-workers=4
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G'" \
+          ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Perform CodeQL Analysis and upload results to GitHub Security tab
-        uses: github/codeql-action/analyze@89a39a4e59826350b863aa6b6252a07ad50cf83e # v4.32.4
+        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
 
   trivy:
     name: Analyze changes with Trivy
@@ -61,12 +55,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
         with:
           submodules: 'recursive'
       
       - name: Cache Gradle dependencies
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ~/.gradle/caches
@@ -85,14 +79,8 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
-          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx3G -Xms2G'" \
-          JAVA_HOME=$JAVA_HOME_8_X64 \
-          JAVA_8_HOME=$JAVA_HOME_8_X64 \
-          JAVA_11_HOME=$JAVA_HOME_11_X64 \
-          JAVA_17_HOME=$JAVA_HOME_17_X64 \
-          JAVA_21_HOME=$JAVA_HOME_21_X64 \
-          ./gradlew clean publishToMavenLocal \
-            --build-cache --parallel --stacktrace --no-daemon --max-workers=4
+          GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G'" \
+          ./gradlew clean publishToMavenLocal --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Copy published artifacts
         run: |
@@ -101,7 +89,7 @@ jobs:
           ls -laR "./workspace/.trivy"
 
       - name: Run Trivy security scanner
-        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: rootfs
           scan-ref: './workspace/.trivy/'
@@ -114,16 +102,17 @@ jobs:
           TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db,public.ecr.aws/aquasecurity/trivy-java-db
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@89a39a4e59826350b863aa6b6252a07ad50cf83e # v4.32.4
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
 
+      - name: Install datadog-ci
+        uses: DataDog/install-datadog-ci-github-action@501e9d922bf506902d2ecc2c830b0f4471760396 # v1.0.6
+        with:
+          version: v5.17.0
       - name: Upload results to Datadog CI Static Analysis
-        run: |
-          wget --no-verbose https://github.com/DataDog/datadog-ci/releases/latest/download/datadog-ci_linux-x64 -O datadog-ci
-          chmod +x datadog-ci
-          ./datadog-ci sarif upload trivy-results.sarif --service dd-trace-java --env ci
+        run: datadog-ci sarif upload trivy-results.sarif --service dd-trace-java --env ci
         env:
           DD_API_KEY: ${{ secrets.DATADOG_API_KEY_PROD }}
           DD_SITE: datadoghq.com

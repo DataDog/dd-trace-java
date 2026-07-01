@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.httpurlconnection;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator.DECORATE;
+import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator.HTTP_URL_CONNECTION;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -16,7 +17,7 @@ public class HttpUrlState {
   private volatile boolean finished = false;
 
   public AgentSpan start(final HttpURLConnection connection) {
-    span = startSpan(DECORATE.operationName());
+    span = startSpan(HTTP_URL_CONNECTION.toString(), DECORATE.operationName());
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, connection);

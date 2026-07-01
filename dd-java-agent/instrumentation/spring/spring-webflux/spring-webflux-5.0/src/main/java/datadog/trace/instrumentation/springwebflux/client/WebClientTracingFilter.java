@@ -50,7 +50,7 @@ public class WebClientTracingFilter implements ExchangeFilterFunction {
 
     @Override
     public void subscribe(final CoreSubscriber<? super ClientResponse> subscriber) {
-      AgentSpan span = startSpan(HTTP_REQUEST);
+      AgentSpan span = startSpan("spring-webflux-client", HTTP_REQUEST);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       AgentSpan parent = activeSpan();

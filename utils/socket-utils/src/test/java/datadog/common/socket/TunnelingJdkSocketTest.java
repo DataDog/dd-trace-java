@@ -1,8 +1,13 @@
 package datadog.common.socket;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.condition.JRE.JAVA_16;
 
-import datadog.trace.api.Config;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -18,19 +23,15 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
 
 public class TunnelingJdkSocketTest {
 
   private static final AtomicBoolean isServerRunning = new AtomicBoolean(false);
 
   @Test
+  @EnabledForJreRange(min = JAVA_16)
   public void testSocketConnectAndClose() throws Exception {
-    if (!Config.get().isJdkSocketEnabled()) {
-      System.out.println(
-          "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
-      return;
-    }
-
     Path socketPath = getSocketPath();
     UnixDomainSocketAddress socketAddress = UnixDomainSocketAddress.of(socketPath);
     startServer(socketAddress);
@@ -58,21 +59,16 @@ public class TunnelingJdkSocketTest {
     assertTrue(clientSocket.isOutputShutdown());
     assertEquals(-1, inputStream.read());
     assertThrows(IOException.class, () -> outputStream.write(1));
-    assertThrows(SocketException.class, () -> clientSocket.getInputStream());
-    assertThrows(SocketException.class, () -> clientSocket.getOutputStream());
+    assertThrows(SocketException.class, clientSocket::getInputStream);
+    assertThrows(SocketException.class, clientSocket::getOutputStream);
     clientSocket.close();
 
     isServerRunning.set(false);
   }
 
   @Test
+  @EnabledForJreRange(min = JAVA_16)
   public void testInputStreamClose() throws Exception {
-    if (!Config.get().isJdkSocketEnabled()) {
-      System.out.println(
-          "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
-      return;
-    }
-
     TunnelingJdkSocket clientSocket = createClient();
     InputStream inputStream = clientSocket.getInputStream();
     OutputStream outputStream = clientSocket.getOutputStream();
@@ -88,20 +84,15 @@ public class TunnelingJdkSocketTest {
     assertTrue(clientSocket.isOutputShutdown());
     assertEquals(-1, inputStream.read());
     assertThrows(IOException.class, () -> outputStream.write(1));
-    assertThrows(SocketException.class, () -> clientSocket.getInputStream());
-    assertThrows(SocketException.class, () -> clientSocket.getOutputStream());
+    assertThrows(SocketException.class, clientSocket::getInputStream);
+    assertThrows(SocketException.class, clientSocket::getOutputStream);
 
     isServerRunning.set(false);
   }
 
   @Test
+  @EnabledForJreRange(min = JAVA_16)
   public void testOutputStreamClose() throws Exception {
-    if (!Config.get().isJdkSocketEnabled()) {
-      System.out.println(
-          "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
-      return;
-    }
-
     TunnelingJdkSocket clientSocket = createClient();
     InputStream inputStream = clientSocket.getInputStream();
     OutputStream outputStream = clientSocket.getOutputStream();
@@ -117,20 +108,15 @@ public class TunnelingJdkSocketTest {
     assertTrue(clientSocket.isOutputShutdown());
     assertEquals(-1, inputStream.read());
     assertThrows(IOException.class, () -> outputStream.write(1));
-    assertThrows(SocketException.class, () -> clientSocket.getInputStream());
-    assertThrows(SocketException.class, () -> clientSocket.getOutputStream());
+    assertThrows(SocketException.class, clientSocket::getInputStream);
+    assertThrows(SocketException.class, clientSocket::getOutputStream);
 
     isServerRunning.set(false);
   }
 
   @Test
+  @EnabledForJreRange(min = JAVA_16)
   public void testTimeout() throws Exception {
-    if (!Config.get().isJdkSocketEnabled()) {
-      System.out.println(
-          "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
-      return;
-    }
-
     TunnelingJdkSocket clientSocket = createClient();
     InputStream inputStream = clientSocket.getInputStream();
 
@@ -168,19 +154,14 @@ public class TunnelingJdkSocketTest {
 
     clientSocket.close();
     assertThrows(SocketException.class, () -> clientSocket.setSoTimeout(testTimeout));
-    assertThrows(SocketException.class, () -> clientSocket.getSoTimeout());
+    assertThrows(SocketException.class, clientSocket::getSoTimeout);
 
     isServerRunning.set(false);
   }
 
   @Test
+  @EnabledForJreRange(min = JAVA_16)
   public void testBufferSizes() throws Exception {
-    if (!Config.get().isJdkSocketEnabled()) {
-      System.out.println(
-          "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
-      return;
-    }
-
     TunnelingJdkSocket clientSocket = createClient();
 
     assertEquals(TunnelingJdkSocket.DEFAULT_BUFFER_SIZE, clientSocket.getSendBufferSize());
@@ -207,20 +188,16 @@ public class TunnelingJdkSocketTest {
     assertThrows(
         SocketException.class,
         () -> clientSocket.setReceiveBufferSize(TunnelingJdkSocket.DEFAULT_BUFFER_SIZE));
-    assertThrows(SocketException.class, () -> clientSocket.getSendBufferSize());
-    assertThrows(SocketException.class, () -> clientSocket.getReceiveBufferSize());
-    assertThrows(SocketException.class, () -> clientSocket.getStreamBufferSize());
+    assertThrows(SocketException.class, clientSocket::getSendBufferSize);
+    assertThrows(SocketException.class, clientSocket::getReceiveBufferSize);
+    assertThrows(SocketException.class, clientSocket::getStreamBufferSize);
 
     isServerRunning.set(false);
   }
 
   @Test
+  @EnabledForJreRange(min = JAVA_16)
   public void testFileDescriptorLeak() throws Exception {
-    if (!Config.get().isJdkSocketEnabled()) {
-      System.out.println(
-          "TunnelingJdkSocket usage is disabled. Enable it by setting the property 'JDK_SOCKET_ENABLED' to 'true'.");
-      return;
-    }
     long initialCount = getFileDescriptorCount();
 
     TunnelingJdkSocket clientSocket = createClient();

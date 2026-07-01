@@ -1,13 +1,12 @@
 package datadog.trace.agent.test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.collect.Sets;
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores;
+import datadog.trace.bootstrap.InstrumentationErrors;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
@@ -18,7 +17,6 @@ public class ClassFileTransformerListener implements AgentBuilder.Listener {
 
   final Set<String> transformedClassesNames = Sets.newConcurrentHashSet();
   final Set<TypeDescription> transformedClassesTypes = Sets.newConcurrentHashSet();
-  final AtomicInteger instrumentationErrorCount = new AtomicInteger(0);
 
   @Override
   public void onTransformation(
@@ -45,10 +43,10 @@ public class ClassFileTransformerListener implements AgentBuilder.Listener {
       return;
     }
 
+    InstrumentationErrors.recordError(throwable);
     System.out.println(
         "Unexpected instrumentation error when instrumenting " + typeName + " on " + classLoader);
     throwable.printStackTrace();
-    instrumentationErrorCount.incrementAndGet();
   }
 
   @Override
@@ -70,9 +68,6 @@ public class ClassFileTransformerListener implements AgentBuilder.Listener {
   }
 
   public void verify() {
-    // Check instrumentation errors
-    int errorCount = this.instrumentationErrorCount.get();
-    assertEquals(0, errorCount, errorCount + " instrumentation errors during test");
     // Check effectively transformed classes that should have been ignored
     assertTrue(
         this.transformedClassesTypes.stream()

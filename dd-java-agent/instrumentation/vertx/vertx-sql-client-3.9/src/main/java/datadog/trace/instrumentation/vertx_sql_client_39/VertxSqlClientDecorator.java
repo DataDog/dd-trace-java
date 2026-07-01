@@ -75,7 +75,7 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
   public <T> AgentSpan startAndDecorateSpanForStatement(
       T query, ContextStore<T, Pair> contextStore, boolean prepared) {
     CharSequence component = prepared ? VERTX_PREPARED_STATEMENT : VERTX_STATEMENT;
-    AgentSpan span = startSpan(DATABASE_QUERY);
+    AgentSpan span = startSpan(component.toString(), DATABASE_QUERY);
     if (null == span) {
       return null;
     }
@@ -100,7 +100,7 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
       span.setResourceName(DB_QUERY);
     }
     span.setTag(Tags.COMPONENT, component);
-    span.context().setIntegrationName(component);
+    span.spanContext().setIntegrationName(component);
     return span;
   }
 

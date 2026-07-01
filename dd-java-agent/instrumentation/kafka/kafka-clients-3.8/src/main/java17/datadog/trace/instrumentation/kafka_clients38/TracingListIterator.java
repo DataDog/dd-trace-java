@@ -1,7 +1,11 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ListIterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
@@ -26,7 +30,14 @@ public class TracingListIterator extends TracingIterator
     boolean moreRecords = delegateIterator.hasPrevious();
     if (!moreRecords) {
       // no more records, use this as a signal to close the last iteration scope
-      closePrevious(true);
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        closePrevious(true);
+      } else {
+        final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+        if (previousSpan != null) {
+          previousSpan.finishWithEndToEnd();
+        }
+      }
     }
     return moreRecords;
   }

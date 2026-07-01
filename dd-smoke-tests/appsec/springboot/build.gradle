@@ -21,6 +21,16 @@ dependencies {
   implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.6.0')
   implementation group: 'com.h2database', name: 'h2', version: '2.1.212'
 
+  // Used by AIGuardController to set user/session tags on the local root span via the active OT span
+  implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+
+  // SCA reachability smoke test target: junrar 7.5.5 is vulnerable under GHSA-hf5p-q87m-crj7
+  implementation group: 'com.github.junrar', name: 'junrar', version: '7.5.5'
+
+  // file upload
+  implementation group: 'commons-fileupload', name: 'commons-fileupload', version: '1.5'
+
   // ssrf
   implementation group: 'commons-httpclient', name: 'commons-httpclient', version: '2.0'
   implementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.0'

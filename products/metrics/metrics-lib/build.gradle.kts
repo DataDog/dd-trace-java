@@ -15,6 +15,7 @@ dependencies {
   implementation(libs.dogstatsd)
   implementation(project(":internal-api"))
   implementation(project(":utils:filesystem-utils"))
+  implementation(project(":utils:logging-utils"))
 
   implementation(group = "com.datadoghq", name = "sketches-java", version = "0.8.3")
 
@@ -32,20 +33,11 @@ tasks.named<ShadowJar>("shadowJar") {
   }
 }
 
-val minimumBranchCoverage by extra(0.5)
-val minimumInstructionCoverage by extra(0.8)
-val excludedClassesCoverage by extra(
-  listOf(
-    "datadog.communication.monitor.DDAgentStatsDConnection",
-    "datadog.communication.monitor.DDAgentStatsDConnection.*",
-    "datadog.communication.monitor.LoggingStatsDClient",
-  )
+extra["minimumBranchCoverage"] = 0.5
+extra["minimumInstructionCoverage"] = 0.8
+extra["excludedClassesCoverage"] = listOf(
+  "datadog.metrics.impl.statsd.DDAgentStatsDClientManager",
+  "datadog.metrics.impl.statsd.DDAgentStatsDConnection",
+  "datadog.metrics.impl.statsd.DDAgentStatsDConnection.*",
+  "datadog.metrics.impl.statsd.LoggingStatsDClient",
 )
-// val excludedClassesBranchCoverage by extra(
-//   listOf(
-//   )
-// )
-// val excludedClassesInstructionCoverage by extra(
-//   listOf(
-//   )
-// )

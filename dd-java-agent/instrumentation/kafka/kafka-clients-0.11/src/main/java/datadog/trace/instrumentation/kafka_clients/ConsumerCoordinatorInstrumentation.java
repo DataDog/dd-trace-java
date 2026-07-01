@@ -10,6 +10,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -42,7 +43,9 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("org.apache.kafka.clients.Metadata", "java.lang.String");
+    contextStores.put(
+        "org.apache.kafka.clients.Metadata",
+        "datadog.trace.instrumentation.kafka_common.MetadataState");
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator",
         KafkaConsumerInfo.class.getName());
@@ -56,7 +59,11 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".KafkaConsumerInfo"};
+    return new String[] {
+      packageName + ".KafkaConsumerInfo",
+      "datadog.trace.instrumentation.kafka_common.PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.MetadataState",
+    };
   }
 
   @Override
@@ -90,7 +97,9 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
       String clusterId = null;
       if (consumerMetadata != null) {
-        clusterId = InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
+        MetadataState metadataState =
+            InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata);
+        clusterId = metadataState != null ? metadataState.clusterId : null;
       }
 
       for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : offsets.entrySet()) {

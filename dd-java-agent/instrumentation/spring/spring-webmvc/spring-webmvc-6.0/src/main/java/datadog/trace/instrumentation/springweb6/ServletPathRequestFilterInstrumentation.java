@@ -14,14 +14,21 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
- * This instrumentation adds the ServletPathRequestFilter definition to the spring context When the
- * context is created, the filter will be added to the beginning of the filter chain
+ * Companion to {@link WebApplicationContextInstrumentation}: when the opt-in {@code
+ * spring-path-filter} integration is enabled, registers Spring's {@code ServletRequestPathFilter}
+ * first in the chain so the request path is parsed before {@link HandlerMappingResourceNameFilter}
+ * resolves the handler. Disabled by default.
  */
 @AutoService(InstrumenterModule.class)
 public class ServletPathRequestFilterInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public ServletPathRequestFilterInstrumentation() {
     super("spring-web", "spring-path-filter");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return false;
   }
 
   @Override

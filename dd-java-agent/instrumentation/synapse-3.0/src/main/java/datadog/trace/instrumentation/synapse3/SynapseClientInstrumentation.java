@@ -1,12 +1,15 @@
 package datadog.trace.instrumentation.synapse3;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_CLIENT;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_CONTEXT_KEY;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_REQUEST;
 import static datadog.trace.instrumentation.synapse3.TargetRequestInjectAdapter.SETTER;
@@ -18,9 +21,11 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
+import org.apache.http.HttpInetConnection;
 import org.apache.http.HttpResponse;
 import org.apache.http.nio.NHttpClientConnection;
 import org.apache.synapse.transport.passthru.TargetContext;
@@ -47,11 +52,12 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public void methodAdvice(final MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("requestReady"))
             .and(takesArgument(0, named("org.apache.http.nio.NHttpClientConnection"))),
-        getClass().getName() + "$ClientRequestAdvice");
+        getClass().getName() + "$ClientRequestAdvice",
+        getClass().getName() + "$ClientRequestContextPropagationAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(named("responseReceived"))
@@ -81,17 +87,14 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
 
       AgentSpan span;
       if (null != parentSpan) {
-        span = startSpan(SYNAPSE_REQUEST, parentSpan.context());
+        span = startSpan(SYNAPSE_CLIENT.toString(), SYNAPSE_REQUEST, parentSpan.spanContext());
       } else {
-        span = startSpan(SYNAPSE_REQUEST);
+        span = startSpan(SYNAPSE_CLIENT.toString(), SYNAPSE_REQUEST);
       }
 
       DECORATE.afterStart(span);
 
       Context context = getCurrentContext().with(span);
-
-      // add trace id to client-side request before it gets submitted as an HttpRequest
-      defaultPropagator().inject(context, TargetContext.getRequest(connection), SETTER);
 
       // capture context to be finished by one of the various client response advices
       connection.getContext().setAttribute(SYNAPSE_CONTEXT_KEY, context);
@@ -106,7 +109,26 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
       // populate span using details from the submitted HttpRequest (resolved URI, etc.)
       AgentSpan span = spanFromContext(scope.context());
       DECORATE.onRequest(span, TargetContext.getRequest(connection).getRequest());
+
+      // set peer info from the connection since request URIs are relative paths
+      if (connection instanceof HttpInetConnection) {
+        HttpInetConnection inetConn = (HttpInetConnection) connection;
+        DECORATE.onPeerConnection(span, inetConn.getRemoteAddress());
+        DECORATE.setPeerPort(span, inetConn.getRemotePort());
+      }
       scope.close();
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static final class ClientRequestContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(0) final NHttpClientConnection connection) {
+      AgentSpan span = activeSpan();
+      if (span == null) {
+        return;
+      }
+      defaultPropagator().inject(span, TargetContext.getRequest(connection), SETTER);
     }
   }
 

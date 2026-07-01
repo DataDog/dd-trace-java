@@ -100,7 +100,7 @@ class SparkLauncherTest extends InstrumentationSpecification {
     SparkLauncherListener.launcherSpan = null
     def tracer = AgentTracer.get()
     SparkLauncherListener.launcherSpan = tracer
-      .buildSpan("spark.launcher.launch")
+      .buildSpan("spark-launcher", "spark.launcher.launch")
       .withSpanType("spark")
       .withResourceName("SparkLauncher.startApplication")
       .start()
@@ -135,7 +135,7 @@ class SparkLauncherTest extends InstrumentationSpecification {
     SparkLauncherListener.launcherSpan = null
     def tracer = AgentTracer.get()
     SparkLauncherListener.launcherSpan = tracer
-      .buildSpan("spark.launcher.launch")
+      .buildSpan("spark-launcher", "spark.launcher.launch")
       .withSpanType("spark")
       .withResourceName("SparkLauncher.startApplication")
       .start()
@@ -167,7 +167,7 @@ class SparkLauncherTest extends InstrumentationSpecification {
     SparkLauncherListener.launcherSpan = null
     def tracer = AgentTracer.get()
     SparkLauncherListener.launcherSpan = tracer
-      .buildSpan("spark.launcher.launch")
+      .buildSpan("spark-launcher", "spark.launcher.launch")
       .withSpanType("spark")
       .withResourceName("SparkLauncher.startApplication")
       .start()

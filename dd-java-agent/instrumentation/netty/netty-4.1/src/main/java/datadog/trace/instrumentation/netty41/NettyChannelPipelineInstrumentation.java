@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.netty41;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -13,12 +15,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.instrumentation.netty41.client.HttpClientRequestTracingHandler;
 import datadog.trace.instrumentation.netty41.client.HttpClientResponseTracingHandler;
 import datadog.trace.instrumentation.netty41.client.HttpClientTracingHandler;
+import datadog.trace.instrumentation.netty41.server.HttpServerContextTrackingHandler;
 import datadog.trace.instrumentation.netty41.server.HttpServerRequestTracingHandler;
 import datadog.trace.instrumentation.netty41.server.HttpServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty41.server.HttpServerTracingHandler;
@@ -26,6 +30,7 @@ import datadog.trace.instrumentation.netty41.server.MaybeBlockResponseHandler;
 import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerInboundTracingHandler;
 import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerOutboundTracingHandler;
 import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerTracingHandler;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpClientCodec;
@@ -79,6 +84,7 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
       packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
       packageName + ".server.BlockingResponseHandler",
       packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
+      packageName + ".server.HttpServerContextTrackingHandler",
       packageName + ".server.HttpServerRequestTracingHandler",
       packageName + ".server.HttpServerResponseTracingHandler",
       packageName + ".server.HttpServerTracingHandler",
@@ -86,6 +92,7 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
       packageName + ".server.websocket.WebSocketServerTracingHandler",
       packageName + ".server.websocket.WebSocketServerOutboundTracingHandler",
       packageName + ".server.websocket.WebSocketServerInboundTracingHandler",
+      packageName + ".Http2ConnectContinuationListener",
       packageName + ".NettyHttp2Helper",
       packageName + ".NettyPipelineHelper",
     };
@@ -93,19 +100,43 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(namedOneOf("addFirst", "addLast"))
             .and(takesArgument(2, named("io.netty.channel.ChannelHandler"))),
+        NettyChannelPipelineInstrumentation.class.getName() + "$ContextTrackingAddHandlerAdvice",
         NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(namedOneOf("addBefore", "addAfter"))
             .and(takesArgument(3, named("io.netty.channel.ChannelHandler"))),
+        NettyChannelPipelineInstrumentation.class.getName() + "$ContextTrackingAddHandlerAdvice",
         NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
     transformer.applyAdvice(
         isMethod().and(named("connect")).and(returns(named("io.netty.channel.ChannelFuture"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$ConnectAdvice");
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextTrackingAddHandlerAdvice {
+    // No OnMethodEnter — avoids double-incrementing CallDepthThreadLocalMap,
+    // which would cause AddHandlerAdvice.OnMethodExit to see depth > 0 and skip.
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void addContextTrackingHandler(
+        @Advice.This final ChannelPipeline pipeline,
+        @Advice.Argument(value = 2, optional = true) final Object handler2,
+        @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3) {
+      ChannelHandler handler =
+          handler2 instanceof ChannelHandler ? (ChannelHandler) handler2 : handler3;
+      try {
+        if (handler instanceof HttpServerCodec || handler instanceof HttpRequestDecoder) {
+          NettyPipelineHelper.addHandlerAfter(
+              pipeline, handler, HttpServerContextTrackingHandler.INSTANCE);
+        }
+      } catch (final IllegalArgumentException e) {
+        // Prevented adding duplicate handlers.
+      }
+    }
   }
 
   /**
@@ -147,6 +178,9 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
           handler2 instanceof ChannelHandler ? (ChannelHandler) handler2 : handler3;
 
       try {
+        if (NettyHttp2Helper.isHttp2ConnectionCodec(handler)) {
+          pipeline.channel().attr(HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY).set(Boolean.TRUE);
+        }
         // Server pipeline handlers
         if (handler instanceof HttpServerCodec) {
           NettyPipelineHelper.addHandlerAfter(
@@ -221,14 +255,33 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
 
   public static class ConnectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void addParentSpan(@Advice.This final ChannelPipeline pipeline) {
+    public static boolean addParentSpan(@Advice.This final ChannelPipeline pipeline) {
       AgentScope.Continuation continuation = captureActiveSpan();
       if (continuation != noopContinuation()) {
         final Attribute<AgentScope.Continuation> attribute =
             pipeline.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY);
         if (!attribute.compareAndSet(null, continuation)) {
           continuation.cancel();
+          return false;
         }
+        return Boolean.TRUE.equals(
+            pipeline.channel().attr(HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY).get());
+      }
+      return false;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void cleanupHttp2ConnectParentContinuation(
+        @Advice.Enter final boolean cleanupHttp2Continuation,
+        @Advice.This final ChannelPipeline pipeline,
+        @Advice.Return final ChannelFuture future) {
+      if (!cleanupHttp2Continuation) {
+        return;
+      }
+      if (future == null) {
+        Http2ConnectContinuationListener.cancel(pipeline.channel());
+      } else {
+        future.addListener(Http2ConnectContinuationListener.INSTANCE);
       }
     }
   }

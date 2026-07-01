@@ -1,6 +1,7 @@
 package datadog.opentelemetry.shim.metrics;
 
-import datadog.trace.relocate.api.RatelimitedLogger;
+import datadog.logging.RatelimitedLogger;
+import datadog.trace.bootstrap.otel.metrics.data.OtelObservable;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableDoubleCounter;
 import io.opentelemetry.api.metrics.ObservableDoubleGauge;
@@ -13,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class OtelObservableCallback
+final class OtelObservableCallback extends OtelObservable
     implements ObservableDoubleCounter,
         ObservableLongCounter,
         ObservableDoubleGauge,
@@ -37,7 +38,8 @@ final class OtelObservableCallback
     this.measurements = measurements;
   }
 
-  void observeMeasurements() {
+  @Override
+  public void observeMeasurements() {
     measurements.forEach(OtelObservableMeasurement::activate);
     try {
       callback.run();

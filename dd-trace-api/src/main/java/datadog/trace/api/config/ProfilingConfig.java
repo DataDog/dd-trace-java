@@ -119,10 +119,6 @@ public final class ProfilingConfig {
       "profiling.ddprof.wall.context.filter";
   public static final boolean PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT = true;
 
-  public static final String PROFILING_DATADOG_PROFILER_WALL_JVMTI =
-      "profiling.experimental.ddprof.wall.jvmti";
-  public static final boolean PROFILING_DATADOG_PROFILER_WALL_JVMTI_DEFAULT = false;
-
   public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT =
       "profiling.experimental.ddprof.scheduling.event";
 
@@ -131,7 +127,7 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_PROCESS_CONTEXT_ENABLED =
       "profiling.experimental.process_context.enabled";
-  public static final boolean PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT = false;
+  public static final boolean PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT = true;
 
   public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL = "profiling.ddprof.loglevel";
 

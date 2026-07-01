@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jsp.JSPDecorator.DECORATE;
+import static datadog.trace.instrumentation.jsp.JSPDecorator.JSP_HTTP_SERVLET;
 import static datadog.trace.instrumentation.jsp.JSPDecorator.JSP_RENDER;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -59,7 +60,9 @@ public final class JSPInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.This final Object obj, @Advice.Argument(0) final HttpServletRequest req) {
-      final AgentSpan span = startSpan(JSP_RENDER).setTag("servlet.context", req.getContextPath());
+      final AgentSpan span =
+          startSpan(JSP_HTTP_SERVLET.toString(), JSP_RENDER)
+              .setTag("servlet.context", req.getContextPath());
       DECORATE.afterStart(span);
       DECORATE.onRender(span, req);
       return activateSpan(span);

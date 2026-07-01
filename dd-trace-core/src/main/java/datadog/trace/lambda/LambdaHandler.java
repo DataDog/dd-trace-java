@@ -9,6 +9,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.util.Strings;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -85,7 +86,6 @@ public class LambdaHandler {
                     .build())
             .execute()) {
       if (response.isSuccessful()) {
-
         return extractContextAndGetSpanContext(
             response.headers(),
             (carrier, classifier) -> {
@@ -93,6 +93,8 @@ public class LambdaHandler {
                 classifier.accept(headerName, carrier.get(headerName));
               }
             });
+      } else {
+        log.debug("Extension call failed with status: {}", response.code());
       }
     } catch (Throwable ignored) {
       log.error("could not reach the extension");
@@ -107,6 +109,7 @@ public class LambdaHandler {
           "could not notify the extension as the lambda span is null or no sampling priority has been found");
       return false;
     }
+
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(result));
     Request.Builder builder =
         new Request.Builder()
@@ -118,22 +121,17 @@ public class LambdaHandler {
             .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, lambdaRequestId)
             .post(body);
 
-    Object errorMessage = span.getTag(DDTags.ERROR_MSG);
-    if (errorMessage != null) {
-      builder.addHeader(DATADOG_INVOCATION_ERROR_MSG, errorMessage.toString());
-    }
-
-    Object errorType = span.getTag(DDTags.ERROR_TYPE);
-    if (errorType != null) {
-      builder.addHeader(DATADOG_INVOCATION_ERROR_TYPE, errorType.toString());
-    }
+    addHeaderIfValid(builder, DATADOG_INVOCATION_ERROR_MSG, span.getTag(DDTags.ERROR_MSG));
+    addHeaderIfValid(builder, DATADOG_INVOCATION_ERROR_TYPE, span.getTag(DDTags.ERROR_TYPE));
 
     Object errorStack = span.getTag(DDTags.ERROR_STACK);
     if (errorStack != null) {
       String encodedErrStack =
           Base64.getEncoder()
               .encodeToString(errorStack.toString().getBytes(StandardCharsets.UTF_8));
-      builder.addHeader(DATADOG_INVOCATION_ERROR_STACK, encodedErrStack);
+      if (Strings.isNotBlank(encodedErrStack)) {
+        builder.addHeader(DATADOG_INVOCATION_ERROR_STACK, encodedErrStack);
+      }
     }
 
     if (isError) {
@@ -161,6 +159,15 @@ public class LambdaHandler {
       }
     }
     return json;
+  }
+
+  private static void addHeaderIfValid(Request.Builder builder, String name, Object value) {
+    if (value != null) {
+      final String stringValue = value.toString();
+      if (Strings.isNotBlank(stringValue)) {
+        builder.addHeader(name, stringValue);
+      }
+    }
   }
 
   public static void setExtensionBaseUrl(String extensionBaseUrl) {

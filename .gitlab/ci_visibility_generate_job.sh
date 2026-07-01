@@ -42,7 +42,19 @@ if [ -z "$pr_number" ]; then
   exit 0
 fi
 
-echo "PR #${pr_number} found, checking labels..."
+echo "PR #${pr_number} found, checking target branch..."
+set +e
+base_branch=$(gh pr view "$pr_number" --repo DataDog/dd-trace-java --json baseRefName --jq '.baseRefName' 2>&1)
+base_branch_status=$?
+set -e
+
+if [ $base_branch_status -eq 0 ] && [[ "$base_branch" == release/* ]]; then
+  echo "PR #$pr_number targets release branch '$base_branch' - skipping trigger"
+  add_dummy_job
+  exit 0
+fi
+
+echo "Checking labels..."
 set +e
 labels=$(gh pr view "$pr_number" --repo DataDog/dd-trace-java --json labels --jq '.labels[].name' 2>&1)
 labels_status=$?
