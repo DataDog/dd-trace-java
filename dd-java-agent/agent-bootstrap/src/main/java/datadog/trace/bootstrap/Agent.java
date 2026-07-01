@@ -1375,7 +1375,8 @@ public class Agent {
    *
    * <p>Operators disable it with {@code -Dddprof.context.storage.mode=thread} (or select {@code
    * auto}); we only set the property when it is unset, so an explicit choice always wins. Must run
-   * before {@link #createProfilingContextIntegration()} triggers the profiler load.
+   * before {@code installDatadogTracer}, which loads the profiler via {@link
+   * #createProfilingContextIntegration()}.
    */
   private static void prepareDatadogProfilerContextStorage(Instrumentation inst) {
     try {
