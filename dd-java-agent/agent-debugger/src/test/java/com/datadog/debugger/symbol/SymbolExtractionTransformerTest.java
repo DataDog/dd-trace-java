@@ -968,7 +968,6 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @EnabledForJreRange(max = JRE.JAVA_25)
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Flaky on J9 JVMs")
