@@ -7,12 +7,12 @@ import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
-import datadog.trace.api.SpanPrototype;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
@@ -96,33 +96,33 @@ public abstract class BaseDecorator {
   }
 
   /**
-   * The baked-once {@link SpanPrototype} for this decorator: the constant tags {@link #afterStart}
-   * would otherwise stamp one at a time. Composed across the hierarchy via {@link
-   * #buildPrototype(TagMap)} and cached (lazily, to respect the same static-init ordering caution
-   * as {@link #componentEntry()}).
+   * The baked-once {@link SpanPrototype} for this decorator: the constant identity + tags {@link
+   * #afterStart} would otherwise stamp one at a time. Composed across the hierarchy via {@link
+   * #prototypeBuilder()} and cached (lazily, to respect the same static-init ordering caution as
+   * {@link #componentEntry()}).
    *
    * <p>Not yet wired into span creation — this is the provider surface; the seed hook comes next.
    */
   public final SpanPrototype prototype() {
     SpanPrototype prototype = cachedPrototype;
     if (prototype == null) {
-      final TagMap tags = TagMap.create();
-      buildPrototype(tags);
-      cachedPrototype = prototype = SpanPrototype.of(tags);
+      cachedPrototype = prototype = prototypeBuilder().build();
     }
     return prototype;
   }
 
   /**
-   * Contributes this decorator's constant tags to the prototype under construction. Overrides must
-   * call {@code super.buildPrototype(tags)} first, then add their own — mirroring the {@link
-   * #afterStart} super-chain, but run once at bake time rather than per span.
+   * Contributes this decorator's constant identity + tags to the prototype under construction.
+   * Overrides must call {@code super.prototypeBuilder()} first, then add their own — mirroring the
+   * {@link #afterStart} super-chain, but run once at bake time rather than per span. Authors
+   * compose via the typed builder and never see {@link TagMap}.
    */
-  protected void buildPrototype(final TagMap tags) {
-    tags.set(componentEntry());
-    if (traceAnalyticsEntry != null) {
-      tags.set(traceAnalyticsEntry);
-    }
+  protected SpanPrototype.Builder prototypeBuilder() {
+    return SpanPrototype.builder()
+        .instrumentationName(instrumentationNames())
+        .spanType(spanType())
+        .initComponent(component())
+        .initTag(traceAnalyticsEntry);
   }
 
   public AgentSpan afterStart(final AgentSpan span) {

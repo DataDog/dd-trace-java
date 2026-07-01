@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 public abstract class ClientDecorator extends BaseDecorator {
@@ -45,8 +46,7 @@ public abstract class ClientDecorator extends BaseDecorator {
   }
 
   @Override
-  protected void buildPrototype(final TagMap tags) {
-    super.buildPrototype(tags);
-    tags.set(spanKindEntry());
+  protected SpanPrototype.Builder prototypeBuilder() {
+    return super.prototypeBuilder().initKind(spanKind());
   }
 }

@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 public abstract class ServerDecorator extends BaseDecorator {
@@ -20,9 +21,9 @@ public abstract class ServerDecorator extends BaseDecorator {
   }
 
   @Override
-  protected void buildPrototype(final TagMap tags) {
-    super.buildPrototype(tags);
-    tags.set(SPAN_KIND_ENTRY);
-    tags.set(LANG_ENTRY);
+  protected SpanPrototype.Builder prototypeBuilder() {
+    return super.prototypeBuilder()
+        .initKind(Tags.SPAN_KIND_SERVER)
+        .initTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
   }
 }

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import org.junit.jupiter.api.Test;
 
@@ -12,13 +13,34 @@ class SpanPrototypeTest {
 
   @Test
   void serverPrototypeComposesBaseAndServerConstants() {
-    final TagMap tags = new TestServerDecorator().prototype().tags();
+    final SpanPrototype prototype = new TestServerDecorator().prototype();
+    final TagMap tags = prototype.tags();
 
+    // Identity (BaseDecorator)
+    assertEquals("test", prototype.instrumentationName());
+    assertEquals("test-type", prototype.spanType());
     // BaseDecorator contribution
     assertEquals("test-component", tags.getString(Tags.COMPONENT));
     // ServerDecorator contribution
     assertEquals(Tags.SPAN_KIND_SERVER, tags.getString(Tags.SPAN_KIND));
     assertEquals(DDTags.LANGUAGE_TAG_VALUE, tags.getString(DDTags.LANGUAGE_TAG_KEY));
+  }
+
+  @Test
+  void extendsInheritsBaseIdentityAndTagsThenOverrides() {
+    final SpanPrototype base =
+        SpanPrototype.builder()
+            .instrumentationName("base")
+            .spanType("base-type")
+            .initKind("server")
+            .build();
+    final SpanPrototype derived =
+        SpanPrototype.builder().extends_(base).initComponent("netty").spanType("http").build();
+
+    assertEquals("base", derived.instrumentationName()); // inherited
+    assertEquals("http", derived.spanType()); // overridden
+    assertEquals("server", derived.tags().getString(Tags.SPAN_KIND)); // inherited tag
+    assertEquals("netty", derived.tags().getString(Tags.COMPONENT)); // added tag
   }
 
   @Test
