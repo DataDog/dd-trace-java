@@ -60,7 +60,10 @@ public final class ClientCallImplInstrumentation
     transformer.applyAdvice(
         named("sendMessage").and(isMethod()), getClass().getName() + "$SendMessage");
     transformer.applyAdvice(
-        named("close").and(isMethod().and(takesArguments(2))),
+        named("close")
+            .and(isMethod())
+            .and(takesArgument(0, named("io.grpc.Status")))
+            .and(takesArgument(1, named("io.grpc.Metadata"))),
         getClass().getName() + "$CloseObserver");
     if (InstrumenterConfig.get()
         .isIntegrationEnabled(Arrays.asList("armeria-grpc-message", "grpc-message"), false)) {
