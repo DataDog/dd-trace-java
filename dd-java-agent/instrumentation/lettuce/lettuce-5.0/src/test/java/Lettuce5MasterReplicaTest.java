@@ -10,8 +10,10 @@ import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.codec.StringCodec;
-import io.lettuce.core.masterslave.MasterSlave;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -21,7 +23,9 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
-class Lettuce5StaticMasterReplicaTest extends AbstractInstrumentationTest {
+class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
+  private static final String MASTER_REPLICA_CLASS = "io.lettuce.core.masterreplica.MasterReplica";
+  private static final String MASTER_SLAVE_CLASS = "io.lettuce.core.masterslave.MasterSlave";
   private static final int DB_INDEX = 0;
   private static final ClientOptions CLIENT_OPTIONS =
       ClientOptions.builder().autoReconnect(false).build();
@@ -45,9 +49,10 @@ class Lettuce5StaticMasterReplicaTest extends AbstractInstrumentationTest {
     RedisURI redisURI = RedisURI.Builder.redis(host, port).withDatabase(DB_INDEX).build();
     redisClient = RedisClient.create();
     redisClient.setOptions(CLIENT_OPTIONS);
-    // Spring Data RedisStaticMasterReplicaConfiguration uses this static topology path on Lettuce
-    // 5.
-    connection = MasterSlave.connect(redisClient, StringCodec.UTF8, singletonList(redisURI));
+    // Prefer the newer MasterReplica facade when this source is compiled for latestDepTest, but
+    // resolve both APIs reflectively so the same test still compiles with the Lettuce 5.0 baseline
+    // and can keep compiling if the deprecated MasterSlave facade disappears later.
+    connection = connectMasterReplica(redisClient, redisURI);
     connection.sync().ping();
 
     writer.waitForTraces(2);
@@ -94,5 +99,34 @@ class Lettuce5StaticMasterReplicaTest extends AbstractInstrumentationTest {
     assertEquals("redis", span.getTag(Tags.DB_TYPE));
     assertNotNull(span.getTag(Tags.PEER_HOSTNAME), "command span should include peer.hostname");
     assertEquals(host, span.getTag(Tags.PEER_HOSTNAME));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static StatefulRedisConnection<String, String> connectMasterReplica(
+      RedisClient redisClient, RedisURI redisURI) throws Exception {
+    Class<?> facade = masterReplicaFacade();
+    Method connect =
+        facade.getMethod("connect", RedisClient.class, RedisCodec.class, Iterable.class);
+    try {
+      return (StatefulRedisConnection<String, String>)
+          connect.invoke(null, redisClient, StringCodec.UTF8, singletonList(redisURI));
+    } catch (InvocationTargetException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof Exception) {
+        throw (Exception) cause;
+      }
+      if (cause instanceof Error) {
+        throw (Error) cause;
+      }
+      throw e;
+    }
+  }
+
+  private static Class<?> masterReplicaFacade() throws ClassNotFoundException {
+    try {
+      return Class.forName(MASTER_REPLICA_CLASS);
+    } catch (ClassNotFoundException ignored) {
+      return Class.forName(MASTER_SLAVE_CLASS);
+    }
   }
 }
