@@ -967,6 +967,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   }
 
   @Override
+  public String getSpanKindString() {
+    return context.getSpanKindString();
+  }
+
+  @Override
   public void copyPropagationAndBaggage(final AgentSpan source) {
     if (source instanceof DDSpan) {
       final DDSpanContext sourceSpanContext = ((DDSpan) source).spanContext();

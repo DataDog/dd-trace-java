@@ -28,8 +28,8 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Parallels {@link ConflatingMetricsAggregatorBenchmark} but uses real {@link DDSpan} instances
- * instead of the lightweight {@code SimpleSpan} mock, so the JIT exercises the production {@link
+ * Parallels {@link ClientStatsAggregatorBenchmark} but uses real {@link DDSpan} instances instead
+ * of the lightweight {@code SimpleSpan} mock, so the JIT exercises the production {@link
  * CoreSpan#isKind} path (cached span.kind ordinal + bit-test) rather than the groovy mock's
  * dispatch.
  *
@@ -50,21 +50,21 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 1)
-public class ConflatingMetricsAggregatorDDSpanBenchmark {
+public class ClientStatsAggregatorDDSpanBenchmark {
 
   private static final CoreTracer TRACER =
       CoreTracer.builder().writer(new NoopWriter()).strictTraceWrites(false).build();
 
   private final DDAgentFeaturesDiscovery featuresDiscovery =
-      new ConflatingMetricsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
+      new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
           Collections.singleton("peer.hostname"), Collections.emptySet());
-  private final ConflatingMetricsAggregator aggregator =
-      new ConflatingMetricsAggregator(
+  private final ClientStatsAggregator aggregator =
+      new ClientStatsAggregator(
           new WellKnownTags("", "", "", "", "", ""),
           Collections.emptySet(),
           featuresDiscovery,
           HealthMetrics.NO_OP,
-          new ConflatingMetricsAggregatorBenchmark.NullSink(),
+          new ClientStatsAggregatorBenchmark.NullSink(),
           2048,
           2048,
           false);
