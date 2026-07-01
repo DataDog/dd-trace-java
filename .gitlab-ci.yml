@@ -758,9 +758,9 @@ muzzle-dep-report:
       when: never
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
       when: on_success
-    - if: '$CI_COMMIT_BRANCH == "master"
+    - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
-    - if: $testJvm =~ $DEFAULT_TEST_JVMS
+    - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: manual
       allow_failure: true
   cache:
