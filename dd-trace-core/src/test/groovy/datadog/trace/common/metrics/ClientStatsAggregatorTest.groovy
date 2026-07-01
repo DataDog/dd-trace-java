@@ -18,7 +18,11 @@ import java.util.concurrent.TimeoutException
 import java.util.function.Supplier
 import spock.lang.Shared
 
-class ConflatingMetricAggregatorTest extends DDSpecification {
+class ClientStatsAggregatorTest extends DDSpecification {
+
+  def setup() {
+    AggregateEntry.resetCardinalityHandlers()
+  }
 
   static Set<String> empty = new HashSet<>()
 
@@ -35,7 +39,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
       wellKnownTags,
       empty,
       features,
@@ -65,7 +69,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
       wellKnownTags,
       [ignoredResourceName].toSet(),
       features,
@@ -103,7 +107,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -151,7 +155,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -199,7 +203,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -259,66 +263,34 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     "client"                         | "GET"      | "/external/api"     | true
   }
 
-  def "should create bucket for each set of peer tags"() {
+  def "should create separate buckets for distinct peer tag values"() {
+    // Peer-tag NAMES are configured per-tracer and stable for the duration of a trace publish;
+    // peer-tag VALUES vary per-span. Two spans with the same names but different values should
+    // produce two distinct aggregate buckets.
     setup:
-    // Peer-tag schema is reconciled with feature discovery once per reporting cycle (on the
-    // aggregator thread, in the post-report hook), not per-span on the producer. Drive two
-    // reporting cycles with different peerTags() configurations to verify the aggregator buckets
-    // each cycle by the schema that was current at publish time.
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    features.peerTags() >>> [["country"], ["country", "georegion"]]
-    // Bump the discovered state hash so reconcile during report cycle 1 sees a mismatch and
-    // rebuilds the schema for span 2. Three calls: bootstrap (span1's publish), reconcile-during-
-    // report-1 (mismatch -> rebuild + 2nd peerTags() call), reconcile-during-report-2 (no change).
-    features.state() >>> ["state-1", "state-2", "state-2"]
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    features.peerTags() >> ["country", "georegion"]
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
-    when: "cycle 1 -- peerTags=[country]"
-    CountDownLatch latch1 = new CountDownLatch(1)
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
     aggregator.publish([
       new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
-      .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe")
-    ])
-    aggregator.report()
-    def cycle1Triggered = latch1.await(2, SECONDS)
-
-    and: "cycle 2 -- reconcile picks up peerTags=[country, georegion]"
-    CountDownLatch latch2 = new CountDownLatch(1)
-    aggregator.publish([
+      .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe"),
       new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
-      .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe")
+      .setTag(SPAN_KIND, "client").setTag("country", "germany").setTag("georegion", "europe")
     ])
     aggregator.report()
-    def cycle2Triggered = latch2.await(2, SECONDS)
+    def latchTriggered = latch.await(2, SECONDS)
 
     then:
-    cycle1Triggered
-    cycle2Triggered
-    1 * writer.add({
-      AggregateEntryTestUtils.equals(it,
-        AggregateEntryTestUtils.of(
-        "resource",
-        "service",
-        "operation",
-        null,
-        "type",
-        HTTP_OK,
-        false,
-        false,
-        "client",
-        [UTF8BytesString.create("country:france")],
-        null,
-        null,
-        null
-        ))
-    }) >> { AggregateEntry e ->
-      assert e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
-    }
+    latchTriggered
+    1 * writer.startBucket(2, _, _)
     1 * writer.add({
       AggregateEntryTestUtils.equals(it,
         AggregateEntryTestUtils.of(
@@ -339,7 +311,27 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     }) >> { AggregateEntry e ->
       assert e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
     }
-    2 * writer.finishBucket() >> { latch1.countDown(); latch2.countDown() }
+    1 * writer.add({
+      AggregateEntryTestUtils.equals(it,
+        AggregateEntryTestUtils.of(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "type",
+        HTTP_OK,
+        false,
+        false,
+        "client",
+        [UTF8BytesString.create("country:germany"), UTF8BytesString.create("georegion:europe")],
+        null,
+        null,
+        null
+        ))
+    }) >> { AggregateEntry e ->
+      assert e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
+    }
+    1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
     aggregator.close()
@@ -352,7 +344,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> ["peer.hostname", "_dd.base_service"]
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -407,7 +399,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty, features, HealthMetrics.NO_OP,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty, features, HealthMetrics.NO_OP,
       sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -461,7 +453,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     List<CoreSpan> trace = [
@@ -537,7 +529,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -672,7 +664,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -795,7 +787,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -869,7 +861,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -945,7 +937,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1015,7 +1007,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     HealthMetrics healthMetrics = Mock(HealthMetrics)
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, healthMetrics, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1049,7 +1041,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     HealthMetrics healthMetrics = Mock(HealthMetrics)
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, healthMetrics, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -1094,7 +1086,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1198,7 +1190,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1258,7 +1250,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1309,7 +1301,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1340,7 +1332,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS, false)
     aggregator.start()
 
@@ -1362,7 +1354,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> false
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, 200, MILLISECONDS, false)
     final spans = [
       new SimpleSpan("service", "operation", "resource", "type", false, true, false, 0, 10, HTTP_OK)
@@ -1394,7 +1386,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS, false)
 
     when:
@@ -1427,7 +1419,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -1476,7 +1468,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -1533,7 +1525,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -1630,7 +1622,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -1709,14 +1701,14 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.close()
   }
 
-  def reportAndWaitUntilEmpty(ConflatingMetricsAggregator aggregator) {
+  def reportAndWaitUntilEmpty(ClientStatsAggregator aggregator) {
     waitUntilEmpty(aggregator)
     aggregator.report()
     waitUntilEmpty(aggregator)
   }
 
 
-  def waitUntilEmpty(ConflatingMetricsAggregator aggregator) {
+  def waitUntilEmpty(ClientStatsAggregator aggregator) {
     int i = 0
     while (!aggregator.inbox.isEmpty() && i++ < 100) {
       Thread.sleep(10)

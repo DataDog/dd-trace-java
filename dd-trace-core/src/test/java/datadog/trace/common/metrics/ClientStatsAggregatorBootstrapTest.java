@@ -4,7 +4,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -12,7 +11,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.SpanKindFilter;
@@ -26,8 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 /**
- * Coverage for the {@code ConflatingMetricsAggregator} peer-tag schema bootstrap and reconcile
- * paths.
+ * Coverage for the {@code ClientStatsAggregator} peer-tag schema bootstrap and reconcile paths.
  *
  * <ul>
  *   <li>{@link #bootstrapHappensOnceOnFirstPublish()} -- verifies the synchronized producer-side
@@ -43,7 +40,7 @@ import org.mockito.ArgumentCaptor;
  *       publishes see the new tags.
  * </ul>
  */
-class ConflatingMetricsAggregatorBootstrapTest {
+class ClientStatsAggregatorBootstrapTest {
 
   @Test
   void bootstrapHappensOnceOnFirstPublish() {
@@ -57,8 +54,8 @@ class ConflatingMetricsAggregatorBootstrapTest {
     when(features.peerTags()).thenReturn(Collections.<String>singleton("peer.hostname"));
     when(features.state()).thenReturn("state-1");
 
-    ConflatingMetricsAggregator aggregator =
-        new ConflatingMetricsAggregator(
+    ClientStatsAggregator aggregator =
+        new ClientStatsAggregator(
             Collections.<String>emptySet(),
             features,
             healthMetrics,
@@ -94,8 +91,8 @@ class ConflatingMetricsAggregatorBootstrapTest {
     when(features.peerTags()).thenReturn(Collections.<String>singleton("peer.hostname"));
     when(features.state()).thenReturn("state-1");
 
-    ConflatingMetricsAggregator aggregator =
-        new ConflatingMetricsAggregator(
+    ClientStatsAggregator aggregator =
+        new ClientStatsAggregator(
             Collections.<String>emptySet(),
             features,
             healthMetrics,
@@ -163,8 +160,8 @@ class ConflatingMetricsAggregatorBootstrapTest {
     // State hash changes every reconcile -- forces reconcile into the slow path each time.
     when(features.state()).thenReturn("state-1", "state-2", "state-3");
 
-    ConflatingMetricsAggregator aggregator =
-        new ConflatingMetricsAggregator(
+    ClientStatsAggregator aggregator =
+        new ClientStatsAggregator(
             Collections.<String>emptySet(),
             features,
             healthMetrics,
@@ -236,8 +233,8 @@ class ConflatingMetricsAggregatorBootstrapTest {
     // (mismatch -> slow path), stable at "state-2" for cycle 2's reconcile (match -> fast path).
     when(features.state()).thenReturn("state-1", "state-2", "state-2");
 
-    ConflatingMetricsAggregator aggregator =
-        new ConflatingMetricsAggregator(
+    ClientStatsAggregator aggregator =
+        new ClientStatsAggregator(
             Collections.<String>emptySet(),
             features,
             healthMetrics,
@@ -324,7 +321,7 @@ class ConflatingMetricsAggregatorBootstrapTest {
     when(span.getHttpStatusCode()).thenReturn((short) 200);
     when(span.getParentId()).thenReturn(0L);
     when(span.getOrigin()).thenReturn(null);
-    when(span.unsafeGetTag(eq(Tags.SPAN_KIND), any(CharSequence.class))).thenReturn("client");
+    when(span.getSpanKindString()).thenReturn("client");
     // peer.hostname tag is set so capturePeerTagValues fires for the bootstrapped schema.
     when(span.unsafeGetTag("peer.hostname")).thenReturn("localhost");
     return span;

@@ -1,19 +1,26 @@
 package com.datadog.appsec.sca;
 
+import static com.datadog.appsec.sca.ScaBytecodeTestUtils.bytecodeOf;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import datadog.telemetry.dependency.Dependency;
+import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import java.io.StringReader;
 import java.lang.instrument.Instrumentation;
 import java.net.URLClassLoader;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
@@ -51,6 +58,11 @@ class ScaReachabilityTransformerJava9Test {
           + "\"version_ranges\":[\"< 999.0.0\"],"
           + "\"symbols\":[{\"class\":\"com/fasterxml/jackson/databind/ObjectMapper\",\"method\":\"readValue\"}]"
           + "}]}";
+
+  @AfterEach
+  void resetRegistry() {
+    ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
+  }
 
   @Test
   @EnabledForJreRange(min = JRE.JAVA_9)
@@ -103,8 +115,7 @@ class ScaReachabilityTransformerJava9Test {
     Dependency dep = new Dependency("com.github.junrar:junrar", "7.5.5", "junrar-7.5.5.jar", null);
     assertEquals(
         "7.5.5",
-        ScaReachabilityTransformer.matchVersion(
-            "com.github.junrar:junrar", Collections.singletonList(dep)));
+        ScaReachabilityTransformer.matchVersion("com.github.junrar:junrar", singletonList(dep)));
   }
 
   @Test
@@ -114,8 +125,7 @@ class ScaReachabilityTransformerJava9Test {
     Dependency dep = new Dependency("junrar", "7.5.5", "junrar-7.5.5.jar", null);
     assertEquals(
         "7.5.5",
-        ScaReachabilityTransformer.matchVersion(
-            "com.github.junrar:junrar", Collections.singletonList(dep)),
+        ScaReachabilityTransformer.matchVersion("com.github.junrar:junrar", singletonList(dep)),
         "artifact-ID fallback must match 'junrar' against 'com.github.junrar:junrar'");
   }
 
@@ -125,16 +135,13 @@ class ScaReachabilityTransformerJava9Test {
     // "org.other:junrar" should NOT match "com.github.junrar:junrar".
     Dependency dep = new Dependency("org.other:junrar", "1.0.0", "junrar-1.0.0.jar", null);
     assertNull(
-        ScaReachabilityTransformer.matchVersion(
-            "com.github.junrar:junrar", Collections.singletonList(dep)),
+        ScaReachabilityTransformer.matchVersion("com.github.junrar:junrar", singletonList(dep)),
         "artifact-ID fallback must not fire when dep.name already has a group ID");
   }
 
   @Test
   void matchVersion_emptyListReturnsNull() {
-    assertNull(
-        ScaReachabilityTransformer.matchVersion(
-            "com.github.junrar:junrar", Collections.emptyList()));
+    assertNull(ScaReachabilityTransformer.matchVersion("com.github.junrar:junrar", emptyList()));
   }
 
   @Test
@@ -230,12 +237,107 @@ class ScaReachabilityTransformerJava9Test {
   }
 
   @Test
+  void transform_retransform_injectsCallbacksWhenVersionResolvedFromCache() throws Exception {
+    String internalName =
+        ScaReachabilityMethodLevelTest.TargetClass.class.getName().replace('.', '/');
+    String json =
+        "{\"version\":1,\"entries\":[{"
+            + "\"vuln_id\":\"GHSA-transform\","
+            + "\"artifact\":\"com.example:lib\","
+            + "\"version_ranges\":[\"< 999.0.0\"],"
+            + "\"symbols\":[{\"class\":\""
+            + internalName
+            + "\",\"method\":\"vulnerableMethod\"}]"
+            + "}]}";
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(json));
+    ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, null);
+    transformer.jarCache.put(
+        ScaReachabilityMethodLevelTest.TargetClass.class
+            .getProtectionDomain()
+            .getCodeSource()
+            .getLocation()
+            .toURI(),
+        singletonList(new Dependency("com.example:lib", "1.2.3", "test.jar", null)));
+
+    byte[] transformed =
+        transformer.transform(
+            null,
+            internalName,
+            ScaReachabilityMethodLevelTest.TargetClass.class,
+            ScaReachabilityMethodLevelTest.TargetClass.class.getProtectionDomain(),
+            bytecodeOf(ScaReachabilityMethodLevelTest.TargetClass.class));
+
+    assertNotNull(transformed);
+    assertTrue(transformer.pendingRetransformNames.isEmpty());
+    List<ScaReachabilityDependencyRegistry.DependencySnapshot> snapshots =
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+    assertEquals(1, snapshots.size());
+    assertEquals("com.example:lib", snapshots.get(0).artifact);
+    assertEquals("1.2.3", snapshots.get(0).version);
+    assertEquals("GHSA-transform", snapshots.get(0).cves.get(0).vulnId);
+    assertNull(snapshots.get(0).cves.get(0).hit);
+  }
+
+  @Test
+  void checkAlreadyLoadedClassesSchedulesOnlyMatchingNonBootstrapClasses() throws Exception {
+    String internalName =
+        ScaReachabilityMethodLevelTest.TargetClass.class.getName().replace('.', '/');
+    String json =
+        "{\"version\":1,\"entries\":["
+            + "{\"vuln_id\":\"GHSA-target\",\"artifact\":\"com.example:lib\","
+            + "\"version_ranges\":[\"< 999.0.0\"],"
+            + "\"symbols\":[{\"class\":\""
+            + internalName
+            + "\",\"method\":\"vulnerableMethod\"}]},"
+            + "{\"vuln_id\":\"GHSA-jdk\",\"artifact\":\"com.example:jdk\","
+            + "\"version_ranges\":[\"< 999.0.0\"],"
+            + "\"symbols\":[{\"class\":\"java/lang/String\",\"method\":\"substring\"}]}"
+            + "]}";
+
+    Instrumentation mockInstr = mock(Instrumentation.class);
+    when(mockInstr.getAllLoadedClasses())
+        .thenReturn(
+            new Class<?>[] {
+              null, String[].class, String.class, ScaReachabilityMethodLevelTest.TargetClass.class,
+            });
+    ScaReachabilityTransformer transformer =
+        new ScaReachabilityTransformer(ScaCveDatabase.parse(new StringReader(json)), mockInstr);
+
+    transformer.checkAlreadyLoadedClasses();
+
+    assertEquals(1, transformer.pendingRetransform.size());
+    assertSame(
+        ScaReachabilityMethodLevelTest.TargetClass.class, transformer.pendingRetransform.peek());
+  }
+
+  @Test
+  void performPendingRetransforms_noopsWithoutInstrumentation() throws Exception {
+    ScaReachabilityTransformer transformer =
+        new ScaReachabilityTransformer(
+            ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}")), null);
+    transformer.pendingRetransform.add(ScaReachabilityMethodLevelTest.TargetClass.class);
+
+    transformer.performPendingRetransforms();
+
+    assertSame(
+        ScaReachabilityMethodLevelTest.TargetClass.class, transformer.pendingRetransform.peek());
+  }
+
+  @Test
+  void resolveArtifactDep_returnsCachedClasspathArtifact() throws Exception {
+    ScaReachabilityTransformer transformer =
+        new ScaReachabilityTransformer(ScaCveDatabase.parse(new StringReader(JACKSON_JSON)), null);
+    Dependency cached = new Dependency("com.example:lib", "1.0.0", "lib.jar", null);
+    transformer.classpathArtifactCache.put("com.example:lib", cached);
+
+    assertSame(cached, transformer.resolveArtifactDep("com.example:lib", emptyList()));
+  }
+
+  @Test
   void matchVersion_nullDepNameDoesNotThrow() {
     // guessFallbackNoPom can produce Dependency(name=null, ...) for JARs with unrecognizable names.
     Dependency nullName = new Dependency(null, "1.0", "foo.jar", null);
-    assertNull(
-        ScaReachabilityTransformer.matchVersion(
-            "com.example:foo", Collections.singletonList(nullName)));
+    assertNull(ScaReachabilityTransformer.matchVersion("com.example:foo", singletonList(nullName)));
   }
 
   /**
@@ -261,7 +363,7 @@ class ScaReachabilityTransformerJava9Test {
 
     Dependency resolved =
         transformer.resolveArtifactDep(
-            "com.fasterxml.jackson.core:jackson-databind", Collections.singletonList(noPomDep));
+            "com.fasterxml.jackson.core:jackson-databind", singletonList(noPomDep));
 
     assertNotNull(resolved, "should resolve via artifactId-only fallback");
     assertEquals(
