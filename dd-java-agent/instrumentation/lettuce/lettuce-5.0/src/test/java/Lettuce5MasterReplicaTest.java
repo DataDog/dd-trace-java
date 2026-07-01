@@ -24,12 +24,6 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
 class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
-  private static final String MASTER_REPLICA_CLASS = "io.lettuce.core.masterreplica.MasterReplica";
-  private static final String MASTER_SLAVE_CLASS = "io.lettuce.core.masterslave.MasterSlave";
-  private static final int DB_INDEX = 0;
-  private static final ClientOptions CLIENT_OPTIONS =
-      ClientOptions.builder().autoReconnect(false).build();
-
   private RedisContainer redisServer;
   private RedisClient redisClient;
   private StatefulRedisConnection<String, String> connection;
@@ -46,12 +40,9 @@ class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
     host = redisServer.getHost();
     port = redisServer.getFirstMappedPort();
 
-    RedisURI redisURI = RedisURI.Builder.redis(host, port).withDatabase(DB_INDEX).build();
+    RedisURI redisURI = RedisURI.Builder.redis(host, port).withDatabase(0).build();
     redisClient = RedisClient.create();
-    redisClient.setOptions(CLIENT_OPTIONS);
-    // Prefer the newer MasterReplica facade when this source is compiled for latestDepTest, but
-    // resolve both APIs reflectively so the same test still compiles with the Lettuce 5.0 baseline
-    // and can keep compiling if the deprecated MasterSlave facade disappears later.
+    redisClient.setOptions(ClientOptions.builder().autoReconnect(false).build());
     connection = connectMasterReplica(redisClient, redisURI);
     connection.sync().ping();
 
@@ -104,7 +95,15 @@ class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
   @SuppressWarnings("unchecked")
   private static StatefulRedisConnection<String, String> connectMasterReplica(
       RedisClient redisClient, RedisURI redisURI) throws Exception {
-    Class<?> facade = masterReplicaFacade();
+    // Prefer the newer MasterReplica facade when this source is compiled for latestDepTest, but
+    // resolve both APIs reflectively so the same test still compiles with the Lettuce 5.0 baseline
+    // and can keep compiling if the deprecated MasterSlave facade disappears later.
+    Class<?> facade;
+    try {
+      facade = Class.forName("io.lettuce.core.masterreplica.MasterReplica");
+    } catch (ClassNotFoundException ignored) {
+      facade = Class.forName("io.lettuce.core.masterslave.MasterSlave");
+    }
     Method connect =
         facade.getMethod("connect", RedisClient.class, RedisCodec.class, Iterable.class);
     try {
@@ -119,14 +118,6 @@ class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
         throw (Error) cause;
       }
       throw e;
-    }
-  }
-
-  private static Class<?> masterReplicaFacade() throws ClassNotFoundException {
-    try {
-      return Class.forName(MASTER_REPLICA_CLASS);
-    } catch (ClassNotFoundException ignored) {
-      return Class.forName(MASTER_SLAVE_CLASS);
     }
   }
 }
