@@ -12,7 +12,6 @@ com.github.stephenc.jcip:jcip-annotations:1.0-1=spotbugs
 com.google.code.findbugs:jsr305:3.0.2=compileClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
 com.google.code.gson:gson:2.13.2=spotbugs
 com.google.errorprone:error_prone_annotations:2.41.0=spotbugs
-com.google.guava:guava:20.0=testCompileClasspath,testRuntimeClasspath
 com.thoughtworks.qdox:qdox:1.12.1=codenarc
 commons-fileupload:commons-fileupload:1.5=testCompileClasspath,testRuntimeClasspath
 commons-io:commons-io:2.11.0=testCompileClasspath,testRuntimeClasspath

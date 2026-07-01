@@ -68,11 +68,8 @@ public final class TraceMatcher {
     if (this.options.sorter != null) {
       trace.sort(this.options.sorter);
     }
-    DDSpan previousSpan = null;
-    for (int i = 0; i < spanCount; i++) {
-      DDSpan span = trace.get(i);
-      this.matchers[i].assertSpan(span, previousSpan);
-      previousSpan = span;
+    for (int spanIndex = 0; spanIndex < spanCount; spanIndex++) {
+      this.matchers[spanIndex].assertSpan(trace, spanIndex);
     }
   }
 

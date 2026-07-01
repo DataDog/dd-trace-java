@@ -1,5 +1,8 @@
 package com.datadog.appsec.sca;
 
+import static com.datadog.appsec.sca.ScaBytecodeTestUtils.bytecodeOf;
+import static com.datadog.appsec.sca.ScaBytecodeTestUtils.bytecodeWithoutDebugInfo;
+import static com.datadog.appsec.sca.ScaBytecodeTestUtils.loadModified;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -10,8 +13,6 @@ import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.DependencySnapshot;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
 import datadog.trace.bootstrap.appsec.sca.ScaReachabilityCallback;
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.io.StringReader;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -40,6 +41,24 @@ class ScaReachabilityMethodLevelTest {
 
     public String safeMethod() {
       return "safe";
+    }
+  }
+
+  /** Fixture compiled normally, then stripped of line numbers before callback injection. */
+  public static class ClassToBeStrippedOfLineNumber {
+    // Intentionally non-final so javac emits a field read instead of inlining a constant.
+    private static int runtimeFieldValue = 7;
+
+    public static int readField() {
+      return runtimeFieldValue;
+    }
+
+    public static Object returnArgument(Object value) {
+      return value;
+    }
+
+    public static String callToString(Object value) {
+      return value.toString();
     }
   }
 
@@ -172,6 +191,38 @@ class ScaReachabilityMethodLevelTest {
   }
 
   @Test
+  void inject_withoutLineNumbersInjectsBeforeFirstInstruction() throws Exception {
+    byte[] original = bytecodeWithoutDebugInfo(ClassToBeStrippedOfLineNumber.class);
+    String className = ClassToBeStrippedOfLineNumber.class.getName();
+    Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks = new HashMap<>();
+    callbacks.put(
+        "readField",
+        Collections.singletonList(
+            spec("GHSA-field", "com.example:lib", "1.0.0", className, "readField")));
+    callbacks.put(
+        "returnArgument",
+        Collections.singletonList(
+            spec("GHSA-var", "com.example:lib", "1.0.0", className, "returnArgument")));
+    callbacks.put(
+        "callToString",
+        Collections.singletonList(
+            spec("GHSA-method", "com.example:lib", "1.0.0", className, "callToString")));
+
+    Class<?> cls = loadModified(ScaMethodCallbackInjector.inject(original, callbacks));
+
+    assertEquals(7, cls.getMethod("readField").invoke(null));
+    assertEquals("value", cls.getMethod("returnArgument", Object.class).invoke(null, "value"));
+    assertEquals("value", cls.getMethod("callToString", Object.class).invoke(null, "value"));
+
+    List<ScaReachabilityHit> hits = drainHits();
+    assertEquals(3, hits.size());
+    assertTrue(hits.stream().allMatch(hit -> hit.line() == 1));
+    assertTrue(hits.stream().anyMatch(hit -> hit.symbolName().equals("readField")));
+    assertTrue(hits.stream().anyMatch(hit -> hit.symbolName().equals("returnArgument")));
+    assertTrue(hits.stream().anyMatch(hit -> hit.symbolName().equals("callToString")));
+  }
+
+  @Test
   void inject_sameMethodNameInDifferentClassesProduceIndependentHits() throws Exception {
     // Regression test for dedup key bug: if two classes in the same artifact share a method
     // name (e.g. ClassA.parse and ClassB.parse), both must be reported independently.
@@ -223,14 +274,14 @@ class ScaReachabilityMethodLevelTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  void transform_firstLoad_enqueuesAndReturnsNull() throws Exception {
+  void transform_firstLoad_schedulesRetransformAndReturnsNull() throws Exception {
     String json =
         "{\"version\":1,\"entries\":[{"
             + "\"vuln_id\":\"GHSA-cls\",\"artifact\":\"com.example:lib\","
             + "\"version_ranges\":[\"< 999.0.0\"],"
             + "\"symbols\":[{\"class\":\""
             + TargetClass.class.getName().replace('.', '/')
-            + "\",\"method\":null}]"
+            + "\",\"method\":\"vulnerableMethod\"}]"
             + "}]}";
     ScaCveDatabase classDb = ScaCveDatabase.parse(new StringReader(json));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(classDb, null);
@@ -243,17 +294,18 @@ class ScaReachabilityMethodLevelTest {
             TargetClass.class.getProtectionDomain(),
             bytecodeOf(TargetClass.class));
 
-    assertNull(result, "First load must return null (processing deferred to periodic task)");
+    assertNull(result, "First load must return null (JAR I/O deferred to periodic task)");
     assertFalse(
-        t.pendingClassEvents.isEmpty(),
-        "First load must enqueue the class for deferred processing");
+        t.pendingRetransformNames.isEmpty(),
+        "First load must add the class name to pendingRetransformNames for the next heartbeat");
   }
 
   @Test
-  void transform_retransform_doesNotEnqueueAndProcessesInline() throws Exception {
-    // On retransform (classBeingRedefined != null), transform() must NOT enqueue to
-    // pendingClassEvents. It processes inline (via processClass(4-arg)); version resolution may
-    // fail in a unit-test context without a real JAR, but the structural invariant holds.
+  void transform_retransform_processesInlineAndDoesNotReSchedule() throws Exception {
+    // On retransform (classBeingRedefined != null), transform() calls processClass() inline.
+    // Version resolution fails in the unit-test context (no real JAR for com.example:lib),
+    // so processClass() re-queues in pendingRetransformNames for a retry, but the key invariant
+    // is that the retransform path reaches processClass() rather than the first-load fast-path.
     String json =
         "{\"version\":1,\"entries\":[{"
             + "\"vuln_id\":\"GHSA-mth\",\"artifact\":\"com.example:lib\","
@@ -265,6 +317,9 @@ class ScaReachabilityMethodLevelTest {
     ScaCveDatabase methodDb = ScaCveDatabase.parse(new StringReader(json));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(methodDb, null);
 
+    // Start clean: no pending retransforms
+    assertTrue(t.pendingRetransformNames.isEmpty());
+
     t.transform(
         null,
         TargetClass.class.getName().replace('.', '/'),
@@ -272,9 +327,12 @@ class ScaReachabilityMethodLevelTest {
         TargetClass.class.getProtectionDomain(),
         bytecodeOf(TargetClass.class));
 
-    assertTrue(
-        t.pendingClassEvents.isEmpty(),
-        "Retransform path must not re-enqueue the class into pendingClassEvents");
+    // Version resolution failed (no pom.properties for com.example:lib in test classpath),
+    // so processClass() re-queued the class for a retry on the next heartbeat.
+    // This confirms the retransform path reached processClass() rather than the first-load path.
+    assertFalse(
+        t.pendingRetransformNames.isEmpty(),
+        "processClass() must re-queue on version resolution failure for heartbeat retry");
   }
 
   // ---------------------------------------------------------------------------
@@ -317,25 +375,5 @@ class ScaReachabilityMethodLevelTest {
       String vulnId, String artifact, String version, String dotClass, String method) {
     return new ScaMethodCallbackInjector.MethodCallbackSpec(
         vulnId, artifact, version, dotClass, method);
-  }
-
-  private static byte[] bytecodeOf(Class<?> clazz) throws Exception {
-    String path = clazz.getName().replace('.', '/') + ".class";
-    try (InputStream is = clazz.getClassLoader().getResourceAsStream(path)) {
-      assertNotNull(is, "Cannot load bytecode for " + clazz.getName());
-      ByteArrayOutputStream buf = new ByteArrayOutputStream();
-      byte[] chunk = new byte[4096];
-      int n;
-      while ((n = is.read(chunk)) != -1) buf.write(chunk, 0, n);
-      return buf.toByteArray();
-    }
-  }
-
-  private static Class<?> loadModified(byte[] bytecode) {
-    return new ClassLoader(ScaReachabilityMethodLevelTest.class.getClassLoader()) {
-      Class<?> define() {
-        return defineClass(null, bytecode, 0, bytecode.length);
-      }
-    }.define();
   }
 }
