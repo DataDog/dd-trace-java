@@ -1367,13 +1367,13 @@ public class Agent {
    * to its current carrier's record — fixing a virtual-thread context use-after-free. That type
    * lives in a non-exported package, so we export it to the classloader that loads {@code
    * com.datadoghq.profiler.*}, and request carrier scoping via the profiler's {@code
-   * ddprof.context.storage.mode} system property, which it reads at construction.
+   * ddprof.debug.context.storage.mode} system property, which it reads at construction.
    *
    * <p>Both actions are inert against profiler builds that predate carrier support (the property is
    * ignored; the export goes unused), so this is safe to ship ahead of the corresponding
    * java-profiler version bump — it simply activates when that lands.
    *
-   * <p>Operators disable it with {@code -Dddprof.context.storage.mode=thread} (or select {@code
+   * <p>Operators disable it with {@code -Dddprof.debug.context.storage.mode=thread} (or select {@code
    * auto}); we only set the property when it is unset, so an explicit choice always wins. Must run
    * before {@code installDatadogTracer}, which loads the profiler via {@link
    * #createProfilingContextIntegration()}.
@@ -1392,9 +1392,9 @@ public class Agent {
       JDK9ModuleAccess.exportModuleToUnnamedModule(
           inst, "java.base", new String[] {"jdk.internal.misc"}, AGENT_CLASSLOADER);
       // Request carrier scoping unless an operator has explicitly set the profiler's mode property
-      // (which also serves as the kill-switch: -Dddprof.context.storage.mode=thread).
-      if (SystemProperties.get("ddprof.context.storage.mode") == null) {
-        SystemProperties.set("ddprof.context.storage.mode", "carrier");
+      // (which also serves as the kill-switch: -Dddprof.debug.context.storage.mode=thread).
+      if (SystemProperties.get("ddprof.debug.context.storage.mode") == null) {
+        SystemProperties.set("ddprof.debug.context.storage.mode", "carrier");
       }
     } catch (Throwable t) {
       log.debug("Unable to prepare carrier-scoped profiler context storage", t);
