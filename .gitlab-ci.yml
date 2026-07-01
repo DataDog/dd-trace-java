@@ -388,8 +388,6 @@ populate_dep_cache:
   rules:
     - if: '$POPULATE_CACHE'
       when: on_success
-    - when: manual
-      allow_failure: true
   parallel:
     matrix:
       - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar"
