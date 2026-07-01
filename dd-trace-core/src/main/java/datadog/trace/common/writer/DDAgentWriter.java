@@ -40,7 +40,7 @@ public class DDAgentWriter extends RemoteWriter {
     int flushIntervalMilliseconds = 1000;
     Monitoring monitoring = Monitoring.DISABLED;
     ProtocolVersion protocolVersion = Config.get().getProtocolVersion();
-    boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
+    boolean nativeMetricsReportingEnabled = Config.get().isTracerMetricsEnabled();
     boolean metricsIgnoreAgentVersion = Config.get().isTracerMetricsIgnoreAgentVersion();
     private int flushTimeout = 1;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
@@ -112,8 +112,9 @@ public class DDAgentWriter extends RemoteWriter {
       return this;
     }
 
-    public DDAgentWriterBuilder metricsReportingEnabled(boolean metricsReportingEnabled) {
-      this.metricsReportingEnabled = metricsReportingEnabled;
+    public DDAgentWriterBuilder nativeMetricsReportingEnabled(
+        boolean nativeMetricsReportingEnabled) {
+      this.nativeMetricsReportingEnabled = nativeMetricsReportingEnabled;
       return this;
     }
 
@@ -161,12 +162,13 @@ public class DDAgentWriter extends RemoteWriter {
                 monitoring,
                 agentUrl,
                 protocolVersion,
-                metricsReportingEnabled,
+                nativeMetricsReportingEnabled,
                 metricsIgnoreAgentVersion);
       }
       if (null == agentApi) {
         agentApi =
-            new DDAgentApi(client, agentUrl, featureDiscovery, monitoring, metricsReportingEnabled);
+            new DDAgentApi(
+                client, agentUrl, featureDiscovery, monitoring, nativeMetricsReportingEnabled);
       }
 
       final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
@@ -177,10 +179,8 @@ public class DDAgentWriter extends RemoteWriter {
               traceBufferSize,
               healthMetrics,
               dispatcher,
-              droppingPolicy != null
-                  ? droppingPolicy
-                  : featureDiscovery, // custom dropping policy for OTLP but backup to feature
-              // discovery
+              // allow custom dropping policy for OTLP but backup to feature discovery
+              droppingPolicy != null ? droppingPolicy : featureDiscovery,
               null == prioritization ? FAST_LANE : prioritization,
               flushIntervalMilliseconds,
               TimeUnit.MILLISECONDS,

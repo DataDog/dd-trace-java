@@ -43,7 +43,7 @@ public class DDAgentApi extends RemoteApi {
   private static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
 
   private final List<RemoteResponseListener> responseListeners = new ArrayList<>();
-  private final boolean metricsEnabled;
+  private final boolean nativeMetricsEnabled;
 
   private final Recording sendPayloadTimer;
   private final Counter agentErrorCounter;
@@ -67,14 +67,14 @@ public class DDAgentApi extends RemoteApi {
       HttpUrl agentUrl,
       DDAgentFeaturesDiscovery featuresDiscovery,
       Monitoring monitoring,
-      boolean metricsEnabled) {
+      boolean nativeMetricsEnabled) {
     super(false);
     this.featuresDiscovery = featuresDiscovery;
     this.agentUrl = agentUrl;
     this.httpClient = client;
     this.sendPayloadTimer = monitoring.newTimer("trace.agent.send.time");
     this.agentErrorCounter = monitoring.newCounter("trace.agent.error.counter");
-    this.metricsEnabled = metricsEnabled;
+    this.nativeMetricsEnabled = nativeMetricsEnabled;
 
     this.headers = new HashMap<>();
     this.headers.put(DATADOG_CLIENT_COMPUTED_TOP_LEVEL, "true");
@@ -110,7 +110,7 @@ public class DDAgentApi extends RemoteApi {
               .addHeader(
                   DATADOG_CLIENT_COMPUTED_STATS,
                   Config.get().isTracesSpanMetricsEnabled()
-                          || (metricsEnabled && featuresDiscovery.supportsMetrics())
+                          || (nativeMetricsEnabled && featuresDiscovery.supportsMetrics())
                           // Disabling the computation agent-side of the APM trace metrics by
                           // pretending it was already done by the library
                           || !Config.get().isApmTracingEnabled()

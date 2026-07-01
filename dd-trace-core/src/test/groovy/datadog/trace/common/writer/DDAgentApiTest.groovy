@@ -18,6 +18,7 @@ import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.api.Config
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.ProtocolVersion
+import datadog.trace.api.config.OtlpConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -452,6 +453,50 @@ class DDAgentApiTest extends DDCoreSpecification {
       maps.add(mapTrace)
     }
     return maps
+  }
+
+  def "Datadog-Client-Computed-Stats header set when either stats pipeline is enabled (otlpSpanMetrics=#otlpSpanMetrics, nativeMetrics=#nativeMetrics)"() {
+    setup:
+    injectSysConfig(OtlpConfig.TRACES_SPAN_METRICS_ENABLED, "$otlpSpanMetrics")
+
+    def agent = httpServer {
+      handlers {
+        put("v0.4/traces") {
+          response.status(200).send()
+        }
+      }
+    }
+    def agentUrl = HttpUrl.get(agent.address.toString())
+
+    // Mock feature discovery so the native-stats pipeline signal can be controlled independently of
+    // what the (embedded) agent advertises. supportsMetrics() reflects agent-side client stats support.
+    def discovery = Mock(DDAgentFeaturesDiscovery)
+    discovery.getTraceEndpoint() >> "v0.4/traces"
+    discovery.supportsMetrics() >> nativeMetrics
+    discovery.state() >> null
+
+    def client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
+    // nativeMetricsEnabled is the constructor flag WriterFactory sets from Config.isTracerMetricsEnabled().
+    def api = new DDAgentApi(client, agentUrl, discovery, monitoring, nativeMetrics)
+    def payload = prepareTraces("v0.4/traces", [])
+
+    when:
+    // Named clientResponse (not response) to avoid shadowing the httpServer handler closure's `response`.
+    def clientResponse = api.sendSerializedTraces(payload)
+
+    then:
+    clientResponse.success()
+    (agent.lastRequest.headers.get("Datadog-Client-Computed-Stats") == "true") == expectedComputesStats
+
+    cleanup:
+    agent.close()
+
+    where:
+    otlpSpanMetrics | nativeMetrics | expectedComputesStats
+    true            | false         | true  // gap case: OTLP span metrics on, native stats off
+    false           | false         | false // neither pipeline computes stats
+    false           | true          | true  // native stats on (regression guard)
+    true            | true          | true  // both on
   }
 
   Payload prepareTraces(String agentVersion, List<List<DDSpan>> traces) {
