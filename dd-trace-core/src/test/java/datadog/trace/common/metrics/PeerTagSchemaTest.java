@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -86,10 +85,10 @@ class PeerTagSchemaTest {
   }
 
   @Test
-  void resetHandlersReportsBlockedCountToHealthMetrics() {
+  void handlerAccumulatesBlockedCountsAcrossRegistrations() {
     // Build a schema then replace its handler with a sentinel-mode instance at a low limit.
     // (Production schemas use AggregateEntry.LIMITS_ENABLED which is currently false; this test
-    // exercises the reportingpath directly so it stays valid before and after the flag flips.)
+    // exercises the blocked-count path directly so it stays valid before and after the flag flips.)
     PeerTagSchema schema =
         new PeerTagSchema(new String[] {"peer.hostname"}, PeerTagSchema.NO_STATE);
     schema.handlers[0] = new TagCardinalityHandler("peer.hostname", 1, true);
@@ -98,21 +97,9 @@ class PeerTagSchemaTest {
     schema.register(0, "host-b"); // blocked
     schema.register(0, "host-c"); // blocked
 
-    long[] recorded = {0};
-    HealthMetrics hm =
-        new HealthMetrics() {
-          @Override
-          public void onTagCardinalityBlocked(String[] tag, long count) {
-            recorded[0] += count;
-          }
-        };
-
-    schema.resetHandlers(hm);
-    assertEquals(2, recorded[0]);
+    assertEquals(2, schema.handlers[0].reset());
 
     // After the reset, no new values were registered so the next reset reports nothing.
-    recorded[0] = 0;
-    schema.resetHandlers(hm);
-    assertEquals(0, recorded[0]);
+    assertEquals(0, schema.handlers[0].reset());
   }
 }
