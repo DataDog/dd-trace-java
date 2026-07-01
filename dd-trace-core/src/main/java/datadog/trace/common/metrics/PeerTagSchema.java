@@ -4,10 +4,7 @@ import static datadog.trace.api.DDTags.BASE_SERVICE;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Parallel arrays of peer-tag names and their {@link TagCardinalityHandler}s, using matching
@@ -30,7 +27,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  *
  * <p>Cardinality blocks are counted inside each {@link TagCardinalityHandler} and flushed once per
- * cycle (with a warn log) in {@link #resetHandlers(HealthMetrics)}.
+ * cycle (with a warn log) via {@code ClientStatsAggregator#resetCardinalityHandlers}.
  *
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
@@ -41,8 +38,6 @@ import org.slf4j.LoggerFactory;
  * cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
  */
 final class PeerTagSchema {
-
-  private static final Logger log = LoggerFactory.getLogger(PeerTagSchema.class);
 
   /**
    * Sentinel {@link #state} for schemas that are never reconciled against feature discovery: the
@@ -108,24 +103,6 @@ final class PeerTagSchema {
    */
   UTF8BytesString register(int i, String value) {
     return handlers[i].register(value);
-  }
-
-  /**
-   * Resets every {@link TagCardinalityHandler}'s working set, flushes accumulated per-tag block
-   * counts to {@link HealthMetrics}, and emits a warn log for each tag that hit its limit this
-   * cycle. Must be called on the aggregator thread; handlers are not thread-safe.
-   */
-  void resetHandlers(HealthMetrics healthMetrics) {
-    for (int i = 0; i < handlers.length; i++) {
-      long blocked = handlers[i].reset();
-      if (blocked > 0) {
-        log.warn(
-            "Cardinality limit reached for peer tag '{}'; further values are reported as"
-                + " 'tracer_blocked_value' until the next reporting cycle",
-            names[i]);
-        healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), blocked);
-      }
-    }
   }
 
   int size() {

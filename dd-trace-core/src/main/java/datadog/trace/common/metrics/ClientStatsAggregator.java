@@ -418,10 +418,23 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         healthMetrics.onTagCardinalityBlocked(handler.statsDTag(), blocked);
       }
     }
-    PeerTagSchema.INTERNAL.resetHandlers(healthMetrics);
+    resetPeerTagSchema(PeerTagSchema.INTERNAL);
     PeerTagSchema schema = cachedPeerTagSchema;
     if (schema != null) {
-      schema.resetHandlers(healthMetrics);
+      resetPeerTagSchema(schema);
+    }
+  }
+
+  private void resetPeerTagSchema(PeerTagSchema schema) {
+    for (int i = 0; i < schema.handlers.length; i++) {
+      long blocked = schema.handlers[i].reset();
+      if (blocked > 0) {
+        log.warn(
+            "Cardinality limit reached for peer tag '{}'; further values are reported as"
+                + " 'tracer_blocked_value' until the next reporting cycle",
+            schema.names[i]);
+        healthMetrics.onTagCardinalityBlocked(schema.handlers[i].statsDTag(), blocked);
+      }
     }
   }
 
@@ -452,7 +465,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     } else {
       // Tags actually changed: flush the outgoing schema's accumulated block telemetry before
       // discarding it, otherwise the partial-cycle blockedCounts would silently disappear.
-      cached.resetHandlers(healthMetrics);
+      resetPeerTagSchema(cached);
       cachedPeerTagSchema = PeerTagSchema.of(normalized, latestState);
     }
   }

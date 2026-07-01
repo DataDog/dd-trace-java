@@ -168,42 +168,6 @@ final class PropertyCardinalityHandler {
     long count = this.blockedCount;
     this.blockedCount = 0;
     // Flip pointers: the just-completed cycle becomes prior; what was prior (2 cycles ago) is
-/**
- * Cardinality-capped UTF8 encoder and cache for one field in the aggregate key  (@{code value} &rarr; @{code UTF8(value)}).
- *
- * <p>A reporting cycle is the interval between two client-stats flushes. Values seen in the same
- * cycle share one cardinality budget. When the aggregator flushes client stats, this handler is
- * reset for the next cycle.
- * 
- * <p>This handler has two jobs:
- *
- * <ul>
- *   <li>limit the number of distinct values accepted during one reporting cycle;
- *   <li>reuse {@link UTF8BytesString} instances for values seen recently.
- * </ul>
- *
- * <p>The limit is checked before a new UTF8 value is created. When sentinel mode is enabled and the
- * field has already reached {@link #cardinalityLimit} distinct values in the current cycle, a new
- * value is represented as {@code tracer_blocked_value}. That avoids allocating and encoding a value
- * that will be collapsed anyway.
- *
- * <p>The handler keeps two open-addressed tables:
- *
- * <ul>
- *   <li>the current-cycle table, which tracks values that have consumed this cycle's budget;
- *   <li>the prior-cycle table, which keeps the previous cycle's UTF8 values available for reuse.
- * </ul>
- *
- * <p>At reset, the two tables are swapped and the new current-cycle table is cleared. This keeps
- * UTF8 reuse across reporting cycles without copying entries. Stable workloads allocate UTF8 values
- * during the first cycle, then reuse them in later cycles.
- *
- * <p>The tables use linear probing and a capacity of the next power of two greater than or equal to
- * {@code 2 * cardinalityLimit}, so probe chains stay short at the full budget. The stored
- * {@link UTF8BytesString} is also the table key: {@code String} and {@code UTF8BytesString} inputs
- * with the same content map to the same slot because their hashes and equality checks are
- * content-based.
- */
     // recycled into the new (empty) current.
     final UTF8BytesString[] tmp = this.priorValues;
     this.priorValues = this.curValues;
