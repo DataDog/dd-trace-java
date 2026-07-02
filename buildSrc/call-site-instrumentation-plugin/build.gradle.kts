@@ -70,7 +70,7 @@ tasks {
 
   shadowJar {
     duplicatesStrategy = DuplicatesStrategy.FAIL
-    // Let's ignore license/notice since Let's ignore
+    // Let's skip license/notice since this jar's only use is during build
     filesMatching(listOf("META-INF/LICENSE*", "META-INF/NOTICE*")) {
       duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
