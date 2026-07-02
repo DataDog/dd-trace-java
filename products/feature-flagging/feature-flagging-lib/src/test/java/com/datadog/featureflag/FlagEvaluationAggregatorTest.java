@@ -3,6 +3,7 @@ package com.datadog.featureflag;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
@@ -80,6 +81,24 @@ class FlagEvaluationAggregatorTest {
   }
 
   @Test
+  void perFlagCapOverflowRoutesToDegradedTierAndMergesSameDegradedKey() {
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    aggregator.perFlagCount.put("hot-flag", FlagEvaluationAggregator.PER_FLAG_CAP);
+
+    aggregator.aggregate(event("hot-flag", "on", "alloc1", "user-1", 1000L, emptyMap()));
+    aggregator.aggregate(event("hot-flag", "on", "alloc1", "user-2", 2000L, emptyMap()));
+
+    final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
+    assertEquals(0, state.fullTier.size());
+    assertEquals(1, state.degradedTier.size());
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        state.degradedTier.values().iterator().next();
+    assertEquals(2, bucket.count);
+    assertEquals(1000L, bucket.firstEvalMs);
+    assertEquals(2000L, bucket.lastEvalMs);
+  }
+
+  @Test
   void absentVariantSetsRuntimeDefaultUsed() {
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
 
@@ -126,6 +145,34 @@ class FlagEvaluationAggregatorTest {
   }
 
   @Test
+  void emptyContextInputsProduceEmptyPrunedMapAndCanonicalKey() {
+    assertEquals(emptyMap(), FlagEvaluationAggregator.pruneContext(null));
+    assertEquals(emptyMap(), FlagEvaluationAggregator.pruneContext(emptyMap()));
+    assertEquals("", FlagEvaluationAggregator.canonicalContextKey(null));
+    assertEquals("", FlagEvaluationAggregator.canonicalContextKey(emptyMap()));
+  }
+
+  @Test
+  void canonicalContextKeyEncodesSupportedValueTypes() {
+    final Map<String, Object> attrs = new HashMap<>();
+    attrs.put("bool", true);
+    attrs.put("double", 1.5d);
+    attrs.put("float", 1.25f);
+    attrs.put("int", 1);
+    attrs.put("long", 2L);
+    attrs.put("null", null);
+    attrs.put("object", new StringBuilder("other"));
+    attrs.put("string", "value");
+
+    final String key = FlagEvaluationAggregator.canonicalContextKey(attrs);
+
+    assertEquals(key, FlagEvaluationAggregator.canonicalContextKey(new HashMap<>(attrs)));
+    assertTrue(key.contains("bool"));
+    assertTrue(key.contains("string"));
+    assertTrue(key.contains("other"));
+  }
+
+  @Test
   void contextValueExceeding256CharsIsSkippedFromPrunedAttrs() {
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
     final Map<String, Object> attrs = new HashMap<>();
@@ -161,6 +208,64 @@ class FlagEvaluationAggregatorTest {
     assertFalse(hasReasonField);
   }
 
+  @Test
+  void evalBucketTracksBoundsDefaultStateAndNullContextFieldCount() {
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        new FlagEvaluationAggregator.EvalBucket(
+            "bucket-flag", "on", "alloc1", "user-1", null, 1000L, false, null);
+
+    assertEquals(0, bucket.prunedContextFieldCount());
+
+    bucket.merge(900L, true);
+    bucket.merge(1100L, false);
+    bucket.merge(1000L, false);
+
+    assertEquals(4, bucket.count);
+    assertEquals(900L, bucket.firstEvalMs);
+    assertEquals(1100L, bucket.lastEvalMs);
+    assertTrue(bucket.runtimeDefaultUsed);
+  }
+
+  @Test
+  void fullKeyEqualityUsesEveryDimension() {
+    final FlagEvaluationAggregator.FullKey base =
+        fullKey("flag", "on", "alloc", false, "error", "user", "ctx");
+    final FlagEvaluationAggregator.FullKey same =
+        fullKey("flag", "on", "alloc", false, "error", "user", "ctx");
+
+    assertEquals(base, base);
+    assertEquals(base, same);
+    assertEquals(base.hashCode(), same.hashCode());
+    assertNotEquals(base, null);
+    assertNotEquals(base, "not-a-key");
+    assertNotEquals(base, fullKey("other", "on", "alloc", false, "error", "user", "ctx"));
+    assertNotEquals(base, fullKey("flag", "off", "alloc", false, "error", "user", "ctx"));
+    assertNotEquals(base, fullKey("flag", "on", "other", false, "error", "user", "ctx"));
+    assertNotEquals(base, fullKey("flag", "on", "alloc", true, "error", "user", "ctx"));
+    assertNotEquals(base, fullKey("flag", "on", "alloc", false, "other", "user", "ctx"));
+    assertNotEquals(base, fullKey("flag", "on", "alloc", false, "error", "other", "ctx"));
+    assertNotEquals(base, fullKey("flag", "on", "alloc", false, "error", "user", "other"));
+  }
+
+  @Test
+  void degradedKeyEqualityUsesEveryDimension() {
+    final FlagEvaluationAggregator.DegradedKey base =
+        degradedKey("flag", "on", "alloc", false, "error");
+    final FlagEvaluationAggregator.DegradedKey same =
+        degradedKey("flag", "on", "alloc", false, "error");
+
+    assertEquals(base, base);
+    assertEquals(base, same);
+    assertEquals(base.hashCode(), same.hashCode());
+    assertNotEquals(base, null);
+    assertNotEquals(base, "not-a-key");
+    assertNotEquals(base, degradedKey("other", "on", "alloc", false, "error"));
+    assertNotEquals(base, degradedKey("flag", "off", "alloc", false, "error"));
+    assertNotEquals(base, degradedKey("flag", "on", "other", false, "error"));
+    assertNotEquals(base, degradedKey("flag", "on", "alloc", true, "error"));
+    assertNotEquals(base, degradedKey("flag", "on", "alloc", false, "other"));
+  }
+
   private static FlagEvalEvent event(
       final String flagKey,
       final String variant,
@@ -173,6 +278,34 @@ class FlagEvaluationAggregatorTest {
 
   private static FlagEvalEvent simpleEvent(final String flagKey, final String variant) {
     return event(flagKey, variant, "alloc1", "user-1", 1000L, emptyMap());
+  }
+
+  private static FlagEvaluationAggregator.FullKey fullKey(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final boolean runtimeDefaultUsed,
+      final String errorMessage,
+      final String targetingKey,
+      final String contextKey) {
+    return new FlagEvaluationAggregator.FullKey(
+        flagKey,
+        variant,
+        allocationKey,
+        runtimeDefaultUsed,
+        errorMessage,
+        targetingKey,
+        contextKey);
+  }
+
+  private static FlagEvaluationAggregator.DegradedKey degradedKey(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final boolean runtimeDefaultUsed,
+      final String errorMessage) {
+    return new FlagEvaluationAggregator.DegradedKey(
+        flagKey, variant, allocationKey, runtimeDefaultUsed, errorMessage);
   }
 
   private static String repeat(final char c, final int count) {

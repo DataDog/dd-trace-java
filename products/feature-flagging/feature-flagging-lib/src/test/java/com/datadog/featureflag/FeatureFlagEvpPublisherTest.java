@@ -1,6 +1,8 @@
 package com.datadog.featureflag;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V4_EVP_PROXY_ENDPOINT;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -60,6 +62,18 @@ class FeatureFlagEvpPublisherTest {
     verify(factory).createBackendApi(Intake.EVENT_PLATFORM, V4_EVP_PROXY_ENDPOINT, false);
     verify(backendApi)
         .post(eq("flagevaluation"), any(RequestBody.class), any(), isNull(), eq(false));
+  }
+
+  @Test
+  void postThrowsWhenEvpBackendApiCannotBeCreated() {
+    final BackendApiFactory factory = mock(BackendApiFactory.class);
+    final FeatureFlagEvpPublisher<TestRequest> publisher =
+        new FeatureFlagEvpPublisher<>(factory, TestRequest.class);
+
+    assertFalse(publisher.start());
+    assertThrows(
+        IllegalStateException.class,
+        () -> publisher.post("flagevaluation", FeatureFlagEvpPublisher.utf8Bytes("{}")));
   }
 
   static class TestRequest {

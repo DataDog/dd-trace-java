@@ -11,6 +11,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -145,11 +146,64 @@ class FlagEvaluationPayloadsTest {
   }
 
   @Test
+  void oversizedFullPayloadRowStartsNewPayloadWhenDegradedRowFitsByItself() throws Exception {
+    final FlagEvaluationPayloads.FlagEvaluationEvent first =
+        event("first-flag", "on", "alloc1", "user-1", 1, emptyMap());
+    final Map<String, Object> attrs = new HashMap<>();
+    attrs.put("payload", repeat('x', 400));
+    final FlagEvaluationPayloads.FlagEvaluationEvent second =
+        event("second-flag", "on", "alloc1", "user-2", 3, attrs);
+    final FlagEvaluationPayloads.FlagEvaluationEvent degradedSecond =
+        second.withoutTargetingKeyAndContext();
+    assertNotNull(degradedSecond);
+
+    final int firstPayloadSize =
+        FlagEvaluationPayloads.buildPayloads(
+                java.util.Collections.singletonList(first), CONTEXT, 1_000_000)
+            .bodies
+            .get(0)
+            .length;
+    final int degradedPayloadSize =
+        FlagEvaluationPayloads.buildPayloads(
+                java.util.Collections.singletonList(degradedSecond), CONTEXT, 1_000_000)
+            .bodies
+            .get(0)
+            .length;
+    final int limit = Math.max(firstPayloadSize, degradedPayloadSize);
+
+    final FlagEvaluationPayloads.EncodedPayloads payloads =
+        FlagEvaluationPayloads.buildPayloads(Arrays.asList(first, second), CONTEXT, limit);
+
+    assertEquals(2, payloads.bodies.size());
+    assertEquals(0, payloads.droppedPayloadLimit);
+    assertEquals(3, payloads.degradedPayloadLimit);
+    assertEquals(1, eventCount(parse(payloads.bodies.get(0))));
+    final Map<String, Object> ev = firstEvent(parse(payloads.bodies.get(1)));
+    assertObjectWithKey(ev.get("flag"), "second-flag");
+    assertNull(ev.get("targeting_key"));
+    assertNull(ev.get("context"));
+  }
+
+  @Test
   void oversizedDegradedPayloadRowIsDropped() {
     final FlagEvaluationPayloads.EncodedPayloads payloads =
         FlagEvaluationPayloads.buildPayloads(
             java.util.Collections.singletonList(
                 event(repeat('f', 512), "on", "alloc1", null, 2, emptyMap())),
+            CONTEXT,
+            128);
+
+    assertTrue(payloads.bodies.isEmpty());
+    assertEquals(2, payloads.droppedPayloadLimit);
+    assertEquals(0, payloads.degradedPayloadLimit);
+  }
+
+  @Test
+  void oversizedFullPayloadRowIsDroppedWhenDegradedRowStillExceedsLimit() {
+    final FlagEvaluationPayloads.EncodedPayloads payloads =
+        FlagEvaluationPayloads.buildPayloads(
+            java.util.Collections.singletonList(
+                event(repeat('f', 512), "on", "alloc1", "user-1", 2, emptyMap())),
             CONTEXT,
             128);
 
@@ -184,6 +238,75 @@ class FlagEvaluationPayloadsTest {
     assertNotNull(error);
     assertEquals("type mismatch", error.get("message"));
     assertEquals(Boolean.TRUE, ev.get("runtime_default_used"));
+  }
+
+  @Test
+  void emptyEventListProducesNoPayloads() {
+    final FlagEvaluationPayloads.EncodedPayloads payloads =
+        FlagEvaluationPayloads.buildPayloads(java.util.Collections.emptyList(), CONTEXT, 1_000_000);
+
+    assertTrue(payloads.bodies.isEmpty());
+    assertEquals(0, payloads.droppedPayloadLimit);
+    assertEquals(0, payloads.degradedPayloadLimit);
+  }
+
+  @Test
+  void requestDtoStoresContextAndEvents() {
+    final List<FlagEvaluationPayloads.FlagEvaluationEvent> events =
+        java.util.Collections.singletonList(
+            event("dto-flag", "on", "alloc1", "user-1", 1, emptyMap()));
+
+    final FlagEvaluationPayloads.FlagEvaluationsRequest request =
+        new FlagEvaluationPayloads.FlagEvaluationsRequest(CONTEXT, events);
+
+    assertEquals(CONTEXT, request.context);
+    assertEquals(events, request.flagEvaluations);
+  }
+
+  @Test
+  void degradingEventWithMissingOptionalFieldsKeepsOptionalObjectsAbsent() {
+    final FlagEvaluationPayloads.FlagEvaluationEvent degraded =
+        new FlagEvaluationPayloads.FlagEvaluationEvent(
+                EVAL_MS,
+                "default-flag",
+                EVAL_MS,
+                EVAL_MS,
+                1,
+                null,
+                null,
+                "user-1",
+                true,
+                null,
+                null)
+            .withoutTargetingKeyAndContext();
+
+    assertNotNull(degraded);
+    assertNull(degraded.variant);
+    assertNull(degraded.allocation);
+    assertNull(degraded.targeting_key);
+    assertNull(degraded.context);
+    assertNull(degraded.error);
+    assertEquals(Boolean.TRUE, degraded.runtime_default_used);
+  }
+
+  @Test
+  void emptyOptionalStringsAreTreatedAsAbsentWhenContextIsPresent() {
+    final Map<String, Object> attrs = new HashMap<>();
+    attrs.put("tier", "gold");
+    final FlagEvaluationPayloads.FlagEvaluationEvent event =
+        new FlagEvaluationPayloads.FlagEvaluationEvent(
+            EVAL_MS, "empty-optionals", EVAL_MS, EVAL_MS, 1, "", "", null, false, "", attrs);
+
+    assertNull(event.variant);
+    assertNull(event.allocation);
+    assertNull(event.error);
+    assertNotNull(event.context);
+
+    final FlagEvaluationPayloads.FlagEvaluationEvent degraded =
+        event.withoutTargetingKeyAndContext();
+    assertNotNull(degraded);
+    assertNull(degraded.targeting_key);
+    assertNull(degraded.context);
   }
 
   private static FlagEvaluationPayloads.FlagEvaluationEvent event(

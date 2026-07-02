@@ -71,8 +71,17 @@ final class FlagEvaluationTestSupport {
   }
 
   static TestWriterSetup buildTestWriter(final BackendApi mockEvp) {
-    return buildTestWriter(
-        mockEvp, FlagEvaluationWriterImpl.FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
+    final BackendApiFactory factory = mock(BackendApiFactory.class);
+    when(factory.createBackendApi(any())).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+
+    final Map<String, String> context = new HashMap<>();
+    context.put("service", "test-service");
+
+    final FlagEvaluationWriterImpl.SerializingHandlerForTest handler =
+        FlagEvaluationWriterImpl.createHandlerForTest(factory, context);
+
+    return new TestWriterSetup(handler, mockEvp, factory);
   }
 
   static TestWriterSetup buildTestWriter(

@@ -6,6 +6,7 @@ import static com.datadog.featureflag.FlagEvaluationTestSupport.cfg;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.clearCoreMetrics;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.event;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.eventForFlag;
+import static com.datadog.featureflag.FlagEvaluationTestSupport.flushAndCaptureJson;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.metricSum;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.repeat;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.simpleEvent;
@@ -13,6 +14,7 @@ import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -23,8 +25,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.common.queue.MessagePassingBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
+import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.api.telemetry.CoreMetricCollector;
@@ -35,6 +41,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import okhttp3.RequestBody;
 import okio.Buffer;
 import org.junit.jupiter.api.AfterEach;
@@ -51,6 +58,7 @@ class FlagEvaluationWriterImplTest {
   @AfterEach
   void clearCoreMetricsAfter() {
     clearCoreMetrics();
+    FeatureFlaggingGateway.setFlagEvalWriter(null);
   }
 
   @Test
@@ -69,6 +77,45 @@ class FlagEvaluationWriterImplTest {
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
             "reason:" + FlagEvaluationWriterImpl.DROP_REASON_DEGRADED_CAP));
+  }
+
+  @Test
+  void publicConstructorAndContextHelpersDelegateToSharedImplementations() {
+    final datadog.trace.api.Config config = cfg();
+    when(config.getEnv()).thenReturn("prod");
+    when(config.getVersion()).thenReturn("1.2.3");
+    final FlagEvaluationWriterImpl writer =
+        new FlagEvaluationWriterImpl(new SharedCommunicationObjects(true), config);
+    final Map<String, Object> attrs = new HashMap<>();
+    attrs.put("b", "2");
+    attrs.put("a", "1");
+
+    final Map<String, Object> pruned = FlagEvaluationWriterImpl.pruneContext(attrs);
+
+    assertEquals(2, pruned.size());
+    assertEquals(
+        FlagEvaluationAggregator.canonicalContextKey(pruned),
+        FlagEvaluationWriterImpl.canonicalContextKey(pruned));
+    writer.close();
+  }
+
+  @Test
+  void startRegistersWriterAndCloseDeregistersIt() {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final BackendApiFactory factory = mock(BackendApiFactory.class);
+    when(factory.createBackendApi(any())).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    final FlagEvaluationWriterImpl writer =
+        new FlagEvaluationWriterImpl(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg());
+
+    writer.start();
+    assertEquals(writer, FeatureFlaggingGateway.getFlagEvalWriter());
+
+    writer.close();
+    writer.close();
+    writer.start();
+
+    assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
   }
 
   @Test
@@ -118,6 +165,21 @@ class FlagEvaluationWriterImplTest {
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
             "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CLOSED));
     assertNull(writer.pollQueuedEventForTest());
+  }
+
+  @Test
+  void enqueueIgnoresNullEvent() {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final BackendApiFactory factory = mock(BackendApiFactory.class);
+    when(factory.createBackendApi(any())).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    final FlagEvaluationWriterImpl writer =
+        new FlagEvaluationWriterImpl(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg());
+
+    writer.enqueue(null);
+
+    assertNull(writer.pollQueuedEventForTest());
+    assertEquals(0, writer.droppedQueueOverflow());
   }
 
   @Test
@@ -196,6 +258,122 @@ class FlagEvaluationWriterImplTest {
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
             "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CONTEXT_ERROR));
     assertEquals(0, setup.handler.fullTierSizeForTest());
+  }
+
+  @Test
+  void handlerRunFailsFastWhenEvpProxyIsUnavailable() {
+    final BackendApiFactory factory = mock(BackendApiFactory.class);
+    final FlagEvaluationWriterImpl.SerializingHandlerForTest handler =
+        FlagEvaluationWriterImpl.createHandlerForTest(factory, context());
+
+    assertThrows(IllegalArgumentException.class, handler::run);
+  }
+
+  @Test
+  void flushIfNecessarySkipsEmptyStateAndWaitsForInterval() {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+
+    setup.handler.flushIfNecessary();
+    setup.handler.add(simpleEvent("pending-flag", "on"));
+    setup.handler.drainAndAggregate();
+    setup.handler.flushIfNecessary();
+
+    assertEquals(1, setup.handler.fullTierSizeForTest());
+  }
+
+  @Test
+  void flushIfNecessaryDoesNotReturnEarlyWhenOnlyQueueDropsArePending() {
+    final AtomicLong queueDrops = new AtomicLong(1);
+    final FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler handler =
+        new FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler(
+            mock(BackendApiFactory.class),
+            Queues.mpscBlockingConsumerArrayQueue(16),
+            Long.MAX_VALUE,
+            TimeUnit.NANOSECONDS,
+            context(),
+            queueDrops,
+            () -> {});
+
+    handler.flushIfNecessary();
+
+    assertEquals(1, queueDrops.get());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void workerHandlesEmptyPolls() throws Exception {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final BackendApiFactory factory = mock(BackendApiFactory.class);
+    when(factory.createBackendApi(any())).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    final MessagePassingBlockingQueue<FlagEvalEvent> queue =
+        mock(MessagePassingBlockingQueue.class);
+    when(queue.poll(100, TimeUnit.MILLISECONDS))
+        .thenAnswer(
+            invocation -> {
+              Thread.currentThread().interrupt();
+              return null;
+            });
+    final FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler handler =
+        new FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler(
+            factory,
+            queue,
+            Long.MAX_VALUE,
+            TimeUnit.NANOSECONDS,
+            context(),
+            new AtomicLong(0),
+            () -> {});
+
+    handler.run();
+
+    assertTrue(Thread.interrupted());
+  }
+
+  @Test
+  void degradedBucketsAreSerializedWithoutTargetingKeyOrContext() throws Exception {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+    setup.handler.addDegradedBucketForTest("degraded-flag", "on", "alloc1", null, 1000L);
+
+    final Map<String, Object> json = flushAndCaptureJson(setup);
+
+    final Map<String, Object> ev = eventForFlag(json, "degraded-flag");
+    assertNotNull(ev);
+    assertNull(ev.get("targeting_key"));
+    assertNull(ev.get("context"));
+  }
+
+  @Test
+  void testHandlerCanSimulateAndClearDegradedTierAtCap() {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+
+    setup.handler.simulateDegradedTierAtCap();
+    setup.handler.clearAggregationForTest();
+    setup.handler.add(simpleEvent("after-clear", "on"));
+    setup.handler.drainAndAggregate();
+
+    assertEquals(1, setup.handler.fullTierSizeForTest());
+  }
+
+  @Test
+  void payloadLimitDropsAreCountedOnFlush() {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp, 128);
+    setup.handler.add(event(repeat('f', 512), "on", "alloc1", "user-1", 1000L, emptyMap()));
+
+    setup.handler.drainAndAggregate();
+    setup.handler.flush();
+
+    final Collection<? extends MetricCollector.Metric> metrics =
+        CoreMetricCollector.getInstance().drain();
+    assertEquals(
+        1,
+        metricSum(
+            metrics,
+            FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
+            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_PAYLOAD_LIMIT));
   }
 
   @Test
@@ -300,5 +478,11 @@ class FlagEvaluationWriterImplTest {
     assertEquals(2, posts.get());
     setup.handler.flush();
     assertEquals(2, posts.get());
+  }
+
+  private static Map<String, String> context() {
+    final Map<String, String> context = new HashMap<>();
+    context.put("service", "test-service");
+    return context;
   }
 }
