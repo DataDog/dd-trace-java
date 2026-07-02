@@ -45,13 +45,6 @@ import org.reactivestreams.Subscription;
 // would never be instrumented. See the java-lang-21 tests for the same convention.
 class RxJava3Test extends AbstractInstrumentationTest {
 
-  static {
-    // The reactive chains in these scenarios can finish child spans after the local root has been
-    // written (e.g. delayed/scheduled work), which trips strict trace write ordering checks. This
-    // mirrors the Groovy RxJava2Test which also disables strict trace writes for the same reason.
-    testConfig.strictTraceWrites(false);
-  }
-
   static final String EXCEPTION_MESSAGE = "test exception";
 
   // The component tag is stored as a UTF8BytesString, so we compare by string content rather than

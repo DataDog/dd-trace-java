@@ -26,18 +26,7 @@ import org.junit.jupiter.api.Test;
 // NOTE: This test lives in the `testdog` package (not `datadog`) on purpose: the agent ignores
 // `datadog.*` classes for instrumentation, so `@Trace`-annotated methods declared under `datadog.*`
 // would never be instrumented. See RxJava3Test for the same convention.
-//
-// PURPOSE: investigate whether a Datadog trace context propagates through RxJava 3's Java 8 interop
-// factory methods (fromCompletionStage / fromOptional / fromStream). There is no dedicated reactive
-// instrumentation for these bridges; any propagation must come from the agent's
-// concurrent/executor instrumentation. Each test asserts the ACTUAL observed behavior.
 class RxJava3InteropTest extends AbstractInstrumentationTest {
-
-  static {
-    // Async completion / scheduler hops can finish child spans after the local root is written,
-    // tripping strict trace write ordering checks. Mirror RxJava3Test.
-    testConfig.strictTraceWrites(false);
-  }
 
   // The component tag is stored as a UTF8BytesString, so compare by string content.
   static TagsMatcher componentTrace() {
@@ -84,13 +73,6 @@ class RxJava3InteropTest extends AbstractInstrumentationTest {
                 .tags(componentTrace(), defaultTags())));
   }
 
-  /**
-   * FINDING: context propagates even when the CompletableFuture is completed on another thread.
-   * There is no rxjava3 instrumentation for fromCompletionStage; propagation comes from the agent's
-   * concurrent/executor instrumentation, which carries the active context across the ForkJoinPool
-   * used by supplyAsync. blockingGet() runs the map() on the calling thread, where the
-   * interop-parent scope is still active, so the child span is a direct child of interop-parent.
-   */
   @Test
   void fromCompletionStageAsync() {
     Integer result =
@@ -130,11 +112,6 @@ class RxJava3InteropTest extends AbstractInstrumentationTest {
                 .tags(componentTrace(), defaultTags())));
   }
 
-  /**
-   * FINDING: fromStream(2 elements) emits one child span per element (2 spans here), each a direct
-   * child of interop-parent. The map() runs synchronously on the subscribing thread under the
-   * active interop-parent scope, so no async/concurrent instrumentation is involved.
-   */
   @Test
   void fromStream() {
     List<Integer> result =
