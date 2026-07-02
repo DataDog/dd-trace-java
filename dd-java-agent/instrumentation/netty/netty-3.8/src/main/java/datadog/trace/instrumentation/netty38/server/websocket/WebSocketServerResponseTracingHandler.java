@@ -5,8 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorat
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_BINARY;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
@@ -46,7 +46,7 @@ public class WebSocketServerResponseTracingHandler extends SimpleChannelDownstre
             final AgentSpan span =
                 DECORATE.onSendFrameStart(
                     handlerContext, MESSAGE_TYPE_TEXT, textFrame.getText().length());
-            try (final AgentScope scope = activateSpan(span)) {
+            try (final ContextScope scope = activateSpan(span)) {
               ctx.sendDownstream(event);
             } finally {
               // WebSocket Write Text End
@@ -65,7 +65,7 @@ public class WebSocketServerResponseTracingHandler extends SimpleChannelDownstre
                     handlerContext,
                     MESSAGE_TYPE_BINARY,
                     binaryFrame.getBinaryData().readableBytes());
-            try (final AgentScope scope = activateSpan(span)) {
+            try (final ContextScope scope = activateSpan(span)) {
               ctx.sendDownstream(event);
             } finally {
               // WebSocket Write Binary End
@@ -86,7 +86,7 @@ public class WebSocketServerResponseTracingHandler extends SimpleChannelDownstre
                     MESSAGE_TYPE_TEXT.equals(handlerContext.getMessageType())
                         ? continuationWebSocketFrame.getText().length()
                         : continuationWebSocketFrame.getBinaryData().readableBytes());
-            try (final AgentScope scope = activateSpan(span)) {
+            try (final ContextScope scope = activateSpan(span)) {
               ctx.sendDownstream(event);
             } finally {
               // WebSocket Write Binary End
@@ -105,7 +105,7 @@ public class WebSocketServerResponseTracingHandler extends SimpleChannelDownstre
             traceContext.setSenderHandlerContext(null);
             final AgentSpan span =
                 DECORATE.onSessionCloseIssued(handlerContext, reasonText, statusCode);
-            try (final AgentScope scope = activateSpan(span)) {
+            try (final ContextScope scope = activateSpan(span)) {
               ctx.sendDownstream(event);
             } finally {
               if (closeFrame.isFinalFragment()) {

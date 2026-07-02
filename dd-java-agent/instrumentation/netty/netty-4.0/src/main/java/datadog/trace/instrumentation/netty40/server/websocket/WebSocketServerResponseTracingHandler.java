@@ -6,7 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtracto
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.WEBSOCKET_SENDER_HANDLER_CONTEXT;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import io.netty.channel.*;
@@ -32,7 +32,7 @@ public class WebSocketServerResponseTracingHandler extends ChannelOutboundHandle
           final AgentSpan span =
               DECORATE.onSendFrameStart(
                   handlerContext, MESSAGE_TYPE_TEXT, textFrame.text().length());
-          try (final AgentScope scope = activateSpan(span)) {
+          try (final ContextScope scope = activateSpan(span)) {
             ctx.write(frame, promise);
           } finally {
             // WebSocket Write Text End
@@ -49,7 +49,7 @@ public class WebSocketServerResponseTracingHandler extends ChannelOutboundHandle
           final AgentSpan span =
               DECORATE.onSendFrameStart(
                   handlerContext, MESSAGE_TYPE_BINARY, binaryFrame.content().readableBytes());
-          try (final AgentScope scope = activateSpan(span)) {
+          try (final ContextScope scope = activateSpan(span)) {
             ctx.write(frame, promise);
           } finally {
             // WebSocket Write Binary End
@@ -70,7 +70,7 @@ public class WebSocketServerResponseTracingHandler extends ChannelOutboundHandle
                   MESSAGE_TYPE_TEXT.equals(handlerContext.getMessageType())
                       ? continuationWebSocketFrame.text().length()
                       : continuationWebSocketFrame.content().readableBytes());
-          try (final AgentScope scope = activateSpan(span)) {
+          try (final ContextScope scope = activateSpan(span)) {
             ctx.write(frame, promise);
           } finally {
             // WebSocket Write Binary End
@@ -89,7 +89,7 @@ public class WebSocketServerResponseTracingHandler extends ChannelOutboundHandle
           channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).remove();
           final AgentSpan span =
               DECORATE.onSessionCloseIssued(handlerContext, reasonText, statusCode);
-          try (final AgentScope scope = activateSpan(span)) {
+          try (final ContextScope scope = activateSpan(span)) {
             ctx.write(frame, promise);
           } finally {
             if (closeFrame.isFinalFragment()) {

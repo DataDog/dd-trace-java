@@ -16,6 +16,7 @@ import com.datadog.debugger.probe.LogProbe.LogStatus;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.bootstrap.debugger.CapturedContext;
@@ -23,7 +24,6 @@ import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
@@ -136,7 +136,7 @@ public class LogProbeTest {
     if (sessionId != null) {
       span.setTag(Tags.PROPAGATED_DEBUG, sessionId + ":1");
     }
-    try (AgentScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateManualSpan(span)) {
       Builder builder =
           createLog("Budget testing").probeId(ProbeId.newId()).captureSnapshot(captureSnapshot);
       if (sessionId != null) {
@@ -177,7 +177,7 @@ public class LogProbeTest {
         CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
     AgentTracer.registerIfAbsent(tracer);
     AgentSpan span = tracer.startSpan("log probe debug session testing", "test span");
-    try (AgentScope scope = tracer.activateManualSpan(span)) {
+    try (ContextScope scope = tracer.activateManualSpan(span)) {
       if (status == DebugSessionStatus.ACTIVE) {
         span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
       } else if (status == DebugSessionStatus.DISABLED) {

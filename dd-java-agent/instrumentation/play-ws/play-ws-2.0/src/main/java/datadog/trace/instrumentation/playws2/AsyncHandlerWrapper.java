@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.playws2;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.InetSocketAddress;
@@ -57,7 +58,7 @@ public class AsyncHandlerWrapper implements AsyncHandler {
     span.finish();
 
     if (continuation != null) {
-      try (final AgentScope scope = continuation.activate()) {
+      try (final ContextScope scope = continuation.activate()) {
         return delegate.onCompleted();
       }
     } else {
@@ -72,7 +73,7 @@ public class AsyncHandlerWrapper implements AsyncHandler {
     span.finish();
 
     if (continuation != null) {
-      try (final AgentScope scope = continuation.activate()) {
+      try (final ContextScope scope = continuation.activate()) {
         delegate.onThrowable(throwable);
       }
     } else {
