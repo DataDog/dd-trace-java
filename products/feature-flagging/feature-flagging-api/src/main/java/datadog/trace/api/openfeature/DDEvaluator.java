@@ -387,11 +387,15 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
               + e.getMessage());
     }
 
+    // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
+    // not hook-fire time. Passed to the hook via provider metadata "dd.eval.timestamp_ms".
+    final long evalTimestampMs = System.currentTimeMillis();
     final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder =
         ImmutableMetadata.builder()
             .addString("flagKey", flag.key)
             .addString("variationType", flag.variationType.name())
-            .addString("allocationKey", allocation.key);
+            .addString("allocationKey", allocation.key)
+            .addLong("dd.eval.timestamp_ms", evalTimestampMs);
     final ProviderEvaluation<T> result =
         ProviderEvaluation.<T>builder()
             .value(mappedValue)
