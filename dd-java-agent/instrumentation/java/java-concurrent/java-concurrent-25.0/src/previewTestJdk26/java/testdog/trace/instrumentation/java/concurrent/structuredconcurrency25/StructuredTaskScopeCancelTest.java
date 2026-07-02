@@ -1,14 +1,16 @@
 package testdog.trace.instrumentation.java.concurrent.structuredconcurrency25;
 
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
+import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.StructuredTaskScope;
 import org.junit.jupiter.api.Test;
 
 /**
- * JDK specific tests for the fork-into-canceled-scope continuation leak, isolated from {@code
+ * JDK specific tests for the structured-task-scope continuation cleanup, isolated from {@code
  * StructuredTaskScope25Test} because it uses the Java 26 {@code StructuredTaskScope.Joiner} API.
  */
 @SuppressWarnings("preview")
@@ -27,6 +29,40 @@ public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
     assertTraces(trace(span().root().operationName("parent")));
   }
 
+  /**
+   * A subtask whose thread actually starts must keep the parent context even when the scope is
+   * canceled (here by forking a second subtask). The continuation cleanup happens at scope close —
+   * not at fork — so a started subtask has already consumed its continuation and is never stripped
+   * of its context, while the never-started sibling's continuation is released at close.
+   */
+  @Test
+  void testStartedSubtaskKeepsContextWhenSiblingCancelsScope() throws Exception {
+    var span = tracer.startSpan("test", "parent");
+    try (var ignored = tracer.activateSpan(span)) {
+      try (var scope = StructuredTaskScope.open(new CancelOnSecondForkJoiner<>())) {
+        var firstStarted = new CountDownLatch(1);
+        // The first subtask starts and produces its span before the scope is canceled.
+        scope.fork(
+            () -> {
+              Void result = task();
+              firstStarted.countDown();
+              return result;
+            });
+        firstStarted.await();
+        // Forking the second subtask cancels the scope, so its thread never starts.
+        scope.fork(this::task);
+        scope.join();
+      }
+    }
+    span.finish();
+
+    assertTraces(
+        trace(
+            SORT_BY_START_TIME,
+            span().root().operationName("parent"),
+            span().childOfPrevious().operationName("child")));
+  }
+
   Void task() {
     tracer.startSpan("test", "child").finish();
     return null;
@@ -37,6 +73,21 @@ public class StructuredTaskScopeCancelTest extends AbstractInstrumentationTest {
     @Override
     public boolean onFork(StructuredTaskScope.Subtask<T> subtask) {
       return true; // Cancel the scope as soon as the first subtask is forked.
+    }
+
+    @Override
+    public Void result() {
+      return null;
+    }
+  }
+
+  /** Lets the first subtask start, then cancels the scope when a second subtask is forked. */
+  static final class CancelOnSecondForkJoiner<T> implements StructuredTaskScope.Joiner<T, Void> {
+    private int forks = 0; // onFork is only called on the scope owner thread
+
+    @Override
+    public boolean onFork(StructuredTaskScope.Subtask<T> subtask) {
+      return ++forks >= 2; // cancel the scope when the second subtask is forked
     }
 
     @Override
