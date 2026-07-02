@@ -1,6 +1,7 @@
 plugins {
   `java-library`
   id("dd-trace-java.version-file")
+  id("me.champeau.jmh")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
@@ -27,4 +28,15 @@ dependencies {
   testImplementation(libs.bundles.mockito)
   testImplementation(project(":utils:test-utils"))
   testImplementation(project(":dd-java-agent:testing"))
+}
+
+jmh {
+  jmhVersion = libs.versions.jmh.get()
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  if (project.hasProperty("jmhIncludes")) {
+    includes = listOf(project.property("jmhIncludes").toString())
+  }
+  if (project.hasProperty("jmhProf")) {
+    profilers = listOf(project.property("jmhProf").toString())
+  }
 }
