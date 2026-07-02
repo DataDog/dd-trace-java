@@ -1,6 +1,8 @@
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import datadog.gradle.plugin.testJvmConstraints.ProvideJvmArgsOnJvmLauncherVersion
 import groovy.transform.CompileStatic
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
 
 import java.nio.file.Files
 import java.nio.file.LinkOption
@@ -121,8 +123,10 @@ def tracerJavaExtension = extensions.create(TracerJavaExtension.NAME, TracerJava
 
 
 
-// Only run one testcontainers test at a time
-ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainersLimit", BuildService) {
+abstract class TestcontainersLimitService implements BuildService<BuildServiceParameters.None> {
+}
+
+ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainersLimit", TestcontainersLimitService) {
   maxParallelUsages = 1
 }
 
