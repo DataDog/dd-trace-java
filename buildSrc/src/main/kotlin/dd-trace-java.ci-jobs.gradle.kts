@@ -15,10 +15,12 @@ if (project != rootProject) {
 }
 
 allprojects {
-  // Enable tests only on the selected slot (if -Pslot=n/t is provided)
+  // Enable tests only on the selected slot (if -Pslot=n/t is provided).
+  // Sharding is per-task: a module's test variants (e.g. jdbc's test/forkedTest/oldH2Test/
+  // oldPostgresTest) hash to independent slots instead of serializing within one job.
   tasks.withType<Test>().configureEach {
-    onlyIf("Project is in selected slot") {
-      project.isInSelectedSlot.get()
+    onlyIf("Task is in selected slot") {
+      isInSelectedSlot
     }
   }
 }
@@ -124,7 +126,7 @@ if (gitBaseRefProvider.isPresent) {
 
 tasks.register("runMuzzle") {
   val muzzleSubprojects = subprojects.filter { p ->
-    p.isInSelectedSlot.get()
+    p.isInSelectedSlot
         && p.plugins.hasPlugin("java")
         && p.plugins.hasPlugin("dd-trace-java.muzzle")
   }
