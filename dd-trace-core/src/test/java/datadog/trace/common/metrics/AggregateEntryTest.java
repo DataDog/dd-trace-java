@@ -1,10 +1,11 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 import static datadog.trace.common.metrics.AggregateEntry.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateEntry.TOP_LEVEL_TAG;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.metrics.agent.AgentMeter;
@@ -13,9 +14,15 @@ import datadog.metrics.impl.DDSketchHistograms;
 import datadog.metrics.impl.MonitoringImpl;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class AggregateEntryTest {
+
+  @BeforeEach
+  void resetCardinalityHandlers() {
+    AggregateEntry.resetCardinalityHandlers();
+  }
 
   @BeforeAll
   static void initAgentMeter() {
@@ -84,82 +91,46 @@ class AggregateEntryTest {
   }
 
   @Test
-  void testUtilsEqualsIsConsistentWithHashCodeAcrossDifferentSchemaLayouts() {
-    // Contract test for AggregateEntryTestUtils (the test-side equality helper used by Spock
-    // mock matchers). Production AggregateEntry has no equals override.
-    //
-    // Two entries with identical encoded peerTags but different raw layouts must not be equal,
-    // because hashOf folds in the raw arrays. Equality on the encoded list would let them
-    // collapse while their hashCodes differ -- violating the contract.
-    //
-    //   A: schema ["a","b"], values [null,"x"] -> encoded ["b:x"]
-    //   B: schema ["b","c"], values ["x",null] -> encoded ["b:x"]
-    AggregateEntry a =
-        AggregateEntryTestUtils.forSnapshot(
-            snapshotWithPeerTags(new String[] {"a", "b"}, new String[] {null, "x"}));
-    AggregateEntry b =
-        AggregateEntryTestUtils.forSnapshot(
-            snapshotWithPeerTags(new String[] {"b", "c"}, new String[] {"x", null}));
-
-    // Sanity: same encoded peer tags, despite different raw layout.
-    assertEquals(a.getPeerTags(), b.getPeerTags());
-
-    // Different raw layouts -> entries must not be equal via the test helper.
-    assertFalse(AggregateEntryTestUtils.equals(a, b));
-    // And different hashCodes (matching the inequality).
-    assertNotEquals(AggregateEntryTestUtils.hashCode(a), AggregateEntryTestUtils.hashCode(b));
+  void absentOptionalFieldsResolveToEmptySentinel() {
+    // serviceSource / httpMethod / httpEndpoint / grpcStatusCode = null on input -> EMPTY on the
+    // entry. EMPTY is the universal "absent" sentinel; SerializingMetricWriter and equality use
+    // identity comparison against it.
+    AggregateEntry entry = newEntry();
+    assertSame(EMPTY, entry.getServiceSource());
+    assertSame(EMPTY, entry.getHttpMethod());
+    assertSame(EMPTY, entry.getHttpEndpoint());
+    assertSame(EMPTY, entry.getGrpcStatusCode());
   }
 
   @Test
-  void testUtilsEqualEntriesHaveEqualHashCodes() {
-    AggregateEntry a =
-        AggregateEntryTestUtils.forSnapshot(
-            snapshotWithPeerTags(new String[] {"a", "b"}, new String[] {null, "x"}));
-    AggregateEntry b =
-        AggregateEntryTestUtils.forSnapshot(
-            snapshotWithPeerTags(new String[] {"a", "b"}, new String[] {null, "x"}));
-
-    assertTrue(AggregateEntryTestUtils.equals(a, b));
-    assertEquals(AggregateEntryTestUtils.hashCode(a), AggregateEntryTestUtils.hashCode(b));
-  }
-
-  private static SpanSnapshot snapshotWithPeerTags(String[] names, String[] values) {
-    return new SpanSnapshot(
-        "resource",
-        "svc",
-        "op",
-        null,
-        "type",
-        (short) 200,
-        false,
-        true,
-        "client",
-        PeerTagSchema.testSchema(names),
-        values,
-        null,
-        null,
-        null,
-        0L);
-  }
-
-  private static AggregateEntry newEntry() {
-    SpanSnapshot snapshot =
-        new SpanSnapshot(
+  void presentOptionalFieldsCarryTheirValue() {
+    AggregateEntry entry =
+        AggregateEntryTestUtils.of(
             "resource",
             "svc",
             "op",
-            null,
+            "src",
             "type",
-            (short) 200,
+            200,
             false,
             true,
             "client",
             null,
-            null,
-            null,
-            null,
-            null,
-            0L);
-    return AggregateEntryTestUtils.forSnapshot(snapshot);
+            "GET",
+            "/api/v1/foo",
+            "0");
+    assertNotSame(EMPTY, entry.getServiceSource());
+    assertNotSame(EMPTY, entry.getHttpMethod());
+    assertNotSame(EMPTY, entry.getHttpEndpoint());
+    assertNotSame(EMPTY, entry.getGrpcStatusCode());
+    assertEquals("src", entry.getServiceSource().toString());
+    assertEquals("GET", entry.getHttpMethod().toString());
+    assertEquals("/api/v1/foo", entry.getHttpEndpoint().toString());
+    assertEquals("0", entry.getGrpcStatusCode().toString());
+  }
+
+  private static AggregateEntry newEntry() {
+    return AggregateEntryTestUtils.of(
+        "resource", "svc", "op", null, "type", 200, false, true, "client", null, null, null, null);
   }
 }

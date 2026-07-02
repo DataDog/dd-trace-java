@@ -2,14 +2,12 @@ package datadog.trace.common.metrics;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.SpanKindFilter;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -17,12 +15,12 @@ import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
 /**
- * Coverage for the inbox-full fast-path in {@code ConflatingMetricsAggregator.publish}: when the
+ * Coverage for the inbox-full fast-path in {@code ClientStatsAggregator.publish}: when the
  * producer-side inbox is at capacity, the next {@code publish} call short-circuits before any tag
  * extraction or {@code SpanSnapshot} allocation and reports {@code onStatsInboxFull()} to health
  * metrics.
  */
-class ConflatingMetricsAggregatorInboxFullTest {
+class ClientStatsAggregatorInboxFullTest {
 
   @Test
   void publishFiresOnStatsInboxFullOnceInboxIsAtCapacity() {
@@ -38,8 +36,8 @@ class ConflatingMetricsAggregatorInboxFullTest {
     // never drains -- snapshots accumulate in the inbox until capacity, then the next publish hits
     // the size-vs-capacity fast path.
     int queueSize = 8;
-    ConflatingMetricsAggregator aggregator =
-        new ConflatingMetricsAggregator(
+    ClientStatsAggregator aggregator =
+        new ClientStatsAggregator(
             Collections.<String>emptySet(),
             features,
             healthMetrics,
@@ -78,7 +76,7 @@ class ConflatingMetricsAggregatorInboxFullTest {
     when(span.getHttpStatusCode()).thenReturn((short) 200);
     when(span.getParentId()).thenReturn(0L);
     when(span.getOrigin()).thenReturn(null);
-    when(span.unsafeGetTag(eq(Tags.SPAN_KIND), any(CharSequence.class))).thenReturn("client");
+    when(span.getSpanKindString()).thenReturn("client");
     return span;
   }
 }

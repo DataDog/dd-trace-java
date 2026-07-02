@@ -49,7 +49,7 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "9.6.0" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "9.6.1" # must match gradle-wrapper.properties
   MASS_READ_URL: "https://mass-read.us1.ddbuild.io"
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
@@ -388,8 +388,6 @@ populate_dep_cache:
   rules:
     - if: '$POPULATE_CACHE'
       when: on_success
-    - when: manual
-      allow_failure: true
   parallel:
     matrix:
       - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar"
@@ -744,7 +742,6 @@ muzzle-dep-report:
   needs: []
   variables:
     <<: *tier_m_variables
-    # arm64 does not include JDK 7 or ibm8 (upstream images not published for arm64).
     DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/
     GRADLE_PARAMS: "-PskipFlakyTests"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -754,10 +751,14 @@ muzzle-dep-report:
     GIT_SUBMODULE_STRATEGY: normal
     GIT_SUBMODULE_DEPTH: 1
   rules:
-    - if: $testJvm =~ $DEFAULT_TEST_JVMS
-      when: manual
-      allow_failure: true
-    - if: '$NON_DEFAULT_JVMS == "true" && $testJvm != "ibm8" && $testJvm != "oracle8"'
+    # `ibm8`/`oracle8` have no arm64 images published upstream — never run them on arm64.
+    - if: '$testJvm == "ibm8" || $testJvm == "oracle8"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: manual
       allow_failure: true
   cache:
@@ -1046,11 +1047,17 @@ test_debugger:
     DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "tip" version is LTS v25
   parallel:
     matrix: *test_matrix
+  # avoid running coverage for semeru8, semeru11, semeru17 and ibm8 as some tests are disabled and therefore cannot reach the
+  # exepected coverage
+  script:
+    - if [[ "$testJvm" != "semeru8" && "$testJvm" != "semeru11" && "$testJvm" != "semeru17" && "$testJvm" != "ibm8" ]]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
+    - !reference [.test_job, script]
 
 test_debugger_arm64:
   extends: .test_job_arm64
   variables:
     GRADLE_TARGET: ":debuggerTest"
+    GRADLE_PARAMS: "-PcheckCoverage"
     CACHE_TYPE: "base"
   parallel:
     matrix: *test_matrix
@@ -1251,7 +1258,7 @@ deploy_to_maven_central:
     - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
-    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
+    - ./gradlew publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'

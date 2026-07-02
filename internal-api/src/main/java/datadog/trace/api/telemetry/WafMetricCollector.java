@@ -33,7 +33,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final BlockingQueue<WafMetric> rawMetricsQueue =
       new ArrayBlockingQueue<>(RAW_QUEUE_SIZE);
 
-  private static final int WAF_REQUEST_COMBINATIONS = 128; // 2^7
+  private static final int WAF_REQUEST_COMBINATIONS = 256; // 2^8
   private final AtomicLongArray wafRequestCounter = new AtomicLongArray(WAF_REQUEST_COMBINATIONS);
 
   private static final AtomicLongArray wafInputTruncatedCounter =
@@ -99,7 +99,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       final boolean wafTimeout,
       final boolean blockFailure,
       final boolean rateLimited,
-      final boolean inputTruncated) {
+      final boolean inputTruncated,
+      final boolean requestExcluded) {
     int index =
         computeWafRequestIndex(
             ruleTriggered,
@@ -108,7 +109,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
             wafTimeout,
             blockFailure,
             rateLimited,
-            inputTruncated);
+            inputTruncated,
+            requestExcluded);
     wafRequestCounter.incrementAndGet(index);
   }
 
@@ -125,7 +127,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       boolean wafTimeout,
       boolean blockFailure,
       boolean rateLimited,
-      boolean inputTruncated) {
+      boolean inputTruncated,
+      boolean requestExcluded) {
     int index = 0;
     if (ruleTriggered) index |= 1;
     if (requestBlocked) index |= 1 << 1;
@@ -134,6 +137,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
     if (blockFailure) index |= 1 << 4;
     if (rateLimited) index |= 1 << 5;
     if (inputTruncated) index |= 1 << 6;
+    if (requestExcluded) index |= 1 << 7;
     return index;
   }
 
@@ -233,6 +237,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         boolean blockFailure = (i & (1 << 4)) != 0;
         boolean rateLimited = (i & (1 << 5)) != 0;
         boolean inputTruncated = (i & (1 << 6)) != 0;
+        boolean requestExcluded = (i & (1 << 7)) != 0;
 
         if (!rawMetricsQueue.offer(
             new WafRequestsRawMetric(
@@ -245,7 +250,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
                 wafTimeout,
                 blockFailure,
                 rateLimited,
-                inputTruncated))) {
+                inputTruncated,
+                requestExcluded))) {
           return;
         }
       }
@@ -497,7 +503,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
         final boolean wafTimeout,
         final boolean blockFailure,
         final boolean rateLimited,
-        final boolean inputTruncated) {
+        final boolean inputTruncated,
+        final boolean requestExcluded) {
       super(
           "waf.requests",
           counter,
@@ -509,7 +516,8 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
           "waf_timeout:" + wafTimeout,
           "block_failure:" + blockFailure,
           "rate_limited:" + rateLimited,
-          "input_truncated:" + inputTruncated);
+          "input_truncated:" + inputTruncated,
+          "request_excluded:" + (requestExcluded ? "full" : "none"));
     }
   }
 

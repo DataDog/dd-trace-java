@@ -34,12 +34,12 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 1)
-public class ConflatingMetricsAggregatorBenchmark {
+public class ClientStatsAggregatorBenchmark {
   private final DDAgentFeaturesDiscovery featuresDiscovery =
       new FixedAgentFeaturesDiscovery(
           Collections.singleton("peer.hostname"), Collections.emptySet());
-  private final ConflatingMetricsAggregator aggregator =
-      new ConflatingMetricsAggregator(
+  private final ClientStatsAggregator aggregator =
+      new ClientStatsAggregator(
           new WellKnownTags("", "", "", "", "", ""),
           Collections.emptySet(),
           featuresDiscovery,

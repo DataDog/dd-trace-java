@@ -4,7 +4,6 @@ import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS
 import static datadog.trace.api.DDSpanTypes.RPC;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.common.metrics.AggregateEntry.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateEntry.TOP_LEVEL_TAG;
 import static datadog.trace.common.metrics.SignalItem.ClearSignal.CLEAR;
@@ -40,14 +39,14 @@ import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ConflatingMetricsAggregator implements MetricsAggregator, EventListener {
+public final class ClientStatsAggregator implements MetricsAggregator, EventListener {
 
-  private static final Logger log = LoggerFactory.getLogger(ConflatingMetricsAggregator.class);
+  private static final Logger log = LoggerFactory.getLogger(ClientStatsAggregator.class);
 
   private static final Map<String, String> DEFAULT_HEADERS =
       Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
 
-  private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
+  private static final String SYNTHETICS_ORIGIN = "synthetics";
 
   private static final SpanKindFilter METRICS_ELIGIBLE_KINDS =
       SpanKindFilter.builder()
@@ -75,25 +74,26 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final boolean includeEndpointInMetrics;
 
   /**
-   * Cached peer-aggregation schema. Producers read this reference once per trace and pass it
-   * through to the consumer in {@link SpanSnapshot}; they never inspect the schema's discovery
-   * state or rebuild it. Reconciliation is the aggregator thread's job: {@link
-   * #reconcilePeerTagSchema()} compares the schema's {@link PeerTagSchema#state} against {@link
-   * DDAgentFeaturesDiscovery#state()} once per reporting cycle and either updates the state in
-   * place (when the tag set is unchanged) or swaps in a freshly-built schema.
+   * Cached peer-aggregation schema read by producer threads.
    *
-   * <p>{@code null} only on the bootstrap window before {@link #bootstrapPeerTagSchema()} runs on
-   * the first publish.
+   * <p>Producers read this reference once per trace and store it on each {@link SpanSnapshot}. They
+   * do not inspect the schema's discovery state or rebuild it. The aggregator thread reconciles the
+   * schema once per reporting cycle in {@link #resetCardinalityHandlers()}: if feature discovery
+   * has a new state but the tag set is unchanged, it updates {@link PeerTagSchema#state} in-place
+   * to preserve the warm cardinality handlers; otherwise it swaps in a freshly-built schema.
    *
-   * <p>{@code volatile} so the consumer's reconcile-time replacement is visible to producer
-   * threads; the schema's own internal mutable state ({@link PeerTagSchema#state}) is exercised
+   * <p>An empty schema (size 0) represents the "peer tags unconfigured" state; {@code null} only on
+   * the bootstrap window before {@link #bootstrapPeerTagSchema()} runs on the first publish.
+   *
+   * <p>{@code volatile} so producer threads always see the latest replacement. The schema's own
+   * internal mutable state (handlers, block counters, {@link PeerTagSchema#state}) is exercised
    * only on the aggregator thread.
    */
   private volatile PeerTagSchema cachedPeerTagSchema;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
-  public ConflatingMetricsAggregator(
+  public ClientStatsAggregator(
       Config config,
       SharedCommunicationObjects sharedCommunicationObjects,
       HealthMetrics healthMetrics) {
@@ -114,7 +114,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         config.isTraceResourceRenamingEnabled());
   }
 
-  ConflatingMetricsAggregator(
+  ClientStatsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
       DDAgentFeaturesDiscovery features,
@@ -136,7 +136,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         includeEndpointInMetrics);
   }
 
-  ConflatingMetricsAggregator(
+  ClientStatsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
       DDAgentFeaturesDiscovery features,
@@ -160,7 +160,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         includeEndpointInMetrics);
   }
 
-  ConflatingMetricsAggregator(
+  ClientStatsAggregator(
       Set<String> ignoredResources,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
@@ -185,7 +185,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             reportingInterval,
             timeUnit,
             healthMetric,
-            this::reconcilePeerTagSchema);
+            this::resetCardinalityHandlers);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;
@@ -267,17 +267,26 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     boolean forceKeep = false;
     int counted = 0;
     if (features.supportsMetrics()) {
+      // Producer-side fast path: one volatile read and use whatever schema is currently cached.
+      // The aggregator thread keeps this schema in sync with feature discovery in
+      // resetCardinalityHandlers(). The only producer-side rebuild is the one-time bootstrap on
+      // the first publish.
+      PeerTagSchema peerTagSchema = cachedPeerTagSchema;
+      if (peerTagSchema == null) {
+        peerTagSchema = bootstrapPeerTagSchema();
+      }
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span, isTopLevel)) {
           final CharSequence resourceName = span.getResourceName();
-          if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
+          if (resourceName != null
+              && !ignoredResources.isEmpty()
+              && ignoredResources.contains(resourceName.toString())) {
             // skip publishing all children
-            forceKeep = false;
             break;
           }
           counted++;
-          forceKeep |= publish(span, isTopLevel);
+          forceKeep |= publish(span, isTopLevel, peerTagSchema);
         }
       }
       healthMetrics.onClientStatTraceComputed(counted, trace.size(), !forceKeep);
@@ -292,20 +301,13 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         && span.getDurationNano() > 0;
   }
 
-  private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
-    // Error decision drives force-keep sampling regardless of whether the snapshot gets queued.
+  private boolean publish(CoreSpan<?> span, boolean isTopLevel, PeerTagSchema peerTagSchema) {
     boolean error = span.getError() > 0;
-
-    // Fast-path the inbox-full case before any tag extraction or snapshot allocation. size() is
-    // approximate on jctools' MPSC queue but that's fine: if we under-estimate, we fall through
-    // and let inbox.offer be the source of truth (existing behavior); if we over-estimate, we
-    // drop a snapshot that would have fit -- acceptable, onStatsInboxFull was going to fire
-    // imminently anyway.
+    // size() is approximate on jctools MPSC queues but good enough for a fast-path overflow check.
     if (inbox.size() >= inbox.capacity()) {
       healthMetrics.onStatsInboxFull();
       return error;
     }
-
     // Extract HTTP method and endpoint only if the feature is enabled
     String httpMethod = null;
     String httpEndpoint = null;
@@ -322,20 +324,23 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       Object grpcStatusObj = span.unsafeGetTag(InstrumentationTags.GRPC_STATUS_CODE);
       grpcStatusCode = grpcStatusObj != null ? grpcStatusObj.toString() : null;
     }
-    // CharSequence default keeps unsafeGetTag's generic at CharSequence so UTF8BytesString
-    // tag values don't trigger a ClassCastException on the String assignment.
-    final String spanKind = span.unsafeGetTag(SPAN_KIND, (CharSequence) "").toString();
+    // DDSpan resolves this from a cached span.kind ordinal via a small lookup array, skipping a
+    // tag-map lookup. Other CoreSpan impls fall back to the tag map by default.
+    String spanKind = span.getSpanKindString();
+    if (spanKind == null) {
+      spanKind = "";
+    }
 
     long tagAndDuration =
         span.getDurationNano() | (error ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
 
-    PeerTagSchema peerTagSchema = peerTagSchemaFor(span);
+    PeerTagSchema spanPeerTagSchema = peerTagSchemaFor(spanKind, peerTagSchema);
     String[] peerTagValues =
-        peerTagSchema == null ? null : capturePeerTagValues(span, peerTagSchema);
+        spanPeerTagSchema == null ? null : capturePeerTagValues(span, spanPeerTagSchema);
     if (peerTagValues == null) {
-      // No tags fired -- drop the schema reference so the consumer doesn't bother iterating an
-      // all-null array.
-      peerTagSchema = null;
+      // capture returned no non-null values -- drop the schema reference so the consumer doesn't
+      // bother iterating an all-null array.
+      spanPeerTagSchema = null;
     }
 
     SpanSnapshot snapshot =
@@ -349,7 +354,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             isSynthetic(span),
             span.getParentId() == 0,
             spanKind,
-            peerTagSchema,
+            spanPeerTagSchema,
             peerTagValues,
             httpMethod,
             httpEndpoint,
@@ -360,26 +365,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     }
     // force keep keys if there are errors
     return error;
-  }
-
-  /**
-   * Picks the peer-tag schema for a span. For internal-kind spans we always use the static {@link
-   * PeerTagSchema#INTERNAL} singleton (one entry for {@code base.service}); for {@code
-   * client}/{@code producer}/{@code consumer} kinds we use the cached peer-aggregation schema
-   * synced from {@link DDAgentFeaturesDiscovery#peerTags()}. Other kinds get {@code null}.
-   */
-  private PeerTagSchema peerTagSchemaFor(CoreSpan<?> span) {
-    if (span.isKind(PEER_AGGREGATION_KINDS)) {
-      PeerTagSchema schema = cachedPeerTagSchema;
-      if (schema == null) {
-        schema = bootstrapPeerTagSchema();
-      }
-      return schema.size() > 0 ? schema : null;
-    }
-    if (span.isKind(INTERNAL_KIND)) {
-      return PeerTagSchema.INTERNAL;
-    }
-    return null;
   }
 
   /**
@@ -417,13 +402,51 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   /**
+   * Single reset hook invoked on the aggregator thread at the end of each report cycle. Reconciles
+   * the cached peer-tag schema against the latest feature discovery, then resets all cardinality
+   * state in lockstep: the static property handlers, {@code PeerTagSchema.INTERNAL}, and the cached
+   * peer-tag schema. New handlers added anywhere in this pipeline should be reset from here.
+   */
+  private void resetCardinalityHandlers() {
+    reconcilePeerTagSchema();
+    for (PropertyCardinalityHandler handler : AggregateEntry.FIELD_HANDLERS) {
+      long blocked = handler.reset();
+      if (blocked > 0) {
+        log.warn(
+            "Cardinality limit reached for stats field '{}'; further values will be reported as tracer_blocked_value",
+            handler.name);
+        healthMetrics.onTagCardinalityBlocked(handler.statsDTag(), blocked);
+      }
+    }
+    resetPeerTagSchema(PeerTagSchema.INTERNAL);
+    PeerTagSchema schema = cachedPeerTagSchema;
+    if (schema != null) {
+      resetPeerTagSchema(schema);
+    }
+  }
+
+  private void resetPeerTagSchema(PeerTagSchema schema) {
+    for (int i = 0; i < schema.handlers.length; i++) {
+      long blocked = schema.handlers[i].reset();
+      if (blocked > 0) {
+        log.warn(
+            "Cardinality limit reached for peer tag '{}'; further values are reported as"
+                + " 'tracer_blocked_value' until the next reporting cycle",
+            schema.names[i]);
+        healthMetrics.onTagCardinalityBlocked(schema.handlers[i].statsDTag(), blocked);
+      }
+    }
+  }
+
+  /**
    * Reconciles {@link #cachedPeerTagSchema} with the latest feature discovery. Runs on the
    * aggregator thread once per reporting cycle via the reset hook passed to {@link Aggregator}.
    * Cheap fast path: an equality check against the cached schema's embedded {@link
    * DDAgentFeaturesDiscovery#state()} hash short-circuits when discovery's response hasn't changed
    * since the schema was built. On mismatch, a set compare distinguishes "discovery response
-   * changed but peer tags are the same" (just update the cached state in place) from "tags actually
-   * changed" (build a new schema and swap the volatile reference).
+   * changed but peer tags are the same" (just update the cached state in place to preserve the warm
+   * cardinality handlers) from "tags actually changed" (build a new schema and swap the volatile
+   * reference).
    */
   private void reconcilePeerTagSchema() {
     PeerTagSchema cached = cachedPeerTagSchema;
@@ -436,19 +459,37 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       return;
     }
     Set<String> latestNames = features.peerTags();
-    Set<String> normalized = latestNames == null ? Collections.<String>emptySet() : latestNames;
+    Set<String> normalized = latestNames == null ? Collections.emptySet() : latestNames;
     if (cached.hasSameTagsAs(normalized)) {
       cached.state = latestState;
     } else {
+      // Tags actually changed: flush the outgoing schema's accumulated block telemetry before
+      // discarding it, otherwise the partial-cycle blockedCounts would silently disappear.
+      resetPeerTagSchema(cached);
       cachedPeerTagSchema = PeerTagSchema.of(normalized, latestState);
     }
   }
 
   /**
-   * Captures the span's peer-tag values into a {@code String[]} parallel to {@code schema.names}.
-   * Slots remain {@code null} for tags the span didn't set; the array itself is lazily allocated on
-   * the first hit so spans that fire no peer tags pay zero allocation. Returns {@code null} when
-   * none of the configured peer tags are set on the span.
+   * Picks the peer-tag schema for a span. The {@code peerTagSchema} argument is the per-trace
+   * cached schema (read once in {@link #publish(List)} via the volatile {@link
+   * #cachedPeerTagSchema}, with {@link #bootstrapPeerTagSchema()} taking care of the first-publish
+   * window) -- always non-null but possibly empty when peer tags are unconfigured. For
+   * internal-kind spans the static {@link PeerTagSchema#INTERNAL} schema is used regardless.
+   */
+  private static PeerTagSchema peerTagSchemaFor(String spanKind, PeerTagSchema peerTagSchema) {
+    if (peerTagSchema.size() > 0 && PEER_AGGREGATION_KINDS.matches(spanKind)) {
+      return peerTagSchema;
+    }
+    if (INTERNAL_KIND.matches(spanKind)) {
+      return PeerTagSchema.INTERNAL;
+    }
+    return null;
+  }
+
+  /**
+   * Captures the span's peer tag values into a {@code String[]} parallel to {@code schema.names}.
+   * Returns {@code null} when none of the configured peer tags are set on the span.
    */
   private static String[] capturePeerTagValues(CoreSpan<?> span, PeerTagSchema schema) {
     String[] names = schema.names;
@@ -467,7 +508,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {
-    return span.getOrigin() != null && SYNTHETICS_ORIGIN.equals(span.getOrigin().toString());
+    CharSequence origin = span.getOrigin();
+    return origin != null && SYNTHETICS_ORIGIN.contentEquals(origin);
   }
 
   public void stop() {
@@ -526,11 +568,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     }
   }
 
-  private static final class ReportTask
-      implements AgentTaskScheduler.Task<ConflatingMetricsAggregator> {
+  private static final class ReportTask implements AgentTaskScheduler.Task<ClientStatsAggregator> {
 
     @Override
-    public void run(ConflatingMetricsAggregator target) {
+    public void run(ClientStatsAggregator target) {
       target.report();
     }
   }

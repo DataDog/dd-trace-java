@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Map;
 
 public interface CoreSpan<T extends CoreSpan<T>> {
@@ -75,6 +76,16 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   boolean isForceKeep();
 
   boolean isKind(SpanKindFilter filter);
+
+  /**
+   * Returns the {@code span.kind} tag value as a String, or {@code null} if not set. Default
+   * implementation reads the tag map; {@link DDSpan} overrides to use a cached ordinal that
+   * resolves via a small lookup array, skipping the tag-map lookup on the hot path.
+   */
+  default String getSpanKindString() {
+    Object v = unsafeGetTag(Tags.SPAN_KIND);
+    return v == null ? null : v.toString();
+  }
 
   CharSequence getType();
 

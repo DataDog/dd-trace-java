@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class AggregateTableTest {
@@ -29,6 +30,15 @@ class AggregateTableTest {
     MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
     AgentMeter.registerIfAbsent(StatsDClient.NO_OP, monitoring, DDSketchHistograms.FACTORY);
     monitoring.newTimer("test.init");
+  }
+
+  @BeforeEach
+  void resetCardinalityHandlers() {
+    // AggregateEntry's property handlers are static and accumulate state across tests. Some tests
+    // in this class (e.g. backToBackEvictionsAllSucceed) drive 40 distinct services, which exceeds
+    // MetricCardinalityLimits.SERVICE (32) and leaves later tests seeing a shared "blocked"
+    // canonical for "a"/"b"/"c"-style services -- collapsing distinct snapshots into one entry.
+    AggregateEntry.resetCardinalityHandlers();
   }
 
   @Test
@@ -337,7 +347,7 @@ class AggregateTableTest {
         names[i] = namesAndValues[2 * i];
         values[i] = namesAndValues[2 * i + 1];
       }
-      this.peerTagSchema = PeerTagSchema.testSchema(names);
+      this.peerTagSchema = new PeerTagSchema(names, PeerTagSchema.NO_STATE);
       this.peerTagValues = values;
       return this;
     }

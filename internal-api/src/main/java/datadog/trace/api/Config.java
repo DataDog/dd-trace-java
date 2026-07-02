@@ -2267,7 +2267,6 @@ public class Config {
         (long) configProvider.getInteger(TRACER_METRICS_MAX_PENDING, defaultMaxPending)
             * LEGACY_BATCH_SIZE;
     tracerMetricsMaxPending = (int) Math.min(requestedMaxPending, MAX_SAFE_ARRAY_SIZE);
-
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
