@@ -3,102 +3,97 @@ package datadog.context;
 import static datadog.context.Context.current;
 import static datadog.context.Context.root;
 import static datadog.context.ContextTest.STRING_KEY;
-import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ContextListenerEventTest extends ContextTestBase {
   @Test
   void testListenersNotifiedOnAttachAndDetach() {
-    List<String> events = new ArrayList<>();
-    ContextManager.register(keyedTrackingListener(events, STRING_KEY));
+    TrackingListener listener = keyedTrackingListener(STRING_KEY);
+    ContextManager.register(listener);
     Context context = root().with(STRING_KEY, "value");
     try (ContextScope scope = context.attach()) {
-      assertEquals(asList("attach:value"), events);
+      listener.assertNewEvents("attach:value");
     }
-    assertEquals(asList("attach:value", "detach:value"), events);
+    listener.assertNewEvents("detach:value");
   }
 
   @Test
   void testListenersNotNotifiedForRootContext() {
-    List<String> events = new ArrayList<>();
-    ContextManager.register(trackingListener(events));
+    TrackingListener listener = trackingListener();
+    ContextManager.register(listener);
     root().attach(); // current is already root, no events
-    assertTrue(events.isEmpty(), "root attach should not trigger listeners");
+    listener.assertNoEvents(); // root attach should not trigger listeners
     root().swap(); // current is already root, no events
-    assertTrue(events.isEmpty(), "root swap should not trigger listeners");
+    listener.assertNoEvents(); // root swap should not trigger listeners
     Context context = root().with(STRING_KEY, "value");
     try (ContextScope scope = context.attach()) {
-      assertEquals(1, events.size()); // attach:non-root only
+      listener.assertNewEvents("attach"); // attach:non-root only
     }
-    assertEquals(2, events.size()); // detach:non-root but not attach:root
+    listener.assertNewEvents("detach"); // detach:non-root but not attach:root
   }
 
   @Test
   void testListenersNotNotifiedOnSameContextAttach() {
-    List<String> events = new ArrayList<>();
-    ContextManager.register(trackingListener(events));
+    TrackingListener listener = trackingListener();
+    ContextManager.register(listener);
     Context context = root().with(STRING_KEY, "same");
     try (ContextScope outer = context.attach()) {
-      assertEquals(asList("attach"), events);
+      listener.assertNewEvents("attach");
       try (ContextScope noop = context.attach()) {
         assertEquals(context, current());
-        assertEquals(asList("attach"), events); // no new events on same-context attach
+        listener.assertNoNewEvents(); // no new events on same-context attach
       }
-      assertEquals(asList("attach"), events); // noop close fires no events either
+      listener.assertNoNewEvents(); // noop close fires no events either
     }
-    assertEquals(asList("attach", "detach"), events);
+    listener.assertNewEvents("detach");
   }
 
   @Test
   void testListenersNotNotifiedOnSameContextSwap() {
-    List<String> events = new ArrayList<>();
-    ContextManager.register(trackingListener(events));
+    TrackingListener listener = trackingListener();
+    ContextManager.register(listener);
     Context context = root().with(STRING_KEY, "same");
     context.swap();
-    assertEquals(asList("attach"), events);
+    listener.assertNewEvents("attach");
     context.swap(); // same context again, no events
-    assertEquals(asList("attach"), events);
+    listener.assertNoNewEvents();
     root().swap();
-    assertEquals(asList("attach", "detach"), events);
+    listener.assertNewEvents("detach");
   }
 
   @Test
   void testDuplicateListenerIgnored() {
-    List<String> events = new ArrayList<>();
-    ContextListener listener = trackingListener(events);
+    TrackingListener listener = trackingListener();
     ContextManager.register(listener);
     ContextManager.register(listener); // should be ignored
     try (ContextScope scope = root().with(STRING_KEY, "value").attach()) {}
-    assertEquals(asList("attach", "detach"), events);
+    listener.assertEvents("attach", "detach");
   }
 
   @Test
   void testMultipleListenersAllNotified() {
-    List<String> events1 = new ArrayList<>();
-    List<String> events2 = new ArrayList<>();
-    ContextManager.register(trackingListener(events1));
-    ContextManager.register(trackingListener(events2));
+    TrackingListener listener1 = trackingListener();
+    TrackingListener listener2 = trackingListener();
+    ContextManager.register(listener1);
+    ContextManager.register(listener2);
     try (ContextScope scope = root().with(STRING_KEY, "value").attach()) {}
-    assertEquals(asList("attach", "detach"), events1);
-    assertEquals(asList("attach", "detach"), events2);
+    listener1.assertEvents("attach", "detach");
+    listener2.assertEvents("attach", "detach");
   }
 
   @Test
   void testSwapNotifiesListeners() {
-    List<String> events = new ArrayList<>();
-    ContextManager.register(keyedTrackingListener(events, STRING_KEY));
+    TrackingListener listener = keyedTrackingListener(STRING_KEY);
+    ContextManager.register(listener);
     Context context = root().with(STRING_KEY, "value");
     Context previous = context.swap();
     assertSame(root(), previous);
-    assertEquals(asList("attach:value"), events);
+    listener.assertNewEvents("attach:value");
     previous = root().swap();
     assertSame(context, previous);
-    assertEquals(asList("attach:value", "detach:value"), events);
+    listener.assertNewEvents("detach:value");
   }
 }

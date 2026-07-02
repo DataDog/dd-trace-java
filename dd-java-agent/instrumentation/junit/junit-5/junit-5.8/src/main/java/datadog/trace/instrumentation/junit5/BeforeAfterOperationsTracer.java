@@ -51,7 +51,7 @@ public class BeforeAfterOperationsTracer implements InvocationInterceptor {
       Invocation<Void> invocation, Method executable, String operationName) throws Throwable {
     AgentSpan agentSpan = AgentTracer.startSpan("junit", executable.getName());
     agentSpan.setTag(Tags.TEST_CALLBACK, operationName);
-    try (ContextScope agentScope = AgentTracer.activateSpan(agentSpan)) {
+    try (ContextScope scope = AgentTracer.activateSpan(agentSpan)) {
       invocation.proceed();
     } catch (Throwable t) {
       agentSpan.addThrowable(t);
