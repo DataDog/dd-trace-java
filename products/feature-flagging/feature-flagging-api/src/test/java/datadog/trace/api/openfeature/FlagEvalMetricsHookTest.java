@@ -13,12 +13,12 @@ import dev.openfeature.sdk.Reason;
 import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
-class FlagEvalHookTest {
+class FlagEvalMetricsHookTest {
 
   @Test
   void finallyAfterRecordsBasicEvaluation() {
     FlagEvalMetrics metrics = mock(FlagEvalMetrics.class);
-    FlagEvalHook hook = new FlagEvalHook(metrics);
+    FlagEvalMetricsHook hook = new FlagEvalMetricsHook(metrics);
 
     FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder()
@@ -44,7 +44,7 @@ class FlagEvalHookTest {
   @Test
   void finallyAfterRecordsErrorEvaluation() {
     FlagEvalMetrics metrics = mock(FlagEvalMetrics.class);
-    FlagEvalHook hook = new FlagEvalHook(metrics);
+    FlagEvalMetricsHook hook = new FlagEvalMetricsHook(metrics);
 
     FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder()
@@ -68,7 +68,7 @@ class FlagEvalHookTest {
   @Test
   void finallyAfterHandlesNullFlagMetadata() {
     FlagEvalMetrics metrics = mock(FlagEvalMetrics.class);
-    FlagEvalHook hook = new FlagEvalHook(metrics);
+    FlagEvalMetricsHook hook = new FlagEvalMetricsHook(metrics);
 
     FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder()
@@ -87,7 +87,7 @@ class FlagEvalHookTest {
   @Test
   void finallyAfterHandlesNullVariantAndReason() {
     FlagEvalMetrics metrics = mock(FlagEvalMetrics.class);
-    FlagEvalHook hook = new FlagEvalHook(metrics);
+    FlagEvalMetricsHook hook = new FlagEvalMetricsHook(metrics);
 
     FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder().flagKey("my-flag").value("default").build();
@@ -100,7 +100,7 @@ class FlagEvalHookTest {
   @Test
   void finallyAfterNeverThrows() {
     FlagEvalMetrics metrics = mock(FlagEvalMetrics.class);
-    FlagEvalHook hook = new FlagEvalHook(metrics);
+    FlagEvalMetricsHook hook = new FlagEvalMetricsHook(metrics);
 
     // Should not throw even with completely null inputs
     hook.finallyAfter(null, null, null);
@@ -110,7 +110,7 @@ class FlagEvalHookTest {
 
   @Test
   void finallyAfterIsNoOpWhenMetricsIsNull() {
-    FlagEvalHook hook = new FlagEvalHook(null);
+    FlagEvalMetricsHook hook = new FlagEvalMetricsHook(null);
 
     FlagEvaluationDetails<Object> details =
         FlagEvaluationDetails.<Object>builder()

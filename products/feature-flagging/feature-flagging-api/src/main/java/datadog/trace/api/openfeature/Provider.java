@@ -34,7 +34,7 @@ public class Provider extends EventProvider implements Metadata {
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
-  private final FlagEvalHook flagEvalHook;
+  private final FlagEvalMetricsHook flagEvalMetricsHook;
 
   public Provider() {
     this(DEFAULT_OPTIONS, null);
@@ -48,16 +48,16 @@ public class Provider extends EventProvider implements Metadata {
     this.options = options;
     this.evaluator = evaluator;
     FlagEvalMetrics metrics = null;
-    FlagEvalHook hook = null;
+    FlagEvalMetricsHook hook = null;
     try {
       metrics = new FlagEvalMetrics();
-      hook = new FlagEvalHook(metrics);
+      hook = new FlagEvalMetricsHook(metrics);
     } catch (LinkageError | Exception e) {
       // This outer catch fires when the metrics helper itself can't load (OTel API absent).
       log.warn("Evaluation metrics unavailable — OTel API classes not on classpath", e);
     }
     this.flagEvalMetrics = metrics;
-    this.flagEvalHook = hook;
+    this.flagEvalMetricsHook = hook;
   }
 
   @Override
@@ -167,10 +167,10 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public List<Hook> getProviderHooks() {
-    if (flagEvalHook == null) {
+    if (flagEvalMetricsHook == null) {
       return Collections.emptyList();
     }
-    return Collections.singletonList(flagEvalHook);
+    return Collections.singletonList(flagEvalMetricsHook);
   }
 
   @Override

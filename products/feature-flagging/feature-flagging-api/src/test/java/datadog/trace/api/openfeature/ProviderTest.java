@@ -326,12 +326,12 @@ public class ProviderTest {
   }
 
   @Test
-  public void testGetProviderHooksReturnsFlagEvalHook() {
+  public void testGetProviderHooksReturnsFlagEvalMetricsHook() {
     Provider provider =
         new Provider(new Options().initTimeout(10, MILLISECONDS), mock(Evaluator.class));
     List<Hook> hooks = provider.getProviderHooks();
     assertThat(hooks.size(), equalTo(1));
-    assertThat(hooks.get(0) instanceof FlagEvalHook, equalTo(true));
+    assertThat(hooks.get(0) instanceof FlagEvalMetricsHook, equalTo(true));
   }
 
   @Test

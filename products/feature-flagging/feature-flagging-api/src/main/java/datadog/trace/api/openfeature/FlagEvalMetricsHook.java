@@ -7,11 +7,11 @@ import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
 import java.util.Map;
 
-class FlagEvalHook implements Hook<Object> {
+class FlagEvalMetricsHook implements Hook<Object> {
 
   private final FlagEvalMetrics metrics;
 
-  FlagEvalHook(FlagEvalMetrics metrics) {
+  FlagEvalMetricsHook(FlagEvalMetrics metrics) {
     this.metrics = metrics;
   }
 
