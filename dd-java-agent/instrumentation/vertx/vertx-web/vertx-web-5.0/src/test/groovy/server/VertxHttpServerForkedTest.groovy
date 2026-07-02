@@ -203,7 +203,9 @@ class VertxHttpServerWorkerForkedTest extends VertxHttpServerForkedTest {
     response.code() == 413
     response.body().charStream().text.contains('"title":"You\'ve been blocked"')
     !handlerRan
-    // The client receiving a 413 only proves the blocking response was committed. We want to make sure that the BlockingException that is now thrown after version 5.1 does now abort the worker route handler before the vertx.route-handler span has been finished (which would leave it dangling)
+    // The client receiving a 413 only proves the blocking response was committed.
+    // We want to make sure that a BlockingException does now abort the worker route handler
+    // before the vertx.route-handler span has been finished (which would leave it dangling)
     TEST_WRITER.waitForTraces(1)
   }
 }

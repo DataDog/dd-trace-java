@@ -67,6 +67,9 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       } catch (final Throwable t) {
         DECORATE.onError(span, t);
         if (t instanceof BlockingException) {
+          // AppSec uses BlockingException as control flow after committing a blocking response
+          // from advice such as WafPublishingBodyHandler and RoutingContextJsonAdvice. Finish
+          // immediately because that abort path may bypass Vert.x response/routing end callbacks.
           finishHandlerSpan(routingContext);
         }
         throw t;
