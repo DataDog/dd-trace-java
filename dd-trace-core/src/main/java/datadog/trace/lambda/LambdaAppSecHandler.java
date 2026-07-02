@@ -25,6 +25,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -878,9 +879,19 @@ public class LambdaAppSecHandler {
           fullPath.append('&');
         }
         first = false;
-        fullPath.append(key);
-        if (value != null) {
-          fullPath.append('=').append(value);
+        try {
+          // URL-encode key and value so that special characters (e.g. '&' inside a value) are not
+          // mistaken for query string delimiters when AppSec parses the raw query string.
+          fullPath.append(URLEncoder.encode(key, "UTF-8"));
+          if (value != null) {
+            fullPath.append('=').append(URLEncoder.encode(value, "UTF-8"));
+          }
+        } catch (java.io.UnsupportedEncodingException e) {
+          // UTF-8 is always available; fall back to unencoded
+          fullPath.append(key);
+          if (value != null) {
+            fullPath.append('=').append(value);
+          }
         }
       }
     }
