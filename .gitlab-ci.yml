@@ -764,6 +764,13 @@ muzzle-dep-report:
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
       allow_failure: true
+    # Enable non-default JVMs on demand.
+    - if: '$NON_DEFAULT_JVMS == "true"'
+      when: on_success
+      allow_failure: true
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
+      when: on_success
+      allow_failure: true
     - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: manual
       allow_failure: true
