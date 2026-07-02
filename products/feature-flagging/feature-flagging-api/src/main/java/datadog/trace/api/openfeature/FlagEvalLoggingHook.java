@@ -3,10 +3,12 @@ package datadog.trace.api.openfeature;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
+import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
+import dev.openfeature.sdk.Value;
 import java.util.Collections;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -98,6 +100,7 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // targetingKey from evaluation context
       final String targetingKey =
           ctx != null && ctx.getCtx() != null ? ctx.getCtx().getTargetingKey() : null;
+      final Map<String, Value> attrs = snapshotAttrs(ctx);
 
       w.enqueue(
           new FlagEvalEvent(
@@ -107,19 +110,27 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
               targetingKey,
               errorMessage,
               evalTimeMs,
-              () -> extractAttrs(ctx)));
+              () -> extractAttrs(attrs)));
     } catch (LinkageError | Exception e) {
       // Never let EVP recording break flag evaluation
     }
   }
 
-  /** Extracts converted, flattened attributes from the evaluation context. */
-  private Map<String, Object> extractAttrs(final HookContext<T> ctx) {
+  private Map<String, Value> snapshotAttrs(final HookContext<T> ctx) {
     if (ctx == null || ctx.getCtx() == null) {
       return Collections.emptyMap();
     }
-    final Map<String, Object> attrs = DDEvaluator.flattenContext(ctx.getCtx());
-    attrs.remove("targetingKey");
-    return attrs;
+    final EvaluationContext context = ctx.getCtx();
+    final Map<String, Value> attrs = DDEvaluator.snapshotValues(context);
+    attrs.remove(EvaluationContext.TARGETING_KEY);
+    return attrs.isEmpty() ? Collections.emptyMap() : attrs;
+  }
+
+  /** Extracts converted, flattened attributes from the evaluation context. */
+  private Map<String, Object> extractAttrs(final Map<String, Value> attrs) {
+    if (attrs.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return DDEvaluator.flattenValues(attrs);
   }
 }

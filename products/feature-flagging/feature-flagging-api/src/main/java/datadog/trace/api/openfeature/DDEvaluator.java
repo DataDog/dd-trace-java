@@ -19,6 +19,7 @@ import datadog.trace.api.featureflag.ufc.v1.Variant;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.ImmutableMetadata;
+import dev.openfeature.sdk.ImmutableStructure;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Reason;
 import dev.openfeature.sdk.Structure;
@@ -27,12 +28,16 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -504,36 +509,107 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   static AbstractMap<String, Object> flattenContext(final EvaluationContext context) {
-    final Set<String> keys = context.keySet();
+    return flattenValues(snapshotValues(context));
+  }
+
+  static Map<String, Value> snapshotValues(final EvaluationContext context) {
+    final HashMap<String, Value> values = new HashMap<>();
+    final Set<Object> seenContainers = Collections.newSetFromMap(new IdentityHashMap<>());
+    for (final String key : context.keySet()) {
+      values.put(key, snapshotValue(context.getValue(key), seenContainers));
+    }
+    return values;
+  }
+
+  private static Value snapshotValue(final Value value, final Set<Object> seenContainers) {
+    if (value == null) {
+      return null;
+    } else if (value.isNull()) {
+      return new Value();
+    } else if (value.isBoolean()) {
+      return new Value(value.asBoolean());
+    } else if (value.isNumber()) {
+      final Object number = value.asObject();
+      return number instanceof Integer
+          ? new Value((Integer) number)
+          : new Value(((Number) number).doubleValue());
+    } else if (value.isString()) {
+      return new Value(value.asString());
+    } else if (value.isInstant()) {
+      return new Value(value.asInstant());
+    } else if (value.isList()) {
+      final List<Value> list = value.asList();
+      if (!seenContainers.add(list)) {
+        return new Value();
+      }
+      final List<Value> snapshot = new ArrayList<>(list.size());
+      for (final Value item : list) {
+        snapshot.add(snapshotValue(item, seenContainers));
+      }
+      seenContainers.remove(list);
+      return new Value(Collections.unmodifiableList(snapshot));
+    } else if (value.isStructure()) {
+      final Structure structure = value.asStructure();
+      if (!seenContainers.add(structure)) {
+        return new Value();
+      }
+      final Map<String, Value> snapshot = new HashMap<>();
+      for (final String key : structure.keySet()) {
+        snapshot.put(key, snapshotValue(structure.getValue(key), seenContainers));
+      }
+      seenContainers.remove(structure);
+      return new Value(new ImmutableStructure(snapshot));
+    }
+    throw new IllegalArgumentException("Unsupported OpenFeature value type: " + value);
+  }
+
+  static AbstractMap<String, Object> flattenValues(final Map<String, Value> values) {
     final HashMap<String, Object> result = new HashMap<>();
-    final Set<Value> seen = new HashSet<>();
-    for (final String key : keys) {
+    final Set<Object> seenContainers = Collections.newSetFromMap(new IdentityHashMap<>());
+    for (final Map.Entry<String, Value> root : values.entrySet()) {
       final Deque<FlattenEntry> deque = new LinkedList<>();
-      deque.push(new FlattenEntry(key, context.getValue(key)));
+      deque.push(new FlattenEntry(root.getKey(), root.getValue()));
       while (!deque.isEmpty()) {
         final FlattenEntry entry = deque.pop();
         final Value value = entry.value;
-        if (value == null || seen.add(value)) {
-          if (value == null) {
-            result.put(entry.key, null);
-          } else if (value.isList()) {
-            final List<Value> list = value.asList();
+        if (value == null) {
+          result.put(entry.key, null);
+        } else if (value.isList()) {
+          final List<Value> list = value.asList();
+          if (seenContainers.add(list)) {
             for (int i = 0; i < list.size(); i++) {
               deque.push(new FlattenEntry(entry.key + "[" + i + "]", list.get(i)));
             }
-          } else if (value.isStructure()) {
-            final Structure structure = value.asStructure();
+          }
+        } else if (value.isStructure()) {
+          final Structure structure = value.asStructure();
+          if (seenContainers.add(structure)) {
             for (final String property : structure.keySet()) {
               deque.push(
                   new FlattenEntry(entry.key + "." + property, structure.getValue(property)));
             }
-          } else {
-            result.put(entry.key, context.convertValue(value));
           }
+        } else {
+          result.put(entry.key, convertValue(value));
         }
       }
     }
     return result;
+  }
+
+  private static Object convertValue(final Value value) {
+    if (value == null || value.isNull()) {
+      return null;
+    } else if (value.isBoolean()) {
+      return value.asBoolean();
+    } else if (value.isNumber()) {
+      return value.asObject();
+    } else if (value.isString()) {
+      return value.asString();
+    } else if (value.isInstant()) {
+      return value.asInstant();
+    }
+    throw new IllegalArgumentException("Unsupported OpenFeature value type: " + value);
   }
 
   @FunctionalInterface

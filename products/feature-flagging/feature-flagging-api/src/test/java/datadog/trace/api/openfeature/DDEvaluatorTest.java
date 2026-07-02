@@ -15,6 +15,7 @@ import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
@@ -233,6 +234,10 @@ public class DDEvaluatorTest {
         Arguments.of(
             mapOf("map", mapOf("key1", 1, "key2", 2, "key3", mapOf("key4", 4))),
             mapOf("map.key1", 1, "map.key2", 2, "map.key3.key4", 4)));
+    arguments.add(
+        Arguments.of(
+            mapOf("plan", "gold", "cohort", "gold"),
+            mapOf("plan", "gold", "cohort", "gold")));
     return arguments.toArray(new Arguments[0]);
   }
 
@@ -560,6 +565,11 @@ public class DDEvaluatorTest {
     final String expectedAllocation = (String) expected.flagMetadata.get("allocationKey");
     if (expectedAllocation != null) {
       assertThat(details.getFlagMetadata().getString("allocationKey"), equalTo(expectedAllocation));
+    }
+    if (expected.errorCode == null && expected.variant != null) {
+      final Long evalTimestampMs = details.getFlagMetadata().getLong("dd.eval.timestamp_ms");
+      assertThat(evalTimestampMs, notNullValue());
+      assertThat(evalTimestampMs > 0, equalTo(true));
     }
     if (shouldDispatchExposure(expected)) {
       verify(exposureListener, times(1)).accept(exposureEventCaptor.capture());

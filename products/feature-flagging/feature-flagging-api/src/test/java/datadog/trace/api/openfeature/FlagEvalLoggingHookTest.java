@@ -21,10 +21,13 @@ import dev.openfeature.sdk.FlagValueType;
 import dev.openfeature.sdk.HookContext;
 import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.MutableContext;
+import dev.openfeature.sdk.MutableStructure;
 import dev.openfeature.sdk.Reason;
 import dev.openfeature.sdk.Value;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -380,5 +383,47 @@ class FlagEvalLoggingHookTest {
     assertTrue(
         attrs.values().stream().noneMatch(Value.class::isInstance),
         "context attrs must contain converted scalar values, not OpenFeature Value wrappers");
+  }
+
+  @Test
+  void contextAttributesUseEnqueueTimeSnapshot() {
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+
+    final MutableContext context = new MutableContext("user-42");
+    context.add("region", "us-east-1");
+    final MutableStructure profile = new MutableStructure();
+    profile.add("tier", "gold");
+    context.add("profile", profile);
+    final List<Value> cohorts = new ArrayList<>();
+    cohorts.add(Value.objectToValue("beta"));
+    context.add("cohorts", cohorts);
+
+    final HookContext<Object> hookCtx =
+        HookContext.<Object>builder()
+            .flagKey("ctx-flag")
+            .type(FlagValueType.STRING)
+            .defaultValue("default")
+            .ctx(context)
+            .build();
+    final FlagEvaluationDetails<Object> det =
+        details("ctx-flag", "v", "v", Reason.TARGETING_MATCH.name(), null);
+
+    hook.finallyAfter(hookCtx, det, Collections.emptyMap());
+    context.add("region", "eu-west-1");
+    context.add("late", "ignored");
+    profile.add("tier", "platinum");
+    profile.add("late", "ignored");
+    cohorts.set(0, Value.objectToValue("ga"));
+    cohorts.add(Value.objectToValue("late"));
+
+    assertNotNull(captured.get());
+    final Map<String, Object> attrs = captured.get().contextAttributes();
+    assertEquals("us-east-1", attrs.get("region"));
+    assertEquals("gold", attrs.get("profile.tier"));
+    assertEquals("beta", attrs.get("cohorts[0]"));
+    assertFalse(attrs.containsKey("late"));
+    assertFalse(attrs.containsKey("profile.late"));
+    assertFalse(attrs.containsKey("cohorts[1]"));
   }
 }
