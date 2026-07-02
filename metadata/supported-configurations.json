@@ -1230,6 +1230,14 @@
         "version": "A",
         "type": "int",
         "default": "100",
+        "aliases": ["DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS"]
+      }
+    ],
+    "DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "100",
         "aliases": []
       }
     ],
