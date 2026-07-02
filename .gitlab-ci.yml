@@ -751,11 +751,14 @@ muzzle-dep-report:
     GIT_SUBMODULE_STRATEGY: normal
     GIT_SUBMODULE_DEPTH: 1
   rules:
-    - if: $testJvm =~ $DEFAULT_TEST_JVMS
-      when: manual
-      allow_failure: true
-      # Note: `ibm8` and `oracle8` omitted — no arm64 images published upstream.
-    - if: '$NON_DEFAULT_JVMS == "true" && $testJvm != "ibm8" && $testJvm != "oracle8"'
+    # `ibm8`/`oracle8` have no arm64 images published upstream — never run them on arm64.
+    - if: '$testJvm == "ibm8" || $testJvm == "oracle8"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: manual
       allow_failure: true
   cache:
