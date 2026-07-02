@@ -3,7 +3,7 @@ package datadog.opentelemetry.shim.trace;
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyNamingConvention;
 import static datadog.opentelemetry.shim.trace.OtelConventions.applyReservedAttribute;
 import static datadog.opentelemetry.shim.trace.OtelConventions.applySpanEventExceptionAttributesAsTags;
-import static datadog.opentelemetry.shim.trace.OtelConventions.setEventsAsTag;
+import static datadog.opentelemetry.shim.trace.OtelConventions.recordSpanEvents;
 import static datadog.opentelemetry.shim.trace.OtelSpanEvent.EXCEPTION_SPAN_EVENT_NAME;
 import static datadog.opentelemetry.shim.trace.OtelSpanEvent.initializeExceptionAttributes;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -179,7 +179,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public void onSpanFinished() {
     applyNamingConvention(this.delegate);
-    setEventsAsTag(this.delegate, this.events);
+    recordSpanEvents(this.delegate, this.events);
   }
 
   private static class NoopSpan implements Span {

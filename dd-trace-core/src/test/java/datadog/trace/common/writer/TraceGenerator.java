@@ -10,6 +10,7 @@ import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -216,6 +217,46 @@ public class TraceGenerator {
         int statusCode,
         CharSequence origin,
         List<AgentSpanLink> spanLinks) {
+      this(
+          serviceName,
+          operationName,
+          resourceName,
+          traceId,
+          spanId,
+          parentId,
+          start,
+          duration,
+          error,
+          baggage,
+          tags,
+          type,
+          measured,
+          samplingPriority,
+          statusCode,
+          origin,
+          spanLinks,
+          emptyList());
+    }
+
+    public PojoSpan(
+        String serviceName,
+        String operationName,
+        CharSequence resourceName,
+        DDTraceId traceId,
+        long spanId,
+        long parentId,
+        long start,
+        long duration,
+        int error,
+        Map<String, String> baggage,
+        Map<String, Object> tags,
+        CharSequence type,
+        boolean measured,
+        int samplingPriority,
+        int statusCode,
+        CharSequence origin,
+        List<AgentSpanLink> spanLinks,
+        List<? extends AgentSpanEvent> spanEvents) {
       this.serviceName = UTF8BytesString.create(serviceName);
       this.operationName = UTF8BytesString.create(operationName);
       this.resourceName = UTF8BytesString.create(resourceName);
@@ -242,7 +283,8 @@ public class TraceGenerator {
               origin,
               0,
               ProcessTags.getTagsForSerialization(),
-              spanLinks);
+              spanLinks,
+              spanEvents);
     }
 
     @Override

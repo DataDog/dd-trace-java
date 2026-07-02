@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
@@ -18,6 +19,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
@@ -33,8 +35,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -48,6 +52,9 @@ import org.tabletest.junit.TableTest;
 
 @WithConfig(key = EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, value = "false")
 public class DDSpanSerializationTest extends DDCoreJavaSpecification {
+  private static final String EXPECTED_SPAN_EVENTS_TAG =
+      "[{\"time_unix_nano\":1000,\"name\":\"event.one\"},"
+          + "{\"time_unix_nano\":2000,\"name\":\"event.two\",\"attributes\":{\"k\":\"v\"}}]";
 
   @BeforeAll
   static void beforeAll() {
@@ -192,29 +199,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
       throws Exception {
     ListWriter writer = new ListWriter();
     CoreTracer tracer = tracerBuilder().writer(writer).build();
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1,
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            PrioritySampling.UNSET,
-            null,
-            baggage,
-            false,
-            null,
-            tags.size(),
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            null,
-            injectBaggage,
-            true);
+    DDSpanContext context = createSpanContext(tracer, baggage, tags.size(), injectBaggage);
     context.setAllTags(tags);
     DDSpan span = DDSpan.create("test", 0, context, null);
     CaptureBuffer capture = new CaptureBuffer();
@@ -269,29 +254,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
       throws Exception {
     ListWriter writer = new ListWriter();
     CoreTracer tracer = tracerBuilder().writer(writer).build();
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1,
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            PrioritySampling.UNSET,
-            null,
-            baggage,
-            false,
-            null,
-            tags.size(),
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            null,
-            injectBaggage,
-            true);
+    DDSpanContext context = createSpanContext(tracer, baggage, tags.size(), injectBaggage);
     context.setAllTags(tags);
     DDSpan span = DDSpan.create("test", 0, context, null);
     CaptureBuffer capture = new CaptureBuffer();
@@ -342,7 +305,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     w3cBaggageItems.put("ignored", "ignored-value");
 
     DDSpanContext context =
-        createSpanContext(tracer, baggage, Baggage.create(w3cBaggageItems), injectBaggage, true, 1);
+        createSpanContext(tracer, baggage, Baggage.create(w3cBaggageItems), injectBaggage, 1);
     context.setTag("span-tag", "span-value");
     DDSpan span = DDSpan.create("test", 0, context, null);
 
@@ -366,7 +329,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   @Test
   void serializeTraceWithSpanLinksAsStructuredLinksOnlyV1() throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true, 0);
+    DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, 0);
     DDSpan span = DDSpan.create("test", 0, context, null);
 
     Map<String, String> linkAttributes = new HashMap<>();
@@ -388,7 +351,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     assertArrayEquals(V1PayloadReader.traceIdBytes(link.traceId()), actualLink.getTraceId());
     assertEquals(link.spanId(), actualLink.getSpanId());
     assertEquals(link.traceState(), actualLink.getTraceState());
-    assertEquals((long) (link.traceFlags() & 0xFF), actualLink.getTraceFlags());
+    assertEquals(link.traceFlags() & 0xFF, actualLink.getTraceFlags());
     assertEquals("unit-test", actualLink.getAttributes().get("link.source"));
     tracer.close();
   }
@@ -396,27 +359,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   @Test
   void serializeTraceWithFlatMapTagV04() throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1,
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            PrioritySampling.UNSET,
-            null,
-            null,
-            false,
-            null,
-            0,
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            null);
+    DDSpanContext context = createSpanContext(tracer);
     context.setTag("key1", "value1");
     Map<String, String> nested = new HashMap<>();
     nested.put("sub1", "v1");
@@ -463,27 +406,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   @Test
   void serializeTraceWithFlatMapTagV05() throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1,
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            PrioritySampling.UNSET,
-            null,
-            null,
-            false,
-            null,
-            0,
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            null);
+    DDSpanContext context = createSpanContext(tracer);
     context.setTag("key1", "value1");
     Map<String, String> nested = new HashMap<>();
     nested.put("sub1", "v1");
@@ -526,6 +449,114 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     tracer.close();
   }
 
+  @Test
+  void serializeTraceWithSpanEventsAsEventsTagV04() throws Exception {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    DDSpanContext context = createSpanContext(tracer);
+    DDSpan span = DDSpan.create("test", 0, context, null);
+    span.addSpanEvents(spanEvents());
+
+    CaptureBuffer capture = new CaptureBuffer();
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, capture));
+    packer.format(Collections.singletonList(span), new TraceMapperV0_4());
+    packer.flush();
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes));
+    int traceCount = capture.messageCount;
+    int spanCount = unpacker.unpackArrayHeader();
+    int size = unpacker.unpackMapHeader();
+
+    assertEquals(1, traceCount);
+    assertEquals(1, spanCount);
+    Map<String, String> unpackedMeta = null;
+    for (int i = 0; i < size; i++) {
+      String key = unpacker.unpackString();
+      if ("meta".equals(key)) {
+        int packedSize = unpacker.unpackMapHeader();
+        unpackedMeta = new HashMap<>();
+        for (int j = 0; j < packedSize; j++) {
+          unpackedMeta.put(unpacker.unpackString(), unpacker.unpackString());
+        }
+      } else {
+        unpacker.unpackValue();
+      }
+    }
+
+    assertNotNull(unpackedMeta);
+    assertEquals(EXPECTED_SPAN_EVENTS_TAG, unpackedMeta.get(SPAN_EVENTS));
+    tracer.close();
+  }
+
+  @Test
+  void serializeTraceWithSpanEventsAsEventsTagV05() throws Exception {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    DDSpanContext context = createSpanContext(tracer);
+    DDSpan span = DDSpan.create("test", 0, context, null);
+    span.addSpanEvents(spanEvents());
+
+    CaptureBuffer capture = new CaptureBuffer();
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, capture));
+    TraceMapperV0_5 mapper = new TraceMapperV0_5();
+    packer.format(Collections.singletonList(span), mapper);
+    packer.flush();
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes));
+    int traceCount = capture.messageCount;
+    int spanCount = unpacker.unpackArrayHeader();
+    int size = unpacker.unpackArrayHeader();
+    String[] dictionary = buildDictionary(mapper);
+
+    assertEquals(1, traceCount);
+    assertEquals(1, spanCount);
+    assertEquals(12, size);
+    for (int i = 0; i < 9; ++i) {
+      unpacker.skipValue();
+    }
+    int packedSize = unpacker.unpackMapHeader();
+    Map<String, String> unpackedMeta = new HashMap<>();
+    for (int j = 0; j < packedSize; j++) {
+      String k = dictionary[unpacker.unpackInt()];
+      String v = dictionary[unpacker.unpackInt()];
+      unpackedMeta.put(k, v);
+    }
+
+    assertEquals(EXPECTED_SPAN_EVENTS_TAG, unpackedMeta.get(SPAN_EVENTS));
+    tracer.close();
+  }
+
+  private static List<AgentSpanEvent> spanEvents() {
+    return Arrays.asList(
+        spanEvent("{\"time_unix_nano\":1000,\"name\":\"event.one\"}"),
+        spanEvent("{\"time_unix_nano\":2000,\"name\":\"event.two\",\"attributes\":{\"k\":\"v\"}}"));
+  }
+
+  /**
+   * Minimal {@link AgentSpanEvent} whose {@link AgentSpanEvent#toJson()} returns a fixed string, so
+   * the assembled legacy {@code events} tag is deterministic and exercises {@code
+   * DDSpanContext.spanEventsToTag} (the v0.x compatibility path).
+   */
+  private static AgentSpanEvent spanEvent(String json) {
+    return new AgentSpanEvent() {
+      @Override
+      public long timeNanos() {
+        return 0;
+      }
+
+      @Override
+      public String name() {
+        return "test";
+      }
+
+      @Override
+      public Map<String, Object> attributes() {
+        return Collections.emptyMap();
+      }
+
+      @Override
+      public CharSequence toJson() {
+        return json;
+      }
+    };
+  }
+
   private static class CaptureBuffer implements ByteBufferConsumer {
     private byte[] bytes;
     int messageCount;
@@ -543,26 +574,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     Map<String, String> baggage = new HashMap<>();
     baggage.put("a-baggage", "value");
     DDSpanContext ctx =
-        new DDSpanContext(
-            traceId,
-            spanId,
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            PrioritySampling.UNSET,
-            null,
-            baggage,
-            false,
-            spanType,
-            1,
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            null);
+        createSpanContext(tracer, traceId, spanId, spanType, baggage, null, true, 1);
     Map<String, Object> tags = new HashMap<>();
     tags.put("k1", "v1");
     ctx.setAllTags(tags);
@@ -574,11 +586,33 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
       Map<String, String> baggage,
       Baggage w3cBaggage,
       boolean injectBaggage,
-      boolean injectLinks,
+      int tagsSize) {
+    return createSpanContext(
+        tracer, DDTraceId.ONE, 1, "fakeType", baggage, w3cBaggage, injectBaggage, tagsSize);
+  }
+
+  private DDSpanContext createSpanContext(CoreTracer tracer) {
+    return createSpanContext(tracer, null, 0, true);
+  }
+
+  private DDSpanContext createSpanContext(
+      CoreTracer tracer, Map<String, String> baggage, int tagsSize, boolean injectBaggage) {
+    return createSpanContext(
+        tracer, DDTraceId.ONE, 1, null, baggage, null, injectBaggage, tagsSize);
+  }
+
+  private DDSpanContext createSpanContext(
+      CoreTracer tracer,
+      DDTraceId traceId,
+      long spanId,
+      String spanType,
+      Map<String, String> baggage,
+      Baggage w3cBaggage,
+      boolean injectBaggage,
       int tagsSize) {
     return new DDSpanContext(
-        DDTraceId.ONE,
-        1,
+        traceId,
+        spanId,
         DDSpanId.ZERO,
         null,
         null,
@@ -590,7 +624,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
         baggage,
         w3cBaggage,
         false,
-        "fakeType",
+        spanType,
         tagsSize,
         tracer.createTraceCollector(DDTraceId.ONE),
         null,
@@ -601,10 +635,10 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
         null,
         ProfilingContextIntegration.NoOp.INSTANCE,
         injectBaggage,
-        injectLinks);
+        true);
   }
 
-  private static byte[] serializeV1Payload(DDSpan span) throws Exception {
+  private static byte[] serializeV1Payload(DDSpan span) {
     TraceMapperV1 mapper = new TraceMapperV1();
     CapturePayloadBuffer capture = new CapturePayloadBuffer(mapper);
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, capture));
@@ -619,9 +653,10 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     Map<?, ?> encoding = TraceMapperTestBridge.getEncoding(mapper);
 
     String[] dictionary = new String[encoding.size()];
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(dictionaryBuffer.slice());
-    for (int i = 0; i < dictionary.length; ++i) {
-      dictionary[i] = unpacker.unpackString();
+    try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(dictionaryBuffer.slice())) {
+      for (int i = 0; i < dictionary.length; ++i) {
+        dictionary[i] = unpacker.unpackString();
+      }
     }
     return dictionary;
   }
