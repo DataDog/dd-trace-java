@@ -33,6 +33,8 @@ class FeatureFlaggingGatewayTest {
   void tearDown() {
     FeatureFlaggingGateway.removeConfigListener(configListener);
     FeatureFlaggingGateway.removeExposureListener(exposureListener);
+    FeatureFlaggingGateway.setFlagEvalWriter(null);
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
   }
 
   @Test

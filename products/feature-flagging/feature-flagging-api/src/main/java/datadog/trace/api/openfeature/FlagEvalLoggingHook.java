@@ -66,8 +66,15 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       final FlagEvaluationDetails<T> details,
       final Map<String, Object> hints) {
     try {
+      if (details == null) {
+        return;
+      }
+      if (!FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled()) {
+        return;
+      }
+
       final FlagEvaluationWriter w = writerSupplier.get();
-      if (w == null || details == null) {
+      if (w == null) {
         return;
       }
 

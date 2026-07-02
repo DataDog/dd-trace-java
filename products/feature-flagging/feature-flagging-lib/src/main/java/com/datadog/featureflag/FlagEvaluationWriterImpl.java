@@ -173,7 +173,8 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       if (!closed.compareAndSet(false, true)) {
         return;
       }
-      // Deregister from the gateway so no new events are enqueued.
+      // Disable and deregister from the gateway so no new events are enqueued.
+      FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
       FeatureFlaggingGateway.setFlagEvalWriter(null);
       if (!this.serializerThread.isAlive()) {
         return;
@@ -198,9 +199,13 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     if (event == null) {
       return;
     }
+    if (isClosedOrEnqueueDisabled()) {
+      countClosedDropIfClosed();
+      return;
+    }
     synchronized (lifecycleLock) {
-      if (closed.get()) {
-        countMetric(FLAG_EVALUATION_DROPPED_METRIC, 1, DROP_REASON_CLOSED);
+      if (isClosedOrEnqueueDisabled()) {
+        countClosedDropIfClosed();
         return;
       }
       // Non-blocking offer. Count overflow so loss is observable rather than silent; the count is
@@ -208,6 +213,16 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       if (!queue.offer(event)) {
         droppedQueueOverflow.incrementAndGet();
       }
+    }
+  }
+
+  private boolean isClosedOrEnqueueDisabled() {
+    return closed.get() || !FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled();
+  }
+
+  private void countClosedDropIfClosed() {
+    if (closed.get()) {
+      countMetric(FLAG_EVALUATION_DROPPED_METRIC, 1, DROP_REASON_CLOSED);
     }
   }
 

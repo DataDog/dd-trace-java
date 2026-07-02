@@ -3,6 +3,7 @@ package com.datadog.featureflag;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.FeatureFlaggingConfig;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,12 +35,14 @@ public class FeatureFlaggingSystem {
         config
             .configProvider()
             .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(evalCountsEnabled);
     if (evalCountsEnabled) {
       final FlagEvaluationWriterImpl evalWriter = new FlagEvaluationWriterImpl(sco, config);
       evalWriter.start();
       FLAG_EVAL_WRITER = evalWriter;
       LOGGER.debug("Flag evaluation EVP writer started");
     } else {
+      FeatureFlaggingGateway.setFlagEvalWriter(null);
       LOGGER.debug(
           "Flag evaluation EVP writer disabled ({}=false)",
           FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED);
@@ -49,6 +52,8 @@ public class FeatureFlaggingSystem {
   }
 
   public static void stop() {
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
+    FeatureFlaggingGateway.setFlagEvalWriter(null);
     if (FLAG_EVAL_WRITER != null) {
       FLAG_EVAL_WRITER.close();
       FLAG_EVAL_WRITER = null;
@@ -62,5 +67,9 @@ public class FeatureFlaggingSystem {
       CONFIG_SERVICE = null;
     }
     LOGGER.debug("Feature Flagging system stopped");
+  }
+
+  public static void shutdown() {
+    stop();
   }
 }

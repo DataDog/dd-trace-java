@@ -29,6 +29,8 @@ public abstract class FeatureFlaggingGateway {
   private static final AtomicReference<FlagEvaluationWriter> FLAG_EVAL_WRITER =
       new AtomicReference<>();
 
+  private static volatile boolean flagEvalEnqueueEnabled = true;
+
   private FeatureFlaggingGateway() {}
 
   public static void addConfigListener(final ConfigListener listener) {
@@ -72,10 +74,24 @@ public abstract class FeatureFlaggingGateway {
   }
 
   /**
+   * Enables or disables enqueueing EVP flagevaluation events on the OpenFeature hook path. This is
+   * populated from {@code DD_FLAGGING_EVALUATION_COUNTS_ENABLED} at feature-flagging startup and
+   * cleared during shutdown before the writer drains.
+   */
+  public static void setFlagEvaluationEnqueueEnabled(final boolean enabled) {
+    flagEvalEnqueueEnabled = enabled;
+  }
+
+  /**
    * Returns the active EVP flagevaluation writer, or {@code null} when disabled (killswitch off or
    * not yet started).
    */
   public static FlagEvaluationWriter getFlagEvalWriter() {
     return FLAG_EVAL_WRITER.get();
+  }
+
+  /** Returns whether EVP flagevaluation hook events may be enqueued. */
+  public static boolean isFlagEvaluationEnqueueEnabled() {
+    return flagEvalEnqueueEnabled;
   }
 }

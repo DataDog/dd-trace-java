@@ -13,6 +13,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import dev.openfeature.sdk.ErrorCode;
@@ -30,6 +31,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -37,6 +40,16 @@ import org.junit.jupiter.api.Test;
  * metadata, absent-variant detection, and killswitch-via-writer-null behaviour.
  */
 class FlagEvalLoggingHookTest {
+
+  @BeforeEach
+  void enableFlagEvaluationEnqueue() {
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+  }
+
+  @AfterEach
+  void resetFlagEvaluationEnqueue() {
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+  }
 
   // ---- helpers ----
 
@@ -283,10 +296,28 @@ class FlagEvalLoggingHookTest {
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
-    // Exactly one enqueue call, no start/close/aggregate
+    // Exactly one enqueue call, no start/close.
     verify(writer, times(1)).enqueue(any(FlagEvalEvent.class));
     verify(writer, never()).close();
     verify(writer, never()).start();
+  }
+
+  @Test
+  void enqueueDisabledIsNoOpBeforeWriterLookup() {
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
+    final AtomicReference<Boolean> writerResolved = new AtomicReference<>(false);
+    final FlagEvalLoggingHook<Object> hook =
+        new FlagEvalLoggingHook<>(
+            () -> {
+              writerResolved.set(true);
+              throw new AssertionError("writer should not be resolved when enqueue is disabled");
+            });
+    final FlagEvaluationDetails<Object> det =
+        details("flag", "v", "v", Reason.TARGETING_MATCH.name(), null);
+
+    hook.finallyAfter(hookCtxWithTargetingKey("flag", "user-1"), det, Collections.emptyMap());
+
+    assertFalse(writerResolved.get());
   }
 
   // ---- test: writer=null -> no-op (killswitch off / not yet started) ----

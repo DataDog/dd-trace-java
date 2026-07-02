@@ -72,6 +72,7 @@ public class ProviderTest {
     OpenFeatureAPI.getInstance().shutdown();
     FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
     FeatureFlaggingGateway.setFlagEvalWriter(null);
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
   }
 
   @Test
