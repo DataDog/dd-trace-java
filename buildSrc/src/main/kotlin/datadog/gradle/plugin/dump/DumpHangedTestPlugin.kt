@@ -52,26 +52,17 @@ class DumpHangedTestPlugin : Plugin<Project> {
   }
 
   override fun apply(project: Project) {
-    if (project.rootProject != project) {
-      return
-    }
-
     val scheduler = project.gradle.sharedServices
       .registerIfAbsent("dumpHangedTestScheduler", DumpSchedulerService::class.java)
 
-    // Create plugin properties.
-    val props = project.extensions.create("dumpHangedTest", DumpHangedTestProperties::class.java)
+    val rootProject = project.rootProject
+    val props = rootProject.extensions.findByType(DumpHangedTestProperties::class.java)
+      ?: rootProject.extensions.create("dumpHangedTest", DumpHangedTestProperties::class.java)
 
-    fun configure(p: Project) {
-      p.tasks.withType<Test>().configureEach {
-        doFirst { schedule(this, scheduler, props) }
-        doLast { cleanup(this) }
-      }
+    project.tasks.withType<Test>().configureEach {
+      doFirst { schedule(this, scheduler, props) }
+      doLast { cleanup(this) }
     }
-
-    configure(project)
-
-    project.subprojects(::configure)
   }
 
   private fun schedule(t: Task, scheduler: Provider<DumpSchedulerService>, props: DumpHangedTestProperties) {
