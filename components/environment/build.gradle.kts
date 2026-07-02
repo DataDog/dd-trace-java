@@ -22,15 +22,11 @@ tasks.shadowJar {
  * Configure test coverage.
  */
 extra.set("minimumInstructionCoverage", 0.7)
-val excludedClassesCoverage by extra {
-  listOf(
-    "datadog.environment.JavaVirtualMachine", // depends on OS and JVM vendor
-    "datadog.environment.JavaVirtualMachine.JvmOptionsHolder", // depends on OS and JVM vendor
-    "datadog.environment.JvmOptions", // depends on OS and JVM vendor
-    "datadog.environment.OperatingSystem**", // depends on OS
-    "datadog.environment.ThreadSupport", // requires Java 21
-  )
-}
-val excludedClassesBranchCoverage by extra {
-  listOf("datadog.environment.CommandLine") // tested using forked process
-}
+extra["excludedClassesCoverage"] = listOf(
+  "datadog.environment.JavaVirtualMachine", // depends on OS and JVM vendor
+  "datadog.environment.JavaVirtualMachine.JvmOptionsHolder", // depends on OS and JVM vendor
+  "datadog.environment.JvmOptions", // depends on OS and JVM vendor
+  "datadog.environment.OperatingSystem**", // depends on OS
+  "datadog.environment.ThreadSupport", // requires Java 21
+)
+extra["excludedClassesBranchCoverage"] = listOf("datadog.environment.CommandLine") // tested using forked process

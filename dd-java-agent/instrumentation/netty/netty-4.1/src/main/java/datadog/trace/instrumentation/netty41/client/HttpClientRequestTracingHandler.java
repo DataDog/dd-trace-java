@@ -15,6 +15,7 @@ import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty41.client.NettyResponseInjectAdapter.SETTER;
 
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -54,7 +55,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       return;
     }
 
-    AgentScope parentScope = null;
+    ContextScope parentScope = null;
     final AgentScope.Continuation continuation = takeConnectParentContinuation(ctx);
     if (continuation != null) {
       parentScope = continuation.activate();
@@ -81,7 +82,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
 
     final AgentSpan span = startSpan(NETTY_CLIENT.toString(), NETTY_CLIENT_REQUEST);
     final Context context = getCurrentContext().with(span);
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);
 

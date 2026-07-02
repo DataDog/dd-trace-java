@@ -51,19 +51,14 @@ dependencies {
   // dd-openfeature jar must not bundle the tracer.
   compileOnly(project(":internal-api"))
   compileOnly("io.opentelemetry:opentelemetry-api:1.47.0")
-  compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.47.0")
-  compileOnly("io.opentelemetry:opentelemetry-exporter-otlp:1.47.0")
 
   testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
   testImplementation(project(":internal-api"))
   testImplementation(project(":utils:config-utils"))
   testImplementation("io.opentelemetry:opentelemetry-api:1.47.0")
-  testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.47.0")
-  testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.47.0")
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.moshi)
-  testImplementation("io.opentelemetry:opentelemetry-sdk-testing:1.47.0")
   testImplementation("org.awaitility:awaitility:4.3.0")
 }
 

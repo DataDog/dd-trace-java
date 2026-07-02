@@ -21,7 +21,7 @@ jobs:
           policy: self.update-smoke-test-latest-versions.create-pr
 
       - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # 6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
 
       - name: Define branch name
         id: define-branch
@@ -68,6 +68,8 @@ jobs:
             --artifact-id maven-surefire-plugin \
             --prerelease-pattern alpha \
             --prerelease-pattern beta \
+            --prerelease-pattern rc \
+            --prerelease-pattern '-m\d' \
             --min-age-hours "${MIN_DEPENDENCY_AGE_HOURS}" \
             --current-version "${{ steps.current.outputs.surefire_version }}" \
             --github-output "$GITHUB_OUTPUT"
@@ -110,6 +112,12 @@ jobs:
             "maven-surefire.latest=${SUREFIRE_VERSION}" \
             > dd-smoke-tests/maven/src/test/resources/latest-tool-versions.properties
 
+          printf '%s\n' \
+            "# Pinned latest eligible stable version (>=${MIN_DEPENDENCY_AGE_HOURS}h old) for the Maven instrumentation latestDepTest." \
+            "# Updated automatically by the update-smoke-test-latest-versions workflow." \
+            "maven-surefire.latest=${SUREFIRE_VERSION}" \
+            > dd-java-agent/instrumentation/maven/maven-3.2.1/src/test/resources/latest-tool-versions.properties
+
       - name: Check for changes
         id: check-changes
         run: |
@@ -135,7 +143,8 @@ jobs:
         if: steps.check-changes.outputs.has_changes == 'true'
         run: |
           git add dd-smoke-tests/gradle/src/test/resources/latest-tool-versions.properties \
-                  dd-smoke-tests/maven/src/test/resources/latest-tool-versions.properties
+                  dd-smoke-tests/maven/src/test/resources/latest-tool-versions.properties \
+                  dd-java-agent/instrumentation/maven/maven-3.2.1/src/test/resources/latest-tool-versions.properties
           git commit -m "chore: Update smoke test latest tool versions"
 
       - name: Push changes
@@ -161,7 +170,8 @@ jobs:
             --body "$(cat <<'EOF'
           # What Does This Do
 
-          This PR updates the pinned latest eligible stable tool versions used by CI Visibility smoke tests.
+          This PR updates the pinned latest eligible stable tool versions used by CI Visibility smoke tests
+          and by the Maven instrumentation latestDepTest.
           Only releases at least ${{ env.MIN_DEPENDENCY_AGE_HOURS }} hours old are eligible.
 
           - Gradle: ${{ steps.update.outputs.gradle_line }}

@@ -7,45 +7,27 @@ import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.W3CHttpCodec.OT_BAGGAGE_PREFIX;
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY;
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY;
-import static datadog.trace.core.propagation.W3CHttpCodec.newInjector;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.common.writer.ListWriter;
-import datadog.trace.core.CoreTracer;
-import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
-class W3CHttpInjectorTest extends DDCoreJavaSpecification {
+class W3CHttpInjectorTest extends AbstractHttpInjectorTest {
 
-  private HttpCodec.Injector injector;
-  private CoreTracer tracer;
-
-  @BeforeEach
-  void setup() {
-    this.injector = newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
-
-    ListWriter writer = new ListWriter();
-    this.tracer = tracerBuilder().writer(writer).build();
-  }
-
-  @AfterEach
-  void tearDown() {
-    this.tracer.close();
+  @Override
+  protected HttpCodec.Injector newInjector() {
+    return W3CHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
   }
 
   @TableTest({
@@ -150,7 +132,7 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
     long rootSpanId = rootSpan.getSpanId();
     AgentScope rootScope = this.tracer.activateSpan(rootSpan);
 
-    this.injector.inject((DDSpanContext) rootSpan.context(), carrier, Map::put);
+    this.injector.inject((DDSpanContext) rootSpan.spanContext(), carrier, Map::put);
 
     // trace state has root span id as last parent
     assertEquals(rootSpanId, extractLastParentId(carrier));
@@ -159,7 +141,7 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
     AgentSpan childSpan = this.tracer.startSpan("test", "child");
     long childSpanId = childSpan.getSpanId();
     carrier.clear();
-    this.injector.inject((DDSpanContext) childSpan.context(), carrier, Map::put);
+    this.injector.inject((DDSpanContext) childSpan.spanContext(), carrier, Map::put);
 
     // trace state has child span id as last parent
     assertEquals(childSpanId, extractLastParentId(carrier));
@@ -167,7 +149,7 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
     // injecting root span again
     childSpan.finish();
     carrier.clear();
-    this.injector.inject((DDSpanContext) rootSpan.context(), carrier, Map::put);
+    this.injector.inject((DDSpanContext) rootSpan.spanContext(), carrier, Map::put);
 
     // trace state has root span is as last parent again
     assertEquals(rootSpanId, extractLastParentId(carrier));
@@ -197,34 +179,5 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
       }
     }
     throw new AssertionError("No 'p:' in dd tracestate: " + traceState);
-  }
-
-  private DDSpanContext mockSpanContext(
-      DDTraceId traceId,
-      long spanId,
-      int samplingPriority,
-      String origin,
-      Map<String, String> baggage,
-      PropagationTags propagationTags) {
-    return new DDSpanContext(
-        traceId,
-        spanId,
-        DDSpanId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        samplingPriority,
-        origin,
-        baggage,
-        false,
-        "fakeType",
-        0,
-        this.tracer.createTraceCollector(DDTraceId.ONE),
-        null,
-        null,
-        NoopPathwayContext.INSTANCE,
-        false,
-        propagationTags);
   }
 }

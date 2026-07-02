@@ -1,33 +1,19 @@
 [
   {
-    "language": "jvm",
-    "package": [
-      {
-        "ecosystem": "maven",
-        "name": "com.fasterxml.jackson.core:jackson-databind",
-        "version_range": [
-          "< 2.6.7.3",
-          ">= 2.7.0, < 2.7.9.5"
-        ]
-      }
+    "targets": [
+      "com.fasterxml.jackson.databind:ObjectMapper.readValue",
+      "com.fasterxml.jackson.databind:ObjectReader.readValue"
     ],
-    "ecosystem_specific": {
-      "imports": [
-        {
-          "symbols": [
-            {
-              "type": "class",
-              "value": "com.fasterxml.jackson.databind",
-              "name": "ObjectMapper"
-            },
-            {
-              "type": "class",
-              "value": "com.fasterxml.jackson.databind",
-              "name": "ObjectReader"
-            }
-          ]
-        }
-      ]
+    "lang": "maven",
+    "dependency_name": "com.fasterxml.jackson.core:jackson-databind",
+    "package_versions": [
+      "< 2.6.7.3",
+      ">= 2.7.0, < 2.7.9.5"
+    ],
+    "vulnerability": {
+      "id": "GHSA-single-package",
+      "severity": "HIGH",
+      "description": "Test fixture for single-package GHSA entry"
     }
   }
 ]

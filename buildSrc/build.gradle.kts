@@ -76,9 +76,7 @@ gradlePlugin {
   }
 }
 
-apply {
-  from("$rootDir/../gradle/repositories.gradle")
-}
+apply(from = "$rootDir/../gradle/repositories.gradle")
 
 repositories {
   gradlePluginPortal()
@@ -95,9 +93,8 @@ dependencies {
   implementation("org.apache.maven", "maven-aether-provider", "3.3.9")
 
   implementation("com.github.zafarkhaja:java-semver:0.10.2")
-  implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
+  implementation(libs.javaparser.symbol.solver)
 
-  implementation("com.google.guava", "guava", "20.0")
   implementation(libs.asm)
   implementation(libs.asm.tree)
 
@@ -117,7 +114,7 @@ tasks.compileKotlin {
 testing {
   @Suppress("UnstableApiUsage")
   suites {
-    val test by getting(JvmTestSuite::class) {
+    named<JvmTestSuite>("test") {
       dependencies {
         implementation(libs.assertj.core)
       }

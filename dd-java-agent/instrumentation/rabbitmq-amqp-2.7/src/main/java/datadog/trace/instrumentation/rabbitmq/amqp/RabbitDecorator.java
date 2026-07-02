@@ -204,7 +204,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
       String queue) {
     final Map<String, Object> headers =
         propagate && null != properties ? properties.getHeaders() : null;
-    AgentSpanContext parentContext =
+    AgentSpanContext parentSpanContext =
         null != headers
             ? extractContextAndGetSpanContext(headers, ContextVisitors.objectValuesMap())
             : null;
@@ -226,17 +226,18 @@ public class RabbitDecorator extends MessagingClientDecorator {
           startSpan(
               RABBITMQ_AMQP.toString(),
               OPERATION_AMQP_DELIVER,
-              parentContext,
+              parentSpanContext,
               TimeUnit.MILLISECONDS.toMicros(queueStartMillis));
       BROKER_DECORATE.afterStart(queueSpan);
       BROKER_DECORATE.onTimeInQueue(queueSpan, queue, body);
-      parentContext = queueSpan.context();
+      parentSpanContext = queueSpan.spanContext();
       BROKER_DECORATE.beforeFinish(queueSpan);
       // The queueSpan will be finished after the inner span has been activated to ensure that the
       // spans are written out together by the TraceStructureWriter when running in strict mode
     }
     final AgentSpan span =
-        startSpan(RABBITMQ_AMQP.toString(), OPERATION_AMQP_INBOUND, parentContext, spanStartMicros);
+        startSpan(
+            RABBITMQ_AMQP.toString(), OPERATION_AMQP_INBOUND, parentSpanContext, spanStartMicros);
 
     if (null != body) {
       span.setTag("message.size", body.length);

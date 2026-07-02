@@ -122,16 +122,16 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
     // Propagate the effective sessionId to descendant LLMObs spans via the context.
-    scope = LLMObsContext.attach(span.context(), sessionId);
+    scope = LLMObsContext.attach(span.spanContext(), sessionId);
   }
 
   @Override
   public String toString() {
     return super.toString()
         + ", trace_id="
-        + span.context().getTraceId()
+        + span.spanContext().getTraceId()
         + ", span_id="
-        + span.context().getSpanId()
+        + span.spanContext().getSpanId()
         + ", ml_app="
         + span.getTag(LLMObsTags.ML_APP)
         + ", service="

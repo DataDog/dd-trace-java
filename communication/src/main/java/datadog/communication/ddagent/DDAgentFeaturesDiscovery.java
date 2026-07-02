@@ -406,10 +406,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     return discoveryState.peerTags;
   }
 
-  public String getOrgPropagationMarker() {
-    return discoveryState.orgPropagationMarker;
-  }
-
   public String getMetricsEndpoint() {
     return discoveryState.metricsEndpoint;
   }
@@ -458,6 +454,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public String state() {
     return discoveryState.state;
+  }
+
+  public String getOrgPropagationMarker() {
+    return discoveryState.orgPropagationMarker;
   }
 
   @Override

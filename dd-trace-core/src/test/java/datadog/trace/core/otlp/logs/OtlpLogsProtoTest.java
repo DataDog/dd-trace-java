@@ -473,7 +473,7 @@ class OtlpLogsProtoTest {
       return null;
     }
     DDSpan span = spans.get(spec.spanContextIndex);
-    return span.context();
+    return span.spanContext();
   }
 
   // ── grouping helper ───────────────────────────────────────────────────────

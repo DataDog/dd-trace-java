@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:mongo:mongo-common:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
@@ -17,15 +18,15 @@ com.github.docker-java:docker-java-api:3.4.2=testFixturesCompileClasspath,testFi
 com.github.docker-java:docker-java-transport-zerodep:3.4.2=testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.github.docker-java:docker-java-transport:3.4.2=testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.github.javaparser:javaparser-core:3.25.6=codenarc
-com.github.jnr:jffi:1.3.14=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.github.jnr:jffi:1.3.15=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-a64asm:1.0.0=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-constants:0.10.4=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
-com.github.jnr:jnr-enxio:0.32.19=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
-com.github.jnr:jnr-ffi:2.2.18=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
-com.github.jnr:jnr-posix:3.1.21=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
-com.github.jnr:jnr-unixsocket:0.38.24=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.github.jnr:jnr-enxio:0.32.20=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.github.jnr:jnr-ffi:2.2.19=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.github.jnr:jnr-posix:3.1.22=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.github.jnr:jnr-unixsocket:0.38.25=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.github.jnr:jnr-x86asm:1.0.2=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
-com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
+com.github.spotbugs:spotbugs-annotations:4.9.8=compileClasspath,spotbugs
 com.github.spotbugs:spotbugs:4.9.8=spotbugs
 com.github.stephenc.jcip:jcip-annotations:1.0-1=spotbugs
 com.google.auto.service:auto-service-annotations:1.1.1=annotationProcessor,compileClasspath,testAnnotationProcessor,testCompileClasspath
@@ -35,12 +36,15 @@ com.google.code.findbugs:jsr305:3.0.2=annotationProcessor,compileClasspath,spotb
 com.google.code.gson:gson:2.13.2=spotbugs
 com.google.errorprone:error_prone_annotations:2.18.0=annotationProcessor,testAnnotationProcessor
 com.google.errorprone:error_prone_annotations:2.41.0=spotbugs
+com.google.errorprone:error_prone_annotations:2.47.0=testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.google.guava:failureaccess:1.0.1=annotationProcessor,testAnnotationProcessor
-com.google.guava:guava:20.0=testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.google.guava:failureaccess:1.0.3=testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.google.guava:guava:32.0.1-jre=annotationProcessor,testAnnotationProcessor
-com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava=annotationProcessor,testAnnotationProcessor
+com.google.guava:guava:33.6.0-jre=testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava=annotationProcessor,testAnnotationProcessor,testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.google.j2objc:j2objc-annotations:2.8=annotationProcessor,testAnnotationProcessor
-com.google.re2j:re2j:1.7=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.google.j2objc:j2objc-annotations:3.1=testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+com.google.re2j:re2j:1.8=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.squareup.moshi:moshi:1.11.0=compileClasspath,runtimeClasspath,testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.squareup.okhttp3:logging-interceptor:3.12.12=testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 com.squareup.okhttp3:okhttp:3.12.12=testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
@@ -87,6 +91,7 @@ org.hamcrest:hamcrest:3.0=testCompileClasspath,testFixturesCompileClasspath,test
 org.jctools:jctools-core-jdk11:4.0.6=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 org.jctools:jctools-core:4.0.6=runtimeClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 org.jetbrains:annotations:17.0.0=testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
+org.jspecify:jspecify:1.0.0=testCompileClasspath,testFixturesCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-api:5.14.1=testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-engine:5.14.1=testFixturesRuntimeClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-params:5.14.1=testCompileClasspath,testFixturesRuntimeClasspath,testRuntimeClasspath

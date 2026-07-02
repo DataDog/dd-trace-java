@@ -96,7 +96,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
                       MILLISECONDS.toMicros(timeInQueueStart));
               BROKER_DECORATE.afterStart(queueSpan);
               BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl);
-              spanContext = queueSpan.context();
+              spanContext = queueSpan.spanContext();
               // The queueSpan will be finished after inner span has been activated to ensure that
               // spans are written out together by TraceStructureWriter when running in strict mode
             }

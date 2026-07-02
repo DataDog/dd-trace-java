@@ -4,8 +4,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
@@ -55,7 +55,7 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
             final AgentSpan span =
                 DECORATE.onReceiveFrameStart(
                     receiverContext, textFrame.getText(), textFrame.isFinalFragment());
-            try (final AgentScope scope = activateSpan(span)) {
+            try (final ContextScope scope = activateSpan(span)) {
               ctx.sendUpstream(event);
               // WebSocket Read Text Start
             } finally {
@@ -75,7 +75,7 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
                     receiverContext,
                     binaryFrame.getBinaryData().array(),
                     binaryFrame.isFinalFragment());
-            try (final AgentScope scope = activateSpan(span)) {
+            try (final ContextScope scope = activateSpan(span)) {
               ctx.sendUpstream(event);
             } finally {
               // WebSocket Read Binary End
@@ -98,7 +98,7 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
                         ? continuationWebSocketFrame.getText()
                         : continuationWebSocketFrame.getBinaryData().array(),
                     continuationWebSocketFrame.isFinalFragment());
-            try (final AgentScope scope = activateSpan(span)) {
+            try (final ContextScope scope = activateSpan(span)) {
               ctx.sendUpstream(event);
             } finally {
               if (continuationWebSocketFrame.isFinalFragment()) {
@@ -118,7 +118,7 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
             traceContext.setReceiverHandlerContext(null);
             final AgentSpan span =
                 DECORATE.onSessionCloseReceived(receiverContext, reasonText, statusCode);
-            try (final AgentScope scope = activateSpan(span)) {
+            try (final ContextScope scope = activateSpan(span)) {
               ctx.sendUpstream(event);
               if (closeFrame.isFinalFragment()) {
                 DECORATE.onFrameEnd(receiverContext);

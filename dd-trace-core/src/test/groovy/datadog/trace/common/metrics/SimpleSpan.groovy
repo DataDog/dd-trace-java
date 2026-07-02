@@ -200,6 +200,16 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
+  <U> U unsafeGetTag(CharSequence name, U defaultValue) {
+    return getTag(name, defaultValue)
+  }
+
+  @Override
+  <U> U unsafeGetTag(CharSequence name) {
+    return getTag(name)
+  }
+
+  @Override
   boolean hasSamplingPriority() {
     return false
   }

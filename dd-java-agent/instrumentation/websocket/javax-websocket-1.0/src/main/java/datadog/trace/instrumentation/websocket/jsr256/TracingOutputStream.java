@@ -4,8 +4,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_BINARY;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -26,7 +26,7 @@ public class TracingOutputStream extends OutputStream {
     if (doTrace) {
       DECORATE.onSendFrameStart(handlerContext, MESSAGE_TYPE_BINARY, 1);
     }
-    try (final AgentScope ignored = activateSpan(handlerContext.getWebsocketSpan())) {
+    try (final ContextScope ignored = activateSpan(handlerContext.getWebsocketSpan())) {
       delegate.write(b);
     } finally {
       if (doTrace) {
@@ -41,7 +41,7 @@ public class TracingOutputStream extends OutputStream {
     if (doTrace) {
       DECORATE.onSendFrameStart(handlerContext, MESSAGE_TYPE_BINARY, len);
     }
-    try (final AgentScope ignored = activateSpan(handlerContext.getWebsocketSpan())) {
+    try (final ContextScope ignored = activateSpan(handlerContext.getWebsocketSpan())) {
       delegate.write(b, off, len);
     } finally {
       if (doTrace) {
@@ -53,7 +53,7 @@ public class TracingOutputStream extends OutputStream {
   @Override
   public void close() throws IOException {
     final boolean doTrace = CallDepthThreadLocalMap.incrementCallDepth(HandlerContext.class) == 0;
-    try (final AgentScope ignored =
+    try (final ContextScope ignored =
         handlerContext.getWebsocketSpan() != null
             ? activateSpan(handlerContext.getWebsocketSpan())
             : null) {

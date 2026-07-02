@@ -63,3 +63,10 @@ TableTest usage
 
   Do NOT use @TableTest when:
     - Majority of rows require complex objects or custom converters.
+
+## Quality rules (apply during generation)
+
+Before writing any Java output, read `.claude/skills/migrate-groovy-to-java/QUALITY_RULES.md` in full.
+Apply all BLOCKER rules unconditionally.
+Apply WARNING rules unless they require creating utility classes that do not yet exist.
+Apply STYLE rules where they improve clarity without added complexity.

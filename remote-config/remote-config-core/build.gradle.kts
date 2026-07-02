@@ -4,30 +4,22 @@ plugins {
 
 apply(from = "$rootDir/gradle/java.gradle")
 
-val minimumBranchCoverage by extra(0.6)
-val minimumInstructionCoverage by extra(0.8)
-val excludedClassesCoverage by extra(
-  listOf(
-    // not used yet
-    "datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.AgentInfo",
-    // only half the adapter interface used
-    "datadog.remoteconfig.tuf.InstantJsonAdapter",
-    // idem
-    "datadog.remoteconfig.tuf.RawJsonAdapter",
-    "datadog.remoteconfig.ExceptionHelper",
-  )
+extra["minimumBranchCoverage"] = 0.6
+extra["minimumInstructionCoverage"] = 0.8
+extra["excludedClassesCoverage"] = listOf(
+  // not used yet
+  "datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.AgentInfo",
+  // only half the adapter interface used
+  "datadog.remoteconfig.tuf.InstantJsonAdapter",
+  // idem
+  "datadog.remoteconfig.tuf.RawJsonAdapter",
+  "datadog.remoteconfig.ExceptionHelper",
 )
-val excludedClassesBranchCoverage by extra(
-  listOf(
-    "datadog.remoteconfig.tuf.FeaturesConfig",
-    "datadog.remoteconfig.PollerRequestFactory",
-  )
+extra["excludedClassesBranchCoverage"] = listOf(
+  "datadog.remoteconfig.tuf.FeaturesConfig",
+  "datadog.remoteconfig.PollerRequestFactory",
 )
-val excludedClassesInstructionCoverage by extra(
-  listOf(
-    "datadog.remoteconfig.ConfigurationChangesListener.PollingHinterNoop",
-  )
-)
+extra["excludedClassesInstructionCoverage"] = listOf("datadog.remoteconfig.ConfigurationChangesListener.PollingHinterNoop",)
 
 dependencies {
   api(project(":remote-config:remote-config-api"))
