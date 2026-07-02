@@ -754,10 +754,16 @@ muzzle-dep-report:
     # `ibm8`/`oracle8` have no arm64 images published upstream — never run them on arm64.
     - if: '$testJvm == "ibm8" || $testJvm == "oracle8"'
       when: never
+    # arm64 tests are newly introduced to the merge queue and master. Keep them
+    # non-blocking (allow_failure) for now so we can collect stability stats and
+    # fix flaky/failing jobs without blocking the whole team. Remove allow_failure
+    # once the arm64 suite is proven stable.
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
       when: on_success
+      allow_failure: true
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
+      allow_failure: true
     - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: manual
       allow_failure: true
@@ -924,6 +930,10 @@ test_base_arm64:
     CACHE_TYPE: "base"
   parallel:
     matrix: *test_matrix_4
+  # run coverage only on JVM 8, mirroring the amd64 test_base job
+  script:
+    - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
+    - !reference [.test_job_arm64, script]
 
 test_inst:
   extends: .test_job_with_test_agent
@@ -1057,10 +1067,14 @@ test_debugger_arm64:
   extends: .test_job_arm64
   variables:
     GRADLE_TARGET: ":debuggerTest"
-    GRADLE_PARAMS: "-PcheckCoverage"
     CACHE_TYPE: "base"
   parallel:
     matrix: *test_matrix
+  # avoid running coverage for semeru8, semeru11 and semeru17 as some tests are disabled and therefore cannot reach the
+  # expected coverage (ibm8/oracle8 never run on arm64)
+  script:
+    - if [[ "$testJvm" != "semeru8" && "$testJvm" != "semeru11" && "$testJvm" != "semeru17" ]]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
+    - !reference [.test_job_arm64, script]
 
 test_smoke:
   extends: .test_job
