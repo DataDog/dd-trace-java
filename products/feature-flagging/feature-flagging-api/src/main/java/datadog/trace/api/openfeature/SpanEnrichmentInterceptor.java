@@ -117,10 +117,6 @@ final class SpanEnrichmentInterceptor implements TraceInterceptor {
     return activeStates;
   }
 
-  boolean isRegistered() {
-    return registered.get();
-  }
-
   @Override
   public Collection<? extends MutableSpan> onTraceComplete(
       final Collection<? extends MutableSpan> trace) {

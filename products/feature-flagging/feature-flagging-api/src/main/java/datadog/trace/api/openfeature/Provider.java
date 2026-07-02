@@ -3,7 +3,8 @@ package datadog.trace.api.openfeature;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.GlobalTracer;
-import datadog.trace.config.inversion.ConfigHelper;
+import datadog.trace.api.config.FeatureFlaggingConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -33,12 +34,14 @@ public class Provider extends EventProvider implements Metadata {
   private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
 
   /**
-   * Environment variable form of {@link
-   * datadog.trace.api.config.FeatureFlaggingConfig#SPAN_ENRICHMENT_ENABLED}. Distinct from the
-   * provider-enabled gate; OFF by default (experimental opt-in).
+   * Canonical config key for the span-enrichment gate ({@link
+   * FeatureFlaggingConfig#SPAN_ENRICHMENT_ENABLED}). Read through {@link ConfigProvider} so the
+   * full precedence applies — system property, env var ({@code
+   * DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED}), and stable config — exactly like
+   * the sibling provider-enabled gate. Distinct from the provider-enabled gate; OFF by default
+   * (experimental opt-in).
    */
-  static final String SPAN_ENRICHMENT_ENABLED_ENV =
-      "DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED";
+  static final String SPAN_ENRICHMENT_ENABLED_KEY = FeatureFlaggingConfig.SPAN_ENRICHMENT_ENABLED;
 
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
@@ -79,7 +82,7 @@ public class Provider extends EventProvider implements Metadata {
 
   /**
    * @param spanEnrichmentEnabledOverride when non-null, forces the span-enrichment gate (test
-   *     seam); when null, the gate is read from {@link #SPAN_ENRICHMENT_ENABLED_ENV}.
+   *     seam); when null, the gate is read from {@link #SPAN_ENRICHMENT_ENABLED_KEY}.
    */
   Provider(
       final Options options,
@@ -155,12 +158,22 @@ public class Provider extends EventProvider implements Metadata {
     }
     this.providerHooks =
         hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
+
+    // Announce the span-enrichment state at startup (matches the reference implementation).
+    // Reflects effective wiring: "enabled" only when the hook was actually constructed (gate on AND
+    // tracer classes present), otherwise "disabled".
+    if (spanEnrichmentHook != null) {
+      log.info("{} span enrichment enabled", METADATA);
+    } else {
+      log.info("{} span enrichment disabled", METADATA);
+    }
   }
 
   private static boolean isSpanEnrichmentEnabled() {
     try {
-      final String value = ConfigHelper.env(SPAN_ENRICHMENT_ENABLED_ENV);
-      return "true".equalsIgnoreCase(value) || "1".equals(value);
+      // Full config precedence (system property > stable config > env) via ConfigProvider, matching
+      // the sibling provider-enabled gate. "1"/"true" (any case) map to true; default false.
+      return ConfigProvider.getInstance().getBoolean(SPAN_ENRICHMENT_ENABLED_KEY, false);
     } catch (final Throwable t) {
       return false; // never let config reading break provider construction
     }
