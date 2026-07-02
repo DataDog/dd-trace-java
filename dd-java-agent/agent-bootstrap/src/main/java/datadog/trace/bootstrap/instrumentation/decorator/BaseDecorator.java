@@ -146,9 +146,7 @@ public abstract class BaseDecorator {
 
   public AgentSpan onPeerConnection(
       final AgentSpan span, final InetSocketAddress remoteConnection) {
-    // Invoke the extractor directly rather than via span.setTags(...): this legacy plumbing path
-    // is behavior-identical to the old inline code, and a direct call runs on test doubles too
-    // (the span-first span.setTags(...) sugar is for hand-written integration call sites).
+    // Direct extract (not span.setTags) so this legacy path also runs on mocked spans.
     PeerConnectionExtractor.INSTANCE.extract(remoteConnection, span);
     return span;
   }
