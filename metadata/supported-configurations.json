@@ -1489,6 +1489,14 @@
         "aliases": []
       }
     ],
+    "DD_FLAGGING_EVALUATION_COUNTS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT": [
       {
         "version": "A",
