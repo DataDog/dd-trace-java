@@ -30,7 +30,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * non-blocking writer enqueue. Recursive context flattening, pruning, canonical-key construction,
  * and aggregation are characterized separately as worker-thread cost.
  *
- * <p>Run: {@code ./gradlew :products:feature-flagging:feature-flagging-lib:jmh -PjmhIncludes=FlagEvaluationHotPathBenchmark}.
+ * <p>Run: {@code ./gradlew :products:feature-flagging:feature-flagging-lib:jmh
+ * -PjmhIncludes=FlagEvaluationHotPathBenchmark}.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 3, time = 2, timeUnit = SECONDS)

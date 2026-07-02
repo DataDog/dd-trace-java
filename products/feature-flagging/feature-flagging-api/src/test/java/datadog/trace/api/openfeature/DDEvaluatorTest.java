@@ -236,8 +236,7 @@ public class DDEvaluatorTest {
             mapOf("map.key1", 1, "map.key2", 2, "map.key3.key4", 4)));
     arguments.add(
         Arguments.of(
-            mapOf("plan", "gold", "cohort", "gold"),
-            mapOf("plan", "gold", "cohort", "gold")));
+            mapOf("plan", "gold", "cohort", "gold"), mapOf("plan", "gold", "cohort", "gold")));
     return arguments.toArray(new Arguments[0]);
   }
 

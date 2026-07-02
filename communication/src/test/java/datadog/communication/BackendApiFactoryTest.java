@@ -84,8 +84,7 @@ class BackendApiFactoryTest {
       final BackendApiFactory factory =
           new BackendApiFactory(
               Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
-      final BackendApi api =
-          factory.createBackendApi(Intake.EVENT_PLATFORM, futureEndpoint, false);
+      final BackendApi api = factory.createBackendApi(Intake.EVENT_PLATFORM, futureEndpoint, false);
 
       assertNotNull(api);
       api.post(
