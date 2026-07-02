@@ -11,7 +11,7 @@ testJvmConstraints {
 description = 'Spring Boot 3.0 Webflux Smoke Tests.'
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'webfluxBuild30'
     nestedTasks = ['bootJar']
     artifactPath = 'libs/webflux-3.0-smoketest.jar'

@@ -1,6 +1,4 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
 
 plugins {
   id 'com.gradleup.shadow'
@@ -21,6 +19,7 @@ dependencies {
   implementation libs.moshi
 
   compileOnly project(':dd-java-agent:agent-bootstrap')
+  compileOnly libs.bytebuddy // for net.bytebuddy.jar.asm.* used by ScaReachabilityTransformer
   testImplementation project(':dd-java-agent:agent-bootstrap')
   testImplementation libs.bytebuddy
   testImplementation project(':remote-config:remote-config-core')
@@ -28,6 +27,9 @@ dependencies {
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
   testImplementation libs.logback.classic
   testImplementation libs.jackson.databind
+
+
+  testImplementation libs.bundles.mockito
 }
 
 tasks.named("compileJava", JavaCompile) {
@@ -47,13 +49,9 @@ tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }
 
-tasks.named("processResources", ProcessResources) {
-  doLast {
-    fileTree(dir: outputs.files.asPath, includes: ['**/*.json']).each {
-      it.text = JsonOutput.toJson(new JsonSlurper().parse(it))
-    }
-  }
-}
+// SCA Reachability: symbol database download is handled by the sca-enrichments plugin.
+// This is a temporary approach; symbols will be delivered via Remote Config in the future.
+apply plugin: 'dd-trace-java.sca-enrichments'
 
 jmh {
   jmhVersion = libs.versions.jmh.get()
@@ -91,7 +89,9 @@ ext {
     'com.datadog.appsec.config.AppSecFeatures.AutoUserInstrum',
     'com.datadog.appsec.AppSecModule.AppSecModuleActivationException',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
+    'com.datadog.appsec.event.data.IntrospectionExcludedTypesTrie',
     'com.datadog.appsec.api.security.ApiSecuritySampler.NoOp',
+    'com.datadog.appsec.sca.ScaStackExclusionTrie',
   ]
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',

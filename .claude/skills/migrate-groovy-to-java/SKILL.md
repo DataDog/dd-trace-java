@@ -33,6 +33,8 @@ When converting Groovy code to Java code, make sure that:
 - Replace `injectSysConfig(key, value)` calls with `@WithConfig` when the key and value are static literals. Put it on the test method for per-test config, or on the class when every test needs it. The `dd.` prefix is added automatically — use the bare key (e.g. `"trace.scope.strict.mode"`, not `"dd.trace.scope.strict.mode"`). For dynamic or parameterized values, keep the imperative `WithConfigExtension.injectSysConfig(key, value)` call.
 - Keep inline comments
 - Migrate the named Spock clauses if they exist as inline comments in the Java unit test
+- When Groovy tests navigate a JSON request body through helpers like `asMap()` / `asLong()` / `asList()`, check whether `json-unit-assertj` (`libs.json.unit.assertj`) is already in the module's build file. If it is, add a method that returns the raw JSON string and use `assertThatJson(json).node("some.nested.field").isEqualTo(value)` directly instead of the map traversal.
+- Groovy's `[key: val]` map literals use a `LinkedHashMap`. When the test doesn't care about insertion order, use `singletonMap` for a single entry or `HashMap` for two or more. If a helper method builds these maps, add a two-arg overload rather than scattering `new LinkedHashMap<>()` constructions through test bodies.
 
 TableTest usage
   Import: `import org.tabletest.junit.TableTest;`
@@ -61,3 +63,10 @@ TableTest usage
 
   Do NOT use @TableTest when:
     - Majority of rows require complex objects or custom converters.
+
+## Quality rules (apply during generation)
+
+Before writing any Java output, read `.claude/skills/migrate-groovy-to-java/QUALITY_RULES.md` in full.
+Apply all BLOCKER rules unconditionally.
+Apply WARNING rules unless they require creating utility classes that do not yet exist.
+Apply STYLE rules where they improve clarity without added complexity.

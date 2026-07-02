@@ -1,5 +1,8 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.sampling.PrioritySampling.UNSET;
+import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
+import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -10,13 +13,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import datadog.context.Context;
-import datadog.context.propagation.CarrierSetter;
-import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.TraceCollector;
@@ -35,10 +35,6 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("Org Propagation Guard end-to-end propagator wiring")
 class OrgGuardEndToEndTest {
-
-  private static final MapSetter SETTER = new MapSetter();
-  private static final MapVisitor VISITOR = new MapVisitor();
-
   private PropagationTags.Factory factory;
   private HealthMetrics healthMetrics;
   private Supplier<TraceConfig> traceConfigSupplier;
@@ -57,8 +53,8 @@ class OrgGuardEndToEndTest {
     TracingPropagator propagator = buildPropagator(true, false, Collections.emptySet(), () -> "L1");
 
     Map<String, String> carrier = new HashMap<>();
-    Context ctx = Context.root().with(buildSpanForInjection(/*opmInTags*/ null));
-    propagator.inject(ctx, carrier, SETTER);
+    Context ctx = Context.root().with(buildSpanForInjection(null));
+    propagator.inject(ctx, carrier, Map::put);
 
     String datadogTags = carrier.get(DatadogHttpCodec.DATADOG_TAGS_KEY);
     assertNotNull(datadogTags, "x-datadog-tags missing: " + carrier);
@@ -76,7 +72,7 @@ class OrgGuardEndToEndTest {
 
     Map<String, String> carrier = new HashMap<>();
     Context ctx = Context.root().with(buildSpanForInjection("upstream-X"));
-    propagator.inject(ctx, carrier, SETTER);
+    propagator.inject(ctx, carrier, Map::put);
 
     String datadogTags = carrier.get(DatadogHttpCodec.DATADOG_TAGS_KEY);
     assertNotNull(datadogTags);
@@ -95,13 +91,13 @@ class OrgGuardEndToEndTest {
     headers.put(DatadogHttpCodec.SAMPLING_PRIORITY_KEY, "2");
     headers.put(DatadogHttpCodec.DATADOG_TAGS_KEY, "_dd.p.opm=X1,_dd.p.dm=-4");
 
-    Context extracted = propagator.extract(Context.root(), headers, VISITOR);
+    Context extracted = propagator.extract(Context.root(), headers, stringValuesMap());
     AgentSpan span = AgentSpan.fromContext(extracted);
     assertNotNull(span, "extracted span missing");
-    ExtractedContext ec = (ExtractedContext) span.context();
+    ExtractedContext ec = (ExtractedContext) span.spanContext();
     assertEquals(DDTraceId.from(123L), ec.getTraceId());
     assertEquals(456L, ec.getSpanId());
-    assertEquals(PrioritySampling.UNSET, ec.getSamplingPriority());
+    assertEquals(UNSET, ec.getSamplingPriority());
     assertNull(ec.getOrigin());
     assertNull(ec.getPropagationTags().getOrgPropagationMarker());
   }
@@ -119,8 +115,8 @@ class OrgGuardEndToEndTest {
     headers.put(DatadogHttpCodec.SAMPLING_PRIORITY_KEY, "2");
     headers.put(DatadogHttpCodec.DATADOG_TAGS_KEY, "_dd.p.opm=TRUSTED1,_dd.p.dm=-4");
 
-    Context extracted = propagator.extract(Context.root(), headers, VISITOR);
-    ExtractedContext ec = (ExtractedContext) AgentSpan.fromContext(extracted).context();
+    Context extracted = propagator.extract(Context.root(), headers, stringValuesMap());
+    ExtractedContext ec = (ExtractedContext) AgentSpan.fromContext(extracted).spanContext();
     assertEquals(2, ec.getSamplingPriority());
     assertEquals("TRUSTED1", ec.getPropagationTags().getOrgPropagationMarker().toString());
   }
@@ -136,11 +132,11 @@ class OrgGuardEndToEndTest {
         "00-0000000000000000000000000000007b-00000000000001c8-01"); // 0x7b=123, 0x1c8=456
     headers.put("tracestate", "dd=s:2;o:foo;t.opm:upstream-X;t.dm:-4,vendor1=abc,vendor2=def");
 
-    Context extracted = propagator.extract(Context.root(), headers, VISITOR);
-    ExtractedContext ec = (ExtractedContext) AgentSpan.fromContext(extracted).context();
-    assertEquals(PrioritySampling.UNSET, ec.getSamplingPriority(), "should be stripped");
+    Context extracted = propagator.extract(Context.root(), headers, stringValuesMap());
+    ExtractedContext ec = (ExtractedContext) AgentSpan.fromContext(extracted).spanContext();
+    assertEquals(UNSET, ec.getSamplingPriority(), "should be stripped");
 
-    String reEncoded = ec.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    String reEncoded = ec.getPropagationTags().headerValue(W3C);
     assertNotNull(reEncoded, "re-encoded tracestate is null");
     assertTrue(reEncoded.contains("vendor1=abc"), "vendor1 missing: " + reEncoded);
     assertTrue(reEncoded.contains("vendor2=def"), "vendor2 missing: " + reEncoded);
@@ -195,22 +191,5 @@ class OrgGuardEndToEndTest {
     TraceCollector collector = mock(TraceCollector.class);
     when(ddCtx.getTraceCollector()).thenReturn(collector);
     return AgentSpan.fromSpanContext(ddCtx);
-  }
-
-  private static final class MapSetter implements CarrierSetter<Map<String, String>> {
-    @Override
-    public void set(Map<String, String> carrier, String key, String value) {
-      carrier.put(key, value);
-    }
-  }
-
-  private static final class MapVisitor implements CarrierVisitor<Map<String, String>> {
-    @Override
-    public void forEachKeyValue(
-        Map<String, String> carrier, java.util.function.BiConsumer<String, String> classifier) {
-      for (Map.Entry<String, String> e : carrier.entrySet()) {
-        classifier.accept(e.getKey(), e.getValue());
-      }
-    }
   }
 }

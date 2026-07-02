@@ -1,6 +1,9 @@
 package com.datadog.featureflag;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.emptySet;
+import static java.util.Collections.singleton;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -13,8 +16,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
+import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.Capabilities;
 import datadog.remoteconfig.ConfigurationDeserializer;
@@ -23,8 +29,12 @@ import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Type;
 import java.time.Instant;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -172,6 +182,79 @@ class RemoteConfigServiceImplTest {
     assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
   }
 
+  @Test
+  void flagMapAdapterFactoryOnlyCreatesFlagMapAdapterForFlagMapType() {
+    final Moshi moshi = moshi();
+    final Type flagsType = Types.newParameterizedType(Map.class, String.class, Flag.class);
+
+    final JsonAdapter<?> adapter =
+        RemoteConfigServiceImpl.FlagMapAdapter.FACTORY.create(flagsType, emptySet(), moshi);
+
+    assertNotNull(adapter);
+    assertTrue(adapter instanceof RemoteConfigServiceImpl.FlagMapAdapter);
+    assertNull(
+        RemoteConfigServiceImpl.FlagMapAdapter.FACTORY.create(String.class, emptySet(), moshi));
+    assertNull(
+        RemoteConfigServiceImpl.FlagMapAdapter.FACTORY.create(
+            flagsType, singleton(mock(Annotation.class)), moshi));
+  }
+
+  @Test
+  void allowsNullFlagMap() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{"
+                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+                + "\"format\":\"SERVER\","
+                + "\"environment\":{\"name\":\"Test\"},"
+                + "\"flags\":null"
+                + "}");
+
+    assertNotNull(config);
+    assertNull(config.flags);
+  }
+
+  @Test
+  void skipsNullFlagAndKeepsValidFlag() throws Exception {
+    final ServerConfiguration config =
+        deserialize(
+            "{"
+                + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+                + "\"format\":\"SERVER\","
+                + "\"environment\":{\"name\":\"Test\"},"
+                + "\"flags\":{"
+                + "\"null-flag\":null,"
+                + "\"valid-flag\":{"
+                + "\"key\":\"valid-flag\","
+                + "\"enabled\":true,"
+                + "\"variationType\":\"STRING\","
+                + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
+                + "\"allocations\":[{"
+                + "\"key\":\"default-allocation\","
+                + "\"rules\":[],"
+                + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
+                + "\"doLog\":true"
+                + "}]"
+                + "}"
+                + "}"
+                + "}");
+
+    assertNotNull(config);
+    assertFalse(config.flags.containsKey("null-flag"));
+    assertTrue(config.flags.containsKey("valid-flag"));
+    assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
+  }
+
+  @Test
+  void flagMapAdapterIsReadOnly() {
+    final RemoteConfigServiceImpl.FlagMapAdapter adapter =
+        new RemoteConfigServiceImpl.FlagMapAdapter(moshi().adapter(Flag.class));
+
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> adapter.toJson(mock(JsonWriter.class), emptyMap()));
+  }
+
   @TableTest({
     "scenario                       | value                            | expectedInstant                 ",
     "utc second                     | '2023-01-01T00:00:00Z'           | '2023-01-01T00:00:00Z'          ",
@@ -226,6 +309,12 @@ class RemoteConfigServiceImplTest {
   private static ServerConfiguration deserialize(final String json) throws Exception {
     return RemoteConfigServiceImpl.UniversalFlagConfigDeserializer.INSTANCE.deserialize(
         json.getBytes(UTF_8));
+  }
+
+  private static Moshi moshi() {
+    return new Moshi.Builder()
+        .add(Instant.class, new RemoteConfigServiceImpl.InstantAdapter())
+        .build();
   }
 
   private static String emptyConfig() {

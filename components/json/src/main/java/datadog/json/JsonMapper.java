@@ -69,7 +69,7 @@ public final class JsonMapper {
   }
 
   /**
-   * Converts a {@link Iterable<String>} to a JSON array.
+   * Converts a {@code Iterable<String>} to a JSON array.
    *
    * @param items The iterable to convert.
    * @return The converted JSON array as Java string.
@@ -132,10 +132,10 @@ public final class JsonMapper {
   }
 
   /**
-   * Parses a JSON string array into a {@link List<String>}.
+   * Parses a JSON string array into a {@code List<String>}.
    *
    * @param json The JSON string array to parse.
-   * @return A {@link List<String>} containing the parsed JSON strings.
+   * @return A {@code List<String>} containing the parsed JSON strings.
    * @throws IOException If the JSON is invalid or a reader error occurs.
    */
   public static List<String> fromJsonToList(String json) throws IOException {

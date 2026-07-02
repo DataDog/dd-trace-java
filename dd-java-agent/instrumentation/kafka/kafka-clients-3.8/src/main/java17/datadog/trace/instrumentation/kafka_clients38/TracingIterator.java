@@ -111,7 +111,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
                     MILLISECONDS.toMicros(timeInQueueStart));
             KafkaDecorator.BROKER_DECORATE.afterStart(queueSpan);
             KafkaDecorator.BROKER_DECORATE.onTimeInQueue(queueSpan, val);
-            span = startSpan(JAVA_KAFKA.toString(), operationName, queueSpan.context());
+            span = startSpan(JAVA_KAFKA.toString(), operationName, queueSpan.spanContext());
             KafkaDecorator.BROKER_DECORATE.beforeFinish(queueSpan);
             // The queueSpan will be finished after inner span has been activated to ensure that
             // spans are written out together by TraceStructureWriter when running in strict mode

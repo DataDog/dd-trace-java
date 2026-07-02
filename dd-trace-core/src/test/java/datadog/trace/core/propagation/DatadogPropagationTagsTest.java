@@ -4,15 +4,13 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
+import static datadog.trace.core.propagation.PropagationTags.factory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-import datadog.trace.api.Config;
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
-import datadog.trace.junit.utils.tabletest.ProductTraceSourceConverter;
-import datadog.trace.junit.utils.tabletest.SamplingMechanismConverter;
+import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
+import datadog.trace.junit.utils.converter.ProductTraceSourceConverter;
+import datadog.trace.junit.utils.converter.SamplingMechanismConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,18 +19,6 @@ import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class DatadogPropagationTagsTest extends DDJavaSpecification {
-
-  private PropagationTags.Factory factory;
-
-  private PropagationTags.Factory factory() {
-    if (factory == null) {
-      Config config = mock(Config.class);
-      when(config.getxDatadogTagsMaxLength()).thenReturn(512);
-      factory = PropagationTags.factory(config);
-    }
-    return factory;
-  }
-
   @TableTest({
     "scenario                          | headerValue                                                                                                                  | expectedHeaderValue                        | tags                                                      ",
     "null input                        |                                                                                                                              |                                            | [:]                                                       ",
@@ -107,31 +93,31 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario                          | originalTagSet                                              | priority                      | mechanism                    | expectedHeaderValue                                         | tags                                                                  ",
-    "keep dm unchanged unset           | '_dd.p.dm=934086a686-4'                                     | PrioritySampling.UNSET        | SamplingMechanism.UNKNOWN    | '_dd.p.dm=934086a686-4'                                     | [_dd.p.dm: '934086a686-4']                                            ",
-    "keep dm unchanged sampler keep    | '_dd.p.dm=934086a686-3'                                     | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.AGENT_RATE | '_dd.p.dm=934086a686-3'                                     | [_dd.p.dm: '934086a686-3']                                            ",
-    "keep dm unchanged appsec          | '_dd.p.dm=93485302ab-1'                                     | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.APPSEC     | '_dd.p.dm=93485302ab-1'                                     | [_dd.p.dm: '93485302ab-1']                                            ",
-    "keep dm with anytag               | '_dd.p.dm=934086a686-4,_dd.p.anytag=value'                  | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.AGENT_RATE | '_dd.p.dm=934086a686-4,_dd.p.anytag=value'                  | [_dd.p.dm: '934086a686-4', _dd.p.anytag: 'value']                     ",
-    "keep dm with anytag appsec        | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value'                  | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.APPSEC     | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value'                  | [_dd.p.dm: '93485302ab-2', _dd.p.anytag: 'value']                     ",
-    "dm moves to front                 | '_dd.p.anytag=value,_dd.p.dm=934086a686-4'                  | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.AGENT_RATE | '_dd.p.dm=934086a686-4,_dd.p.anytag=value'                  | [_dd.p.anytag: 'value', _dd.p.dm: '934086a686-4']                     ",
-    "dm moves to front appsec          | '_dd.p.anytag=value,_dd.p.dm=93485302ab-2'                  | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.APPSEC     | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value'                  | [_dd.p.anytag: 'value', _dd.p.dm: '93485302ab-2']                     ",
-    "dm reordered with multiple tags   | '_dd.p.anytag=value,_dd.p.dm=934086a686-4,_dd.p.atag=value' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.AGENT_RATE | '_dd.p.dm=934086a686-4,_dd.p.anytag=value,_dd.p.atag=value' | [_dd.p.anytag: 'value', _dd.p.dm: '934086a686-4', _dd.p.atag: 'value']",
-    "dm reordered multiple tags appsec | '_dd.p.anytag=value,_dd.p.dm=93485302ab-2,_dd.p.atag=value' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.APPSEC     | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value,_dd.p.atag=value' | [_dd.p.anytag: 'value', _dd.p.dm: '93485302ab-2', _dd.p.atag: 'value']",
-    "user drop manual single dm        | '_dd.p.dm=93485302ab-2'                                     | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL     | '_dd.p.dm=93485302ab-2'                                     | [_dd.p.dm: '93485302ab-2']                                            ",
-    "sampler drop manual reorder       | '_dd.p.anytag=value,_dd.p.dm=93485302ab-2'                  | PrioritySampling.SAMPLER_DROP | SamplingMechanism.MANUAL     | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value'                  | [_dd.p.anytag: 'value', _dd.p.dm: '93485302ab-2']                     ",
-    "user drop manual                  | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value'                  | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL     | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value'                  | [_dd.p.dm: '93485302ab-2', _dd.p.anytag: 'value']                     ",
-    "user drop manual triple           | '_dd.p.atag=value,_dd.p.dm=93485302ab-2,_dd.p.anytag=value' | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL     | '_dd.p.dm=93485302ab-2,_dd.p.atag=value,_dd.p.anytag=value' | [_dd.p.atag: 'value', _dd.p.dm: '93485302ab-2', _dd.p.anytag: 'value']",
-    "empty sampler keep default        | ''                                                          | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT    | '_dd.p.dm=-0'                                               | [_dd.p.dm: '-0']                                                      ",
-    "empty sampler keep agent rate     | ''                                                          | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.AGENT_RATE | '_dd.p.dm=-1'                                               | [_dd.p.dm: '-1']                                                      ",
-    "anytag user keep manual           | '_dd.p.anytag=value'                                        | PrioritySampling.USER_KEEP    | SamplingMechanism.MANUAL     | '_dd.p.dm=-4,_dd.p.anytag=value'                            | [_dd.p.anytag: 'value', _dd.p.dm: '-4']                               ",
-    "no dm change sampler drop manual  | '_dd.p.anytag=value,_dd.p.atag=value'                       | PrioritySampling.SAMPLER_DROP | SamplingMechanism.MANUAL     | '_dd.p.anytag=value,_dd.p.atag=value'                       | [_dd.p.anytag: 'value', _dd.p.atag: 'value']                          ",
-    "no dm when mechanism unknown      | '_dd.p.anytag=123'                                          | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.UNKNOWN    | '_dd.p.anytag=123'                                          | [_dd.p.anytag: '123']                                                 ",
-    "invalid input still updates dm    | ',_dd.p.dm=Value'                                           | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.AGENT_RATE | '_dd.p.dm=-1'                                               | [_dd.propagation_error: 'decoding_error', _dd.p.dm: '-1']             "
+    "scenario                          | originalTagSet                                              | priority     | mechanism                    | expectedHeaderValue                                         | tags                                                                  ",
+    "keep dm unchanged unset           | '_dd.p.dm=934086a686-4'                                     | UNSET        | SamplingMechanism.UNKNOWN    | '_dd.p.dm=934086a686-4'                                     | [_dd.p.dm: '934086a686-4']                                            ",
+    "keep dm unchanged sampler keep    | '_dd.p.dm=934086a686-3'                                     | SAMPLER_KEEP | SamplingMechanism.AGENT_RATE | '_dd.p.dm=934086a686-3'                                     | [_dd.p.dm: '934086a686-3']                                            ",
+    "keep dm unchanged appsec          | '_dd.p.dm=93485302ab-1'                                     | SAMPLER_KEEP | SamplingMechanism.APPSEC     | '_dd.p.dm=93485302ab-1'                                     | [_dd.p.dm: '93485302ab-1']                                            ",
+    "keep dm with anytag               | '_dd.p.dm=934086a686-4,_dd.p.anytag=value'                  | SAMPLER_KEEP | SamplingMechanism.AGENT_RATE | '_dd.p.dm=934086a686-4,_dd.p.anytag=value'                  | [_dd.p.dm: '934086a686-4', _dd.p.anytag: 'value']                     ",
+    "keep dm with anytag appsec        | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value'                  | SAMPLER_KEEP | SamplingMechanism.APPSEC     | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value'                  | [_dd.p.dm: '93485302ab-2', _dd.p.anytag: 'value']                     ",
+    "dm moves to front                 | '_dd.p.anytag=value,_dd.p.dm=934086a686-4'                  | SAMPLER_KEEP | SamplingMechanism.AGENT_RATE | '_dd.p.dm=934086a686-4,_dd.p.anytag=value'                  | [_dd.p.anytag: 'value', _dd.p.dm: '934086a686-4']                     ",
+    "dm moves to front appsec          | '_dd.p.anytag=value,_dd.p.dm=93485302ab-2'                  | SAMPLER_KEEP | SamplingMechanism.APPSEC     | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value'                  | [_dd.p.anytag: 'value', _dd.p.dm: '93485302ab-2']                     ",
+    "dm reordered with multiple tags   | '_dd.p.anytag=value,_dd.p.dm=934086a686-4,_dd.p.atag=value' | SAMPLER_KEEP | SamplingMechanism.AGENT_RATE | '_dd.p.dm=934086a686-4,_dd.p.anytag=value,_dd.p.atag=value' | [_dd.p.anytag: 'value', _dd.p.dm: '934086a686-4', _dd.p.atag: 'value']",
+    "dm reordered multiple tags appsec | '_dd.p.anytag=value,_dd.p.dm=93485302ab-2,_dd.p.atag=value' | SAMPLER_KEEP | SamplingMechanism.APPSEC     | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value,_dd.p.atag=value' | [_dd.p.anytag: 'value', _dd.p.dm: '93485302ab-2', _dd.p.atag: 'value']",
+    "user drop manual single dm        | '_dd.p.dm=93485302ab-2'                                     | USER_DROP    | SamplingMechanism.MANUAL     | '_dd.p.dm=93485302ab-2'                                     | [_dd.p.dm: '93485302ab-2']                                            ",
+    "sampler drop manual reorder       | '_dd.p.anytag=value,_dd.p.dm=93485302ab-2'                  | SAMPLER_DROP | SamplingMechanism.MANUAL     | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value'                  | [_dd.p.anytag: 'value', _dd.p.dm: '93485302ab-2']                     ",
+    "user drop manual                  | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value'                  | USER_DROP    | SamplingMechanism.MANUAL     | '_dd.p.dm=93485302ab-2,_dd.p.anytag=value'                  | [_dd.p.dm: '93485302ab-2', _dd.p.anytag: 'value']                     ",
+    "user drop manual triple           | '_dd.p.atag=value,_dd.p.dm=93485302ab-2,_dd.p.anytag=value' | USER_DROP    | SamplingMechanism.MANUAL     | '_dd.p.dm=93485302ab-2,_dd.p.atag=value,_dd.p.anytag=value' | [_dd.p.atag: 'value', _dd.p.dm: '93485302ab-2', _dd.p.anytag: 'value']",
+    "empty sampler keep default        | ''                                                          | SAMPLER_KEEP | SamplingMechanism.DEFAULT    | '_dd.p.dm=-0'                                               | [_dd.p.dm: '-0']                                                      ",
+    "empty sampler keep agent rate     | ''                                                          | SAMPLER_KEEP | SamplingMechanism.AGENT_RATE | '_dd.p.dm=-1'                                               | [_dd.p.dm: '-1']                                                      ",
+    "anytag user keep manual           | '_dd.p.anytag=value'                                        | USER_KEEP    | SamplingMechanism.MANUAL     | '_dd.p.dm=-4,_dd.p.anytag=value'                            | [_dd.p.anytag: 'value', _dd.p.dm: '-4']                               ",
+    "no dm change sampler drop manual  | '_dd.p.anytag=value,_dd.p.atag=value'                       | SAMPLER_DROP | SamplingMechanism.MANUAL     | '_dd.p.anytag=value,_dd.p.atag=value'                       | [_dd.p.anytag: 'value', _dd.p.atag: 'value']                          ",
+    "no dm when mechanism unknown      | '_dd.p.anytag=123'                                          | SAMPLER_KEEP | SamplingMechanism.UNKNOWN    | '_dd.p.anytag=123'                                          | [_dd.p.anytag: '123']                                                 ",
+    "invalid input still updates dm    | ',_dd.p.dm=Value'                                           | SAMPLER_KEEP | SamplingMechanism.AGENT_RATE | '_dd.p.dm=-1'                                               | [_dd.propagation_error: 'decoding_error', _dd.p.dm: '-1']             "
   })
   void updatePropagationTagsSamplingMechanism(
       String originalTagSet,
-      @ConvertWith(PrioritySamplingConverter.class) int priority,
-      @ConvertWith(SamplingMechanismConverter.class) int mechanism,
+      @ConvertWith(PrioritySamplingConverter.class) byte priority,
+      @ConvertWith(SamplingMechanismConverter.class) byte mechanism,
       String expectedHeaderValue,
       Map<String, String> tags) {
     PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, originalTagSet);
@@ -172,7 +158,7 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
   void extractionLimitExceeded() {
     String tags = "_dd.p.anytag=value";
     int limit = tags.length() - 1;
-    PropagationTags propagationTags = PropagationTags.factory(limit).fromHeaderValue(DATADOG, tags);
+    PropagationTags propagationTags = factory(limit).fromHeaderValue(DATADOG, tags);
 
     propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL);
 
@@ -187,7 +173,7 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
   void injectionLimitExceeded() {
     String tags = "_dd.p.anytag=value";
     int limit = tags.length();
-    PropagationTags propagationTags = PropagationTags.factory(limit).fromHeaderValue(DATADOG, tags);
+    PropagationTags propagationTags = factory(limit).fromHeaderValue(DATADOG, tags);
 
     propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL);
 
@@ -199,7 +185,7 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
 
   @Test
   void injectionLimitExceededLimit0() {
-    PropagationTags propagationTags = PropagationTags.factory(0).fromHeaderValue(DATADOG, "");
+    PropagationTags propagationTags = factory(0).fromHeaderValue(DATADOG, "");
 
     propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL);
 

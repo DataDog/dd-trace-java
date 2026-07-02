@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.apachehttpclient5;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.Nullable;
@@ -38,7 +39,7 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     if (parentContinuation == noopContinuation()) {
       completeDelegate(result);
     } else {
-      try (final AgentScope scope = parentContinuation.activate()) {
+      try (final ContextScope scope = parentContinuation.activate()) {
         completeDelegate(result);
       }
     }
@@ -54,7 +55,7 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     if (parentContinuation == noopContinuation()) {
       failDelegate(ex);
     } else {
-      try (final AgentScope scope = parentContinuation.activate()) {
+      try (final ContextScope scope = parentContinuation.activate()) {
         failDelegate(ex);
       }
     }
@@ -69,7 +70,7 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     if (parentContinuation == noopContinuation()) {
       cancelDelegate();
     } else {
-      try (final AgentScope scope = parentContinuation.activate()) {
+      try (final ContextScope scope = parentContinuation.activate()) {
         cancelDelegate();
       }
     }

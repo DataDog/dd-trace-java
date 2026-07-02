@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
+import java.nio.channels.ClosedSelectorException;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
@@ -378,7 +379,14 @@ public class DefaultConfigurationPoller
       fleetResponse = maybeFleetResp.get();
     } catch (Exception e) {
       // no error can be reported, as we don't have the data client.state.targets_version avail
-      ratelimitedLogger.warn("Error parsing remote config response", e);
+      if (e instanceof ClosedSelectorException) {
+        // expected when the selector is closed mid-poll, e.g. during pod shutdown
+        ratelimitedLogger.warn(
+            "Error parsing remote config response, which is expected when the selector is closed mid-poll: {}",
+            e.getMessage());
+      } else {
+        ratelimitedLogger.warn("Error parsing remote config response", e);
+      }
       return;
     }
 
