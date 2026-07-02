@@ -16,6 +16,7 @@ import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.OpenFeatureError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -167,10 +168,25 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public List<Hook> getProviderHooks() {
-    if (flagEvalMetricsHook == null) {
-      return Collections.emptyList();
+    final List<Hook> hooks = new ArrayList<>(2);
+    if (flagEvalMetricsHook != null) {
+      hooks.add(flagEvalMetricsHook);
     }
-    return Collections.singletonList(flagEvalMetricsHook);
+    // EVP flagevaluation hook: always registered; no-op when writer is absent (killswitch off).
+    // Writer is resolved lazily from FeatureFlaggingGateway.getFlagEvalWriter() on each call.
+    try {
+      final Hook flagEvalLoggingHook = buildFlagEvalLoggingHook();
+      if (flagEvalLoggingHook != null) {
+        hooks.add(flagEvalLoggingHook);
+      }
+    } catch (LinkageError | Exception e) {
+      // Keep older bootstrap/API combinations working: EVP recording is best-effort.
+    }
+    return Collections.unmodifiableList(hooks);
+  }
+
+  Hook buildFlagEvalLoggingHook() {
+    return FlagEvalLoggingHook.INSTANCE;
   }
 
   @Override
