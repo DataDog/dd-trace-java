@@ -34,9 +34,9 @@ import org.slf4j.LoggerFactory;
  * (unit {@code s}).
  *
  * <p>This is the parallel-to-{@link SerializingMetricWriter} OTLP export path. It hangs off the
- * same in-memory aggregation ({@link ConflatingMetricsAggregator} / {@link Aggregator}) and
- * consumes the same {@link AggregateEntry} stream; only the wire encoding and transport differ.
- * Native msgpack stats and OTLP export are mutually exclusive (selected at the factory).
+ * same in-memory aggregation ({@link ClientStatsAggregator} / {@link Aggregator}) and consumes the
+ * same {@link AggregateEntry} stream; only the wire encoding and transport differ. Native msgpack
+ * stats and OTLP export are mutually exclusive (selected at the factory).
  *
  * <p>Assembly mirrors {@code OtlpMetricsProtoCollector}
  */
