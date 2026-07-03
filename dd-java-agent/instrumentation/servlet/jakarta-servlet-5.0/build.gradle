@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
 
 plugins {
   id 'java-test-fixtures'
@@ -92,4 +93,11 @@ dependencies {
 
 tasks.named("jar", Jar) {
   from zipTree(relocatedJavaxJarFile)
+}
+
+// Make the relocated jar visible to muzzle through `extraAgentClasspath`.
+// Muzzle uses the runtime classpath of a project, and this jar is produced
+// outside of it.
+tasks.withType(MuzzleTask).configureEach {
+  extraAgentClasspath.from(relocatedJavaxJarFile)
 }

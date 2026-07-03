@@ -7,6 +7,7 @@ import datadog.gradle.plugin.muzzle.MuzzleExtension
 import datadog.gradle.plugin.muzzle.allMainSourceSet
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.invocation.BuildInvocationDetails
@@ -58,6 +59,10 @@ abstract class MuzzleTask @Inject constructor(
   @get:InputFiles
   @get:Classpath
   protected val agentClassPath = providers.provider { createAgentClassPath(project) }
+
+  @get:InputFiles
+  @get:Classpath
+  abstract val extraAgentClasspath: ConfigurableFileCollection
 
   @get:InputFiles
   @get:Classpath
@@ -119,7 +124,7 @@ abstract class MuzzleTask @Inject constructor(
       buildStartedTime.set(invocationDetails.buildStartedTime)
       bootstrapClassPath.setFrom(muzzleBootstrap)
       toolingClassPath.setFrom(muzzleTooling)
-      instrumentationClassPath.setFrom(agentClassPath.get())
+      instrumentationClassPath.setFrom(agentClassPath.get(), extraAgentClasspath)
       testApplicationClassPath.setFrom(muzzleClassPath.get())
       if (muzzleDirective != null) {
         assertPass.set(muzzleDirective.assertPass)
