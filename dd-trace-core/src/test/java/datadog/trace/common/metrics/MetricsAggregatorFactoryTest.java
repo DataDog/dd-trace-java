@@ -23,8 +23,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests the native-vs-OTLP XOR writer selection in {@link MetricsAggregatorFactory}. The selected
- * writer is not exposed directly, but {@link ClientStatsAggregator} publishes the selection
- * outcome via {@code isOtlpStatsExportEnabled()} plus the reporting cadence getters.
+ * writer is not exposed directly, but {@link ClientStatsAggregator} publishes the selection outcome
+ * via {@code isOtlpStatsExportEnabled()} plus the reporting cadence getters.
  */
 class MetricsAggregatorFactoryTest {
 
@@ -63,8 +63,7 @@ class MetricsAggregatorFactoryTest {
         MetricsAggregatorFactory.createMetricsAggregator(
             config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
 
-    ClientStatsAggregator conflating =
-        assertInstanceOf(ClientStatsAggregator.class, aggregator);
+    ClientStatsAggregator conflating = assertInstanceOf(ClientStatsAggregator.class, aggregator);
     assertFalse(conflating.isOtlpStatsExportEnabled());
     // native path uses a hardcoded 10s cadence, not trace.stats.interval.
     assertEquals(10, conflating.reportingInterval());
@@ -80,8 +79,7 @@ class MetricsAggregatorFactoryTest {
         MetricsAggregatorFactory.createMetricsAggregator(
             config, sharedCommunicationObjects(), HealthMetrics.NO_OP);
 
-    ClientStatsAggregator conflating =
-        assertInstanceOf(ClientStatsAggregator.class, aggregator);
+    ClientStatsAggregator conflating = assertInstanceOf(ClientStatsAggregator.class, aggregator);
     assertTrue(conflating.isOtlpStatsExportEnabled());
     // OTLP path sources the cadence from trace.stats.interval (ms), default 10s.
     assertEquals(config.getTraceStatsInterval(), conflating.reportingInterval());
