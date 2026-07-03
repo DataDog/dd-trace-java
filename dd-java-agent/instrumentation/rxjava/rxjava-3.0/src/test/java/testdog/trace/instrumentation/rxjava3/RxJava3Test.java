@@ -50,11 +50,6 @@ class RxJava3Test extends AbstractInstrumentationTest {
     return tag(Tags.COMPONENT, validates(o -> "trace".equals(String.valueOf(o))));
   }
 
-  /**
-   * Holds the {@code @Trace}-annotated methods used by the scenarios. The captured span ids are
-   * stored in static fields and read back by the asserting test methods to express cross-span
-   * parent relationships.
-   */
   static class Worker {
     static long traceParentId;
     static long publisherParentId;
@@ -88,12 +83,10 @@ class RxJava3Test extends AbstractInstrumentationTest {
       traceParentId = activeSpan().getSpanId();
       AgentSpan span = startSpan("test", "publisher-parent");
       publisherParentId = span.getSpanId();
-      // After this activation, the operations below should be children of this span
       AgentScope scope = activateSpan(span);
 
       Object publisher = publisherSupplier.get();
       try {
-        // Read all data from publisher
         if (publisher instanceof Maybe) {
           return ((Maybe<Object>) publisher).blockingGet();
         } else if (publisher instanceof Flowable) {

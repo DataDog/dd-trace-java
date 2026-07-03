@@ -50,10 +50,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
 
   /**
    * RxJava 3's AbstractDirectTask creates FINISHED/DISPOSED sentinel FutureTask instances in its
-   * static initializer. If that initializer runs while a trace is active (e.g. the first scheduled
-   * delay/timeout under a span), the executor instrumentation captures a continuation on those
-   * static singletons that is never cancelled, leaking the pending trace. Disable async propagation
-   * while the type initializer runs.
+   * static initializer.
    */
   private static final ElementMatcher<TypeDescription> RXJAVA3_DISABLED_TYPE_INITIALIZERS =
       named("io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask");

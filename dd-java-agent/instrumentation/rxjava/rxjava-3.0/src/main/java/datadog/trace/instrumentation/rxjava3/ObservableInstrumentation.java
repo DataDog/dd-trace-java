@@ -52,7 +52,6 @@ public final class ObservableInstrumentation
         Context parentContext =
             InstrumentationContext.get(Observable.class, Context.class).get(observable);
         if (parentContext != null) {
-          // wrap the observer so spans from its events treat the captured span as their parent
           observer = new TracingObserver<>(observer, parentContext);
           // attach the context here in case additional observers are created during subscribe
           return parentContext.attach();
