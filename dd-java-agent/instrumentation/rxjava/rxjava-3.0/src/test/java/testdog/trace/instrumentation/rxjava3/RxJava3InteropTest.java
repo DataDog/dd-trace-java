@@ -6,7 +6,6 @@ import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
 import static datadog.trace.agent.test.assertions.TagsMatcher.tag;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -31,8 +30,6 @@ class RxJava3InteropTest extends AbstractInstrumentationTest {
   }
 
   static class Worker {
-    static long parentId;
-
     static int child(int i) {
       return childTraced(i);
     }
@@ -44,7 +41,6 @@ class RxJava3InteropTest extends AbstractInstrumentationTest {
 
     @Trace(operationName = "interop-parent", resourceName = "interop-parent")
     static <T> T runUnderParent(Supplier<T> work) {
-      parentId = activeSpan().getSpanId();
       return work.get();
     }
   }
@@ -64,7 +60,7 @@ class RxJava3InteropTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().root().operationName("interop-parent").resourceName("interop-parent"),
             span()
-                .childOf(Worker.parentId)
+                .childOfIndex(0)
                 .operationName("child")
                 .resourceName("child")
                 .tags(componentTrace(), defaultTags())));
@@ -85,7 +81,7 @@ class RxJava3InteropTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().root().operationName("interop-parent").resourceName("interop-parent"),
             span()
-                .childOf(Worker.parentId)
+                .childOfIndex(0)
                 .operationName("child")
                 .resourceName("child")
                 .tags(componentTrace(), defaultTags())));
@@ -103,7 +99,7 @@ class RxJava3InteropTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().root().operationName("interop-parent").resourceName("interop-parent"),
             span()
-                .childOf(Worker.parentId)
+                .childOfIndex(0)
                 .operationName("child")
                 .resourceName("child")
                 .tags(componentTrace(), defaultTags())));
@@ -123,12 +119,12 @@ class RxJava3InteropTest extends AbstractInstrumentationTest {
             SORT_BY_START_TIME,
             span().root().operationName("interop-parent").resourceName("interop-parent"),
             span()
-                .childOf(Worker.parentId)
+                .childOfIndex(0)
                 .operationName("child")
                 .resourceName("child")
                 .tags(componentTrace(), defaultTags()),
             span()
-                .childOf(Worker.parentId)
+                .childOfIndex(0)
                 .operationName("child")
                 .resourceName("child")
                 .tags(componentTrace(), defaultTags())));
