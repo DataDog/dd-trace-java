@@ -1,6 +1,9 @@
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
+
 apply plugin: 'maven-publish'
 apply plugin: 'signing'
 apply plugin: 'dd-trace-java.version-file'
+apply plugin: 'dd-trace-java.jardiff'
 
 /**
  * Proper publishing requires the following environment variables:
@@ -76,7 +79,6 @@ tasks.withType(Sign).configureEach {
 /**
  * State assertions below...
  */
-
 gradle.taskGraph.whenReady { TaskExecutionGraph taskGraph ->
   if (taskGraph.hasTask(publish) || taskGraph.hasTask("publishToSonatype")) {
     assert project.findProperty("removeJarVersionNumbers") != true
@@ -111,4 +113,19 @@ tasks.withType(AbstractPublishToMaven).configureEach { task ->
   rootProject.subprojects {
     task.mustRunAfter tasks.matching { it instanceof VerificationTask }
   }
+}
+
+/**
+ * Release jar comparison gate.
+ *
+ * Intercepts faulty artifacts that were rebuilt on re-execution of a task.
+ *
+ * This can happen when a build script issue silently changes it output, thus producing
+ * a different jar than the one from a previous task invocation.
+ *
+ * The effect is to gate remote publication only (`publishToMavenLocal` is a `PublishToMavenLocal` task)
+ * The comparison only fails the build if they are not equivalent according to `jardiff`.
+ */
+tasks.withType(PublishToMavenRepository).configureEach {
+  dependsOn 'compareToReferenceJar'
 }

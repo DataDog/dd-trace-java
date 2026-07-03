@@ -1279,12 +1279,21 @@ deploy_to_maven_central:
     - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
-    - ./gradlew publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
+    # Preserve the `build` job artifacts (validated across the whole test chain) before Gradle
+    # rebuilds and overwrites them under workspace/**/build/libs. jardiff then compares the jars
+    # about to be published against these references (see https://app.datadoghq.com/incidents/50455).
+    - mkdir -p reference-artifacts
+    - cp workspace/dd-java-agent/build/libs/*.jar reference-artifacts/
+    - cp workspace/dd-trace-api/build/libs/*.jar reference-artifacts/
+    - cp workspace/dd-trace-ot/build/libs/*.jar reference-artifacts/
+    - ./gradlew compareToReferenceJar publishToSonatype closeSonatypeStagingRepository -PjardiffReferenceDir="$CI_PROJECT_DIR/reference-artifacts" -PskipTests $GRADLE_ARGS
   artifacts:
+    when: always
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
       - 'workspace/dd-trace-api/build/libs/*.jar'
       - 'workspace/dd-trace-ot/build/libs/*.jar'
+      - 'workspace/**/reports/jardiff/*.txt'
 
 deploy_snapshot_with_ddprof_snapshot:
   extends: .gradle_build
@@ -1304,7 +1313,9 @@ deploy_snapshot_with_ddprof_snapshot:
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - echo "Publishing dd-trace-java snapshot with ddprof snapshot dependency"
-    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID -PddprofUseSnapshot publishToSonatype -PskipTests $GRADLE_ARGS
+    # This snapshot bundles a ddprof SNAPSHOT, so its jar differs from the build-job artifact by
+    # design — exclude the reference comparison gate (there is no matching reference to compare to).
+    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID -PddprofUseSnapshot publishToSonatype -x compareToReferenceJar -PskipTests $GRADLE_ARGS
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
