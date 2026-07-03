@@ -23,9 +23,6 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
-// NOTE: This test lives in the `testdog` package (not `datadog`) on purpose: the agent ignores
-// `datadog.*` classes for instrumentation, so `@Trace`-annotated methods declared under `datadog.*`
-// would never be instrumented. See RxJava3Test for the same convention.
 class RxJava3InteropTest extends AbstractInstrumentationTest {
 
   // The component tag is stored as a UTF8BytesString, so compare by string content.

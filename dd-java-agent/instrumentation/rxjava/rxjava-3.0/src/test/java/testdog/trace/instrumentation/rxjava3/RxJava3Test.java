@@ -40,9 +40,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
-// NOTE: This test lives in the `testdog` package (not `datadog`) on purpose: the agent ignores
-// `datadog.*` classes for instrumentation, so `@Trace`-annotated methods declared under `datadog.*`
-// would never be instrumented. See the java-lang-21 tests for the same convention.
 class RxJava3Test extends AbstractInstrumentationTest {
 
   static final String EXCEPTION_MESSAGE = "test exception";
