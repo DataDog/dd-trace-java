@@ -5,7 +5,9 @@ import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.che
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedMap;
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedSet;
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.evaluateTargetCollection;
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
 
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
@@ -31,8 +33,9 @@ public final class HasAnyExpression extends MatchingExpression {
   }
 
   @Override
-  public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
-    Value<?> value = evaluateTargetCollection(valueExpression, this, valueRefResolver);
+  public Boolean evaluate(EvalContext evalContext) {
+    Value<?> value = evaluateTargetCollection(valueExpression, this, evalContext);
+    ValueReferenceResolver valueRefResolver = evalContext.getValueRefResolver();
     if (value instanceof ListValue) {
       ListValue collection = (ListValue) value;
       checkSupportedList(collection, this);
@@ -45,9 +48,10 @@ public final class HasAnyExpression extends MatchingExpression {
         for (int i = 0; i < len; i++) {
           valueRefResolver.addExtension(
               ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(collection.get(i)));
-          if (filterPredicateExpression.evaluate(valueRefResolver)) {
+          if (filterPredicateExpression.evaluate(evalContext)) {
             return Boolean.TRUE;
           }
+          checkTimeout(evalContext.getTimeoutChecker(), this);
         }
         return Boolean.FALSE;
 
@@ -72,9 +76,10 @@ public final class HasAnyExpression extends MatchingExpression {
           valueRefResolver.addExtension(
               ValueReferences.ITERATOR_EXTENSION_NAME,
               CapturedValue.of(new MapValue.Entry(key, val)));
-          if (filterPredicateExpression.evaluate(valueRefResolver)) {
+          if (filterPredicateExpression.evaluate(evalContext)) {
             return Boolean.TRUE;
           }
+          checkTimeout(evalContext.getTimeoutChecker(), this);
         }
         return Boolean.FALSE;
       } catch (IllegalArgumentException | UnsupportedOperationException ex) {
@@ -95,9 +100,10 @@ public final class HasAnyExpression extends MatchingExpression {
         for (Object val : setHolder) {
           valueRefResolver.addExtension(
               ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(val));
-          if (filterPredicateExpression.evaluate(valueRefResolver)) {
+          if (filterPredicateExpression.evaluate(evalContext)) {
             return Boolean.TRUE;
           }
+          checkTimeout(evalContext.getTimeoutChecker(), this);
         }
         return Boolean.FALSE;
       } catch (IllegalArgumentException | UnsupportedOperationException ex) {
