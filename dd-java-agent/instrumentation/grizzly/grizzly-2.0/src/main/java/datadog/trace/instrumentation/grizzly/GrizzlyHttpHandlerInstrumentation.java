@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.grizzly;
 
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
@@ -73,7 +73,7 @@ public class GrizzlyHttpHandlerInstrumentation
       }
 
       final Context parentContext =
-          getCurrentContext(); // parent context attached by ContextTrackingAdvice
+          currentContext(); // parent context attached by ContextTrackingAdvice
       final Context context = DECORATE.startSpan(request, parentContext);
       final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
