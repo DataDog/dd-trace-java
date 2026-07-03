@@ -133,10 +133,6 @@ tasks.named('shadowJar', ShadowJar) {
   //
   // Keeping `duplicatesStrategy = FAIL` only, Shadow 9 now fails while creating the instrumentation jar.
   filesMatching([
-    // agent-installer also publishes this Java 11 source-set output at runtime.
-    'datadog/trace/agent/tooling/bytebuddy/DDJava9ClassFileTransformer*.class',
-    // agent-installer also publishes this Java 25 source-set output at runtime.
-    'datadog/trace/agent/tooling/servicediscovery/MemFDUnixWriterFFM*.class',
     // jakarta-servlet-5.0 publishes the relocated advice jar as a runtime
     // file dependency while also folding those classes into its own jar.
     'datadog/trace/instrumentation/servlet5/**/*.class',
