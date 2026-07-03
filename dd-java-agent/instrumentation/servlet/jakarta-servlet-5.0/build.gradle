@@ -30,7 +30,7 @@ configurations {
   javaxClassesToRelocate
 }
 
-tasks.register('relocatedJavaxJar', ShadowJar) {
+def relocatedJavaxJar = tasks.register('relocatedJavaxJar', ShadowJar) {
   relocate 'javax.servlet', 'jakarta.servlet'
   relocate 'datadog.trace.instrumentation.servlet3', 'datadog.trace.instrumentation.servlet5'
   relocate 'datadog.trace.instrumentation.servlet', 'datadog.trace.instrumentation.servlet5'
@@ -49,6 +49,7 @@ tasks.register('relocatedJavaxJar', ShadowJar) {
 
   includeEmptyDirs = false
 }
+def relocatedJavaxJarFile = relocatedJavaxJar.flatMap { it.archiveFile }
 
 dependencies {
   // Wire the relocated javax->jakarta advice into this project without publishing
@@ -64,8 +65,8 @@ dependencies {
   // Publishing the relocated jar there would expose the same servlet5 advice classes
   // twice to downstream projects, once from the module jar and once from the
   // relocated jar.
-  compileOnly files(relocatedJavaxJar.outputs.files)
-  testImplementation files(relocatedJavaxJar.outputs.files)
+  compileOnly files(relocatedJavaxJarFile)
+  testImplementation files(relocatedJavaxJarFile)
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   testImplementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   testImplementation group: 'jakarta.servlet.jsp', name: 'jakarta.servlet.jsp-api', version: '3.0.0'
@@ -90,5 +91,5 @@ dependencies {
 }
 
 tasks.named("jar", Jar) {
-  from zipTree(relocatedJavaxJar.outputs.files.asPath)
+  from zipTree(relocatedJavaxJarFile)
 }
