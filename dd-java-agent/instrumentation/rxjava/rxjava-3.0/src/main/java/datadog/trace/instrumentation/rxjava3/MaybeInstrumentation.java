@@ -37,7 +37,7 @@ public final class MaybeInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onConstruct(@Advice.This final Maybe<?> maybe) {
       Context parentContext = Java8BytecodeBridge.getCurrentContext();
-      if (parentContext != null && parentContext != Java8BytecodeBridge.getRootContext()) {
+      if (parentContext != Java8BytecodeBridge.getRootContext()) {
         InstrumentationContext.get(Maybe.class, Context.class).put(maybe, parentContext);
       }
     }

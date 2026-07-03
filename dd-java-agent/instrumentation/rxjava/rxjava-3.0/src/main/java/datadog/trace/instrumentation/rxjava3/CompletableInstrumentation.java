@@ -38,7 +38,7 @@ public final class CompletableInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onConstruct(@Advice.This final Completable completable) {
       Context parentContext = Java8BytecodeBridge.getCurrentContext();
-      if (parentContext != null && parentContext != Java8BytecodeBridge.getRootContext()) {
+      if (parentContext != Java8BytecodeBridge.getRootContext()) {
         InstrumentationContext.get(Completable.class, Context.class)
             .put(completable, parentContext);
       }

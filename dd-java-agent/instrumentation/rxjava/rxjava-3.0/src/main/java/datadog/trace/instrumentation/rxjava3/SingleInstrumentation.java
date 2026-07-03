@@ -38,7 +38,7 @@ public final class SingleInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onConstruct(@Advice.This final Single<?> single) {
       Context parentContext = Java8BytecodeBridge.getCurrentContext();
-      if (parentContext != null && parentContext != Java8BytecodeBridge.getRootContext()) {
+      if (parentContext != Java8BytecodeBridge.getRootContext()) {
         InstrumentationContext.get(Single.class, Context.class).put(single, parentContext);
       }
     }
