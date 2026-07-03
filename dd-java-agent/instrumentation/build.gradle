@@ -120,13 +120,37 @@ if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleRep
 
 tasks.named('shadowJar', ShadowJar) {
   duplicatesStrategy = DuplicatesStrategy.FAIL
+  // Shadow 8.x silently wrote duplicate class (130+) entries into the instrumentation jar.
+  // Those duplicate entries did not survive as duplicates in the final agent jar,
+  // because `:dd-java-agent:expandAgentShadowJarInst` expands the instrumentation jar
+  // with a `Sync` task, and the specific `inst` expansion keeps the first duplicate path.
+  // (explicit `duplicatesStrategy = DuplicatesStrategy.EXCLUDE` on the `inst` prefix).
+  //
+  // Shadow 9 refactored deeply it's "copy" pipeline via https://github.com/GradleUp/shadow/pull/1233
+  // by `Project.zipTree` and can now honor `DuplicatesStrategy`, see in particular
+  // * https://github.com/GradleUp/shadow/issues/1223 - Duplicates from jars are not handled per duplicatesStrategy
+  // * https://github.com/GradleUp/shadow/issues/488 - DuplicatesStrategy.FAIL doesn't work with transform
+  //
+  // Keeping `duplicatesStrategy = FAIL` only, Shadow 9 now fails while creating the instrumentation jar.
+  filesMatching([
+    // agent-installer also publishes this Java 11 source-set output at runtime.
+    'datadog/trace/agent/tooling/bytebuddy/DDJava9ClassFileTransformer*.class',
+    // agent-installer also publishes this Java 25 source-set output at runtime.
+    'datadog/trace/agent/tooling/servicediscovery/MemFDUnixWriterFFM*.class',
+    // aggregate instrumentation includes some classes directly and via jars.
+    'datadog/trace/instrumentation/**/*.class',
+    // same aggregate duplication, for Java 11 exception profiling advice.
+    'datadog/exceptions/instrumentation/**/*.class',
+  ]) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  }
   dependencies {
     // the tracer is now in a separate shadow jar
     exclude(project(":dd-trace-core"))
     exclude(dependency('com.datadoghq:sketches-java'))
     exclude(dependency('com.google.re2j:re2j'))
+    deps.excludeShared.execute(it)
   }
-  dependencies deps.excludeShared
 }
 
 // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
