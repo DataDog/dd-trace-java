@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 final class FlagEvaluationAggregator {
@@ -39,7 +40,7 @@ final class FlagEvaluationAggregator {
   final Map<DegradedKey, EvalBucket> degradedTier = new HashMap<>();
   final Map<String, Integer> perFlagCount = new HashMap<>();
   final AtomicLong droppedDegradedOverflow = new AtomicLong(0);
-  int globalFullCount = 0;
+  final AtomicInteger globalFullCount = new AtomicInteger(0);
 
   void aggregate(final FlagEvalEvent event) {
     final boolean isDefault = event.variant == null;
@@ -54,7 +55,7 @@ final class FlagEvaluationAggregator {
     }
 
     final int flagCount = perFlagCount.getOrDefault(event.flagKey, 0);
-    if (globalFullCount < GLOBAL_CAP && flagCount < PER_FLAG_CAP) {
+    if (globalFullCount.get() < GLOBAL_CAP && flagCount < PER_FLAG_CAP) {
       fullTier.put(
           fullKey,
           new EvalBucket(
@@ -66,7 +67,7 @@ final class FlagEvaluationAggregator {
               event.evalTimeMs,
               isDefault,
               prunedAttrs));
-      globalFullCount++;
+      globalFullCount.incrementAndGet();
       perFlagCount.put(event.flagKey, flagCount + 1);
       return;
     }
@@ -128,7 +129,7 @@ final class FlagEvaluationAggregator {
     fullTier.clear();
     degradedTier.clear();
     perFlagCount.clear();
-    globalFullCount = 0;
+    globalFullCount.set(0);
   }
 
   AggregatedState snapshot() {
@@ -137,12 +138,12 @@ final class FlagEvaluationAggregator {
   }
 
   void simulateFullTierAtCap() {
-    for (int i = globalFullCount; i < GLOBAL_CAP; i++) {
+    for (int i = globalFullCount.get(); i < GLOBAL_CAP; i++) {
       final String key = "synthetic-full-" + i;
       fullTier.put(
           new FullKey(key, "on", "alloc", false, null, null, ""),
           new EvalBucket(key, "on", "alloc", null, null, 1L, false, null));
-      globalFullCount++;
+      globalFullCount.incrementAndGet();
       perFlagCount.merge(key, 1, Integer::sum);
     }
   }
