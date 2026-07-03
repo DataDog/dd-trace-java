@@ -19,6 +19,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -34,6 +36,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.core.DDCoreJavaSpecification;
 import java.io.ByteArrayInputStream;
@@ -1084,28 +1087,19 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
   @Test
   @SuppressWarnings("unchecked")
-  void processRequestEndInvokesRequestEndedCallbackWithRequestContext() {
-    Object mockAppSecContext = new Object();
+  void processRequestEndInvokesCallbackAndSkipsAsmTagsWhenNotManuallyKept() {
+    AppSecContext mockAppSecContext = mock(AppSecContext.class);
+    when(mockAppSecContext.isManuallyKept()).thenReturn(false);
+    TraceSegment mockTraceSegment = mock(TraceSegment.class);
     RequestContext mockRequestContext = mock(RequestContext.class);
     when(mockRequestContext.getData(RequestContextSlot.APPSEC)).thenReturn(mockAppSecContext);
+    when(mockRequestContext.getTraceSegment()).thenReturn(mockTraceSegment);
     AgentSpan span = mock(AgentSpan.class);
     when(span.getRequestContext()).thenReturn(mockRequestContext);
 
-    boolean[] callbackInvoked = {false};
-    RequestContext[] capturedContext = {null};
-    AgentSpan[] capturedSpan = {null};
-
     BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCallback =
         mock(BiFunction.class);
-    doAnswer(
-            inv -> {
-              callbackInvoked[0] = true;
-              capturedContext[0] = inv.getArgument(0);
-              capturedSpan[0] = inv.getArgument(1);
-              return new Flow.ResultFlow<>(null);
-            })
-        .when(requestEndedCallback)
-        .apply(any(RequestContext.class), any());
+    when(requestEndedCallback.apply(any(), any())).thenReturn(new Flow.ResultFlow<>(null));
 
     CallbackProvider mockCallbackProvider = mock(CallbackProvider.class);
     when(mockCallbackProvider.getCallback(EVENTS.requestEnded())).thenReturn(requestEndedCallback);
@@ -1117,9 +1111,8 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
 
     LambdaAppSecHandler.processRequestEnd(span);
 
-    assertTrue(callbackInvoked[0]);
-    assertEquals(mockRequestContext, capturedContext[0]);
-    assertEquals(span, capturedSpan[0]);
+    verify(requestEndedCallback).apply(mockRequestContext, span);
+    verify(mockTraceSegment, never()).setTagTop(any(), any());
   }
 
   @Test
@@ -1136,8 +1129,40 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
         .thenReturn(mockCallbackProvider);
     AgentTracer.forceRegister(mockTracer);
 
+    assertDoesNotThrow(() -> LambdaAppSecHandler.processRequestEnd(span));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void processRequestEndSetsAsmKeepTagWhenAppSecContextIsManuallyKept() {
+    AppSecContext manuallyKeptCtx = mock(AppSecContext.class);
+    when(manuallyKeptCtx.isManuallyKept()).thenReturn(true);
+
+    TraceSegment mockTraceSegment = mock(TraceSegment.class);
+    RequestContext mockRequestContext = mock(RequestContext.class);
+    when(mockRequestContext.getData(RequestContextSlot.APPSEC)).thenReturn(manuallyKeptCtx);
+    when(mockRequestContext.getTraceSegment()).thenReturn(mockTraceSegment);
+
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.getRequestContext()).thenReturn(mockRequestContext);
+
+    BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCallback =
+        mock(BiFunction.class);
+    when(requestEndedCallback.apply(any(), any())).thenReturn(new Flow.ResultFlow<>(null));
+
+    CallbackProvider mockCallbackProvider = mock(CallbackProvider.class);
+    when(mockCallbackProvider.getCallback(EVENTS.requestEnded())).thenReturn(requestEndedCallback);
+
+    AgentTracer.TracerAPI mockTracer = mock(AgentTracer.TracerAPI.class);
+    when(mockTracer.getCallbackProvider(RequestContextSlot.APPSEC))
+        .thenReturn(mockCallbackProvider);
+    AgentTracer.forceRegister(mockTracer);
+
     LambdaAppSecHandler.processRequestEnd(span);
-    // no exception expected
+
+    verify(requestEndedCallback).apply(mockRequestContext, span);
+    verify(mockTraceSegment).setTagTop(Tags.ASM_KEEP, true);
+    verify(mockTraceSegment).setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
   }
 
   // ============================================================================

@@ -6,6 +6,8 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -20,6 +22,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import java.io.ByteArrayInputStream;
@@ -118,6 +121,17 @@ public class LambdaAppSecHandler {
         requestEndedCallback.apply(requestContext, span);
       } else {
         log.debug("requestEnded callback is null");
+      }
+
+      // In Lambda, the WAF runs in processRequestStart before the span exists.
+      // GatewayBridge propagates ASM_KEEP based on WAF attack events, but not on
+      // isManuallyKept(), which is set by trace-tagging rules that produce no events.
+      // Apply it here so those traces are not silently dropped.
+      AppSecContext appSecCtx = requestContext.getData(RequestContextSlot.APPSEC);
+      if (appSecCtx != null && appSecCtx.isManuallyKept()) {
+        TraceSegment traceSeg = requestContext.getTraceSegment();
+        traceSeg.setTagTop(Tags.ASM_KEEP, true);
+        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
       }
     }
   }
