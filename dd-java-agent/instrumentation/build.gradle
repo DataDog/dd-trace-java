@@ -137,10 +137,9 @@ tasks.named('shadowJar', ShadowJar) {
     'datadog/trace/agent/tooling/bytebuddy/DDJava9ClassFileTransformer*.class',
     // agent-installer also publishes this Java 25 source-set output at runtime.
     'datadog/trace/agent/tooling/servicediscovery/MemFDUnixWriterFFM*.class',
-    // aggregate instrumentation includes some classes directly and via jars.
-    'datadog/trace/instrumentation/**/*.class',
-    // same aggregate duplication, for Java 11 exception profiling advice.
-    'datadog/exceptions/instrumentation/**/*.class',
+    // jakarta-servlet-5.0 publishes the relocated advice jar as a runtime
+    // file dependency while also folding those classes into its own jar.
+    'datadog/trace/instrumentation/servlet5/**/*.class',
   ]) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
   }
