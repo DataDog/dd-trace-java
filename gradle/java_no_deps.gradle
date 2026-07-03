@@ -105,13 +105,33 @@ class TracerJavaExtension {
       }
     }
 
-    // "socket-utils" is only set to compileOnly because the implementation dependency incorrectly adds Java17 classes to all jar prefixes.
-    // This causes the AgentJarIndex to search for other non-Java17 classes in the wrong prefix location and fail to resolve class names.
     if (sourceSetConfig.compileOnly.orElse(false).get()) {
+      // The ":utils:socket-utils" is only set to `compileOnly` because the `implementation` dependency
+      // adds Java17 classes to all jar prefixes, which is incorrect for this project.
+      // This causes the AgentJarIndex to search for other non-Java17 classes in the wrong prefix
+      // location and to fail to resolve class names.
       project.dependencies.add("compileOnly", mainForJavaVersionSourceSet.output)
     } else {
+      // Wire this additional source-set into this project without publishing its raw output
+      // (handled by the jar configuration). The following
+      //
+      // * make this additional source-set's _compile classpath_ visible to **main compilation** through `compileOnly`
+      // * make this additional source-set's _compiled output_ visible to **main compilation** through `compileOnly`
+      // * make this additional source-set's _compiled output_ visible to tests through `testImplementation`
+      //
+      // The jar task produces the artifact that consumer wants to see, and it is configured
+      // below to add classes of this additional source-set.
+      //
+      // NOTE:
+      // We don't want to add this source-set's output to the `implementation` configuration!
+      // Otherwise this additional source-set output directory (where classes are) would end up
+      // being published as a runtime dependency through `runtimeElements`.
+      // The `runtimeElements` configuration publishes the jar artifact by default ; thus
+      // `runtimeElements` would have both the jar, and the added output folder.
+      // In short this makes classes of this extra source-set in both the jar and the directory.
       project.dependencies.add("compileOnly", project.files(mainForJavaVersionSourceSet.compileClasspath))
-      project.dependencies.add("implementation", mainForJavaVersionSourceSet.output)
+      project.dependencies.add("compileOnly", mainForJavaVersionSourceSet.output)
+      project.dependencies.add("testImplementation", mainForJavaVersionSourceSet.output)
     }
 
     project.tasks.named("jar", Jar) {
