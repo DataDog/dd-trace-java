@@ -25,7 +25,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 @WithConfig(key = "trace.otel.enabled", value = "true")
-@WithConfig(key = "integration.opentelemetry-annotations-1.20.enabled", value = "true")
 class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
 
   static final String EXCEPTION_MESSAGE = "Test exception";
