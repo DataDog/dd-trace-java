@@ -103,7 +103,8 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
         return;
       }
 
-      ScenarioResult finalResult = scenarioRuntime.result;
+      ScenarioResult originalResult = scenarioRuntime.result;
+      ScenarioResult finalResult = originalResult;
 
       TestExecutionPolicy executionPolicy = context.getExecutionPolicy();
       while (executionPolicy.applicable()) {
@@ -115,7 +116,12 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
         finalResult = retry.result;
       }
 
-      KarateUtils.setResult(scenarioRuntime, finalResult);
+      // When the scenario is retried, the original runtime's result must reflect the final
+      // attempt's outcome. To avoid final field modifications, the final attempt's failure is
+      // reflected onto the original result via addStepResult
+      if (finalResult.isFailed() && !originalResult.isFailed()) {
+        originalResult.addStepResult(finalResult.getFailedStep());
+      }
 
       CallDepthThreadLocalMap.reset(ScenarioRuntime.class);
     }
@@ -140,7 +146,10 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
           return;
         }
 
-        if (executionContext.getAndResetSuppressFailures()) {
+        // Suppress every failing step of a to-be-retried attempt (not just the first): with
+        // continueOnStepFailure a single attempt can add multiple failing steps, and any leak would
+        // mark the original runtime's result failed
+        if (executionContext.shouldSuppressFailures()) {
           stepResult = new StepResult(stepResult.getStep(), KarateUtils.abortedResult());
           stepResult.setFailedReason(result.getError());
           stepResult.setErrorIgnored(true);

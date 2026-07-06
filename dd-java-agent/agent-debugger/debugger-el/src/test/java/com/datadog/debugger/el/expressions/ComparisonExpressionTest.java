@@ -1,5 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static com.datadog.debugger.el.ValueType.DOUBLE;
 import static com.datadog.debugger.el.ValueType.FLOAT;
@@ -14,6 +15,7 @@ import static com.datadog.debugger.el.expressions.ComparisonOperator.LE;
 import static com.datadog.debugger.el.expressions.ComparisonOperator.LT;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.ObjectValue;
@@ -41,7 +43,7 @@ class ComparisonExpressionTest {
       boolean expected,
       String prettyPrint) {
     ComparisonExpression expression = new ComparisonExpression(left, right, operator);
-    assertEquals(expected, expression.evaluate(NoopResolver.INSTANCE));
+    assertEquals(expected, expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
     assertEquals(prettyPrint, print(expression));
   }
 
@@ -243,7 +245,7 @@ class ComparisonExpressionTest {
       boolean expected,
       String prettyPrint) {
     ComparisonExpression expression = new ComparisonExpression(left, right, operator);
-    assertEquals(expected, expression.evaluate(NoopResolver.INSTANCE));
+    assertEquals(expected, expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
     assertEquals(prettyPrint, print(expression));
   }
 
@@ -273,35 +275,35 @@ class ComparisonExpressionTest {
   void evaluateSecondUndefined() {
     ComparisonExpression expression =
         new ComparisonExpression(new NumericValue(1, INT), ValueExpression.UNDEFINED, EQ);
-    assertFalse(expression.evaluate(NoopResolver.INSTANCE));
+    assertFalse(expression.evaluate(new EvalContext(NoopResolver.INSTANCE, null)));
   }
 
   @Test
   void evaluateBothUndefined() {
     ComparisonExpression expression =
         new ComparisonExpression(ValueExpression.UNDEFINED, ValueExpression.UNDEFINED, EQ);
-    assertFalse(expression.evaluate(NoopResolver.INSTANCE));
+    assertFalse(expression.evaluate(new EvalContext(NoopResolver.INSTANCE, null)));
   }
 
   @Test
   void evaluateFirstNull() {
     ComparisonExpression expression =
         new ComparisonExpression(ValueExpression.NULL, new NumericValue(2, INT), EQ);
-    assertFalse(expression.evaluate(NoopResolver.INSTANCE));
+    assertFalse(expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
   }
 
   @Test
   void evaluateSecondNull() {
     ComparisonExpression expression =
         new ComparisonExpression(new NumericValue(1, INT), ValueExpression.NULL, EQ);
-    assertFalse(expression.evaluate(NoopResolver.INSTANCE));
+    assertFalse(expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
   }
 
   @Test
   void evaluateBothNull() {
     ComparisonExpression expression =
         new ComparisonExpression(ValueExpression.NULL, ValueExpression.NULL, EQ);
-    assertTrue(expression.evaluate(NoopResolver.INSTANCE));
+    assertTrue(expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
   }
 
   @Test
@@ -309,7 +311,9 @@ class ComparisonExpressionTest {
     ComparisonExpression expression =
         new ComparisonExpression(new StringValue("foo"), new NumericValue(1, INT), INSTANCEOF);
     EvaluationException evaluationException =
-        assertThrows(EvaluationException.class, () -> expression.evaluate(NoopResolver.INSTANCE));
+        assertThrows(
+            EvaluationException.class,
+            () -> expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
     assertEquals(
         "Right operand of instanceof operator must be a string literal",
         evaluationException.getMessage());
@@ -321,7 +325,9 @@ class ComparisonExpressionTest {
     ComparisonExpression expression =
         new ComparisonExpression(new StringValue("foo"), new StringValue("String"), INSTANCEOF);
     EvaluationException evaluationException =
-        assertThrows(EvaluationException.class, () -> expression.evaluate(NoopResolver.INSTANCE));
+        assertThrows(
+            EvaluationException.class,
+            () -> expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
     assertEquals("Class not found: String", evaluationException.getMessage());
     assertEquals("\"foo\" instanceof \"String\"", evaluationException.getExpr());
   }
