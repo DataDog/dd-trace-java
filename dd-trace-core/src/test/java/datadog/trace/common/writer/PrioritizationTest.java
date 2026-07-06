@@ -17,7 +17,7 @@ import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult;
 import datadog.trace.core.DDSpan;
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
+import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.Collections;
 import java.util.List;
