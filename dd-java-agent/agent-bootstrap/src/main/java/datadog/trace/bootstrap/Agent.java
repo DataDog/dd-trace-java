@@ -1360,22 +1360,14 @@ public class Agent {
   }
 
   /**
-   * Prepares carrier-scoped OTEL context storage for the Datadog profiler before it is loaded.
+   * Exports {@code jdk.internal.misc} to the classloader that loads {@code
+   * com.datadoghq.profiler.*} before the Datadog profiler is loaded.
    *
-   * <p>On JDK 21+, the profiler can scope its context {@code ThreadContext} storage to the carrier
+   * <p>On JDK 21+, the profiler scopes its context {@code ThreadContext} storage to the carrier
    * thread using {@code jdk.internal.misc.CarrierThreadLocal}, so a mounted virtual thread resolves
    * to its current carrier's record — fixing a virtual-thread context use-after-free. That type
-   * lives in a non-exported package, so we export it to the classloader that loads {@code
-   * com.datadoghq.profiler.*}, and request carrier scoping via the profiler's {@code
-   * ddprof.debug.context.storage.mode} system property, which it reads at construction.
-   *
-   * <p>Both actions are inert against profiler builds that predate carrier support (the property is
-   * ignored; the export goes unused), so this is safe to ship ahead of the corresponding
-   * java-profiler version bump — it simply activates when that lands.
-   *
-   * <p>Operators disable it with {@code -Dddprof.debug.context.storage.mode=thread} (or select {@code
-   * auto}); we only set the property when it is unset, so an explicit choice always wins. Must run
-   * before {@code installDatadogTracer}, which loads the profiler via {@link
+   * lives in a non-exported package, hence the export. Must run before {@code
+   * installDatadogTracer}, which loads the profiler via {@link
    * #createProfilingContextIntegration()}.
    */
   private static void prepareDatadogProfilerContextStorage(Instrumentation inst) {
@@ -1387,17 +1379,10 @@ public class Agent {
           || !isJavaVersionAtLeast(21)) {
         return;
       }
-      // Export jdk.internal.misc to the profiler's classloader so CarrierThreadLocal is reachable.
-      // Harmless when unused (e.g. thread mode, or a profiler build without carrier support).
       JDK9ModuleAccess.exportModuleToUnnamedModule(
           inst, "java.base", new String[] {"jdk.internal.misc"}, AGENT_CLASSLOADER);
-      // Request carrier scoping unless an operator has explicitly set the profiler's mode property
-      // (which also serves as the kill-switch: -Dddprof.debug.context.storage.mode=thread).
-      if (SystemProperties.get("ddprof.debug.context.storage.mode") == null) {
-        SystemProperties.set("ddprof.debug.context.storage.mode", "carrier");
-      }
     } catch (Throwable t) {
-      log.debug("Unable to prepare carrier-scoped profiler context storage", t);
+      log.debug("Unable to export jdk.internal.misc for the Datadog profiler", t);
     }
   }
 
