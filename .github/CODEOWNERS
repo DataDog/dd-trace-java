@@ -167,7 +167,6 @@
 
 # @DataDog/feature-flagging-and-experimentation-sdk
 /dd-smoke-tests/openfeature/                                    @DataDog/feature-flagging-and-experimentation-sdk
-/dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data @DataDog/feature-flagging-and-experimentation-sdk
 /products/feature-flagging/                                     @DataDog/feature-flagging-and-experimentation-sdk
 
 # @DataDog/profiling-java
