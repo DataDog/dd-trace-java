@@ -208,8 +208,10 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span = activeSpan();
       if (span == null) return;
       Config config = Config.get();
+      final boolean isDefaultExchange = exchange == null || exchange.isEmpty();
+      final String destination = isDefaultExchange ? routingKey : exchange;
       if (!config.isRabbitPropagationEnabled()
-          || config.isRabbitPropagationDisabledForDestination(exchange)) return;
+          || config.isRabbitPropagationDisabledForDestination(destination)) return;
       // This is the internal behavior when props are null.  We're just doing it earlier now.
       if (props == null) {
         props = MessageProperties.MINIMAL_BASIC;
@@ -222,11 +224,7 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       }
       final boolean hasRoutingKey = routingKey != null && !routingKey.isEmpty();
       DataStreamsTags tags;
-      if ((exchange == null || exchange.isEmpty()) && hasRoutingKey) {
-        // Publishing to the default exchange: the routing key is the destination queue
-        // name, so record it as the topic (matching the consumer checkpoint). Without
-        // this the producer has neither a topic nor an exchange and shows up disconnected
-        // in the data streams map.
+      if (isDefaultExchange && hasRoutingKey) {
         tags = create("rabbitmq", OUTBOUND, routingKey);
       } else {
         tags = createWithExchange("rabbitmq", OUTBOUND, exchange, hasRoutingKey);

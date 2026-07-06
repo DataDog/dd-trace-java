@@ -14,6 +14,7 @@ import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.datastreams.PathwayContext
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -687,6 +688,49 @@ abstract class RabbitMQTestBase extends VersionedNamingTestBase {
     "deliver" | "some-exchange" | "some-routing-key" | "queueNameTest" | "queueNameTest" | true
     "deliver" | "some-exchange" | "some-routing-key" | "queueNameTest" | "some-exchange" | false
     "deliver" | "some-exchange" | "some-routing-key" | "queueNameTest" | ""              | false
+  }
+
+  def "test rabbit publish to default exchange with queue name in disabled queues (producer side)"() {
+    setup:
+    removeSysConfig(RABBIT_PROPAGATION_DISABLED_QUEUES)
+    def queueName = channel.queueDeclare().getQueue()
+    injectSysConfig(RABBIT_PROPAGATION_DISABLED_QUEUES, queueName)
+
+    when:
+    runUnderTrace("parent") {
+      channel.basicPublish("", queueName, null, "Hello, world!".bytes)
+    }
+    GetResponse response = channel.basicGet(queueName, true)
+    String body = new String(response.body)
+
+    then:
+    body == "Hello, world!"
+
+    and:
+    // Publishing to the default exchange uses the routing key (i.e. the queue name) as the
+    // DSM destination, so a queue name in RABBIT_PROPAGATION_DISABLED_QUEUES must suppress
+    // the pathway header, the same way it does for named-exchange publishes.
+    if (isDataStreamsEnabled()) {
+      def headers = response.getProps().getHeaders()
+      assert headers == null || !headers.containsKey(PathwayContext.PROPAGATION_KEY_BASE64)
+    }
+
+    and:
+    assertTraces(3, SORT_TRACES_BY_ID) {
+      trace(1) {
+        rabbitSpan(it, "queue.declare")
+      }
+      trace(2) {
+        basicSpan(it, "parent")
+        rabbitSpan(it, "basic.publish <default> -> <generated>", false, span(0), operationForProducer())
+      }
+      trace(1) {
+        rabbitSpan(it, "basic.get <generated>", false, null, operationForConsumer())
+      }
+    }
+
+    cleanup:
+    removeSysConfig(RABBIT_PROPAGATION_DISABLED_QUEUES)
   }
 
   def rabbitSpan(
