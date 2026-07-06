@@ -4,7 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator.DECORATE;
 import static datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator.SPAN_ATTRIBUTE;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -20,7 +20,7 @@ public class EncodeHttpResponseAdvice3 {
       return;
     }
 
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       DECORATE.onResponse(span, message);
       DECORATE.beforeFinish(span);
       span.finish();

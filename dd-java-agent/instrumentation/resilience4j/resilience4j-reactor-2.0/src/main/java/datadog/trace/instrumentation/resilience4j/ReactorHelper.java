@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.resilience4j;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -31,7 +31,7 @@ public class ReactorHelper {
         spanDecorator.afterStart(current);
       }
       spanDecorator.decorate(current, null);
-      try (AgentScope scope = activateSpan(current)) {
+      try (ContextScope scope = activateSpan(current)) {
         Publisher<?> ret = operator.apply(value);
         attachContext.accept(ret, current);
         if (owned == null) {
