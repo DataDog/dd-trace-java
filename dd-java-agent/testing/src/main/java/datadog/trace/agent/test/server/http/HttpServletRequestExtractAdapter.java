@@ -20,6 +20,9 @@ public class HttpServletRequestExtractAdapter
   public void forEachKey(
       final HttpServletRequest carrier, final AgentPropagation.KeyClassifier classifier) {
     Enumeration<String> headerNames = carrier.getHeaderNames();
+    if (headerNames == null) {
+      return;
+    }
     while (headerNames.hasMoreElements()) {
       final String header = headerNames.nextElement();
       if (!classifier.accept(header, carrier.getHeader(header))) {

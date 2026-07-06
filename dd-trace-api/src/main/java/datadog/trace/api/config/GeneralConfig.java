@@ -34,6 +34,8 @@ public final class GeneralConfig {
   public static final String EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED =
       "experimental.propagate.process.tags.enabled";
 
+  public static final String PROCESS_TAGS_MAPPING = "process.tags.mapping";
+
   public static final String LOG_LEVEL = "log.level";
   public static final String TRACE_LOG_LEVEL = "trace.log.level";
   public static final String TRACE_DEBUG = "trace.debug";
@@ -65,6 +67,11 @@ public final class GeneralConfig {
   public static final String PERF_METRICS_ENABLED = "trace.perf.metrics.enabled";
 
   public static final String TRACE_STATS_COMPUTATION_ENABLED = "trace.stats.computation.enabled";
+  public static final String TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION =
+      "trace.stats.computation.ignore.agent.version";
+
+  public static final String TRACE_OTEL_SEMANTICS_ENABLED = "trace.otel.semantics.enabled";
+
   public static final String TRACER_METRICS_ENABLED = "trace.tracer.metrics.enabled";
   public static final String TRACER_METRICS_BUFFERING_ENABLED =
       "trace.tracer.metrics.buffering.enabled";
@@ -72,7 +79,6 @@ public final class GeneralConfig {
   public static final String TRACER_METRICS_MAX_PENDING = "trace.tracer.metrics.max.pending";
   public static final String TRACER_METRICS_IGNORED_RESOURCES =
       "trace.tracer.metrics.ignored.resources";
-
   public static final String AZURE_APP_SERVICES = "azure.app.services";
   public static final String INTERNAL_EXIT_ON_FAILURE = "trace.internal.exit.on.failure";
 
@@ -114,7 +120,6 @@ public final class GeneralConfig {
   public static final String APM_TRACING_ENABLED = "apm.tracing.enabled";
   public static final String JDK_SOCKET_ENABLED = "jdk.socket.enabled";
 
-  public static final String OPTIMIZED_MAP_ENABLED = "optimized.map.enabled";
   public static final String TAG_NAME_UTF8_CACHE_SIZE = "tag.name.utf8.cache.size";
   public static final String TAG_VALUE_UTF8_CACHE_SIZE = "tag.value.utf8.cache.size";
   public static final String SPAN_BUILDER_REUSE_ENABLED = "span.builder.reuse.enabled";

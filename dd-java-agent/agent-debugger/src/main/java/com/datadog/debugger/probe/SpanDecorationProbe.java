@@ -10,6 +10,7 @@ import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.Snapshot;
+import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
 import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
@@ -20,9 +21,11 @@ import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.TagsHelper;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -179,6 +182,18 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     this.decorations = decorations;
   }
 
+  public SpanDecorationProbe(SpanDecorationProbe.Builder builder) {
+    this(
+        builder.language,
+        builder.probeId,
+        builder.tagStrs,
+        builder.where,
+        builder.evaluateAt,
+        builder.targetSpan,
+        builder.decorations);
+    initSamplers();
+  }
+
   @Override
   public InstrumentationResult.Status instrument(
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
@@ -194,10 +209,13 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
       CapturedContext.Status status,
       MethodLocation methodLocation,
       boolean singleProbe) {
+    // Only one timeout for all conditions
+    Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
+    TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
     for (Decoration decoration : decorations) {
       if (decoration.when != null) {
         try {
-          boolean condition = decoration.when.execute(context);
+          boolean condition = decoration.when.execute(context, timeoutChecker);
           if (!condition) {
             continue;
           }
@@ -399,26 +417,25 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
 
   public static class Builder extends ProbeDefinition.Builder<SpanDecorationProbe.Builder> {
     private TargetSpan targetSpan;
-    private List<Decoration> decorate;
+    private List<Decoration> decorations;
 
     public Builder targetSpan(TargetSpan targetSpan) {
       this.targetSpan = targetSpan;
       return this;
     }
 
-    public Builder decorate(List<Decoration> decorate) {
-      this.decorate = decorate;
+    public Builder decorations(List<Decoration> decorations) {
+      this.decorations = decorations;
       return this;
     }
 
-    public Builder decorate(Decoration decoration) {
-      this.decorate = Collections.singletonList(decoration);
+    public Builder decorations(Decoration decoration) {
+      this.decorations = Collections.singletonList(decoration);
       return this;
     }
 
     public SpanDecorationProbe build() {
-      return new SpanDecorationProbe(
-          LANGUAGE, probeId, tagStrs, where, evaluateAt, targetSpan, decorate);
+      return new SpanDecorationProbe(this);
     }
   }
 }

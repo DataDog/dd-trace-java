@@ -8,7 +8,7 @@ import ognl.Ognl
 class OgnlInstrumentationSpec extends InstrumentationSpecification {
   void 'creates a new span for ognl parsing expressions'() {
     when:
-    AgentSpan span = AgentTracer.get().buildSpan("top-span").start()
+    AgentSpan span = AgentTracer.get().buildSpan("ognl", "top-span").start()
     def ognlExpr
     AgentTracer.activateSpan(span).withCloseable {
       ognlExpr = Ognl.parseExpression('foo')

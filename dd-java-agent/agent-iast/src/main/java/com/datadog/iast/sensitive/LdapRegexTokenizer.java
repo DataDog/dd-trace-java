@@ -2,7 +2,7 @@ package com.datadog.iast.sensitive;
 
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.util.Ranged;
-import java.util.regex.Pattern;
+import com.google.re2j.Pattern;
 
 /**
  * @see <a href="https://docs.ldap.com/specs/rfc4515.txt">Lightweight Directory Access Protocol
@@ -14,7 +14,7 @@ public class LdapRegexTokenizer extends AbstractRegexTokenizer {
 
   private static final Pattern LDAP_PATTERN =
       Pattern.compile(
-          String.format("\\(.*?(?:~=|=|<=|>=)(?<%s>[^)]+)\\)", LITERAL_GROUP), Pattern.MULTILINE);
+          String.format("\\(.*?(?:~=|=|<=|>=)(?P<%s>[^)]+)\\)", LITERAL_GROUP), Pattern.MULTILINE);
 
   public LdapRegexTokenizer(final Evidence evidence) {
     super(LDAP_PATTERN, evidence.getValue());

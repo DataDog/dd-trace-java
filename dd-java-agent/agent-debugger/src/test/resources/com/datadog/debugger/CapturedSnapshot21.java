@@ -1,7 +1,7 @@
 package com.datadog.debugger;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.TracerInstaller;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.CoreTracer;
@@ -24,8 +24,8 @@ public class CapturedSnapshot21 {
 
   public static int main(String arg) {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
-    AgentSpan span = tracerAPI.buildSpan("rootProcess").start();
-    try (AgentScope scope = tracerAPI.activateManualSpan(span)) {
+    AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "rootProcess").start();
+    try (ContextScope scope = tracerAPI.activateManualSpan(span)) {
       return new CapturedSnapshot21().rootProcess(arg);
     } finally {
       span.finish();
@@ -34,8 +34,8 @@ public class CapturedSnapshot21 {
 
   private int rootProcess(String arg) {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
-    AgentSpan span = tracerAPI.buildSpan("process1").start();
-    try (AgentScope scope = tracerAPI.activateManualSpan(span)) {
+    AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "process1").start();
+    try (ContextScope scope = tracerAPI.activateManualSpan(span)) {
       return process1(arg) + 1;
     } finally {
       span.finish();
@@ -44,8 +44,8 @@ public class CapturedSnapshot21 {
 
   private int process1(String arg) {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
-    AgentSpan span = tracerAPI.buildSpan("process2").start();
-    try (AgentScope scope = tracerAPI.activateManualSpan(span)) {
+    AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "process2").start();
+    try (ContextScope scope = tracerAPI.activateManualSpan(span)) {
       return process2(arg) + 1;
     } finally {
       span.finish();
@@ -54,8 +54,8 @@ public class CapturedSnapshot21 {
 
   private int process2(String arg) {
     AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
-    AgentSpan span = tracerAPI.buildSpan("process3").start();
-    try (AgentScope scope = tracerAPI.activateManualSpan(span)) {
+    AgentSpan span = tracerAPI.buildSpan("dynamic-instrumentation", "process3").start();
+    try (ContextScope scope = tracerAPI.activateManualSpan(span)) {
       return process3(arg) + 1;
     } finally {
       span.finish();

@@ -385,6 +385,35 @@ class HealthMetricsTest {
     verifyNoMoreInteractions(statsD);
   }
 
+  @Test
+  void testOnStatsAggregateDropped() throws InterruptedException {
+    // onStatsAggregateDropped emits two statsd calls: an immediate collapsed_spans count and the
+    // periodic stats.dropped_aggregates report — wait for both before verifying.
+    CountDownLatch latch = new CountDownLatch(2);
+    try (TracerHealthMetrics healthMetrics =
+        new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)) {
+      healthMetrics.start();
+      healthMetrics.onStatsAggregateDropped();
+      assertTrue(latch.await(5, TimeUnit.SECONDS));
+    }
+    verify(statsD).count("datadog.tracer.stats.collapsed_spans", 1L, "collapsed:whole_key");
+    verify(statsD).count("stats.dropped_aggregates", 1L, "reason:lru_eviction");
+    verifyNoMoreInteractions(statsD);
+  }
+
+  @Test
+  void testOnStatsInboxFull() throws InterruptedException {
+    CountDownLatch latch = new CountDownLatch(1);
+    try (TracerHealthMetrics healthMetrics =
+        new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)) {
+      healthMetrics.start();
+      healthMetrics.onStatsInboxFull();
+      assertTrue(latch.await(5, TimeUnit.SECONDS));
+    }
+    verify(statsD).count("stats.dropped_aggregates", 1L, "reason:inbox_full");
+    verifyNoMoreInteractions(statsD);
+  }
+
   private static class Latched implements StatsDClient {
     private final StatsDClient delegate;
     private final CountDownLatch latch;

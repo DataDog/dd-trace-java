@@ -4,10 +4,12 @@ import static datadog.crashtracking.ConfigManager.writeConfigToPath;
 import static datadog.crashtracking.Initializer.LOG;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getCrashUploaderTemplate;
+import static datadog.crashtracking.Initializer.isOwnedAndPrivate;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Locale.ROOT;
 
 import datadog.environment.SystemProperties;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
 import java.io.BufferedReader;
@@ -25,17 +27,17 @@ public final class CrashUploaderScriptInitializer {
 
   private CrashUploaderScriptInitializer() {}
 
-  // @VisibleForTests
-  static void initialize(String onErrorVal, String onErrorFile) {
-    initialize(onErrorVal, onErrorFile, null);
+  @VisibleForTesting
+  static boolean initialize(String onErrorVal, String onErrorFile) {
+    return initialize(onErrorVal, onErrorFile, null);
   }
 
-  // @VisibleForTests
-  static void initialize(String onErrorVal, String onErrorFile, String javacorePath) {
+  @VisibleForTesting
+  static boolean initialize(String onErrorVal, String onErrorFile, String javacorePath) {
     if (onErrorVal == null || onErrorVal.isEmpty()) {
       LOG.debug(
           SEND_TELEMETRY, "'-XX:OnError' argument was not provided. Crash tracking is disabled.");
-      return;
+      return false;
     }
     if (onErrorFile == null || onErrorFile.isEmpty()) {
       onErrorFile = SystemProperties.get("user.dir") + "/hs_err_pid" + PidHelper.getPid() + ".log";
@@ -47,14 +49,14 @@ public final class CrashUploaderScriptInitializer {
     String agentJar = findAgentJar();
     if (agentJar == null) {
       LOG.warn(SEND_TELEMETRY, "Unable to locate the agent jar. " + SETUP_FAILURE_MESSAGE);
-      return;
+      return false;
     }
 
     File scriptFile = new File(onErrorVal.replace(" %p", ""));
     boolean isDDCrashUploader =
         scriptFile.getName().toLowerCase(ROOT).contains("dd_crash_uploader");
     if (isDDCrashUploader && !copyCrashUploaderScript(scriptFile, onErrorFile, agentJar)) {
-      return;
+      return false;
     }
 
     if (javacorePath != null && !javacorePath.isEmpty()) {
@@ -62,6 +64,7 @@ public final class CrashUploaderScriptInitializer {
     } else {
       writeConfigToPath(scriptFile, "agent", agentJar, "hs_err", onErrorFile);
     }
+    return true;
   }
 
   private static boolean copyCrashUploaderScript(
@@ -75,16 +78,17 @@ public final class CrashUploaderScriptInitializer {
             scriptDirectory);
         return false;
       }
-      boolean permissionFailure = false;
-      permissionFailure |= !scriptDirectory.setReadable(true, false);
-      permissionFailure |= !scriptDirectory.setWritable(true, false);
-      permissionFailure |= !scriptDirectory.setExecutable(true, false);
-      if (permissionFailure) {
+      scriptDirectory.setReadable(true, true);
+      scriptDirectory.setWritable(true, true);
+      scriptDirectory.setExecutable(true, true);
+    } else {
+      if (!isOwnedAndPrivate(scriptDirectory)) {
         LOG.warn(
             SEND_TELEMETRY,
-            "Failed to set permissions on crash tracking script folder {}. {}",
-            scriptDirectory,
-            SETUP_FAILURE_MESSAGE);
+            "Untrusted crash tracking script folder {} (wrong owner or group/world bits set). "
+                + SETUP_FAILURE_MESSAGE,
+            scriptDirectory);
+        return false;
       }
     }
     if (!scriptDirectory.canWrite()) {
@@ -94,6 +98,13 @@ public final class CrashUploaderScriptInitializer {
     try {
       LOG.debug("Writing crash uploader script: {}", scriptFile);
       writeCrashUploaderScript(getCrashUploaderTemplate(), scriptFile, agentJar, onErrorFile);
+    } catch (UntrustedScriptException e) {
+      LOG.warn(
+          SEND_TELEMETRY,
+          "Untrusted crash uploader script {} (wrong owner or group/world-writable). "
+              + SETUP_FAILURE_MESSAGE,
+          scriptFile);
+      return false;
     } catch (IOException e) {
       LOG.warn(
           SEND_TELEMETRY,
@@ -104,6 +115,13 @@ public final class CrashUploaderScriptInitializer {
     return true;
   }
 
+  static class UntrustedScriptException extends IOException {}
+
+  /**
+   * Writes the crash uploader script if it does not already exist. When the script already exists
+   * it is validated for POSIX ownership and permissions before reuse; an untrusted script causes
+   * this method to throw {@link UntrustedScriptException} so the caller can return {@code false}.
+   */
   private static void writeCrashUploaderScript(
       InputStream template, File scriptFile, String execClass, String crashFile)
       throws IOException {
@@ -119,9 +137,13 @@ public final class CrashUploaderScriptInitializer {
           bw.newLine();
         }
       }
-      scriptFile.setReadable(true, false);
+      scriptFile.setReadable(true, true);
       scriptFile.setWritable(false, false);
-      scriptFile.setExecutable(true, false);
+      scriptFile.setExecutable(true, true);
+    } else {
+      if (!isOwnedAndPrivate(scriptFile)) {
+        throw new UntrustedScriptException();
+      }
     }
   }
 

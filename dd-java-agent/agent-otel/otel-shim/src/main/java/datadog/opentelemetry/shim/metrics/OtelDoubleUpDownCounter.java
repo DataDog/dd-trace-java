@@ -65,7 +65,7 @@ final class OtelDoubleUpDownCounter extends OtelInstrument implements DoubleUpDo
 
     @Override
     public ObservableDoubleMeasurement buildObserver() {
-      return meter.registerObservableStorage(builder, OtelMetricStorage::newDoubleSumStorage);
+      return meter.registerObservableStorage(builder, OtelMetricStorage::newDoubleDeltaStorage);
     }
 
     @Override

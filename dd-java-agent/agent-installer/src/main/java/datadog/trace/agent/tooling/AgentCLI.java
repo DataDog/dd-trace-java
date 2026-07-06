@@ -65,7 +65,7 @@ public final class AgentCLI {
 
     int numTraces = 0;
     while (++numTraces <= count || count < 0) {
-      AgentSpan span = AgentTracer.startSpan("sample");
+      AgentSpan span = AgentTracer.startSpan("datadog", "sample");
       try {
         Thread.sleep(Math.max((long) (1000.0 * interval), 1L));
       } catch (InterruptedException ignore) {

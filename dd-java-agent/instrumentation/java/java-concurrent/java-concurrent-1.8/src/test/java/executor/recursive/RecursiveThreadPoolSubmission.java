@@ -3,7 +3,7 @@ package executor.recursive;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.ExecutorService;
 
@@ -25,8 +25,8 @@ public class RecursiveThreadPoolSubmission implements Runnable {
     if (depth == maxDepth) {
       return;
     }
-    AgentSpan span = startSpan(String.valueOf(depth));
-    try (AgentScope scope = activateSpan(span)) {
+    AgentSpan span = startSpan("test", String.valueOf(depth));
+    try (ContextScope scope = activateSpan(span)) {
       executor.submit(new RecursiveThreadPoolSubmission(executor, maxDepth, depth + 1));
     } finally {
       span.finish();

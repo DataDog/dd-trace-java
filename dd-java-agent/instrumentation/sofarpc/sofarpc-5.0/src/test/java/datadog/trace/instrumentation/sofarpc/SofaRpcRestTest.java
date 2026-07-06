@@ -79,7 +79,7 @@ public class SofaRpcRestTest extends AbstractInstrumentationTest {
   void clientAndServerSpansForRestCall() throws InterruptedException, TimeoutException {
     String serviceUniqueName = RestGreeterService.class.getName() + ":1.0";
 
-    AgentSpan callerSpan = startSpan("caller");
+    AgentSpan callerSpan = startSpan("test", "caller");
     AgentScope callerScope = activateSpan(callerSpan);
     String reply;
     try {

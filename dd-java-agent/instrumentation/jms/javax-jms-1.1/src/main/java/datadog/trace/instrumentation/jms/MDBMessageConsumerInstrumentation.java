@@ -85,7 +85,7 @@ public final class MDBMessageConsumerInstrumentation
       if (CallDepthThreadLocalMap.incrementCallDepth(MessageListener.class) > 0) {
         return null;
       }
-      AgentSpan span = startSpan(JMS_CONSUME);
+      AgentSpan span = startSpan("jms", JMS_CONSUME);
       CONSUMER_DECORATE.afterStart(span);
       CharSequence consumerResourceName;
       try {

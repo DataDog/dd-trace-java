@@ -9,15 +9,18 @@ import com.datadog.debugger.instrumentation.CapturedContextInstrumenter;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
+import datadog.trace.api.Config;
 import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContextProbe;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -51,6 +54,11 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
 
   public TriggerProbe(ProbeId probeId, Where where) {
     this(probeId, null, where, null, null);
+  }
+
+  public TriggerProbe(TriggerProbe.Builder builder) {
+    this(builder.probeId, builder.tagStrs, builder.where, builder.probeCondition, builder.sampling);
+    initSamplers();
   }
 
   @Override
@@ -129,7 +137,8 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
     }
     long start = System.nanoTime();
     try {
-      return probeCondition.execute(capture);
+      Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
+      return probeCondition.execute(capture, TimeoutChecker.create(Config.get(), timeout));
     } catch (Exception ex) {
       DebuggerAgent.getSink().getProbeStatusSink().addError(probeId, ex);
       return false;
@@ -144,7 +153,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
 
     AgentSpan agentSpan = tracerAPI.activeSpan().getLocalRootSpan();
     agentSpan.setTag(Tags.PROPAGATED_DEBUG, sessionId + ":1");
-    agentSpan.setTag(format("_dd.ld.probe_id.%s", probeId.getId()), true);
+    agentSpan.setTag(format("_dd.ld.probe_id.%s", getProbeId().getId()), true);
   }
 
   @Override
@@ -196,5 +205,28 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
         Arrays.toString(tags),
         version,
         where);
+  }
+
+  public static TriggerProbe.Builder builder() {
+    return new TriggerProbe.Builder();
+  }
+
+  public static class Builder extends ProbeDefinition.Builder<TriggerProbe.Builder> {
+    private ProbeCondition probeCondition;
+    private Sampling sampling;
+
+    public TriggerProbe.Builder when(ProbeCondition probeCondition) {
+      this.probeCondition = probeCondition;
+      return this;
+    }
+
+    public TriggerProbe.Builder sampling(Sampling sampling) {
+      this.sampling = sampling;
+      return this;
+    }
+
+    public TriggerProbe build() {
+      return new TriggerProbe(this);
+    }
   }
 }

@@ -39,7 +39,7 @@ class HandlerMappingResourceNameFilterForkedTest extends InstrumentationSpecific
 
     when:
     runUnderTrace("test-servlet", {
-      request.setAttribute(DD_CONTEXT_ATTRIBUTE, activeSpan().context())
+      request.setAttribute(DD_CONTEXT_ATTRIBUTE, activeSpan().spanContext())
       filter.doFilterInternal(request, response, filterChain)
     })
 

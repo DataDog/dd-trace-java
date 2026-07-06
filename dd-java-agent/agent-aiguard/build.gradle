@@ -2,10 +2,10 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.version-file'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/version.gradle"
 
 java {
   sourceCompatibility = JavaVersion.VERSION_1_8
@@ -34,4 +34,3 @@ tasks.named("shadowJar", ShadowJar) {
 tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }
-

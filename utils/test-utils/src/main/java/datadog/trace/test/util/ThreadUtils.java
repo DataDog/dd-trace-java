@@ -9,30 +9,53 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class ThreadUtils {
 
+  /** A {@link Runnable} whose {@link #run()} may throw a checked exception. */
+  @FunctionalInterface
+  public interface ThrowingRunnable {
+    void run() throws Throwable;
+  }
+
   /**
-   * Utility to easily run a Closure in parallel, i.e. in spock like this:
+   * Utility to easily run a piece of code in parallel, e.g. in a JUnit test like this:
    *
    * <pre>{@code
-   * def "some test"() {
-   *   expect:
-   *   runConcurrently(10, 100, {
-   *     def something = ...
-   *     def other = ...
-   *     assert something == other
-   *   })
-   * }
+   * runConcurrently(
+   *     10,
+   *     100,
+   *     () -> {
+   *       Object something = computeSomething();
+   *       Object other = computeOther();
+   *       assertEquals(something, other);
+   *     });
    * }</pre>
-   *
-   * Writing a spock extension was investigated, but it is not possible to run an Invocation
-   * multiple times concurrently since a lot of the spock internal state and mock scoping is not
-   * thread safe.
    *
    * @param concurrency the number of concurrent invocations
    * @param totalInvocations the total number of invocations
-   * @param closure the closure to run
-   * @return true if everything went well
+   * @param runnable the code to run
+   * @return {@code true} if everything went well
    * @throws Throwable if anything went wrong
    */
+  public static boolean runConcurrently(
+      final int concurrency, final int totalInvocations, final ThrowingRunnable runnable)
+      throws Throwable {
+    return runConcurrently(
+        concurrency,
+        totalInvocations,
+        new Closure<Void>(null) {
+          @Override
+          public Void call() {
+            try {
+              runnable.run();
+            } catch (RuntimeException | Error e) {
+              throw e;
+            } catch (Throwable t) {
+              throw new RuntimeException(t);
+            }
+            return null;
+          }
+        });
+  }
+
   public static boolean runConcurrently(
       final int concurrency, final int totalInvocations, final Closure<Void> closure)
       throws Throwable {

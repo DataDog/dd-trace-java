@@ -27,7 +27,7 @@ class HttpMessageConverterInstrumentationTest extends InstrumentationSpecificati
   def setup() {
     publishedBodies.clear()
     TagContext ctx = new TagContext().withRequestContextDataAppSec(new Object())
-    def span = AgentTracer.startSpan('test-span', ctx)
+    def span = AgentTracer.startSpan('test', 'test-span', ctx)
     scope = AgentTracer.activateSpan(span)
 
     ss.registerCallback(EVENTS.requestBodyProcessed(), { RequestContext reqCtx, Object body ->

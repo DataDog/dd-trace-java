@@ -85,10 +85,10 @@ public final class GenerationalUtf8Cache implements EncodingCache {
 
   static final int MAX_ENTRY_LEN = 256;
 
-  private final CacheEntry[] edenEntries;
+  final CacheEntry[] edenEntries;
   private final int[] edenMarkers;
 
-  private final CacheEntry[] tenuredEntries;
+  final CacheEntry[] tenuredEntries;
 
   private long accessTimeMs;
   private double promotionThreshold = INITIAL_PROMOTION_THRESHOLD;
@@ -120,7 +120,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
   public GenerationalUtf8Cache(int edenCapacity, int tenuredCapacity) {
     this.accessTimeMs = System.currentTimeMillis();
 
-    int edenSize = Caching.cacheSizeFor(Math.min(tenuredCapacity, MAX_EDEN_CAPACITY));
+    int edenSize = Caching.cacheSizeFor(Math.min(edenCapacity, MAX_EDEN_CAPACITY));
     this.edenEntries = new CacheEntry[edenSize];
     this.edenMarkers = new int[edenSize];
 
@@ -136,14 +136,14 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     return this.tenuredEntries.length;
   }
 
-  /** Updates access time used @link {@link #getUtf8(String, String)} to the provided value */
+  /** Updates the access time used by {@link #getUtf8(String)} to the provided value. */
   @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
   public void updateAccessTime(long accessTimeMs) {
     this.accessTimeMs = accessTimeMs;
   }
 
   /** Updates access time to the @link {@link System#currentTimeMillis()} */
-  public void refreshAcessTime() {
+  public void refreshAccessTime() {
     this.updateAccessTime(System.currentTimeMillis());
   }
 
@@ -215,14 +215,13 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     if (value.length() > MAX_ENTRY_LEN) return CacheEntry.utf8(value);
 
     int adjHash = Caching.adjHash(value);
-    long lookupTimeMs = this.accessTimeMs;
 
     CacheEntry[] tenuredEntries = this.tenuredEntries;
     int matchingTenuredIndex = lookupEntryIndex(tenuredEntries, MAX_TENURED_PROBES, adjHash, value);
     if (matchingTenuredIndex != -1) {
       CacheEntry tenuredEntry = tenuredEntries[matchingTenuredIndex];
 
-      tenuredEntry.hit(lookupTimeMs);
+      tenuredEntry.hit(accessTimeMs);
 
       this.tenuredHits += 1;
       return tenuredEntry.utf8();
@@ -233,7 +232,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     if (matchingEdenIndex != -1) {
       CacheEntry edenEntry = edenEntries[matchingEdenIndex];
 
-      double hits = edenEntry.hit(lookupTimeMs);
+      double hits = edenEntry.hit(accessTimeMs);
       if (hits > this.promotionThreshold) {
         // mark promoted first - to avoid racy insertions
         this.promotions += 1;
@@ -256,8 +255,8 @@ public final class GenerationalUtf8Cache implements EncodingCache {
 
     CacheEntry newEntry = new CacheEntry(adjHash, value);
     // First request was swallowed by marking, so double hit
-    newEntry.hit(lookupTimeMs);
-    newEntry.hit(lookupTimeMs);
+    newEntry.hit(accessTimeMs);
+    newEntry.hit(accessTimeMs);
 
     // search for empty slot or failing that the MFU entry
     int edenMfuIndex = findFirstAvailableOrMfuIndex(edenEntries, MAX_EDEN_PROBES, adjHash);
@@ -346,7 +345,7 @@ public final class GenerationalUtf8Cache implements EncodingCache {
       }
     }
 
-    // If we get here, then we're evicted the LRU
+    // If we get here, then we're evicting the LFU
     entries[lfuIndex] = newEntry;
     return true;
   }

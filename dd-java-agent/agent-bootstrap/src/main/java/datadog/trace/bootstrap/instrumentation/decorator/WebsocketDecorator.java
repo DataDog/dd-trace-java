@@ -144,7 +144,7 @@ public class WebsocketDecorator extends BaseDecorator {
             wsSpan.setTag(DECISION_MAKER_RESOURCE, handshakeSpan.getResourceName());
           }
         } else {
-          wsSpan = startSpan(WEBSOCKET.toString(), operationName, handshakeSpan.context());
+          wsSpan = startSpan(WEBSOCKET.toString(), operationName, handshakeSpan.spanContext());
         }
       } else {
         wsSpan = startSpan(WEBSOCKET.toString(), operationName);
@@ -167,8 +167,8 @@ public class WebsocketDecorator extends BaseDecorator {
         wsSpan.addLink(
             SpanLink.from(
                 inheritSampling
-                    ? handshakeSpan.context()
-                    : new NotSampledSpanContext(handshakeSpan.context()),
+                    ? handshakeSpan.spanContext()
+                    : new NotSampledSpanContext(handshakeSpan.spanContext()),
                 SpanLink.DEFAULT_FLAGS,
                 "",
                 linkAttributes));

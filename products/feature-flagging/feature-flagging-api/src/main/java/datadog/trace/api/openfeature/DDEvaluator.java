@@ -58,7 +58,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   public boolean initialize(
       final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
     FeatureFlaggingGateway.addConfigListener(this);
-    return initializationLatch.await(timeout, unit); // await for initialization
+    return initializationLatch.await(timeout, unit) || hasConfiguration();
+  }
+
+  @Override
+  public boolean hasConfiguration() {
+    return configuration.get() != null;
   }
 
   @Override
@@ -69,8 +74,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   @Override
   public void accept(final ServerConfiguration config) {
     configuration.set(config);
-    initializationLatch.countDown();
-    configCallback.run();
+    if (config != null) {
+      initializationLatch.countDown();
+      configCallback.run();
+    } else if (initializationLatch.getCount() == 0) {
+      configCallback.run();
+    }
   }
 
   @Override
@@ -101,8 +110,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .build();
       }
 
-      if (isEmpty(flag.allocations)) {
-        return error(defaultValue, ErrorCode.GENERAL, "Missing allocations for flag " + flag.key);
+      if (flag.allocations == null) {
+        return error(defaultValue, ErrorCode.GENERAL, "Missing allocations for flag " + key);
       }
 
       final Date now = new Date();

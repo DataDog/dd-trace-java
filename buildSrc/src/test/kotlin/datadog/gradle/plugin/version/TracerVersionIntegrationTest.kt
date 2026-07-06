@@ -1,319 +1,222 @@
 package datadog.gradle.plugin.version
 
-import org.gradle.testkit.runner.GradleRunner
-import org.junit.jupiter.api.Assertions.assertEquals
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
-import java.io.IOException
 
-class TracerVersionIntegrationTest {
+class TracerVersionIntegrationTest : VersionPluginsFixture() {
 
   @Test
-  fun `should use default version when not under a git clone`(@TempDir projectDir: File) {
-    assertTracerVersion(projectDir, "0.1.0-SNAPSHOT")
+  fun `should use default version when not under a git clone`() {
+    assertTracerVersion(expectedVersion = "0.1.0-SNAPSHOT")
   }
 
   @Test
-  fun `should use default version when no git tags`(@TempDir projectDir: File) {
+  fun `should use default version when no git tags`() {
     assertTracerVersion(
-      projectDir,
-      "0.1.0-SNAPSHOT",
+      expectedVersion = "0.1.0-SNAPSHOT",
       beforeGradle = {
-        exec(projectDir, "git", "init", "--initial-branch", "main")
-        exec(projectDir, "git", "config", "user.email", "test@datadoghq.com")
-        exec(projectDir, "git", "config", "user.name", "Test")
-        exec(projectDir, "git", "add", "-A")
-        exec(projectDir, "git", "commit", "-m", "A commit")
-      }
+        initGitRepo()
+      },
     )
   }
 
   @Test
-  fun `should ignore dirtiness when no git tags`(@TempDir projectDir: File) {
+  fun `should ignore dirtiness when no git tags`() {
     assertTracerVersion(
-      projectDir,
-      "0.1.0-SNAPSHOT",
+      expectedVersion = "0.1.0-SNAPSHOT",
       beforeGradle = {
-        exec(projectDir, "git", "init", "--initial-branch", "main")
-        exec(projectDir, "git", "config", "user.email", "test@datadoghq.com")
-        exec(projectDir, "git", "config", "user.name", "Test")
-        exec(projectDir, "git", "add", "-A")
-        exec(projectDir, "git", "commit", "-m", "A commit")
-
-        File(projectDir, "settings.gradle.kts").appendText(
-          """
-          
-          // uncommitted change this file, 
-          """.trimIndent()
-        )
-      }
+        initGitRepo()
+        writeSettings("// uncommitted change this file, ", append = true)
+      },
     )
   }
 
   @Test
-  fun `should use default version when unmatching git tags`(@TempDir projectDir: File) {
+  fun `should use default version when unmatching git tags`() {
     assertTracerVersion(
-      projectDir,
-      "0.1.0-SNAPSHOT",
+      expectedVersion = "0.1.0-SNAPSHOT",
       beforeGradle = {
-        exec(projectDir, "git", "init", "--initial-branch", "main")
-        exec(projectDir, "git", "config", "user.email", "test@datadoghq.com")
-        exec(projectDir, "git", "config", "user.name", "Test")
-        exec(projectDir, "git", "add", "-A")
-        exec(projectDir, "git", "commit", "-m", "A commit")
-        exec(projectDir, "git", "tag", "something1.40.1", "-m", "Not our tag")
-      }
+        initGitRepo()
+        exec("git", "tag", "something1.40.1", "-m", "Not our tag")
+      },
     )
   }
 
   @Test
-  fun `should use exact version when on tag`(@TempDir projectDir: File) {
+  fun `should use exact version when on tag`() {
     assertTracerVersion(
-      projectDir,
-      "1.52.0",
+      expectedVersion = "1.52.0",
       beforeGradle = {
-        exec(projectDir, "git", "init", "--initial-branch", "main")
-        exec(projectDir, "git", "config", "user.email", "test@datadoghq.com")
-        exec(projectDir, "git", "config", "user.name", "Test")
-        exec(projectDir, "git", "add", "-A")
-        exec(projectDir, "git", "commit", "-m", "A commit")
-        exec(projectDir, "git", "tag", "v1.52.0", "-m", "")
-      }
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+      },
     )
   }
 
   @Test
-  fun `should increment minor and mark dirtiness`(@TempDir projectDir: File) {
+  fun `should increment minor and mark dirtiness`() {
     assertTracerVersion(
-      projectDir,
-      "1.53.0-SNAPSHOT-DIRTY",
+      expectedVersion = "1.53.0-SNAPSHOT-DIRTY",
       beforeGradle = {
-        println("Setting up git repository in $projectDir")
-        File(projectDir, "gradle.properties").writeText(
-          """
-          tracerVersion.dirtiness=true
-          """.trimIndent()
-        )
-
-        exec(projectDir, "git", "init", "--initial-branch", "main")
-        exec(projectDir, "git", "config", "user.email", "test@datadoghq.com")
-        exec(projectDir, "git", "config", "user.name", "Test")
-        exec(projectDir, "git", "add", "-A")
-        exec(projectDir, "git", "commit", "-m", "A commit")
-        exec(projectDir, "git", "tag", "v1.52.0", "-m", "")
-
-        File(projectDir, "settings.gradle.kts").appendText(
-          """
-          
-          // uncommitted change this file, 
-          """.trimIndent()
-        )
-      }
+        writeGradleProperties("tracerVersion.dirtiness=true")
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        writeSettings("// uncommitted change this file, ", append = true)
+      },
     )
   }
 
   @Test
-  fun `should increment minor with added commits after version tag`(@TempDir projectDir: File) {
+  fun `should increment minor with added commits after version tag`() {
     assertTracerVersion(
-      projectDir,
-      "1.53.0-SNAPSHOT",
+      expectedVersion = "1.53.0-SNAPSHOT",
       beforeGradle = {
-        exec(projectDir, "git", "init", "--initial-branch", "main")
-        exec(projectDir, "git", "config", "user.email", "test@datadoghq.com")
-        exec(projectDir, "git", "config", "user.name", "Test")
-        exec(projectDir, "git", "add", "-A")
-        exec(projectDir, "git", "commit", "-m", "A commit")
-        exec(projectDir, "git", "tag", "v1.52.0", "-m", "")
-
-        File(projectDir, "settings.gradle.kts").appendText(
-          """
-          
-          // Committed change this file, 
-          """.trimIndent()
-        )
-        exec(projectDir, "git", "commit", "-am", "Another commit")
-      }
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        writeSettings("// Committed change this file, ", append = true)
+        exec("git", "commit", "-am", "Another commit")
+      },
     )
   }
 
   @Test
-  fun `should increment minor with snapshot and dirtiness with added commits after version tag and dirty`(@TempDir projectDir: File) {
+  fun `should increment minor with snapshot and dirtiness with added commits after version tag and dirty`() {
     assertTracerVersion(
-      projectDir,
-      "1.53.0-SNAPSHOT-DIRTY",
+      expectedVersion = "1.53.0-SNAPSHOT-DIRTY",
       beforeGradle = {
-        File(projectDir, "gradle.properties").writeText(
-          """
-          tracerVersion.dirtiness=true
-          """.trimIndent()
-        )
-
-        exec(projectDir, "git", "init", "--initial-branch", "main")
-        exec(projectDir, "git", "config", "user.email", "test@datadoghq.com")
-        exec(projectDir, "git", "config", "user.name", "Test")
-        exec(projectDir, "git", "add", "-A")
-        exec(projectDir, "git", "commit", "-m", "A commit")
-        exec(projectDir, "git", "tag", "v1.52.0", "-m", "")
-
-        val settingsFile = File(projectDir, "settings.gradle.kts")
-        settingsFile.appendText(
-          """
-          
-          // uncommitted change 
-          """.trimIndent()
-        )
-
-        exec(projectDir, "git", "commit", "-am", "Another commit")
-
-        settingsFile.appendText(
-          """
-          // An uncommitted modification
-          """.trimIndent()
-        )
-      }
+        writeGradleProperties("tracerVersion.dirtiness=true")
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        writeSettings("// uncommitted change ", append = true)
+        exec("git", "commit", "-am", "Another commit")
+        writeSettings("// An uncommitted modification", append = true)
+      },
     )
   }
 
   @Test
-  fun `should increment patch on release branch and no patch release tag`(@TempDir projectDir: File) {
+  fun `should increment patch on release branch and no patch release tag`() {
     assertTracerVersion(
-      projectDir,
-      "1.52.1-SNAPSHOT",
+      expectedVersion = "1.52.1-SNAPSHOT",
       beforeGradle = {
-        exec(projectDir, "git", "init", "--initial-branch", "main")
-        exec(projectDir, "git", "config", "user.email", "test@datadoghq.com")
-        exec(projectDir, "git", "config", "user.name", "Test")
-        exec(projectDir, "git", "add", "-A")
-        exec(projectDir, "git", "commit", "-m", "A commit")
-        exec(projectDir, "git", "tag", "v1.52.0", "-m", "")
-
-        val settingsFile = File(projectDir, "settings.gradle.kts")
-        settingsFile.appendText(
-          """
-          
-          // Committed change 
-          """.trimIndent()
-        )
-
-        exec(projectDir, "git", "commit", "-am", "Another commit")
-        exec(projectDir, "git", "switch", "-c", "release/v1.52.x")
-      }
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        writeSettings("// Committed change ", append = true)
+        exec("git", "commit", "-am", "Another commit")
+        exec("git", "switch", "-c", "release/v1.52.x")
+      },
     )
   }
 
   @Test
-  fun `should increment patch on release branch and with previous patch release tag`(@TempDir projectDir: File) {
+  fun `should increment patch on release branch and with previous patch release tag`() {
     assertTracerVersion(
-      projectDir,
-      "1.52.2-SNAPSHOT",
+      expectedVersion = "1.52.2-SNAPSHOT",
       beforeGradle = {
-        exec(projectDir, "git", "init", "--initial-branch", "main")
-        exec(projectDir, "git", "config", "user.email", "test@datadoghq.com")
-        exec(projectDir, "git", "config", "user.name", "Test")
-        exec(projectDir, "git", "add", "-A")
-        exec(projectDir, "git", "commit", "-m", "A commit")
-        exec(projectDir, "git", "tag", "v1.52.0", "-m", "")
-        exec(projectDir, "git", "switch", "-c", "release/v1.52.x")
-
-        val settingsFile = File(projectDir, "settings.gradle.kts")
-        settingsFile.appendText(
-          """
-          
-          // Committed change 
-          """.trimIndent()
-        )
-        exec(projectDir, "git", "commit", "-am", "Another commit")
-        exec(projectDir, "git", "tag", "v1.52.1", "-m", "")
-
-        settingsFile.appendText(
-          """
-          
-          // Another committed change 
-          """.trimIndent()
-        )
-        exec(projectDir, "git", "commit", "-am", "Another commit")
-      }
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "switch", "-c", "release/v1.52.x")
+        writeSettings("// Committed change ", append = true)
+        exec("git", "commit", "-am", "Another commit")
+        exec("git", "tag", "v1.52.1", "-m", "")
+        writeSettings("// Another committed change ", append = true)
+        exec("git", "commit", "-am", "Another commit")
+      },
     )
   }
 
   @Test
-  fun `should compute version on worktrees`(@TempDir projectDir: File, @TempDir workTreeDir: File) {
+  fun `should compute version on worktrees`(@TempDir workTreeDir: File) {
     assertTracerVersion(
-      projectDir,
-      "1.53.0-SNAPSHOT",
+      expectedVersion = "1.53.0-SNAPSHOT",
+      workingDirectory = workTreeDir,
       beforeGradle = {
-        exec(projectDir, "git", "init", "--initial-branch", "main")
-        exec(projectDir, "git", "config", "user.email", "test@datadoghq.com")
-        exec(projectDir, "git", "config", "user.name", "Test")
-        exec(projectDir, "git", "add", "-A")
-        exec(projectDir, "git", "commit", "-m", "A commit")
-        exec(projectDir, "git", "tag", "v1.52.0", "-m", "")
-
-        exec(projectDir, "git", "commit", "-m", "Initial commit", "--allow-empty")
-        exec(projectDir, "git", "worktree", "add", workTreeDir.absolutePath)
-        // happening on the worktree
-        File(workTreeDir, "settings.gradle.kts").appendText(
-          """
-          
-          // Committed change this file, 
-          """.trimIndent()
-        )
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "commit", "-m", "Initial commit", "--allow-empty")
+        exec("git", "worktree", "add", workTreeDir.absolutePath)
+        // Write into workTreeDir, not projectDir, so the next commit has changes to pick up.
+        File(workTreeDir, "settings.gradle.kts").appendText("\n// Committed change this file, ")
         exec(workTreeDir, "git", "commit", "-am", "Another commit")
       },
-      workingDirectory = workTreeDir
+    )
+  }
+
+  @Test
+  fun `should increment minor from merged main version tag on feature branch`() {
+    assertTracerVersion(
+      expectedVersion = "1.53.0-SNAPSHOT",
+      beforeGradle = {
+        initGitRepo()
+        exec("git", "tag", "v1.50.0", "-m", "")
+        exec("git", "switch", "-c", "feature")
+        writeFile("feature.txt", "feature")
+        exec("git", "add", "feature.txt")
+        exec("git", "commit", "-m", "Feature commit")
+        exec("git", "switch", "main")
+        writeFile("main.txt", "main")
+        exec("git", "add", "main.txt")
+        exec("git", "commit", "-m", "Main commit")
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "switch", "feature")
+        exec("git", "merge", "main", "--no-edit")
+      },
+    )
+  }
+
+  @Test
+  fun `should increment patch from first parent on release branch after main merge`() {
+    assertTracerVersion(
+      expectedVersion = "1.52.1-SNAPSHOT",
+      beforeGradle = {
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "switch", "-c", "release/v1.52.x")
+        writeFile("release.txt", "release")
+        exec("git", "add", "release.txt")
+        exec("git", "commit", "-m", "Release commit")
+        exec("git", "switch", "main")
+        writeFile("main.txt", "main")
+        exec("git", "add", "main.txt")
+        exec("git", "commit", "-m", "Main commit")
+        exec("git", "tag", "v1.53.0", "-m", "")
+        exec("git", "switch", "release/v1.52.x")
+        exec("git", "merge", "main", "--no-edit")
+      },
     )
   }
 
   private fun assertTracerVersion(
-    projectDir: File,
     expectedVersion: String,
-    beforeGradle: () -> Unit = {},
     workingDirectory: File = projectDir,
+    beforeGradle: VersionPluginsFixture.() -> Unit = {},
   ) {
-    File(projectDir, "settings.gradle.kts").writeText(
+    writeSettings(
       """
       rootProject.name = "test-project"
-      """.trimIndent()
+      """
     )
-    File(projectDir, "build.gradle.kts").writeText(
+
+    writeRootProject(
       """
       plugins {
         id("dd-trace-java.tracer-version")
       }
-      
+
       tasks.register("printVersion") {
         logger.quiet(project.version.toString())
       }
 
       group = "datadog.tracer.version.test"
-      """.trimIndent()
+      """
     )
 
     beforeGradle()
 
-    val buildResult = GradleRunner.create()
-      .forwardOutput()
-      // .withGradleVersion(gradleVersion)  // Use current gradle version
-      .withPluginClasspath()
-      .withArguments("printVersion", "--quiet")
-      .withProjectDir(workingDirectory)
-      // .withDebug(true)
-      .build()
+    val buildResult = run("printVersion", "--quiet", gradleProjectDir = workingDirectory)
 
-    assertEquals(expectedVersion, buildResult.output.lines().first())
-  }
-
-  private fun exec(workingDirectory: File, vararg args: String) {
-    val exitCode = ProcessBuilder()
-      .command(*args)
-      .directory(workingDirectory)
-      .inheritIO()
-      .start()
-      .waitFor()
-
-    if (exitCode != 0) {
-      throw IOException(String.format("Process failed: %s Exit code %d", args.joinToString(" "), exitCode))
-    }
+    assertThat(buildResult.output.lines().first()).isEqualTo(expectedVersion)
   }
 }

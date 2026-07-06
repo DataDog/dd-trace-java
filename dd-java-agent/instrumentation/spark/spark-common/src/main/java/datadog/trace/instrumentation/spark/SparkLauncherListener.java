@@ -38,7 +38,7 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
     AgentTracer.TracerAPI tracer = AgentTracer.get();
     AgentSpan span =
         tracer
-            .buildSpan("spark.launcher.launch")
+            .buildSpan("spark-launcher", "spark.launcher.launch")
             .withSpanType("spark")
             .withResourceName("SparkLauncher.startApplication")
             .start();

@@ -18,6 +18,7 @@ import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -44,6 +45,8 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
     List<String> commandParams = getDebuggerCommandParams();
     commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
+    // increase eval timeout for decoration evaluations
+    commandParams.add("-Ddd.dynamic.instrumentation.evaluation.timeout.ms=100");
     return ProcessBuilderHelper.createProcessBuilder(
         commandParams, logFilePath, getAppClass(), params);
   }
@@ -58,7 +61,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
             .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
-            .decorate(createDecoration("tag1", "{argStr}"))
+            .decorations(createDecoration("tag1", "{argStr}"))
             .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
             .build();
     addProbe(spanDecorationProbe);
@@ -79,6 +82,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         traceReceived::get, () -> String.format("timeout traceReceived=%s", traceReceived.get()));
   }
 
+  @Flaky
   @Test
   @DisplayName("testMethodMultiTagsMultiConditions")
   @DisabledIf(
@@ -104,7 +108,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
             .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
-            .decorate(decorations)
+            .decorations(decorations)
             .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
             .build();
     addProbe(spanDecorationProbe);
@@ -137,7 +141,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
             .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
-            .decorate(createDecoration("tag1", "{invalidArg}"))
+            .decorations(createDecoration("tag1", "{invalidArg}"))
             .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
             .build();
     addProbe(spanDecorationProbe);
@@ -180,7 +184,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
             .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
-            .decorate(
+            .decorations(
                 createDecoration(
                     not(eq(ref("invalidArg"), nullValue())),
                     "invalidArg != null",
@@ -228,7 +232,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
             .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
-            .decorate(decorations)
+            .decorations(decorations)
             .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
             .build();
     addProbe(spanDecorationProbe);
@@ -276,7 +280,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
             .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
-            .decorate(createDecoration("tag1", "staticText"))
+            .decorations(createDecoration("tag1", "staticText"))
             .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
             .build();
     addProbe(spanDecorationProbe);

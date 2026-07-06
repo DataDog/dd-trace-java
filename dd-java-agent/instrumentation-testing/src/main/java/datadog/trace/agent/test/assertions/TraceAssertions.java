@@ -1,20 +1,20 @@
 package datadog.trace.agent.test.assertions;
 
-import static java.util.function.Function.identity;
+import static java.util.function.UnaryOperator.identity;
 import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 
 import datadog.trace.core.DDSpan;
 import java.util.Comparator;
 import java.util.List;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 /**
- * This class is a helper class to verify traces structure.
+ * This class is a helper class to verify trace structure.
  *
- * <p>To check for traces structure, use the static factory methods: {@link #assertTraces(List,
+ * <p>To check for trace structure, use the static factory methods: {@link #assertTraces(List,
  * TraceMatcher...)} with the expected {@link TraceMatcher}s (one per trace), or {@link
- * #assertTraces(List, Function, TraceMatcher...)} to configure the checks with a {@link Options}
- * object.
+ * #assertTraces(List, UnaryOperator, TraceMatcher...)} to configure the checks with a {@link
+ * Options} object.
  *
  * <p>The following predefined configurations:
  *
@@ -40,15 +40,15 @@ public final class TraceAssertions {
    * Trace assertions options.
    */
   /** Ignores addition traces. If there are more traces than expected, do not fail. */
-  public static final Function<Options, Options> IGNORE_ADDITIONAL_TRACES =
+  public static final UnaryOperator<Options> IGNORE_ADDITIONAL_TRACES =
       Options::ignoredAdditionalTraces;
 
   /** Sorts traces by start time. */
-  public static final Function<Options, Options> SORT_BY_START_TIME =
+  public static final UnaryOperator<Options> SORT_BY_START_TIME =
       options -> options.sorter(TRACE_START_TIME_COMPARATOR);
 
   /** Sorts traces by their root span identifier. */
-  public static final Function<Options, Options> SORT_BY_ROOT_SPAN_ID =
+  public static final UnaryOperator<Options> SORT_BY_ROOT_SPAN_ID =
       options -> options.sorter(TRACE_ROOT_SPAN_ID_COMPARATOR);
 
   private TraceAssertions() {}
@@ -81,7 +81,7 @@ public final class TraceAssertions {
    * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
    */
   public static void assertTraces(
-      List<List<DDSpan>> traces, Function<Options, Options> options, TraceMatcher... matchers) {
+      List<List<DDSpan>> traces, UnaryOperator<Options> options, TraceMatcher... matchers) {
     Options opts = options.apply(new Options());
     int expectedTraceCount = matchers.length;
     int traceCount = traces.size();

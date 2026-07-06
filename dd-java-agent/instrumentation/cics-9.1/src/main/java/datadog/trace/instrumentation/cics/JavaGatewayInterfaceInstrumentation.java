@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.cics.CicsDecorator.CICS_CLIENT;
 import static datadog.trace.instrumentation.cics.CicsDecorator.DECORATE;
 import static datadog.trace.instrumentation.cics.CicsDecorator.GATEWAY_FLOW_OPERATION;
 
@@ -53,7 +54,7 @@ public final class JavaGatewayInterfaceInstrumentation
       }
 
       // Not inside execute() - create a new span
-      final AgentSpan span = startSpan(GATEWAY_FLOW_OPERATION);
+      final AgentSpan span = startSpan(CICS_CLIENT.toString(), GATEWAY_FLOW_OPERATION);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, strAddress, port, ipGateway);
       return activateSpan(span);

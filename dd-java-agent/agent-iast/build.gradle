@@ -4,12 +4,12 @@ import net.ltgt.gradle.errorprone.CheckSeverity
 plugins {
   id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
-  id 'com.google.protobuf' version '0.8.18'
+  id 'com.google.protobuf' version '0.10.0'
   id 'net.ltgt.errorprone' version '3.1.0'
+  id 'dd-trace-java.version-file'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/version.gradle"
 
 tasks.withType(AbstractCompile).configureEach {
   configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Ensure no APIs beyond JDK8 are used")
@@ -45,12 +45,12 @@ dependencies {
   implementation libs.moshi
   implementation libs.bundles.asm
   implementation libs.instrument.java
+  implementation libs.re2j
 
   testImplementation project(':utils:test-utils')
   testImplementation project(':dd-java-agent:agent-bootstrap')
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
   testImplementation(libs.bytebuddy)
-  testImplementation(libs.guava)
 
   testImplementation(libs.groovy.yaml)
 
@@ -113,14 +113,6 @@ jmh {
 
 tasks.named("forbiddenApisJmh") {
   ignoreFailures = true
-}
-
-sourceSets {
-  test {
-    java {
-      srcDirs += ["$buildDir/generated/source/proto/test/java"]
-    }
-  }
 }
 
 tasks.withType(JavaCompile).configureEach {

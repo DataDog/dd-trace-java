@@ -98,7 +98,7 @@ public class SofaRpcTripleWithGrpcForkedTest extends AbstractInstrumentationTest
 
   @Test
   void tripleServerSpanIsNestedUnderGrpcServer() throws InterruptedException, TimeoutException {
-    AgentSpan callerSpan = startSpan("caller");
+    AgentSpan callerSpan = startSpan("test", "caller");
     AgentScope callerScope = activateSpan(callerSpan);
     String reply;
     try {

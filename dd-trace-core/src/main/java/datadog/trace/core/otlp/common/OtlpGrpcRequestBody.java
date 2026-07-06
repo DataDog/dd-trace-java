@@ -42,7 +42,7 @@ public final class OtlpGrpcRequestBody extends RequestBody {
     if (gzip) {
       try (Buffer gzipBody = new Buffer()) {
         try (BufferedSink gzipSink = Okio.buffer(new GzipSink(gzipBody))) {
-          payload.drain(gzipSink::write);
+          gzipSink.write(payload.getContent());
         }
         sink.writeByte(COMPRESSED_FLAG);
         long gzipLength = gzipBody.size();
@@ -52,7 +52,7 @@ public final class OtlpGrpcRequestBody extends RequestBody {
     } else {
       sink.writeByte(UNCOMPRESSED_FLAG);
       sink.writeInt(payload.getContentLength());
-      payload.drain(sink::write);
+      sink.write(payload.getContent());
     }
   }
 }

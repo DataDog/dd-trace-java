@@ -3,8 +3,8 @@ on:
   pull_request:
     types: [opened, edited, ready_for_review, labeled, unlabeled, synchronize]
     branches:
-    - master
-    - release/v*
+      - master
+      - release/v*
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -12,14 +12,21 @@ jobs:
   check_pull_requests:
     name: Check pull requests
     permissions:
+      id-token: write # Required for OIDC token federation
       issues: write # Required to create a comment on the pull request
       pull-requests: write # Required to create a comment on the pull request
     runs-on: ubuntu-latest
     steps:
+      - name: Get GitHub Token via dd-octo-sts
+        id: generate-token
+        uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
+        with:
+          scope: DataDog/dd-trace-java
+          policy: self.check-pull-requests
       - name: Check pull requests
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # 9.0.0
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
+          github-token: ${{ steps.generate-token.outputs.token }}
           script: |
             // Skip draft pull requests
             if (context.payload.pull_request.draft) {
@@ -41,7 +48,7 @@ jobs:
             if (titleCheckFailed) {
               core.setFailed('Please remove the tag from the pull request title.')
             }
-            // Check body does 
+            // Check body does
             const linkingKeywords = ['closes', 'closed', 'fix', 'fixes', 'fixed', 'resolve', 'resolves', 'resolved']
             const body = context.payload.pull_request.body
             const bodyCheckFailed = linkingKeywords.some(keyword => body.search(new RegExp(`${keyword}\\s\\d+`, "im")) !== -1)

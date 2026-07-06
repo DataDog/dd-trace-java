@@ -284,6 +284,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     captureApplicationParameters(builder);
     captureEmrStepId(builder);
+    captureOpenlineageJobInfo(builder);
 
     Optional<OpenlineageParentContext> openlineageParentContext =
         OpenlineageParentContext.from(sparkConf);
@@ -297,6 +298,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     applicationSpan = builder.start();
     setDataJobsSamplingPriority(applicationSpan);
     applicationSpan.setMeasured(true);
+  }
+
+  private void captureOpenlineageJobInfo(AgentTracer.SpanBuilder builder) {
+    String olAppName = sparkConf.get("spark.openlineage.appName", null);
+    if (olAppName != null) {
+      builder.withTag("spark.openlineage.appName", olAppName);
+    }
   }
 
   private void captureOpenlineageContextIfPresent(
@@ -426,7 +434,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (properties != null) {
       String databricksJobId = getDatabricksJobId(properties);
       String databricksJobRunId = getDatabricksJobRunId(properties, databricksClusterName);
-      String databricksTaskRunId = getDatabricksTaskRunId(properties);
+      String databricksTaskRunId = getDatabricksTaskRunId(properties, databricksJobRunId);
 
       // ids to link those spans to databricks job/task traces
       builder.withTag("databricks_job_id", databricksJobId);
@@ -470,12 +478,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (batchKey != null) {
       AgentSpan batchSpan =
           getOrCreateStreamingBatchSpan(batchKey, queryStart.time(), jobProperties);
-      spanBuilder.asChildOf(batchSpan.context());
+      spanBuilder.asChildOf(batchSpan.spanContext());
     } else if (isRunningOnDatabricks) {
       addDatabricksSpecificTags(spanBuilder, jobProperties, true);
     } else {
       initApplicationSpanIfNotInitialized();
-      spanBuilder.asChildOf(applicationSpan.context());
+      spanBuilder.asChildOf(applicationSpan.spanContext());
     }
 
     AgentSpan sqlSpan = spanBuilder.start();
@@ -515,18 +523,18 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
      *                      spark.job
      */
     if (sqlSpan != null) {
-      jobSpanBuilder.asChildOf(sqlSpan.context());
+      jobSpanBuilder.asChildOf(sqlSpan.spanContext());
     } else if (batchKey != null) {
       isStreamingJob = true;
       AgentSpan batchSpan =
           getOrCreateStreamingBatchSpan(batchKey, jobStart.time(), jobStart.properties());
-      jobSpanBuilder.asChildOf(batchSpan.context());
+      jobSpanBuilder.asChildOf(batchSpan.spanContext());
     } else if (isRunningOnDatabricks) {
       addDatabricksSpecificTags(jobSpanBuilder, jobStart.properties(), true);
     } else {
       // In non-databricks, non-streaming env, the spark application is the local root span
       initApplicationSpanIfNotInitialized();
-      jobSpanBuilder.asChildOf(applicationSpan.context());
+      jobSpanBuilder.asChildOf(applicationSpan.spanContext());
     }
 
     jobSpanBuilder.withTag(DDTags.RESOURCE_NAME, getSparkJobName(jobStart));
@@ -615,7 +623,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     AgentSpan stageSpan =
         buildSparkSpan("spark.stage", stageSubmitted.properties())
-            .asChildOf(jobSpan.context())
+            .asChildOf(jobSpan.spanContext())
             .withStartTimestamp(submissionTimeMs * 1000)
             .withTag("stage_id", stageId)
             .withTag(
@@ -770,7 +778,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       AgentSpan stageSpan, SparkListenerTaskEnd taskEnd, Properties properties) {
     AgentSpan taskSpan =
         buildSparkSpan("spark.task", properties)
-            .asChildOf(stageSpan.context())
+            .asChildOf(stageSpan.spanContext())
             .withStartTimestamp(taskEnd.taskInfo().launchTime() * 1000)
             .withTag("task_id", taskEnd.taskInfo().taskId())
             .withTag("task_attempt_id", taskEnd.taskInfo().attemptNumber())
@@ -1084,7 +1092,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private AgentTracer.SpanBuilder buildSparkSpan(String spanName, Properties properties) {
     AgentTracer.SpanBuilder builder =
-        tracer.buildSpan(spanName).withSpanType("spark").withTag("app_id", appId);
+        tracer.buildSpan("spark", spanName).withSpanType("spark").withTag("app_id", appId);
 
     if (databricksServiceName != null) {
       builder.withServiceName(databricksServiceName);
@@ -1177,10 +1185,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   @SuppressForbidden // split with one-char String use a fast-path without regex usage
-  private static String getDatabricksTaskRunId(Properties properties) {
-    // spark.databricks.job.runId is the runId of the task, not of the Job
+  private static String getDatabricksTaskRunId(Properties properties, String jobRunId) {
+    // spark.databricks.job.runId is the runId of the task, not of the Job, until Databricks 18.2
     String taskRunId = properties.getProperty("spark.databricks.job.runId");
-    if (taskRunId != null) {
+    // On Databricks 18.2+, spark.databricks.job.runId now returns the job run ID
+    // There is no easy config key to extract the task run ID, so we use the fallback extraction
+    // methods
+    // Task run ID is crucial for the spans parent-child relationship inside the trace
+    if (taskRunId != null && !taskRunId.equals(jobRunId)) {
       return taskRunId;
     }
 

@@ -25,7 +25,7 @@ public final class ReactorCoreModule extends InstrumenterModule.ContextTracking
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ReactorAsyncResultExtension", packageName + ".ContextSpanHelper",
+      packageName + ".ReactorAsyncResultExtension", packageName + ".ReactorContextBridge",
     };
   }
 
@@ -55,7 +55,7 @@ public final class ReactorCoreModule extends InstrumenterModule.ContextTracking
     return asList(
         new BlockingPublisherInstrumentation(),
         new CorePublisherInstrumentation(),
-        new CoreSubscriberInstrumentation(),
+        new ContextWritingSubscriberInstrumentation(),
         new OptimizableOperatorInstrumentation());
   }
 }

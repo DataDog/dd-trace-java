@@ -1,5 +1,6 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.jar.JarFile
 
 plugins {
   id 'com.gradleup.shadow'
@@ -18,6 +19,10 @@ configurations {
 
 def includedAgentDir = project.layout.buildDirectory.dir("generated/included")
 def includedJarFileTree = fileTree(includedAgentDir)
+
+// Populated automatically by includeShadowJar for every product dir registered in this build.
+// Used by verifyAgentJarContents to check that all included products land in the assembled jar.
+ext.includedProductPrefixes = objects.setProperty(String)
 
 def pomPropertiesDir = project.layout.buildDirectory.dir("generated/maven-metadata")
 def pomPropertiesFileTree = fileTree(pomPropertiesDir)
@@ -60,6 +65,7 @@ tasks.named("compileJava") {
 dependencies {
   implementation sourceSets.main_java11.output
   main_java11CompileOnly libs.forbiddenapis
+  main_java6CompileOnly project(':components:annotations')
   main_java6CompileOnly libs.forbiddenapis
   testImplementation sourceSets.main_java6.output
 }
@@ -75,8 +81,24 @@ dependencies {
 def generalShadowJarConfig(ShadowJar shadowJarTask) {
   shadowJarTask.with {
     mergeServiceFiles()
+    addMultiReleaseAttribute = false
 
     duplicatesStrategy = DuplicatesStrategy.FAIL
+    // Service descriptors are intentionally merged by mergeServiceFiles(); let
+    // duplicate service entries reach that transformer instead of failing first.
+    filesMatching('META-INF/services/**') {
+      duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+    // Vendored dependencies often repeat license/notice metadata. Keep one copy
+    // while still failing on unexpected duplicate runtime resources and classes.
+    filesMatching([
+      'META-INF/LICENSE*',
+      'META-INF/NOTICE*',
+      'META-INF/AL2.0',
+      'META-INF/LGPL2.1',
+    ]) {
+      duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
 
     // Remove some cruft from the final jar.
     // These patterns should NOT include **/META-INF/maven/**/pom.properties, which is
@@ -93,6 +115,7 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     exclude '**/inst/META-INF/versions/**'
     exclude '**/META-INF/versions/*/org/yaml/**'
     exclude '**/package.html'
+    exclude '**/about.html'
 
     // Used to generate Java code during build, no need to include original file
     exclude '**/*.trie'
@@ -110,9 +133,12 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     // patch JFFI loading mechanism to maintain isolation
     exclude '**/com/kenai/jffi/Init.class'
     relocate('com.kenai.jffi.Init', 'com.kenai.jffi.PatchInit')
-    // patch OkHttp to avoid premain provider lookup
+    // patch OkHttp to avoid premain provider lookup and use daemon threads
     exclude '**/okhttp3/internal/platform/Platform.class'
+    exclude '**/okhttp3/internal/Util$*.class'
+    exclude '**/okhttp3/internal/Util.class'
     relocate('okhttp3.internal.platform.Platform', 'datadog.okhttp3.internal.platform.PatchPlatform')
+    relocate('okhttp3.internal.Util', 'datadog.okhttp3.internal.PatchUtil')
     // use dd-instrument-java's embedded copy of asm
     relocate('org.objectweb.asm', 'datadog.instrument.asm')
 
@@ -179,6 +205,8 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
 }
 
 def includeShadowJar(TaskProvider<ShadowJar> includedShadowJarTask, String agentDir, FileTree includedJarFileTree) {
+  includedProductPrefixes.add(agentDir)
+
   def expandTask = project.tasks.register("expandAgentShadowJar${agentDir.capitalize()}", Sync) {
     it.group = LifecycleBasePlugin.BUILD_GROUP
     it.description = "Expand the included shadow jar into the agent jar under ${agentDir}"
@@ -246,7 +274,7 @@ includeSubprojShadowJar(project(':products:metrics:metrics-lib'), 'metrics', inc
 includeSubprojShadowJar(project(':products:feature-flagging:feature-flagging-agent'), 'feature-flagging', includedJarFileTree)
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
-  it.configurations = [project.configurations.sharedShadowInclude]
+  it.configurations.add(project.configurations.named('sharedShadowInclude'))
   // Put the jar in a different directory so we don't overwrite the normal shadow jar and
   // break caching, and also to not interfere with CI scripts that copy everything in the
   // libs directory
@@ -264,16 +292,16 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
     exclude(project(':utils:time-utils'))
     exclude(project(':products:metrics:metrics-api'))
     exclude(project(':products:metrics:metrics-agent'))
-    exclude(dependency('org.slf4j::'))
+    exclude(dependency('org.slf4j:.*:.*'))
     // use dd-instrument-java's embedded copy of asm
-    exclude(dependency('org.ow2.asm:asm:'))
+    exclude(dependency('org.ow2.asm:asm:.*'))
   }
 }
 includeShadowJar(sharedShadowJar, 'shared', includedJarFileTree)
 
 // place the tracer in its own shadow jar separate to instrumentation
 def traceShadowJar = tasks.register('traceShadowJar', ShadowJar) {
-  it.configurations = [project.configurations.traceShadowInclude]
+  it.configurations.add(project.configurations.named('traceShadowInclude'))
   it.destinationDirectory.set(project.layout.buildDirectory.dir("trace-lib"))
   it.archiveClassifier = 'trace'
   it.dependencies deps.excludeShared
@@ -288,7 +316,10 @@ tasks.named("shadowJar", ShadowJar) {
 
   generalShadowJarConfig(it)
 
-  configurations = [project.configurations.shadowInclude]
+  // The default shadowJar task has a runtimeClasspath convention. Replace it
+  // instead of adding to it, otherwise runtimeClasspath would be bundled too.
+  configurations.empty()
+  configurations.add(project.configurations.named('shadowInclude'))
 
   archiveClassifier = ''
 
@@ -464,16 +495,201 @@ tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
 }
 
-tasks.register('checkAgentJarSize') {
-  doLast {
-    // Arbitrary limit to prevent unintentional increases to the agent jar size
-    // Raise or lower as required
-    assert tasks.named("shadowJar", ShadowJar).get().archiveFile.get().getAsFile().length() <= 33 * 1024 * 1024
-  }
+def agentJarChecksProps = rootProject.file('metadata/agent-jar-checks.properties')
 
-  dependsOn "shadowJar"
+tasks.register('verifyAgentJarContents') {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
+  description = 'Verify the agent jar contains required entries and meets structural invariants'
+
+  def jarProvider = tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile }
+  inputs.file(jarProvider)
+  inputs.file(agentJarChecksProps)
+  inputs.property('productPrefixes', includedProductPrefixes)
+  outputs.file(project.layout.buildDirectory.file("tmp/${it.name}/.verified"))
+
+  doLast {
+    def props = new Properties()
+    agentJarChecksProps.withInputStream { props.load(it) }
+
+    File jarFile = jarProvider.get().asFile
+    List<String> failures = []
+    Map<String, Long> entries = [:]
+
+    // Jar size budget — raise only when the growth is intentional
+    def sizeBudget = Long.parseLong(props['jar.size.budget'])
+    if (jarFile.length() > sizeBudget) {
+      failures.add("Jar size ${jarFile.length()} B exceeds budget ${sizeBudget} B")
+    }
+
+    // Inspect jar content
+    new JarFile(jarFile).withCloseable { jf ->
+      jf.entries().each { ze -> entries[ze.name] = ze.size }
+    }
+
+    // Required entries
+    [
+      // Runtime index, loaded at startup to resolve classdata paths
+      // Generated by :dd-java-agent:generateAgentJarIndex
+      'dd-java-agent.index',
+      // Premain-Class: Java 6 pre check
+      'datadog/trace/bootstrap/AgentPreCheck.class',
+      // Agent-Class: main bootstrap entry point
+      'datadog/trace/bootstrap/AgentBootstrap.class',
+      // Additional checks for Java 11
+      'datadog/trace/bootstrap/AdvancedAgentChecks.class',
+      // Instrumentation indexes
+      // * :dd-java-agent:instrumentation:generateInstrumenterIndex
+      // * :dd-java-agent:instrumentation:generateKnownTypesIndex
+      // Without instrumenter.index, zero instrumentations load at runtime.
+      'inst/instrumenter.index',
+      'inst/known-types.index',
+      // OTel drop-in support, embedded via otel-bootstrap + otel-shim shadowInclude
+      'datadog/trace/bootstrap/otel/api/',
+      'datadog/trace/bootstrap/otel/context/',
+      'datadog/trace/bootstrap/otel/shim/',
+      'META-INF/maven/com.datadoghq/dd-java-agent/pom.properties',
+    ].each { required ->
+      if (!entries.containsKey(required)) {
+        failures.add("Missing required entry: ${required}")
+      }
+    }
+
+    // Sanity check on the minimum number of classes; see metadata/agent-jar-checks.properties.
+    def classCount = entries.keySet().count { it.endsWith('.class') || it.endsWith('.classdata') }
+    def classFloor = Integer.parseInt(props['classes.minimum.guard'])
+    if (classCount < classFloor) {
+      failures.add("Class count ${classCount} is below floor ${classFloor}")
+    }
+
+    // Each registered product must contribute at least one .classdata entry.
+    // Catches a product wired into the build but producing no classes.
+    def classdataPrefixes = entries.keySet()
+      .findAll { it.endsWith('.classdata') }
+      .collect { it.split('/')[0] }
+      .toSet()
+    includedProductPrefixes.get().each { dir ->
+      if (!classdataPrefixes.contains(dir)) {
+        failures.add("Product '${dir}' has no .classdata entries in the assembled jar")
+      }
+    }
+
+    // All *.index files in the jar must be non-empty
+    entries.findAll { name, size -> name.endsWith('.index') && size == 0 }.each { name, _ ->
+      failures.add("Empty index file: ${name}")
+    }
+
+    // Packages that must not appear anywhere in the jar after relocation.
+    // NOTE: Hardcoded to catch accidental removal of relocate() calls in generalShadowJarConfig or in a nested shadow jar.
+    def productPrefixes = includedProductPrefixes.get()
+    ['org/slf4j/', 'org/jctools/', 'net/jpountz/', 'org/objectweb/asm/', 'io/airlift/'].each { pkg ->
+      def leaked = entries.keySet().findAll { entry ->
+        entry.startsWith(pkg) || productPrefixes.any { prefix -> entry.startsWith("${prefix}/${pkg}") }
+      }
+      if (!leaked.empty) {
+        def sample = leaked.take(3).toString()
+        failures.add("Unrelocated package '${pkg}': ${sample}${leaked.size() > 3 ? ' ...' : ''}")
+      }
+    }
+
+    if (!failures.empty) {
+      throw new GradleException(
+      "Agent jar verification failed (${failures.size()} issue(s)):\n" +
+      failures.collect { "  - ${it}" }.join('\n'))
+    }
+
+    def marker = outputs.files.singleFile
+    marker.parentFile.mkdirs()
+    marker.text = 'verified'
+  }
+}
+
+tasks.register('verifyAgentJarIntegrations', JavaExec) {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
+  description = 'Verify the agent jar lists exactly the integrations in metadata/agent-jar-checks.properties'
+
+  def jarProvider = tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile }
+  inputs.file(jarProvider)
+  inputs.file(agentJarChecksProps)
+  outputs.file(project.layout.buildDirectory.file("tmp/${it.name}/.verified"))
+
+  // Run the assembled agent jar directly — this exercises dd-java-agent.index,
+  // inst/instrumenter.index, and instrumentation class loading end-to-end.
+  mainClass = 'datadog.trace.bootstrap.AgentBootstrap'
+  classpath = objects.fileCollection().from(jarProvider)
+  args = ['--list-integrations']
+
+  // Capture both stdout and stderr: InstrumenterIndex.buildModule() logs ERROR and returns null when a module
+  // fails to load, while the process exits with status 0.
+  def capturedOutput = new ByteArrayOutputStream()
+  def capturedError  = new ByteArrayOutputStream()
+  standardOutput = capturedOutput
+  errorOutput = capturedError
+
+  doLast {
+    def stderr = capturedError.toString()
+    if (!stderr.isBlank()) {
+      throw new GradleException(
+      "--list-integrations produced unexpected stderr output " +
+      "(likely a module load failure; see InstrumenterIndex.buildModule):\n${stderr}")
+    }
+
+    def props = new Properties()
+    agentJarChecksProps.withInputStream { props.load(it) }
+    def actual   = capturedOutput.toString().readLines().findAll { !it.isBlank() }.toSorted()
+    def expected = props.getProperty('expected.integrations').split(',').collect { it.trim() }.toSorted()
+    def added    = actual - expected
+    def removed  = expected - actual
+
+    if (added || removed) {
+      def msg = new StringBuilder('Integration list differs from metadata/agent-jar-checks.properties.')
+      msg.append(" Run './gradlew :dd-java-agent:updateAgentJarIntegrationsGoldenFile' to update it.\n")
+      added.each   { msg.append("  + ${it}\n") }
+      removed.each { msg.append("  - ${it}\n") }
+      throw new GradleException(msg.toString())
+    }
+
+    def marker = outputs.files.singleFile
+    marker.parentFile.mkdirs()
+    marker.text = 'verified'
+  }
+}
+
+// Manual run after adding/removing integrations; rewrites the expected.integrations block in
+// metadata/agent-jar-checks.properties while preserving all other properties and comments.
+tasks.register('updateAgentJarIntegrationsGoldenFile', JavaExec) {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
+  description = 'Regenerate expected.integrations in metadata/agent-jar-checks.properties from the current agent jar'
+
+  def jarProvider = tasks.named('shadowJar', ShadowJar).flatMap { it.archiveFile }
+  inputs.file(jarProvider)
+
+  mainClass = 'datadog.trace.bootstrap.AgentBootstrap'
+  classpath = objects.fileCollection().from(jarProvider)
+  args = ['--list-integrations']
+
+  def capturedOutput = new ByteArrayOutputStream()
+  standardOutput = capturedOutput
+
+  doLast {
+    def integrations = capturedOutput.toString().readLines().findAll { !it.isBlank() }.toSorted()
+
+    def entryLines = integrations.withIndex().collect { name, i ->
+      def prefix = (i == 0) ? 'expected.integrations = ' : '  '
+      def suffix = (i < integrations.size() - 1) ? ',\\' : ''
+      "${prefix}${name}${suffix}"
+    }
+
+    // Replace everything between the BEGIN/END markers (inclusive) with the fresh value.
+    def BEGIN = '# BEGIN expected.integrations'
+    def END   = '# END expected.integrations'
+    def allLines = agentJarChecksProps.readLines()
+    def before = allLines.subList(0, allLines.findIndexOf { it.startsWith(BEGIN) })
+    def after  = allLines.subList(allLines.findIndexOf { it.startsWith(END) } + 1, allLines.size())
+    agentJarChecksProps.text = (before + [BEGIN] + entryLines + [END] + after).join('\n') + '\n'
+    logger.lifecycle("Updated metadata/agent-jar-checks.properties with ${integrations.size()} integrations")
+  }
 }
 
 tasks.named('check') {
-  dependsOn 'checkAgentJarSize'
+  dependsOn 'verifyAgentJarContents', 'verifyAgentJarIntegrations'
 }

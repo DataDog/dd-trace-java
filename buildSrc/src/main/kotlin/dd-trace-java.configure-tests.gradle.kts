@@ -10,6 +10,10 @@ import org.gradle.testing.base.TestingExtension
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
+plugins {
+  id("dd-trace-java.modifiable-config")
+}
+
 // Need concrete implementation of BuildService in Kotlin
 abstract class ForkedTestLimit : BuildService<BuildServiceParameters.None>
 // Forked tests will fail with OOM if the memory is set too high. Gitlab allows at least a limit of 3.
@@ -59,6 +63,17 @@ tasks.withType<Test>().configureEach {
     onlyIf("skipForkedTests are undefined or false") { !skipForkedTestsProvider.isPresent }
   } else {
     exclude("**/*ForkedTest*")
+    // Starting from Gradle 9.3, Gradle will fail if a test task has no discovered tests.
+    // While this can be a misconfiguration, dd-trace-java test suite conventions allow suites
+    // to contain abstract base classes that are extended by concrete forked test suites.
+    //
+    // Many instrumentation suites indeed only ship *ForkedTest concrete classes
+    // (the non-forked peer task created by `addTestSuiteExtendingForDir` exists only
+    // to host shared configurations/sources). Those test tasks won't have executable tests
+    // by design under the `**/*ForkedTest*` exclude rule above. So let's allow them.
+    //
+    // Related but not the issue here https://github.com/gradle/gradle/issues/36508
+    failOnNoDiscoveredTests = false
   }
 
   // Set test timeout for 20 minutes. Default job timeout is 1h (configured on CI level).

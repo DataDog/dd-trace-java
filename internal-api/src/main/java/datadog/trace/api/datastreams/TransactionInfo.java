@@ -1,5 +1,6 @@
 package datadog.trace.api.datastreams;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -71,7 +72,7 @@ public final class TransactionInfo implements InboxItem {
     return buffer.array();
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   static synchronized void resetCache() {
     CACHE.clear();
     CACHE_BYTES = new byte[0];

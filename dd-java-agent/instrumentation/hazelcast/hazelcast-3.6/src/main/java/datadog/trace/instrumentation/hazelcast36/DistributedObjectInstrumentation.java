@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.hazelcast36.DistributedObjectDecorator.DECORATE;
+import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.COMPONENT_NAME;
 import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.SPAN_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -197,7 +198,7 @@ public final class DistributedObjectInstrumentation
         return null;
       }
 
-      final AgentSpan span = startSpan(SPAN_NAME);
+      final AgentSpan span = startSpan(COMPONENT_NAME.toString(), SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 
@@ -256,7 +257,7 @@ public final class DistributedObjectInstrumentation
         return null;
       }
 
-      final AgentSpan span = startSpan(SPAN_NAME);
+      final AgentSpan span = startSpan(COMPONENT_NAME.toString(), SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 

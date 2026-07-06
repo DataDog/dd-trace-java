@@ -90,7 +90,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     when:
     String response = '{"rate_by_service": {"service:spock,env:test":0.0}}'
     serviceSampler.onResponse("traces", serializer.fromJson(response))
-    DDSpan span1 = tracer.buildSpan("fakeOperation")
+    DDSpan span1 = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("foo")
       .withTag("env", "bar")
       .ignoreActiveSpan().start()
@@ -106,7 +106,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     response = '{"rate_by_service": {"service:spock,env:test":1.0, "service:SPOCK,env:Test": 0.0}}'
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
-    DDSpan span2 = tracer.buildSpan("fakeOperation")
+    DDSpan span2 = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("spock")
       .withTag("env", "test")
       .ignoreActiveSpan().start()
@@ -129,7 +129,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     def response = '{"rate_by_service": {"service:spock,env:test":1.0}}'
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
-    DDSpan span = tracer.buildSpan("fakeOperation")
+    DDSpan span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("SPOCK")
       .withTag("env", "Test")
       .ignoreActiveSpan().start()
@@ -151,7 +151,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
     when:
-    DDSpan span = tracer.buildSpan("fakeOperation")
+    DDSpan span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("spock")
       .withTag("env", "test")
       .ignoreActiveSpan().start()
@@ -176,7 +176,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
       .fromJson('{"rate_by_service":{"service:,env:":1.0,"service:spock,env:":0.0}}'))
 
     when:
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("datadog", "test").start()
 
     then:
     span.getSamplingPriority() == null
@@ -190,7 +190,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     span.getSamplingPriority() == PrioritySampling.SAMPLER_DROP
 
     when:
-    span = tracer.buildSpan("test").withTag(DDTags.SERVICE_NAME, "spock").start()
+    span = tracer.buildSpan("datadog", "test").withTag(DDTags.SERVICE_NAME, "spock").start()
     span.finish()
     writer.waitForTraces(2)
 
@@ -205,7 +205,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     when:
     def sampler = new RateByServiceTraceSampler()
     def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
-    def span = tracer.buildSpan("root").start()
+    def span = tracer.buildSpan("datadog", "root").start()
     if (tagName) {
       span.setTag(tagName, tagValue)
     }
@@ -392,7 +392,7 @@ class RateByServiceTraceSamplerTest extends DDCoreSpecification {
     setup:
     def sampler = new RateByServiceTraceSampler()
     def tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build()
-    def span = tracer.buildSpan("root").start()
+    def span = tracer.buildSpan("datadog", "root").start()
     if (tagName) {
       span.setTag(tagName, tagValue)
     }

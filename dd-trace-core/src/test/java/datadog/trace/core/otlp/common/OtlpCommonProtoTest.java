@@ -1,13 +1,13 @@
 package datadog.trace.core.otlp.common;
 
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ARRAY;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ARRAY;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ARRAY;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ARRAY_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ARRAY_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ARRAY_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -166,7 +166,7 @@ class OtlpCommonProtoTest {
   @ParameterizedTest
   @ValueSource(strings = {"hello", "", "héllo", "日本語", "emoji 🎉"})
   void testStringAttribute(String value) throws IOException {
-    byte[] bytes = encode(STRING, "str-key", value);
+    byte[] bytes = encode(STRING_ATTRIBUTE, "str-key", value);
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("str-key", readKeyField(kv));
@@ -181,7 +181,7 @@ class OtlpCommonProtoTest {
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   void testBooleanAttribute(boolean value) throws IOException {
-    byte[] bytes = encode(BOOLEAN, "bool-key", value);
+    byte[] bytes = encode(BOOLEAN_ATTRIBUTE, "bool-key", value);
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("bool-key", readKeyField(kv));
@@ -196,7 +196,7 @@ class OtlpCommonProtoTest {
   @ParameterizedTest
   @ValueSource(longs = {0L, 1L, -1L, 42L, Long.MIN_VALUE, Long.MAX_VALUE})
   void testLongAttribute(long value) throws IOException {
-    byte[] bytes = encode(LONG, "long-key", value);
+    byte[] bytes = encode(LONG_ATTRIBUTE, "long-key", value);
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("long-key", readKeyField(kv));
@@ -222,7 +222,7 @@ class OtlpCommonProtoTest {
         Double.NEGATIVE_INFINITY
       })
   void testDoubleAttribute(double value) throws IOException {
-    byte[] bytes = encode(DOUBLE, "dbl-key", value);
+    byte[] bytes = encode(DOUBLE_ATTRIBUTE, "dbl-key", value);
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("dbl-key", readKeyField(kv));
@@ -239,7 +239,7 @@ class OtlpCommonProtoTest {
 
   @Test
   void testEmptyStringArrayAttribute() throws IOException {
-    byte[] bytes = encode(STRING_ARRAY, "arr-str", Collections.emptyList());
+    byte[] bytes = encode(STRING_ARRAY_ATTRIBUTE, "arr-str", Collections.emptyList());
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-str", readKeyField(kv));
@@ -251,7 +251,8 @@ class OtlpCommonProtoTest {
 
   @Test
   void testStringArrayAttribute() throws IOException {
-    byte[] bytes = encode(STRING_ARRAY, "arr-str", Arrays.asList("alpha", "héllo", "日本語"));
+    byte[] bytes =
+        encode(STRING_ARRAY_ATTRIBUTE, "arr-str", Arrays.asList("alpha", "héllo", "日本語"));
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-str", readKeyField(kv));
@@ -271,7 +272,7 @@ class OtlpCommonProtoTest {
 
   @Test
   void testEmptyBooleanArrayAttribute() throws IOException {
-    byte[] bytes = encode(BOOLEAN_ARRAY, "arr-bool", Collections.emptyList());
+    byte[] bytes = encode(BOOLEAN_ARRAY_ATTRIBUTE, "arr-bool", Collections.emptyList());
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-bool", readKeyField(kv));
@@ -283,7 +284,7 @@ class OtlpCommonProtoTest {
 
   @Test
   void testBooleanArrayAttribute() throws IOException {
-    byte[] bytes = encode(BOOLEAN_ARRAY, "arr-bool", Arrays.asList(true, false, true));
+    byte[] bytes = encode(BOOLEAN_ARRAY_ATTRIBUTE, "arr-bool", Arrays.asList(true, false, true));
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-bool", readKeyField(kv));
@@ -303,7 +304,7 @@ class OtlpCommonProtoTest {
 
   @Test
   void testEmptyLongArrayAttribute() throws IOException {
-    byte[] bytes = encode(LONG_ARRAY, "arr-long", Collections.emptyList());
+    byte[] bytes = encode(LONG_ARRAY_ATTRIBUTE, "arr-long", Collections.emptyList());
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-long", readKeyField(kv));
@@ -316,7 +317,10 @@ class OtlpCommonProtoTest {
   @Test
   void testLongArrayAttribute() throws IOException {
     byte[] bytes =
-        encode(LONG_ARRAY, "arr-long", Arrays.asList(0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE));
+        encode(
+            LONG_ARRAY_ATTRIBUTE,
+            "arr-long",
+            Arrays.asList(0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE));
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-long", readKeyField(kv));
@@ -336,7 +340,7 @@ class OtlpCommonProtoTest {
 
   @Test
   void testEmptyDoubleArrayAttribute() throws IOException {
-    byte[] bytes = encode(DOUBLE_ARRAY, "arr-dbl", Collections.emptyList());
+    byte[] bytes = encode(DOUBLE_ARRAY_ATTRIBUTE, "arr-dbl", Collections.emptyList());
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-dbl", readKeyField(kv));
@@ -350,7 +354,7 @@ class OtlpCommonProtoTest {
   void testDoubleArrayAttribute() throws IOException {
     byte[] bytes =
         encode(
-            DOUBLE_ARRAY,
+            DOUBLE_ARRAY_ATTRIBUTE,
             "arr-dbl",
             Arrays.asList(0.0, -1.5, Double.NaN, Double.POSITIVE_INFINITY));
     CodedInputStream kv = keyValueStream(bytes);

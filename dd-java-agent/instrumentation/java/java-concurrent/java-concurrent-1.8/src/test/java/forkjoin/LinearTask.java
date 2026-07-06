@@ -3,7 +3,7 @@ package forkjoin;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.RecursiveTask;
 
@@ -33,8 +33,8 @@ public class LinearTask extends RecursiveTask<Integer> {
       return parent;
     } else {
       int next = parent + 1;
-      AgentSpan span = startSpan(Integer.toString(next));
-      try (AgentScope scope = activateSpan(span)) {
+      AgentSpan span = startSpan("test", Integer.toString(next));
+      try (ContextScope scope = activateSpan(span)) {
         LinearTask child = new LinearTask(next, depth);
         return child.fork().join();
       } finally {

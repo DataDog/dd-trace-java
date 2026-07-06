@@ -8,10 +8,10 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static datadog.trace.common.writer.RemoteMapper.HTTP_STATUS;
 import static datadog.trace.common.writer.ddagent.TraceMapper.ORIGIN_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
@@ -22,7 +22,6 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.I32_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I64_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.VARINT_WIRE_TYPE;
-import static datadog.trace.core.otlp.common.OtlpCommonProto.recordMessage;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.sizeVarInt;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeAttribute;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeI32;
@@ -46,6 +45,7 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
+import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import datadog.trace.core.propagation.PropagationTags;
 
 /** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
@@ -56,18 +56,18 @@ public final class OtlpTraceProto {
   private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
 
-  static final int NO_TRACE_FLAGS = 0x00000000;
-  static final int SAMPLED_TRACE_FLAG = 0x00000001;
-  static final int REMOTE_TRACE_FLAG = 0x00000300;
+  public static final int NO_TRACE_FLAGS = 0x00000000;
+  public static final int SAMPLED_TRACE_FLAG = 0x00000001;
+  public static final int REMOTE_TRACE_FLAG = 0x00000300;
 
   private OtlpTraceProto() {}
 
-  /**
-   * Records the first part of a scoped spans message where we know its nested span messages will
-   * follow in one or more byte-arrays that add up to the given number of remaining bytes.
-   */
-  public static byte[] recordScopedSpansMessage(
-      GrowableBuffer buf, OtelInstrumentationScope scope, int remainingBytes) {
+  /** Records a scoped spans message after its nested span messages have been recorded. */
+  public static int recordScopedSpansMessage(
+      GrowableBuffer buf,
+      OtelInstrumentationScope scope,
+      int nestedSpanBytes,
+      OtlpProtoBuffer protobuf) {
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeInstrumentationScope(buf, scope);
@@ -76,16 +76,17 @@ public final class OtlpTraceProto {
       writeString(buf, scope.getSchemaUrl().getUtf8Bytes());
     }
 
-    return recordMessage(buf, 2, remainingBytes);
+    return protobuf.recordMessage(buf, 2, nestedSpanBytes);
   }
 
-  /**
-   * Records the first part of a span message where we know its nested span-links will follow in one
-   * or more byte-arrays that add up to the given number of remaining bytes.
-   */
-  public static byte[] recordSpanMessage(
-      GrowableBuffer buf, DDSpan span, MetaWriter metaWriter, int remainingBytes) {
-    PropagationTags propagationTags = span.context().getPropagationTags();
+  /** Records a span message after its nested span-link messages have been recorded. */
+  public static int recordSpanMessage(
+      GrowableBuffer buf,
+      DDSpan span,
+      MetaWriter metaWriter,
+      int nestedSpanLinkBytes,
+      OtlpProtoBuffer protobuf) {
+    PropagationTags propagationTags = span.spanContext().getPropagationTags();
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeTraceId(buf, span.getTraceId());
@@ -108,7 +109,7 @@ public final class OtlpTraceProto {
     if (span.samplingPriority() > 0) {
       traceFlags |= SAMPLED_TRACE_FLAG;
     }
-    if (span.context().isRemote()) {
+    if (span.spanContext().isRemote()) {
       traceFlags |= REMOTE_TRACE_FLAG;
     }
     if (traceFlags != NO_TRACE_FLAGS) {
@@ -125,7 +126,7 @@ public final class OtlpTraceProto {
     }
 
     writeTag(buf, 6, VARINT_WIRE_TYPE);
-    writeVarInt(buf, spanKind(span.context().getSpanKindString()));
+    writeVarInt(buf, spanKind(span.spanContext().getSpanKindString()));
 
     writeTag(buf, 7, I64_WIRE_TYPE);
     writeI64(buf, span.getStartTime());
@@ -138,7 +139,9 @@ public final class OtlpTraceProto {
     }
     writeSpanTag(buf, RESOURCE_NAME, span.getResourceName());
     writeSpanTag(buf, OPERATION_NAME, span.getOperationName());
-    writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
+    if (span.getSpanType() != null) {
+      writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
+    }
 
     span.processTagsAndBaggage(metaWriter);
 
@@ -160,11 +163,12 @@ public final class OtlpTraceProto {
       writeVarInt(buf, 2);
     }
 
-    return recordMessage(buf, 2, remainingBytes);
+    return protobuf.recordMessage(buf, 2, nestedSpanLinkBytes);
   }
 
-  /** Completes recording of a span-link message and packs it into its own byte-array. */
-  public static byte[] recordSpanLinkMessage(GrowableBuffer buf, AgentSpanLink spanLink) {
+  /** Records a span-link message. */
+  public static int recordSpanLinkMessage(
+      GrowableBuffer buf, AgentSpanLink spanLink, OtlpProtoBuffer protobuf) {
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeTraceId(buf, spanLink.traceId());
@@ -181,42 +185,42 @@ public final class OtlpTraceProto {
         .forEach(
             (key, value) -> {
               writeTag(buf, 4, LEN_WIRE_TYPE);
-              writeAttribute(buf, STRING, key, value);
+              writeAttribute(buf, STRING_ATTRIBUTE, key, value);
             });
 
     writeTag(buf, 6, I32_WIRE_TYPE);
     writeI32(buf, spanLink.traceFlags());
 
-    return recordMessage(buf, 13);
+    return protobuf.recordMessage(buf, 13);
   }
 
   public static void writeTraceId(StreamingBuffer buf, DDTraceId traceId) {
     writeVarInt(buf, 16);
-    writeI64(buf, traceId.toLong());
-    writeI64(buf, traceId.toHighOrderLong());
+    buf.putLong(traceId.toHighOrderLong());
+    buf.putLong(traceId.toLong());
   }
 
   public static void writeSpanId(StreamingBuffer buf, long spanId) {
     writeVarInt(buf, 8);
-    writeI64(buf, spanId);
+    buf.putLong(spanId);
   }
 
   private static void writeSpanTag(StreamingBuffer buf, TagMap.EntryReader tagEntry) {
     writeTag(buf, 9, LEN_WIRE_TYPE);
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
-        writeAttribute(buf, BOOLEAN, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, BOOLEAN_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
         break;
       case TagMap.EntryReader.INT:
       case TagMap.EntryReader.LONG:
-        writeAttribute(buf, LONG, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, LONG_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
         break;
       case TagMap.EntryReader.FLOAT:
       case TagMap.EntryReader.DOUBLE:
-        writeAttribute(buf, DOUBLE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, DOUBLE_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
         break;
       default:
-        writeAttribute(buf, STRING, tagEntry.tag(), tagEntry.stringValue());
+        writeAttribute(buf, STRING_ATTRIBUTE, tagEntry.tag(), tagEntry.stringValue());
     }
   }
 

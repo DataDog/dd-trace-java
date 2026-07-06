@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_POOL_NAME;
 import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.DECORATE;
+import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.JAVA_JDBC_POOL_WAITING;
 import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.POOL_WAITING;
 import static java.util.Collections.singletonMap;
 
@@ -88,7 +89,10 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
         @Advice.Thrown final Throwable throwable) {
       if (HikariBlockedTracker.wasBlocked()) {
         final AgentSpan span =
-            startSpan(POOL_WAITING, TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
+            startSpan(
+                JAVA_JDBC_POOL_WAITING.toString(),
+                POOL_WAITING,
+                TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
         DECORATE.afterStart(span);
         DECORATE.onError(span, throwable);
         span.setResourceName("hikari.waiting");

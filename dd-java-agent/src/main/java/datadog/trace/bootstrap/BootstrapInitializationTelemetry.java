@@ -7,6 +7,7 @@ import datadog.json.JsonWriter;
 import datadog.trace.bootstrap.environment.EnvironmentVariables;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.Closeable;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -325,6 +326,9 @@ public abstract class BootstrapInitializationTelemetry {
         Process process = builder.start();
         try (OutputStream out = process.getOutputStream()) {
           out.write(payload);
+        } catch (IOException ignoredException) {
+          // if this happens it can generate noise into the logs.
+          // we'll only log if the error is more severe
         }
       } catch (Throwable e) {
         // We don't have a log manager here, so just print.

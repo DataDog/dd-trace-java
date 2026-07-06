@@ -1,9 +1,12 @@
 package datadog.trace.core.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -63,6 +66,24 @@ class StackTracesTest {
           + "    at com.example.util.FileUtils.readFile(FileUtils.java:22)\n"
           + "    at com.example.util.ResourceManager.close(ResourceManager.java:21)\n"
           + "    ... 3 more\n";
+
+  // --- safeGetMessage ---
+
+  @Test
+  void safeGetMessageReturnsFallbackWhenGetMessageThrows() {
+    String message = StackTraces.safeGetMessage(TestThrowables.throwingGetMessage());
+    assertTrue(
+        message.contains("Exception message unavailable"), "must indicate message is unavailable");
+    assertTrue(
+        message.contains("IllegalArgumentException"), "must include secondary exception type");
+  }
+
+  @Test
+  void safeGetMessageReturnsNullForNullInput() {
+    assertNull(StackTraces.safeGetMessage(null));
+  }
+
+  // --- getStackTrace with broken getMessage ---
 
   @ParameterizedTest(name = "truncation limit {0}")
   @MethodSource("testTruncateArguments")

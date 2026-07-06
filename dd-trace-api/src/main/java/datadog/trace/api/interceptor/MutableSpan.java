@@ -29,9 +29,9 @@ public interface MutableSpan {
   Integer getSamplingPriority();
 
   /**
-   * @param newPriority
-   * @return
-   * @deprecated Use {@link io.opentracing.Span#setTag(String, boolean)} instead using either tag
+   * @param newPriority the sampling priority to set
+   * @return this {@link MutableSpan} instance, for chaining
+   * @deprecated Use {@code io.opentracing.Span#setTag(String, boolean)} instead using either tag
    *     names {@link datadog.trace.api.DDTags#MANUAL_KEEP} or {@link
    *     datadog.trace.api.DDTags#MANUAL_DROP}.
    */

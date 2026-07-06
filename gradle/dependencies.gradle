@@ -7,70 +7,88 @@ final class CachedData {
     // Inverse of "shared".  These exclude directives are part of shadowJar's DSL
     // which is similar but not exactly the same as the regular gradle dependency{} block
     // Also, transitive dependencies have to be explicitly listed
-    excludeShared        : (Closure) {
-      // projects bundled with shared or on bootstrap
-      exclude(project(':dd-java-agent:agent-bootstrap'))
-      exclude(project(':dd-java-agent:agent-debugger:debugger-bootstrap'))
-      exclude(project(':dd-java-agent:agent-logging'))
-      exclude(project(':dd-trace-api'))
-      exclude(project(':internal-api'))
-      exclude(project(':internal-api:internal-api-9'))
-      exclude(project(':communication'))
-      exclude(project(':components:context'))
-      exclude(project(':components:environment'))
-      exclude(project(':components:json'))
-      exclude(project(':products:feature-flagging:feature-flagging-bootstrap'))
-      exclude(project(':products:metrics:metrics-agent'))
-      exclude(project(':products:metrics:metrics-api'))
-      exclude(project(':products:metrics:metrics-lib'))
-      exclude(project(':remote-config:remote-config-api'))
-      exclude(project(':remote-config:remote-config-core'))
-      exclude(project(':telemetry'))
-      exclude(project(':utils:config-utils'))
-      exclude(project(':utils:container-utils'))
-      exclude(project(':utils:filesystem-utils'))
-      exclude(project(':utils:queue-utils'))
-      exclude(project(':utils:socket-utils'))
-      exclude(project(':utils:time-utils'))
-      exclude(project(':utils:logging-utils'))
-      exclude(project(':utils:version-utils'))
-      exclude(project(':dd-java-agent:agent-crashtracking'))
-      exclude(project(':dd-java-agent:ddprof-lib'))
-      exclude(dependency('org.slf4j::'))
-      exclude(dependency(':dd-instrument-java:'))
+    // Can't use shadow's Action<DependencyFilter> because dependencies.gradle is used in
+    // projects that don't have this plugin (e.g. the other unrelated declarations)
+    excludeShared        : new Action<Object>() {
+      @Override
+      void execute(Object filter) {
+        // projects bundled with shared or on bootstrap
+        filter.exclude(filter.project(':dd-java-agent:agent-bootstrap'))
+        filter.exclude(filter.project(':dd-java-agent:agent-debugger:debugger-bootstrap'))
+        filter.exclude(filter.project(':dd-java-agent:agent-logging'))
+        filter.exclude(filter.project(':dd-trace-api'))
+        filter.exclude(filter.project(':internal-api'))
+        filter.exclude(filter.project(':internal-api:internal-api-9'))
+        filter.exclude(filter.project(':communication'))
+        filter.exclude(filter.project(':components:context'))
+        filter.exclude(filter.project(':components:environment'))
+        filter.exclude(filter.project(':components:json'))
+        filter.exclude(filter.project(':products:feature-flagging:feature-flagging-bootstrap'))
+        filter.exclude(filter.project(':products:metrics:metrics-agent'))
+        filter.exclude(filter.project(':products:metrics:metrics-api'))
+        filter.exclude(filter.project(':products:metrics:metrics-lib'))
+        filter.exclude(filter.project(':remote-config:remote-config-api'))
+        filter.exclude(filter.project(':remote-config:remote-config-core'))
+        filter.exclude(filter.project(':telemetry'))
+        filter.exclude(filter.project(':utils:config-utils'))
+        filter.exclude(filter.project(':utils:container-utils'))
+        filter.exclude(filter.project(':utils:filesystem-utils'))
+        filter.exclude(filter.project(':utils:queue-utils'))
+        filter.exclude(filter.project(':utils:socket-utils'))
+        filter.exclude(filter.project(':utils:time-utils'))
+        filter.exclude(filter.project(':utils:logging-utils'))
+        filter.exclude(filter.project(':utils:version-utils'))
+        filter.exclude(filter.project(':dd-java-agent:agent-crashtracking'))
+        filter.exclude(filter.project(':dd-java-agent:ddprof-lib'))
+        filter.exclude(filter.dependency('org.slf4j:.*:.*'))
+        filter.exclude(filter.dependency('.*:dd-instrument-java:.*'))
 
-      // okhttp and its transitives (both fork and non-fork)
-      exclude(dependency('com.datadoghq.okhttp3:okhttp'))
-      exclude(dependency('com.squareup.okhttp3:okhttp'))
-      exclude(dependency('com.datadoghq.okio:okio'))
-      exclude(dependency('com.squareup.okio:okio'))
-      exclude(dependency('org.lz4:lz4-java'))
-      exclude(dependency('io.airlift:aircompressor'))
+        // okhttp and its transitives (both fork and non-fork)
+        filter.exclude(filter.dependency('com.datadoghq.okhttp3:okhttp'))
+        filter.exclude(filter.dependency('com.squareup.okhttp3:okhttp'))
+        filter.exclude(filter.dependency('com.datadoghq.okio:okio'))
+        filter.exclude(filter.dependency('com.squareup.okio:okio'))
+        filter.exclude(filter.dependency('at.yawk.lz4:lz4-java'))
+        filter.exclude(filter.dependency('io.airlift:aircompressor'))
 
-      // dogstatsd and its transitives
-      exclude(dependency('com.datadoghq:java-dogstatsd-client'))
-      exclude(dependency('com.github.jnr::'))
-      exclude(dependency('org.ow2.asm::'))
+        // dogstatsd and its transitives
+        filter.exclude(filter.dependency('com.datadoghq:java-dogstatsd-client'))
+        filter.exclude(filter.dependency('com.github.jnr:.*:.*'))
+        filter.exclude(filter.dependency('org.ow2.asm:.*:.*'))
 
-      // sketches-java used by dd-trace-core (DataStreams) and metrics
-      exclude(dependency('com.datadoghq:sketches-java'))
+        // sketches-java used by dd-trace-core (DataStreams) and metrics
+        filter.exclude(filter.dependency('com.datadoghq:sketches-java'))
 
-      // javac plugin client
-      exclude(dependency('com.datadoghq:dd-javac-plugin-client'))
+        // javac plugin client
+        filter.exclude(filter.dependency('com.datadoghq:dd-javac-plugin-client'))
 
-      // moshi and its transitives
-      exclude(dependency('com.squareup.moshi::'))
+        // moshi and its transitives
+        filter.exclude(filter.dependency('com.squareup.moshi:.*:.*'))
 
-      // jctools and its transitives
-      exclude(dependency('org.jctools::'))
+        // jctools and its transitives
+        filter.exclude(filter.dependency('org.jctools:.*:.*'))
 
-      // cafe_crypto and its transitives
-      exclude(dependency('cafe.cryptography::'))
+        // cafe_crypto and its transitives
+        filter.exclude(filter.dependency('cafe.cryptography:.*:.*'))
 
-      // snakeyaml-engine and its transitives
-      exclude(dependency('org.snakeyaml:snakeyaml-engine'))
+        // snakeyaml-engine and its transitives
+        filter.exclude(filter.dependency('org.snakeyaml:snakeyaml-engine'))
+
+        // re2j and its transitives
+        filter.exclude(filter.dependency('com.google.re2j:re2j'))
+      }
     }
   ]
+}
+
+// The upstream `org.lz4:lz4-java` project is no longer maintained (see https://github.com/lz4/lz4-java),
+// so we depend on the community fork `at.yawk.lz4:lz4-java`. The fork advertises itself as a drop-in replacement
+// via Gradle capabilities (see https://docs.gradle.org/current/userguide/component_capabilities.html).
+// This rule resolves conflicts by selecting the highest version.
+configurations.configureEach {
+  resolutionStrategy.capabilitiesResolution.withCapability('org.lz4:lz4-java') {
+    selectHighestVersion()
+  }
 }
 
 CachedData.deps.shared = [
@@ -85,7 +103,8 @@ CachedData.deps.shared = [
   libs.moshi,
   libs.jctools,
   libs.lz4,
-  libs.aircompressor
+  libs.aircompressor,
+  libs.re2j
 ]
 
 ext {

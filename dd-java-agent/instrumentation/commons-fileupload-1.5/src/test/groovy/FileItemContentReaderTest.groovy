@@ -39,61 +39,50 @@ class FileItemContentReaderTest extends Specification {
     FileItemContentReader.readContent(item) == ''
   }
 
-  void 'readContents returns content for each non-form file with a name'() {
+  void 'readContent uses Content-Type from file item for charset decoding'() {
     given:
-    def items = [fileItem('content-a', 'file-a.txt'), fileItem('content-b', 'file-b.txt'),]
+    def text = 'héllo wörld'
+    def item = fileItemFromBytes(text.getBytes('UTF-8'), 'file.txt', 'text/plain; charset=UTF-8')
 
-    when:
-    def result = FileItemContentReader.readContents(items)
-
-    then:
-    result == ['content-a', 'content-b']
-  }
-
-  void 'readContents skips form fields'() {
-    given:
-    FileItem formField = Stub(FileItem)
-    formField.isFormField() >> true
-    def items = [formField, fileItem('content', 'real.txt')]
-
-    when:
-    def result = FileItemContentReader.readContents(items)
-
-    then:
-    result == ['content']
-  }
-
-  void 'readContents includes file parts with empty or null name'() {
-    given:
-    def items = [
-      fileItem('content-no-name', null),
-      fileItem('content-empty-name', ''),
-      fileItem('content-named', 'named.txt'),
-    ]
-
-    when:
-    def result = FileItemContentReader.readContents(items)
-
-    then:
-    result == ['content-no-name', 'content-empty-name', 'content-named']
-  }
-
-  void 'readContents stops after MAX_FILES_TO_INSPECT files'() {
-    given:
-    def items = (1..FileItemContentReader.MAX_FILES_TO_INSPECT + 1).collect {
-      fileItem("content-${it}", "file-${it}.txt")
-    }
-
-    when:
-    def result = FileItemContentReader.readContents(items)
-
-    then:
-    result.size() == FileItemContentReader.MAX_FILES_TO_INSPECT
-  }
-
-  void 'readContents returns empty list for empty input'() {
     expect:
-    FileItemContentReader.readContents([]) == []
+    FileItemContentReader.readContent(item) == text
+  }
+
+  void 'addToContents adds content when below MAX_FILES_TO_INSPECT'() {
+    given:
+    def contents = []
+    def item = fileItem('hello')
+
+    when:
+    FileItemContentReader.addToContents(item, contents)
+
+    then:
+    contents == ['hello']
+  }
+
+  void 'addToContents does not add when at MAX_FILES_TO_INSPECT limit'() {
+    given:
+    def contents = (1..FileItemContentReader.MAX_FILES_TO_INSPECT).collect { "content-${it}" }
+    def item = fileItem('extra')
+
+    when:
+    FileItemContentReader.addToContents(item, contents)
+
+    then:
+    contents.size() == FileItemContentReader.MAX_FILES_TO_INSPECT
+  }
+
+  void 'addToContents fills up to exactly MAX_FILES_TO_INSPECT'() {
+    given:
+    def contents = (1..<FileItemContentReader.MAX_FILES_TO_INSPECT).collect { "content-${it}" }
+    def item = fileItem('last')
+
+    when:
+    FileItemContentReader.addToContents(item, contents)
+
+    then:
+    contents.size() == FileItemContentReader.MAX_FILES_TO_INSPECT
+    contents.last() == 'last'
   }
 
   private FileItem fileItem(String content) {
@@ -101,10 +90,19 @@ class FileItemContentReaderTest extends Specification {
   }
 
   private FileItem fileItem(String content, String name) {
+    fileItem(content, name, null)
+  }
+
+  private FileItem fileItem(String content, String name, String contentType) {
+    fileItemFromBytes((content ?: '').getBytes('ISO-8859-1'), name, contentType)
+  }
+
+  private FileItem fileItemFromBytes(byte[] bytes, String name, String contentType) {
     FileItem item = Stub(FileItem)
     item.isFormField() >> false
     item.getName() >> name
-    item.getInputStream() >> new ByteArrayInputStream((content ?: '').getBytes('ISO-8859-1'))
+    item.getContentType() >> contentType
+    item.getInputStream() >> new ByteArrayInputStream(bytes)
     return item
   }
 }

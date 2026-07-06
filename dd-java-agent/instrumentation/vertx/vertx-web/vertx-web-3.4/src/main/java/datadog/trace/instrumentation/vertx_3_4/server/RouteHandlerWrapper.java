@@ -8,7 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.INSTRUMENTATION_NAME;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.vertx.core.Handler;
@@ -44,16 +44,25 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
         AgentSpan parentSpan = activeSpan();
         routingContext.put(PARENT_SPAN_CONTEXT_KEY, parentSpan);
 
-        span = startSpan(INSTRUMENTATION_NAME);
+        span = startSpan("vertx", INSTRUMENTATION_NAME);
         routingContext.put(HANDLER_SPAN_CONTEXT_KEY, span);
 
+        // Register three hooks that fire on response outcome:
+        // finishHandlerSpan is idempotent; whichever hook fires first wins.
+        //
+        // Known remaining gap: sendFile() failures on file-not-found or
+        // IOException-during-open log via HttpServerResponseImpl and return
+        // without firing any of the three hooks above (when the caller did
+        // not pass a resultHandler), so the span still leaks on that path.
         routingContext.response().endHandler(new EndHandlerWrapper(routingContext));
+        routingContext.addBodyEndHandler(v -> finishHandlerSpan(routingContext));
+        routingContext.response().exceptionHandler(t -> finishHandlerSpan(routingContext));
         DECORATE.afterStart(span);
         span.setResourceName(DECORATE.className(actual.getClass()));
       }
       setRoute(routingContext);
     }
-    try (final AgentScope scope = span != null ? activateSpan(span) : noopScope()) {
+    try (final ContextScope scope = span != null ? activateSpan(span) : noopScope()) {
       try {
         actual.handle(routingContext);
       } catch (final Throwable t) {
@@ -61,6 +70,20 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
         throw t;
       }
     }
+  }
+
+  // Idempotently finish the route-handler span. Any of the three registered
+  // hooks (EndHandlerWrapper, the addBodyEndHandler fallback, or the
+  // response.exceptionHandler lambda) may call this; the first one to win
+  // clears HANDLER_SPAN_CONTEXT_KEY so the others are no-ops.
+  static void finishHandlerSpan(final RoutingContext routingContext) {
+    final AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+    if (span == null) {
+      return;
+    }
+    routingContext.put(HANDLER_SPAN_CONTEXT_KEY, null);
+    DECORATE.onResponse(span, routingContext.response());
+    span.finish();
   }
 
   private void setRoute(RoutingContext routingContext) {

@@ -25,6 +25,8 @@ public final class OtlpMetricsService {
 
   private final int intervalMillis;
 
+  private AgentTaskScheduler.Scheduled<?> scheduledTask = null;
+
   private OtlpMetricsService(Config config) {
     this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
 
@@ -51,7 +53,7 @@ public final class OtlpMetricsService {
         break;
       default:
         LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
-        this.collector = OtlpMetricsCollector.NOOP_COLLECTOR;
+        this.collector = null;
         this.sender = null;
     }
 
@@ -59,6 +61,10 @@ public final class OtlpMetricsService {
   }
 
   public void start() {
+    if (sender == null) {
+      return;
+    }
+
     // add random jitter of up to 5 seconds to initial delay; avoids a fleet
     // of apps starting at the same time from exporting OTLP metrics in sync
     long initialMillis =
@@ -70,15 +76,21 @@ public final class OtlpMetricsService {
                         / Math.log(1 - 0.25)),
                 5_000);
 
-    scheduler.scheduleAtFixedRate(
-        this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
+    scheduledTask =
+        scheduler.scheduleAtFixedRate(
+            this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
   }
 
   public void flush() {
-    scheduler.execute(this::export);
+    if (sender != null) {
+      scheduler.execute(this::export);
+    }
   }
 
   public void shutdown() {
+    if (scheduledTask != null) {
+      scheduledTask.cancel();
+    }
     if (sender != null) {
       sender.shutdown();
     }

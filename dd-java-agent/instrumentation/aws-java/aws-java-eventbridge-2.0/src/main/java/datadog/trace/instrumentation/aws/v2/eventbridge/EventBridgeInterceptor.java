@@ -25,6 +25,8 @@ import software.amazon.awssdk.services.eventbridge.model.PutEventsRequestEntry;
 
 public class EventBridgeInterceptor implements ExecutionInterceptor {
   private static final Logger log = LoggerFactory.getLogger(EventBridgeInterceptor.class);
+  private static final String DEFAULT_EVENT_BUS_NAME = "default";
+  private static final String EVENT_BUS_ARN_PREFIX = "event-bus/";
 
   public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
@@ -57,7 +59,8 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
       }
 
       String traceContext =
-          getTraceContextToInject(executionAttributes, entry.eventBusName(), startTime);
+          getTraceContextToInject(
+              executionAttributes, entry.eventBusName(), entry.detailType(), startTime);
       detailBuilder.setLength(detailBuilder.length() - 1); // Remove the last bracket
       if (detailBuilder.length() > 1) {
         detailBuilder.append(", "); // Only add a comma if detail is not empty.
@@ -79,14 +82,19 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
   }
 
   private String getTraceContextToInject(
-      ExecutionAttributes executionAttributes, String eventBusName, long startTime) {
+      ExecutionAttributes executionAttributes,
+      String eventBusName,
+      String detailType,
+      long startTime) {
     Context context = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
+    String resourceName =
+        eventBusName == null || eventBusName.isEmpty() ? DEFAULT_EVENT_BUS_NAME : eventBusName;
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
 
     // Inject context
     if (traceConfig().isDataStreamsEnabled()) {
-      DataStreamsTags tags = DataStreamsTags.createWithBus(OUTBOUND, eventBusName);
+      DataStreamsTags tags = buildDataStreamsTags(eventBusName, detailType);
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       context = context.with(dsmContext);
     }
@@ -103,10 +111,48 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
         .append(" \"")
         .append(RESOURCE_NAME_KEY)
         .append("\": \"")
-        .append(eventBusName)
+        .append(resourceName)
         .append('\"');
 
     jsonBuilder.append('}');
     return jsonBuilder.toString();
+  }
+
+  static DataStreamsTags buildDataStreamsTags(String eventBusName, String detailType) {
+    return new DataStreamsTags(
+        null,
+        OUTBOUND,
+        normalizeEventBusName(eventBusName),
+        normalizeDetailType(detailType),
+        "eventbridge",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
+  }
+
+  static String normalizeEventBusName(String eventBusName) {
+    if (eventBusName == null || eventBusName.isEmpty()) {
+      return DEFAULT_EVENT_BUS_NAME;
+    }
+
+    // EventBridge ARNs embed the full bus name after "event-bus/", including partner bus paths.
+    int arnBusNameStart = eventBusName.indexOf(EVENT_BUS_ARN_PREFIX);
+    if (arnBusNameStart >= 0) {
+      return eventBusName.substring(arnBusNameStart + EVENT_BUS_ARN_PREFIX.length());
+    }
+    return eventBusName;
+  }
+
+  static String normalizeDetailType(String detailType) {
+    if (detailType == null || detailType.isEmpty()) {
+      return null;
+    }
+    return detailType;
   }
 }

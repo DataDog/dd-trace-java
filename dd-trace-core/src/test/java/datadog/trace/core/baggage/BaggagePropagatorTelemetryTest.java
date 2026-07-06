@@ -11,11 +11,13 @@ import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.metrics.BaggageMetrics;
 import datadog.trace.api.telemetry.CoreMetricCollector;
+import datadog.trace.api.telemetry.CoreMetricCollector.CoreMetric;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,13 +39,9 @@ class BaggagePropagatorTelemetryTest {
 
     baggageMetrics.onBaggageInjected();
     collector.prepareMetrics();
-    Collection<CoreMetricCollector.CoreMetric> metrics = collector.drain();
+    Collection<CoreMetric> metrics = collector.drain();
 
-    CoreMetricCollector.CoreMetric baggageMetric =
-        metrics.stream()
-            .filter(m -> "context_header_style.injected".equals(m.metricName))
-            .findFirst()
-            .orElse(null);
+    CoreMetric baggageMetric = metricFromName(metrics, "context_header_style.injected");
     assertNotNull(baggageMetric);
     assertTrue(baggageMetric.value.longValue() >= 1);
     assertTrue(baggageMetric.tags.contains("header_style:baggage"));
@@ -63,13 +61,9 @@ class BaggagePropagatorTelemetryTest {
 
     propagator.extract(context, carrier, MAP_VISITOR);
     collector.prepareMetrics();
-    Collection<CoreMetricCollector.CoreMetric> metrics = collector.drain();
+    Collection<CoreMetric> metrics = collector.drain();
 
-    CoreMetricCollector.CoreMetric baggageMetric =
-        metrics.stream()
-            .filter(m -> "context_header_style.extracted".equals(m.metricName))
-            .findFirst()
-            .orElse(null);
+    CoreMetric baggageMetric = metricFromName(metrics, "context_header_style.extracted");
     assertNotNull(baggageMetric);
     assertTrue(baggageMetric.value.longValue() >= 1);
     assertTrue(baggageMetric.tags.contains("header_style:baggage"));
@@ -82,50 +76,42 @@ class BaggagePropagatorTelemetryTest {
 
     baggageMetrics.onBaggageInjected();
     baggageMetrics.onBaggageMalformed();
-    baggageMetrics.onBaggageTruncatedByByteLimit();
-    baggageMetrics.onBaggageTruncatedByItemLimit();
+    baggageMetrics.onBaggageTruncatedByInjectByteLimit();
+    baggageMetrics.onBaggageTruncatedByInjectItemLimit();
+    baggageMetrics.onBaggageTruncatedByExtractByteLimit();
+    baggageMetrics.onBaggageTruncatedByExtractItemLimit();
     collector.prepareMetrics();
-    Collection<CoreMetricCollector.CoreMetric> metrics = collector.drain();
+    Collection<CoreMetric> metrics = collector.drain();
 
-    CoreMetricCollector.CoreMetric injectedMetric =
-        metrics.stream()
-            .filter(m -> "context_header_style.injected".equals(m.metricName))
-            .findFirst()
-            .orElse(null);
+    CoreMetric injectedMetric = metricFromName(metrics, "context_header_style.injected");
     assertNotNull(injectedMetric);
     assertEquals(1, injectedMetric.value.longValue());
     assertTrue(injectedMetric.tags.contains("header_style:baggage"));
 
-    CoreMetricCollector.CoreMetric malformedMetric =
-        metrics.stream()
-            .filter(m -> "context_header_style.malformed".equals(m.metricName))
-            .findFirst()
-            .orElse(null);
+    CoreMetric malformedMetric = metricFromName(metrics, "context_header_style.malformed");
     assertNotNull(malformedMetric);
     assertEquals(1, malformedMetric.value.longValue());
     assertTrue(malformedMetric.tags.contains("header_style:baggage"));
 
-    CoreMetricCollector.CoreMetric bytesTruncatedMetric =
-        metrics.stream()
-            .filter(
-                m ->
-                    "context_header.truncated".equals(m.metricName)
-                        && m.tags.contains("truncation_reason:baggage_byte_count_exceeded"))
-            .findFirst()
-            .orElse(null);
+    CoreMetric bytesTruncatedMetric =
+        truncateMetricFromName(metrics, "truncation_reason:baggage_byte_count_exceeded");
     assertNotNull(bytesTruncatedMetric);
     assertEquals(1, bytesTruncatedMetric.value.longValue());
 
-    CoreMetricCollector.CoreMetric itemsTruncatedMetric =
-        metrics.stream()
-            .filter(
-                m ->
-                    "context_header.truncated".equals(m.metricName)
-                        && m.tags.contains("truncation_reason:baggage_item_count_exceeded"))
-            .findFirst()
-            .orElse(null);
+    CoreMetric itemsTruncatedMetric =
+        truncateMetricFromName(metrics, "truncation_reason:baggage_item_count_exceeded");
     assertNotNull(itemsTruncatedMetric);
     assertEquals(1, itemsTruncatedMetric.value.longValue());
+
+    CoreMetric extractBytesTruncatedMetric =
+        truncateMetricFromName(metrics, "truncation_reason:baggage_extract_byte_exceeded");
+    assertNotNull(extractBytesTruncatedMetric);
+    assertEquals(1, extractBytesTruncatedMetric.value.longValue());
+
+    CoreMetric extractItemsTruncatedMetric =
+        truncateMetricFromName(metrics, "truncation_reason:baggage_extract_item_exceeded");
+    assertNotNull(extractItemsTruncatedMetric);
+    assertEquals(1, extractItemsTruncatedMetric.value.longValue());
   }
 
   @Test
@@ -142,12 +128,24 @@ class BaggagePropagatorTelemetryTest {
 
     propagator.extract(context, carrier, MAP_VISITOR);
     collector.prepareMetrics();
-    Collection<CoreMetricCollector.CoreMetric> metrics = collector.drain();
+    Collection<CoreMetric> metrics = collector.drain();
 
-    List<CoreMetricCollector.CoreMetric> foundMetrics =
+    List<CoreMetric> foundMetrics =
         metrics.stream()
             .filter(m -> m.metricName.startsWith("context_header_style."))
             .collect(Collectors.toList());
     assertTrue(foundMetrics.isEmpty());
+  }
+
+  private static @Nullable CoreMetric metricFromName(Collection<CoreMetric> metrics, String name) {
+    return metrics.stream().filter(m -> name.equals(m.metricName)).findFirst().orElse(null);
+  }
+
+  private static @Nullable CoreMetric truncateMetricFromName(
+      Collection<CoreMetric> metrics, String name) {
+    return metrics.stream()
+        .filter(m -> "context_header.truncated".equals(m.metricName) && m.tags.contains(name))
+        .findFirst()
+        .orElse(null);
   }
 }

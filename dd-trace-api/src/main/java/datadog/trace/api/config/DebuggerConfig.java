@@ -32,8 +32,14 @@ public final class DebuggerConfig {
       "dynamic.instrumentation.exclude.files";
   public static final String DYNAMIC_INSTRUMENTATION_INCLUDE_FILES =
       "dynamic.instrumentation.include.files";
+  public static final String DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE =
+      "internal.dynamic.instrumentation.timeout.checker.mode";
   public static final String DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT =
       "dynamic.instrumentation.capture.timeout";
+  public static final String DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS =
+      "dynamic.instrumentation.capture.timeout.ms";
+  public static final String DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT_MS =
+      "dynamic.instrumentation.evaluation.timeout.ms";
   public static final String DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS =
       "dynamic.instrumentation.redacted.identifiers";
   public static final String DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS =

@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
 import java.util.List;
 
+/** Reports the histogram of values since the last reset. */
 final class OtelHistogramSketch extends OtelAggregator {
   private final HistogramWithSum histogram;
 

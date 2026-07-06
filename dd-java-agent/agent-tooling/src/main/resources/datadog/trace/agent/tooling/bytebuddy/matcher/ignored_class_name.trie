@@ -59,6 +59,7 @@
 0 java.lang.VirtualThread
 0 java.net.http.*
 0 java.net.HttpURLConnection
+0 java.net.InetAddress
 0 java.net.Socket
 0 java.net.URL
 0 java.nio.DirectByteBuffer

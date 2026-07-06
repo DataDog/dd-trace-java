@@ -40,7 +40,7 @@ class ParentBasedAlwaysOnSamplerTest {
     ParentBasedAlwaysOnSampler sampler = new ParentBasedAlwaysOnSampler();
     CoreTracer tracer = buildTracer(sampler);
 
-    DDSpan span = (DDSpan) tracer.buildSpan("test").start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").start();
     try {
       assertTrue(sampler.sample(span));
     } finally {
@@ -53,7 +53,7 @@ class ParentBasedAlwaysOnSamplerTest {
     ParentBasedAlwaysOnSampler sampler = new ParentBasedAlwaysOnSampler();
     CoreTracer tracer = buildTracer(sampler);
 
-    DDSpan span = (DDSpan) tracer.buildSpan("test").start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").start();
     try {
       sampler.setSamplingPriority(span);
       assertEquals(SAMPLER_KEEP, span.getSamplingPriority());
@@ -67,9 +67,10 @@ class ParentBasedAlwaysOnSamplerTest {
     ParentBasedAlwaysOnSampler sampler = new ParentBasedAlwaysOnSampler();
     CoreTracer tracer = buildTracer(sampler);
 
-    DDSpan rootSpan = (DDSpan) tracer.buildSpan("root").start();
+    DDSpan rootSpan = (DDSpan) tracer.buildSpan("datadog", "root").start();
     sampler.setSamplingPriority(rootSpan);
-    DDSpan childSpan = (DDSpan) tracer.buildSpan("child").asChildOf(rootSpan.context()).start();
+    DDSpan childSpan =
+        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(rootSpan.spanContext()).start();
     try {
       assertEquals(SAMPLER_KEEP, rootSpan.getSamplingPriority());
       assertEquals(SAMPLER_KEEP, childSpan.getSamplingPriority());
@@ -95,7 +96,7 @@ class ParentBasedAlwaysOnSamplerTest {
         new ExtractedContext(
             DDTraceId.ONE, 2, parentPriority, null, PropagationTags.factory().empty(), DATADOG);
 
-    DDSpan span = (DDSpan) tracer.buildSpan("child").asChildOf(extractedContext).start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(extractedContext).start();
     try {
       assertEquals(parentPriority, span.getSamplingPriority());
     } finally {

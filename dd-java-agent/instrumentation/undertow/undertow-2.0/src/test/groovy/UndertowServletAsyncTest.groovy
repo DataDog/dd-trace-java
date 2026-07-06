@@ -296,6 +296,11 @@ class UndertowServletAsyncTest extends HttpServerTest<Undertow> {
   }
 
   @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
   boolean testBlockingOnResponse() {
     true
   }

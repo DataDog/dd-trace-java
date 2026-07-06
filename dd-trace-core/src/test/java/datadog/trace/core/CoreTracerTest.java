@@ -199,8 +199,8 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     Map<String, Object> localRootSpanTags = new LinkedHashMap<>();
     localRootSpanTags.put("only_root", "value");
     CoreTracer tracer = tracerBuilder().localRootSpanTags(localRootSpanTags).build();
-    AgentSpan root = tracer.buildSpan("my_root").start();
-    AgentSpan child = tracer.buildSpan("my_child").asChildOf(root.context()).start();
+    AgentSpan root = tracer.buildSpan("datadog", "my_root").start();
+    AgentSpan child = tracer.buildSpan("datadog", "my_child").asChildOf(root.spanContext()).start();
     try {
       assertTrue(root.getTags().containsKey("only_root"));
       assertFalse(child.getTags().containsKey("only_root"));
@@ -216,7 +216,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     ListWriter writer = new ListWriter();
     CoreTracer tracer = tracerBuilder().writer(writer).build();
     try {
-      DDSpan span = (DDSpan) tracer.buildSpan("operation").start();
+      DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
       span.finish();
       writer.waitForTraces(1);
       assertEquals(PrioritySampling.SAMPLER_KEEP, (int) span.getSamplingPriority());
@@ -230,8 +230,9 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     ListWriter writer = new ListWriter();
     CoreTracer tracer = tracerBuilder().writer(writer).build();
     try {
-      DDSpan root = (DDSpan) tracer.buildSpan("operation").start();
-      DDSpan child = (DDSpan) tracer.buildSpan("my_child").asChildOf(root.context()).start();
+      DDSpan root = (DDSpan) tracer.buildSpan("datadog", "operation").start();
+      DDSpan child =
+          (DDSpan) tracer.buildSpan("datadog", "my_child").asChildOf(root.spanContext()).start();
       root.finish();
 
       assertNull(root.getSamplingPriority());
@@ -476,12 +477,13 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
       DDSpan span =
-          (DDSpan) tracer.buildSpan("def").withTag(GeneralConfig.SERVICE_NAME, "foo").start();
+          (DDSpan)
+              tracer.buildSpan("datadog", "def").withTag(GeneralConfig.SERVICE_NAME, "foo").start();
       span.finish();
       assertEquals("foo", span.getServiceName());
       assertFalse(span.getTags().containsKey("version"));
 
-      DDSpan span2 = (DDSpan) tracer.buildSpan("abc").start();
+      DDSpan span2 = (DDSpan) tracer.buildSpan("datadog", "abc").start();
       span2.finish();
       assertEquals("dd_service_name", span2.getServiceName());
       assertEquals("1.0.0", String.valueOf(span2.getTags().get("version")));
@@ -494,7 +496,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   void flushesOnTracerCloseIfConfiguredToDoSo() {
     WriterWithExplicitFlush writer = new WriterWithExplicitFlush();
     CoreTracer tracer = tracerBuilder().writer(writer).flushOnClose(true).build();
-    tracer.buildSpan("my_span").start().finish();
+    tracer.buildSpan("datadog", "my_span").start().finish();
     tracer.close();
     assertFalse(writer.flushedTraces.isEmpty());
   }
@@ -553,9 +555,9 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   void serviceNameSourceIsRecordedWhenUsingTwoParameterSetServiceName() {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
-      DDSpan span = (DDSpan) tracer.buildSpan("operation").start();
+      DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
       span.setServiceName("custom-service", "my-integration");
-      DDSpan child = (DDSpan) tracer.buildSpan("child").start();
+      DDSpan child = (DDSpan) tracer.buildSpan("datadog", "child").start();
       child.finish();
       span.finish();
 
@@ -570,7 +572,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   void serviceNameSourceIsMarkedAsManualWhenUsingOneParameterSetServiceName() {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
-      DDSpan span = (DDSpan) tracer.buildSpan("operation").start();
+      DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
       span.setServiceName("custom-service", "my-integration");
       span.setServiceName("another");
       span.finish();
@@ -586,7 +588,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   void serviceNameSourceIsMissingWhenNotExplicitlySettingServiceName() {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
-      DDSpan span = (DDSpan) tracer.buildSpan("operation").start();
+      DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
       span.finish();
 
       assertEquals(tracer.serviceName, span.getServiceName());

@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator.PEKKO_CLIENT_REQUEST;
+import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator.PEKKO_HTTP_CLIENT;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientHelpers.OnCompleteHandler;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientHelpers.PekkoHttpHeaders;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -79,7 +80,7 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
         return null;
       }
 
-      final AgentSpan span = startSpan("pekko-http", PEKKO_CLIENT_REQUEST);
+      final AgentSpan span = startSpan(PEKKO_HTTP_CLIENT.toString(), PEKKO_CLIENT_REQUEST);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       return activateSpan(span);

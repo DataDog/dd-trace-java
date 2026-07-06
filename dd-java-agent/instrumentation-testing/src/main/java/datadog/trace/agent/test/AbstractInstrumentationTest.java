@@ -1,6 +1,6 @@
 package datadog.trace.agent.test;
 
-import static java.util.function.Function.identity;
+import static java.util.function.UnaryOperator.identity;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.api.Config;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.bootstrap.InstrumentationErrors;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.common.writer.ListWriter;
@@ -20,6 +21,7 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.TraceCollector;
+import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.junit.utils.context.AllowContextTestingExtension;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -27,8 +29,8 @@ import java.util.List;
 import java.util.ServiceLoader;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -51,6 +53,7 @@ import org.opentest4j.AssertionFailedError;
  *   <li>{@code @AfterAll}: Closes the tracer and removes the agent transformer
  * </ul>
  */
+@WithConfig(key = "detailed.instrumentation.errors", value = "true")
 @ExtendWith({TestClassShadowingExtension.class, AllowContextTestingExtension.class})
 public abstract class AbstractInstrumentationTest {
   static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
@@ -66,6 +69,8 @@ public abstract class AbstractInstrumentationTest {
 
   @BeforeAll
   static void initAll() {
+    InstrumentationErrors.resetErrors();
+
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath.
     assertNull(Config.class.getClassLoader(), "Config must load on the bootstrap classpath.");
@@ -97,10 +102,14 @@ public abstract class AbstractInstrumentationTest {
     activeTransformer =
         AgentInstaller.installBytebuddyAgent(
             INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), transformerListener);
+
+    // check for instrumentation issues during installation
+    assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
   }
 
   @BeforeEach
   public void init() {
+    InstrumentationErrors.resetErrors(); // reset for each test
     tracer.flush();
     writer.start();
   }
@@ -108,6 +117,9 @@ public abstract class AbstractInstrumentationTest {
   @AfterEach
   public void tearDown() {
     tracer.flush();
+
+    // check for instrumentation issues while running each test
+    assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
   }
 
   @AfterAll
@@ -148,8 +160,7 @@ public abstract class AbstractInstrumentationTest {
    * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
    */
   protected void assertTraces(
-      Function<TraceAssertions.Options, TraceAssertions.Options> options,
-      TraceMatcher... matchers) {
+      UnaryOperator<TraceAssertions.Options> options, TraceMatcher... matchers) {
     int expectedTraceCount = matchers.length;
     try {
       writer.waitForTraces(expectedTraceCount);
@@ -185,7 +196,7 @@ public abstract class AbstractInstrumentationTest {
 
   static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
     if (span instanceof DDSpan) {
-      TraceCollector traceCollector = ((DDSpan) span).context().getTraceCollector();
+      TraceCollector traceCollector = ((DDSpan) span).spanContext().getTraceCollector();
       if (!(traceCollector instanceof PendingTrace)) {
         throw new IllegalStateException(
             "Expected PendingTrace trace collector, got " + traceCollector.getClass().getName());

@@ -33,6 +33,7 @@ import datadog.metrics.api.statsd.StatsDClient
 import datadog.metrics.impl.DDSketchHistograms
 import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.agent.test.asserts.TagsAssert
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
@@ -46,6 +47,7 @@ import datadog.trace.api.Pair
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor
@@ -78,7 +80,6 @@ import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicInteger
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
@@ -167,10 +168,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   @SuppressWarnings('PropertyName')
   @Shared
   Set<TypeDescription> TRANSFORMED_CLASSES_TYPES = Sets.newConcurrentHashSet()
-
-  @SuppressWarnings('PropertyName')
-  @Shared
-  AtomicInteger INSTRUMENTATION_ERROR_COUNT = new AtomicInteger(0)
 
   // don't use mocks because it will break too many exhaustive interaction-verifying tests
   @SuppressWarnings('PropertyName')
@@ -352,6 +349,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   @SuppressForbidden
   void setupSpec() {
+    InstrumentationErrors.resetErrors()
+
     AgentMeter.registerIfAbsent(
     STATS_D_CLIENT,
     new MonitoringImpl(STATS_D_CLIENT, 10, TimeUnit.SECONDS),
@@ -390,7 +389,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       OkHttpClient client = buildHttpClient(true, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
 
       Config cfg = Config.get()
-      DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, cfg.getProtocolVersion(), cfg.isTracerMetricsEnabled())
+      DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, cfg.getProtocolVersion(), cfg.isTracerMetricsEnabled(), cfg.isTracerMetricsIgnoreAgentVersion())
       TEST_AGENT_API = new DDAgentApi(client, agentUrl, featureDiscovery, Monitoring.DISABLED, cfg.isTracerMetricsEnabled())
       TEST_AGENT_WRITER = DDAgentWriter.builder().agentApi(TEST_AGENT_API).build()
     }
@@ -407,15 +406,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     boolean enabledFinishTimingChecks = this.enabledFinishTimingChecks()
-    TEST_TRACER.startSpan(*_) >> {
-      AgentSpan agentSpan = callRealMethod()
-      if (!enabledFinishTimingChecks) {
-        return agentSpan
-      }
-
-      def trackingSpan = new TrackingSpanDecorator(agentSpan, spanFinishLocations, originalToTrackingSpan, useStrictTraceWrites())
-      originalToTrackingSpan[agentSpan] = trackingSpan
-      return trackingSpan
+    TEST_TRACER.startSpan(*_) >> { args ->
+      trackStartSpan(callRealMethod(), args[0] as String, enabledFinishTimingChecks)
     }
 
     ClassInjector.enableClassInjection(INSTRUMENTATION)
@@ -429,6 +421,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(
     INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
+
+    // check for instrumentation issues during installation
+    assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
   }
 
   protected String idGenerationStrategyName() {
@@ -437,12 +432,15 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   /** Override to set config before the agent is installed */
   protected void configurePreAgent() {
+    injectSysConfig(TraceInstrumentationConfig.DETAILED_INSTRUMENTATION_ERRORS, "true")
     injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, String.valueOf(isDataStreamsEnabled()))
     injectSysConfig(GeneralConfig.DATA_JOBS_ENABLED, String.valueOf(isDataJobsEnabled()))
   }
 
   void setup() {
+    InstrumentationErrors.resetErrors() // reset for each test
+
     configureLoggingLevels()
 
     assertThreadsEachCleanup = false
@@ -478,7 +476,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     if (forceAppSecActive) {
       ActiveSubsystems.APPSEC_ACTIVE = true
     }
-    InstrumentationErrors.resetErrorCount()
     ProcessTags.reset()
   }
 
@@ -520,7 +517,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       spanFinishLocations.clear()
       originalToTrackingSpan.clear()
     }
-    assert InstrumentationErrors.errorCount == 0
+
+    // check for instrumentation issues while running each test
+    assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
   }
 
   private void doCheckRepeatedFinish() {
@@ -562,8 +561,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     cleanupAfterAgent()
 
     // All cleanup should happen before these assertion.  If not, a failing assertion may prevent cleanup
-    assert INSTRUMENTATION_ERROR_COUNT.get() == 0: INSTRUMENTATION_ERROR_COUNT.get() + " Instrumentation errors during test"
-
     assert TRANSFORMED_CLASSES_TYPES.findAll {
       GlobalIgnores.isAdditionallyIgnored(it.getActualName())
     }.isEmpty(): "Transformed classes match global libraries ignore matcher"
@@ -571,6 +568,16 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   boolean useStrictTraceWrites() {
     return true
+  }
+
+  protected AgentSpan trackStartSpan(AgentSpan span, String instrName, boolean enabledFinishTimingChecks) {
+    TagsAssert.INSTRUMENTATION_NAMES[span.spanId] = instrName
+    if (!enabledFinishTimingChecks) {
+      return span
+    }
+    def trackingSpan = new TrackingSpanDecorator(span, spanFinishLocations, originalToTrackingSpan, useStrictTraceWrites())
+    originalToTrackingSpan[span] = trackingSpan
+    return trackingSpan
   }
 
   void assertTraces(
@@ -617,7 +624,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
     if (span instanceof DDSpan) {
-      def traceCollector = ((DDSpan) span).context().getTraceCollector()
+      def traceCollector = ((DDSpan) span).spanContext().getTraceCollector()
       if (!(traceCollector instanceof PendingTrace)) {
         throw new IllegalStateException("Expected $PendingTrace.name trace collector, got $traceCollector.class.name")
       }
@@ -654,9 +661,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       return
     }
 
+    InstrumentationErrors.recordError(throwable)
     println "Unexpected instrumentation error when instrumenting ${typeName} on ${classLoader}"
     throwable.printStackTrace()
-    INSTRUMENTATION_ERROR_COUNT.incrementAndGet()
   }
 
   @Override

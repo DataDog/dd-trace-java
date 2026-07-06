@@ -44,7 +44,6 @@ import datadog.trace.core.DDSpanContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -458,7 +457,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     double rate =
         sampling != null
             ? sampling.getEventsPerSecond()
-            : (isCaptureSnapshot()
+            : (isFullSnapshot()
                 ? ProbeRateLimiter.DEFAULT_SNAPSHOT_RATE
                 : ProbeRateLimiter.DEFAULT_LOG_RATE);
     sampler = ProbeRateLimiter.createSampler(rate);
@@ -502,7 +501,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   public boolean isReadyToCapture() {
     if (!hasCondition()) {
       // we are sampling here to avoid creating CapturedContext when the sampling result is negative
-      return ProbeRateLimiter.tryProbe(sampler, isCaptureSnapshot());
+      return ProbeRateLimiter.tryProbe(sampler, isFullSnapshot());
     }
     return true;
   }
@@ -570,10 +569,10 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     // if condition has error and no capture Snapshot, the error is reported using errorSampler
     // at 1/s rate instead of the log template one
     Sampler localSampler =
-        logStatus.hasConditionErrors && !isCaptureSnapshot() ? errorSampler : sampler;
+        logStatus.hasConditionErrors && !isFullSnapshot() ? errorSampler : sampler;
     boolean sampled =
         !logStatus.getDebugSessionStatus().isDisabled()
-            && ProbeRateLimiter.tryProbe(localSampler, isCaptureSnapshot());
+            && ProbeRateLimiter.tryProbe(localSampler, isFullSnapshot());
     logStatus.setSampled(sampled);
     if (!sampled) {
       DebuggerAgent.getSink()
@@ -590,7 +589,9 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       return true;
     }
     try {
-      if (!probeCondition.execute(capture)) {
+      Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
+      TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
+      if (!probeCondition.execute(capture, timeoutChecker)) {
         return false;
       }
     } catch (EvaluationException ex) {
@@ -720,7 +721,9 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     }
     for (CaptureExpression captureExpression : captureExpressions) {
       try {
-        Value<?> result = captureExpression.expr.execute(context);
+        Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
+        TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
+        Value<?> result = captureExpression.expr.execute(context, timeoutChecker);
         if (result.isUndefined()) {
           throw new EvaluationException("UNDEFINED", captureExpression.getExpr().getDsl());
         }
@@ -837,9 +840,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         if (isFullSnapshot()) {
           // freeze context just before commit because line probes have only one context
           Duration timeout =
-              Duration.of(
-                  Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
-          lineContext.freeze(new TimeoutChecker(timeout));
+              Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+          lineContext.freeze(TimeoutChecker.create(Config.get(), timeout));
           snapshot.addLine(lineContext, line);
         }
         commitSnapshot(snapshot, sink);
@@ -1179,8 +1181,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (tracer != null) {
       AgentSpan span = tracer.activeSpan();
       if (span instanceof DDSpan) {
-        DDSpanContext context = (DDSpanContext) span.context();
-        String debug = context.getPropagationTags().getDebugPropagation();
+        DDSpanContext spanContext = (DDSpanContext) span.spanContext();
+        String debug = spanContext.getPropagationTags().getDebugPropagation();
         if (debug != null) {
           String[] entries = debug.split(",");
           for (String entry : entries) {

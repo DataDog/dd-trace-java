@@ -16,11 +16,20 @@ pluginManagement {
     }
     gradlePluginPortal()
     mavenCentral()
+    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test plugin used
+    // to run nested Gradle builds for smoke-test applications pinned to older Gradle versions.
+    maven {
+      url = uri("https://repo.gradle.org/gradle/libs-releases")
+      content {
+        includeGroup("org.gradle")
+      }
+    }
   }
+  includeBuild("build-logic")
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.4.1"
+  id("com.gradle.develocity") version "4.5.0"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
@@ -103,6 +112,7 @@ include(
 
 include(
   ":communication",
+  ":components:annotations",
   ":components:context",
   ":components:environment",
   ":components:http:http-api",
@@ -349,6 +359,7 @@ include(
   ":dd-java-agent:instrumentation:finatra-2.9",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.24",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.9",
+  ":dd-java-agent:instrumentation:gax-1.4",
   ":dd-java-agent:instrumentation:glassfish-3.0",
   ":dd-java-agent:instrumentation:google-http-client-1.19",
   ":dd-java-agent:instrumentation:google-pubsub-1.116",
@@ -418,6 +429,8 @@ include(
   ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-8.1.3",
   ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.2",
   ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3",
+  ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.4",
+  ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-11.0",
   ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-10.0",
   ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-12.0",
   ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-9.1",
@@ -496,6 +509,7 @@ include(
   ":dd-java-agent:instrumentation:opensearch:opensearch-common",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-0.3",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4",
+  ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.27",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.47",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.20",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.26",
@@ -545,6 +559,7 @@ include(
   ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-client:jax-rs-client-2.0",
   ":dd-java-agent:instrumentation:rxjava:rxjava-1.0",
   ":dd-java-agent:instrumentation:rxjava:rxjava-2.0",
+  ":dd-java-agent:instrumentation:rxjava:rxjava-3.0",
   ":dd-java-agent:instrumentation:scala:scala-concurrent-2.8",
   ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10",
   ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13",

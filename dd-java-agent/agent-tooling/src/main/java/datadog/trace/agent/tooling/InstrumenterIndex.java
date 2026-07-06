@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.InstrumenterModuleFilter.ALL_MODULES;
-import static datadog.trace.agent.tooling.InstrumenterModuleFilter.forTargetSystemsOrExcludeProvider;
+import static datadog.trace.agent.tooling.InstrumenterModuleFilter.forTargetSystemsOrNeedToEarlyLoad;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.disjoint;
@@ -57,8 +57,11 @@ final class InstrumenterIndex {
   /** Bit to signal that the encoded item has target system overrides */
   private static final int HAS_TARGET_SYSTEMS_OVERRIDES_FLAG = 0x01;
 
-  /** Bit to signal that the encoded item is instance of <code>ExcludeFilterProvider</code> */
-  private static final int IS_EXCLUDE_FILTER_PROVIDER_FLAG = 0x02;
+  /**
+   * Bit to signal that the module needs to be early loaded regardless its applicability (i.e. it is
+   * instance of <code>ExcludeFilterProvider</code> or <code>JavaModuleOpenProvider</code>)
+   */
+  private static final int NEEDS_EARLY_LOAD_FLAG = 0x02;
 
   static final ClassLoader instrumenterClassLoader = Instrumenter.class.getClassLoader();
 
@@ -101,7 +104,7 @@ final class InstrumenterIndex {
    */
   public Iterable<InstrumenterModule> modules(
       final Set<InstrumenterModule.TargetSystem> enabledSystems) {
-    return modules(forTargetSystemsOrExcludeProvider(enabledSystems));
+    return modules(forTargetSystemsOrNeedToEarlyLoad(enabledSystems));
   }
 
   public Iterable<InstrumenterModule> modules() {
@@ -216,7 +219,7 @@ final class InstrumenterIndex {
     final Set<InstrumenterModule.TargetSystem> moduleTargetSystems = decodeTargetSystems(systems);
     // flags
     final byte flags = (byte) readNumber();
-    final boolean isExcludeProvider = decodeModuleIsExcludeProvider(flags);
+    final boolean needsEarlyLoad = decodeModuleNeedsEarlyLoad(flags);
     hasTargetSystemOverrides = decodeModuleHasTargetSystemOverrides(flags);
     memberAdviceTargetSystemOverrides = null;
     memberCount = readNumber();
@@ -228,7 +231,7 @@ final class InstrumenterIndex {
     } else {
       memberName = null;
     }
-    if (filter.test(moduleName, moduleTargetSystems, isExcludeProvider)) {
+    if (filter.test(moduleName, moduleTargetSystems, needsEarlyLoad)) {
       if (module == null) {
         module = buildModule();
         modules[instrumentationId] = module;
@@ -376,14 +379,14 @@ final class InstrumenterIndex {
 
   static byte encodeModuleFlags(final InstrumenterModule module, final boolean hasCustomOverrides) {
     byte ret = (byte) (hasCustomOverrides ? HAS_TARGET_SYSTEMS_OVERRIDES_FLAG : 0);
-    if (module instanceof ExcludeFilterProvider) {
-      ret |= (byte) IS_EXCLUDE_FILTER_PROVIDER_FLAG;
+    if (module instanceof ExcludeFilterProvider || module instanceof JavaModuleOpenProvider) {
+      ret |= (byte) NEEDS_EARLY_LOAD_FLAG;
     }
     return ret;
   }
 
-  static boolean decodeModuleIsExcludeProvider(byte flags) {
-    return (flags & IS_EXCLUDE_FILTER_PROVIDER_FLAG) != 0;
+  static boolean decodeModuleNeedsEarlyLoad(byte flags) {
+    return (flags & NEEDS_EARLY_LOAD_FLAG) != 0;
   }
 
   static boolean decodeModuleHasTargetSystemOverrides(byte flags) {

@@ -182,7 +182,7 @@ public class ExceptionProbeManager {
 
   public static class ThrowableState {
     private final String exceptionId;
-    private List<Snapshot> snapshots;
+    private final List<Snapshot> snapshots = new ArrayList<>();
     private boolean snapshotSent;
 
     private ThrowableState(String exceptionId) {
@@ -197,14 +197,7 @@ public class ExceptionProbeManager {
       return snapshots;
     }
 
-    public boolean isSampling() {
-      return snapshots != null && !snapshots.isEmpty();
-    }
-
     public void addSnapshot(Snapshot snapshot) {
-      if (snapshots == null) {
-        snapshots = new ArrayList<>();
-      }
       snapshots.add(snapshot);
     }
 

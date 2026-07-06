@@ -11,13 +11,20 @@ on:
 jobs:
   update_issues:
     permissions:
+      id-token: write # Required for OIDC token federation
       issues: write # Required to update issues
     runs-on: ubuntu-latest
     steps:
+      - name: Get GitHub Token via dd-octo-sts
+        id: generate-token
+        uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
+        with:
+          scope: DataDog/dd-trace-java
+          policy: self.update-issues-on-release
       - name: Get milestone for release
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # 9.0.0
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
+          github-token: ${{ steps.generate-token.outputs.token }}
           script: |
             // Get release milestone name
             const milestoneName = "${{github.event_name}}" == "workflow_dispatch" ?

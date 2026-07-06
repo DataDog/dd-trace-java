@@ -10,10 +10,12 @@ import static datadog.trace.instrumentation.netty40.AttributeKeys.CONNECT_PARENT
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.DECORATE_SECURE;
+import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.NETTY_CLIENT;
 import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.NETTY_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.netty40.client.NettyResponseInjectAdapter.SETTER;
 
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -52,7 +54,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       return;
     }
 
-    AgentScope parentScope = null;
+    ContextScope parentScope = null;
     final AgentScope.Continuation continuation =
         ctx.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY).getAndRemove();
     if (continuation != null) {
@@ -77,9 +79,9 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     boolean isSecure = SSL_HANDLER != null && ctx.pipeline().get(SSL_HANDLER) != null;
     NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
 
-    final AgentSpan span = startSpan("netty", NETTY_CLIENT_REQUEST);
+    final AgentSpan span = startSpan(NETTY_CLIENT.toString(), NETTY_CLIENT_REQUEST);
     final Context context = getCurrentContext().with(span);
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);
 

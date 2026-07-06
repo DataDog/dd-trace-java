@@ -213,5 +213,14 @@ public final class OperatingSystem {
       String property = SystemProperties.getOrDefault(OS_ARCH_PROPERTY, "").toLowerCase(ROOT);
       return Architecture.of(property);
     }
+
+    /**
+     * Checks whether the architecture is arm64.
+     *
+     * @return {@code true} if architecture is arm64, {@code false} otherwise.
+     */
+    public boolean isArm64() {
+      return this == ARM64;
+    }
   }
 }

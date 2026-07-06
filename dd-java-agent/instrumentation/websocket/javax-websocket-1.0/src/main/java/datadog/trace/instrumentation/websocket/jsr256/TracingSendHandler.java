@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.websocket.jsr256;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import javax.websocket.SendHandler;
@@ -21,7 +21,7 @@ public class TracingSendHandler implements SendHandler {
   @Override
   public void onResult(SendResult sendResult) {
     final AgentSpan wsSpan = handlerContext.getWebsocketSpan();
-    try (final AgentScope ignored = activateSpan(wsSpan)) {
+    try (final ContextScope ignored = activateSpan(wsSpan)) {
       delegate.onResult(sendResult);
     } finally {
       if (sendResult.getException() != null) {

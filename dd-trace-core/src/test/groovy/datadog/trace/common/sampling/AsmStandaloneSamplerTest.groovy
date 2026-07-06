@@ -23,7 +23,7 @@ class AsmStandaloneSamplerTest extends DDCoreSpecification{
     def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
 
     when:
-    def span1 = tracer.buildSpan("test").start()
+    def span1 = tracer.buildSpan("datadog", "test").start()
     sampler.setSamplingPriority(span1)
 
     then:
@@ -33,7 +33,7 @@ class AsmStandaloneSamplerTest extends DDCoreSpecification{
     span1.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
 
     when:
-    def span2 = tracer.buildSpan("test2").start()
+    def span2 = tracer.buildSpan("datadog", "test2").start()
     sampler.setSamplingPriority(span2)
 
     then:
@@ -43,7 +43,7 @@ class AsmStandaloneSamplerTest extends DDCoreSpecification{
     span2.getSamplingPriority() == PrioritySampling.SAMPLER_DROP
 
     when:
-    def span3 = tracer.buildSpan("test3").start()
+    def span3 = tracer.buildSpan("datadog", "test3").start()
     sampler.setSamplingPriority(span3)
 
     then: "Mock one minute later"

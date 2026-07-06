@@ -89,7 +89,7 @@ public final class TraceMapperV1 implements TraceMapper {
     }
 
     CoreSpan<?> firstSpan = trace.get(0);
-    firstSpan.processTagsAndBaggage(spanMetadata, false, false);
+    firstSpan.processTagsAndBaggageWithStructuredLinks(spanMetadata);
     Metadata firstSpanMeta = spanMetadata.metadata;
 
     // encoded fields: 1..7, but skipping #5, as not required by tracers and set by the agent.
@@ -128,7 +128,7 @@ public final class TraceMapperV1 implements TraceMapper {
     Metadata meta = spanMetadata.metadata;
     for (CoreSpan<?> span : spans) {
       if (meta == null) {
-        span.processTagsAndBaggage(spanMetadata, false, false);
+        span.processTagsAndBaggageWithStructuredLinks(spanMetadata);
         meta = spanMetadata.metadata;
       }
       TagMap tags = meta.getTags();
@@ -374,9 +374,13 @@ public final class TraceMapperV1 implements TraceMapper {
         (tagCount
                 + baggage.size()
                 + metaStruct.size()
+                + 2
                 + (writeHttpStatus ? 1 : 0)
                 + (writeTopLevel ? 1 : 0))
             * 3);
+
+    writeAttribute(writable, DDTags.THREAD_ID, meta.getThreadId());
+    writeAttribute(writable, DDTags.THREAD_NAME, meta.getThreadName());
 
     for (Map.Entry<String, String> entry : baggage.entrySet()) {
       writeAttribute(writable, entry.getKey(), entry.getValue());
@@ -470,16 +474,19 @@ public final class TraceMapperV1 implements TraceMapper {
 
   private void writeAttribute(Writable writable, String key, Object value) {
     writeStreamingString(writable, key);
+
     if (value instanceof Number) {
       writable.writeInt(VALUE_TYPE_FLOAT);
       writable.writeDouble(((Number) value).doubleValue());
       return;
     }
+
     if (value instanceof Boolean) {
       writable.writeInt(VALUE_TYPE_BOOLEAN);
       writable.writeBoolean((Boolean) value);
       return;
     }
+
     if (!(value instanceof String) && value != null) {
       log.debug("Not a string value for key: {}, value: {}", key, value);
     }

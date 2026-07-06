@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -32,7 +33,6 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -88,40 +88,40 @@ class OtlpTraceProtoTest {
     final String spanType;
 
     /** Span kind tag value; {@code null} → UNSPECIFIED (kind=0). */
-    final String spanKind;
+    String spanKind;
 
     /** Start time in microseconds since epoch → start_time_unix_nano = startMicros * 1000. */
-    final long startMicros;
+    long startMicros;
 
     /** Finish time in microseconds since epoch → end_time_unix_nano = finishMicros * 1000. */
-    final long finishMicros;
+    long finishMicros;
 
     /** If true, marks the span as an error → status.code=ERROR(2). */
-    final boolean error;
+    boolean error;
 
     /** Optional error message → status.message; ignored when {@code error} is false. */
-    final String errorMessage;
+    String errorMessage;
 
     /** Sampling priority to set; 0 = not set explicitly. */
-    final int samplingPriority;
+    int samplingPriority;
 
     /** Override service name; {@code null} → use tracer default. */
-    final String serviceName;
+    String serviceName;
 
     /** Additional tags to set on the span, exercising string/long/boolean/double paths. */
-    final Map<String, Object> extraTags;
+    Map<String, Object> extraTags;
 
     /**
      * If ≥ 0, index into the already-built span list to use as parent; creates a child span. If -1,
      * the span is a root span.
      */
-    final int parentIndex;
+    int parentIndex;
 
     /**
      * Links to add to this span (one {@link SpanLink} per entry). Each link targets a span that
      * precedes this one in the list. An empty array means no links.
      */
-    final LinkSpec[] links;
+    LinkSpec[] links;
 
     /** If true, the span is measured (sets the {@code _dd.measured} attribute). */
     boolean measured;
@@ -138,33 +138,57 @@ class OtlpTraceProtoTest {
     /** Trace origin carried in the extracted parent context; {@code null} = no origin. */
     String origin;
 
-    SpanSpec(
-        String resourceName,
-        String operationName,
-        String spanType,
-        String spanKind,
-        long startMicros,
-        long finishMicros,
-        boolean error,
-        String errorMessage,
-        int samplingPriority,
-        String serviceName,
-        Map<String, Object> extraTags,
-        int parentIndex,
-        LinkSpec... links) {
+    SpanSpec(String resourceName, String operationName, String spanType) {
       this.resourceName = resourceName;
       this.operationName = operationName;
       this.spanType = spanType;
-      this.spanKind = spanKind;
-      this.startMicros = startMicros;
-      this.finishMicros = finishMicros;
-      this.error = error;
-      this.errorMessage = errorMessage;
-      this.samplingPriority = samplingPriority;
-      this.serviceName = serviceName;
-      this.extraTags = extraTags;
-      this.parentIndex = parentIndex;
+      this.startMicros = BASE_MICROS;
+      this.finishMicros = BASE_MICROS + DURATION_MICROS;
+      this.parentIndex = -1;
+      this.links = new LinkSpec[0];
+      this.extraTags = emptyMap();
+    }
+
+    SpanSpec spanKind(String kind) {
+      this.spanKind = kind;
+      return this;
+    }
+
+    SpanSpec times(long start, long finish) {
+      this.startMicros = start;
+      this.finishMicros = finish;
+      return this;
+    }
+
+    SpanSpec error(String message) {
+      this.error = true;
+      this.errorMessage = message;
+      return this;
+    }
+
+    SpanSpec samplingPriority(int priority) {
+      this.samplingPriority = priority;
+      return this;
+    }
+
+    SpanSpec serviceName(String name) {
+      this.serviceName = name;
+      return this;
+    }
+
+    SpanSpec extraTags(Map<String, Object> tags) {
+      this.extraTags = tags;
+      return this;
+    }
+
+    SpanSpec parentIndex(int index) {
+      this.parentIndex = index;
+      return this;
+    }
+
+    SpanSpec links(LinkSpec... links) {
       this.links = links;
+      return this;
     }
 
     SpanSpec measured() {
@@ -231,115 +255,33 @@ class OtlpTraceProtoTest {
       DD128bTraceId.from(0x0123456789abcdefL, 0xfedcba9876543210L);
 
   private static SpanSpec span(String resourceName, String operationName, String spanType) {
-    return new SpanSpec(
-        resourceName,
-        operationName,
-        spanType,
-        null,
-        BASE_MICROS,
-        BASE_MICROS + DURATION_MICROS,
-        false,
-        null,
-        0,
-        null,
-        new HashMap<>(),
-        -1);
+    return new SpanSpec(resourceName, operationName, spanType);
   }
 
   private static SpanSpec kindSpan(String resourceName, String kind) {
-    return new SpanSpec(
-        resourceName,
-        "op." + kind,
-        "web",
-        kind,
-        BASE_MICROS,
-        BASE_MICROS + DURATION_MICROS,
-        false,
-        null,
-        0,
-        null,
-        new HashMap<>(),
-        -1);
+    return span(resourceName, "op." + kind, "web").spanKind(kind);
   }
 
   private static SpanSpec sampledSpan(String resourceName) {
-    return new SpanSpec(
-        resourceName,
-        "op.sampled",
-        "web",
-        null,
-        BASE_MICROS,
-        BASE_MICROS + DURATION_MICROS,
-        false,
-        null,
-        PrioritySampling.USER_KEEP,
-        null,
-        new HashMap<>(),
-        -1);
+    return span(resourceName, "op.sampled", "web").samplingPriority(PrioritySampling.USER_KEEP);
   }
 
   private static SpanSpec errorSpan(String resourceName, String errorMessage) {
-    return new SpanSpec(
-        resourceName,
-        "op.error",
-        "web",
-        null,
-        BASE_MICROS,
-        BASE_MICROS + DURATION_MICROS,
-        true,
-        errorMessage,
-        0,
-        null,
-        new HashMap<>(),
-        -1);
+    return span(resourceName, "op.error", "web").error(errorMessage);
   }
 
   private static SpanSpec taggedSpan(String resourceName, Map<String, Object> extraTags) {
-    return new SpanSpec(
-        resourceName,
-        "op.tagged",
-        "web",
-        null,
-        BASE_MICROS,
-        BASE_MICROS + DURATION_MICROS,
-        false,
-        null,
-        0,
-        null,
-        extraTags,
-        -1);
+    return span(resourceName, "op.tagged", "web").extraTags(extraTags);
   }
 
   private static SpanSpec childSpan(String resourceName, int parentIndex) {
-    return new SpanSpec(
-        resourceName,
-        "op.child",
-        "web",
-        null,
-        BASE_MICROS + 10_000,
-        BASE_MICROS + DURATION_MICROS - 10_000,
-        false,
-        null,
-        0,
-        null,
-        new HashMap<>(),
-        parentIndex);
+    return span(resourceName, "op.child", "web")
+        .times(BASE_MICROS + 10_000, BASE_MICROS + DURATION_MICROS - 10_000)
+        .parentIndex(parentIndex);
   }
 
   private static SpanSpec serviceSpan(String resourceName, String serviceName) {
-    return new SpanSpec(
-        resourceName,
-        "op.service",
-        "web",
-        null,
-        BASE_MICROS,
-        BASE_MICROS + DURATION_MICROS,
-        false,
-        null,
-        0,
-        serviceName,
-        new HashMap<>(),
-        -1);
+    return span(resourceName, "op.service", "web").serviceName(serviceName);
   }
 
   /** A span with {@link SpanLink}s pointing to the spans at the given {@code targetIndices}. */
@@ -348,20 +290,7 @@ class OtlpTraceProtoTest {
     for (int i = 0; i < targetIndices.length; i++) {
       links[i] = new LinkSpec(targetIndices[i]);
     }
-    return new SpanSpec(
-        resourceName,
-        "op.linked",
-        "web",
-        null,
-        BASE_MICROS,
-        BASE_MICROS + DURATION_MICROS,
-        false,
-        null,
-        0,
-        null,
-        new HashMap<>(),
-        -1,
-        links);
+    return span(resourceName, "op.linked", "web").links(links);
   }
 
   /**
@@ -370,58 +299,21 @@ class OtlpTraceProtoTest {
    */
   private static SpanSpec linkedSpanWithAttrs(
       String resourceName, int targetIndex, SpanAttributes attributes) {
-    return new SpanSpec(
-        resourceName,
-        "op.linked",
-        "web",
-        null,
-        BASE_MICROS,
-        BASE_MICROS + DURATION_MICROS,
-        false,
-        null,
-        0,
-        null,
-        new HashMap<>(),
-        -1,
-        new LinkSpec(targetIndex, attributes));
+    return span(resourceName, "op.linked", "web").links(new LinkSpec(targetIndex, attributes));
   }
 
   /** A span with one {@link SpanLink} carrying the given W3C tracestate string. */
   private static SpanSpec linkedSpanWithTracestate(
       String resourceName, int targetIndex, String traceState) {
-    return new SpanSpec(
-        resourceName,
-        "op.linked",
-        "web",
-        null,
-        BASE_MICROS,
-        BASE_MICROS + DURATION_MICROS,
-        false,
-        null,
-        0,
-        null,
-        new HashMap<>(),
-        -1,
-        new LinkSpec(targetIndex, SpanAttributes.EMPTY, traceState, SpanLink.DEFAULT_FLAGS));
+    return span(resourceName, "op.linked", "web")
+        .links(new LinkSpec(targetIndex, SpanAttributes.EMPTY, traceState, SpanLink.DEFAULT_FLAGS));
   }
 
   /** A span with one {@link SpanLink} carrying the given trace flags. */
   private static SpanSpec linkedSpanWithFlags(
       String resourceName, int targetIndex, byte traceFlags) {
-    return new SpanSpec(
-        resourceName,
-        "op.linked",
-        "web",
-        null,
-        BASE_MICROS,
-        BASE_MICROS + DURATION_MICROS,
-        false,
-        null,
-        0,
-        null,
-        new HashMap<>(),
-        -1,
-        new LinkSpec(targetIndex, SpanAttributes.EMPTY, "", traceFlags));
+    return span(resourceName, "op.linked", "web")
+        .links(new LinkSpec(targetIndex, SpanAttributes.EMPTY, "", traceFlags));
   }
 
   private static Map<String, Object> tags(Object... keyValues) {
@@ -443,6 +335,11 @@ class OtlpTraceProtoTest {
         Arguments.of(
             "minimal span — default UNSPECIFIED kind",
             asList(span("GET /api/users", "servlet.request", "web"))),
+
+        // ── null span type — regression: must not NPE, span.type attribute omitted ─
+        Arguments.of(
+            "null span type — span.type attribute omitted, no NPE",
+            asList(span("GET /api/users", "servlet.request", null))),
         Arguments.of("internal span kind", asList(kindSpan("GET /api/users", SPAN_KIND_INTERNAL))),
         Arguments.of("server span kind", asList(kindSpan("GET /api/users", SPAN_KIND_SERVER))),
         Arguments.of("client span kind", asList(kindSpan("redis.get", SPAN_KIND_CLIENT))),
@@ -556,63 +453,62 @@ class OtlpTraceProtoTest {
   void testCollectTraces(String caseName, List<SpanSpec> specs) throws IOException {
     List<DDSpan> spans = buildSpans(specs);
 
-    OtlpTraceProtoCollector.INSTANCE.addTrace(spans);
-    OtlpPayload payload = OtlpTraceProtoCollector.INSTANCE.collectTraces();
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(spans);
+    OtlpPayload payload = collector.collectTraces();
 
     if (spans.isEmpty()) {
       assertEquals(0, payload.getContentLength(), "empty span list must produce empty payload");
       return;
     }
 
-    ByteArrayOutputStream baos = new ByteArrayOutputStream(payload.getContentLength());
-    payload.drain(baos::write);
-    byte[] bytes = baos.toByteArray();
-    assertTrue(bytes.length > 0, "non-empty span list must produce bytes");
+    assertTrue(payload.getContentLength() > 0, "non-empty span list must produce bytes");
 
     // ── parse TracesData ─────────────────────────────────────────────────
     // Full payload encodes a single TracesData.resource_spans entry (field 1, LEN).
-    CodedInputStream td = CodedInputStream.newInstance(bytes);
-    int tdTag = td.readTag();
-    assertEquals(1, WireFormat.getTagFieldNumber(tdTag), "TracesData.resource_spans is field 1");
-    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tdTag));
-    CodedInputStream rs = td.readBytes().newCodedInput();
-    assertTrue(td.isAtEnd(), "expected exactly one ResourceSpans");
+    CodedInputStream tracesData = CodedInputStream.newInstance(payload.getContent());
+    int tracesTag = tracesData.readTag();
+    assertEquals(
+        1, WireFormat.getTagFieldNumber(tracesTag), "TracesData.resource_spans is field 1");
+    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tracesTag));
+    CodedInputStream resourceSpans = tracesData.readBytes().newCodedInput();
+    assertTrue(tracesData.isAtEnd(), "expected exactly one ResourceSpans");
 
     // ── parse ResourceSpans ──────────────────────────────────────────────
     // Fields: resource=1, scope_spans=2
     boolean resourceFound = false;
-    CodedInputStream ss = null;
-    while (!rs.isAtEnd()) {
-      int rsTag = rs.readTag();
-      switch (WireFormat.getTagFieldNumber(rsTag)) {
+    CodedInputStream scopeSpans = null;
+    while (!resourceSpans.isAtEnd()) {
+      int tag = resourceSpans.readTag();
+      switch (WireFormat.getTagFieldNumber(tag)) {
         case 1:
-          verifyResource(rs.readBytes().newCodedInput());
+          verifyResource(resourceSpans.readBytes().newCodedInput());
           resourceFound = true;
           break;
         case 2:
-          ss = rs.readBytes().newCodedInput();
+          scopeSpans = resourceSpans.readBytes().newCodedInput();
           break;
         default:
-          rs.skipField(rsTag);
+          resourceSpans.skipField(tag);
       }
     }
     assertTrue(resourceFound, "Resource must be present in ResourceSpans");
-    assertNotNull(ss, "ScopeSpans must be present in ResourceSpans");
+    assertNotNull(scopeSpans, "ScopeSpans must be present in ResourceSpans");
 
     // ── parse ScopeSpans ─────────────────────────────────────────────────
     // Fields: scope=1, spans=2 (repeated), schema_url=3
     List<byte[]> spanBlobs = new ArrayList<>();
-    while (!ss.isAtEnd()) {
-      int ssTag = ss.readTag();
-      switch (WireFormat.getTagFieldNumber(ssTag)) {
+    while (!scopeSpans.isAtEnd()) {
+      int tag = scopeSpans.readTag();
+      switch (WireFormat.getTagFieldNumber(tag)) {
         case 1:
-          verifyDefaultScope(ss.readBytes().newCodedInput());
+          verifyDefaultScope(scopeSpans.readBytes().newCodedInput());
           break;
         case 2:
-          spanBlobs.add(ss.readBytes().toByteArray());
+          spanBlobs.add(scopeSpans.readBytes().toByteArray());
           break;
         default:
-          ss.skipField(ssTag);
+          scopeSpans.skipField(tag);
       }
     }
     assertEquals(spans.size(), spanBlobs.size(), "span count mismatch in case: " + caseName);
@@ -645,81 +541,75 @@ class OtlpTraceProtoTest {
     assertNotEquals(traceId2, traceId3, "trace IDs must be distinct");
     assertNotEquals(traceId1, traceId3, "trace IDs must be distinct");
 
-    OtlpTraceProtoCollector.INSTANCE.addTrace(trace1);
-    OtlpTraceProtoCollector.INSTANCE.addTrace(trace2);
-    OtlpTraceProtoCollector.INSTANCE.addTrace(trace3);
-    OtlpPayload payload = OtlpTraceProtoCollector.INSTANCE.collectTraces();
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(trace1);
+    collector.addTrace(trace2);
+    collector.addTrace(trace3);
+    OtlpPayload payload = collector.collectTraces();
 
     // Collect all span IDs we expect to find across all three traces.
     Set<Long> expectedSpanIds = new HashSet<>();
     Set<Long> expectedTraceIds = new HashSet<>();
-    for (DDSpan s : trace1) {
-      expectedSpanIds.add(s.getSpanId());
-      expectedTraceIds.add(s.getTraceId().toLong());
-    }
-    for (DDSpan s : trace2) {
-      expectedSpanIds.add(s.getSpanId());
-      expectedTraceIds.add(s.getTraceId().toLong());
-    }
-    for (DDSpan s : trace3) {
-      expectedSpanIds.add(s.getSpanId());
-      expectedTraceIds.add(s.getTraceId().toLong());
+    for (List<DDSpan> trace : asList(trace1, trace2, trace3)) {
+      for (DDSpan span : trace) {
+        expectedSpanIds.add(span.getSpanId());
+        expectedTraceIds.add(span.getTraceId().toLong());
+      }
     }
     int totalSpans = trace1.size() + trace2.size() + trace3.size(); // 6
 
-    ByteArrayOutputStream baos = new ByteArrayOutputStream(payload.getContentLength());
-    payload.drain(baos::write);
-    byte[] bytes = baos.toByteArray();
-    assertTrue(bytes.length > 0, "multi-trace payload must be non-empty");
+    assertTrue(payload.getContentLength() > 0, "multi-trace payload must be non-empty");
 
     // Parse TracesData → ResourceSpans → ScopeSpans → extract span_id and trace_id per span.
-    CodedInputStream td = CodedInputStream.newInstance(bytes);
-    int tdTag = td.readTag();
-    assertEquals(1, WireFormat.getTagFieldNumber(tdTag), "TracesData.resource_spans is field 1");
-    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tdTag));
-    CodedInputStream rs = td.readBytes().newCodedInput();
-    assertTrue(td.isAtEnd(), "expected exactly one ResourceSpans");
+    CodedInputStream tracesData = CodedInputStream.newInstance(payload.getContent());
+    int tracesTag = tracesData.readTag();
+    assertEquals(
+        1, WireFormat.getTagFieldNumber(tracesTag), "TracesData.resource_spans is field 1");
+    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tracesTag));
+    CodedInputStream resourceSpans = tracesData.readBytes().newCodedInput();
+    assertTrue(tracesData.isAtEnd(), "expected exactly one ResourceSpans");
 
-    CodedInputStream ss = null;
-    while (!rs.isAtEnd()) {
-      int rsTag = rs.readTag();
-      if (WireFormat.getTagFieldNumber(rsTag) == 2) {
-        ss = rs.readBytes().newCodedInput();
+    CodedInputStream scopeSpans = null;
+    while (!resourceSpans.isAtEnd()) {
+      int tag = resourceSpans.readTag();
+      if (WireFormat.getTagFieldNumber(tag) == 2) {
+        scopeSpans = resourceSpans.readBytes().newCodedInput();
       } else {
-        rs.skipField(rsTag);
+        resourceSpans.skipField(tag);
       }
     }
-    assertNotNull(ss, "ScopeSpans must be present in ResourceSpans");
+    assertNotNull(scopeSpans, "ScopeSpans must be present in ResourceSpans");
 
     Set<Long> parsedSpanIds = new HashSet<>();
     Set<Long> parsedTraceIds = new HashSet<>();
-    while (!ss.isAtEnd()) {
-      int ssTag = ss.readTag();
-      if (WireFormat.getTagFieldNumber(ssTag) == 2) {
-        CodedInputStream sp = ss.readBytes().newCodedInput();
+    while (!scopeSpans.isAtEnd()) {
+      int tag = scopeSpans.readTag();
+      if (WireFormat.getTagFieldNumber(tag) == 2) {
+        CodedInputStream spanData = scopeSpans.readBytes().newCodedInput();
         byte[] parsedTraceId = null;
         byte[] parsedSpanId = null;
-        while (!sp.isAtEnd()) {
-          int spTag = sp.readTag();
-          switch (WireFormat.getTagFieldNumber(spTag)) {
+        while (!spanData.isAtEnd()) {
+          int spanTag = spanData.readTag();
+          switch (WireFormat.getTagFieldNumber(spanTag)) {
             case 1:
-              parsedTraceId = sp.readBytes().toByteArray();
+              parsedTraceId = spanData.readBytes().toByteArray();
               break;
             case 2:
-              parsedSpanId = sp.readBytes().toByteArray();
+              parsedSpanId = spanData.readBytes().toByteArray();
               break;
             default:
-              sp.skipField(spTag);
+              spanData.skipField(spanTag);
           }
         }
         assertNotNull(parsedSpanId, "span_id must be present in every span");
         assertNotNull(parsedTraceId, "trace_id must be present in every span");
         assertEquals(16, parsedTraceId.length, "trace_id must be 16 bytes");
         assertEquals(8, parsedSpanId.length, "span_id must be 8 bytes");
-        parsedSpanIds.add(readLittleEndianLong(parsedSpanId));
-        parsedTraceIds.add(readLittleEndianLong(parsedTraceId));
+        parsedSpanIds.add(readBigEndianLong(parsedSpanId));
+        // low-order part of traceId occupies parsedTraceId[8..15] (big-endian)
+        parsedTraceIds.add(readBigEndianLong(copyOfRange(parsedTraceId, 8, 16)));
       } else {
-        ss.skipField(ssTag);
+        scopeSpans.skipField(tag);
       }
     }
 
@@ -730,6 +620,65 @@ class OtlpTraceProtoTest {
         expectedTraceIds.size(),
         parsedTraceIds.size(),
         "payload must contain spans with all three distinct trace IDs");
+  }
+
+  @Test
+  void testSpanOrderInTracePreserved() throws IOException {
+    // Verifies that spans appear in the payload with the same order as the original trace
+    List<DDSpan> spans =
+        buildSpans(
+            asList(
+                span("first.span", "op.first", "web"),
+                span("second.span", "op.second", "web"),
+                span("third.span", "op.third", "web")));
+
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(spans);
+    OtlpPayload payload = collector.collectTraces();
+
+    assertEquals(
+        asList("first.span", "second.span", "third.span"),
+        parseSpanNamesFromPayload(payload),
+        "spans must appear in trace order in the payload");
+  }
+
+  private static List<String> parseSpanNamesFromPayload(OtlpPayload payload) throws IOException {
+    CodedInputStream tracesData = CodedInputStream.newInstance(payload.getContent());
+    tracesData.readTag(); // field 1: TracesData.resource_spans
+    CodedInputStream resourceSpans = tracesData.readBytes().newCodedInput();
+
+    CodedInputStream scopeSpans = null;
+    while (!resourceSpans.isAtEnd()) {
+      int tag = resourceSpans.readTag();
+      if (WireFormat.getTagFieldNumber(tag) == 2) {
+        scopeSpans = resourceSpans.readBytes().newCodedInput();
+      } else {
+        resourceSpans.skipField(tag);
+      }
+    }
+    assertNotNull(scopeSpans, "ScopeSpans must be present in ResourceSpans");
+
+    List<String> names = new ArrayList<>();
+    while (!scopeSpans.isAtEnd()) {
+      int tag = scopeSpans.readTag();
+      if (WireFormat.getTagFieldNumber(tag) == 2) {
+        CodedInputStream spanData = scopeSpans.readBytes().newCodedInput();
+        String name = null;
+        while (!spanData.isAtEnd()) {
+          int spanTag = spanData.readTag();
+          if (WireFormat.getTagFieldNumber(spanTag) == 5) {
+            name = spanData.readString();
+            break;
+          } else {
+            spanData.skipField(spanTag);
+          }
+        }
+        names.add(name);
+      } else {
+        scopeSpans.skipField(tag);
+      }
+    }
+    return names;
   }
 
   // ── span construction ─────────────────────────────────────────────────────
@@ -765,7 +714,7 @@ class OtlpTraceProtoTest {
             TRACER.startSpan(
                 "test",
                 spec.operationName,
-                spans.get(spec.parentIndex).context(),
+                spans.get(spec.parentIndex).spanContext(),
                 spec.startMicros);
       } else {
         agentSpan = TRACER.startSpan("test", spec.operationName, spec.startMicros);
@@ -807,7 +756,7 @@ class OtlpTraceProtoTest {
       for (LinkSpec link : spec.links) {
         agentSpan.addLink(
             SpanLink.from(
-                spans.get(link.targetIndex).context(),
+                spans.get(link.targetIndex).spanContext(),
                 link.traceFlags,
                 link.traceState,
                 link.attributes));
@@ -829,17 +778,17 @@ class OtlpTraceProtoTest {
    *   Resource { repeated KeyValue attributes = 1; }
    * </pre>
    */
-  private static void verifyResource(CodedInputStream res) throws IOException {
+  private static void verifyResource(CodedInputStream resource) throws IOException {
     boolean foundServiceName = false;
-    while (!res.isAtEnd()) {
-      int tag = res.readTag();
+    while (!resource.isAtEnd()) {
+      int tag = resource.readTag();
       if (WireFormat.getTagFieldNumber(tag) == 1) {
-        String key = readKeyValueKey(res.readBytes().newCodedInput());
+        String key = readKeyValueKey(resource.readBytes().newCodedInput());
         if ("service.name".equals(key)) {
           foundServiceName = true;
         }
       } else {
-        res.skipField(tag);
+        resource.skipField(tag);
       }
     }
     assertTrue(foundServiceName, "Resource must contain a 'service.name' attribute");
@@ -875,7 +824,8 @@ class OtlpTraceProtoTest {
    *          links=13 (repeated), status=15, flags=16 }
    * </pre>
    */
-  private static void verifySpan(CodedInputStream sp, DDSpan span, SpanSpec spec, String caseName)
+  private static void verifySpan(
+      CodedInputStream spanData, DDSpan originalSpan, SpanSpec spec, String caseName)
       throws IOException {
     byte[] parsedTraceId = null;
     byte[] parsedSpanId = null;
@@ -891,44 +841,44 @@ class OtlpTraceProtoTest {
     Set<String> attrKeys = new HashSet<>();
     int linkCount = 0;
 
-    while (!sp.isAtEnd()) {
-      int tag = sp.readTag();
+    while (!spanData.isAtEnd()) {
+      int tag = spanData.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
         case 1:
-          parsedTraceId = sp.readBytes().toByteArray();
+          parsedTraceId = spanData.readBytes().toByteArray();
           break;
         case 2:
-          parsedSpanId = sp.readBytes().toByteArray();
+          parsedSpanId = spanData.readBytes().toByteArray();
           break;
         case 3:
-          sp.skipField(
+          spanData.skipField(
               tag); // trace_state: absent for locally-started spans, present when propagated
           break;
         case 4:
-          parsedParentSpanId = sp.readBytes().toByteArray();
+          parsedParentSpanId = spanData.readBytes().toByteArray();
           break;
         case 5:
-          parsedName = sp.readString();
+          parsedName = spanData.readString();
           break;
         case 6:
-          parsedKind = sp.readEnum();
+          parsedKind = spanData.readEnum();
           break;
         case 7:
-          parsedStartNano = sp.readFixed64();
+          parsedStartNano = spanData.readFixed64();
           break;
         case 8:
-          parsedEndNano = sp.readFixed64();
+          parsedEndNano = spanData.readFixed64();
           break;
         case 9:
-          attrKeys.add(readKeyValueKey(sp.readBytes().newCodedInput()));
+          attrKeys.add(readKeyValueKey(spanData.readBytes().newCodedInput()));
           break;
         case 13:
-          verifyLink(sp.readBytes().newCodedInput(), spec.links[linkCount], caseName);
+          verifyLink(spanData.readBytes().newCodedInput(), spec.links[linkCount], caseName);
           linkCount++;
           break;
         case 15:
           {
-            CodedInputStream status = sp.readBytes().newCodedInput();
+            CodedInputStream status = spanData.readBytes().newCodedInput();
             statusFound = true;
             while (!status.isAtEnd()) {
               int st = status.readTag();
@@ -946,10 +896,10 @@ class OtlpTraceProtoTest {
             break;
           }
         case 16:
-          parsedFlags = sp.readFixed32();
+          parsedFlags = spanData.readFixed32();
           break;
         default:
-          sp.skipField(tag);
+          spanData.skipField(tag);
       }
     }
 
@@ -957,8 +907,8 @@ class OtlpTraceProtoTest {
     assertNotNull(parsedTraceId, "trace_id must be present [" + caseName + "]");
     assertEquals(16, parsedTraceId.length, "trace_id must be 16 bytes [" + caseName + "]");
     if (spec.use128BitTraceId) {
-      // high-order bytes occupy parsedTraceId[8..15] (little-endian in the wire format)
-      long highOrderBytes = readLittleEndianLong(copyOfRange(parsedTraceId, 8, 16));
+      // high-order part of traceId occupies parsedTraceId[0..7] (big-endian)
+      long highOrderBytes = readBigEndianLong(parsedTraceId);
       assertNotEquals(
           0L,
           highOrderBytes,
@@ -969,8 +919,8 @@ class OtlpTraceProtoTest {
     assertNotNull(parsedSpanId, "span_id must be present [" + caseName + "]");
     assertEquals(8, parsedSpanId.length, "span_id must be 8 bytes [" + caseName + "]");
     assertEquals(
-        span.getSpanId(),
-        readLittleEndianLong(parsedSpanId),
+        originalSpan.getSpanId(),
+        readBigEndianLong(parsedSpanId),
         "span_id mismatch [" + caseName + "]");
 
     // ── parent_span_id (field 4) ──────────────────────────────────────────────
@@ -980,15 +930,15 @@ class OtlpTraceProtoTest {
       assertEquals(
           8, parsedParentSpanId.length, "parent_span_id must be 8 bytes [" + caseName + "]");
       assertEquals(
-          span.getParentId(),
-          readLittleEndianLong(parsedParentSpanId),
+          originalSpan.getParentId(),
+          readBigEndianLong(parsedParentSpanId),
           "parent_span_id mismatch [" + caseName + "]");
     } else {
       // root spans either omit the field or write zero bytes
       if (parsedParentSpanId != null) {
         assertEquals(
             0L,
-            readLittleEndianLong(parsedParentSpanId),
+            readBigEndianLong(parsedParentSpanId),
             "root span parent_span_id must be zero [" + caseName + "]");
       }
     }
@@ -1027,8 +977,14 @@ class OtlpTraceProtoTest {
     assertTrue(
         attrKeys.contains("operation.name"),
         "attributes must include 'operation.name' [" + caseName + "]");
-    assertTrue(
-        attrKeys.contains("span.type"), "attributes must include 'span.type' [" + caseName + "]");
+    if (spec.spanType != null) {
+      assertTrue(
+          attrKeys.contains("span.type"), "attributes must include 'span.type' [" + caseName + "]");
+    } else {
+      assertFalse(
+          attrKeys.contains("span.type"),
+          "attributes must omit 'span.type' when null [" + caseName + "]");
+    }
 
     // service.name attribute is written only when the span's service differs from the default
     if (spec.serviceName != null) {
@@ -1165,23 +1121,21 @@ class OtlpTraceProtoTest {
    * Reads a {@code KeyValue} body and returns the key (field 1). The value is skipped; its encoding
    * is covered by {@code OtlpCommonProtoTest}.
    */
-  private static String readKeyValueKey(CodedInputStream kv) throws IOException {
-    String key = null;
-    while (!kv.isAtEnd()) {
-      int tag = kv.readTag();
+  private static String readKeyValueKey(CodedInputStream keyValue) throws IOException {
+    while (!keyValue.isAtEnd()) {
+      int tag = keyValue.readTag();
       if (WireFormat.getTagFieldNumber(tag) == 1) {
-        key = kv.readString();
-      } else {
-        kv.skipField(tag);
+        return keyValue.readString();
       }
+      keyValue.skipField(tag);
     }
-    return key;
+    return null;
   }
 
-  /** Reads a little-endian 64-bit integer from the first 8 bytes of the given array. */
-  private static long readLittleEndianLong(byte[] bytes) {
+  /** Reads a big-endian 64-bit value from the first 8 bytes of the given array. */
+  private static long readBigEndianLong(byte[] bytes) {
     long value = 0;
-    for (int i = 7; i >= 0; i--) {
+    for (int i = 0; i < 8; i++) {
       value = (value << 8) | (bytes[i] & 0xFF);
     }
     return value;

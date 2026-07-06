@@ -1,7 +1,9 @@
 package datadog.trace.bootstrap;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -90,9 +92,9 @@ public class AgentPreCheck {
     return compatible(javaVersion, javaHome, System.err);
   }
 
-  // Reachable for testing
   // System.getenv usage is necessary since class is designed to be Java 6 compatible, while
   // Environment component is for Java 8+
+  @VisibleForTesting
   @SuppressForbidden
   static boolean compatible(String javaVersion, String javaHome, PrintStream output) {
     int majorJavaVersion = parseJavaMajorVersion(javaVersion);
@@ -113,7 +115,7 @@ public class AgentPreCheck {
     return false;
   }
 
-  // Reachable for testing
+  @VisibleForTesting
   static int parseJavaMajorVersion(String javaVersion) {
     int major = 0;
     if (javaVersion == null || javaVersion.isEmpty()) {
@@ -191,9 +193,15 @@ public class AgentPreCheck {
         try {
           out = process.getOutputStream();
           out.write(payload.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException ignored) {
+          // if this happens it can generate noise into the logs.
+          // we'll only log if the error is more severe
         } finally {
           if (out != null) {
-            out.close();
+            try {
+              out.close();
+            } catch (IOException ignored) {
+            }
           }
         }
       } catch (Throwable e) {

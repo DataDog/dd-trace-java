@@ -127,7 +127,7 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_PROCESS_CONTEXT_ENABLED =
       "profiling.experimental.process_context.enabled";
-  public static final boolean PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT = false;
+  public static final boolean PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT = true;
 
   public static final String PROFILING_DATADOG_PROFILER_LOG_LEVEL = "profiling.ddprof.loglevel";
 

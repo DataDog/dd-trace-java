@@ -18,7 +18,6 @@ import com.datadog.debugger.probe.Sampling;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.TriggerProbe;
-import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
@@ -410,7 +409,10 @@ public class ConfigurationTest {
 
   private static TriggerProbe createTriggerProbe(
       String id, String typeName, String methodName, String signature) {
-    return new TriggerProbe(new ProbeId(id, 0), Where.of(typeName, methodName, signature));
+    return TriggerProbe.builder()
+        .probeId(new ProbeId(id, 0))
+        .where(typeName, methodName, signature)
+        .build();
   }
 
   private static SpanProbe createSpan(
@@ -438,7 +440,7 @@ public class ConfigurationTest {
         .evaluateAt(MethodLocation.ENTRY)
         .tags("tag1:value1", "tag2:value2")
         .targetSpan(targetSpan)
-        .decorate(decoration)
+        .decorations(decoration)
         .build();
   }
 

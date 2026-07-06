@@ -4,10 +4,13 @@
 # Build
 develocity = "4.4.1"
 forbiddenapis = "3.10"
+gradle-tooling-api = "8.14.5"
+jsr305 = "3.0.2"
+shadow = "9.4.2"
 spotbugs_annotations = "4.9.8"
 
 # DataDog libs and forks
-ddprof = "1.41.0"
+ddprof = "1.45.0"
 dogstatsd = "4.4.5"
 okhttp = "3.12.15" # Datadog fork to support Java 7
 
@@ -17,7 +20,7 @@ groovy = "3.0.25"
 
 ## Kotlin
 kotlin = "1.6.21"
-kotlin-plugin = "2.0.21"
+kotlin-plugin = "2.1.20"
 kotlinx-coroutines = "1.3.0"
 
 ## Scala
@@ -30,8 +33,8 @@ scala33 = "3.3.0"
 # Bytecode manipulations & codegen
 autoservice = "1.1.1"
 asm = "9.9.1"
-byte-buddy = "1.18.8"
-instrument-java = "0.0.3"
+byte-buddy = "1.18.10"
+instrument-java = "0.0.4"
 
 # Benchmarks
 jmh = "1.37"
@@ -41,7 +44,7 @@ jmc = "8.1.0"
 jafar = "0.16.0"
 
 # Web & Network
-jnr-unixsocket = "0.38.24"
+jnr-unixsocket = "0.38.25"
 okhttp-legacy = "[3.0,3.12.12]" # 3.12.x is last version to support Java7
 okio = "1.17.6" # Datadog fork
 
@@ -50,10 +53,11 @@ cafe_crypto = "0.1.0"
 
 # Common utils
 commons = "3.2"
-guava = "[16.0,20.0]" # Last version to support Java 7
-javaparser = "3.24.4"
+guava = "33.6.0-jre"
+javaparser = "3.28.2"
 jctools = "4.0.6"
-lz4 = "1.7.1"
+lz4 = "1.11.0"
+re2j = "1.8"
 
 # Logging
 slf4j = "1.7.30"
@@ -78,6 +82,8 @@ testcontainers = "1.21.4"
 # Build
 develocity = { module = "com.gradle:develocity-gradle-plugin", version.ref = "develocity" }
 forbiddenapis = { module = "de.thetaphi:forbiddenapis", version.ref = "forbiddenapis" }
+gradle-tooling-api = { module = "org.gradle:gradle-tooling-api", version.ref = "gradle-tooling-api" }
+jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs_annotations" }
 
 # DataDog libs and forks
@@ -118,7 +124,6 @@ instrument-java = { module = "com.datadoghq:dd-instrument-java", version.ref = "
 # Profiling
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
-jafar-parser = { module = "io.btrace:jafar-parser", version.ref = "jafar" }
 jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
 
 # Web & Network
@@ -136,7 +141,8 @@ guava = { module = "com.google.guava:guava", version.ref = "guava" }
 javaparser = {module = "com.github.javaparser:javaparser-core", version.ref = "javaparser"}
 javaparser-symbol-solver = {module = "com.github.javaparser:javaparser-symbol-solver-core", version.ref = "javaparser"}
 jctools = { module = "org.jctools:jctools-core-jdk11", version.ref = "jctools" }
-lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
+lz4 = { module = "at.yawk.lz4:lz4-java", version.ref = "lz4" }
+re2j = { module = "com.google.re2j:re2j", version.ref = "re2j" }
 
 # Logging
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
@@ -185,3 +191,6 @@ junit-platform = ["junit-platform-launcher"]
 mockito = ["mokito-core", "mokito-junit-jupiter", "bytebuddy", "bytebuddyagent"]
 groovy = ["groovy", "groovy-json"]
 spock = ["spock-core", "objenesis"]
+
+[plugins]
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }

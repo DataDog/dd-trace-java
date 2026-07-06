@@ -1,11 +1,13 @@
 package datadog.gradle.plugin.muzzle.tasks
 
+import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.muzzle.MuzzleAction
 import datadog.gradle.plugin.muzzle.MuzzleDirective
 import datadog.gradle.plugin.muzzle.MuzzleExtension
 import datadog.gradle.plugin.muzzle.allMainSourceSet
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.invocation.BuildInvocationDetails
@@ -60,6 +62,10 @@ abstract class MuzzleTask @Inject constructor(
 
   @get:InputFiles
   @get:Classpath
+  abstract val extraAgentClasspath: ConfigurableFileCollection
+
+  @get:InputFiles
+  @get:Classpath
   protected val muzzleClassPath = providers.provider { createMuzzleClassPath(project, name) }
 
   @get:Input
@@ -102,6 +108,10 @@ abstract class MuzzleTask @Inject constructor(
           if(javaLauncher.metadata.languageVersion > JavaLanguageVersion.of(9)) {
             jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED")
           }
+          if (HostPlatform.isLinuxArm64()) {
+            // Disable CDS to avoid SIGSEGVs on Linux arm64.
+            jvmArgs("-Xshare:off")
+          }
           executable(javaLauncher.executablePath)
         }
       }
@@ -114,7 +124,7 @@ abstract class MuzzleTask @Inject constructor(
       buildStartedTime.set(invocationDetails.buildStartedTime)
       bootstrapClassPath.setFrom(muzzleBootstrap)
       toolingClassPath.setFrom(muzzleTooling)
-      instrumentationClassPath.setFrom(agentClassPath.get())
+      instrumentationClassPath.setFrom(agentClassPath.get(), extraAgentClasspath)
       testApplicationClassPath.setFrom(muzzleClassPath.get())
       if (muzzleDirective != null) {
         assertPass.set(muzzleDirective.assertPass)

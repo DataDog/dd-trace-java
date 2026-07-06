@@ -8,8 +8,8 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.ratpack.RatpackServerDecorator.DECORATE;
 
 import com.google.common.reflect.TypeToken;
+import datadog.context.ContextScope;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
@@ -38,19 +38,19 @@ public final class TracingHandler implements Handler {
     final AgentSpan nettySpan = nettyContext != null ? fromContext(nettyContext) : null;
 
     // Relying on executor instrumentation to assume the netty span is in context as the parent.
-    final AgentSpan ratpackSpan = startSpan(DECORATE.spanName()).setMeasured(true);
+    final AgentSpan ratpackSpan = startSpan("ratpack", DECORATE.spanName()).setMeasured(true);
     DECORATE.afterStart(ratpackSpan);
     DECORATE.onRequest(ratpackSpan, request, request, root());
     ctx.getExecution().add(ratpackSpan);
 
     boolean setFinalizer = false;
 
-    try (final AgentScope scope = activateSpan(ratpackSpan)) {
+    try (final ContextScope scope = activateSpan(ratpackSpan)) {
 
       ctx.getResponse()
           .beforeSend(
               response -> {
-                try (final AgentScope ignored = activateSpan(ratpackSpan)) {
+                try (final ContextScope ignored = activateSpan(ratpackSpan)) {
                   if (nettySpan != null) {
                     // Rename the netty span resource name with the ratpack route.
                     DECORATE.onContext(nettySpan, ctx);

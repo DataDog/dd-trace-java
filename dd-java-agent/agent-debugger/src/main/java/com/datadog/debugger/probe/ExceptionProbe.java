@@ -108,7 +108,7 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
           exceptionProbeManager.getStateByThrowable(innerMostThrowable);
       if (state != null) {
         // Already unwinding the exception
-        if (!state.isSampling()) {
+        if (state.getSnapshots().isEmpty()) {
           // skip snapshot because no snapshot from previous stack level
           return;
         }

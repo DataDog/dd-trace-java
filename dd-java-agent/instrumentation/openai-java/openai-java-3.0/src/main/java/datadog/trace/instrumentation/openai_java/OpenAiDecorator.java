@@ -42,7 +42,7 @@ public class OpenAiDecorator extends ClientDecorator {
   private final WellKnownTags wellKnownTags = Config.get().getWellKnownTags();
 
   public AgentSpan startSpan(ClientOptions clientOptions) {
-    AgentSpan span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
+    AgentSpan span = AgentTracer.startSpan(INTEGRATION, SPAN_NAME);
     afterStart(span);
     String baseUrl = clientOptions.baseUrl();
     span.setTag(CommonTags.OPENAI_API_BASE, baseUrl);
@@ -115,6 +115,16 @@ public class OpenAiDecorator extends ClientDecorator {
         parentSpanId = String.valueOf(parent.getSpanId());
       }
       span.setTag(CommonTags.PARENT_ID, parentSpanId);
+
+      // Inherit session_id from the active LLMObs parent (e.g. a manual workflow span).
+      // Matches dd-trace-py / dd-trace-js, where auto-instrumented LLM spans inherit
+      // session_id from the workflow root via context propagation. Without this, the
+      // auto-instrumented openai.request span would not appear under its session in
+      // the LLM Trace Explorer's Sessions view.
+      String sessionId = LLMObsContext.currentSessionId();
+      if (sessionId != null && !sessionId.isEmpty()) {
+        span.setTag(CommonTags.SESSION_ID, sessionId);
+      }
     }
     return super.afterStart(span);
   }

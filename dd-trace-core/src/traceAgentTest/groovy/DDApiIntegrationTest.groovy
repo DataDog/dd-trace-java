@@ -67,7 +67,7 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
 
   def setup() {
     tracer = CoreTracer.builder().writer(new ListWriter()).build()
-    span = tracer.buildSpan("fakeOperation").start()
+    span = tracer.buildSpan("datadog", "fakeOperation").start()
     Thread.sleep(1)
     span.finish()
   }
@@ -84,12 +84,12 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
     HttpUrl agentUrl = HttpUrl.get(Config.get().getAgentUrl())
     OkHttpClient httpClient = OkHttpUtils.buildHttpClient(agentUrl, 5000)
-    discovery = new DDAgentFeaturesDiscovery(httpClient, monitoring, agentUrl, protocol, true)
+    discovery = new DDAgentFeaturesDiscovery(httpClient, monitoring, agentUrl, protocol, true, false)
     api = new DDAgentApi(httpClient, agentUrl, discovery, monitoring, false)
     api.addResponseListener(responseListener)
     HttpUrl udsAgentUrl = HttpUrl.get(String.format("http://%s:%d", SOMEHOST, SOMEPORT))
     OkHttpClient udsClient = OkHttpUtils.buildHttpClient(true, socketPath.toString(), null, 5000)
-    udsDiscovery = new DDAgentFeaturesDiscovery(udsClient, monitoring, agentUrl, protocol, true)
+    udsDiscovery = new DDAgentFeaturesDiscovery(udsClient, monitoring, agentUrl, protocol, true, false)
     unixDomainSocketApi = new DDAgentApi(udsClient, udsAgentUrl, udsDiscovery, monitoring, false)
     unixDomainSocketApi.addResponseListener(responseListener)
     mapper = [

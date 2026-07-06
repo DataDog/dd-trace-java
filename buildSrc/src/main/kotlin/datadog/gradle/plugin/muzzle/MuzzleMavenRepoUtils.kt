@@ -9,6 +9,7 @@ import org.eclipse.aether.connector.basic.BasicRepositoryConnectorFactory
 import org.eclipse.aether.repository.LocalRepository
 import org.eclipse.aether.repository.RemoteRepository
 import org.eclipse.aether.resolution.VersionRangeRequest
+import org.eclipse.aether.resolution.VersionRangeResolutionException
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.spi.connector.RepositoryConnectorFactory
 import org.eclipse.aether.spi.connector.transport.TransporterFactory
@@ -16,17 +17,24 @@ import org.eclipse.aether.transport.file.FileTransporterFactory
 import org.eclipse.aether.transport.http.HttpTransporterFactory
 import org.eclipse.aether.version.Version
 import org.gradle.api.GradleException
+import org.gradle.api.logging.Logging
 import java.nio.file.Files
 
 internal object MuzzleMavenRepoUtils {
+  private val log = Logging.getLogger(MuzzleMavenRepoUtils::class.java)
+  private val backoffDelaysSeconds = listOf(5L, 10L, 30L)
+
   /**
-   * Remote repositories used to query version ranges and fetch dependencies
+   * Remote repositories used to query version ranges and fetch dependencies.
+   *
+   * This intentionally reads the environment on each access: Gradle daemons can
+   * be reused across builds with different MAVEN_REPOSITORY_PROXY values.
    */
   @JvmStatic
-  val MUZZLE_REPOS: List<RemoteRepository> by lazy {
+  fun defaultMuzzleRepos(): List<RemoteRepository> {
     val central = RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build()
     val mavenProxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
-    if (mavenProxyUrl == null) {
+    return if (mavenProxyUrl == null) {
       listOf(central)
     } else {
       val proxy = RemoteRepository.Builder("central-proxy", "default", mavenProxyUrl).build()
@@ -70,7 +78,7 @@ internal object MuzzleMavenRepoUtils {
     muzzleDirective: MuzzleDirective,
     system: RepositorySystem,
     session: RepositorySystemSession,
-    defaultRepos: List<RemoteRepository> = MUZZLE_REPOS
+    defaultRepos: List<RemoteRepository> = defaultMuzzleRepos()
   ): Set<MuzzleDirective> {
     val allVersionsArtifact = DefaultArtifact(
       muzzleDirective.group,
@@ -119,12 +127,15 @@ internal object MuzzleMavenRepoUtils {
   /**
    * Resolves the version range for a given MuzzleDirective using the provided RepositorySystem and RepositorySystemSession.
    * Equivalent to the Groovy implementation in MuzzlePlugin.
+   *
+   * @param enableBackoffRetries if true, waits 5s, 10s, and 30s after the first three immediate retries
    */
   fun resolveVersionRange(
     muzzleDirective: MuzzleDirective,
     system: RepositorySystem,
     session: RepositorySystemSession,
-    defaultRepos: List<RemoteRepository> = MUZZLE_REPOS
+    defaultRepos: List<RemoteRepository> = defaultMuzzleRepos(),
+    enableBackoffRetries: Boolean = true
   ): VersionRangeResult {
     val directiveArtifact: Artifact = DefaultArtifact(
       muzzleDirective.group,
@@ -139,16 +150,56 @@ internal object MuzzleMavenRepoUtils {
     }
 
     // In rare cases, the version resolution range silently failed with the maven proxy,
-    // retries 3 times at most then suggest to restart the job later.
-    var range = system.resolveVersionRange(session, rangeRequest)
-    for (i in 0..3) {
-      if (range.lowestVersion != null && range.highestVersion != null) {
-        return range
+    // retries 3 times immediately, then backs off before suggesting to restart the job later.
+    var attemptCount = 0
+    var range: VersionRangeResult? = null
+    var failure: VersionRangeResolutionException? = null
+    fun attemptResolve(): VersionRangeResult? {
+      attemptCount++
+      return try {
+        range = system.resolveVersionRange(session, rangeRequest)
+        failure = null
+        range?.takeIf { it.hasBounds() }
+      } catch (e: VersionRangeResolutionException) {
+        failure = e
+        range = e.result ?: range
+        null
       }
-      range = system.resolveVersionRange(session, rangeRequest)
     }
 
-    throw IllegalStateException("The version range resolution failed during report, this is not expected. Advised course of action: Restart the job later.")
+    repeat(4) {
+      attemptResolve()?.let { range ->
+        return range
+      }
+    }
+
+    var waitedSeconds = 0L
+    if (enableBackoffRetries) {
+      for (delaySeconds in backoffDelaysSeconds) {
+        sleepBeforeBackoffRetry(delaySeconds, directiveArtifact)
+        waitedSeconds += delaySeconds
+        attemptResolve()?.let { resolvedRange ->
+          log.warn(
+            "Muzzle version range resolution for ${artifactCoordinates(directiveArtifact)} " +
+              "succeeded after waiting ${waitedSeconds}s across $attemptCount attempts"
+          )
+          return resolvedRange
+        }
+      }
+    }
+
+    throw IllegalStateException(
+      versionRangeFailureMessage(
+        directiveArtifact,
+        rangeRequest.repositories,
+        range,
+        failure,
+        attemptCount,
+        waitedSeconds,
+        enableBackoffRetries
+      ),
+      failure
+    )
   }
 
   /**
@@ -201,6 +252,76 @@ internal object MuzzleMavenRepoUtils {
    * Returns the lowest of two Version objects.
    */
   fun lowest(a: Version, b: Version): Version = if (a < b) a else b
+
+  private fun VersionRangeResult.hasBounds(): Boolean =
+    lowestVersion != null && highestVersion != null
+
+  private fun sleepBeforeBackoffRetry(delaySeconds: Long, artifact: Artifact) {
+    try {
+      Thread.sleep(delaySeconds * 1000L)
+    } catch (e: InterruptedException) {
+      Thread.currentThread().interrupt()
+      throw IllegalStateException(
+        "Interrupted while waiting ${delaySeconds}s before retrying version range resolution for " +
+          artifactCoordinates(artifact),
+        e
+      )
+    }
+  }
+
+  private fun versionRangeFailureMessage(
+    artifact: Artifact,
+    repositories: List<RemoteRepository>,
+    range: VersionRangeResult?,
+    failure: VersionRangeResolutionException?,
+    attemptCount: Int,
+    waitedSeconds: Long,
+    enableBackoffRetries: Boolean
+  ): String {
+    val backoffDetails =
+      if (enableBackoffRetries) {
+        "enabled; waited ${waitedSeconds}s using delays ${backoffDelaysSeconds.joinToString(", ") { "${it}s" }}"
+      } else {
+        "disabled"
+      }
+    return buildString {
+      appendLine("Muzzle version range resolution failed.")
+      appendLine("Artifact:")
+      appendLine("  ${artifactCoordinates(artifact)}")
+      appendLine("Repositories:")
+      repositories.forEach { appendLine("  - ${it.id}: ${it.url}") }
+      appendLine("Attempts:")
+      appendLine("  $attemptCount")
+      appendLine("Backoff:")
+      appendLine("  $backoffDetails")
+      appendLine("Last resolution result:")
+      if (range == null) {
+        appendLine("  <none returned>")
+      } else {
+        appendLine("  lowestVersion=${range.lowestVersion ?: "<missing>"}")
+        appendLine("  highestVersion=${range.highestVersion ?: "<missing>"}")
+        appendLine("  versionCount=${range.versions.size}")
+      }
+      if (failure != null) {
+        appendLine("Last resolution failure:")
+        appendLine("  ${failure.javaClass.name}: ${failure.message ?: "<no message>"}")
+      }
+      appendLine()
+      appendLine("Maven metadata resolution may have returned an incomplete range, especially through a proxy.")
+      appendLine("Restart the job later if the repositories above are reachable.")
+    }.trimEnd()
+  }
+
+  private fun artifactCoordinates(artifact: Artifact): String {
+    val classifier = artifact.classifier?.takeUnless { it.isEmpty() }
+    return listOfNotNull(
+      artifact.groupId,
+      artifact.artifactId,
+      classifier,
+      artifact.extension,
+      artifact.version
+    ).joinToString(":")
+  }
 
   /**
    * Convert a muzzle directive to a set of artifacts for all filtered versions.

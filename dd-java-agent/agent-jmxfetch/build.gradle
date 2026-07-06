@@ -25,6 +25,11 @@ dependencies {
   api libs.slf4j
   api project(':internal-api')
   api project(':dd-java-agent:agent-bootstrap')
+
+  // JvmOtlpRuntimeMetrics registers JVM runtime instruments directly against the
+  // bootstrap-level OTel metric registry. otel-bootstrap vendors and repackages the
+  // OTel API at build time so this won't conflict with anything in the customer app.
+  compileOnly project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
 }
 
 tasks.named("shadowJar", ShadowJar) {

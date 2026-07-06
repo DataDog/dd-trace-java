@@ -66,7 +66,7 @@ class CoreMetricCollectorBaggageTest extends Specification {
     def baggageMetrics = BaggageMetrics.getInstance()
 
     when:
-    baggageMetrics.onBaggageTruncatedByByteLimit()
+    baggageMetrics.onBaggageTruncatedByInjectByteLimit()
     collector.prepareMetrics()
     def metrics = collector.drain()
 
@@ -85,7 +85,7 @@ class CoreMetricCollectorBaggageTest extends Specification {
     def baggageMetrics = BaggageMetrics.getInstance()
 
     when:
-    baggageMetrics.onBaggageTruncatedByItemLimit()
+    baggageMetrics.onBaggageTruncatedByInjectItemLimit()
     collector.prepareMetrics()
     def metrics = collector.drain()
 
@@ -93,6 +93,44 @@ class CoreMetricCollectorBaggageTest extends Specification {
     def baggageMetric = metrics.find {
       it.metricName == "context_header.truncated" &&
         it.tags.contains("truncation_reason:baggage_item_count_exceeded")
+    }
+    baggageMetric != null
+    baggageMetric.value == 1
+  }
+
+  def "should collect baggage truncated metrics with extract byte truncation_reason tag"() {
+    given:
+    def collector = CoreMetricCollector.getInstance()
+    def baggageMetrics = BaggageMetrics.getInstance()
+
+    when:
+    baggageMetrics.onBaggageTruncatedByExtractByteLimit()
+    collector.prepareMetrics()
+    def metrics = collector.drain()
+
+    then:
+    def baggageMetric = metrics.find {
+      it.metricName == "context_header.truncated" &&
+        it.tags.contains("truncation_reason:baggage_extract_byte_exceeded")
+    }
+    baggageMetric != null
+    baggageMetric.value == 1
+  }
+
+  def "should collect baggage truncated metrics with extract item truncation_reason tag"() {
+    given:
+    def collector = CoreMetricCollector.getInstance()
+    def baggageMetrics = BaggageMetrics.getInstance()
+
+    when:
+    baggageMetrics.onBaggageTruncatedByExtractItemLimit()
+    collector.prepareMetrics()
+    def metrics = collector.drain()
+
+    then:
+    def baggageMetric = metrics.find {
+      it.metricName == "context_header.truncated" &&
+        it.tags.contains("truncation_reason:baggage_extract_item_exceeded")
     }
     baggageMetric != null
     baggageMetric.value == 1

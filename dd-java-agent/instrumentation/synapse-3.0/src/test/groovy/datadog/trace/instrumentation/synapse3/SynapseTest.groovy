@@ -253,6 +253,7 @@ abstract class SynapseTest extends VersionedNamingTestBase {
         "$Tags.HTTP_STATUS" statusCode
         "$Tags.HTTP_USER_AGENT" String
         "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+        "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
         defaultTags(distributedRootSpan)
       }
     }
@@ -281,6 +282,7 @@ abstract class SynapseTest extends VersionedNamingTestBase {
         "$Tags.HTTP_STATUS" statusCode
         "$Tags.HTTP_USER_AGENT" String
         "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+        "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
         defaultTags()
       }
     }
