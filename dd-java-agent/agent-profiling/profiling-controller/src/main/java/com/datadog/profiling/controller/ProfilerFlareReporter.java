@@ -354,7 +354,7 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
         ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT);
     appendConfig(
         sb,
-        "DDProf force preload jmethodIDs",
+        "DDProf Force Preload jmethodIDs",
         configProvider.getBoolean(
             ProfilingConfig.PROFILING_DATADOG_PROFILER_FORCE_JMETHODID,
             ProfilingConfig.PROFILING_DATADOG_PROFILER_FORCE_JMETHODID_DEFAULT),
