@@ -3121,6 +3121,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_EXPERIMENTAL_ASYNC_FORCE_JMETHODID": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_EXPERIMENTAL_ASYNC_SCHEDULING_EVENT": [
       {
         "version": "A",
@@ -3142,14 +3150,6 @@
         "version": "A",
         "type": "boolean",
         "default": "false",
-        "aliases": []
-      }
-    ],
-    "DD_PROFILING_EXPERIMENTAL_DDPROF_FORCE_JMETHODID": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "true",
         "aliases": []
       }
     ],
