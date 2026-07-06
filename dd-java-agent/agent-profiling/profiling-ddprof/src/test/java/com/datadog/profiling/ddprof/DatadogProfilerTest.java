@@ -108,6 +108,22 @@ class DatadogProfilerTest {
                 Arguments.of((x & 0x1000) != 0, (x & 0x100) != 0, (x & 0x10) != 0, (x & 0x1) != 0));
   }
 
+  @Test
+  void testStartCmdForceJMethodIDDisabled() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_FORCE_JMETHODID, "false");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    Path targetFile = Paths.get("/tmp/target.jfr");
+    String cmd = profiler.cmdStartProfiling(targetFile);
+
+    assertTrue(cmd.contains(",fjmethodid=false"), cmd);
+  }
+
   @ParameterizedTest
   @MethodSource("wallContextFilterModes")
   void testWallContextFilter(boolean tracingEnabled, boolean contextFilterEnabled)

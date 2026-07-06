@@ -422,7 +422,7 @@ public final class DatadogProfiler {
 
     // Default is true
     if (!forceJMethodID(configProvider)) {
-      cmd.append(",force_jmethodID=false");
+      cmd.append(",fjmethodid=false");
     }
 
     if (profilingModes.contains(CPU)) {
