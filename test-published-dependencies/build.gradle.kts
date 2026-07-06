@@ -15,6 +15,9 @@ allprojects {
   apply(from = "$sharedConfigDirectory/repositories.gradle")
   apply(plugin = "com.diffplug.spotless")
 
+  // Apply a simple spotless config here.
+  // Using the dd-trace-java's plugin scripts, adds a step with grecplipse that
+  // has a concurrency bug surfacing with gradle 9.6 when there's no matching file.
   spotless {
     kotlinGradle {
       target("*.gradle.kts")

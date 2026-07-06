@@ -447,6 +447,7 @@ spotless:
     CACHE_TYPE: "spotless"
   script:
     - ./gradlew --version
+    # test-published-dependencies's build file needs main version file
     - ./gradlew spotlessCheck writeMainVersionFile $GRADLE_ARGS
     - cd test-published-dependencies && ./gradlew spotlessCheck $GRADLE_ARGS
 
