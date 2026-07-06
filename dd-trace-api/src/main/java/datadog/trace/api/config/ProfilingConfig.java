@@ -37,7 +37,7 @@ public final class ProfilingConfig {
   // When set to false, ddprof skips preloading jmethodIDs for eligible system classes to reduce
   // native memory usage. Default is true to preserve current behavior (force preloading).
   public static final String PROFILING_DATADOG_PROFILER_FORCE_JMETHODID =
-      "profiling.experimental.ddprof.force_jmethodID";
+      "profiling.experimental.ddprof.force_jmethodid";
   public static final boolean PROFILING_DATADOG_PROFILER_FORCE_JMETHODID_DEFAULT = true;
 
   /**
