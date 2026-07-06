@@ -13,6 +13,7 @@ import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.propagation.opg.OrgGuard;
 import datadog.trace.util.AgentTaskScheduler;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
@@ -30,6 +31,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       httpStatus -> new String[] {"status:" + httpStatus};
 
   private static final String[] NO_TAGS = new String[0];
+  private static final String[] COLLAPSED_WHOLE_KEY_TAGS = new String[] {"collapsed:whole_key"};
   private static final String[] STATUS_OK_TAGS = STATUS_TAGS.apply(200);
   private final RadixTreeCache<String[]> statusTagsCache =
       new RadixTreeCache<>(16, 32, STATUS_TAGS, 200, 400);
@@ -88,6 +90,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final LongAdder longRunningTracesWrite = new LongAdder();
   private final LongAdder longRunningTracesDropped = new LongAdder();
   private final LongAdder longRunningTracesExpired = new LongAdder();
+
+  private final LongAdder orgGuardEnforceMismatch = new LongAdder();
+  private final LongAdder orgGuardEnforceStrictMissing = new LongAdder();
 
   private final LongAdder clientStatsProcessedSpans = new LongAdder();
   private final LongAdder clientStatsProcessedTraces = new LongAdder();
@@ -287,6 +292,18 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onOrgGuardEnforce(OrgGuard.Reason reason) {
+    switch (reason) {
+      case MISMATCH:
+        orgGuardEnforceMismatch.increment();
+        break;
+      case STRICT_MISSING:
+        orgGuardEnforceStrictMissing.increment();
+        break;
+    }
+  }
+
+  @Override
   public void onSend(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {
     onSendAttempt(traceCount, sizeInBytes, response);
@@ -356,11 +373,17 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   @Override
   public void onStatsAggregateDropped() {
     statsAggregateDropped.increment();
+    statsd.count("datadog.tracer.stats.collapsed_spans", 1, COLLAPSED_WHOLE_KEY_TAGS);
   }
 
   @Override
   public void onStatsInboxFull() {
     statsInboxFull.increment();
+  }
+
+  @Override
+  public void onTagCardinalityBlocked(String[] statsDTag, long count) {
+    statsd.count("datadog.tracer.stats.collapsed_spans", count, statsDTag);
   }
 
   @Override
@@ -381,8 +404,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
     private static final String[] REASON_LRU_EVICTION_TAG = new String[] {"reason:lru_eviction"};
     private static final String[] REASON_INBOX_FULL_TAG = new String[] {"reason:inbox_full"};
+    private static final String[] ORG_GUARD_MISMATCH_TAGS = new String[] {"reason:mismatch"};
+    private static final String[] ORG_GUARD_STRICT_MISSING_TAGS =
+        new String[] {"reason:strict_missing"};
 
-    private final long[] previousCounts = new long[52];
+    private final long[] previousCounts = new long[54];
 
     @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
     private int countIndex;
@@ -494,6 +520,17 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             target.statsd, "long-running.dropped", target.longRunningTracesDropped, NO_TAGS);
         reportIfChanged(
             target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
+
+        reportIfChanged(
+            target.statsd,
+            "org_guard.enforce",
+            target.orgGuardEnforceMismatch,
+            ORG_GUARD_MISMATCH_TAGS);
+        reportIfChanged(
+            target.statsd,
+            "org_guard.enforce",
+            target.orgGuardEnforceStrictMissing,
+            ORG_GUARD_STRICT_MISSING_TAGS);
 
         reportIfChanged(
             target.statsd, "stats.traces_in", target.clientStatsProcessedTraces, NO_TAGS);

@@ -92,6 +92,7 @@ public class VertxTestServer extends AbstractVerticle {
                       String res = convertFormAttributes(ctx);
                       ctx.response().setStatusCode(BODY_URLENCODED.getStatus()).end(res);
                     }));
+    router.route(BODY_MULTIPART.getPath()).handler(BodyHandler.create());
     router
         .route(BODY_MULTIPART.getPath())
         .handler(
@@ -100,13 +101,9 @@ public class VertxTestServer extends AbstractVerticle {
                     ctx,
                     BODY_MULTIPART,
                     () -> {
-                      ctx.request().setExpectMultipart(true);
-                      ctx.request()
-                          .endHandler(
-                              (_void) -> {
-                                String res = convertFormAttributes(ctx);
-                                ctx.response().setStatusCode(BODY_MULTIPART.getStatus()).end(res);
-                              });
+                      ctx.fileUploads();
+                      String res = convertFormAttributes(ctx);
+                      ctx.response().setStatusCode(BODY_MULTIPART.getStatus()).end(res);
                     }));
     router.route(BODY_JSON.getPath()).handler(BodyHandler.create());
     router

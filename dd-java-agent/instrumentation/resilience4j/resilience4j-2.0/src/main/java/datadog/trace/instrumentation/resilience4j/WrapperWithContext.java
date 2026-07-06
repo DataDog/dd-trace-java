@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.resilience4j;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -32,7 +33,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public void accept(I arg) throws Throwable {
-      try (AgentScope ignore = activateScope()) {
+      try (ContextScope ignore = activateScope()) {
         delegate.accept(arg);
       } finally {
         finishSpanIfNeeded();
@@ -52,7 +53,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public void accept(I arg) {
-      try (AgentScope ignore = activateScope()) {
+      try (ContextScope ignore = activateScope()) {
         delegate.accept(arg);
       } finally {
         finishSpanIfNeeded();
@@ -72,7 +73,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public O apply(I arg) throws Throwable {
-      try (AgentScope ignore = activateScope()) {
+      try (ContextScope ignore = activateScope()) {
         return delegate.apply(arg);
       } finally {
         finishSpanIfNeeded();
@@ -92,7 +93,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public O get() {
-      try (AgentScope ignore = activateScope()) {
+      try (ContextScope ignore = activateScope()) {
         return delegate.get();
       } finally {
         finishSpanIfNeeded();
@@ -112,7 +113,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public O call() throws Exception {
-      try (AgentScope ignore = activateScope()) {
+      try (ContextScope ignore = activateScope()) {
         return delegate.call();
       } finally {
         finishSpanIfNeeded();
@@ -132,7 +133,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public O apply(I arg) {
-      try (AgentScope ignore = activateScope()) {
+      try (ContextScope ignore = activateScope()) {
         return delegate.apply(arg);
       } finally {
         finishSpanIfNeeded();
@@ -152,7 +153,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public O get() throws Throwable {
-      try (AgentScope ignore = activateScope()) {
+      try (ContextScope ignore = activateScope()) {
         return delegate.get();
       } finally {
         finishSpanIfNeeded();
@@ -172,7 +173,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public void run() throws Throwable {
-      try (AgentScope ignore = activateScope()) {
+      try (ContextScope ignore = activateScope()) {
         delegate.run();
       } finally {
         finishSpanIfNeeded();
@@ -192,7 +193,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public void run() {
-      try (AgentScope ignore = activateScope()) {
+      try (ContextScope ignore = activateScope()) {
         delegate.run();
       } finally {
         finishSpanIfNeeded();
@@ -212,7 +213,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public CompletionStage<?> get() {
-      try (AgentScope ignore = activateScope()) {
+      try (ContextScope ignore = activateScope()) {
         return delegate
             .get()
             .whenComplete(
@@ -235,7 +236,7 @@ public class WrapperWithContext<T> {
 
     @Override
     public Future<?> get() {
-      try (AgentScope ignore = activateScope()) {
+      try (ContextScope ignore = activateScope()) {
         Future<?> future = delegate.get();
         if (future instanceof CompletableFuture) {
           ((CompletableFuture<?>) future)

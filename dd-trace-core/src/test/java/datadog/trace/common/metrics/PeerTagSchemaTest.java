@@ -3,7 +3,6 @@ package datadog.trace.common.metrics;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
@@ -13,20 +12,15 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-/**
- * Unit tests for {@link PeerTagSchema}. Covers the {@link PeerTagSchema#hasSameTagsAs(Set)}
- * predicate that drives the aggregator's reconcile fast/slow path split, the factory shapes, and
- * the {@link PeerTagSchema#INTERNAL} singleton.
- */
 class PeerTagSchemaTest {
 
   @Test
   void ofBuildsSchemaFromSetWithState() {
     Set<String> tags = new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service"));
-    PeerTagSchema schema = PeerTagSchema.of(tags, "abc123");
+    PeerTagSchema schema = PeerTagSchema.of(tags, "state-1234");
 
     assertArrayEquals(new String[] {"peer.hostname", "peer.service"}, schema.names);
-    assertEquals("abc123", schema.state);
+    assertEquals("state-1234", schema.state);
     assertEquals(2, schema.size());
   }
 
@@ -36,7 +30,6 @@ class PeerTagSchemaTest {
 
     assertEquals(0, schema.size());
     assertEquals(0, schema.names.length);
-    assertNull(schema.state);
   }
 
   @Test
@@ -89,5 +82,24 @@ class PeerTagSchemaTest {
 
     assertTrue(empty.hasSameTagsAs(Collections.<String>emptySet()));
     assertFalse(empty.hasSameTagsAs(Collections.<String>singleton("peer.hostname")));
+  }
+
+  @Test
+  void handlerAccumulatesBlockedCountsAcrossRegistrations() {
+    // Build a schema then replace its handler with a sentinel-mode instance at a low limit.
+    // (Production schemas use AggregateEntry.LIMITS_ENABLED which is currently false; this test
+    // exercises the blocked-count path directly so it stays valid before and after the flag flips.)
+    PeerTagSchema schema =
+        new PeerTagSchema(new String[] {"peer.hostname"}, PeerTagSchema.NO_STATE);
+    schema.handlers[0] = new TagCardinalityHandler("peer.hostname", 1, true);
+
+    schema.register(0, "host-a"); // within limit
+    schema.register(0, "host-b"); // blocked
+    schema.register(0, "host-c"); // blocked
+
+    assertEquals(2, schema.handlers[0].reset());
+
+    // After the reset, no new values were registered so the next reset reports nothing.
+    assertEquals(0, schema.handlers[0].reset());
   }
 }

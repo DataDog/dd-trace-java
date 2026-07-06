@@ -41,3 +41,10 @@ dependencies {
   latestDepTestImplementation group: 'org.apache.cxf', name: 'cxf-rt-rs-client', version: '3.2.6'
   latestDepTestImplementation group: 'org.jboss.resteasy', name: 'resteasy-client', version: '3.0.26.Final'
 }
+
+// Jersey 2.0 links to Guava's removed MoreExecutors.sameThreadExecutor method.
+['testCompileClasspath', 'testRuntimeClasspath'].each {
+  configurations.named(it) {
+    resolutionStrategy.force 'com.google.guava:guava:20.0'
+  }
+}

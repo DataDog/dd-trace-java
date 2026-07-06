@@ -4,8 +4,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import java.io.IOException;
 import java.io.Writer;
@@ -26,7 +26,7 @@ public class TracingWriter extends Writer {
     if (doTrace) {
       DECORATE.onSendFrameStart(handlerContext, MESSAGE_TYPE_TEXT, len);
     }
-    try (final AgentScope ignored = activateSpan(handlerContext.getWebsocketSpan())) {
+    try (final ContextScope ignored = activateSpan(handlerContext.getWebsocketSpan())) {
       delegate.write(cbuf, off, len);
     } finally {
       if (doTrace) {
@@ -43,7 +43,7 @@ public class TracingWriter extends Writer {
   @Override
   public void close() throws IOException {
     final boolean doTrace = CallDepthThreadLocalMap.incrementCallDepth(HandlerContext.class) == 0;
-    try (final AgentScope ignored =
+    try (final ContextScope ignored =
         handlerContext.getWebsocketSpan() != null
             ? activateSpan(handlerContext.getWebsocketSpan())
             : null) {

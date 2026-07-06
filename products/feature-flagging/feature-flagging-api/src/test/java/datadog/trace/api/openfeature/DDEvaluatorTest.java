@@ -5,6 +5,8 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -12,6 +14,8 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonDataException;
@@ -38,6 +42,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -122,6 +129,39 @@ public class DDEvaluatorTest {
     assertThat(details.getValue(), equalTo(23));
     assertThat(details.getReason(), equalTo(ERROR.name()));
     assertThat(details.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
+  }
+
+  @Test
+  public void testInitializeTimesOutWithoutConfig() throws Exception {
+    final Runnable configCallback = mock(Runnable.class);
+    final DDEvaluator evaluator = new DDEvaluator(configCallback);
+    evaluator.accept(null);
+    try {
+      assertThat(
+          evaluator.initialize(10, MILLISECONDS, mock(EvaluationContext.class)), equalTo(false));
+      verify(configCallback, times(0)).run();
+    } finally {
+      evaluator.shutdown();
+    }
+  }
+
+  @Test
+  public void testInitializeWaitsForNonNullConfig() throws Exception {
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      final Future<Boolean> initialized =
+          executor.submit(() -> evaluator.initialize(1, SECONDS, mock(EvaluationContext.class)));
+
+      evaluator.accept(null);
+      assertThat(initialized.isDone(), equalTo(false));
+
+      evaluator.accept(mock(ServerConfiguration.class));
+      assertThat(initialized.get(1, SECONDS), equalTo(true));
+    } finally {
+      executor.shutdownNow();
+      evaluator.shutdown();
+    }
   }
 
   @Test

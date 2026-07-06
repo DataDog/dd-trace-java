@@ -15,9 +15,11 @@ import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty41.client.NettyResponseInjectAdapter.SETTER;
 
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
@@ -53,9 +55,8 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
       return;
     }
 
-    AgentScope parentScope = null;
-    final AgentScope.Continuation continuation =
-        ctx.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY).getAndRemove();
+    ContextScope parentScope = null;
+    final AgentScope.Continuation continuation = takeConnectParentContinuation(ctx);
     if (continuation != null) {
       parentScope = continuation.activate();
     }
@@ -81,7 +82,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
 
     final AgentSpan span = startSpan(NETTY_CLIENT.toString(), NETTY_CLIENT_REQUEST);
     final Context context = getCurrentContext().with(span);
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);
 
@@ -110,5 +111,17 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
         parentScope.close();
       }
     }
+  }
+
+  private static AgentScope.Continuation takeConnectParentContinuation(
+      final ChannelHandlerContext ctx) {
+    final Channel channel = ctx.channel();
+    AgentScope.Continuation continuation =
+        channel.attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY).getAndRemove();
+    if (continuation == null && channel.parent() != null) {
+      continuation =
+          channel.parent().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY).getAndRemove();
+    }
+    return continuation;
   }
 }

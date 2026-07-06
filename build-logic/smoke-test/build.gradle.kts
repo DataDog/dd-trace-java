@@ -32,7 +32,7 @@ gradlePlugin {
 @Suppress("UnstableApiUsage")
 testing {
   suites {
-    val test by getting(JvmTestSuite::class) {
+    named<JvmTestSuite>("test") {
       useJUnitJupiter(libs.versions.junit5)
       dependencies {
         implementation(libs.junit.jupiter)

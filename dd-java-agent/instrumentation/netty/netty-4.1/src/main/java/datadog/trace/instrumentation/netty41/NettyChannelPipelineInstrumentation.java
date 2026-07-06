@@ -7,6 +7,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -29,6 +30,7 @@ import datadog.trace.instrumentation.netty41.server.MaybeBlockResponseHandler;
 import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerInboundTracingHandler;
 import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerOutboundTracingHandler;
 import datadog.trace.instrumentation.netty41.server.websocket.WebSocketServerTracingHandler;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpClientCodec;
@@ -90,6 +92,7 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
       packageName + ".server.websocket.WebSocketServerTracingHandler",
       packageName + ".server.websocket.WebSocketServerOutboundTracingHandler",
       packageName + ".server.websocket.WebSocketServerInboundTracingHandler",
+      packageName + ".Http2ConnectContinuationListener",
       packageName + ".NettyHttp2Helper",
       packageName + ".NettyPipelineHelper",
     };
@@ -175,6 +178,9 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
           handler2 instanceof ChannelHandler ? (ChannelHandler) handler2 : handler3;
 
       try {
+        if (NettyHttp2Helper.isHttp2ConnectionCodec(handler)) {
+          pipeline.channel().attr(HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY).set(Boolean.TRUE);
+        }
         // Server pipeline handlers
         if (handler instanceof HttpServerCodec) {
           NettyPipelineHelper.addHandlerAfter(
@@ -249,14 +255,33 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
 
   public static class ConnectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void addParentSpan(@Advice.This final ChannelPipeline pipeline) {
+    public static boolean addParentSpan(@Advice.This final ChannelPipeline pipeline) {
       AgentScope.Continuation continuation = captureActiveSpan();
       if (continuation != noopContinuation()) {
         final Attribute<AgentScope.Continuation> attribute =
             pipeline.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY);
         if (!attribute.compareAndSet(null, continuation)) {
           continuation.cancel();
+          return false;
         }
+        return Boolean.TRUE.equals(
+            pipeline.channel().attr(HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY).get());
+      }
+      return false;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void cleanupHttp2ConnectParentContinuation(
+        @Advice.Enter final boolean cleanupHttp2Continuation,
+        @Advice.This final ChannelPipeline pipeline,
+        @Advice.Return final ChannelFuture future) {
+      if (!cleanupHttp2Continuation) {
+        return;
+      }
+      if (future == null) {
+        Http2ConnectContinuationListener.cancel(pipeline.channel());
+      } else {
+        future.addListener(Http2ConnectContinuationListener.INSTANCE);
       }
     }
   }

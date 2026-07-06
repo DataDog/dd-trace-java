@@ -7,23 +7,21 @@ apply(from = "$rootDir/gradle/java.gradle")
 
 description = "HTTP Client API"
 
-val minimumBranchCoverage by extra(0) // extra(0.7) -- need a library implementation
-val minimumInstructionCoverage by extra(0) // extra(0.7) -- need a library implementation
+extra["minimumBranchCoverage"] = 0 // extra(0.7) -- need a library implementation
+extra["minimumInstructionCoverage"] = 0 // extra(0.7) -- need a library implementation
 
 // Exclude interfaces for test coverage
-val excludedClassesCoverage by extra(
-  listOf(
-    "datadog.http.client.HttpClient",
-    "datadog.http.client.HttpClient.Builder",
-    "datadog.http.client.HttpRequest",
-    "datadog.http.client.HttpRequest.Builder",
-    "datadog.http.client.HttpRequestBody",
-    "datadog.http.client.HttpRequestBody.MultipartBuilder",
-    "datadog.http.client.HttpRequestListener",
-    "datadog.http.client.HttpResponse",
-    "datadog.http.client.HttpUrl",
-    "datadog.http.client.HttpUrl.Builder",
-  )
+extra["excludedClassesCoverage"] = listOf(
+  "datadog.http.client.HttpClient",
+  "datadog.http.client.HttpClient.Builder",
+  "datadog.http.client.HttpRequest",
+  "datadog.http.client.HttpRequest.Builder",
+  "datadog.http.client.HttpRequestBody",
+  "datadog.http.client.HttpRequestBody.MultipartBuilder",
+  "datadog.http.client.HttpRequestListener",
+  "datadog.http.client.HttpResponse",
+  "datadog.http.client.HttpUrl",
+  "datadog.http.client.HttpUrl.Builder",
 )
 
 dependencies {

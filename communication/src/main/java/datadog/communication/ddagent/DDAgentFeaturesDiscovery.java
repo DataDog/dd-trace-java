@@ -101,6 +101,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     String version;
     String telemetryProxyEndpoint;
     Set<String> peerTags = emptySet();
+    String orgPropagationMarker;
     long lastTimeDiscovered;
   }
 
@@ -316,6 +317,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
                 ? unmodifiableSet(new HashSet<>((List<String>) peer_tags))
                 : emptySet();
       }
+      Object opm = map.get("org_prop_marker");
+      newState.orgPropagationMarker = (opm instanceof String) ? (String) opm : null;
       try {
         newState.state = Strings.sha256(response);
       } catch (Throwable ex) {
@@ -451,6 +454,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public String state() {
     return discoveryState.state;
+  }
+
+  public String getOrgPropagationMarker() {
+    return discoveryState.orgPropagationMarker;
   }
 
   @Override

@@ -2,6 +2,7 @@ package datadog.buildlogic.smoketest
 
 import org.gradle.api.Action
 import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileTree
 import org.gradle.api.file.RegularFile
@@ -16,6 +17,7 @@ import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Nested
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -25,6 +27,8 @@ import org.gradle.jvm.toolchain.JavaLauncher
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.kotlin.dsl.newInstance
 import org.gradle.tooling.GradleConnector
+import java.io.File
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 /**
@@ -47,6 +51,11 @@ abstract class NestedGradleBuild @Inject constructor(
 
   init {
     gradleVersion.convention(DEFAULT_NESTED_GRADLE_VERSION)
+    gradleDistributionBaseUrl.convention(
+      project.providers.environmentVariable(MASS_READ_URL_ENV),
+    )
+    initScripts.convention(emptyList())
+    gradleProperties.convention(emptyMap())
     javaLauncher.convention(
       javaToolchains.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
@@ -69,6 +78,20 @@ abstract class NestedGradleBuild @Inject constructor(
   @get:Input
   abstract val gradleVersion: Property<String>
 
+  /**
+   * Optional base URL for Gradle distribution downloads. CI sets this to MASS so nested builds
+   * download through the pull-through cache instead of directly from services.gradle.org.
+   */
+  @get:Input
+  @get:Optional
+  abstract val gradleDistributionBaseUrl: Property<String>
+
+  @get:Input
+  abstract val initScripts: ListProperty<String>
+
+  @get:Input
+  abstract val gradleProperties: MapProperty<String, String>
+
   @get:Nested
   abstract val javaLauncher: Property<JavaLauncher>
 
@@ -90,10 +113,16 @@ abstract class NestedGradleBuild @Inject constructor(
   @get:Input
   abstract val buildCacheEnabled: Property<Boolean>
 
+  /** Timeout, in seconds, for stopping the nested Gradle daemon after the build. */
+  @get:Input
+  @get:Optional
+  abstract val stopTimeoutSeconds: Property<Long>
+
   /**
-   * Extra environment variables for the nested Gradle daemon. Merged on top of the outer
-   * process environment — set a key to override an inherited value. The nested build script
-   * sees these via `System.getenv()` like any normal environment variable.
+   * Extra environment variables for the nested Gradle daemon. Merged on top of the outer process
+   * environment; Gradle launcher variables are reserved by this task so nested builds do not
+   * inherit incompatible outer-build settings. The nested build script sees these via
+   * `System.getenv()` like any normal environment variable.
    */
   @get:Input
   abstract val environment: MapProperty<String, String>
@@ -126,10 +155,19 @@ abstract class NestedGradleBuild @Inject constructor(
     val appDir = applicationDir.get().asFile
     val appBuildDirFile = applicationBuildDir.get().asFile
     val daemonJavaHome = javaLauncher.get().metadata.installationPath.asFile
+    val gradleUserHomeDir = createGradleUserHome()
+    val initScriptFiles = writeInitScripts()
 
     val args = buildList {
+      initScriptFiles.forEach { script ->
+        add("--init-script")
+        add(script.absolutePath)
+      }
       add(if (buildCacheEnabled.get()) "--build-cache" else "--no-build-cache")
       add("-PappBuildDir=${appBuildDirFile.absolutePath}")
+      gradleProperties.get().forEach { (name, value) ->
+        addGradleProperty(name, value)
+      }
       projectJars.get().forEach { entry ->
         add("-P${entry.propertyName.get()}=${entry.file.get().asFile.absolutePath}")
       }
@@ -137,22 +175,148 @@ abstract class NestedGradleBuild @Inject constructor(
     }
 
     val connector = GradleConnector.newConnector()
-      .useGradleVersion(gradleVersion.get())
       .forProjectDirectory(appDir)
+      .useGradleUserHomeDir(gradleUserHomeDir)
+      .apply {
+        val distributionBaseUrl = gradleDistributionBaseUrl.orNull
+        if (distributionBaseUrl.isNullOrBlank()) {
+          useGradleVersion(gradleVersion.get())
+        } else {
+          useDistribution(
+            gradleDistributionUri(distributionBaseUrl, gradleVersion.get()),
+          )
+        }
+      }
 
-    val extraEnv = environment.get()
-    val mergedEnv: Map<String, String>? =
-      if (extraEnv.isEmpty()) null else System.getenv() + extraEnv
+    val mergedEnv =
+      System.getenv() +
+        environment.get() +
+        mapOf(
+          "GRADLE_ARGS" to "",
+          "GRADLE_OPTS" to "",
+          "GRADLE_USER_HOME" to gradleUserHomeDir.absolutePath,
+        )
 
-    connector.connect().use { connection ->
-      connection.newBuild()
-        .forTasks(*tasksToRun.get().toTypedArray())
-        .withArguments(args)
-        .setJavaHome(daemonJavaHome)
-        .apply { if (mergedEnv != null) setEnvironmentVariables(mergedEnv) }
-        .setStandardOutput(System.out)
-        .setStandardError(System.err)
-        .run()
+    try {
+      connector.connect().use { connection ->
+        connection.newBuild()
+          .forTasks(*tasksToRun.get().toTypedArray())
+          .withArguments(args)
+          .setJavaHome(daemonJavaHome)
+          .setEnvironmentVariables(mergedEnv)
+          .setStandardOutput(System.out)
+          .setStandardError(System.err)
+          .run()
+      }
+    } finally {
+      stopGradleDaemon(appDir, gradleUserHomeDir, daemonJavaHome, mergedEnv)
+      deleteGradleUserHome(gradleUserHomeDir)
     }
   }
+
+  private fun stopGradleDaemon(
+    appDir: File,
+    gradleUserHomeDir: File,
+    daemonJavaHome: File,
+    environment: Map<String, String>,
+  ) {
+    val gradleExecutable = findGradleExecutable(gradleUserHomeDir)
+    if (gradleExecutable == null) {
+      logger.warn(
+        "Could not find nested Gradle executable under {} to stop its daemon",
+        gradleUserHomeDir.absolutePath,
+      )
+      return
+    }
+
+    try {
+      val processBuilder = ProcessBuilder(gradleExecutable.absolutePath, "--stop")
+        .directory(appDir)
+        .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+        .redirectError(ProcessBuilder.Redirect.INHERIT)
+      processBuilder.environment().apply {
+        clear()
+        putAll(environment)
+        put("JAVA_HOME", daemonJavaHome.absolutePath)
+      }
+
+      val process = processBuilder.start()
+      val timeoutSeconds = stopTimeoutSeconds.orNull
+      val completed =
+        if (timeoutSeconds == null) {
+          process.waitFor()
+          true
+        } else {
+          process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
+        }
+      if (!completed) {
+        process.destroyForcibly()
+        logger.warn("Timed out after {} seconds while stopping nested Gradle daemon", timeoutSeconds)
+        return
+      }
+      val exitCode = process.exitValue()
+      if (exitCode != 0) {
+        logger.warn("Nested Gradle daemon stop exited with code {}", exitCode)
+      }
+    } catch (e: InterruptedException) {
+      Thread.currentThread().interrupt()
+      logger.warn(
+        "Interrupted while stopping nested Gradle daemon before deleting its user home",
+        e,
+      )
+    } catch (e: Exception) {
+      logger.warn("Could not stop nested Gradle daemon before deleting its user home", e)
+    }
+  }
+
+  private fun writeInitScripts(): List<File> =
+    initScripts.get().mapIndexed { index, script ->
+      temporaryDir.resolve("init-$index.init.gradle.kts").also { file ->
+        file.writeText(script)
+      }
+    }
+
+  private fun findGradleExecutable(gradleUserHomeDir: File): File? =
+    gradleUserHomeDir.walkTopDown().firstOrNull { file ->
+      file.isFile &&
+        file.name == gradleExecutableName() &&
+        file.parentFile?.name == "bin"
+    }
+
+  private fun createGradleUserHome(): File {
+    val directory = temporaryDir.resolve("gradle-user-home")
+    deleteGradleUserHome(directory)
+    if (!directory.mkdirs()) {
+      throw GradleException(
+        "Could not create nested Gradle user home: ${directory.absolutePath}",
+      )
+    }
+    return directory
+  }
+
+  private fun deleteGradleUserHome(directory: File) {
+    if (directory.exists() && !directory.deleteRecursively()) {
+      logger.warn("Could not delete nested Gradle user home: {}", directory.absolutePath)
+    }
+  }
+
+  companion object {
+    internal fun gradleExecutableName(osName: String = System.getProperty("os.name")): String =
+      if (isWindows(osName)) {
+        "gradle.bat"
+      } else {
+        "gradle"
+      }
+  }
 }
+
+private fun MutableList<String>.addGradleProperty(name: String, value: String?) {
+  if (!value.isNullOrBlank()) {
+    add("-P$name=$value")
+  }
+}
+
+internal val PROXY_REPOSITORIES_INIT_SCRIPT: String =
+  NestedGradleBuild::class.java.getResource("proxy-repositories.init.gradle.kts")
+    ?.readText()
+    ?: error("Missing proxy-repositories.init.gradle.kts resource")

@@ -1,26 +1,12 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.api.Functions.UTF8_ENCODE;
-import static datadog.trace.common.metrics.ConflatingMetricsAggregator.PEER_TAGS_CACHE;
-import static datadog.trace.common.metrics.ConflatingMetricsAggregator.PEER_TAGS_CACHE_ADDER;
-import static datadog.trace.common.metrics.ConflatingMetricsAggregator.SERVICE_NAMES;
-import static datadog.trace.common.metrics.ConflatingMetricsAggregator.SPAN_KINDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import datadog.trace.api.Pair;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.common.metrics.SignalItem.ClearSignal;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.util.LRUCache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,8 +18,9 @@ final class Aggregator implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
   private final MessagePassingQueue<InboxItem> inbox;
-  private final LRUCache<MetricKey, AggregateMetric> aggregates;
+  private final AggregateTable aggregates;
   private final MetricWriter writer;
+  private final HealthMetrics healthMetrics;
   // the reporting interval controls how much history will be buffered
   // when the agent is unresponsive (only 10 pending requests will be
   // buffered by OkHttpSink)
@@ -43,10 +30,10 @@ final class Aggregator implements Runnable {
 
   /**
    * Per-cycle hook run on the aggregator thread at the start of each report cycle, before the
-   * flush. Used by {@link ConflatingMetricsAggregator} to reconcile its cached peer-tag schema
-   * against {@link datadog.communication.ddagent.DDAgentFeaturesDiscovery}; running before the
-   * flush guarantees that any test awaiting {@code writer.finishBucket()} observes the schema in
-   * its post-reconcile state. May be {@code null}.
+   * flush. Used by {@link ClientStatsAggregator} to reconcile its cached peer-tag schema against
+   * {@link datadog.communication.ddagent.DDAgentFeaturesDiscovery}; running before the flush
+   * guarantees that any test awaiting {@code writer.finishBucket()} observes the schema in its
+   * post-reconcile state. May be {@code null}.
    */
   private final Runnable onReportCycle;
 
@@ -85,32 +72,11 @@ final class Aggregator implements Runnable {
       Runnable onReportCycle) {
     this.writer = writer;
     this.inbox = inbox;
-    this.aggregates =
-        new LRUCache<>(
-            new AggregateExpiry(healthMetrics), maxAggregates * 4 / 3, 0.75f, maxAggregates);
+    this.aggregates = new AggregateTable(maxAggregates);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
+    this.healthMetrics = healthMetrics;
     this.onReportCycle = onReportCycle;
-  }
-
-  private static final class AggregateExpiry
-      implements LRUCache.ExpiryListener<MetricKey, AggregateMetric> {
-    private final HealthMetrics healthMetrics;
-
-    AggregateExpiry(HealthMetrics healthMetrics) {
-      this.healthMetrics = healthMetrics;
-    }
-
-    @Override
-    public void accept(Map.Entry<MetricKey, AggregateMetric> expired) {
-      if (expired.getValue().getHitCount() > 0) {
-        healthMetrics.onStatsAggregateDropped();
-      }
-    }
-  }
-
-  public void clearAggregates() {
-    this.aggregates.clear();
   }
 
   @Override
@@ -139,7 +105,31 @@ final class Aggregator implements Runnable {
 
     @Override
     public void accept(InboxItem item) {
-      if (item instanceof SignalItem) {
+      if (item == ClearSignal.CLEAR) {
+        // ClearSignal is routed through the inbox (rather than letting the caller mutate
+        // AggregateTable directly) so the aggregator thread stays the sole writer. AggregateTable
+        // is not thread-safe; a direct clear() from e.g. the OkHttpSink callback thread would
+        // race with Drainer.accept on this thread.
+        //
+        // We deliberately do NOT call inbox.clear() here. Doing so would erase any queued STOP
+        // (or REPORT) signals that happen to sit behind CLEAR -- a real concern when a
+        // downgrade is followed quickly by close(), where the trampled STOP leaves the
+        // aggregator thread spinning until thread.join times out. features.supportsMetrics() is
+        // already false by the time CLEAR was offered, so producers have stopped publishing;
+        // any in-flight snapshots will drain naturally into the just-cleared table, get
+        // re-aggregated, and flushed on the next report -- where the agent rejects them again,
+        // triggering another DOWNGRADED -> disable() -> CLEAR cycle. Worst case: one extra
+        // reporting cycle of wasted work, which we accept for the safety of preserving STOP.
+        if (!stopped) {
+          aggregates.clear();
+          // Clear dirty too -- without this, the next report() would see dirty=true, run
+          // expungeStaleAggregates against the (now-empty) table, find isEmpty()=true, and skip
+          // the flush anyway. Same observable outcome, but resetting here keeps the invariant
+          // "dirty implies there's data to flush" honest.
+          dirty = false;
+        }
+        ((SignalItem) item).complete();
+      } else if (item instanceof SignalItem) {
         SignalItem signal = (SignalItem) item;
         if (!stopped) {
           report(wallClockTime(), signal);
@@ -152,74 +142,16 @@ final class Aggregator implements Runnable {
         }
       } else if (item instanceof SpanSnapshot && !stopped) {
         SpanSnapshot snapshot = (SpanSnapshot) item;
-        MetricKey key = buildMetricKey(snapshot);
-        AggregateMetric aggregate = aggregates.computeIfAbsent(key, k -> new AggregateMetric());
-        aggregate.recordOneDuration(snapshot.tagAndDuration);
-        dirty = true;
-      }
-    }
-  }
-
-  private static MetricKey buildMetricKey(SpanSnapshot s) {
-    return new MetricKey(
-        s.resourceName,
-        SERVICE_NAMES.computeIfAbsent(s.serviceName, UTF8_ENCODE),
-        s.operationName,
-        s.serviceNameSource,
-        s.spanType,
-        s.httpStatusCode,
-        s.synthetic,
-        s.traceRoot,
-        SPAN_KINDS.computeIfAbsent(s.spanKind, UTF8BytesString::create),
-        materializePeerTags(s.peerTagSchema, s.peerTagValues),
-        s.httpMethod,
-        s.httpEndpoint,
-        s.grpcStatusCode);
-  }
-
-  /**
-   * Encodes the per-span peer-tag values into the {@code List<UTF8BytesString>} the {@link
-   * MetricKey} consumes. Reads name/value pairs at the same index from the schema's names and the
-   * snapshot's values; null value slots are skipped (the span didn't set that peer tag).
-   */
-  private static List<UTF8BytesString> materializePeerTags(PeerTagSchema schema, String[] values) {
-    if (schema == null || values == null) {
-      return Collections.emptyList();
-    }
-    String[] names = schema.names;
-    int n = names.length;
-    // First pass: count how many tags fired and remember the first index. The single-entry case
-    // is common (e.g. INTERNAL spans only emit base.service) and gets a singletonList to avoid an
-    // ArrayList allocation on the hot path.
-    int firstHit = -1;
-    int hitCount = 0;
-    for (int i = 0; i < n; i++) {
-      if (values[i] != null) {
-        if (hitCount == 0) {
-          firstHit = i;
+        AggregateEntry entry = aggregates.findOrInsert(snapshot);
+        if (entry != null) {
+          entry.recordOneDuration(snapshot.tagAndDuration);
+          dirty = true;
+        } else {
+          // table at cap with no stale entry available to evict
+          healthMetrics.onStatsAggregateDropped();
         }
-        hitCount++;
       }
     }
-    if (hitCount == 0) {
-      return Collections.emptyList();
-    }
-    if (hitCount == 1) {
-      return Collections.singletonList(encodePeerTag(names[firstHit], values[firstHit]));
-    }
-    List<UTF8BytesString> tags = new ArrayList<>(hitCount);
-    for (int i = firstHit; i < n; i++) {
-      if (values[i] != null) {
-        tags.add(encodePeerTag(names[i], values[i]));
-      }
-    }
-    return tags;
-  }
-
-  private static UTF8BytesString encodePeerTag(String name, String value) {
-    final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
-        cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(name, PEER_TAGS_CACHE_ADDER);
-    return cacheAndCreator.getLeft().computeIfAbsent(value, cacheAndCreator.getRight());
   }
 
   private void report(long when, SignalItem signal) {
@@ -234,14 +166,16 @@ final class Aggregator implements Runnable {
     boolean skipped = true;
     if (dirty) {
       try {
-        expungeStaleAggregates();
+        aggregates.expungeStaleAggregates();
         if (!aggregates.isEmpty()) {
           skipped = false;
           writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
-          for (Map.Entry<MetricKey, AggregateMetric> aggregate : aggregates.entrySet()) {
-            writer.add(aggregate.getKey(), aggregate.getValue());
-            aggregate.getValue().clear();
-          }
+          aggregates.forEach(
+              writer,
+              (w, entry) -> {
+                w.add(entry);
+                entry.clear();
+              });
           // note that this may do IO and block
           writer.finishBucket();
         }
@@ -254,17 +188,6 @@ final class Aggregator implements Runnable {
     signal.complete();
     if (skipped) {
       log.debug("skipped metrics reporting because no points have changed");
-    }
-  }
-
-  private void expungeStaleAggregates() {
-    Iterator<Map.Entry<MetricKey, AggregateMetric>> it = aggregates.entrySet().iterator();
-    while (it.hasNext()) {
-      Map.Entry<MetricKey, AggregateMetric> pair = it.next();
-      AggregateMetric metric = pair.getValue();
-      if (metric.getHitCount() == 0) {
-        it.remove();
-      }
     }
   }
 

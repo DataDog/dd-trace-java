@@ -24,13 +24,13 @@ import org.gradle.testkit.runner.GradleRunner;
 import org.gradle.testkit.runner.TaskOutcome;
 import org.gradle.tooling.internal.consumer.DefaultGradleConnector;
 import org.gradle.util.GradleVersion;
-import org.gradle.util.internal.DistributionLocator;
 import org.gradle.wrapper.Download;
-import org.gradle.wrapper.GradleUserHomeLookup;
 import org.gradle.wrapper.Install;
 import org.gradle.wrapper.PathAssembler;
 import org.gradle.wrapper.WrapperConfiguration;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.io.CleanupMode;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.tabletest.junit.TableTest;
@@ -44,11 +44,26 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   // Gradle's default timeout is 10s
   private static final int GRADLE_DISTRIBUTION_NETWORK_TIMEOUT = 30_000;
 
-  @TempDir static Path testKitFolder;
+  // Cleanup is handled manually in stopGradleTestKitDaemons() instead of by JUnit: the TestKit
+  // daemons may still hold file handles on this directory at class teardown, which would make
+  // JUnit's recursive delete fail and turn the class into an executionError.
+  @TempDir(cleanup = CleanupMode.NEVER)
+  static Path testKitFolder;
+
+  @AfterAll
+  void stopGradleTestKitDaemons() {
+    try {
+      DefaultGradleConnector.close();
+    } catch (Exception e) {
+      System.err.println("Failed to stop Gradle TestKit daemons during cleanup: " + e);
+    }
+    killGradleDaemonsIn(testKitFolder);
+    deleteTempDirectoryQuietly(testKitFolder);
+  }
 
   @TableTest({
     "scenario                    | gradleVersion | projectName                                      | successExpected | expectedTraces | expectedCoverages",
-    "succeed-old-gradle-3.5      | 3.5           | test-succeed-old-gradle                          | true            | 5              | 1                ",
+    "succeed-old-gradle-oldest   | oldest        | test-succeed-old-gradle                          | true            | 5              | 1                ",
     "succeed-legacy              | 7.6.4         | test-succeed-legacy-instrumentation              | true            | 5              | 1                ",
     "succeed-multi-module-legacy | 7.6.4         | test-succeed-multi-module-legacy-instrumentation | true            | 7              | 2                ",
     "succeed-multi-forks-legacy  | 7.6.4         | test-succeed-multi-forks-legacy-instrumentation  | true            | 6              | 2                ",
@@ -102,9 +117,8 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       int expectedTraces,
       int expectedCoverages)
       throws IOException {
-    String resolvedGradleVersion = resolveLatest(gradleVersion);
     runGradleTest(
-        resolvedGradleVersion,
+        gradleVersion,
         projectName,
         configurationCache,
         successExpected,
@@ -144,8 +158,27 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     verifyTestOrder(mockBackend.waitForEvents(eventsNumber), expectedOrder);
   }
 
-  private static String resolveLatest(String gradleVersion) {
-    return "latest".equals(gradleVersion) ? LATEST_GRADLE_VERSION : gradleVersion;
+  // Resolves the symbolic versions used in the scenario tables:
+  //  - "latest": the newest eligible Gradle release
+  //  - "oldest": the latest patch of the oldest major the current Gradle TestKit still supports
+  // Any other value is treated as a concrete version and returned as-is.
+  private static String resolveVersion(String gradleVersion) {
+    if ("latest".equals(gradleVersion)) {
+      return LATEST_GRADLE_VERSION;
+    }
+    if ("oldest".equals(gradleVersion)) {
+      return oldestSupportedGradleVersion();
+    }
+    return gradleVersion;
+  }
+
+  private static String oldestSupportedGradleVersion() {
+    // The oldest major the current Gradle TestKit can run is dictated by Gradle itself; tracking it
+    // dynamically (rather than hardcoding a version) means the floor follows TestKit automatically.
+    // We test the latest patch of that major rather than its initial release for stability.
+    int oldestSupportedMajor =
+        DefaultGradleConnector.MINIMUM_SUPPORTED_GRADLE_VERSION.getMajorVersion();
+    return toolVersion("gradle.latest." + oldestSupportedMajor);
   }
 
   private static void givenGradleVersionIsSupportedByCurrentGradleTestKit(String gradleVersion) {
@@ -168,6 +201,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       int expectedTraces,
       int expectedCoverages)
       throws IOException {
+    gradleVersion = resolveVersion(gradleVersion);
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
     givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
     givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache);
@@ -270,13 +304,12 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
               GradleVersion.current().getVersion(),
               GRADLE_DISTRIBUTION_NETWORK_TIMEOUT);
 
-      java.io.File userHomeDir = GradleUserHomeLookup.gradleUserHome();
+      java.io.File userHomeDir = testKitFolder.toFile();
       java.io.File projectDir = projectFolder.toFile();
       Install install = new Install(logger, download, new PathAssembler(userHomeDir, projectDir));
 
       WrapperConfiguration configuration = new WrapperConfiguration();
-      configuration.setDistribution(
-          new DistributionLocator().getDistributionFor(GradleVersion.version(gradleVersion)));
+      configuration.setDistribution(GradleDistribution.uriFor(gradleVersion));
       configuration.setNetworkTimeout(GRADLE_DISTRIBUTION_NETWORK_TIMEOUT);
 
       // This will download distribution (if not downloaded yet to userHomeDir) and verify its SHA.
@@ -291,18 +324,26 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   private BuildResult runGradle(
       String gradleVersion, List<String> arguments, boolean successExpected) throws IOException {
     Map<String, String> buildEnv = new HashMap<>();
+    buildEnv.put("GRADLE_ARGS", "");
+    buildEnv.put("GRADLE_OPTS", "");
+    buildEnv.put("GRADLE_USER_HOME", testKitFolder.toString());
     buildEnv.put("GRADLE_VERSION", gradleVersion);
+    buildEnv.put(
+        GradleDistribution.GRADLE_DISTRIBUTION_URL_ENV,
+        GradleDistribution.uriFor(gradleVersion).toString());
 
     String mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY");
     if (mavenRepositoryProxy != null) {
       buildEnv.put("MAVEN_REPOSITORY_PROXY", mavenRepositoryProxy);
     }
+    GradleDistribution.propagateMassReadUrl(buildEnv);
 
     GradleRunner gradleRunner =
-        GradleRunner.create()
-            .withTestKitDir(testKitFolder.toFile())
-            .withProjectDir(projectFolder.toFile())
-            .withGradleVersion(gradleVersion)
+        GradleDistribution.withDistribution(
+                GradleRunner.create()
+                    .withTestKitDir(testKitFolder.toFile())
+                    .withProjectDir(projectFolder.toFile()),
+                gradleVersion)
             .withArguments(arguments)
             .withEnvironment(buildEnv)
             .forwardOutput();

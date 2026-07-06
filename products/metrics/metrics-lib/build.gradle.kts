@@ -1,4 +1,6 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.DependencyFilter
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.api.Action
 
 plugins {
   `java-library`
@@ -27,26 +29,16 @@ dependencies {
 tasks.named<ShadowJar>("shadowJar") {
   dependencies {
     val deps = project.extra["deps"] as Map<*, *>
-    val excludeShared = deps["excludeShared"] as groovy.lang.Closure<*>
-    excludeShared.delegate = this
-    excludeShared.call()
+    val excludeShared = deps["excludeShared"] as Action<DependencyFilter>
+    excludeShared.execute(this)
   }
 }
 
-val minimumBranchCoverage by extra(0.5)
-val minimumInstructionCoverage by extra(0.8)
-val excludedClassesCoverage by extra(
-  listOf(
-    "datadog.communication.monitor.DDAgentStatsDConnection",
-    "datadog.communication.monitor.DDAgentStatsDConnection.*",
-    "datadog.communication.monitor.LoggingStatsDClient",
-  )
+extra["minimumBranchCoverage"] = 0.5
+extra["minimumInstructionCoverage"] = 0.8
+extra["excludedClassesCoverage"] = listOf(
+  "datadog.metrics.impl.statsd.DDAgentStatsDClientManager",
+  "datadog.metrics.impl.statsd.DDAgentStatsDConnection",
+  "datadog.metrics.impl.statsd.DDAgentStatsDConnection.*",
+  "datadog.metrics.impl.statsd.LoggingStatsDClient",
 )
-// val excludedClassesBranchCoverage by extra(
-//   listOf(
-//   )
-// )
-// val excludedClassesInstructionCoverage by extra(
-//   listOf(
-//   )
-// )

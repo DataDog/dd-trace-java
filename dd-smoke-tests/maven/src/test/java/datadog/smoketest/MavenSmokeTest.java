@@ -559,10 +559,12 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         BufferedReader br = new BufferedReader(new InputStreamReader(is));
         String line;
         while ((line = br.readLine()) != null) {
-          System.out.println(messagePrefix + ": " + line);
+          // DEBUG: logback.xml keeps this logger at INFO, so subprocess output — which may contain
+          // secrets (env vars, agent args) — never reaches JUnit XML reports.
+          LOGGER.debug("{}: {}", messagePrefix, line);
         }
       } catch (IOException e) {
-        e.printStackTrace();
+        LOGGER.warn("Error reading process stream", e);
       }
     }
   }
@@ -585,13 +587,13 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private static String getLatestMavenVersion() {
-    String version = loadLatestToolVersions().getProperty("maven.version");
+    String version = loadLatestToolVersions().getProperty("maven.latest");
     LOGGER.info("Will run the 'latest' tests with Maven version {}", version);
     return version;
   }
 
   private static String getLatestMavenSurefireVersion() {
-    String version = loadLatestToolVersions().getProperty("maven-surefire.version");
+    String version = loadLatestToolVersions().getProperty("maven-surefire.latest");
     LOGGER.info("Will run the 'latest' tests with Maven Surefire version {}", version);
     return version;
   }

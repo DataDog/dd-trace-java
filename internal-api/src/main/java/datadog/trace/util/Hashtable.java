@@ -482,7 +482,24 @@ public final class Hashtable {
      */
     public static final <TEntry extends Hashtable.Entry>
         MutatingTableIterator<TEntry> mutatingTableIterator(Hashtable.Entry[] buckets) {
-      return new MutatingTableIterator<TEntry>(buckets);
+      return new MutatingTableIterator<TEntry>(buckets, 0, buckets.length);
+    }
+
+    /**
+     * Variant of {@link #mutatingTableIterator(Hashtable.Entry[])} that walks only the half-open
+     * bucket range {@code [startBucket, endBucket)}. Useful for resumable sweeps -- e.g. cursor-
+     * based eviction in {@code AggregateTable} -- where one call drives {@code [cursor, length)}
+     * and a wrap-around call drives {@code [0, cursor)}. The iterator does <b>not</b> wrap around
+     * within a single instance; callers compose two iterators when wrap-around is desired. An empty
+     * range ({@code startBucket == endBucket}) produces an immediately exhausted iterator.
+     *
+     * @param startBucket inclusive lower bound; must be in {@code [0, buckets.length]}.
+     * @param endBucket exclusive upper bound; must be in {@code [startBucket, buckets.length]}.
+     */
+    public static final <TEntry extends Hashtable.Entry>
+        MutatingTableIterator<TEntry> mutatingTableIterator(
+            Hashtable.Entry[] buckets, int startBucket, int endBucket) {
+      return new MutatingTableIterator<TEntry>(buckets, startBucket, endBucket);
     }
 
     public static final int bucketIndex(Object[] buckets, long keyHash) {
@@ -601,8 +618,7 @@ public final class Hashtable {
 
   /**
    * Mutating iterator over entries in a single bucket whose {@code keyHash} matches a specific
-   * search hash. Supports {@link #remove()} and {@link #replace(Entry)} to splice the chain in
-   * place.
+   * search hash. Supports {@link #remove()} and {@link #replace} to splice the chain in place.
    *
    * <p>Carries previous-node pointers for the current entry and the next-match entry so that {@code
    * remove} and {@code replace} can fix up the chain in O(1) without re-walking from the bucket
@@ -752,6 +768,9 @@ public final class Hashtable {
       implements Iterator<TEntry> {
     private final Hashtable.Entry[] buckets;
 
+    /** Exclusive upper bound for bucket indices visited by this iterator. */
+    private final int endBucket;
+
     /**
      * Index of the bucket holding {@link #nextEntry} (or holding {@link #curEntry} after remove).
      */
@@ -782,9 +801,34 @@ public final class Hashtable {
      */
     private Hashtable.Entry curEntry;
 
-    MutatingTableIterator(Hashtable.Entry[] buckets) {
+    MutatingTableIterator(Hashtable.Entry[] buckets, int startBucket, int endBucket) {
       this.buckets = buckets;
-      seekFromBucket(0);
+      if (startBucket < 0 || startBucket > buckets.length) {
+        throw new IndexOutOfBoundsException(
+            "startBucket " + startBucket + " out of range [0, " + buckets.length + "]");
+      }
+      if (endBucket < startBucket || endBucket > buckets.length) {
+        throw new IndexOutOfBoundsException(
+            "endBucket "
+                + endBucket
+                + " out of range ["
+                + startBucket
+                + ", "
+                + buckets.length
+                + "]");
+      }
+      this.endBucket = endBucket;
+      seekFromBucket(startBucket);
+    }
+
+    /**
+     * Bucket index of the entry last returned by {@link #next()}, or {@code -1} if {@code next} has
+     * not yet been called or the most recent call was {@link #remove()}. Useful for callers driving
+     * a cursor — e.g. resumable eviction sweeps that want to remember where the last successful
+     * removal landed.
+     */
+    public int currentBucket() {
+      return this.curBucketIndex;
     }
 
     @Override
@@ -841,12 +885,12 @@ public final class Hashtable {
     }
 
     /**
-     * Advance {@code nextBucketIndex} / {@code nextEntry} to the first non-empty bucket >= {@code
-     * from}.
+     * Advance {@code nextBucketIndex} / {@code nextEntry} to the first non-empty bucket {@code >=
+     * from} within {@code [0, endBucket)}.
      */
     private void seekFromBucket(int from) {
       Hashtable.Entry[] thisBuckets = this.buckets;
-      for (int i = from; i < thisBuckets.length; i++) {
+      for (int i = from; i < this.endBucket; i++) {
         Hashtable.Entry head = thisBuckets[i];
         if (head != null) {
           this.nextBucketIndex = i;
