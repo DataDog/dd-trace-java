@@ -79,7 +79,7 @@ public class TriggerProbeTest extends CapturingTestBase {
             .filter(
                 span -> {
                   DDSpan ddSpan = (DDSpan) span;
-                  PropagationTags tags = ddSpan.context().getPropagationTags();
+                  PropagationTags tags = ddSpan.spanContext().getPropagationTags();
                   return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
                 })
             .count();
@@ -137,7 +137,7 @@ public class TriggerProbeTest extends CapturingTestBase {
               .filter(
                   span -> {
                     DDSpan ddSpan = (DDSpan) span;
-                    PropagationTags tags = ddSpan.context().getPropagationTags();
+                    PropagationTags tags = ddSpan.spanContext().getPropagationTags();
                     return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
                   })
               .count();

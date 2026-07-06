@@ -19,6 +19,7 @@ abstract class PTagsCodec {
   protected static final TagKey TRACE_SOURCE_TAG = TagKey.from("ts");
   protected static final TagKey DEBUG_TAG = TagKey.from("debug");
   protected static final TagKey KNUTH_SAMPLING_RATE_TAG = TagKey.from("ksr");
+  protected static final TagKey ORG_PROPAGATION_MARKER_TAG = TagKey.from("opm");
   protected static final String PROPAGATION_ERROR_MALFORMED_TID = "malformed_tid ";
   protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
@@ -54,6 +55,11 @@ abstract class PTagsCodec {
         size =
             codec.appendTag(
                 sb, KNUTH_SAMPLING_RATE_TAG, ptags.getKnuthSamplingRateTagValue(), size);
+      }
+      if (ptags.getOrgPropagationMarkerTagValue() != null) {
+        size =
+            codec.appendTag(
+                sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -113,6 +119,11 @@ abstract class PTagsCodec {
       tagMap.put(
           KNUTH_SAMPLING_RATE_TAG.forType(Encoding.DATADOG).toString(),
           propagationTags.getKnuthSamplingRateTagValue().forType(Encoding.DATADOG).toString());
+    }
+    if (propagationTags.getOrgPropagationMarkerTagValue() != null) {
+      tagMap.put(
+          ORG_PROPAGATION_MARKER_TAG.forType(Encoding.DATADOG).toString(),
+          propagationTags.getOrgPropagationMarkerTagValue().forType(Encoding.DATADOG).toString());
     }
     if (propagationTags.getTraceIdHighOrderBitsHexTagValue() != null) {
       tagMap.put(

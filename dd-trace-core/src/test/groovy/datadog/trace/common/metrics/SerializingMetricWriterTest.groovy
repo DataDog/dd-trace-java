@@ -181,7 +181,7 @@ class SerializingMetricWriterTest extends DDSpecification {
 
     def content = [e]
 
-    ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)
+    ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content, shaCommit)
     SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128, gitInfoProvider)
 
     when:
@@ -231,13 +231,15 @@ class SerializingMetricWriterTest extends DDSpecification {
     private final long duration
     private boolean validated = false
     private List<AggregateEntry> content
+    private final String expectedGitCommitSha
 
     ValidatingSink(WellKnownTags wellKnownTags, long startTimeNanos, long duration,
-    List<AggregateEntry> content) {
+    List<AggregateEntry> content, String expectedGitCommitSha = null) {
       this.wellKnownTags = wellKnownTags
       this.startTimeNanos = startTimeNanos
       this.duration = duration
       this.content = content
+      this.expectedGitCommitSha = expectedGitCommitSha
     }
 
     @Override
@@ -248,7 +250,7 @@ class SerializingMetricWriterTest extends DDSpecification {
     void accept(int messageCount, ByteBuffer buffer) {
       MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)
       int mapSize = unpacker.unpackMapHeader()
-      String gitCommitSha = GitInfoProvider.INSTANCE.getGitInfo()?.getCommit()?.getSha()
+      String gitCommitSha = expectedGitCommitSha
       assert mapSize == (7 + (Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0)
       + (gitCommitSha != null ? 1 : 0))
       assert unpacker.unpackString() == "RuntimeID"
@@ -283,12 +285,13 @@ class SerializingMetricWriterTest extends DDSpecification {
       int statCount = unpacker.unpackArrayHeader()
       assert statCount == content.size()
       for (AggregateEntry entry : content) {
+        // counters now live on AggregateEntry
         int metricMapSize = unpacker.unpackMapHeader()
         // Calculate expected map size based on optional fields
-        boolean hasHttpMethod = entry.getHttpMethod() != null
-        boolean hasHttpEndpoint = entry.getHttpEndpoint() != null
-        boolean hasServiceSource = entry.getServiceSource() != null
-        boolean hasGrpcStatusCode = entry.getGrpcStatusCode() != null
+        boolean hasHttpMethod = entry.hasHttpMethod()
+        boolean hasHttpEndpoint = entry.hasHttpEndpoint()
+        boolean hasServiceSource = entry.hasServiceSource()
+        boolean hasGrpcStatusCode = entry.hasGrpcStatusCode()
         int expectedMapSize = 15 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0) + (hasGrpcStatusCode ? 1 : 0)
         assert metricMapSize == expectedMapSize
         int elementCount = 0

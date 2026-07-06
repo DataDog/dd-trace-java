@@ -11,7 +11,7 @@ testJvmConstraints {
 description = 'Spring Boot 3.3 WebMvc Smoke Tests.'
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'webmvcBuild3'
     nestedTasks = ['bootJar']
     artifactPath = 'libs/webmvc-3.3-smoketest.jar'

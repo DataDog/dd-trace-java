@@ -32,7 +32,7 @@ class HaystackHttpCodec {
   static final String OT_BAGGAGE_PREFIX = "Baggage-";
   static final String TRACE_ID_KEY = "Trace-ID";
   static final String SPAN_ID_KEY = "Span-ID";
-  private static final String PARENT_ID_KEY = "Parent-ID";
+  static final String PARENT_ID_KEY = "Parent-ID";
 
   static final String DD_TRACE_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Trace-Id";
   static final String DD_SPAN_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Span-Id";

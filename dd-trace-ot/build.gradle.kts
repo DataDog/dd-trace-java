@@ -12,20 +12,18 @@ apply(from = rootDir.resolve("gradle/java.gradle"))
 apply(from = rootDir.resolve("gradle/publish.gradle"))
 
 // TODO raise these when equals() and hashCode() are excluded
-val minimumBranchCoverage by extra(0.5)
-val minimumInstructionCoverage by extra(0.5)
+extra["minimumBranchCoverage"] = 0.5
+extra["minimumInstructionCoverage"] = 0.5
 
-val excludedClassesCoverage by extra(
-  listOf(
-    // This is mainly equals() and hashCode()
-    "datadog.opentracing.OTScopeManager.OTScope",
-    "datadog.opentracing.OTScopeManager.FakeScope",
-    "datadog.opentracing.OTSpan",
-    "datadog.opentracing.OTSpanContext",
-    "datadog.opentracing.CustomScopeManagerWrapper.CustomScopeState",
-    // The builder is generated
-    "datadog.opentracing.DDTracer.DDTracerBuilder"
-  )
+extra["excludedClassesCoverage"] = listOf(
+  // This is mainly equals() and hashCode()
+  "datadog.opentracing.OTScopeManager.OTScope",
+  "datadog.opentracing.OTScopeManager.FakeScope",
+  "datadog.opentracing.OTSpan",
+  "datadog.opentracing.OTSpanContext",
+  "datadog.opentracing.CustomScopeManagerWrapper.CustomScopeState",
+  // The builder is generated
+  "datadog.opentracing.DDTracer.DDTracerBuilder"
 )
 
 // Helper extensions for custom methods from Groovy DSL
@@ -121,12 +119,12 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
   dependencies {
     // direct dependencies
     exclude(project(":dd-trace-api"))
-    exclude(dependency("io.opentracing:"))
-    exclude(dependency("io.opentracing.contrib:"))
-    exclude(dependency("org.slf4j:"))
-    exclude(dependency("com.github.jnr:"))
+    exclude(dependency("io.opentracing:.*:.*"))
+    exclude(dependency("io.opentracing.contrib:.*:.*"))
+    exclude(dependency("org.slf4j:.*:.*"))
+    exclude(dependency("com.github.jnr:.*:.*"))
     // indirect dependency of JNR, no need to embed
-    exclude(dependency("org.ow2.asm:"))
+    exclude(dependency("org.ow2.asm:.*:.*"))
   }
 
   relocate("com.", "ddtrot.com.") {

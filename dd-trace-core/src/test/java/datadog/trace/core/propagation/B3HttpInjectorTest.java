@@ -1,115 +1,79 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY;
+import static datadog.trace.core.propagation.B3TestHelper.spanIdOrPadded;
+import static datadog.trace.core.propagation.B3TestHelper.traceIdOrPadded;
+import static datadog.trace.core.propagation.B3TestHelper.trimHex;
 import static java.util.Collections.emptyMap;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
-import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.common.writer.ListWriter;
-import datadog.trace.core.CoreTracer;
-import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
+import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
-class B3HttpInjectorTest extends DDCoreJavaSpecification {
+class B3HttpInjectorTest extends AbstractHttpInjectorTest {
 
   private static final CarrierSetter<Map<String, String>> MAP_SETTER = Map::put;
 
   protected boolean tracePropagationB3Padding() {
-    return false;
+    return DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
   }
 
-  private String idOrPadded(long id, int size) {
-    return idOrPadded(Long.toHexString(id), size);
-  }
-
-  private String idOrPadded(String id, int size) {
-    if (!tracePropagationB3Padding()) {
-      return id.toLowerCase();
-    }
-    return padHexLower(id, size);
-  }
-
-  private static String padHexLower(String hex, int size) {
-    String lower = hex.toLowerCase();
-    int diff = size - lower.length();
-    if (diff <= 0) {
-      return lower;
-    }
-    StringBuilder sb = new StringBuilder(size);
-    for (int i = 0; i < diff; i++) {
-      sb.append('0');
-    }
-    sb.append(lower);
-    return sb.toString();
-  }
-
-  private static String trimHex(String hex) {
-    int length = hex.length();
-    int firstNonZero = 0;
-    while (firstNonZero < length && hex.charAt(firstNonZero) == '0') {
-      firstNonZero++;
-    }
-    if (firstNonZero == length) {
-      return "0";
-    }
-    return hex.substring(firstNonZero, length);
+  @Override
+  protected HttpCodec.Injector newInjector() {
+    return B3HttpCodec.newCombinedInjector(tracePropagationB3Padding());
   }
 
   @TableTest({
-    "scenario          | traceId | spanId | samplingPriority              | expectedSamplingPriority     ",
-    "unset             | 1       | 2      | PrioritySampling.UNSET        |                              ",
-    "sampler keep      | 2       | 3      | PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP",
-    "sampler drop      | 4       | 5      | PrioritySampling.SAMPLER_DROP | PrioritySampling.SAMPLER_DROP",
-    "user keep         | 5       | 6      | PrioritySampling.USER_KEEP    | PrioritySampling.SAMPLER_KEEP",
-    "user drop         | 6       | 7      | PrioritySampling.USER_DROP    | PrioritySampling.SAMPLER_DROP",
-    "uint64 max unset  | -1      | -2     | PrioritySampling.UNSET        |                              ",
-    "uint64 max-1 keep | -2      | -1     | PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP"
+    "scenario          | traceId | spanId | samplingPriority | expectedSamplingPriority",
+    "unset             | 1       | 2      | UNSET            |                         ",
+    "sampler keep      | 2       | 3      | SAMPLER_KEEP     | SAMPLER_KEEP            ",
+    "sampler drop      | 4       | 5      | SAMPLER_DROP     | SAMPLER_DROP            ",
+    "user keep         | 5       | 6      | USER_KEEP        | SAMPLER_KEEP            ",
+    "user drop         | 6       | 7      | USER_DROP        | SAMPLER_DROP            ",
+    "uint64 max unset  | -1      | -2     | UNSET            |                         ",
+    "uint64 max-1 keep | -2      | -1     | SAMPLER_KEEP     | SAMPLER_KEEP            "
   })
-  @SuppressWarnings("unchecked")
   void injectHttpHeaders(
       long traceId,
       long spanId,
-      @ConvertWith(PrioritySamplingConverter.class) int samplingPriority,
+      @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
       @ConvertWith(PrioritySamplingConverter.class) Byte expectedSamplingPriority) {
-    HttpCodec.Injector injector = B3HttpCodec.newCombinedInjector(tracePropagationB3Padding());
-    ListWriter writer = new ListWriter();
-    CoreTracer tracer = tracerBuilder().writer(writer).build();
-    DDSpanContext mockedContext =
-        mockedContext(tracer, DDTraceId.from(traceId), spanId, samplingPriority);
-    Map<String, String> carrier = mock(Map.class);
-    String traceIdHex = idOrPadded(traceId, 32);
-    String spanIdHex = idOrPadded(spanId, 16);
 
-    injector.inject(mockedContext, carrier, MAP_SETTER);
+    DDSpanContext spanContext =
+        mockedSpanContext(DDTraceId.from(traceId), spanId, samplingPriority);
 
-    verify(carrier).put(TRACE_ID_KEY, traceIdHex);
-    verify(carrier).put(SPAN_ID_KEY, spanIdHex);
+    Map<String, String> carrier = new HashMap<>();
+    this.injector.inject(spanContext, carrier, MAP_SETTER);
+
+    String traceIdHex = traceIdOrPadded(traceId, tracePropagationB3Padding());
+    String spanIdHex = spanIdOrPadded(spanId, tracePropagationB3Padding());
+    assertEquals(traceIdHex, carrier.get(TRACE_ID_KEY));
+    assertEquals(spanIdHex, carrier.get(SPAN_ID_KEY));
+
     if (expectedSamplingPriority != null) {
-      verify(carrier).put(SAMPLING_PRIORITY_KEY, expectedSamplingPriority.toString());
-      verify(carrier).put(B3_KEY, traceIdHex + "-" + spanIdHex + "-" + expectedSamplingPriority);
+      assertEquals(4, carrier.size());
+      assertEquals(expectedSamplingPriority.toString(), carrier.get(SAMPLING_PRIORITY_KEY));
+      assertEquals(
+          traceIdHex + "-" + spanIdHex + "-" + expectedSamplingPriority, carrier.get(B3_KEY));
     } else {
-      verify(carrier).put(B3_KEY, traceIdHex + "-" + spanIdHex);
+      assertEquals(3, carrier.size());
+      assertEquals(traceIdHex + "-" + spanIdHex, carrier.get(B3_KEY));
     }
-    verifyNoMoreInteractions(carrier);
   }
 
   @TableTest({
@@ -122,60 +86,49 @@ class B3HttpInjectorTest extends DDCoreJavaSpecification {
     "uint64 max spanId    | '1'                                | 'ffffffffffffffff'   ",
     "padded uint64 max    | '1'                                | '000ffffffffffffffff'"
   })
-  @SuppressWarnings("unchecked")
   void injectHttpHeadersWithExtractedOriginal(String traceId, String spanId) {
-    HttpCodec.Injector injector = B3HttpCodec.newCombinedInjector(tracePropagationB3Padding());
-    ListWriter writer = new ListWriter();
-    CoreTracer tracer = tracerBuilder().writer(writer).build();
-    Map<String, String> headers = new LinkedHashMap<>();
+    Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
     headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
     DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
         DynamicConfig.create().setHeaderTags(emptyMap()).setBaggageMapping(emptyMap()).apply();
     HttpCodec.Extractor extractor =
-        B3HttpCodec.newExtractor(Config.get(), () -> dynamicConfig.captureTraceConfig());
+        B3HttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
     TagContext context = extractor.extract(headers, stringValuesMap());
-    DDSpanContext mockedContext = mockedContext(tracer, context);
-    Map<String, String> carrier = mock(Map.class);
-    String traceIdHex = idOrPadded(traceId, 32);
-    String spanIdHex = idOrPadded(trimHex(spanId), 16);
 
-    injector.inject(mockedContext, carrier, MAP_SETTER);
+    DDSpanContext mockedContext = mockedSpanContext(context);
+    Map<String, String> carrier = new HashMap<>();
+    this.injector.inject(mockedContext, carrier, MAP_SETTER);
 
-    verify(carrier).put(TRACE_ID_KEY, traceIdHex);
-    verify(carrier).put(SPAN_ID_KEY, spanIdHex);
-    verify(carrier).put(B3_KEY, traceIdHex + "-" + spanIdHex);
-    verifyNoMoreInteractions(carrier);
+    String traceIdHex = traceIdOrPadded(traceId, tracePropagationB3Padding());
+    String spanIdHex = spanIdOrPadded(trimHex(spanId), tracePropagationB3Padding());
+    assertEquals(traceIdHex, carrier.get(TRACE_ID_KEY));
+    assertEquals(spanIdHex, carrier.get(SPAN_ID_KEY));
+    assertEquals(traceIdHex + "-" + spanIdHex, carrier.get(B3_KEY));
+    assertEquals(3, carrier.size());
   }
 
-  static DDSpanContext mockedContext(CoreTracer tracer, TagContext context) {
-    return mockedContext(tracer, context.getTraceId(), context.getSpanId(), UNSET);
+  private DDSpanContext mockedSpanContext(TagContext context) {
+    return mockedSpanContext(context.getTraceId(), context.getSpanId(), UNSET);
   }
 
-  static DDSpanContext mockedContext(
-      CoreTracer tracer, DDTraceId traceId, long spanId, int samplingPriority) {
+  private DDSpanContext mockedSpanContext(DDTraceId traceId, long spanId, int samplingPriority) {
     Map<String, String> baggage = new HashMap<>();
     baggage.put("k1", "v1");
     baggage.put("k2", "v2");
-    return new DDSpanContext(
+    return mockSpanContext(
         traceId,
         spanId,
-        DDSpanId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
         samplingPriority,
         "fakeOrigin",
         baggage,
-        false,
-        "fakeType",
-        0,
-        tracer.createTraceCollector(DDTraceId.ONE),
-        null,
-        null,
-        NoopPathwayContext.INSTANCE,
-        false,
         PropagationTags.factory().empty());
+  }
+
+  static class B3HttpInjectorNonPaddedTest extends B3HttpInjectorTest {
+    @Override
+    protected boolean tracePropagationB3Padding() {
+      return false;
+    }
   }
 }

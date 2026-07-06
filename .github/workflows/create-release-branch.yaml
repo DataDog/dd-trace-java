@@ -21,11 +21,13 @@ jobs:
     steps:
       - name: Determine tag
         id: determine-tag
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            TAG=${{ github.event.inputs.tag }}
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
           else
-            TAG=${GITHUB_REF#refs/tags/}
+            TAG="${GITHUB_REF#refs/tags/}"
           fi
           if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.0$ ]]; then
             echo "Error: Tag $TAG is not in the expected format: vX.Y.0"
@@ -35,19 +37,21 @@ jobs:
 
       - name: Define release branch name from tag
         id: define-release-branch
+        env:
+          TAG: ${{ steps.determine-tag.outputs.tag }}
         run: |
-          TAG=${{ steps.determine-tag.outputs.tag }}
           echo "branch=release/${TAG%.0}.x" >> "$GITHUB_OUTPUT"
 
       - name: Check out repo at tag
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
         with:
           ref: ${{ steps.determine-tag.outputs.tag }}
 
       - name: Check if branch already exists
         id: check-release-branch
+        env:
+          BRANCH: ${{ steps.define-release-branch.outputs.branch }}
         run: |
-          BRANCH=${{ steps.define-release-branch.outputs.branch }}
           if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
             echo "creating_new_branch=false" >> "$GITHUB_OUTPUT"
             echo "Branch $BRANCH already exists - skipping creation"
@@ -58,9 +62,11 @@ jobs:
 
       - name: Create and push release branch
         if: steps.check-release-branch.outputs.creating_new_branch == 'true'
+        env:
+          BRANCH: ${{ steps.define-release-branch.outputs.branch }}
         run: |
-          git checkout -b "${{ steps.define-release-branch.outputs.branch }}"
-          git push -u origin "${{ steps.define-release-branch.outputs.branch }}"
+          git checkout -b "$BRANCH"
+          git push -u origin "$BRANCH"
 
   pin-system-tests:
     needs: create-release-branch
@@ -76,7 +82,7 @@ jobs:
           policy: self.pin-system-tests.create-pr
 
       - name: Check out repo at release branch
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
         with:
           ref: ${{ needs.create-release-branch.outputs.release-branch-name }}
       
@@ -91,8 +97,9 @@ jobs:
 
       - name: Check if pin-system-tests branch already exists
         id: check-pin-branch
+        env:
+          BRANCH: ${{ steps.define-pin-branch.outputs.branch }}
         run: |
-          BRANCH=${{ steps.define-pin-branch.outputs.branch }}
           if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
             echo "ERROR: Branch $BRANCH already exists - please delete it and re-run the workflow."
             exit 1
@@ -132,10 +139,12 @@ jobs:
       - name: Create pull request
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
+          BASE_BRANCH: ${{ needs.create-release-branch.outputs.release-branch-name }}
+          HEAD_BRANCH: ${{ steps.define-pin-branch.outputs.branch }}
         run: |
           gh pr create --title "Pin system tests for release branch" \
-            --base ${{ needs.create-release-branch.outputs.release-branch-name }} \
-            --head ${{ steps.define-pin-branch.outputs.branch }} \
+            --base "$BASE_BRANCH" \
+            --head "$HEAD_BRANCH" \
             --label "tag: dependencies" \
             --label "tag: no release notes" \
             --body "This PR pins the system-tests reference for the release branch."

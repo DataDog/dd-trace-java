@@ -49,6 +49,8 @@ public class HotspotCrashLogParserTest {
     assertNotNull(crashLog.error.stack);
     assertNotNull(crashLog.error.stack.frames);
     assertEquals(0, crashLog.error.stack.frames.length);
+    assertEquals("InternalError", crashLog.error.kind);
+    assertEquals("Process terminated by Internal error", crashLog.error.message);
   }
 
   /** macOS aarch64 uses lowercase register names: x0-x28, fp, lr, sp, pc, cpsr */
@@ -333,6 +335,47 @@ public class HotspotCrashLogParserTest {
     assertEquals(
         "null".equals(expected) ? null : expected,
         HotspotCrashLogParser.parseCurrentThreadName(line));
+  }
+
+  @TableTest({
+    "scenario    | filename                         | expectedJreVersion                                                                                | expectedVmInfo                                                                                                                                                                                           ",
+    "Zulu 17     | sample-crash-for-telemetry.txt   | OpenJDK Runtime Environment Zulu17.42+20-SA (17.0.7+7) (build 17.0.7+7-LTS)                       | OpenJDK 64-Bit Server VM (17.0.7+7-LTS) for linux-amd64 JRE (17.0.7+7-LTS) (Zulu17.42+20-SA), built on Apr 11 2023 11:39:51 by \"zulu_re\" with gcc 8.3.0                                                ",
+    "Temurin 22  | sample-crash-for-telemetry-2.txt | OpenJDK Runtime Environment Temurin-22.0.1+8 (22.0.1+8) (build 22.0.1+8)                          | OpenJDK 64-Bit Server VM (22.0.1+8) for linux-amd64 JRE (22.0.1+8), built on 2024-04-16T00:00:00Z by \"admin\" with gcc 11.3.0                                                                           ",
+    "Zulu 8      | sample-crash-for-telemetry-3.txt | OpenJDK Runtime Environment (Zulu 8.70.0.23-CA-macos-aarch64) (8.0_372-b07) (build 1.8.0_372-b07) | OpenJDK 64-Bit Server VM (25.372-b07) for bsd-aarch64 JRE (Zulu 8.70.0.23-CA-macos-aarch64) (1.8.0_372-b07), built on Apr 18 2023 01:36:20 by \"zulu_re\" with gcc Apple LLVM 12.0.0 (clang-1200.0.32.28)",
+    "Corretto 21 | sample-crash-linux-aarch64.txt   | OpenJDK Runtime Environment Corretto-21.0.7.6.1 (21.0.7+6) (build 21.0.7+6-LTS)                   | OpenJDK 64-Bit Server VM (21.0.7+6-LTS) for linux-aarch64-musl JRE (21.0.7+6-LTS), built on 2025-04-09T23:34:45Z by \"jenkins\" with gcc 12.2.1 20220924                                                 ",
+    "OpenJDK 25  | sample-crash-macos-aarch64.txt   | OpenJDK Runtime Environment (25.0.2+10) (build 25.0.2+10-69)                                      | OpenJDK 64-Bit Server VM (25.0.2+10-69) for bsd-aarch64 JRE (25.0.2+10-69), built on 2025-12-18T11:36:35Z with clang Apple LLVM 15.0.0 (clang-1500.3.9.4)                                                "
+  })
+  public void testRuntimeInfoParsing(
+      String filename, String expectedJreVersion, String expectedVmInfo) throws Exception {
+    CrashLog crashLog =
+        new HotspotCrashLogParser().parse(UUID.randomUUID().toString(), readFileAsString(filename));
+
+    assertNotNull(crashLog.experimental, "experimental should be populated");
+    assertNotNull(crashLog.experimental.runtimeInfo, "runtimeInfo should be populated");
+    assertNotNull(crashLog.experimental.runtimeInfo.jreVersion, "jreVersion should be populated");
+    assertNotNull(crashLog.experimental.runtimeInfo.javaVm, "javaVm should be populated");
+    assertNotNull(crashLog.experimental.runtimeInfo.vmInfo, "vmInfo should be populated");
+    assertEquals(expectedJreVersion, crashLog.experimental.runtimeInfo.jreVersion);
+    assertEquals(expectedVmInfo, crashLog.experimental.runtimeInfo.vmInfo);
+  }
+
+  @Test
+  public void testNoSignalProducesInternalError() throws Exception {
+    // A crash log that reaches the PROCESS section but has no siginfo line
+    String crashLog =
+        "# A fatal error has been detected by the Java Runtime Environment:\n"
+            + "#\n"
+            + "# Core dump will be written.\n"
+            + "---------------  T H R E A D  ---------------\n"
+            + "Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)\n"
+            + "---------------  P R O C E S S  ---------------\n";
+
+    CrashLog result = new HotspotCrashLogParser().parse(UUID.randomUUID().toString(), crashLog);
+
+    assertNotNull(result);
+    assertFalse(result.incomplete);
+    assertEquals("InternalError", result.error.kind);
+    assertEquals("Process terminated by Internal error", result.error.message);
   }
 
   private String readFileAsString(String resource) throws IOException {

@@ -8,7 +8,7 @@ apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Jetty JSP Smoke Tests.'
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'bootWar'
     artifactPath = 'libs/springboot-jetty-jsp-smoketest.war'
     sysProperty = 'datadog.smoketest.springboot.war.path'

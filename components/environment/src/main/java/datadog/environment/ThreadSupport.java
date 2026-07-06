@@ -24,8 +24,8 @@ public final class ThreadSupport {
   private ThreadSupport() {}
 
   /**
-   * Provides the best identifier available for the current {@link Thread}. Uses {@link
-   * Thread#threadId()} on 19+ or {@link Thread#getId()} on older JVMs.
+   * Provides the best identifier available for the current {@link Thread}. Uses {@code
+   * Thread.threadId()} on 19+ or {@link Thread#getId()} on older JVMs.
    *
    * @return The best identifier available for the current {@link Thread}.
    */
@@ -34,8 +34,8 @@ public final class ThreadSupport {
   }
 
   /**
-   * Provides the best identifier available for the given {@link Thread}. Uses {@link
-   * Thread#threadId()} on 19+ or {@link Thread#getId()} on older JVMs.
+   * Provides the best identifier available for the given {@link Thread}. Uses {@code
+   * Thread.threadId()} on 19+ or {@link Thread#getId()} on older JVMs.
    *
    * @return The best identifier available for the given {@link Thread}.
    */

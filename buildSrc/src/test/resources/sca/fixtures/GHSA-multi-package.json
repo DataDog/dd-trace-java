@@ -1,0 +1,36 @@
+[
+  {
+    "targets": [
+      "org.springframework.stereotype:Controller.handleRequest",
+      "org.springframework.web.bind.annotation:RestController.handleRequest"
+    ],
+    "lang": "maven",
+    "dependency_name": "org.springframework.boot:spring-boot-starter-web",
+    "package_versions": [
+      "< 2.5.12",
+      ">= 2.6.0, < 2.6.6"
+    ],
+    "vulnerability": {
+      "id": "GHSA-multi-package",
+      "severity": "HIGH",
+      "description": "Test fixture for multi-artifact GHSA entry (two separate array items)"
+    }
+  },
+  {
+    "targets": [
+      "org.springframework.stereotype:Controller.handleRequest",
+      "org.springframework.web.bind.annotation:RestController.handleRequest"
+    ],
+    "lang": "maven",
+    "dependency_name": "org.springframework:spring-webmvc",
+    "package_versions": [
+      ">= 5.3.0, < 5.3.18",
+      "< 5.2.20.RELEASE"
+    ],
+    "vulnerability": {
+      "id": "GHSA-multi-package",
+      "severity": "HIGH",
+      "description": "Test fixture for multi-artifact GHSA entry (two separate array items)"
+    }
+  }
+]

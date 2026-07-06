@@ -129,6 +129,14 @@
         "aliases": []
       }
     ],
+    "DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "0.5",
+        "aliases": []
+      }
+    ],
     "DD_API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE": [
       {
         "version": "A",
@@ -361,22 +369,6 @@
         "aliases": []
       }
     ],
-    "DD_APPSEC_REPORTING_INBAND": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
-        "aliases": []
-      }
-    ],
-    "DD_APPSEC_REPORT_TIMEOUT": [
-      {
-        "version": "A",
-        "type": "int",
-        "default": "60",
-        "aliases": []
-      }
-    ],
     "DD_APPSEC_RULES": [
       {
         "version": "C",
@@ -390,6 +382,14 @@
         "version": "B",
         "type": "boolean",
         "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1000",
         "aliases": []
       }
     ],
@@ -1225,11 +1225,27 @@
         "aliases": ["DD_JMXFETCH_START_DELAY"]
       }
     ],
-    "DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT": [
+    "DD_INTERNAL_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "WALL",
+        "aliases": []
+      }
+    ],
+    "DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS": [
+      {
+        "version": "B",
+        "type": "int",
+        "default": "100",
+        "aliases": ["DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT"]
+      }
+    ],
+    "DD_DYNAMIC_INSTRUMENTATION_EVALUATION_TIMEOUT_MS": [
       {
         "version": "A",
         "type": "int",
-        "default": "100",
+        "default": "50",
         "aliases": []
       }
     ],
@@ -2430,14 +2446,6 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
-      }
-    ],
-    "DD_OPTIMIZED_MAP_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
         "aliases": []
       }
     ],
@@ -5777,6 +5785,22 @@
         "aliases": ["DD_TRACE_INTEGRATION_FREEMARKER_ENABLED", "DD_INTEGRATION_FREEMARKER_ENABLED"]
       }
     ],
+    "DD_TRACE_GAX_1_4_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_GAX_1_4_ENABLED", "DD_INTEGRATION_GAX_1_4_ENABLED"]
+      }
+    ],
+    "DD_TRACE_GAX_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_GAX_ENABLED", "DD_INTEGRATION_GAX_ENABLED"]
+      }
+    ],
     "DD_TRACE_GIT_METADATA_ENABLED": [
       {
         "version": "A",
@@ -8617,6 +8641,46 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_OTEL_SEMANTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACES_SPAN_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_STRICT": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_TRUSTED_OPMS": [
+      {
+        "version": "A",
+        "type": "array",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TRACE_PARTIAL_FLUSH_ENABLED": [
       {
         "version": "B",
@@ -9551,6 +9615,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_RXJAVA_ENABLED", "DD_INTEGRATION_RXJAVA_ENABLED"]
+      }
+    ],
+    "DD_TRACE_RXJAVA_3_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_RXJAVA_3_ENABLED", "DD_INTEGRATION_RXJAVA_3_ENABLED"]
       }
     ],
     "DD_TRACE_S3_ENABLED": [
@@ -11581,6 +11653,14 @@
       {
         "version": "C",
         "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_TRACES_SPAN_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
         "default": null,
         "aliases": []
       }

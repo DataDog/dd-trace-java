@@ -9,6 +9,8 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.GradleRunner;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,9 +41,18 @@ class HelloPluginFunctionalTest {
             .withPluginClasspath()
             .withGradleDistribution(URI.create(gradleDistributionUrl))
             .withArguments("hello", "--stacktrace")
+            .withEnvironment(sanitizedGradleEnvironment(testProjectDir.resolve("gradle-user-home")))
             .forwardOutput()
             .build();
 
     assertTrue(result.getOutput().contains("Hello from my plugin!"));
+  }
+
+  private static Map<String, String> sanitizedGradleEnvironment(Path gradleUserHomeDir) {
+    Map<String, String> environment = new HashMap<>(System.getenv());
+    environment.put("GRADLE_ARGS", "");
+    environment.put("GRADLE_OPTS", "");
+    environment.put("GRADLE_USER_HOME", gradleUserHomeDir.toString());
+    return environment;
   }
 }

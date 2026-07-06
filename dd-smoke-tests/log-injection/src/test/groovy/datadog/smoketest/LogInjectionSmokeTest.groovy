@@ -3,7 +3,6 @@ package datadog.smoketest
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.environment.JavaVirtualMachine
-import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.server.http.TestHttpServer.HandlerApi.RequestApi
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.Flaky
@@ -348,258 +347,6 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return logEvent[key]
   }
 
-  /**
-   * Like {@link AbstractSmokeTest#waitForTraceCount} but checks process liveness on every poll
-   * iteration and dumps diagnostic state on failure, so CI failures produce actionable output
-   * instead of a bare "Condition not satisfied" after a 30s timeout.
-   */
-  int waitForTraceCountAlive(int count) {
-    try {
-      defaultPoll.eventually {
-        if (traceDecodingFailure != null) {
-          throw traceDecodingFailure
-        }
-        // Check the count BEFORE liveness — the process may have exited normally
-        // after delivering all traces, and we don't want to treat that as a failure.
-        if (traceCount.get() >= count) {
-          return
-        }
-        if (testedProcess != null && !testedProcess.isAlive()) {
-          def lastLines = tailProcessLog(20)
-          // RuntimeException (not AssertionError) so PollingConditions propagates
-          // immediately instead of retrying for the full timeout.
-          throw new RuntimeException(
-          "Process exited with code ${testedProcess.exitValue()} while waiting for ${count} traces " +
-          "(received ${traceCount.get()}, RC polls: ${rcClientMessages.size()}).\n" +
-          "Last process output:\n${lastLines}")
-        }
-        assert traceCount.get() >= count
-      }
-    } catch (AssertionError e) {
-      // The default error ("Condition not satisfied after 30s") is useless — enrich with diagnostic state
-      def alive = testedProcess?.isAlive()
-      def lastLines = tailProcessLog(30)
-      def threadDump = alive ? dumpThreadStacks() : "(process not alive, skipping thread dump)"
-      throw new AssertionError(
-      "Timed out waiting for ${count} traces after ${defaultPoll.timeout}s. " +
-      "traceCount=${traceCount.get()}, process.alive=${alive}, " +
-      "RC polls received: ${rcClientMessages.size()}.\n" +
-      "Last process output:\n${lastLines}\n" +
-      "Thread dump:\n${threadDump}", e)
-    }
-    traceCount.get()
-  }
-
-  /**
-   * Capture a thread dump of the forked process via {@code jstack}. jstack's output is captured by
-   * the smoketest JVM directly, bypassing the tested-process output-capture thread that has been
-   * observed to be starved at timeout (which makes the SIGQUIT-via-stderr approach unreliable for
-   * exactly the failures we want to diagnose).
-   *
-   * <p>No raw {@code kill -3} fallback: PID reuse on shared CI hosts could cause us to signal an
-   * unrelated process if the child has exited since the surrounding liveness check.
-   */
-  private String dumpThreadStacks() {
-    try {
-      if (testedProcess == null) {
-        return "(no tested process)"
-      }
-      if (OperatingSystem.isWindows()) {
-        return "(thread dump not supported on Windows)"
-      }
-      long pid = getTestedProcessPid()
-      if (pid <= 0) {
-        return "(could not determine pid)"
-      }
-      // Re-check liveness immediately before invoking jstack. The earlier check that gates this
-      // method runs ~1 statement away, but if the child has exited and been reaped since then,
-      // the OS may have reused the PID — jstack-ing the wrong process would attach misleading
-      // diagnostics to the test failure.
-      if (!testedProcess.isAlive()) {
-        return "(process exited between liveness check and dump; skipping to avoid PID reuse)"
-      }
-      String jstackOut = runJstack(pid)
-      if (jstackOut == null) {
-        return "(jstack not available or failed)"
-      }
-      return filterThreadDump(jstackOut)
-    } catch (Throwable t) {
-      // Never let a diagnostic failure mask the original AssertionError.
-      return "(thread dump failed: ${t.getClass().simpleName}: ${t.message})"
-    }
-  }
-
-  // Approximate budget for the inline dump in error.message. Datadog CI Visibility caps
-  // error.message at ~5000 chars; this leaves a few hundred for the "Timed out waiting..."
-  // prefix and the elision marker.
-  private static final int INLINE_DUMP_CAP = 4700
-
-  /**
-   * Reduce a jstack thread dump to the threads most likely to explain a hang: the main thread,
-   * dd-trace agent threads (dd-*, datadog-*), OkHttp threads, and anything BLOCKED. Drops known
-   * JVM boilerplate (compiler/GC/reference handler/etc). Truncates to {@link #INLINE_DUMP_CAP}
-   * with an elision marker.
-   */
-  private String filterThreadDump(String fullDump) {
-    int firstBlockIdx = fullDump.indexOf('\n"')
-    if (firstBlockIdx < 0) {
-      // No recognizable thread blocks — return the original, truncated if needed
-      return fullDump.length() > INLINE_DUMP_CAP
-      ? fullDump.substring(0, INLINE_DUMP_CAP) + "\n(truncated)"
-      : fullDump
-    }
-    String header = fullDump.substring(0, firstBlockIdx + 1)
-    String rest = fullDump.substring(firstBlockIdx + 1)
-
-    List<String> blocks = []
-    int i = 0
-    while (i < rest.length()) {
-      int next = rest.indexOf('\n"', i)
-      if (next < 0) {
-        blocks.add(rest.substring(i))
-        break
-      }
-      blocks.add(rest.substring(i, next + 1))
-      i = next + 1
-    }
-
-    List<String> highPriority = []
-    List<String> lowPriority = []
-    int boilerplateDropped = 0
-    for (String block : blocks) {
-      def m = block =~ /^"([^"]+)"/
-      String name = m.find() ? m.group(1) : ''
-      if (isBoilerplateThread(name)) {
-        boilerplateDropped++
-      } else if (isHighPriorityThread(name, block)) {
-        highPriority.add(block)
-      } else {
-        lowPriority.add(block)
-      }
-    }
-
-    StringBuilder out = new StringBuilder(header)
-    int elided = 0
-    for (String block : highPriority + lowPriority) {
-      if (out.length() + block.length() + 120 > INLINE_DUMP_CAP) {
-        elided++
-        continue
-      }
-      out.append(block)
-    }
-    if (boilerplateDropped > 0 || elided > 0) {
-      out.append("\n(elided ${boilerplateDropped} JVM-boilerplate thread(s)")
-      if (elided > 0) {
-        out.append(", elided ${elided} other thread(s) for size")
-      }
-      out.append(")")
-    }
-    return out.toString()
-  }
-
-  private static boolean isBoilerplateThread(String name) {
-    if (name in [
-      "Reference Handler", "Finalizer", "Signal Dispatcher", "Common-Cleaner",
-      "Service Thread", "Monitor Deflation Thread", "Notification Thread",
-      "Attach Listener", "process reaper", "Sweeper thread", "VM Thread", "VM Periodic Task Thread"
-    ]) {
-      return true
-    }
-    return name.startsWith("C1 CompilerThread") ||
-    name.startsWith("C2 CompilerThread") ||
-    name.startsWith("GC Thread") ||
-    name.startsWith("G1 ") ||
-    name.startsWith("ParGC ") ||
-    name.startsWith("CMS ")
-  }
-
-  private static boolean isHighPriorityThread(String name, String block) {
-    if (name == "main") {
-      return true
-    }
-    if (name.startsWith("dd-") || name.startsWith("datadog-")) {
-      return true
-    }
-    if (name.startsWith("OkHttp") || name.contains("okhttp")) {
-      return true
-    }
-    return block.contains("java.lang.Thread.State: BLOCKED")
-  }
-
-  private long getTestedProcessPid() {
-    try {
-      return (long) testedProcess.getClass().getMethod("pid").invoke(testedProcess)
-    } catch (Throwable ignored) {
-      try {
-        // UNIXProcess's private 'pid' field, for JDK 8 compatibility
-        def field = testedProcess.getClass().getDeclaredField("pid")
-        field.setAccessible(true)
-        return field.getInt(testedProcess) as long
-      } catch (Throwable ignored2) {
-        return -1L
-      }
-    }
-  }
-
-  private String runJstack(long pid) {
-    def candidates = []
-    // java.home is always set by the JVM and points to the active JDK/JRE; prefer it over the
-    // JAVA_HOME env var which is frequently absent in CI runners even when Java is present.
-    String javaHome = System.getProperty("java.home")
-    if (javaHome) {
-      candidates.add(javaHome + "/bin/jstack")
-    }
-    String javaHomeEnv = System.getenv("JAVA_HOME")
-    if (javaHomeEnv && javaHomeEnv != javaHome) {
-      candidates.add(javaHomeEnv + "/bin/jstack")
-    }
-    candidates.add("jstack")
-    for (String cmd : candidates) {
-      File tmp = null
-      try {
-        tmp = File.createTempFile("jstack", ".txt")
-        // Redirect output to a file to avoid pipe-buffer deadlock — a full thread dump can
-        // exceed the OS pipe buffer (typically 64 KB) before waitFor returns.
-        Process p = new ProcessBuilder(cmd, String.valueOf(pid))
-        .redirectErrorStream(true)
-        .redirectOutput(tmp)
-        .start()
-        if (!p.waitFor(5, SECONDS)) {
-          p.destroyForcibly()
-          p.waitFor(2, SECONDS)
-          continue
-        }
-        if (p.exitValue() == 0) {
-          String output = tmp.getText("UTF-8")
-          if (output) {
-            return output
-          }
-        }
-      } catch (Throwable ignored) {
-        // try next candidate
-      } finally {
-        if (tmp != null) {
-          tmp.delete()
-        }
-      }
-    }
-    return null
-  }
-
-  private String tailProcessLog(int lines) {
-    try {
-      def logFile = new File(logFilePath)
-      if (!logFile.exists()) {
-        return "(log file does not exist: ${logFilePath})"
-      }
-      def allLines = logFile.readLines()
-      def tail = allLines.size() > lines ? allLines[-lines..-1] : allLines
-      return tail.join("\n")
-    } catch (Exception e) {
-      return "(failed to read log: ${e.message})"
-    }
-  }
-
   def parseTraceFromStdOut( String line ) {
     if (line == null) {
       throw new IllegalArgumentException("Line is null")
@@ -618,7 +365,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   @Flaky(condition = () -> JavaVirtualMachine.isIbm8() || JavaVirtualMachine.isOracleJDK8() || JavaVirtualMachine.isZulu8())
   def "check raw file injection"() {
     when:
-    def count = waitForTraceCountAlive(2)
+    def count = waitForTraceCount(2)
 
     def newConfig = """
         {"lib_config":
@@ -627,12 +374,12 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
      """.toString()
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", newConfig)
 
-    count = waitForTraceCountAlive(3)
+    count = waitForTraceCount(3)
 
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", """{"lib_config":{}}""".toString())
 
     // Wait for all 4 traces before waiting for process exit to ensure trace delivery is confirmed
-    count = waitForTraceCountAlive(4)
+    count = waitForTraceCount(4)
 
     assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS) : "Process did not exit within ${TIMEOUT_SECS}s"
     def exitValue = testedProcess.exitValue()

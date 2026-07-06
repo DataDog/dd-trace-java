@@ -3,11 +3,11 @@ package datadog.trace.instrumentation.websocket.jetty10;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.ExceptionLogger;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
@@ -117,7 +117,7 @@ public class MethodHandleWrappers {
     if (handlerContext != null) {
       final HandlerContext.Receiver closeContext =
           new HandlerContext.Receiver(handlerContext.getHandshakeSpan(), session.getId());
-      try (AgentScope ignored =
+      try (ContextScope ignored =
           activateSpan(
               DECORATE.onSessionCloseReceived(
                   closeContext,
@@ -163,7 +163,7 @@ public class MethodHandleWrappers {
       ExceptionLogger.LOGGER.debug("Unforeseen error instrumenting jetty websocket POJO", t);
     }
     if (wsSpan != null) {
-      try (AgentScope ignored = activateSpan(wsSpan)) {
+      try (ContextScope ignored = activateSpan(wsSpan)) {
         return delegate.invokeWithArguments(args);
       } catch (Throwable t) {
         finishSpan = true;

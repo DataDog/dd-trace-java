@@ -6,6 +6,7 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.metrics.api.Histogram;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
@@ -13,6 +14,7 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.function.Function;
 
@@ -65,6 +67,12 @@ public final class SerializingMetricWriter implements MetricWriter {
       DDCaches.newFixedSizeWeakKeyCache(4);
   private long sequence = 0;
   private final GitInfoProvider gitInfoProvider;
+  // Not final/eager: Histogram.newHistogram() requires the Histograms factory to be
+  // registered first. SerializingMetricWriter is constructed during tracer startup before that
+  // registration completes, so eager init would throw. Lazy init on first add() call is safe
+  // because add() only runs on the aggregator thread, which starts after factory registration.
+  // The single-writer invariant also means no synchronization is needed on this field.
+  private byte[] emptyHistogramBytesCache;
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink) {
     this(wellKnownTags, sink, 512 * 1024);
@@ -83,7 +91,7 @@ public final class SerializingMetricWriter implements MetricWriter {
     this.buffer = new GrowableBuffer(initialCapacity);
     this.writer = new MsgPackWriter(buffer);
     this.sink = sink;
-    this.gitInfoProvider = new GitInfoProvider();
+    this.gitInfoProvider = gitInfoProvider;
   }
 
   @Override
@@ -143,11 +151,12 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void add(AggregateEntry entry) {
-    // Calculate dynamic map size based on optional fields
-    final boolean hasHttpMethod = entry.getHttpMethod() != null;
-    final boolean hasHttpEndpoint = entry.getHttpEndpoint() != null;
-    final boolean hasServiceSource = entry.getServiceSource() != null;
-    final boolean hasGrpcStatusCode = entry.getGrpcStatusCode() != null;
+    // Dynamic map size based on optional fields; AggregateEntry encapsulates the EMPTY-as-absent
+    // sentinel via its hasFoo() predicates so the serializer doesn't depend on the storage choice.
+    final boolean hasHttpMethod = entry.hasHttpMethod();
+    final boolean hasHttpEndpoint = entry.hasHttpEndpoint();
+    final boolean hasServiceSource = entry.hasServiceSource();
+    final boolean hasGrpcStatusCode = entry.hasGrpcStatusCode();
     final int mapSize =
         15
             + (hasServiceSource ? 1 : 0)
@@ -227,7 +236,30 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeBinary(entry.getOkLatencies().serialize());
 
     writer.writeUTF8(ERROR_SUMMARY);
-    writer.writeBinary(entry.getErrorLatencies().serialize());
+    final datadog.metrics.api.Histogram errorLatencies = entry.getErrorLatencies();
+    if (errorLatencies != null) {
+      writer.writeBinary(errorLatencies.serialize());
+    } else {
+      // Entry never saw an error; emit a cached empty-histogram payload so the wire format is
+      // unchanged without allocating a histogram per entry.
+      writer.writeBinary(emptyErrorHistogramBytes());
+    }
+  }
+
+  /**
+   * Returns the cached serialized form of an empty histogram. Computed lazily on first call so the
+   * {@link datadog.metrics.api.Histograms} factory has been registered (by the producer-side tracer
+   * startup or test setup) before we sample its output.
+   */
+  private byte[] emptyErrorHistogramBytes() {
+    byte[] cached = emptyHistogramBytesCache;
+    if (cached == null) {
+      ByteBuffer buf = Histogram.newHistogram().serialize();
+      cached = new byte[buf.remaining()];
+      buf.get(cached);
+      emptyHistogramBytesCache = cached;
+    }
+    return cached;
   }
 
   @Override
