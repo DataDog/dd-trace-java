@@ -350,20 +350,21 @@ class TraceMapperV04PayloadTest extends DDJavaSpecification {
                   metrics.put(key, metricValue);
                 }
               }
-              metrics.forEach((key, value) -> {
-                if (value instanceof Double || value instanceof Float) {
-                  assertEquals(
-                      ((Number) expectedSpan.getTag(key)).doubleValue(),
-                      value.doubleValue(),
-                      0.001);
-                } else {
-                  // Groovy compared numerically, Java requires explicit long comparison to avoid
-                  // Long/Integer type mismatch from different msgpack integer encoding widths
-                  assertEquals(
-                      ((Number) expectedSpan.getTag(key)).longValue(),
-                      value.longValue());
-                }
-              });
+              metrics.forEach(
+                  (key, value) -> {
+                    if (value instanceof Double || value instanceof Float) {
+                      assertEquals(
+                          ((Number) expectedSpan.getTag(key)).doubleValue(),
+                          value.doubleValue(),
+                          0.001);
+                    } else {
+                      // Groovy compared numerically, Java requires explicit long comparison to
+                      // avoid
+                      // Long/Integer type mismatch from different msgpack integer encoding widths
+                      assertEquals(
+                          ((Number) expectedSpan.getTag(key)).longValue(), value.longValue());
+                    }
+                  });
               assertEquals("meta", unpacker.unpackString());
               int metaSize = unpacker.unpackMapHeader();
               HashMap<String, String> meta = new HashMap<>();

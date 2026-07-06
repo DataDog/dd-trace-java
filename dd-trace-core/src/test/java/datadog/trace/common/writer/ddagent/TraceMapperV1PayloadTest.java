@@ -29,7 +29,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.TraceGenerator;
 import datadog.trace.core.MetadataConsumer;
-import datadog.trace.junit.utils.tabletest.SamplingMechanismConverter;
+import datadog.trace.junit.utils.converter.SamplingMechanismConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -194,11 +194,11 @@ class TraceMapperV1PayloadTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario        | decisionMakerTag | expectedSamplingMechanism",
-    "null tag        |                  | SamplingMechanism.DEFAULT",
-    "simple negative | '-3'             | 3                        ",
-    "compound        | '934086a686-7'   | 7                        ",
-    "invalid         | 'invalid'        | SamplingMechanism.DEFAULT"
+    "scenario        | decisionMakerTag | expectedSamplingMechanism        ",
+    "null tag        |                  | SamplingMechanism.DEFAULT        ",
+    "simple negative | '-3'             | SamplingMechanism.LOCAL_USER_RULE",
+    "compound        | '934086a686-7'   | 7                                ",
+    "invalid         | 'invalid'        | SamplingMechanism.DEFAULT        "
   })
   void testSamplingMechanismNormalizationFromDdPDm(
       String decisionMakerTag,
@@ -936,13 +936,6 @@ class TraceMapperV1PayloadTest extends DDJavaSpecification {
     public void processTagsAndBaggage(MetadataConsumer consumer) {
       processTagsAndBaggageCount++;
       super.processTagsAndBaggage(consumer);
-    }
-
-    @Override
-    public void processTagsAndBaggage(
-        MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
-      processTagsAndBaggageCount++;
-      super.processTagsAndBaggage(consumer, injectLinksAsTags, injectBaggageAsTags);
     }
   }
 

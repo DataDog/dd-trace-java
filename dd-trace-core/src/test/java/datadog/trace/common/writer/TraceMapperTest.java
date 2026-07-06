@@ -35,7 +35,7 @@ class TraceMapperTest extends DDCoreJavaSpecification {
                 .withTag("elasticsearch.version", "7.0")
                 .start();
     span.setBaggageItem("baggage", "item");
-    span.context().setDataTop("mydata", "[1,2,3]");
+    span.spanContext().setDataTop("mydata", "[1,2,3]");
     List<DDSpan> trace = Collections.singletonList(span);
 
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5();
