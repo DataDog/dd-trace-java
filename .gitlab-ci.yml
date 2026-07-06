@@ -447,7 +447,8 @@ spotless:
     CACHE_TYPE: "spotless"
   script:
     - ./gradlew --version
-    - ./gradlew spotlessCheck $GRADLE_ARGS
+    - ./gradlew spotlessCheck writeMainVersionFile $GRADLE_ARGS
+    - cd test-published-dependencies && ./gradlew spotlessCheck $GRADLE_ARGS
 
 check-instrumentation-naming:
   extends: .gradle_build
