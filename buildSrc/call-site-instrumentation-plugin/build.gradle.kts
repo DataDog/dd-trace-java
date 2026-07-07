@@ -1,7 +1,7 @@
 plugins {
   java
   id("com.diffplug.spotless") version "8.4.0"
-  id("com.gradleup.shadow") version "8.3.9"
+  alias(libs.plugins.shadow)
 }
 
 java {
@@ -69,7 +69,11 @@ tasks {
   }
 
   shadowJar {
-    mergeServiceFiles()
+    duplicatesStrategy = DuplicatesStrategy.FAIL
+    // Let's skip license/notice since this jar's only use is during build
+    filesMatching(listOf("META-INF/LICENSE*", "META-INF/NOTICE*")) {
+      duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
     manifest {
       attributes(mapOf("Main-Class" to "datadog.trace.plugin.csi.PluginApplication"))
     }

@@ -447,7 +447,9 @@ spotless:
     CACHE_TYPE: "spotless"
   script:
     - ./gradlew --version
-    - ./gradlew spotlessCheck $GRADLE_ARGS
+    # test-published-dependencies's build file needs main version file
+    - ./gradlew spotlessCheck writeMainVersionFile $GRADLE_ARGS
+    - cd test-published-dependencies && ./gradlew spotlessCheck $GRADLE_ARGS
 
 check-instrumentation-naming:
   extends: .gradle_build
@@ -754,10 +756,23 @@ muzzle-dep-report:
     # `ibm8`/`oracle8` have no arm64 images published upstream — never run them on arm64.
     - if: '$testJvm == "ibm8" || $testJvm == "oracle8"'
       when: never
+    # arm64 tests are newly introduced to the merge queue and master. Keep them
+    # non-blocking (allow_failure) for now so we can collect stability stats and
+    # fix flaky/failing jobs without blocking the whole team. Remove allow_failure
+    # once the arm64 suite is proven stable.
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
       when: on_success
+      allow_failure: true
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
+      allow_failure: true
+    # Enable non-default JVMs on demand.
+    - if: '$NON_DEFAULT_JVMS == "true"'
+      when: on_success
+      allow_failure: true
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
+      when: on_success
+      allow_failure: true
     - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: manual
       allow_failure: true
@@ -924,6 +939,10 @@ test_base_arm64:
     CACHE_TYPE: "base"
   parallel:
     matrix: *test_matrix_4
+  # run coverage only on JVM 8, mirroring the amd64 test_base job
+  script:
+    - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
+    - !reference [.test_job_arm64, script]
 
 test_inst:
   extends: .test_job_with_test_agent
@@ -961,7 +980,7 @@ test_inst_latest:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "25"] # the latest "tip" version is LTS v25
+      - testJvm: ["8", "17", "21", "25", "tip"] # the latest "tip" version is 26
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -974,7 +993,7 @@ test_inst_latest_arm64:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "25"] # the latest "tip" version is LTS v25
+      - testJvm: ["8", "17", "21", "25", "tip"] # the latest "tip" version is 26
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -1044,7 +1063,7 @@ test_debugger:
   variables:
     GRADLE_TARGET: ":debuggerTest"
     CACHE_TYPE: "base"
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "tip" version is LTS v25
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip|semeru8)$/ # the latest "tip" version is 26
   parallel:
     matrix: *test_matrix
   # avoid running coverage for semeru8, semeru11, semeru17 and ibm8 as some tests are disabled and therefore cannot reach the
@@ -1057,10 +1076,14 @@ test_debugger_arm64:
   extends: .test_job_arm64
   variables:
     GRADLE_TARGET: ":debuggerTest"
-    GRADLE_PARAMS: "-PcheckCoverage"
     CACHE_TYPE: "base"
   parallel:
     matrix: *test_matrix
+  # avoid running coverage for semeru8, semeru11 and semeru17 as some tests are disabled and therefore cannot reach the
+  # expected coverage (ibm8/oracle8 never run on arm64)
+  script:
+    - if [[ "$testJvm" != "semeru8" && "$testJvm" != "semeru11" && "$testJvm" != "semeru17" ]]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
+    - !reference [.test_job_arm64, script]
 
 test_smoke:
   extends: .test_job

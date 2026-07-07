@@ -1,5 +1,6 @@
 package server
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
@@ -16,6 +17,8 @@ import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
 import datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Vertx
+import okhttp3.MediaType
+import okhttp3.RequestBody
 
 class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   @Override
@@ -180,5 +183,29 @@ class VertxHttpServerWorkerForkedTest extends VertxHttpServerForkedTest {
   @Override
   HttpServer server() {
     return new VertxServer(verticle(), routerBasePath(), true)
+  }
+
+  def 'test blocking of JSON request body finishes route handler span'() {
+    setup:
+    // VertxTestServer handles BODY_JSON by calling ctx.body().asJsonObject().
+    // The IG_BODY_CONVERTED_HEADER is consumed by HttpServerTest's AppSec test callback, which
+    // returns a RequestBlockingAction from requestBodyProcessed() when that JSON body is converted.
+    def request = request(
+      BODY_JSON, 'POST',
+      RequestBody.create(MediaType.get('application/json'), '{"a": "x"}'))
+      .header(IG_BODY_CONVERTED_HEADER, 'true')
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == 413
+    response.body().charStream().text.contains('"title":"You\'ve been blocked"')
+    !handlerRan
+    // The client receiving a 413 only proves the blocking response was committed.
+    // We want to make sure that a BlockingException does now abort the worker route handler
+    // before the vertx.route-handler span has been finished (which would leave it dangling)
+    TEST_WRITER.waitForTraces(1)
   }
 }

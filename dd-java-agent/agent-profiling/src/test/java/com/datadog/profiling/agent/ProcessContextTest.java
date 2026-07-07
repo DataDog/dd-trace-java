@@ -1,6 +1,8 @@
 package com.datadog.profiling.agent;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.AdditionalMatchers.aryEq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -12,6 +14,8 @@ import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
@@ -24,6 +28,8 @@ class ProcessContextTest {
             eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED),
             eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT)))
         .thenReturn(true);
+    when(configProvider.getSet(eq(ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES), any()))
+        .thenReturn(new LinkedHashSet<>(Arrays.asList("http.route", "db.system")));
 
     Config config = mock(Config.class);
     when(config.getEnv()).thenReturn("test-env");
@@ -48,13 +54,14 @@ class ProcessContextTest {
       ProcessContext.register(configProvider);
 
       verify(otelContext)
-          .setProcessContext(
+          .initializeAllContext(
               eq("test-env"),
               eq("test-host"),
               eq("test-runtime-id"),
               eq("test-service"),
               eq("test-runtime-version"),
-              eq("test-version"));
+              eq("test-version"),
+              aryEq(new String[] {"http.route", "db.system"}));
     }
   }
 

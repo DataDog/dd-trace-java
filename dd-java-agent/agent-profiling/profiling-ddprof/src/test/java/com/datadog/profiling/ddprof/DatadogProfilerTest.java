@@ -16,10 +16,10 @@ import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.stream.IntStream;
@@ -108,6 +108,23 @@ class DatadogProfilerTest {
                 Arguments.of((x & 0x1000) != 0, (x & 0x100) != 0, (x & 0x10) != 0, (x & 0x1) != 0));
   }
 
+  @Test
+  void testStartCmdEnableJMethodIDOptim() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED, "true");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    Path dir = Paths.get("/tmp");
+    Path targetFile = Files.createTempFile(dir, "target_", ".jfr");
+    String cmd = profiler.cmdStartProfiling(targetFile);
+
+    assertTrue(cmd.contains(",fjmethodid=false"), cmd);
+  }
+
   @ParameterizedTest
   @MethodSource("wallContextFilterModes")
   void testWallContextFilter(boolean tracingEnabled, boolean contextFilterEnabled)
@@ -171,9 +188,14 @@ class DatadogProfilerTest {
     // so there is only one shot to test it here, 'foo,bar' need to be kept in the same
     // order whether in the list or the enum, and any other test which tries to register
     // context attributes will fail
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES, "foo,bar");
     DatadogProfiler profiler =
-        new DatadogProfiler(
-            configProvider(true, true, true, true), new HashSet<>(Arrays.asList("foo", "bar")));
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
     assertTrue(profiler.setContextValue("foo", "abc"));
     assertTrue(profiler.setContextValue("bar", "abc"));
     assertTrue(profiler.setContextValue("foo", "xyz"));
