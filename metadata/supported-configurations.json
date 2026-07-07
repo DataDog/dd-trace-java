@@ -10633,6 +10633,14 @@
         "aliases": ["DD_TRACE_TRACER_METRICS_ENABLED"]
       }
     ],
+    "DD_TRACE_STATS_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "2048",
+        "aliases": ["DD_TRACE_TRACER_METRICS_MAX_AGGREGATES"]
+      }
+    ],
     "DD_TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION": [
       {
         "version": "A",
@@ -10701,7 +10709,7 @@
       {
         "version": "A",
         "type": "int",
-        "default": "64",
+        "default": "512",
         "aliases": []
       }
     ],
@@ -10713,7 +10721,7 @@
         "aliases": []
       }
     ],
-    "DD_TRACE_STATS_PEER_TAG_CARDINALITY_LIMIT": [
+    "DD_TRACE_STATS_PEER_TAGS_CARDINALITY_LIMIT": [
       {
         "version": "A",
         "type": "int",

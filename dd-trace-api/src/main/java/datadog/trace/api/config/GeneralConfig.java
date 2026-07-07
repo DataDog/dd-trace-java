@@ -70,6 +70,29 @@ public final class GeneralConfig {
   public static final String TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION =
       "trace.stats.computation.ignore.agent.version";
 
+  public static final String TRACE_STATS_CARDINALITY_LIMIT = "trace.stats.cardinality.limit";
+
+  public static final String TRACE_STATS_RESOURCE_CARDINALITY_LIMIT =
+      "trace.stats.resource.cardinality.limit";
+  public static final String TRACE_STATS_SERVICE_CARDINALITY_LIMIT =
+      "trace.stats.service.cardinality.limit";
+  public static final String TRACE_STATS_OPERATION_CARDINALITY_LIMIT =
+      "trace.stats.operation.cardinality.limit";
+  public static final String TRACE_STATS_SERVICE_SOURCE_CARDINALITY_LIMIT =
+      "trace.stats.service_source.cardinality.limit";
+  public static final String TRACE_STATS_TYPE_CARDINALITY_LIMIT =
+      "trace.stats.type.cardinality.limit";
+  public static final String TRACE_STATS_SPAN_KIND_CARDINALITY_LIMIT =
+      "trace.stats.span_kind.cardinality.limit";
+  public static final String TRACE_STATS_HTTP_METHOD_CARDINALITY_LIMIT =
+      "trace.stats.http_method.cardinality.limit";
+  public static final String TRACE_STATS_HTTP_ENDPOINT_CARDINALITY_LIMIT =
+      "trace.stats.http_endpoint.cardinality.limit";
+  public static final String TRACE_STATS_GRPC_STATUS_CODE_CARDINALITY_LIMIT =
+      "trace.stats.grpc_status_code.cardinality.limit";
+  public static final String TRACE_STATS_PEER_TAGS_CARDINALITY_LIMIT =
+      "trace.stats.peer_tags.cardinality.limit";
+
   public static final String TRACE_OTEL_SEMANTICS_ENABLED = "trace.otel.semantics.enabled";
 
   public static final String TRACER_METRICS_ENABLED = "trace.tracer.metrics.enabled";

@@ -78,7 +78,7 @@ final class PeerTagSchema {
               names[i],
               Config.get()
                   .getTraceStatsCardinalityLimit(
-                      "peer_tag", MetricCardinalityLimits.PEER_TAG_VALUE));
+                      "peer_tags", MetricCardinalityLimits.PEER_TAG_VALUE));
     }
   }
 
