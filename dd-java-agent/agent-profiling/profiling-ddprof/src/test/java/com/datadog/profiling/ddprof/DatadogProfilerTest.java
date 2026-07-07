@@ -109,12 +109,12 @@ class DatadogProfilerTest {
   }
 
   @Test
-  void testStartCmdForceJMethodIDDisabled() throws Exception {
+  void testStartCmdEnableJMethodIDOptim() throws Exception {
     assertDoesNotThrow(
         () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
 
     Properties props = new Properties();
-    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_FORCE_JMETHODID, "false");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED, "true");
     DatadogProfiler profiler =
         DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
 

@@ -1,6 +1,6 @@
 package com.datadog.profiling.ddprof;
 
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.forceJMethodID;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.enableJMethodIDOptim;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getAllocationInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCStack;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getContextAttributes;
@@ -421,7 +421,7 @@ public final class DatadogProfiler {
     }
 
     // Default is true
-    if (!forceJMethodID(configProvider)) {
+    if (enableJMethodIDOptim(configProvider)) {
       cmd.append(",fjmethodid=false");
     }
 

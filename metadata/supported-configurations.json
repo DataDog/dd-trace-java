@@ -3121,11 +3121,11 @@
         "aliases": []
       }
     ],
-    "DD_PROFILING_EXPERIMENTAL_ASYNC_FORCE_JMETHODID": [
+    "DD_PROFILING_EXPERIMENTAL_ASYNC_ENABLE_JMETHODID_OPTIM": [
       {
         "version": "A",
         "type": "boolean",
-        "default": "true",
+        "default": "false",
         "aliases": []
       }
     ],
@@ -3153,11 +3153,11 @@
         "aliases": []
       }
     ],
-    "DD_PROFILING_EXPERIMENTAL_DDPROF_FORCE_JMETHODID": [
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_ENABLE_JMETHODID_OPTIM": [
       {
         "version": "A",
         "type": "boolean",
-        "default": "true",
+        "default": "false",
         "aliases": []
       }
     ],
