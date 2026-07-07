@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty8;
 
 import static java.util.Arrays.asList;
+import static java.util.Arrays.fill;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -8,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import datadog.trace.api.Config;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -234,6 +236,20 @@ class PartHelperTest {
             fieldWithContentType("drink", iso88591Bytes, "text/plain; charset=ISO-8859-1"));
     Map<String, List<String>> result = PartHelper.extractFormFields(parts);
     assertEquals(singletonList("café"), result.get("drink"));
+  }
+
+  @Test
+  void extractFormFieldsTruncatesFieldExceedingMaxContentBytes() throws IOException {
+    int maxBytes = Config.get().getAppSecMaxFileContentBytes();
+    // ASCII value larger than the cap so byte length == char length and truncation is exact.
+    char[] chars = new char[maxBytes * 2 + 123];
+    fill(chars, 'a');
+    String oversized = new String(chars);
+    List<Part> parts = singletonList(field("big", oversized));
+    Map<String, List<String>> result = PartHelper.extractFormFields(parts);
+    List<String> values = result.get("big");
+    assertEquals(1, values.size());
+    assertEquals(maxBytes, values.get(0).length());
   }
 
   // ── getAllParts ─────────────────────────────────────────────────────────────
