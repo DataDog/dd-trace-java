@@ -119,7 +119,7 @@ class DatadogProfilerTest {
     DatadogProfiler profiler =
         DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
 
-    Path dir = Path.of("/tmp");
+    Path dir = Paths.get("/tmp");
     Path targetFile = Files.createTempFile(dir, "target_", ".jfr");
     String cmd = profiler.cmdStartProfiling(targetFile);
 
