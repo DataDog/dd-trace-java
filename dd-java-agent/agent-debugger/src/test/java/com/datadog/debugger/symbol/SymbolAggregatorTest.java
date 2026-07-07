@@ -26,11 +26,6 @@ import org.mockito.ArgumentCaptor;
 
 class SymbolAggregatorTest {
 
-  private static void assumeNotJdk27() {
-    // JDK 27 TODO: address failing test
-    assumeFalse(JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
-  }
-
   @Test
   void testScanQueuedJars() {
     SymbolSink symbolSink = mock(SymbolSink.class);
@@ -88,7 +83,7 @@ class SymbolAggregatorTest {
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Flaky on J9 JVMs")
   void testScopeFilter() {
-    assumeNotJdk27();
+    assumeFalse(JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
     ScopeFilter mockFilter = mock(ScopeFilter.class);
     when(mockFilter.filterOut(any())).thenReturn(true);
     SymbolSink symbolSink = mock(SymbolSink.class);

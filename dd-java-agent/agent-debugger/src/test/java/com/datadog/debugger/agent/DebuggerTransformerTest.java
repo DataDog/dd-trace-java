@@ -135,7 +135,6 @@ public class DebuggerTransformerTest {
   }
 
   private static void assumeNotJdk27() {
-    // JDK 27 TODO: address failing test
     assumeFalse(JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
   }
 

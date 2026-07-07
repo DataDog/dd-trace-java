@@ -57,7 +57,7 @@ variables:
   BUILDER_IMAGE_VERSION_PREFIX: "ci-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
   TEST_COUNTS_S3_BUCKET: "dd-trace-java-ci-test-reports"
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
-  DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/
+  DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 26
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"

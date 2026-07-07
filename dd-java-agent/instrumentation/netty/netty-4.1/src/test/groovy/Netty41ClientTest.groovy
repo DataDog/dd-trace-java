@@ -97,7 +97,6 @@ abstract class Netty41ClientTest extends HttpClientTest {
     return false
   }
 
-  // JDK 27 TODO: address failing test
   @IgnoreIf(reason = "JDK 27 TODO: address failing test", value = {
     JavaVirtualMachine.isJavaVersion(27)
   })

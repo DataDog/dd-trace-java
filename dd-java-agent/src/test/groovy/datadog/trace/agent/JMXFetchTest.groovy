@@ -75,7 +75,6 @@ class JMXFetchTest extends Specification {
     returnCode == 0
   }
 
-  // JDK 27 TODO: address failing test
   @IgnoreIf(reason = "JDK 27 TODO: address failing test", value = {
     JavaVirtualMachine.isJavaVersion(27)
   })

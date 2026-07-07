@@ -48,7 +48,6 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
   @ParameterizedTest
   void testGradleLauncherInjectsTracerIntoGradleDaemon(
       String gradleVersion, String gradleDaemonCmdLineParams) throws Exception {
-    // JDK 27 TODO: address failing test
     Assumptions.assumeFalse(
         JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
     String resolvedGradleVersion =
