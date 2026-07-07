@@ -16,7 +16,7 @@ if [ -n "$TEST_JVM" ]; then
         for var in $(compgen -v JAVA_ | grep -E '^JAVA_[0-9]+_HOME$'); do
             ver="${var#JAVA_}"
             ver="${ver%_HOME}"
-            # Java 27 TODO: remove after GA (tip will move to 27)
+            # JDK 27 TODO: remove after GA (tip will move to 27)
             if [ "$ver" = "27" ]; then
                 continue
             fi
