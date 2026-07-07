@@ -18,7 +18,7 @@ public class ProductChangeCollector {
     return INSTANCE;
   }
 
-  // SpotBugs USO_UNSAFE_METHOD_SYNCHRONIZATION: should be reviewed by team.
+  // Claude: SpotBugs USO_UNSAFE_METHOD_SYNCHRONIZATION: should be reviewed by team.
   // This is a singleton exposed via the static get()/INSTANCE accessor, so any code holding the
   // instance synchronizes on the same monitor that this telemetry path uses. The backing queue is
   // already a LinkedBlockingQueue, so the method-level lock looks redundant and could be dropped or
@@ -30,7 +30,7 @@ public class ProductChangeCollector {
     productChanges.offer(productChange);
   }
 
-  // SpotBugs USO_UNSAFE_METHOD_SYNCHRONIZATION: should be reviewed by team.
+  // Claude: SpotBugs USO_UNSAFE_METHOD_SYNCHRONIZATION: should be reviewed by team.
   // This is a singleton exposed via the static get()/INSTANCE accessor, so any code holding the
   // instance synchronizes on the same monitor that this telemetry path uses. The backing queue is
   // already a LinkedBlockingQueue, so the method-level lock looks redundant and could be dropped or

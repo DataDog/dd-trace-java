@@ -21,10 +21,6 @@ public class AgentMeter {
     return monitoring;
   }
 
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // AgentMeter is an agent-internal holder whose Class object is not exposed to instrumented
-  // application code, so external lock contention on AgentMeter.class is not a realistic risk.
-  // The clean fix would be a private static final lock object, but suppression is fine here.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification =

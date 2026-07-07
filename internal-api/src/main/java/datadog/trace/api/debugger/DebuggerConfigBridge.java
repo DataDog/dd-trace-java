@@ -12,9 +12,6 @@ public final class DebuggerConfigBridge {
   private static DebuggerConfigUpdate DEFERRED_UPDATE;
   private static volatile DebuggerConfigUpdater UPDATER;
 
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // Agent-internal final bridge class; the lock guards the private static UPDATER/DEFERRED_UPDATE
-  // holder state and is not a lock external app code would acquire on this class.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification = "Agent-internal static holder; class lock guards private static fields")
@@ -32,9 +29,6 @@ public final class DebuggerConfigBridge {
     }
   }
 
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // Agent-internal final bridge class; the lock guards the private static UPDATER/DEFERRED_UPDATE
-  // holder state and is not a lock external app code would acquire on this class.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification = "Agent-internal static holder; class lock guards private static fields")

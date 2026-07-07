@@ -23,10 +23,4 @@
       <Package name="com.datadog.appsec.report.raw.events" />
     </Or>
   </Match>
-  <!-- UnreadFields detector: unread/unused/unwritten field noise. This detector cannot be
-       disabled via omitVisitors (other enabled detectors depend on it), so its patterns are
-       filtered here instead. Matches the project's long-standing intent to ignore these. -->
-  <Match>
-    <Bug pattern="URF_UNREAD_FIELD,URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD,UUF_UNUSED_FIELD,UUF_UNUSED_PUBLIC_OR_PROTECTED_FIELD,UWF_UNWRITTEN_FIELD,UWF_UNWRITTEN_PUBLIC_OR_PROTECTED_FIELD,NP_UNWRITTEN_PUBLIC_OR_PROTECTED_FIELD,SS_SHOULD_BE_STATIC,ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD,SIC_INNER_SHOULD_BE_STATIC" />
-  </Match>
 </FindBugsFilter>

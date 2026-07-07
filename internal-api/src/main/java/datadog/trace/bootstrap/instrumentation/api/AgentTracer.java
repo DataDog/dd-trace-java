@@ -252,9 +252,6 @@ public class AgentTracer {
     return provider != NOOP_TRACER;
   }
 
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // Agent-internal static holder; the class lock only serializes registration of the private
-  // static volatile provider field and is not a monitor app code would contend on.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification = "Agent-internal static holder; class lock guards private static provider")
@@ -264,9 +261,6 @@ public class AgentTracer {
     }
   }
 
-  // SpotBugs USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false positive, can be suppressed.
-  // Agent-internal static holder; the class lock only serializes registration of the private
-  // static volatile provider field and is not a monitor app code would contend on.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
       justification = "Agent-internal static holder; class lock guards private static provider")

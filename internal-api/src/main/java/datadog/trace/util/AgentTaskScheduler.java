@@ -183,10 +183,6 @@ public class AgentTaskScheduler implements Executor {
     return scheduleWithFixedDelay(RunnableTask.INSTANCE, target, initialDelay, period, unit);
   }
 
-  // SpotBugs USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION: false positive, can be suppressed.
-  // The lock object is the private final workQueue, which never escapes this class and only guards
-  // one-time worker startup. (The pre-existing JLM warning is about locking a JSR166 concurrent
-  // collection, which is intentional here.)
   @SuppressFBWarnings({
     "JLM_JSR166_UTILCONCURRENT_MONITORENTER",
     "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION"

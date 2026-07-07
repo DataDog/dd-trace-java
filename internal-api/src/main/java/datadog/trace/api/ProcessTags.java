@@ -192,7 +192,7 @@ public class ProcessTags {
       return false;
     }
 
-    // SpotBugs USO_UNSAFE_OBJECT_SYNCHRONIZATION: should be reviewed by team.
+    // Claude: SpotBugs USO_UNSAFE_OBJECT_SYNCHRONIZATION: should be reviewed by team.
     // The lock object is the package-private static-final TAGS collection, which is visible to
     // other code in the package and is itself concurrently mutated (put/clear elsewhere also
     // synchronize on it). A dedicated private lock object would be cleaner and clearly correct.

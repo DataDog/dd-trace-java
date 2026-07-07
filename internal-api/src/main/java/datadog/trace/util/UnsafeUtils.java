@@ -37,10 +37,6 @@ public abstract class UnsafeUtils {
    * @return A shallow clone
    * @param <T> Type of the object being cloned
    */
-  // SpotBugs UNS_UNSAFE_CALL: false positive, can be suppressed.
-  // This class is a deliberate wrapper around sun.misc.Unsafe to allocate an instance without
-  // running constructors for shallow cloning; the Unsafe usage is intentional and necessary, and
-  // already guarded by a null check with a safe fallback to the original object.
   @SuppressFBWarnings(
       value = "UNS_UNSAFE_CALL",
       justification = "Intentional sun.misc.Unsafe wrapper for shallow cloning")

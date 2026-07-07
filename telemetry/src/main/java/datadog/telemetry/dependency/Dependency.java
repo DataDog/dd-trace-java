@@ -130,13 +130,6 @@ public final class Dependency {
     return dependencies;
   }
 
-  // SpotBugs USO_UNSAFE_METHOD_SYNCHRONIZATION / USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION: false
-  // positive, can be suppressed.
-  // The lock is the Dependency.class monitor, used to serialize access to the static MessageDigest
-  // md and static byte[] buf scratch buffers (md.reset()/read into buf/md.digest()). No application
-  // code locks on this internal telemetry class, and these statics never escape; the
-  // synchronization
-  // simply guards shared dependency-resolution state.
   @SuppressFBWarnings(
       value = {"USO_UNSAFE_METHOD_SYNCHRONIZATION", "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION"},
       justification =

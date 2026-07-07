@@ -122,7 +122,7 @@ public final class InstrumenterState {
   }
 
   /** Records that the instrumentation is blocked by default. */
-  // SpotBugs USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION: should be reviewed by team.
+  // Claude: SpotBugs USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION: should be reviewed by team.
   // The lock object is the non-final 'defaultState' array, which is reassigned in
   // resetDefaultState(); a reset racing with this method could leave threads synchronizing on
   // different array instances, and reads in currentState/updateState are unsynchronized. The field
