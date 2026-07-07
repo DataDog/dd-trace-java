@@ -38,7 +38,7 @@ class TestJvmSpec(val project: Project) {
   companion object {
     const val TEST_JVM = "testJvm"
 
-    // Java 27 TODO: remove after GA (tip will move to 27)
+    // JDK 27 TODO: remove after GA (tip will move to 27)
     internal fun resolveTipJavaVersion(javaVersions: List<Int>): String {
       val tipJavaVersions = javaVersions.filterNot { it == 27 }
       if (tipJavaVersions.isEmpty()) {
@@ -73,7 +73,7 @@ class TestJvmSpec(val project: Project) {
           throw GradleException("No Java installations found via toolchains or JAVA_X_HOME environment variables.")
         }
 
-        resolveTipJavaVersion(javaVersions) // Java 27 TODO: revert back to "javaVersions.max().toString()" after GA
+        resolveTipJavaVersion(javaVersions) // JDK 27 TODO: revert back to "javaVersions.max().toString()" after GA
       }
 
       else -> testJvm
