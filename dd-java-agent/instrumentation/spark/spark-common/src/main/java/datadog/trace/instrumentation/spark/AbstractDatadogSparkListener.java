@@ -191,8 +191,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       openLineageSparkConf.set(
           "spark.openlineage.transport.transports.agent.endpoint", AGENT_OL_ENDPOINT);
       openLineageSparkConf.set("spark.openlineage.transport.transports.agent.compression", "gzip");
-      openLineageSparkConf.set(
-          "spark.openlineage.run.tags",
+      String runTags =
           "_dd.trace_id:"
               + traceId.toString()
               + ";_dd.ol_intake.emit_spans:false;_dd.ol_service:"
@@ -200,7 +199,17 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
               + ";_dd.ol_intake.process_tags:"
               + ProcessTags.getTagsForSerialization()
               + ";_dd.ol_app_id:"
-              + appId);
+              + appId;
+      // _dd.ol_env carries the run environment so the lineage-processor can use it
+      // as the Spark application's UGP namespace, letting the OpenLineage-created
+      // node and the tracer-only node (djm-span-processor) resolve to the same
+      // entity_id. Omitted when env is unset so the consumer falls back to the
+      // OpenLineage namespace.
+      String olEnv = Config.get().getEnv();
+      if (!olEnv.isEmpty()) {
+        runTags += ";_dd.ol_env:" + olEnv;
+      }
+      openLineageSparkConf.set("spark.openlineage.run.tags", runTags);
       setupOpenLineageCircuitBreaker();
       return;
     }
