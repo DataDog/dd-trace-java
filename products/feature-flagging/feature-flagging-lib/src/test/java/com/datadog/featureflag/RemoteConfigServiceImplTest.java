@@ -287,7 +287,7 @@ class RemoteConfigServiceImplTest {
       assertNull(parsed);
     } else {
       assertNotNull(parsed);
-      assertEquals(Instant.parse(expectedInstant), parsed);
+      assertEquals(expectedInstant, parsed.toString());
     }
   }
 

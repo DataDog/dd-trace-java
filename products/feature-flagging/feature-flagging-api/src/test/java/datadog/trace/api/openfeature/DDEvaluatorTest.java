@@ -760,8 +760,8 @@ public class DDEvaluatorTest {
             new Allocation(
                 "time-alloc",
                 null,
-                parseInstant("2022-01-01T00:00:00Z"),
-                parseInstant("2022-12-31T23:59:59Z"),
+                Instant.parse("2022-01-01T00:00:00Z"),
+                Instant.parse("2022-12-31T23:59:59Z"),
                 splits,
                 false));
 
@@ -1167,7 +1167,7 @@ public class DDEvaluatorTest {
     // Allocation that starts in the future (2050)
     final Allocation allocation =
         new Allocation(
-            "future-alloc", null, parseInstant("2050-01-01T00:00:00Z"), null, splits, false);
+            "future-alloc", null, Instant.parse("2050-01-01T00:00:00Z"), null, splits, false);
 
     return new Flag(
         "future-allocation-flag", true, ValueType.STRING, variants, singletonList(allocation));
@@ -1363,9 +1363,5 @@ public class DDEvaluatorTest {
       result.put(key, value);
     }
     return result;
-  }
-
-  private static Instant parseInstant(String value) {
-    return Instant.parse(value);
   }
 }
