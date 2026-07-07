@@ -252,6 +252,18 @@ class PartHelperTest {
     assertEquals(maxBytes, values.get(0).length());
   }
 
+  @Test
+  void extractFormFieldsCapsAtMaxFileContentCount() throws IOException {
+    int maxFields = Config.get().getAppSecMaxFileContentCount();
+    int count = maxFields + 1;
+    Part[] parts = new Part[count];
+    for (int i = 0; i < count; i++) {
+      parts[i] = field("field" + i, "value" + i);
+    }
+    Map<String, List<String>> result = PartHelper.extractFormFields(asList(parts));
+    assertEquals(maxFields, result.size());
+  }
+
   // ── getAllParts ─────────────────────────────────────────────────────────────
 
   @Test
