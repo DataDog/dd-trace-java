@@ -72,10 +72,12 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_C
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT;
@@ -212,6 +214,7 @@ import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_ENABLED;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_CONTENT_SIZE;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_TIMEOUT;
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
@@ -325,9 +328,11 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_EXCEPTION_PER
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SOURCE_FILE_TRACKING_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT;
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT_MS;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_INCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD;
@@ -340,6 +345,7 @@ import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_RE
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTED_TYPES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL;
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS;
@@ -1229,7 +1235,9 @@ public class Config {
   private final String dynamicInstrumentationInstrumentTheWorld;
   private final String dynamicInstrumentationExcludeFiles;
   private final String dynamicInstrumentationIncludeFiles;
+  private final String dynamicInstrumentationTimeoutCheckerMode;
   private final int dynamicInstrumentationCaptureTimeout;
+  private final int dynamicInstrumentationEvaluationTimeout;
   private final String dynamicInstrumentationRedactedIdentifiers;
   private final Set<String> dynamicInstrumentationRedactionExcludedIdentifiers;
   private final String dynamicInstrumentationRedactedTypes;
@@ -2549,9 +2557,10 @@ public class Config {
             DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS);
     apiSecurityDownstreamRequestBodyAnalysisSampleRate =
         configProvider.getDouble(
-            API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
+            API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE,
             DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
-            API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE);
+            API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE,
+            API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE);
 
     // Trace Resource Renaming (Endpoint Inference) configuration
     // Default: enabled if AppSec is enabled, otherwise disabled
@@ -2886,10 +2895,18 @@ public class Config {
         configProvider.getString(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES);
     dynamicInstrumentationIncludeFiles =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_INCLUDE_FILES);
+    dynamicInstrumentationTimeoutCheckerMode =
+        configProvider.getString(
+            DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE);
     dynamicInstrumentationCaptureTimeout =
         configProvider.getInteger(
             DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT);
+            DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
+            DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS);
+    dynamicInstrumentationEvaluationTimeout =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT_MS, DEFAULT_DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT);
     dynamicInstrumentationRedactedIdentifiers =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, null);
     dynamicInstrumentationRedactionExcludedIdentifiers =
@@ -4689,8 +4706,16 @@ public class Config {
     return dynamicInstrumentationIncludeFiles;
   }
 
+  public String getDynamicInstrumentationTimeoutCheckerMode() {
+    return dynamicInstrumentationTimeoutCheckerMode;
+  }
+
   public int getDynamicInstrumentationCaptureTimeout() {
     return dynamicInstrumentationCaptureTimeout;
+  }
+
+  public int getDynamicInstrumentationEvalTimeout() {
+    return dynamicInstrumentationEvaluationTimeout;
   }
 
   public boolean isSymbolDatabaseEnabled() {

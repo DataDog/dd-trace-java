@@ -69,10 +69,10 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 
   @Shared
   private Map<DbType, String> jdbcUrls = [
-    (POSTGRESQL): "jdbc:postgresql://localhost:5432/" + dbName.get(POSTGRESQL),
-    (MYSQL)     : "jdbc:mysql://localhost:3306/" + dbName.get(MYSQL),
-    (SQLSERVER) : "jdbc:sqlserver://localhost:1433/" + dbName.get(SQLSERVER),
-    (ORACLE)    : "jdbc:oracle:thin:@//localhost:1521/" + dbName.get(ORACLE),
+    (POSTGRESQL): "jdbc:postgresql://localhost:5432/${dbName.get(POSTGRESQL)}",
+    (MYSQL)     : "jdbc:mysql://localhost:3306/${dbName.get(MYSQL)}",
+    (SQLSERVER) : "jdbc:sqlserver://localhost:1433/${dbName.get(SQLSERVER)}",
+    (ORACLE)    : "jdbc:oracle:thin:@//localhost:1521/${dbName.get(ORACLE)}"
   ]
 
   @Shared
@@ -119,14 +119,14 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
       && OperatingSystem.architecture().isArm64())
   }
 
-  def peerConnectionProps(DbType db){
+  def peerConnectionProps(DbType db) {
     def props = new Properties()
     props.setProperty("user", jdbcUserNames.get(db))
     props.setProperty("password", jdbcPasswords.get(db))
     return props
   }
 
-  protected String getDbType(DbType dbType){
+  protected String getDbType(DbType dbType) {
     return dbType.toString()
   }
 
@@ -456,7 +456,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     resultSet.next()
     resultSet.getInt(1) == 3
     def addDbmTag = dbmTraceInjected()
-    if (driver == SQLSERVER && addDbmTag){
+    if (driver == SQLSERVER && addDbmTag) {
       assertTraces(1) {
         trace(3) {
           basicSpan(it, "parent")
@@ -539,7 +539,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (usingHikari) {
                 "$Tags.DB_POOL_NAME" String
               }
-              if (this.dbmTracePreparedStatements(driver)){
+              if (this.dbmTracePreparedStatements(driver)) {
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
                 if (driver == POSTGRESQL) {
                   "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
@@ -593,7 +593,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     resultSet.getInt(1) == 3
 
     def addDbmTag = dbmTraceInjected()
-    if (driver == SQLSERVER && addDbmTag){
+    if (driver == SQLSERVER && addDbmTag) {
       assertTraces(1) {
         trace(3) {
           basicSpan(it, "parent")
@@ -678,7 +678,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
-              if (this.dbmTracePreparedStatements(driver)){
+              if (this.dbmTracePreparedStatements(driver)) {
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
                 if (driver == POSTGRESQL) {
                   "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
@@ -731,7 +731,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     resultSet.next()
     resultSet.getInt(1) == 3
     def addDbmTag = dbmTraceInjected()
-    if (driver == SQLSERVER && addDbmTag){
+    if (driver == SQLSERVER && addDbmTag) {
       assertTraces(1) {
         trace(3) {
           basicSpan(it, "parent")
@@ -811,7 +811,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
-              if (this.dbmTracePreparedStatements(driver)){
+              if (this.dbmTracePreparedStatements(driver)) {
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
                 if (driver == POSTGRESQL) {
                   "$InstrumentationTags.INSTRUMENTATION_TIME_MS" Long
@@ -1065,7 +1065,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 
     injectSysConfig("dd.dbm.propagation.mode", "full")
     CallableStatement proc = connection.prepareCall(query)
-    proc.setInt(1,1)
+    proc.setInt(1, 1)
     proc.registerOutParameter(1, Types.INTEGER)
     when:
     runUnderTrace("parent") {
@@ -1218,7 +1218,7 @@ class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
   }
 
   @Override
-  protected boolean dbmTracePreparedStatements(DbType dbType){
+  protected boolean dbmTracePreparedStatements(DbType dbType) {
     return dbType == ORACLE
   }
 
@@ -1317,7 +1317,7 @@ class RemoteDBMTraceInjectedForkedTestTracePreparedStatements extends RemoteJDBC
   }
 
   @Override
-  protected boolean dbmTracePreparedStatements(DbType dbType){
+  protected boolean dbmTracePreparedStatements(DbType dbType) {
     return dbType == POSTGRESQL || dbType == ORACLE
   }
 }

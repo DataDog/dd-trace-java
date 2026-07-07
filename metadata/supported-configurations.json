@@ -129,6 +129,14 @@
         "aliases": []
       }
     ],
+    "DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "0.5",
+        "aliases": []
+      }
+    ],
     "DD_API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE": [
       {
         "version": "A",
@@ -1217,11 +1225,27 @@
         "aliases": ["DD_JMXFETCH_START_DELAY"]
       }
     ],
-    "DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT": [
+    "DD_INTERNAL_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "WALL",
+        "aliases": []
+      }
+    ],
+    "DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS": [
+      {
+        "version": "B",
+        "type": "int",
+        "default": "100",
+        "aliases": ["DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT"]
+      }
+    ],
+    "DD_DYNAMIC_INSTRUMENTATION_EVALUATION_TIMEOUT_MS": [
       {
         "version": "A",
         "type": "int",
-        "default": "100",
+        "default": "50",
         "aliases": []
       }
     ],
@@ -9583,6 +9607,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_RXJAVA_ENABLED", "DD_INTEGRATION_RXJAVA_ENABLED"]
+      }
+    ],
+    "DD_TRACE_RXJAVA_3_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_RXJAVA_3_ENABLED", "DD_INTEGRATION_RXJAVA_3_ENABLED"]
       }
     ],
     "DD_TRACE_S3_ENABLED": [
