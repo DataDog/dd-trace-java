@@ -60,38 +60,6 @@ final class ULeb128Encoder {
   }
 
   /**
-   * Decodes a delta-varint base64 string back into the original ascending serial ids. Used by the
-   * codec round-trip oracle (the decode side mirrors the L2 system-tests decoder).
-   *
-   * @param encoded a base64 string produced by {@link #encodeDeltaVarint(Set)}
-   * @return the decoded serial ids in ascending order (empty for the empty string)
-   */
-  static SortedSet<Integer> decodeDeltaVarint(final String encoded) {
-    final SortedSet<Integer> result = new TreeSet<>();
-    if (encoded == null || encoded.isEmpty()) {
-      return result;
-    }
-    final byte[] bytes = Base64.getDecoder().decode(encoded);
-    int previous = 0;
-    int index = 0;
-    while (index < bytes.length) {
-      long value = 0;
-      int shift = 0;
-      while (true) {
-        final byte b = bytes[index++];
-        value |= ((long) (b & 0x7F)) << shift;
-        if ((b & 0x80) == 0) {
-          break;
-        }
-        shift += 7;
-      }
-      previous += (int) value; // delta from previous
-      result.add(previous);
-    }
-    return result;
-  }
-
-  /**
    * Lower-case hex SHA-256 of the given string. Used to hash subject targeting keys before they are
    * emitted (privacy: subject keys are never emitted in clear text).
    *

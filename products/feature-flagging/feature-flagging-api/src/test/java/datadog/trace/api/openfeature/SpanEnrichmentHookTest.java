@@ -22,6 +22,7 @@ import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.ImmutableStructure;
 import dev.openfeature.sdk.Value;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -133,13 +134,41 @@ class SpanEnrichmentHookTest {
     final String encoded = ULeb128Encoder.encodeDeltaVarint(ids);
     assertEquals("ZAgUAg==", encoded, "golden vector must match the frozen Node contract");
     // round-trip: decode back to the same ascending ids
-    assertEquals(ids, ULeb128Encoder.decodeDeltaVarint(encoded));
+    assertEquals(ids, decodeDeltaVarint(encoded));
     // empty set -> empty string (tag omitted)
     assertEquals("", ULeb128Encoder.encodeDeltaVarint(Collections.emptySet()));
     // dedupe is structural: a duplicate id does not change the encoding
     final SortedSet<Integer> withDup = new TreeSet<>(ids);
     withDup.add(100);
     assertEquals(encoded, ULeb128Encoder.encodeDeltaVarint(withDup));
+  }
+
+  // Test-only decode oracle for the ULEB128 delta-varint codec. The encoder ships in the published
+  // dd-openfeature jar; the decode side exists only to assert round-trips here, so it lives in the
+  // test rather than in production code.
+  private static SortedSet<Integer> decodeDeltaVarint(final String encoded) {
+    final SortedSet<Integer> result = new TreeSet<>();
+    if (encoded == null || encoded.isEmpty()) {
+      return result;
+    }
+    final byte[] bytes = Base64.getDecoder().decode(encoded);
+    int previous = 0;
+    int index = 0;
+    while (index < bytes.length) {
+      long value = 0;
+      int shift = 0;
+      while (true) {
+        final byte b = bytes[index++];
+        value |= ((long) (b & 0x7F)) << shift;
+        if ((b & 0x80) == 0) {
+          break;
+        }
+        shift += 7;
+      }
+      previous += (int) value; // delta from previous
+      result.add(previous);
+    }
+    return result;
   }
 
   // ---- 2. no-span (no active root) ----
@@ -311,7 +340,7 @@ class SpanEnrichmentHookTest {
     }
     final Map<String, String> tags = acc.toSpanTags();
     final SortedSet<Integer> decoded =
-        ULeb128Encoder.decodeDeltaVarint(
+        decodeDeltaVarint(
             // ffe_subjects_enc is {"<sha>":"<base64>"}; extract the single base64 value
             tags.get(SpanEnrichmentAccumulator.TAG_SUBJECTS_ENC)
                 .replaceAll("^\\{\"[a-f0-9]+\":\"", "")

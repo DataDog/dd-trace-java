@@ -261,10 +261,9 @@ final class SpanEnrichmentAccumulator {
   }
 
   @SuppressWarnings("unchecked")
-  private static void appendJsonValue(final StringBuilder sb, final Object rawValue) {
-    // Unwrap any OpenFeature Value to its native representation first so nested structures/lists
-    // serialize as JSON rather than via Value.toString().
-    final Object value = rawValue instanceof Value ? unwrapValue((Value) rawValue) : rawValue;
+  private static void appendJsonValue(final StringBuilder sb, final Object value) {
+    // Callers pass values already unwrapped to native form by stringifyDefault/unwrapValue, so no
+    // OpenFeature Value ever reaches here.
     if (value == null) {
       sb.append("null");
     } else if (value instanceof Map) {
