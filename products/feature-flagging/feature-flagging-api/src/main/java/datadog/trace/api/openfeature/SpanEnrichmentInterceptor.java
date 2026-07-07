@@ -1,6 +1,5 @@
 package datadog.trace.api.openfeature;
 
-import datadog.trace.api.DDTraceId;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -50,8 +49,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>State lives in the per-provider {@link SpanEnrichmentStates} store that is currently bound.
  * {@link #unbind(SpanEnrichmentStates)} clears only the store it unbinds, so one provider's close
- * can never wipe another's in-flight state. The store is hard-bounded, so a trace that never
- * reaches this interceptor cannot leak unboundedly.
+ * can never wipe another's in-flight state. The store is weak-keyed by the local-root span, so a
+ * trace that never reaches this interceptor is collected with its root and cannot leak unboundedly.
  *
  * <p>All work is wrapped in try/catch — enrichment must NEVER break trace finish.
  */
@@ -133,13 +132,8 @@ final class SpanEnrichmentInterceptor implements TraceInterceptor {
       if (!(localRoot instanceof AgentSpan)) {
         return trace; // partial flush, or no resolvable in-fragment root: keep state untouched
       }
-      final DDTraceId traceId = ((AgentSpan) localRoot).getTraceId();
-      if (traceId == null) {
-        return trace; // no trace id (e.g. Noop span) — cannot key state; keep it
-      }
-      // Key by the full trace id (hex) to match the capture-side keying.
-      final String traceKey = traceId.toHexString();
-      final SpanEnrichmentAccumulator state = states.remove(traceKey);
+      // Key by the local-root span object to match the capture-side keying.
+      final SpanEnrichmentAccumulator state = states.remove((AgentSpan) localRoot);
       if (state == null || !state.hasData()) {
         return trace;
       }

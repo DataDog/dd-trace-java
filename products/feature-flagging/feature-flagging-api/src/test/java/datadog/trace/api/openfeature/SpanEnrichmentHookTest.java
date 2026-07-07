@@ -11,7 +11,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import datadog.trace.api.DDTraceId;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import dev.openfeature.sdk.FlagEvaluationDetails;
@@ -61,9 +60,11 @@ class SpanEnrichmentHookTest {
 
   // ---- helpers ----
 
-  /** The store key the production code derives from a trace id (full hex). */
-  private static String key(final long traceId) {
-    return DDTraceId.from(traceId).toHexString();
+  /** A mock local-root span reporting itself as its own local root (identity key + final flush). */
+  private static AgentSpan rootSpan() {
+    final AgentSpan root = mock(AgentSpan.class);
+    when(root.getLocalRootSpan()).thenReturn(root);
+    return root;
   }
 
   private static FlagEvaluationDetails<Object> details(
@@ -98,10 +99,10 @@ class SpanEnrichmentHookTest {
         "default");
   }
 
-  /** Drives the capture branch directly (no static tracer) for a fixed trace id. */
+  /** Drives the capture branch directly (no static tracer) for a fixed local-root span. */
   private static void capture(
       final SpanEnrichmentHook hook,
-      final long traceId,
+      final AgentSpan root,
       final String flagKey,
       final String targetingKey,
       final String variant,
@@ -109,20 +110,9 @@ class SpanEnrichmentHookTest {
       final Integer serialId,
       final boolean doLog) {
     hook.capture(
-        key(traceId),
+        root,
         ctx(flagKey, targetingKey),
         details(flagKey, variant, value, metadata(serialId, doLog)));
-  }
-
-  /**
-   * Configures a mock root span to report itself as its own local root with the given trace id. The
-   * returned span, passed in a singleton collection, models a FINAL flush (the root is present in
-   * the fragment), so the interceptor flushes + removes state.
-   */
-  private static AgentSpan rootSpanCollection(final long traceId, final AgentSpan rootSpan) {
-    when(rootSpan.getLocalRootSpan()).thenReturn(rootSpan);
-    when(rootSpan.getTraceId()).thenReturn(DDTraceId.from(traceId));
-    return rootSpan;
   }
 
   /** Binds a fresh interceptor to the given store, models a final flush, and returns it. */
@@ -170,13 +160,12 @@ class SpanEnrichmentHookTest {
   void finallyAfterResolvesRootViaResolverAndAccumulates() {
     // Drives finallyAfter end-to-end with an injected root resolver (no static mocks).
     final AgentSpan root = mock(AgentSpan.class);
-    when(root.getTraceId()).thenReturn(DDTraceId.from(0x77L));
     final SpanEnrichmentHook hook = new SpanEnrichmentHook(() -> root, states);
     hook.finallyAfter(
         ctx("flag", "user-1"),
         details("flag", "on", "v", metadata(42, true)),
         Collections.emptyMap());
-    final SpanEnrichmentAccumulator state = states.peek(key(0x77L));
+    final SpanEnrichmentAccumulator state = states.peek(root);
     assertTrue(state != null && state.serialIdsView().contains(42));
     assertEquals(1, state.subjectCount(), "doLog=true + targeting key => subject recorded");
   }
@@ -186,16 +175,14 @@ class SpanEnrichmentHookTest {
   @Test
   void finishedRootFlushesFlagsEncTag() {
     final SpanEnrichmentHook hook = new SpanEnrichmentHook(states);
-    final long traceId = 0xABCDL;
+    final AgentSpan root = rootSpan();
     // accumulate {100,108,128,130} with a duplicate 100 to prove dedupe
-    capture(hook, traceId, "f1", "user-1", "on", "v", 100, false);
-    capture(hook, traceId, "f2", "user-1", "on", "v", 108, false);
-    capture(hook, traceId, "f3", "user-1", "on", "v", 128, false);
-    capture(hook, traceId, "f4", "user-1", "on", "v", 130, false);
-    capture(hook, traceId, "f1", "user-1", "on", "v", 100, false); // dup
+    capture(hook, root, "f1", "user-1", "on", "v", 100, false);
+    capture(hook, root, "f2", "user-1", "on", "v", 108, false);
+    capture(hook, root, "f3", "user-1", "on", "v", 128, false);
+    capture(hook, root, "f4", "user-1", "on", "v", 130, false);
+    capture(hook, root, "f1", "user-1", "on", "v", 100, false); // dup
 
-    final AgentSpan root = mock(AgentSpan.class);
-    rootSpanCollection(traceId, root);
     boundInterceptor(states).onTraceComplete(Collections.singletonList(root));
 
     verify(root).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "ZAgUAg==");
@@ -208,11 +195,11 @@ class SpanEnrichmentHookTest {
   @Test
   void runtimeDefaultMissingVariantWritesJsonObject() {
     final SpanEnrichmentHook hook = new SpanEnrichmentHook(states);
-    final long traceId = 0x1234L;
+    final AgentSpan root = rootSpan();
     // no serial id + null variant => runtime default; object value must be JSON-stringified
     final Map<String, Object> objectValue = Collections.singletonMap("k", "val");
     hook.capture(
-        key(traceId),
+        root,
         ctx("obj-flag", "user-1"),
         FlagEvaluationDetails.builder()
             .flagKey("obj-flag")
@@ -221,8 +208,6 @@ class SpanEnrichmentHookTest {
             .flagMetadata(ImmutableMetadata.builder().build())
             .build());
 
-    final AgentSpan root = mock(AgentSpan.class);
-    rootSpanCollection(traceId, root);
     boundInterceptor(states).onTraceComplete(Collections.singletonList(root));
 
     // ffe_runtime_defaults is a JSON object string, NOT [object Object]/toString.
@@ -245,7 +230,7 @@ class SpanEnrichmentHookTest {
   @Test
   void runtimeDefaultStructureValueSerializesAsJsonNotToString() {
     final SpanEnrichmentHook hook = new SpanEnrichmentHook(states);
-    final long traceId = 0x2468L;
+    final AgentSpan root = rootSpan();
 
     // Single-key structure so the exact-string assertion does not depend on the OpenFeature SDK's
     // internal key ordering. (The multi-key / nesting behaviour is covered by the direct
@@ -255,7 +240,7 @@ class SpanEnrichmentHookTest {
     final Value structureDefault = new Value(new ImmutableStructure(inner));
 
     hook.capture(
-        key(traceId),
+        root,
         ctx("struct-flag", "user-1"),
         FlagEvaluationDetails.builder()
             .flagKey("struct-flag")
@@ -264,8 +249,6 @@ class SpanEnrichmentHookTest {
             .flagMetadata(ImmutableMetadata.builder().build())
             .build());
 
-    final AgentSpan root = mock(AgentSpan.class);
-    rootSpanCollection(traceId, root);
     boundInterceptor(states).onTraceComplete(Collections.singletonList(root));
 
     // {"struct-flag":"{\"enabled\":true}"}  — note: NO "Value(innerObject=...)".
@@ -316,12 +299,11 @@ class SpanEnrichmentHookTest {
 
     // doLog gating: addSubject only happens when doLog true (driven via the hook branch below).
     final SpanEnrichmentHook hook = new SpanEnrichmentHook(states);
-    final long traceId = 0x5L;
-    capture(hook, traceId, "f", "user-A", "on", "v", 1, false); // doLog=false => no subject
-    assertEquals(
-        0, states.peek(key(traceId)).subjectCount(), "doLog=false must not record a subject");
-    capture(hook, traceId, "f", "user-A", "on", "v", 2, true); // doLog=true => subject recorded
-    assertEquals(1, states.peek(key(traceId)).subjectCount());
+    final AgentSpan root = rootSpan();
+    capture(hook, root, "f", "user-A", "on", "v", 1, false); // doLog=false => no subject
+    assertEquals(0, states.peek(root).subjectCount(), "doLog=false must not record a subject");
+    capture(hook, root, "f", "user-A", "on", "v", 2, true); // doLog=true => subject recorded
+    assertEquals(1, states.peek(root).subjectCount());
 
     // per-subject experiment cap: 20 max
     for (int i = 0; i < 25; i++) {
@@ -448,7 +430,7 @@ class SpanEnrichmentHookTest {
 
     // provider close unbinds + drains ITS OWN state.
     final SpanEnrichmentStates providerStates = provider.spanEnrichmentStates();
-    providerStates.getOrCreate(key(1L));
+    providerStates.getOrCreate(mock(AgentSpan.class));
     assertFalse(providerStates.isEmpty());
     provider.shutdown();
     assertNull(

@@ -18,10 +18,9 @@ import java.util.Map;
  * <p>Mirrors {@link FlagEvalHook}: registered via {@link Provider#getProviderHooks()} (only when
  * the span-enrichment gate is on) and reading {@code details.getFlagMetadata()}. It resolves the
  * active local-root span via {@link AgentTracer#activeSpan()} and keys the {@link
- * SpanEnrichmentStates} store (shared with the {@link SpanEnrichmentInterceptor}) by that root's
- * full trace id (hex), so the interceptor running later on the write thread can recover the same
- * state from the completed span collection. The full hex key avoids merging two distinct 128-bit
- * traces that happen to share their low-order 64 bits.
+ * SpanEnrichmentStates} store (shared with the {@link SpanEnrichmentInterceptor}) by that root span
+ * object, so the interceptor running later on the write thread can recover the same state from the
+ * completed span collection (the local root is a single stable object for the trace).
  *
  * <p>Capture branch (frozen Node reference):
  *
@@ -78,24 +77,22 @@ class SpanEnrichmentHook implements Hook<Object> {
     }
     try {
       final AgentSpan root = rootSpanResolver.activeLocalRoot();
-      if (root == null || root.getTraceId() == null) {
+      if (root == null) {
         return; // no active span → nothing to enrich
       }
-      // Key by the full trace id (hex), not toLong(): the low-order 64 bits alone would merge two
-      // distinct 128-bit traces that share their low bits.
-      final String traceKey = root.getTraceId().toHexString();
-      capture(traceKey, ctx, details);
+      capture(root, ctx, details);
     } catch (final Throwable t) {
       // Never let span enrichment break flag evaluation.
     }
   }
 
   /**
-   * Applies the frozen Node capture branch against the state keyed by {@code traceKey}. Package
-   * private so it can be driven deterministically in tests without stubbing the static tracer.
+   * Applies the frozen Node capture branch against the state keyed by the local-root {@code root}
+   * span. Package private so it can be driven deterministically in tests without stubbing the
+   * static tracer.
    */
   void capture(
-      final String traceKey,
+      final AgentSpan root,
       final HookContext<Object> ctx,
       final FlagEvaluationDetails<Object> details) {
     final ImmutableMetadata metadata = details.getFlagMetadata();
@@ -111,14 +108,14 @@ class SpanEnrichmentHook implements Hook<Object> {
       } catch (final NumberFormatException e) {
         return; // malformed serial id — drop, never break eval
       }
-      final SpanEnrichmentAccumulator state = states.getOrCreate(traceKey);
+      final SpanEnrichmentAccumulator state = states.getOrCreate(root);
       state.addSerialId(serialId);
       if (doLog && targetingKey != null) {
         state.addSubject(targetingKey, serialId);
       }
     } else if (details.getVariant() == null) {
       // Runtime-default detection = MISSING VARIANT (never a reason enum).
-      states.getOrCreate(traceKey).addDefault(details.getFlagKey(), details.getValue());
+      states.getOrCreate(root).addDefault(details.getFlagKey(), details.getValue());
     }
   }
 
