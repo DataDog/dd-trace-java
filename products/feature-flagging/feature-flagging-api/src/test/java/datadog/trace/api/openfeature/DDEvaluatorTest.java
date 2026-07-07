@@ -23,6 +23,7 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import dev.openfeature.sdk.ErrorCode;
@@ -37,7 +38,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,8 +58,7 @@ public class DDEvaluatorTest {
 
   private static final String CANONICAL_FIXTURE_PATH =
       "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data";
-  private static final Moshi MOSHI =
-      new Moshi.Builder().add(Instant.class, new InstantAdapter()).build();
+  private static final Moshi MOSHI = new Moshi.Builder().add(Date.class, new DateAdapter()).build();
   private static final JsonAdapter<ServerConfiguration> CONFIG_ADAPTER =
       MOSHI.adapter(ServerConfiguration.class);
   private static final Type FIXTURE_LIST_TYPE =
@@ -193,6 +195,19 @@ public class DDEvaluatorTest {
     assertThat(details.getValue(), equalTo(23));
     assertThat(details.getReason(), equalTo("DEFAULT"));
     assertThat(details.getErrorCode(), nullValue());
+  }
+
+  @Test
+  public void testAllocationDateAbiAndInstantAccessors() throws Exception {
+    final Date startAt = Date.from(Instant.parse("2024-01-01T00:00:00Z"));
+    final Date endAt = Date.from(Instant.parse("2024-12-31T23:59:59Z"));
+    final Allocation allocation =
+        new Allocation("allocation", emptyList(), startAt, endAt, emptyList(), true);
+
+    assertThat(Allocation.class.getField("startAt").getType(), equalTo(Date.class));
+    assertThat(Allocation.class.getField("endAt").getType(), equalTo(Date.class));
+    assertThat(allocation.startAtInstant(), equalTo(startAt.toInstant()));
+    assertThat(allocation.endAtInstant(), equalTo(endAt.toInstant()));
   }
 
   private static Arguments[] flatteningTestCases() {
@@ -386,26 +401,27 @@ public class DDEvaluatorTest {
     Map<String, Object> flagMetadata = emptyMap();
   }
 
-  private static final class InstantAdapter extends JsonAdapter<Instant> {
+  private static final class DateAdapter extends JsonAdapter<Date> {
     @Override
-    public Instant fromJson(final JsonReader reader) throws IOException {
+    public Date fromJson(final JsonReader reader) throws IOException {
       if (reader.peek() == JsonReader.Token.NULL) {
         return reader.nextNull();
       }
       try {
-        return Instant.parse(reader.nextString());
+        return Date.from(
+            DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(reader.nextString(), Instant::from));
       } catch (final Exception ignored) {
         return null;
       }
     }
 
     @Override
-    public void toJson(final JsonWriter writer, final Instant value) throws IOException {
+    public void toJson(final JsonWriter writer, final Date value) throws IOException {
       if (value == null) {
         writer.nullValue();
         return;
       }
-      writer.value(value.toString());
+      writer.value(value.toInstant().toString());
     }
   }
 }

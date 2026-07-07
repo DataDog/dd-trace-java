@@ -198,12 +198,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static boolean isAllocationActive(final Allocation allocation, final Instant now) {
-    final Instant startDate = allocation.startAt;
+    final Instant startDate = allocation.startAtInstant();
     if (startDate != null && now.isBefore(startDate)) {
       return false;
     }
 
-    final Instant endDate = allocation.endAt;
+    final Instant endDate = allocation.endAtInstant();
     if (endDate != null && now.isAfter(endDate)) {
       return false;
     }
