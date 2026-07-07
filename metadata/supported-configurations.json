@@ -3121,7 +3121,7 @@
         "aliases": []
       }
     ],
-    "DD_PROFILING_EXPERIMENTAL_ASYNC_ENABLE_JMETHODID_OPTIM": [
+    "DD_PROFILING_EXPERIMENTAL_ASYNC_JMETHODID_OPTIM_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
@@ -3153,7 +3153,7 @@
         "aliases": []
       }
     ],
-    "DD_PROFILING_EXPERIMENTAL_DDPROF_ENABLE_JMETHODID_OPTIM": [
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_JMETHODID_OPTIM_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
