@@ -133,8 +133,8 @@
 /internal-api/src/main/java/datadog/trace/api/debugger/         @DataDog/debugger-java
 
 
-# @DataDog/data-jobs-monitoring
-/dd-java-agent/instrumentation/spark/           @DataDog/data-jobs-monitoring
+# @DataDog/data-observability
+/dd-java-agent/instrumentation/spark/           @DataDog/data-observability
 
 # @DataDog/data-streams-monitoring
 /dd-java-agent/instrumentation-testing/src/main/groovy/datadog/trace/agent/test/datastreams @DataDog/data-streams-monitoring
