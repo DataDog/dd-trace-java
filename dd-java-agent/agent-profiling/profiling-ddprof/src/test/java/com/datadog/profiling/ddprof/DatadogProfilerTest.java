@@ -16,6 +16,7 @@ import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -118,7 +119,8 @@ class DatadogProfilerTest {
     DatadogProfiler profiler =
         DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
 
-    Path targetFile = Paths.get("/tmp/target.jfr");
+    Path dir = Path.of("/tmp");
+    Path targetFile = Files.createTempFile(dir, "target_", ".jfr");
     String cmd = profiler.cmdStartProfiling(targetFile);
 
     assertTrue(cmd.contains(",fjmethodid=false"), cmd);
