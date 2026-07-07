@@ -311,7 +311,8 @@ public final class DatadogProfiler {
     return getOrderedContextAttributes(getContextAttributes(configProvider), configProvider);
   }
 
-  private static List<String> getOrderedContextAttributes(Set<String> contextAttributes, ConfigProvider configProvider) {
+  private static List<String> getOrderedContextAttributes(
+      Set<String> contextAttributes, ConfigProvider configProvider) {
     List<String> ordered = new ArrayList<>(contextAttributes);
     if (isSpanNameContextAttributeEnabled(configProvider)) {
       ordered.add(OPERATION);
