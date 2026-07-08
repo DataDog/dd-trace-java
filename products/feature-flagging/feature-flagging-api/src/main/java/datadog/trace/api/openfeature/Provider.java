@@ -2,7 +2,6 @@ package datadog.trace.api.openfeature;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.config.FeatureFlaggingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -52,7 +51,6 @@ public class Provider extends EventProvider implements Metadata {
   private final FlagEvalHook flagEvalHook;
   // Span enrichment: null unless the gate is on, so the feature has no idle overhead when off.
   private final SpanEnrichmentHook spanEnrichmentHook;
-  private final SpanEnrichmentStates spanEnrichmentStates;
   // Precomputed hook list returned by getProviderHooks() on every evaluation. Immutable and built
   // once so gate-off evaluation allocates nothing on this hot path.
   private final List<Hook> providerHooks;
@@ -70,17 +68,6 @@ public class Provider extends EventProvider implements Metadata {
   }
 
   /**
-   * Registers a {@link SpanEnrichmentInterceptor} with the running tracer, returning {@code true}
-   * when it was added and {@code false} when the tracer rejected it (e.g. the interceptor is
-   * already registered, or the global tracer is the no-op placeholder). Injectable so tests can
-   * drive registration deterministically without mutating the global tracer (mirrors the {@code
-   * spanEnrichmentEnabledOverride} seam).
-   */
-  interface TraceInterceptorRegistrar {
-    boolean register(SpanEnrichmentInterceptor interceptor);
-  }
-
-  /**
    * @param spanEnrichmentEnabledOverride when non-null, forces the span-enrichment gate (test
    *     seam); when null, the gate is read from {@link #SPAN_ENRICHMENT_ENABLED_KEY}.
    */
@@ -88,22 +75,6 @@ public class Provider extends EventProvider implements Metadata {
       final Options options,
       final Evaluator evaluator,
       final Boolean spanEnrichmentEnabledOverride) {
-    this(
-        options,
-        evaluator,
-        spanEnrichmentEnabledOverride,
-        interceptor -> GlobalTracer.get().addTraceInterceptor(interceptor));
-  }
-
-  /**
-   * @param registrar registers the span-enrichment interceptor with the tracer; injectable for
-   *     tests (see {@link TraceInterceptorRegistrar}).
-   */
-  Provider(
-      final Options options,
-      final Evaluator evaluator,
-      final Boolean spanEnrichmentEnabledOverride,
-      final TraceInterceptorRegistrar registrar) {
     this.options = options;
     this.evaluator = evaluator;
     FlagEvalMetrics metrics = null;
@@ -118,34 +89,15 @@ public class Provider extends EventProvider implements Metadata {
     this.flagEvalMetrics = metrics;
     this.flagEvalHook = hook;
 
-    // Span enrichment is wired ONLY when the gate is on. When off, no hook/state is constructed and
-    // there is no idle per-evaluation or per-span overhead.
+    // Span enrichment is wired ONLY when the gate is on. When off, no capture hook is constructed
+    // and there is no idle per-evaluation overhead. The hook merely dispatches evaluation metadata
+    // onto FeatureFlaggingGateway; the agent-side write tier (feature-flagging-lib) resolves the
+    // span and accumulates, so this application-side provider holds no tracer dependency.
     final boolean spanEnrichmentEnabled =
         spanEnrichmentEnabledOverride != null
             ? spanEnrichmentEnabledOverride
             : isSpanEnrichmentEnabled();
-    SpanEnrichmentHook seHook = null;
-    SpanEnrichmentStates seStates = null;
-    if (spanEnrichmentEnabled) {
-      try {
-        // Per-provider state store, shared with this provider's capture hook. The single,
-        // process-wide interceptor is registered once (reconfiguration-safe) and rebound to this
-        // provider's store. A later gate-on provider rebinds it to its own store; this provider's
-        // shutdown only unbinds if it is still the active provider, so reconfiguration never
-        // permanently disables enrichment and providers never clobber each other's live state.
-        seStates = new SpanEnrichmentStates();
-        SpanEnrichmentInterceptor.ensureRegistered(registrar);
-        SpanEnrichmentInterceptor.INSTANCE.bind(seStates);
-        seHook = new SpanEnrichmentHook(seStates);
-      } catch (LinkageError | Exception e) {
-        // Tracer classes absent (e.g. API-only classpath): degrade to no span enrichment.
-        log.warn("Span enrichment unavailable — tracer classes not on classpath", e);
-        seHook = null;
-        seStates = null;
-      }
-    }
-    this.spanEnrichmentHook = seHook;
-    this.spanEnrichmentStates = seStates;
+    this.spanEnrichmentHook = spanEnrichmentEnabled ? new SpanEnrichmentHook() : null;
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
@@ -153,15 +105,14 @@ public class Provider extends EventProvider implements Metadata {
     if (flagEvalHook != null) {
       hooks.add(flagEvalHook);
     }
-    if (seHook != null) {
-      hooks.add(seHook);
+    if (spanEnrichmentHook != null) {
+      hooks.add(spanEnrichmentHook);
     }
     this.providerHooks =
         hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
 
     // Announce the span-enrichment state at startup (matches the reference implementation).
-    // Reflects effective wiring: "enabled" only when the hook was actually constructed (gate on AND
-    // tracer classes present), otherwise "disabled".
+    // "enabled" only when the gate is on (the capture hook was constructed), otherwise "disabled".
     if (spanEnrichmentHook != null) {
       log.info("{} span enrichment enabled", METADATA);
     } else {
@@ -294,26 +245,17 @@ public class Provider extends EventProvider implements Metadata {
     if (flagEvalMetrics != null) {
       flagEvalMetrics.shutdown();
     }
-    // Provider-close cleanup for span enrichment: the tracer has no interceptor-removal API, so we
-    // unbind this provider's store from the process-wide interceptor (which clears the store and
-    // makes the interceptor inert until a new provider rebinds it). The unbind is a no-op if a
-    // newer provider has already rebound the interceptor, so we never wipe another provider's
-    // in-flight state.
-    if (spanEnrichmentStates != null) {
-      SpanEnrichmentInterceptor.INSTANCE.unbind(spanEnrichmentStates);
-    }
+    // Span enrichment needs no provider-close cleanup here: the capture hook holds no tracer state.
+    // The agent-side write tier owns the interceptor and per-trace state and is torn down with the
+    // feature-flagging subsystem, not per provider.
     if (evaluator != null) {
       evaluator.shutdown();
     }
   }
 
-  // Visible for tests: expose whether span enrichment is wired (gate-on) without leaking the impls.
+  // Visible for tests: expose whether span enrichment is wired (gate-on) without leaking the impl.
   SpanEnrichmentHook spanEnrichmentHook() {
     return spanEnrichmentHook;
-  }
-
-  SpanEnrichmentStates spanEnrichmentStates() {
-    return spanEnrichmentStates;
   }
 
   @Override

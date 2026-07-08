@@ -1,4 +1,4 @@
-package datadog.trace.api.openfeature;
+package com.datadog.featureflag;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

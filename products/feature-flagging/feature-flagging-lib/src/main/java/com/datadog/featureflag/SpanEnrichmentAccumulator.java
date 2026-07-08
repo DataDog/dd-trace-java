@@ -1,8 +1,5 @@
-package datadog.trace.api.openfeature;
+package com.datadog.featureflag;
 
-import dev.openfeature.sdk.Structure;
-import dev.openfeature.sdk.Value;
-import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -17,9 +14,14 @@ import java.util.TreeSet;
  * ULeb128Encoder}.
  *
  * <p>Instances are created lazily and held in a {@link SpanEnrichmentStates} store, keyed by the
- * local-root span's full trace id. The capture hook ({@link SpanEnrichmentHook}) writes; the write
- * interceptor ({@link SpanEnrichmentInterceptor}) reads and clears. When the span-enrichment gate
- * is off, no store and no accumulator are ever created, so there is no idle per-span overhead.
+ * local-root span object. The agent-side {@link SpanEnrichmentWriter} writes (from the flag-eval
+ * seam); the write interceptor ({@link SpanEnrichmentInterceptor}) reads and clears. When the
+ * span-enrichment gate is off, no seam events are dispatched, so no store and no accumulator are
+ * ever created and there is no idle per-span overhead.
+ *
+ * <p>Runtime-default values arrive already unwrapped to native Java types (the capture side unwraps
+ * any OpenFeature {@code Value} before crossing the seam), so this class has no OpenFeature
+ * dependency.
  *
  * <p>Output tag shapes:
  *
@@ -83,8 +85,9 @@ final class SpanEnrichmentAccumulator {
   }
 
   /**
-   * Records a runtime-default value for {@code flagKey} (first-wins). Object values are serialized
-   * to JSON (NOT {@code toString()}); the result is truncated to {@link #MAX_DEFAULT_VALUE_LENGTH}.
+   * Records a runtime-default value for {@code flagKey} (first-wins). Structured values (Map/List)
+   * are serialized to JSON (NOT {@code toString()}); the result is truncated to {@link
+   * #MAX_DEFAULT_VALUE_LENGTH}.
    */
   synchronized void addDefault(final String flagKey, final Object value) {
     if (flagKey == null) {
@@ -142,86 +145,26 @@ final class SpanEnrichmentAccumulator {
 
   /**
    * Mirrors the Node {@code (typeof value === 'object' && value !== null) ? JSON.stringify(value) :
-   * String(value)} rule: structured values (objects, arrays) are JSON-stringified; scalars use
-   * their string form; {@code null} becomes the bare {@code null}.
+   * String(value)} rule: structured values (Map/List/array) are JSON-stringified; scalars use their
+   * string form; {@code null} becomes the bare {@code null}.
    *
-   * <p>On the real OpenFeature object-evaluation path the runtime-default arrives wrapped in a
-   * {@link Value}; we unwrap it to its native representation first so a structured default
-   * serializes to JSON (matching Node's {@code JSON.stringify} of the equivalent JS object) instead
-   * of {@code Value.toString()} (which is {@code "Value(innerObject=...)"}). The scalar cases
-   * ({@code String}/{@code Boolean}/number) collapse to the same string form Node produces.
+   * <p>The value has already been unwrapped to a native Java type by the capture side (any
+   * OpenFeature {@code Value} is converted to Map/List/scalar before the seam), so no OpenFeature
+   * type ever reaches here.
    */
   static String stringifyDefault(final Object value) {
-    final Object unwrapped = value instanceof Value ? unwrapValue((Value) value) : value;
-    if (unwrapped == null) {
+    if (value == null) {
       return "null";
     }
-    if (unwrapped instanceof Map
-        || unwrapped instanceof Iterable
-        || unwrapped.getClass().isArray()) {
-      return toJsonValue(unwrapped);
+    if (value instanceof Map || value instanceof Iterable || value.getClass().isArray()) {
+      return toJsonValue(value);
     }
-    if (unwrapped instanceof CharSequence || unwrapped instanceof Character) {
-      return unwrapped.toString();
+    if (value instanceof CharSequence || value instanceof Character) {
+      return value.toString();
     }
-    // Numbers / booleans / Instant — their string form matches what Node's String(value) emits for
-    // these scalar cases.
-    return String.valueOf(unwrapped);
-  }
-
-  /**
-   * Recursively unwraps an OpenFeature {@link Value} into its native Java representation:
-   * structures become {@code Map<String, Object>}, lists become {@code List<Object>}, and scalars
-   * become their boxed value (or {@code null}). Nested {@link Value}s are unwrapped at every level
-   * so a structure containing further structures/lists serializes correctly.
-   */
-  private static Object unwrapValue(final Value value) {
-    if (value == null || value.isNull()) {
-      return null;
-    }
-    if (value.isStructure()) {
-      final Structure structure = value.asStructure();
-      final Map<String, Object> map = new LinkedHashMap<>();
-      if (structure != null) {
-        for (final String key : structure.keySet()) {
-          map.put(key, unwrapValue(structure.getValue(key)));
-        }
-      }
-      return map;
-    }
-    if (value.isList()) {
-      final java.util.List<Value> list = value.asList();
-      final java.util.List<Object> out = new java.util.ArrayList<>(list == null ? 0 : list.size());
-      if (list != null) {
-        for (final Value element : list) {
-          out.add(unwrapValue(element));
-        }
-      }
-      return out;
-    }
-    if (value.isBoolean()) {
-      return value.asBoolean();
-    }
-    if (value.isString()) {
-      return value.asString();
-    }
-    if (value.isNumber()) {
-      // Preserve integral vs fractional so the rendered JSON number matches Node.
-      final Double d = value.asDouble();
-      if (d != null && d == Math.rint(d) && !Double.isInfinite(d)) {
-        final Integer i = value.asInteger();
-        if (i != null) {
-          return i;
-        }
-      }
-      return d;
-    }
-    final Instant instant = value.asInstant();
-    if (instant != null) {
-      return instant.toString();
-    }
-    // Unknown shape: fall back to the wrapped object's own representation.
-    return value.asObject();
+    // Numbers / booleans — their string form matches what Node's String(value) emits for these
+    // scalar cases.
+    return String.valueOf(value);
   }
 
   /** UTF-8-safe truncation: never split a surrogate pair at the {@code maxChars} boundary. */
@@ -262,8 +205,8 @@ final class SpanEnrichmentAccumulator {
 
   @SuppressWarnings("unchecked")
   private static void appendJsonValue(final StringBuilder sb, final Object value) {
-    // Callers pass values already unwrapped to native form by stringifyDefault/unwrapValue, so no
-    // OpenFeature Value ever reaches here.
+    // Callers pass values already unwrapped to native form by the capture side, so no OpenFeature
+    // Value ever reaches here.
     if (value == null) {
       sb.append("null");
     } else if (value instanceof Map) {

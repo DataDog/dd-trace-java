@@ -45,16 +45,15 @@ dependencies {
 
   compileOnly(project(":products:feature-flagging:feature-flagging-bootstrap"))
   compileOnly(project(":utils:config-utils"))
-  // Span enrichment: TraceInterceptor / GlobalTracer / AgentTracer / AgentSpan for the
-  // write tier + active-root-span lookup. compileOnly because the agent runtime
-  // (feature-flagging-agent depends on :internal-api) provides these classes; the published
-  // dd-openfeature jar must not bundle the tracer.
-  compileOnly(project(":internal-api"))
+  // Public config constants (FeatureFlaggingConfig). dd-trace-api is the customer-facing public API,
+  // so this is a valid product-API dependency (previously reached transitively via :internal-api).
+  // compileOnly: the constant is inlined, and the agent runtime provides the class.
+  compileOnly(project(":dd-trace-api"))
   compileOnly("io.opentelemetry:opentelemetry-api:1.47.0")
 
   testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
-  testImplementation(project(":internal-api"))
   testImplementation(project(":utils:config-utils"))
+  testImplementation(project(":dd-trace-api"))
   testImplementation("io.opentelemetry:opentelemetry-api:1.47.0")
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)

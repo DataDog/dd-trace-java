@@ -1,12 +1,11 @@
-package datadog.trace.api.openfeature;
+package com.datadog.featureflag;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * Instance-owned store of per-trace {@link SpanEnrichmentAccumulator} state, keyed by the
- * local-root span object.
+ * Store of per-trace {@link SpanEnrichmentAccumulator} state, keyed by the local-root span object.
  *
  * <p><b>Weak keys.</b> The map is a {@link WeakHashMap} keyed by the local-root {@link AgentSpan}
  * instance. The accumulator is reachable only while its local-root span is, so a trace that never
@@ -19,11 +18,11 @@ import java.util.WeakHashMap;
  * trace-id hex string) is inherently unique per trace: two distinct traces have distinct root
  * objects and can never share an accumulator.
  *
- * <p>Each {@link SpanEnrichmentHook}/{@link SpanEnrichmentInterceptor} pair shares one store
- * instance. Because the store is instance-owned rather than a shared static, one provider's cleanup
- * clears only its own state and can never wipe another (still-active) provider's in-flight entries.
+ * <p>A single store is owned by the agent-side {@link SpanEnrichmentWriter} and shared with its
+ * {@link SpanEnrichmentInterceptor}. The writer accumulates (from the flag-eval seam); the
+ * interceptor reads + removes (trace-write thread).
  *
- * <p>Thread-safety: all access is guarded by the intrinsic lock on this instance. The hook writes
+ * <p>Thread-safety: all access is guarded by the intrinsic lock on this instance. The writer writes
  * (eval thread) and the interceptor reads+removes (trace-write thread) concurrently, so every
  * mutator and accessor synchronizes. Contention is low — operations are O(1) map touches.
  */
@@ -49,7 +48,7 @@ final class SpanEnrichmentStates {
     return states.remove(root);
   }
 
-  /** Clears all tracked state (cleanup on provider close / unbind). */
+  /** Clears all tracked state (cleanup on shutdown). */
   synchronized void clear() {
     states.clear();
   }

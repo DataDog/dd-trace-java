@@ -11,6 +11,7 @@ public class FeatureFlaggingSystem {
 
   private static volatile RemoteConfigService CONFIG_SERVICE;
   private static volatile ExposureWriter EXPOSURE_WRITER;
+  private static volatile SpanEnrichmentWriter SPAN_ENRICHMENT_WRITER;
 
   private FeatureFlaggingSystem() {}
 
@@ -27,10 +28,20 @@ public class FeatureFlaggingSystem {
     EXPOSURE_WRITER = new ExposureWriterImpl(sco, config);
     EXPOSURE_WRITER.init();
 
+    // APM span enrichment: agent-side listener for flag-evaluation seam events. Cheap to register
+    // (it only accumulates once the provider's gate-on capture hook actually dispatches events, and
+    // registers its trace interceptor lazily on the first such event).
+    SPAN_ENRICHMENT_WRITER = new SpanEnrichmentWriter();
+    SPAN_ENRICHMENT_WRITER.init();
+
     LOGGER.debug("Feature Flagging system started");
   }
 
   public static void stop() {
+    if (SPAN_ENRICHMENT_WRITER != null) {
+      SPAN_ENRICHMENT_WRITER.close();
+      SPAN_ENRICHMENT_WRITER = null;
+    }
     if (EXPOSURE_WRITER != null) {
       EXPOSURE_WRITER.close();
       EXPOSURE_WRITER = null;
