@@ -43,11 +43,6 @@ public class RedissonClientDecorator
   }
 
   @Override
-  protected String dbUser(CommandData<?, ?> commandData) {
-    return null;
-  }
-
-  @Override
   protected String dbInstance(CommandData<?, ?> commandData) {
     return null;
   }

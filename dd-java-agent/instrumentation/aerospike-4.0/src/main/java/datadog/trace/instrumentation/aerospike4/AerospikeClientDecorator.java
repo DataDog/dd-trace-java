@@ -51,11 +51,6 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
   }
 
   @Override
-  protected String dbUser(final Node node) {
-    return null;
-  }
-
-  @Override
   protected String dbInstance(final Node node) {
     return null;
   }

@@ -63,11 +63,6 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
   }
 
   @Override
-  protected String dbUser(final Session session) {
-    return null;
-  }
-
-  @Override
   protected String dbInstance(final Session session) {
     return session.getLoggedKeyspace();
   }

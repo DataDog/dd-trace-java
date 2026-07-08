@@ -45,11 +45,6 @@ public class MemcacheClientDecorator
   }
 
   @Override
-  protected String dbUser(final MemcachedConnection session) {
-    return null;
-  }
-
-  @Override
   protected String dbInstance(final MemcachedConnection connection) {
     return null;
   }

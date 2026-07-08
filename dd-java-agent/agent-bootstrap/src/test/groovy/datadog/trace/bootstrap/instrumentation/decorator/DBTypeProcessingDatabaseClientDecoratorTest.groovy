@@ -68,11 +68,6 @@ class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
         }
 
         @Override
-        protected String dbUser(Map map) {
-          return map.user
-        }
-
-        @Override
         protected String dbInstance(Map map) {
           return map.instance
         }

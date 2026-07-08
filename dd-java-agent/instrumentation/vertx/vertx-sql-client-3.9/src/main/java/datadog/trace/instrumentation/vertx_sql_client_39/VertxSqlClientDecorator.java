@@ -54,11 +54,6 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   @Override
-  protected String dbUser(final DBInfo info) {
-    return info.getUser();
-  }
-
-  @Override
   protected String dbInstance(final DBInfo info) {
     if (info.getInstance() != null) {
       return info.getInstance();
@@ -92,7 +87,7 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
     }
-    super.onConnection(span, dbInfo);
+    super.onConnection(span, dbInfo, VertxSqlConnectionExtractor.INSTANCE);
     if (null != dbQueryInfo) {
       span.setResourceName(dbQueryInfo.getSql());
       span.setTag(DB_OPERATION, dbQueryInfo.getOperation());

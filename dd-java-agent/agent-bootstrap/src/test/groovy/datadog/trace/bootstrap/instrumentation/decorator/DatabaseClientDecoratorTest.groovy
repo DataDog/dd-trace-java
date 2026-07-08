@@ -51,7 +51,8 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
 
     then:
     if (session) {
-      1 * span.setTag(Tags.DB_USER, session.user)
+      // db.user is no longer set by the 2-arg onConnection (it used to come from the dbUser template
+      // method); it now arrives via the connection-tags extractor of the 3-arg form (see below).
       if (session.instance != null) {
         1 * span.setTag(Tags.DB_INSTANCE, session.instance)
       }
@@ -86,6 +87,32 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     true             | true               | true          | [user: "test-user", hostname: "test-hostname"]
     false            | true               | true          | [instance: "test-instance", hostname: "test-hostname"]
     true             | true               | true          | [user: "test-user", instance: "test-instance"]
+  }
+
+  def "test onConnection applies the connection-tags extractor"() {
+    setup:
+    def decorator = newDecorator()
+    def session = [user: "test-user"]
+
+    when:
+    decorator.onConnection(span, session, { Map m, AgentSpan s -> s.setTag(Tags.DB_USER, m.user) })
+
+    then:
+    1 * span.setTag(Tags.DB_USER, "test-user")
+    0 * _
+  }
+
+  def "test onConnection with a null connection skips the extractor"() {
+    setup:
+    def decorator = newDecorator()
+    def extractor = Mock(datadog.trace.bootstrap.instrumentation.api.TagExtractor)
+
+    when:
+    decorator.onConnection(span, null, extractor)
+
+    then:
+    0 * extractor.extract(_, _)
+    0 * _
   }
 
   def "test onStatement"() {
@@ -132,11 +159,6 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
         @Override
         protected String dbType() {
           return "test-db"
-        }
-
-        @Override
-        protected String dbUser(Map map) {
-          return map.user
         }
 
         @Override

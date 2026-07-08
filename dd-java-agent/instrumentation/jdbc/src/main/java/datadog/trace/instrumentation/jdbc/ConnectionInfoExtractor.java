@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_POOL_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_SCHEMA;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_USER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_WAREHOUSE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -27,6 +28,9 @@ public final class ConnectionInfoExtractor implements TagExtractor<DBInfo> {
 
   @Override
   public void extract(final DBInfo info, final AgentSpan span) {
+    // DB_USER is set unconditionally to preserve the prior DatabaseClientDecorator behavior (it set
+    // db.user from dbUser(info) without a present-check); the rest skip null/empty.
+    span.setTag(DB_USER, info.getUser());
     setTagIfPresent(span, DB_WAREHOUSE, info.getWarehouse());
     setTagIfPresent(span, DB_SCHEMA, info.getSchema());
     setTagIfPresent(span, DB_POOL_NAME, info.getPoolName());

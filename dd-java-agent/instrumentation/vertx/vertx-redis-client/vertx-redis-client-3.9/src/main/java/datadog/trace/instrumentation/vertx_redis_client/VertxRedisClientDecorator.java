@@ -55,11 +55,6 @@ public class VertxRedisClientDecorator
   }
 
   @Override
-  protected String dbUser(final SocketAddress socketAddress) {
-    return null;
-  }
-
-  @Override
   protected String dbInstance(final SocketAddress socketAddress) {
     return null;
   }

@@ -129,11 +129,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   @Override
-  protected String dbUser(final DBInfo info) {
-    return info.getUser();
-  }
-
-  @Override
   protected String dbInstance(final DBInfo info) {
     if (info.getInstance() != null) {
       return info.getInstance();
@@ -150,10 +145,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public AgentSpan onConnection(final AgentSpan span, DBInfo dbInfo) {
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
-
-      span.setTags(dbInfo, ConnectionInfoExtractor.INSTANCE);
     }
-    return super.onConnection(span, dbInfo);
+    // Pure connection tags (db.user / warehouse / schema / pool) are injected via the param form;
+    // the base applies them under its own null-check alongside instance/hostname derivation.
+    return super.onConnection(span, dbInfo, ConnectionInfoExtractor.INSTANCE);
   }
 
   public static DBInfo parseDBInfo(

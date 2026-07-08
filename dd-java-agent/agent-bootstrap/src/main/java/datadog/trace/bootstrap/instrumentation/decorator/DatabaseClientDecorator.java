@@ -16,6 +16,7 @@ import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.TagExtractor;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.function.BiConsumer;
@@ -55,11 +56,14 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
 
   protected abstract String dbType();
 
-  protected abstract String dbUser(CONNECTION connection);
-
   protected abstract String dbInstance(CONNECTION connection);
 
   protected abstract CharSequence dbHostname(CONNECTION connection);
+
+  /**
+   * No-op connection-tag extractor: the default for stores that contribute no pure connection tags.
+   */
+  private static final TagExtractor<Object> NO_CONNECTION_TAGS = (connection, span) -> {};
 
   /**
    * This should be called when the connection is being used, not when it's created.
@@ -69,8 +73,26 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
    * @return
    */
   public AgentSpan onConnection(final AgentSpan span, final CONNECTION connection) {
+    return onConnection(span, connection, noConnectionTags());
+  }
+
+  /**
+   * As {@link #onConnection(AgentSpan, Object)}, but with a {@link TagExtractor} for the store's
+   * pure connection tags (e.g. {@code db.user} for SQL) injected as a parameter.
+   *
+   * <p>Passing the extractor as a caller-side argument — rather than fetching it from a virtual
+   * method — is what preserves inlining: at a monomorphic advice site the extractor is a {@code
+   * static final} constant, so when this (small) method inlines, {@code extractor.extract(...)}
+   * devirtualizes and inlines too. It replaces the previous per-store template methods (the
+   * sparsely overridden {@code dbUser}, which most NoSQL stores could only answer with {@code
+   * null}) and is the seam for disentangling pure tag extraction from the derivation below.
+   */
+  public AgentSpan onConnection(
+      final AgentSpan span,
+      final CONNECTION connection,
+      final TagExtractor<CONNECTION> connectionTags) {
     if (connection != null) {
-      span.setTag(Tags.DB_USER, dbUser(connection));
+      connectionTags.extract(connection, span);
       onInstance(span, dbInstance(connection));
       CharSequence hostName = dbHostname(connection);
       if (hostName != null) {
@@ -82,6 +104,11 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
       }
     }
     return span;
+  }
+
+  @SuppressWarnings("unchecked")
+  protected static <CONNECTION> TagExtractor<CONNECTION> noConnectionTags() {
+    return (TagExtractor<CONNECTION>) NO_CONNECTION_TAGS;
   }
 
   protected AgentSpan onInstance(final AgentSpan span, final String dbInstance) {

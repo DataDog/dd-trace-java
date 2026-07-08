@@ -43,11 +43,6 @@ class CouchbaseClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
   }
 
   @Override
-  protected String dbUser(final Object o) {
-    return null;
-  }
-
-  @Override
   protected String dbInstance(final Object o) {
     return null;
   }
