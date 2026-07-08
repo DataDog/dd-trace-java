@@ -135,8 +135,7 @@ public class Agent {
     APP_LOGS_COLLECTION(GeneralConfig.APP_LOGS_COLLECTION_ENABLED, false),
     LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
     LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false),
-    FEATURE_FLAGGING(FeatureFlaggingConfig.FLAGGING_ENABLED, false),
-    DEPRECATED_FEATURE_FLAGGING(FeatureFlaggingConfig.FLAGGING_PROVIDER_ENABLED, false);
+    FEATURE_FLAGGING(FeatureFlaggingConfig.FLAGGING_PROVIDER_ENABLED, false);
 
     private final String configKey;
     private final String systemProp;
@@ -285,7 +284,7 @@ public class Agent {
     llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
     featureFlaggingEnabled =
         isFeatureEnabled(AgentFeature.FEATURE_FLAGGING)
-            || isFeatureEnabled(AgentFeature.DEPRECATED_FEATURE_FLAGGING);
+            || isFeatureFlaggingCdnConfigurationSourceConfigured();
 
     // setup writers when llmobs is enabled to accomodate apm and llmobs
     if (llmObsEnabled) {
@@ -1632,6 +1631,27 @@ public class Agent {
       // false unless it's explicitly set to "true"
       return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
     }
+  }
+
+  private static boolean isFeatureFlaggingCdnConfigurationSourceConfigured() {
+    final String configurationSource =
+        getConfiguredValue(FeatureFlaggingConfig.FLAGGING_CONFIGURATION_SOURCE);
+    return configurationSource != null && "cdn".equalsIgnoreCase(configurationSource.trim());
+  }
+
+  private static String getConfiguredValue(final String configKey) {
+    final String systemProp = propertyNameToSystemPropertyName(configKey);
+    String settingValue = getNullIfEmpty(SystemProperties.get(systemProp));
+    if (settingValue == null) {
+      settingValue = getNullIfEmpty(getStableConfig(FLEET, configKey));
+    }
+    if (settingValue == null) {
+      settingValue = getNullIfEmpty(ddGetEnv(systemProp));
+    }
+    if (settingValue == null) {
+      settingValue = getNullIfEmpty(getStableConfig(LOCAL, configKey));
+    }
+    return settingValue;
   }
 
   /**

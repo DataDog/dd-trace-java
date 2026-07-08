@@ -2,10 +2,6 @@ package datadog.trace.api.config;
 
 public class FeatureFlaggingConfig {
 
-  public static final String FLAGGING_ENABLED = "flagging.enabled";
-
-  /** Replaced by {@link #FLAGGING_ENABLED}. */
-  @Deprecated
   public static final String FLAGGING_PROVIDER_ENABLED = "experimental.flagging.provider.enabled";
 
   public static final String FLAGGING_CONFIGURATION_SOURCE = "flagging.configuration.source";

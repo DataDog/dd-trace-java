@@ -1553,14 +1553,6 @@
         "aliases": []
       }
     ],
-    "DD_FLAGGING_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
-        "aliases": ["DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED"]
-      }
-    ],
     "DD_FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT": [
       {
         "version": "A",
