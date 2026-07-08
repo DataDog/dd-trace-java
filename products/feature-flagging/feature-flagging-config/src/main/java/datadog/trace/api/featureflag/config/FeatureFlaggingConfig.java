@@ -1,4 +1,4 @@
-package datadog.trace.api.config;
+package datadog.trace.api.featureflag.config;
 
 public class FeatureFlaggingConfig {
 

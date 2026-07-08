@@ -2,7 +2,7 @@ package datadog.trace.api.openfeature;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.trace.api.config.FeatureFlaggingConfig;
+import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.ErrorCode;
