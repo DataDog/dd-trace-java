@@ -34,13 +34,14 @@ public class Provider extends EventProvider implements Metadata {
 
   /**
    * Canonical config key for the span-enrichment gate ({@link
-   * FeatureFlaggingConfig#SPAN_ENRICHMENT_ENABLED}). Read through {@link ConfigProvider} so the
-   * full precedence applies — system property, env var ({@code
+   * FeatureFlaggingConfig#EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED}). Read through {@link
+   * ConfigProvider} so the full precedence applies — system property, env var ({@code
    * DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED}), and stable config — exactly like
    * the sibling provider-enabled gate. Distinct from the provider-enabled gate; OFF by default
    * (experimental opt-in).
    */
-  static final String SPAN_ENRICHMENT_ENABLED_KEY = FeatureFlaggingConfig.SPAN_ENRICHMENT_ENABLED;
+  static final String SPAN_ENRICHMENT_ENABLED_KEY =
+      FeatureFlaggingConfig.EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED;
 
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;

@@ -10,6 +10,6 @@ public class FeatureFlaggingConfig {
    * {@code DD_} prefix normalization rule. This is DISTINCT from {@link #FLAGGING_PROVIDER_ENABLED}
    * and is OFF by default — enabling the provider does not enable span enrichment.
    */
-  public static final String SPAN_ENRICHMENT_ENABLED =
+  public static final String EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED =
       "experimental.flagging.provider.span.enrichment.enabled";
 }

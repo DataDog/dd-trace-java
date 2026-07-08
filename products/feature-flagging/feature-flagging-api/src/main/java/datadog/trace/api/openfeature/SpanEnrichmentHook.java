@@ -41,8 +41,9 @@ import java.util.Map;
  */
 class SpanEnrichmentHook implements Hook<Object> {
 
-  static final String METADATA_SERIAL_ID = "__dd_split_serial_id";
-  static final String METADATA_DO_LOG = "__dd_do_log";
+  // The metadata keys the DDEvaluator attaches for span enrichment (single source of truth there).
+  static final String METADATA_SERIAL_ID = DDEvaluator.METADATA_SPLIT_SERIAL_ID;
+  static final String METADATA_DO_LOG = DDEvaluator.METADATA_DO_LOG;
 
   @Override
   public void finallyAfter(

@@ -67,21 +67,31 @@ final class ULeb128Encoder {
    * @return the lower-case hex SHA-256 digest
    */
   static String hashTargetingKey(final String value) {
-    try {
-      final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      final byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
-      final StringBuilder hex = new StringBuilder(hash.length * 2);
-      for (final byte b : hash) {
-        final int v = b & 0xFF;
-        if (v < 0x10) {
-          hex.append('0');
-        }
-        hex.append(Integer.toHexString(v));
+    final MessageDigest digest = SHA_256.get();
+    digest.reset();
+    final byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+    final StringBuilder hex = new StringBuilder(hash.length * 2);
+    for (final byte b : hash) {
+      final int v = b & 0xFF;
+      if (v < 0x10) {
+        hex.append('0');
       }
-      return hex.toString();
-    } catch (final NoSuchAlgorithmException e) {
-      // SHA-256 is mandated by the JLS to be present on every JVM; this is unreachable in practice.
-      throw new IllegalStateException("SHA-256 algorithm not available", e);
+      hex.append(Integer.toHexString(v));
     }
+    return hex.toString();
   }
+
+  // Per-thread SHA-256 instance: hashing runs on every doLog=true subject capture, so a
+  // ThreadLocal avoids a provider lookup + allocation per call on that hot path. digest() resets
+  // the instance after each hash; we also reset() defensively before use.
+  private static final ThreadLocal<MessageDigest> SHA_256 =
+      ThreadLocal.withInitial(
+          () -> {
+            try {
+              return MessageDigest.getInstance("SHA-256");
+            } catch (final NoSuchAlgorithmException e) {
+              // SHA-256 is mandated by the JLS on every JVM; unreachable in practice.
+              throw new IllegalStateException("SHA-256 algorithm not available", e);
+            }
+          });
 }
