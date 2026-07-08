@@ -68,7 +68,7 @@ muzzle {
 
 Add `assertInverse = true` only when you've empirically verified the min via local muzzle sweep. Otherwise, leaving it off is correct.
 
-**Background**: a typical greenfield generation produces a sync instrumentation class (works on older versions) and an async instrumentation class (requires a newer API). The agent picks the higher version as the declared min for muzzle, which is conservative for compileOnly. But `assertInverse = true` then auto-tests a lower version with ONLY the sync class hooks active, and that passes — creating the failure.
+**Background**: this failure mode is common when a module has both a "sync" instrumentation class (works on older versions) and an "async" instrumentation class (requires a newer API). Declaring the higher version as the muzzle min is conservative for `compileOnly`, but `assertInverse = true` then auto-tests a lower version with ONLY the sync class hooks active — that passes, creating the "MUZZLE PASSED BUT FAILURE WAS EXPECTED" failure.
 
 ## Muzzle range must exclude incompatible major versions
 

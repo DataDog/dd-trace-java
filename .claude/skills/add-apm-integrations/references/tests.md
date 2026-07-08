@@ -119,9 +119,9 @@ compileOnly group: 'com.sparkjava', name: 'spark-core', version: '2.3'
 testImplementation group: 'com.sparkjava', name: 'spark-core', version: '2.4'
 ```
 
-**How to discover this during development**: install the library at `compileOnly` version and run
-the sample app. If a specific class raises `ClassNotFoundException` or is inaccessible, that class
-is the reason — check when it became public and use that version for `testImplementation`.
+**How to discover this during development**: install the library at the `compileOnly` version and run
+your instrumentation test. If a specific class raises `ClassNotFoundException` or is inaccessible, that
+class is the reason — check when it became public and use that version for `testImplementation`.
 Name the class in the comment.
 
 ### Include prior version module in testImplementation for mutual exclusion
