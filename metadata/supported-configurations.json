@@ -5097,6 +5097,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH": [
       {
         "version": "A",

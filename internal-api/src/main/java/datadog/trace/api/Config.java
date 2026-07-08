@@ -178,6 +178,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_TAGGI
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_KEEP_LATENCY_THRESHOLD_MS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
@@ -691,6 +692,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_ERROR_STAT
 import static datadog.trace.api.config.TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING;
 import static datadog.trace.api.config.TracerConfig.TRACE_INFERRED_PROXY_SERVICES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_KEEP_LATENCY_THRESHOLD_MS;
+import static datadog.trace.api.config.TracerConfig.TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
@@ -1317,6 +1319,8 @@ public class Config {
 
   private final boolean secureRandom;
 
+  private final boolean lambdaSnapStartClockResyncEnabled;
+
   private final boolean trace128bitTraceIdGenerationEnabled;
   private final boolean logs128bitTraceIdEnabled;
 
@@ -1521,6 +1525,10 @@ public class Config {
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
     }
+    lambdaSnapStartClockResyncEnabled =
+        configProvider.getBoolean(
+            TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED,
+            DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED);
     cassandraKeyspaceStatementExtractionEnabled =
         configProvider.getBoolean(
             CASSANDRA_KEYSPACE_STATEMENT_EXTRACTION_ENABLED,
@@ -4975,6 +4983,10 @@ public class Config {
 
   public boolean isAwsServerless() {
     return awsServerless;
+  }
+
+  public boolean isLambdaSnapStartClockResyncEnabled() {
+    return lambdaSnapStartClockResyncEnabled;
   }
 
   public boolean isDataStreamsEnabled() {

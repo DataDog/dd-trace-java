@@ -144,11 +144,22 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return new CoreTracerBuilder();
   }
 
-  /** Tracer start time in nanoseconds measured up to a millisecond accuracy */
-  private final long startTimeNano;
+  /**
+   * Tracer start time in nanoseconds measured up to a millisecond accuracy.
+   *
+   * <p>Not final: reset by {@link #maybeResyncClockForLambdaInvocation()} on every Lambda invocation,
+   * since the value captured at construction time can predate an AWS Lambda SnapStart restore by
+   * hours or days - see that method's javadoc for why.
+   */
+  private volatile long startTimeNano;
 
-  /** Nanosecond ticks value at tracer start */
-  private final long startNanoTicks;
+  /**
+   * Nanosecond ticks value at tracer start.
+   *
+   * <p>Not final: reset by {@link #maybeResyncClockForLambdaInvocation()} on every Lambda invocation -
+   * see {@link #startTimeNano}.
+   */
+  private volatile long startNanoTicks;
 
   /** How often should traced threads check clock ticks against the wall clock */
   private final long clockSyncPeriod;
@@ -1032,6 +1043,42 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return computedNanoTime + counterDrift;
   }
 
+  /**
+   * AWS Lambda SnapStart checkpoints the JVM at snapshot-creation time and later restores it,
+   * potentially much later (a restored snapshot can go {@code Inactive} and be restored again after
+   * 14 days of no invocations). {@link System#nanoTime()} does not account for the frozen duration
+   * across that restore, so {@link #startTimeNano}/{@link #startNanoTicks} - captured once at
+   * construction time, i.e. at snapshot-creation time - go stale, and the periodic self-correction
+   * in {@link #getTimeWithNanoTicks} may never trigger to fix it: that correction is gated on
+   * {@code nanoTicks - lastSyncTicks >= clockSyncPeriod} (monotonic ticks elapsed), which a
+   * short-lived restore-then-invoke sequence can easily never reach even though wall-clock time has
+   * moved on by hours or days. Left uncorrected, every span timestamp computed via {@link
+   * #getTimeWithNanoTicks} stays anchored near the original snapshot-creation instant instead of
+   * the real restore/invocation time.
+   *
+   * <p>Rather than reacting to the restore event itself (which would need a JVM-level
+   * checkpoint/restore hook), this is called from {@link #notifyLambdaStart} - already invoked once
+   * per Lambda invocation, before any span for that invocation is created. Any real restore is
+   * always followed by an invocation, so resyncing there catches it with no extra dependency. Doing
+   * this on every invocation (not just ones following a restore) is deliberate: outside SnapStart,
+   * {@link System#nanoTime()} correctly tracks elapsed time across a warm container's normal
+   * freeze/thaw between invocations (same continuously-executing process, unlike SnapStart's
+   * restore-into-a-new-context), so this is a correct no-op there - just a few field writes,
+   * negligible next to the HTTP round-trip {@link #notifyLambdaStart} already makes.
+   *
+   * <p>Gated on {@link Config#isLambdaSnapStartClockResyncEnabled()} as an escape hatch.
+   */
+  @VisibleForTesting
+  void maybeResyncClockForLambdaInvocation() {
+    if (!initialConfig.isLambdaSnapStartClockResyncEnabled()) {
+      return;
+    }
+    startTimeNano = timeSource.getCurrentTimeNanos();
+    startNanoTicks = timeSource.getNanoTicks();
+    lastSyncTicks = startNanoTicks;
+    counterDrift = 0;
+  }
+
   @Override
   public CoreSpanBuilder buildSpan(
       final String instrumentationName, final CharSequence operationName) {
@@ -1238,6 +1285,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
+    maybeResyncClockForLambdaInvocation();
+
     // Get context from AppSec
     AgentSpanContext appSecContext = LambdaAppSecHandler.processRequestStart(event);
 
