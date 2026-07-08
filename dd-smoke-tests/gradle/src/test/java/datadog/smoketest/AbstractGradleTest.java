@@ -195,7 +195,10 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
 
   private static boolean isSupported(ComparableVersion gradleVersion) {
     // https://docs.gradle.org/current/userguide/compatibility.html
-    if (JavaVirtualMachine.isJavaVersionAtLeast(26)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(27)) {
+      // TODO: Update once Gradle supports running on JDK 27 or newer.
+      return false;
+    } else if (JavaVirtualMachine.isJavaVersionAtLeast(26)) {
       return gradleVersion.compareTo(new ComparableVersion("9.4")) >= 0;
     } else if (JavaVirtualMachine.isJavaVersionAtLeast(25)) {
       return gradleVersion.compareTo(new ComparableVersion("9.1")) >= 0;

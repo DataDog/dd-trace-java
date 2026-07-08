@@ -48,8 +48,10 @@ import org.tabletest.junit.TableTest;
 import org.tabletest.junit.TypeConverterSources;
 
 @DisabledIf(
-    value = "disabledOnIbm8",
-    disabledReason = "IBM8 has flaky AES-GCM TLS failures when downloading Maven artifacts")
+    value = "disabledOnUnsupportedRuntime",
+    disabledReason =
+        "IBM8 has flaky AES-GCM TLS failures when downloading Maven artifacts; "
+            + "Maven does not support running on JDK 27 or newer yet")
 @TypeConverterSources(CiVisibilityTableTestConverters.class)
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 
@@ -63,8 +65,9 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   private static final int PROCESS_TIMEOUT_SECS = 60;
   private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 5;
 
-  public static boolean disabledOnIbm8() {
-    return JavaVirtualMachine.isIbm8();
+  public static boolean disabledOnUnsupportedRuntime() {
+    // TODO: update once Maven supports runnning on Java 27 or newer
+    return JavaVirtualMachine.isIbm8() || JavaVirtualMachine.isJavaVersionAtLeast(27);
   }
 
   @TempDir Path projectHome;
