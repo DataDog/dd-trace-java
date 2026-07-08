@@ -26,6 +26,7 @@ import datadog.trace.api.TagMap;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -59,6 +60,15 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   void setup() {
     writer = new ListWriter();
     tracer = tracerBuilder().writer(writer).sampler(new RateByServiceTraceSampler()).build();
+  }
+
+  @Test
+  void isFinishedReflectsSpanCompletion() {
+    // Exercised via the AgentSpan interface to prove the new default resolves to DDSpan's override.
+    AgentSpan span = tracer.buildSpan("datadog", "finishTest").start();
+    assertFalse(span.isFinished(), "span must not report finished before finish()");
+    span.finish();
+    assertTrue(span.isFinished(), "span must report finished after finish()");
   }
 
   @Test
