@@ -24,23 +24,4 @@ The filename and the declared `public class` name MUST match exactly, character-
 - Every `import static <pkg>.<ClassName>.<member>` across all other files in the module
 - Every reference in the form `<ClassName>.<member>` or `<ClassName>.class`
 
-**Convention in dd-trace-java**: acronym classes use **uppercase**:
-
-- CORRECT: `JMSDecorator`, `gRPCInstrumentation`, `JDBCConnection`
-- WRONG: `JmsDecorator`, `GrpcInstrumentation`, `JdbcConnection`
-
-This matches the existing module conventions. When in doubt, match a reference instrumentation's casing exactly (see Step 3).
-
-**After generating each module, sanity-check before declaring done:**
-
-```bash
-# Every public class declaration must match its filename
-cd dd-java-agent/instrumentation/$framework/$framework-$version/src/main/java
-for f in $(find . -name '*.java'); do
-  CLS=$(grep -oE 'public (final )?(abstract )?class [A-Za-z0-9_]+' "$f" | awk '{print $NF}')
-  EXPECTED=$(basename "$f" .java)
-  [ "$CLS" = "$EXPECTED" ] || echo "MISMATCH: $f declares '$CLS'"
-done
-```
-
-If any MISMATCH lines print, fix them before moving on.
+**Convention in dd-trace-java**: acronym casing is NOT uniform across the codebase. Some libraries use uppercase acronyms (`JMSDecorator`, `JDBCDecorator`) and others use title case (`GrpcClientDecorator`, `HttpServletDecorator`). **When in doubt, match a reference instrumentation's casing exactly** (see Step 3) — do not invent a casing convention.

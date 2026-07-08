@@ -31,28 +31,28 @@ Exit method:
 6. `span.finish()`
 7. `scope.close()`
 
-### onExit must be resilient to onEnter throwing
+### onExit handling when the target method throws
 
-If `onEnter` throws before the scope is set, `onExit` must still decrement the call depth.
-A null-check that skips the reset leaks the ThreadLocal:
+The `onThrowable = Throwable.class` attribute on `@Advice.OnMethodExit` controls whether the exit advice fires when the **instrumented target method** throws. Set it to `Throwable.class` (or omit it — this is the default) if you need to close the scope / finish the span regardless of whether the target method returned normally or threw.
 
 ```java
-// RISKY — if onEnter threw, scope is null and reset is skipped
-@Advice.OnMethodExit(suppress = Throwable.class)
-public static void exit(@Advice.Enter final AgentScope scope) {
-    if (scope != null) scope.close();
-}
-
-// SAFER — onThrowable = Throwable.class ensures exit fires even on onEnter exception
+// Standard pattern — exit fires whether the target method returned or threw
 @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-public static void exit(@Advice.Enter final AgentScope scope) {
-    if (scope != null) {
-        scope.close();
-    }
+public static void exit(
+    @Advice.Enter final AgentScope scope,
+    @Advice.Thrown final Throwable thrown) {
+  if (scope != null) {
+    DECORATE.onError(scope.span(), thrown);
+    DECORATE.beforeFinish(scope.span());
+    scope.span().finish();
+    scope.close();
+  }
 }
 ```
 
-When using `CallDepthThreadLocalMap`, always decrement unconditionally in exit.
+**`onThrowable` does NOT compensate for `onEnter` throwing.** Per `docs/how_instrumentations_work.md`: "If the `Advice.OnMethodEnter` method throws an exception, the `Advice.OnMethodExit` method is not invoked" — this is unconditional. To keep `onEnter` from throwing in the first place, use `suppress = Throwable.class` on the enter advice (except constructor advice — see note below).
+
+When using `CallDepthThreadLocalMap`, keep the enter and exit calls symmetric — every `incrementCallDepth` must have a matching `reset` in exit, guarded by the same condition on enter.
 
 ### Specify charset explicitly when converting byte[] to String
 
@@ -64,6 +64,8 @@ String cmd = new String(commandBytes);
 import java.nio.charset.StandardCharsets;
 String cmd = new String(commandBytes, StandardCharsets.UTF_8);
 ```
+
+**Note for bootstrap instrumentations:** `java.nio.charset.StandardCharsets` is a `java.nio.*` type, and the "Must NOT do" list below forbids `java.nio.*` in bootstrap advice code. In a bootstrap instrumentation, use the string form of the charset name instead: `new String(commandBytes, "UTF-8")` (which throws `UnsupportedEncodingException` — catch it or wrap).
 
 ### Do NOT catch `NullPointerException`; use null-check guards instead
 

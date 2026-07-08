@@ -57,7 +57,7 @@ pattern before writing new code. Use it as a template.
 1. Create directory: `dd-java-agent/instrumentation/$framework/$framework-$minVersion/`
 2. Under it, create the standard Maven source layout:
    - `src/main/java/` — instrumentation code
-   - `src/test/groovy/` — Spock tests
+   - `src/test/java/` — JUnit 5 tests (Groovy/Spock is not accepted for new code — see Step 9.1)
 3. Create `build.gradle` with:
    - `compileOnly` dependencies for the target framework
    - `testImplementation` dependencies for tests

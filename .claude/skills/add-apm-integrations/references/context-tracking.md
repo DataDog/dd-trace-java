@@ -53,7 +53,7 @@ When a boundary type exposes multiple overloads of the subscribe / invoke method
 
 **How to identify the right overload:** read the framework source. The public method usually calls a `subscribeActual(...)` or similar protected method that takes the framework-internal interface. If the framework documents one of the overloads as "for internal use only" or marks it `public final`, that's the implementation method — hook it.
 
-**Reference:** dd-trace-java's `rxjava-2.0` hooks `subscribe(Observer)` (the implementation).
+**Reference:** dd-trace-java's `rxjava-2.0` module hooks the single-argument `subscribe(...)` method (matcher: `named("subscribe").and(takesArguments(1))`) with the argument typed as the base callback interface (e.g. `Observer` for `Observable`, `Subscriber` for `Flowable`). Read the module source to see the exact matcher — pattern-match on this rather than copying overload names.
 
 ## When NOT to write a context-tracking instrumentation
 

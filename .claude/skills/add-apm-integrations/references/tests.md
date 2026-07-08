@@ -5,7 +5,8 @@
 ## 1. Instrumentation test (mandatory)
 
 **Write Java tests (JUnit 5), NOT Groovy/Spock.** dd-trace-java policy
-forbids new `.groovy` files — the PR bot (`checkNewGroovyFiles`) rejects any PR containing them.
+forbids new `.groovy` files — the `Enforce Groovy Migration` workflow
+(`.github/workflows/enforce-groovy-migration.yaml`) rejects any PR containing them.
 All new tests must go in `src/test/java/`.
 
 - JUnit 5 test class in `src/test/java/datadog/trace/instrumentation/<framework>/`
@@ -23,10 +24,10 @@ void testExceptionSetsErrorTags() throws Exception {
         // trigger operation that throws
         client.execute(badRequest);
     });
-    List<List<SpanData>> traces = TEST_WRITER.waitForTraces(1);
-    SpanData span = traces.get(0).get(0);
-    assertThat(span.getAttributes().get(ERROR_TYPE)).isNotNull();
-    assertThat(span.getAttributes().get(ERROR_MESSAGE)).isNotNull();
+    List<List<AgentSpan>> traces = TEST_WRITER.waitForTraces(1);
+    AgentSpan span = traces.get(0).get(0);
+    assertNotNull(span.getTag("error.type"));
+    assertNotNull(span.getTag("error.message"));
 }
 ```
 
@@ -37,7 +38,7 @@ For tests that need a separate JVM, suffix the test class with `ForkedTest` and 
 dd-trace-java forbids new `.groovy` files (bot-enforced on every PR). Write Java:
 
 ```java
-// WRONG — generates a .groovy file which the bot rejects automatically
+// WRONG — generates a .groovy file which CI rejects automatically
 // src/test/groovy/JedisClientTest.groovy
 
 // CORRECT — Java in src/test/java/
@@ -51,7 +52,7 @@ public class Jedis3ClientTest extends AgentInstrumentationTest {
 }
 ```
 
-The PR bot check (`checkNewGroovyFiles`) will fail the PR if any `.groovy` file is added.
+The `Enforce Groovy Migration` workflow will fail the PR if any `.groovy` file is added.
 
 ### Register new integration names in `metadata/supported-configurations.json`
 
@@ -64,11 +65,13 @@ For each new integration name `<NAME>` (uppercase, dashes/dots replaced with und
   {
     "version": "A",
     "type": "boolean",
-    "default": "false",
+    "default": "true",
     "aliases": ["DD_TRACE_INTEGRATION_<NAME>_ENABLED", "DD_INTEGRATION_<NAME>_ENABLED"]
   }
 ],
 ```
+
+**Default value:** `"true"` for typical integrations (jedis, okhttp, kafka, spring-web, etc. — ~83% of existing entries). Set `"default": "false"` only if the module overrides `defaultEnabled()` to return `false` (e.g. OpenTelemetry, Hazelcast, sparkjava). Cross-check with `grep -A2 "defaultEnabled" dd-java-agent/instrumentation/<framework>*` before choosing.
 
 If the decorator's `instrumentationNames()` returns a shared name (e.g. `"sparkjava"` covering all sparkjava versions), also add the analytics keys for the shared name:
 
