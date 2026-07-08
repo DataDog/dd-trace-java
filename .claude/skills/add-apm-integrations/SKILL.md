@@ -73,11 +73,11 @@ pattern before writing new code. Use it as a template.
 
 **See [Naming Conventions](references/naming-conventions.md) — module directory name must end with a version or an allowed suffix (`-common`, `-stubs`, `-iast`).**
 
-## Step 4.1 – Library category: span-creating vs context-propagation
+## Step 4.1 – Span-creating vs context-tracking instrumentation
 
-**Read [Category B — Context Propagation](references/category-b-context-propagation.md) before picking instrumentation targets.**
+**Read [Context-Tracking Instrumentation](references/context-tracking.md) before picking instrumentation targets.**
 
-Classify the library along the `target_kind` axis: Category A (span-creating — HTTP/DB/messaging/RPC) or Category B (context-propagation — reactive/async/executor/fiber). Category B does not create spans; it bridges trace context across async boundaries. Get this wrong and you generate the wrong shape of instrumentation.
+Decide which kind of `InstrumenterModule` the library needs: `InstrumenterModule.Tracing` (creates spans around I/O — HTTP/DB/messaging/RPC — the common case) or `InstrumenterModule.ContextTracking` (bridges trace context across async boundaries — reactive/async/executor/coroutine libraries; creates no spans of its own). Get this wrong and you write the wrong shape of instrumentation.
 
 ## Step 4.2 – Java naming consistency (CRITICAL — non-negotiable)
 

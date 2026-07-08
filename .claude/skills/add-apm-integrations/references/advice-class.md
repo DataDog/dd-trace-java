@@ -133,7 +133,7 @@ public static class TracingAdvice {
 
 **When to use `@AppliesOn`:**
 
-- Separate context-propagation logic from tracing logic
+- Separate context-tracking logic from tracing logic
 - Different target systems need different instrumentation behaviours
 - Multiple advices apply to the same method with different system requirements
 
