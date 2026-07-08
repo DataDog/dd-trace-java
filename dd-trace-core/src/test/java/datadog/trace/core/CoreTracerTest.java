@@ -149,7 +149,8 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void notifyLambdaStart_whenResyncDefaultsToDisabled_thenTimestampStaysAnchoredToConstructionTime() {
+  void
+      notifyLambdaStart_whenResyncDefaultsToDisabled_thenTimestampStaysAnchoredToConstructionTime() {
     ControllableTimeSource timeSource = new ControllableTimeSource();
     timeSource.set(TimeUnit.SECONDS.toNanos(1000));
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).timeSource(timeSource).build();

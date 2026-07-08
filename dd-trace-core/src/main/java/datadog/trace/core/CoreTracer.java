@@ -144,22 +144,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return new CoreTracerBuilder();
   }
 
-  /**
-   * Tracer start time in nanoseconds measured up to a millisecond accuracy.
-   *
-   * <p>Not final: reset by {@link #maybeResyncClockForLambdaInvocation()} on every Lambda invocation,
-   * since the value captured at construction time can predate an AWS Lambda SnapStart restore by
-   * hours or days - see that method's javadoc for why.
-   */
-  private volatile long startTimeNano;
+  /** Tracer start time in nanoseconds measured up to a millisecond accuracy */
+  private final long startTimeNano;
 
-  /**
-   * Nanosecond ticks value at tracer start.
-   *
-   * <p>Not final: reset by {@link #maybeResyncClockForLambdaInvocation()} on every Lambda invocation -
-   * see {@link #startTimeNano}.
-   */
-  private volatile long startNanoTicks;
+  /** Nanosecond ticks value at tracer start */
+  private final long startNanoTicks;
 
   /** How often should traced threads check clock ticks against the wall clock */
   private final long clockSyncPeriod;
@@ -1056,6 +1045,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
    * #getTimeWithNanoTicks} stays anchored near the original snapshot-creation instant instead of
    * the real restore/invocation time.
    *
+   * <p>Rather than reset {@link #startTimeNano}/{@link #startNanoTicks} themselves - which would
+   * require making those fields {@code volatile}, since they're read on every {@link
+   * #getTimeWithNanoTicks} call from arbitrary tracing threads - this folds the entire observed
+   * drift into {@link #counterDrift} directly, the same field (already {@code volatile}) that the
+   * periodic self-correction in {@link #getTimeWithNanoTicks} uses, just without that correction's
+   * 1ms drift threshold, since here the drift can be hours or days.
+   *
    * <p>Rather than reacting to the restore event itself (which would need a JVM-level
    * checkpoint/restore hook), this is called from {@link #notifyLambdaStart} - already invoked once
    * per Lambda invocation, before any span for that invocation is created. Any real restore is
@@ -1063,8 +1059,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
    * this on every invocation (not just ones following a restore) is deliberate: outside SnapStart,
    * {@link System#nanoTime()} correctly tracks elapsed time across a warm container's normal
    * freeze/thaw between invocations (same continuously-executing process, unlike SnapStart's
-   * restore-into-a-new-context), so this is a correct no-op there - just a few field writes,
-   * negligible next to the HTTP round-trip {@link #notifyLambdaStart} already makes.
+   * restore-into-a-new-context), so this is a correct no-op there - just a couple of field reads
+   * and a subtraction, negligible next to the HTTP round-trip {@link #notifyLambdaStart} already
+   * makes.
    *
    * <p>Gated on {@link Config#isLambdaSnapStartClockResyncEnabled()} as an escape hatch.
    */
@@ -1073,10 +1070,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (!initialConfig.isLambdaSnapStartClockResyncEnabled()) {
       return;
     }
-    startTimeNano = timeSource.getCurrentTimeNanos();
-    startNanoTicks = timeSource.getNanoTicks();
-    lastSyncTicks = startNanoTicks;
-    counterDrift = 0;
+    long nanoTicks = timeSource.getNanoTicks();
+    long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
+    counterDrift = timeSource.getCurrentTimeNanos() - computedNanoTime;
+    lastSyncTicks = nanoTicks;
   }
 
   @Override
