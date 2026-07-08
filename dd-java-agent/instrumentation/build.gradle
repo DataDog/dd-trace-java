@@ -167,7 +167,9 @@ TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, S
 }
 
 instrumentationNaming {
-  exclusions = ["org-json-20230227"] // org-json does not use semver
+  exclusions = ["org-json-20230227",
+    // org-json does not use semver
+  ]
   suffixes = ["-common", "-stubs", "-iast"]
 }
 

@@ -7,9 +7,9 @@ import java.net.URISyntaxException;
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.StatusLine;
-import org.apache.commons.httpclient.URIException;
 
 public class CommonsHttpClientDecorator extends HttpClientDecorator<HttpMethod, HttpMethod> {
+
   public static final CharSequence COMMONS_HTTP_CLIENT =
       UTF8BytesString.create("commons-http-client");
   public static final CommonsHttpClientDecorator DECORATE = new CommonsHttpClientDecorator();
@@ -34,11 +34,14 @@ public class CommonsHttpClientDecorator extends HttpClientDecorator<HttpMethod, 
   @Override
   protected URI url(final HttpMethod httpMethod) throws URISyntaxException {
     try {
-      //  org.apache.commons.httpclient.URI -> java.net.URI
-      return new URI(httpMethod.getURI().toString());
-    } catch (final URIException e) {
-      throw new URISyntaxException("", e.getMessage());
+      org.apache.commons.httpclient.URI uri = httpMethod.getURI();
+      if (uri != null) {
+        return new URI(uri.toString());
+      }
+    } catch (Exception e) {
+      // getURI() can throw URIException; fall through to return null
     }
+    return null;
   }
 
   @Override
@@ -53,18 +56,18 @@ public class CommonsHttpClientDecorator extends HttpClientDecorator<HttpMethod, 
   }
 
   @Override
-  protected String getRequestHeader(HttpMethod request, String headerName) {
-    Header header = request.getRequestHeader(headerName);
-    if (null != header) {
+  protected String getRequestHeader(HttpMethod httpMethod, String headerName) {
+    Header header = httpMethod.getRequestHeader(headerName);
+    if (header != null) {
       return header.getValue();
     }
     return null;
   }
 
   @Override
-  protected String getResponseHeader(HttpMethod response, String headerName) {
-    Header header = response.getResponseHeader(headerName);
-    if (null != header) {
+  protected String getResponseHeader(HttpMethod httpMethod, String headerName) {
+    Header header = httpMethod.getResponseHeader(headerName);
+    if (header != null) {
       return header.getValue();
     }
     return null;
