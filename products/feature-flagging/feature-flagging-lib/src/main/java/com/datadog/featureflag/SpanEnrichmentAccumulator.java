@@ -1,5 +1,6 @@
 package com.datadog.featureflag;
 
+import datadog.json.JsonWriter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -179,104 +180,65 @@ final class SpanEnrichmentAccumulator {
     return value.substring(0, end);
   }
 
-  /** Serializes a String->String map to a compact JSON object string (keys + values escaped). */
+  /**
+   * Serializes a String-&gt;String map to a compact JSON object string using the platform {@link
+   * JsonWriter}.
+   *
+   * <p>Consumers of these tags parse them as JSON (the backend enricher via Jackson, the parametric
+   * system-tests via {@code json.loads}), so the writer's escaping (e.g. {@code /} → {@code \/},
+   * non-ASCII → {@code \\uXXXX}) is round-trip-equivalent and byte-parity with the JS reference is
+   * not required.
+   */
   static String toJsonObject(final Map<String, String> map) {
-    final StringBuilder sb = new StringBuilder();
-    sb.append('{');
-    boolean first = true;
-    for (final Map.Entry<String, String> entry : map.entrySet()) {
-      if (!first) {
-        sb.append(',');
+    try (JsonWriter writer = new JsonWriter()) {
+      writer.beginObject();
+      for (final Map.Entry<String, String> entry : map.entrySet()) {
+        writer.name(entry.getKey()).value(entry.getValue());
       }
-      first = false;
-      appendJsonString(sb, entry.getKey());
-      sb.append(':');
-      appendJsonString(sb, entry.getValue());
+      writer.endObject();
+      return writer.toString();
     }
-    sb.append('}');
-    return sb.toString();
   }
 
   private static String toJsonValue(final Object value) {
-    final StringBuilder sb = new StringBuilder();
-    appendJsonValue(sb, value);
-    return sb.toString();
+    try (JsonWriter writer = new JsonWriter()) {
+      writeJsonValue(writer, value);
+      return writer.toString();
+    }
   }
 
   @SuppressWarnings("unchecked")
-  private static void appendJsonValue(final StringBuilder sb, final Object value) {
+  private static void writeJsonValue(final JsonWriter writer, final Object value) {
     // Callers pass values already unwrapped to native form by the capture side, so no OpenFeature
     // Value ever reaches here.
     if (value == null) {
-      sb.append("null");
+      writer.nullValue();
     } else if (value instanceof Map) {
-      sb.append('{');
-      boolean first = true;
+      writer.beginObject();
       for (final Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
-        if (!first) {
-          sb.append(',');
-        }
-        first = false;
-        appendJsonString(sb, String.valueOf(entry.getKey()));
-        sb.append(':');
-        appendJsonValue(sb, entry.getValue());
+        writer.name(String.valueOf(entry.getKey()));
+        writeJsonValue(writer, entry.getValue());
       }
-      sb.append('}');
+      writer.endObject();
     } else if (value instanceof Iterable) {
-      sb.append('[');
-      boolean first = true;
+      writer.beginArray();
       for (final Object element : (Iterable<Object>) value) {
-        if (!first) {
-          sb.append(',');
-        }
-        first = false;
-        appendJsonValue(sb, element);
+        writeJsonValue(writer, element);
       }
-      sb.append(']');
-    } else if (value instanceof CharSequence || value instanceof Character) {
-      appendJsonString(sb, value.toString());
-    } else if (value instanceof Number || value instanceof Boolean) {
-      sb.append(String.valueOf(value));
+      writer.endArray();
+    } else if (value instanceof Boolean) {
+      writer.value((Boolean) value);
+    } else if (value instanceof Integer
+        || value instanceof Long
+        || value instanceof Short
+        || value instanceof Byte) {
+      writer.value(((Number) value).longValue());
+    } else if (value instanceof Number) {
+      writer.value(((Number) value).doubleValue());
     } else {
-      appendJsonString(sb, String.valueOf(value));
+      // CharSequence / Character / anything else → string form.
+      writer.value(value.toString());
     }
-  }
-
-  private static void appendJsonString(final StringBuilder sb, final String value) {
-    sb.append('"');
-    for (int i = 0; i < value.length(); i++) {
-      final char c = value.charAt(i);
-      switch (c) {
-        case '"':
-          sb.append("\\\"");
-          break;
-        case '\\':
-          sb.append("\\\\");
-          break;
-        case '\n':
-          sb.append("\\n");
-          break;
-        case '\r':
-          sb.append("\\r");
-          break;
-        case '\t':
-          sb.append("\\t");
-          break;
-        case '\b':
-          sb.append("\\b");
-          break;
-        case '\f':
-          sb.append("\\f");
-          break;
-        default:
-          if (c < 0x20) {
-            sb.append(String.format("\\u%04x", (int) c));
-          } else {
-            sb.append(c);
-          }
-      }
-    }
-    sb.append('"');
   }
 
   // ---- test-only accessors ----

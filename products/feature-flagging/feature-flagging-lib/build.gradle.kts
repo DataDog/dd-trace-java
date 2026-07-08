@@ -26,6 +26,9 @@ dependencies {
   // an agent-side module (shaded into the agent, never published), so depending on the tracer's
   // internal API is expected — unlike the published dd-openfeature product API.
   compileOnly(project(":internal-api"))
+  // Platform JSON writer for the ffe_* tag values (provided by the agent at runtime, like the
+  // tracer API above; also reachable transitively via :internal-api).
+  compileOnly(project(":components:json"))
 
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)

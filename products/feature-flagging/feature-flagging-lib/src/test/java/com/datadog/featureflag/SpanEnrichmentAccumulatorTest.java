@@ -141,6 +141,24 @@ class SpanEnrichmentAccumulatorTest {
   }
 
   @Test
+  void jsonUsesPlatformWriterEscaping() {
+    // The platform JsonWriter escapes '/' -> \/ and non-ASCII -> \uXXXX. That differs from the JS
+    // reference bytes but is round-trip-equivalent: all consumers JSON-parse these tags (backend
+    // Jackson, system-tests json.loads), so byte-parity is not required. '/' matters in practice
+    // because ffe_subjects_enc values are base64 (which can contain '/').
+    assertEquals(
+        "{\"h\":\"a\\/b\"}",
+        SpanEnrichmentAccumulator.toJsonObject(Collections.singletonMap("h", "a/b")));
+    assertEquals(
+        "{\"k\":\"caf\\u00E9\"}",
+        SpanEnrichmentAccumulator.toJsonObject(Collections.singletonMap("k", "café")));
+    // nested structured runtime default goes through the same writer
+    assertEquals(
+        "{\"a\":\"x\\/y\"}",
+        SpanEnrichmentAccumulator.stringifyDefault(Collections.singletonMap("a", "x/y")));
+  }
+
+  @Test
   void maxDefaultsEnforced() {
     final SpanEnrichmentAccumulator acc = new SpanEnrichmentAccumulator();
     for (int i = 0; i < 10; i++) {
