@@ -6,6 +6,7 @@ import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.sampling.PrioritySampler;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import javax.annotation.Nonnull;
@@ -65,11 +66,13 @@ public abstract class TraceCollector implements AgentTraceCollector {
     DDSpan rootSpan = getRootSpan();
     if (traceConfig.sampler instanceof PrioritySampler && rootSpan != null) {
       // Ignore the force-keep priority in the absence of propagated _dd.p.ts span tag marked for
-      // ASM.
+      // ASM. AI Guard traces (ai_guard.event=true) preserve the USER_KEEP priority set by
+      // ai_guard.keep, bypassing the sampler override.
       if ((!Config.get().isApmTracingEnabled()
               && !ProductTraceSource.isProductMarked(
                   rootSpan.spanContext().getPropagationTags().getTraceSource(),
-                  ProductTraceSource.ASM))
+                  ProductTraceSource.ASM)
+              && !Boolean.TRUE.equals(rootSpan.getTag(Tags.AI_GUARD_EVENT)))
           || rootSpan.spanContext().getSamplingPriority() == PrioritySampling.UNSET) {
         ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
       }
