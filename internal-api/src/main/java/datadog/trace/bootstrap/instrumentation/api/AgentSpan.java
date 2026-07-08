@@ -96,7 +96,9 @@ public interface AgentSpan
    * an implementer may override to do so.
    */
   default <T> AgentSpan setTags(final T source, final TagExtractor<T> extractor) {
-    extractor.extract(source, this);
+    if (source != null) {
+      extractor.extract(source, this);
+    }
     return this;
   }
 
