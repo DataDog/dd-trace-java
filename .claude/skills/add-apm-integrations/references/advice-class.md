@@ -65,7 +65,7 @@ import java.nio.charset.StandardCharsets;
 String cmd = new String(commandBytes, StandardCharsets.UTF_8);
 ```
 
-**Note for bootstrap instrumentations:** `java.nio.charset.StandardCharsets` is a `java.nio.*` type, and the "Must NOT do" list below forbids `java.nio.*` in bootstrap advice code. In a bootstrap instrumentation, use the string form of the charset name instead: `new String(commandBytes, "UTF-8")` (which throws `UnsupportedEncodingException` — catch it or wrap).
+**Note for bootstrap instrumentations:** `StandardCharsets` is `java.nio.*`, which the "Must NOT do" list forbids in bootstrap advice.
 
 ### Do NOT catch `NullPointerException`; use null-check guards instead
 
