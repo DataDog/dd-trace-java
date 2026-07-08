@@ -142,10 +142,11 @@ class SpanEnrichmentAccumulatorTest {
 
   @Test
   void jsonUsesPlatformWriterEscaping() {
-    // The platform JsonWriter escapes '/' -> \/ and non-ASCII -> \uXXXX. That differs from the JS
-    // reference bytes but is round-trip-equivalent: all consumers JSON-parse these tags (backend
-    // Jackson, system-tests json.loads), so byte-parity is not required. '/' matters in practice
-    // because ffe_subjects_enc values are base64 (which can contain '/').
+    // The platform JsonWriter escapes '/' as backslash-slash and non-ASCII as a backslash-u escape.
+    // That differs from the JS reference bytes but is round-trip-equivalent: all consumers
+    // JSON-parse these tags (backend Jackson, system-tests json.loads), so byte-parity is not
+    // required. '/' matters in practice because ffe_subjects_enc values are base64 (may contain
+    // '/').
     assertEquals(
         "{\"h\":\"a\\/b\"}",
         SpanEnrichmentAccumulator.toJsonObject(Collections.singletonMap("h", "a/b")));
