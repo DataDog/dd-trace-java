@@ -89,11 +89,11 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     // Allow duplicate to merge service files
     duplicatesStrategy = INCLUDE
     // Ensure there is no duplicate in the final jar after resource transformer applied
-    failOnDuplicateEntries.set(true)
+    failOnDuplicateEntries = true
 
     // Vendored dependencies repeat license/notice metadata; keep a single copy
     transform(PreserveFirstFoundResourceTransformer) {
-      it.resources.addAll(
+      it.include(
         'META-INF/LICENSE*',
         'META-INF/NOTICE*',
         'META-INF/AL2.0',
