@@ -1,6 +1,11 @@
 package com.datadog.appsec.api.security
 
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE
+
 import com.datadog.appsec.gateway.AppSecRequestContext
+import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 
 class ApiSecurityDownstreamSamplerTest extends DDSpecification {
@@ -42,5 +47,23 @@ class ApiSecurityDownstreamSamplerTest extends DDSpecification {
 
     where:
     rate << [-1.0, 0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0, 2.0]
+  }
+
+  void 'test config aliases'() {
+    setup:
+    injectSysConfig(env, "0.25")
+
+    when:
+    final value = Config.get().getApiSecurityDownstreamRequestBodyAnalysisSampleRate()
+
+    then:
+    value == 0.25
+
+    where:
+    env << [
+      API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE,
+      API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE,
+      API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
+    ]
   }
 }
