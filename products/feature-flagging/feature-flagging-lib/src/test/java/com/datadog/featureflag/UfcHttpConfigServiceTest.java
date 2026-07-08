@@ -37,7 +37,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class CdnConfigServiceTest {
+class UfcHttpConfigServiceTest {
 
   @Mock private FeatureFlaggingGateway.ConfigListener listener;
 
@@ -52,7 +52,7 @@ class CdnConfigServiceTest {
     final Config config = config("http://mock-cdn:8092", "datadoghq.com", "");
 
     assertEquals(
-        "http://mock-cdn:8092/mock/ufc/config", CdnConfigService.endpoint(config).toString());
+        "http://mock-cdn:8092/mock/ufc/config", UfcHttpConfigService.endpoint(config).toString());
   }
 
   @Test
@@ -62,7 +62,7 @@ class CdnConfigServiceTest {
 
     assertEquals(
         "http://mock-cdn:8092/mock/ufc/config?fixture=valid",
-        CdnConfigService.endpoint(config).toString());
+        UfcHttpConfigService.endpoint(config).toString());
   }
 
   @Test
@@ -71,13 +71,13 @@ class CdnConfigServiceTest {
 
     assertEquals(
         "https://api.datad0g.com/api/v2/feature-flagging/config/server-distribution?dd_env=staging+env",
-        CdnConfigService.endpoint(config).toString());
+        UfcHttpConfigService.endpoint(config).toString());
   }
 
   @Test
   void appliesAcceptedUfcThroughGatewayAndSendsHeaders() throws Exception {
     final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
-    final CdnConfigService service = service(client, extraHeaders());
+    final UfcHttpConfigService service = service(client, extraHeaders());
     FeatureFlaggingGateway.addConfigListener(listener);
 
     assertTrue(service.pollOnce());
@@ -93,7 +93,7 @@ class CdnConfigServiceTest {
   void usesEtagAndSkipsDispatchOnUnchangedConfig() throws Exception {
     final FakeClient client =
         new FakeClient(response(200, "etag-a", emptyConfig()), response(304, null, null));
-    final CdnConfigService service = service(client, extraHeaders());
+    final UfcHttpConfigService service = service(client, extraHeaders());
     FeatureFlaggingGateway.addConfigListener(listener);
 
     assertTrue(service.pollOnce());
@@ -110,7 +110,7 @@ class CdnConfigServiceTest {
             response(401, null, null),
             response(200, null, "{not-json}"),
             response(200, null, "{\"flags\":[]}"));
-    final CdnConfigService service = service(client, extraHeaders());
+    final UfcHttpConfigService service = service(client, extraHeaders());
     FeatureFlaggingGateway.addConfigListener(listener);
 
     assertFalse(service.pollOnce());
@@ -124,10 +124,10 @@ class CdnConfigServiceTest {
   void retriesTimeoutBeforeApplyingConfig() throws Exception {
     final FakeClient client =
         new FakeClient(
-            new SocketTimeoutException("slow CDN"),
-            new SocketTimeoutException("slow CDN"),
+            new SocketTimeoutException("slow HTTP configuration source"),
+            new SocketTimeoutException("slow HTTP configuration source"),
             response(200, "etag-a", emptyConfig()));
-    final CdnConfigService service = service(client, extraHeaders());
+    final UfcHttpConfigService service = service(client, extraHeaders());
     FeatureFlaggingGateway.addConfigListener(listener);
 
     assertTrue(service.pollOnce());
@@ -139,7 +139,7 @@ class CdnConfigServiceTest {
   @Test
   void retriesServerErrorThenKeepsColdStateOnNotModified() throws Exception {
     final FakeClient client = new FakeClient(response(500, null, null), response(304, null, null));
-    final CdnConfigService service = service(client, extraHeaders());
+    final UfcHttpConfigService service = service(client, extraHeaders());
     FeatureFlaggingGateway.addConfigListener(listener);
 
     assertTrue(service.pollOnce());
@@ -154,7 +154,7 @@ class CdnConfigServiceTest {
     final CountDownLatch releaseRequest = new CountDownLatch(1);
     final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
     client.block(requestStarted, releaseRequest);
-    final CdnConfigService service = service(client, extraHeaders());
+    final UfcHttpConfigService service = service(client, extraHeaders());
     final ExecutorService runner = Executors.newFixedThreadPool(2);
 
     try {
@@ -175,7 +175,7 @@ class CdnConfigServiceTest {
   @Test
   void closePreventsFurtherPolls() throws Exception {
     final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
-    final CdnConfigService service = service(client, extraHeaders());
+    final UfcHttpConfigService service = service(client, extraHeaders());
 
     service.close();
 
@@ -183,10 +183,10 @@ class CdnConfigServiceTest {
     assertEquals(0, client.calls.get());
   }
 
-  private static CdnConfigService service(
+  private static UfcHttpConfigService service(
       final FakeClient client, final Map<String, String> extraHeaders) {
     final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    return new CdnConfigService(
+    return new UfcHttpConfigService(
         HttpUrl.get("http://localhost/mock/ufc/config"),
         config("http://localhost", "datadoghq.com", "", extraHeaders),
         60_000,
@@ -221,9 +221,9 @@ class CdnConfigServiceTest {
     return headers;
   }
 
-  private static CdnConfigService.CdnResponse response(
+  private static UfcHttpConfigService.UfcHttpResponse response(
       final int status, final String etag, final String body) {
-    return new CdnConfigService.CdnResponse(
+    return new UfcHttpConfigService.UfcHttpResponse(
         status, etag, body == null ? null : body.getBytes(UTF_8));
   }
 
@@ -236,7 +236,7 @@ class CdnConfigServiceTest {
         + "}";
   }
 
-  private static final class FakeClient implements CdnConfigService.CdnClient {
+  private static final class FakeClient implements UfcHttpConfigService.UfcHttpClient {
     private final AtomicInteger calls = new AtomicInteger();
     private final List<Request> requests = new ArrayList<>();
     private final BlockingQueue<Object> responses = new LinkedBlockingQueue<>();
@@ -255,7 +255,7 @@ class CdnConfigServiceTest {
     }
 
     @Override
-    public CdnConfigService.CdnResponse fetch(
+    public UfcHttpConfigService.UfcHttpResponse fetch(
         final HttpUrl endpoint,
         final Config config,
         final Map<String, String> extraHeaders,
@@ -273,7 +273,7 @@ class CdnConfigServiceTest {
       if (response instanceof IOException) {
         throw (IOException) response;
       }
-      return (CdnConfigService.CdnResponse) response;
+      return (UfcHttpConfigService.UfcHttpResponse) response;
     }
 
     private static void await(final CountDownLatch latch) throws IOException {

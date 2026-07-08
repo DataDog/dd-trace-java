@@ -2,12 +2,13 @@ package com.datadog.featureflag;
 
 import static datadog.trace.api.config.FeatureFlaggingConfig.FLAGGING_CONFIGURATION_SOURCE;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
@@ -69,64 +70,43 @@ class FeatureFlaggingSystemTest {
   @Test
   @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "cdn")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
-  void cdnConfigurationSourceStartsCdnWithoutRemoteConfig() {
-    RemoteConfigService cdnService = mock(RemoteConfigService.class);
-    RemoteConfigService remoteConfigService = mock(RemoteConfigService.class);
-    FeatureFlaggingSystem.setServiceFactoriesForTest(
-        (ignoredSco, ignoredConfig) -> cdnService,
-        (ignoredSco, ignoredConfig) -> remoteConfigService);
-
-    try {
-      FeatureFlaggingSystem.start(sharedCommunicationObjects());
-
-      verify(cdnService).init();
-      verifyNoInteractions(remoteConfigService);
-    } finally {
-      FeatureFlaggingSystem.stop();
-      FeatureFlaggingSystem.resetServiceFactoriesForTest();
-    }
+  void cdnConfigurationSourceUsesHttpServiceWithoutRemoteConfig() {
+    assertInstanceOf(
+        UfcHttpConfigService.class,
+        FeatureFlaggingSystem.createConfigurationSourceService(
+            sharedCommunicationObjects(), Config.get()));
   }
 
   @Test
   @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "remote_config")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "true")
-  void explicitRemoteConfigSuppressesCdnService() {
-    RemoteConfigService cdnService = mock(RemoteConfigService.class);
-    RemoteConfigService remoteConfigService = mock(RemoteConfigService.class);
-    FeatureFlaggingSystem.setServiceFactoriesForTest(
-        (ignoredSco, ignoredConfig) -> cdnService,
-        (ignoredSco, ignoredConfig) -> remoteConfigService);
+  void explicitRemoteConfigUsesRemoteConfigService() {
+    SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
+    when(sharedCommunicationObjects.configurationPoller(any(Config.class)))
+        .thenReturn(mock(ConfigurationPoller.class));
 
-    try {
-      FeatureFlaggingSystem.start(sharedCommunicationObjects());
-
-      verify(remoteConfigService).init();
-      verifyNoInteractions(cdnService);
-    } finally {
-      FeatureFlaggingSystem.stop();
-      FeatureFlaggingSystem.resetServiceFactoriesForTest();
-    }
+    assertInstanceOf(
+        RemoteConfigServiceImpl.class,
+        FeatureFlaggingSystem.createConfigurationSourceService(
+            sharedCommunicationObjects, Config.get()));
   }
 
   @Test
   @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "invalid")
-  void invalidConfigurationSourceFailsBeforeStartingCdn() {
-    RemoteConfigService cdnService = mock(RemoteConfigService.class);
-    RemoteConfigService remoteConfigService = mock(RemoteConfigService.class);
-    FeatureFlaggingSystem.setServiceFactoriesForTest(
-        (ignoredSco, ignoredConfig) -> cdnService,
-        (ignoredSco, ignoredConfig) -> remoteConfigService);
+  void invalidConfigurationSourceFailsBeforeStartingNetworkSource() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            FeatureFlaggingSystem.createConfigurationSourceService(
+                sharedCommunicationObjects(), Config.get()));
+  }
 
-    try {
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> FeatureFlaggingSystem.start(sharedCommunicationObjects()));
-      verifyNoInteractions(cdnService);
-      verifyNoInteractions(remoteConfigService);
-    } finally {
-      FeatureFlaggingSystem.stop();
-      FeatureFlaggingSystem.resetServiceFactoriesForTest();
-    }
+  @Test
+  @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "offline")
+  void offlineConfigurationSourceDoesNotStartNetworkSource() {
+    assertNull(
+        FeatureFlaggingSystem.createConfigurationSourceService(
+            sharedCommunicationObjects(), Config.get()));
   }
 
   private static SharedCommunicationObjects sharedCommunicationObjects() {
