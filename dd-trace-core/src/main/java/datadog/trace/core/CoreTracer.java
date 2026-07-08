@@ -1042,6 +1042,24 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return createMultiSpanBuilder(instrumentationName, operationName);
   }
 
+  /**
+   * Seeds identity (instrumentation name, operation, span type) and tags from a prototype.
+   *
+   * <p>TODO(follow-up): eager-sets identity from the proto today, which is fine while
+   * {@code buildSpan(proto)} is the only proto entry point. When a builder value and a proto value
+   * can coexist, resolve via helpers (builder-explicit wins, proto is the fallback) in the build
+   * path and make this carry-only — no reach-in to {@code builder.spanType}/{@code spanPrototype}.
+   */
+  public CoreSpanBuilder buildSpan(final SpanPrototype prototype) {
+    CoreSpanBuilder builder =
+        createMultiSpanBuilder(prototype.instrumentationName(), prototype.operationName());
+    builder.spanPrototype = prototype;
+    if (prototype.spanType() != null) {
+      builder.spanType = prototype.spanType();
+    }
+    return builder;
+  }
+
   MultiSpanBuilder createMultiSpanBuilder(
       final String instrumentationName, final CharSequence operationName) {
     return new MultiSpanBuilder(this, instrumentationName, operationName);
@@ -1930,11 +1948,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       } else {
         tagLedger.set(tag, value);
       }
-      return this;
-    }
-
-    public final CoreSpanBuilder withSpanPrototype(final SpanPrototype spanPrototype) {
-      this.spanPrototype = (spanPrototype == null) ? SpanPrototype.NONE : spanPrototype;
       return this;
     }
 
