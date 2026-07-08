@@ -135,7 +135,8 @@ public class Agent {
     APP_LOGS_COLLECTION(GeneralConfig.APP_LOGS_COLLECTION_ENABLED, false),
     LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
     LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false),
-    FEATURE_FLAGGING(FeatureFlaggingConfig.FLAGGING_PROVIDER_ENABLED, false);
+    FEATURE_FLAGGING(FeatureFlaggingConfig.FLAGGING_ENABLED, false),
+    DEPRECATED_FEATURE_FLAGGING(FeatureFlaggingConfig.FLAGGING_PROVIDER_ENABLED, false);
 
     private final String configKey;
     private final String systemProp;
@@ -282,7 +283,9 @@ public class Agent {
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
     appLogsCollectionEnabled = isFeatureEnabled(AgentFeature.APP_LOGS_COLLECTION);
     llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
-    featureFlaggingEnabled = isFeatureEnabled(AgentFeature.FEATURE_FLAGGING);
+    featureFlaggingEnabled =
+        isFeatureEnabled(AgentFeature.FEATURE_FLAGGING)
+            || isFeatureEnabled(AgentFeature.DEPRECATED_FEATURE_FLAGGING);
 
     // setup writers when llmobs is enabled to accomodate apm and llmobs
     if (llmObsEnabled) {

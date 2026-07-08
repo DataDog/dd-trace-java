@@ -1513,6 +1513,54 @@
         "aliases": []
       }
     ],
+    "DD_FLAGGING_CONFIGURATION_SOURCE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "cdn",
+        "aliases": []
+      }
+    ],
+    "DD_FLAGGING_CONFIGURATION_SOURCE_BASE_URL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_FLAGGING_CONFIGURATION_SOURCE_EXTRA_HEADERS": [
+      {
+        "version": "A",
+        "type": "map",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "30",
+        "aliases": []
+      }
+    ],
+    "DD_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "2",
+        "aliases": []
+      }
+    ],
+    "DD_FLAGGING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED"]
+      }
+    ],
     "DD_FORCE_CLEAR_TEXT_HTTP_FOR_INTAKE_CLIENT": [
       {
         "version": "A",

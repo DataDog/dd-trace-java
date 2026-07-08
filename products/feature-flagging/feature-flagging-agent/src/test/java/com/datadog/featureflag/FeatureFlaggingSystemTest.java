@@ -1,11 +1,13 @@
 package com.datadog.featureflag;
 
+import static datadog.trace.api.config.FeatureFlaggingConfig.FLAGGING_CONFIGURATION_SOURCE;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
@@ -23,6 +25,8 @@ import org.junit.jupiter.api.Test;
 class FeatureFlaggingSystemTest {
 
   @Test
+  @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "remote_config")
+  @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "true")
   void testFeatureFlagSystemInitialization() {
     ConfigurationPoller poller = mock(ConfigurationPoller.class);
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
@@ -48,6 +52,7 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
+  @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "remote_config")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
   void testThatRemoteConfigIsRequired() {
     SharedCommunicationObjects sharedCommunicationObjects = mock(SharedCommunicationObjects.class);
@@ -59,5 +64,79 @@ class FeatureFlaggingSystemTest {
     } finally {
       FeatureFlaggingSystem.stop();
     }
+  }
+
+  @Test
+  @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "cdn")
+  @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
+  void cdnConfigurationSourceStartsCdnWithoutRemoteConfig() {
+    RemoteConfigService cdnService = mock(RemoteConfigService.class);
+    RemoteConfigService remoteConfigService = mock(RemoteConfigService.class);
+    FeatureFlaggingSystem.setServiceFactoriesForTest(
+        (ignoredSco, ignoredConfig) -> cdnService,
+        (ignoredSco, ignoredConfig) -> remoteConfigService);
+
+    try {
+      FeatureFlaggingSystem.start(sharedCommunicationObjects());
+
+      verify(cdnService).init();
+      verifyNoInteractions(remoteConfigService);
+    } finally {
+      FeatureFlaggingSystem.stop();
+      FeatureFlaggingSystem.resetServiceFactoriesForTest();
+    }
+  }
+
+  @Test
+  @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "remote_config")
+  @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "true")
+  void explicitRemoteConfigSuppressesCdnService() {
+    RemoteConfigService cdnService = mock(RemoteConfigService.class);
+    RemoteConfigService remoteConfigService = mock(RemoteConfigService.class);
+    FeatureFlaggingSystem.setServiceFactoriesForTest(
+        (ignoredSco, ignoredConfig) -> cdnService,
+        (ignoredSco, ignoredConfig) -> remoteConfigService);
+
+    try {
+      FeatureFlaggingSystem.start(sharedCommunicationObjects());
+
+      verify(remoteConfigService).init();
+      verifyNoInteractions(cdnService);
+    } finally {
+      FeatureFlaggingSystem.stop();
+      FeatureFlaggingSystem.resetServiceFactoriesForTest();
+    }
+  }
+
+  @Test
+  @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "invalid")
+  void invalidConfigurationSourceFailsBeforeStartingCdn() {
+    RemoteConfigService cdnService = mock(RemoteConfigService.class);
+    RemoteConfigService remoteConfigService = mock(RemoteConfigService.class);
+    FeatureFlaggingSystem.setServiceFactoriesForTest(
+        (ignoredSco, ignoredConfig) -> cdnService,
+        (ignoredSco, ignoredConfig) -> remoteConfigService);
+
+    try {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> FeatureFlaggingSystem.start(sharedCommunicationObjects()));
+      verifyNoInteractions(cdnService);
+      verifyNoInteractions(remoteConfigService);
+    } finally {
+      FeatureFlaggingSystem.stop();
+      FeatureFlaggingSystem.resetServiceFactoriesForTest();
+    }
+  }
+
+  private static SharedCommunicationObjects sharedCommunicationObjects() {
+    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+    when(discovery.supportsEvpProxy()).thenReturn(true);
+    when(discovery.getEvpProxyEndpoint()).thenReturn("/evp_proxy/");
+    SharedCommunicationObjects sharedCommunicationObjects = mock(SharedCommunicationObjects.class);
+    when(sharedCommunicationObjects.featuresDiscovery(any(Config.class))).thenReturn(discovery);
+    sharedCommunicationObjects.agentUrl = HttpUrl.get("http://localhost");
+    sharedCommunicationObjects.agentHttpClient = new OkHttpClient.Builder().build();
+    return sharedCommunicationObjects;
   }
 }
