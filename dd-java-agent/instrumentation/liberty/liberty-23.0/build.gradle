@@ -137,7 +137,10 @@ tasks.named('filterLogbackClassic', Sync) {
 }
 
 tasks.named("shadowJar", ShadowJar) {
-  configurations = [project.configurations.shadow]
+  // The default shadowJar task has a runtimeClasspath convention. Replace it
+  // instead of adding to it; this jar is intentionally built from the shadow configuration only.
+  configurations.empty()
+  configurations.add(project.configurations.named('shadow'))
   zip64 = true
 
   archiveFileName = 'openliberty-shadow.jar'

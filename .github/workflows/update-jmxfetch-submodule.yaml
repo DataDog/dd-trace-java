@@ -64,6 +64,6 @@ jobs:
             --base master \
             --head ${{ steps.define-branch.outputs.branch }} \
             --label "comp: tooling" \
-            --label "type: enhancement" \
+            --label "type: feature" \
             --label "tag: no release notes" \
             --body "This PR updates the agent-jmxfetch submodule."
