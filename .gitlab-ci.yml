@@ -1441,7 +1441,7 @@ publishing-gate:
 
 configure_system_tests:
   variables:
-    SYSTEM_TESTS_REF: "main" # system tests are pinned on release branches only
+    SYSTEM_TESTS_REF: "77e6da9b53639436525bf7bfb076723e18e102c3" # system tests are pinned on release branches only
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,docker-ssi,lib-injection"
 
 create_key:
