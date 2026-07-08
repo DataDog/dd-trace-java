@@ -215,7 +215,7 @@ public interface AgentSpan
 
   /**
    * @return {@code true} once this span has finished (its duration is set). Implementations that do
-   *     not track finish state return the default.
+   *     not track finish state always return {@code false}.
    */
   default boolean isFinished() {
     return false;
