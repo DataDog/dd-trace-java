@@ -1,13 +1,18 @@
 package datadog.trace.bootstrap;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -101,6 +106,25 @@ class AgentJarIndexTest {
     Path file = root.resolve(relativePath.replace('/', java.io.File.separatorChar));
     Files.createDirectories(file.getParent());
     Files.createFile(file);
+  }
+
+  private static Path writeIndex(Path resourcesDir, Path indexFile) throws IOException {
+    AgentJarIndex.IndexGenerator generator = new AgentJarIndex.IndexGenerator(resourcesDir);
+    generator.buildIndex();
+    generator.writeIndex(indexFile);
+    return indexFile;
+  }
+
+  private static List<String> readPrefixes(Path indexFile) throws IOException {
+    try (DataInputStream in =
+        new DataInputStream(new BufferedInputStream(Files.newInputStream(indexFile)))) {
+      int prefixCount = in.readInt();
+      String[] prefixes = new String[prefixCount];
+      for (int i = 0; i < prefixCount; i++) {
+        prefixes[i] = in.readUTF();
+      }
+      return Arrays.asList(prefixes);
+    }
   }
 
   @Test
@@ -197,6 +221,40 @@ class AgentJarIndexTest {
     assertEquals(
         "metrics/com/datadoghq/stats/StatsClient.classdata",
         index.classEntryName("com.datadoghq.stats.StatsClient"));
+  }
+
+  @Test
+  void buildIndexWritesPrefixesInSortedOrder(@TempDir Path tempDir) throws Exception {
+    Path resources = tempDir.resolve("resources");
+    createFile(resources, "metrics/com/datadoghq/stats/StatsClient.classdata");
+    createFile(resources, "inst/datadog/trace/instrumentation/servlet/ServletAdvice.classdata");
+    createFile(resources, "appsec/com/datadog/appsec/Event.classdata");
+
+    Path indexFile = writeIndex(resources, tempDir.resolve("dd-java-agent.index"));
+
+    assertEquals(Arrays.asList("appsec/", "inst/", "metrics/"), readPrefixes(indexFile));
+  }
+
+  @Test
+  void buildIndexIsIndependentOfDirectoryCreationOrder(@TempDir Path tempDir) throws Exception {
+    Path buildResources = tempDir.resolve("build-resources");
+    createFile(buildResources, "appsec/com/datadog/appsec/Event.classdata");
+    createFile(buildResources, "ci-visibility/com/datadog/ci/Visibility.classdata");
+    createFile(buildResources, "cws-tls/com/datadog/cws/Tls.classdata");
+    createFile(
+        buildResources, "inst/datadog/trace/instrumentation/servlet/ServletAdvice.classdata");
+
+    Path deployResources = tempDir.resolve("deploy-resources");
+    createFile(deployResources, "cws-tls/com/datadog/cws/Tls.classdata");
+    createFile(deployResources, "ci-visibility/com/datadog/ci/Visibility.classdata");
+    createFile(deployResources, "appsec/com/datadog/appsec/Event.classdata");
+    createFile(
+        deployResources, "inst/datadog/trace/instrumentation/servlet/ServletAdvice.classdata");
+
+    Path buildIndex = writeIndex(buildResources, tempDir.resolve("build-dd-java-agent.index"));
+    Path deployIndex = writeIndex(deployResources, tempDir.resolve("deploy-dd-java-agent.index"));
+
+    assertArrayEquals(Files.readAllBytes(buildIndex), Files.readAllBytes(deployIndex));
   }
 
   @Test
