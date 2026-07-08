@@ -105,6 +105,7 @@ In short: annotate with `@AutoService`, extend the right `InstrumenterModule.*` 
 **Read [Writing the Advice Class](references/advice-class.md).**
 
 The reference file covers: `static` advice methods; enter/exit annotations (with the constructor exception); parameter annotations (`@Advice.This`, `@Advice.Argument`, `@Advice.Return`, `@Advice.Thrown`, `@Advice.Enter`, `@Advice.Local`); `CallDepthThreadLocalMap` reentrancy guarding; single-delegate-method instrumentation (not all overloads); span lifecycle order; `onExit` resilience to `onEnter` throwing; explicit charset for `byte[]` → `String`; no `NullPointerException` catches (SpotBugs blocks); `@AppliesOn` for multiple advice classes; and the "Must NOT do" list (no logger fields, no lambdas in advice, no `inline=false` in production, no `java.util.logging.*` / `java.nio.*` / `javax.management.*` in bootstrap).
+
 ## Step 8 – Add SETTER/GETTER adapters (if applicable)
 
 For context propagation to and from upstream services, like HTTP headers,
@@ -118,11 +119,13 @@ Cover all mandatory test types:
 ### 1. Instrumentation test (mandatory)
 
 **Read [Writing Tests](references/tests.md).** Java tests only (JUnit 5) in `src/test/java/` — no new `.groovy` files (bot-enforced). Must cover error/exception scenarios. When adding new integration names, register them in `metadata/supported-configurations.json` (config-inversion-linter enforces). When `compileOnly` and `testImplementation` use different versions, comment the specific class that requires the higher version. Include the prior-version module as a `testImplementation` dependency for mutual-exclusion tests.
+
 ### 2. Muzzle directives (mandatory)
 
 **Read [Muzzle Directives](references/muzzle.md).**
 
 Two valid patterns: open-ended range (`[$min,)` with `assertInverse = true` only when the true min is verified) or bounded range (`[$min,$max)` with explicit `fail { versions = "[,$min)" }` — no `assertInverse`). Muzzle range must exclude incompatible major versions when the same `group:module` republishes with a rewritten API. Library-specific quirks (malformed release versions like `jedis-3.6.2`) require `skipVersions` — search adjacent modules for these before declaring new ranges.
+
 ### 3. Latest dependency test (mandatory)
 
 Use the `latestDepTestLibrary` helper in `build.gradle` to pin the latest available version. Run with:
