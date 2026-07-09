@@ -59,12 +59,14 @@ public class RedisSubscriptionSubscribeAdvice {
     return new State(parentScope, span);
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterSubscribe(
       @Advice.FieldValue("command") RedisCommand command,
       @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand,
-      @Advice.Enter State state) {
-    if (!expectsResponse(command)) {
+      @Advice.Enter State state,
+      @Advice.Thrown Throwable throwable) {
+    if (!expectsResponse(command) || throwable != null) {
+      DECORATE.onError(state.span, throwable);
       DECORATE.beforeFinish(state.span);
       state.span.finish();
       InstrumentationContext.get(RedisCommand.class, AgentSpan.class)
