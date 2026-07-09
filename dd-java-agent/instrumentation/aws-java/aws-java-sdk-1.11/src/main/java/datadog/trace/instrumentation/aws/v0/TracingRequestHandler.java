@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.DECORATE;
@@ -59,7 +58,7 @@ public class TracingRequestHandler extends RequestHandler2 {
       activateSpanWithoutScope(blackholeSpan());
     } else {
       Context context = requestContextStore.remove(request.getOriginalRequest());
-      AgentSpan span = spanFromContext(context);
+      AgentSpan span = AgentSpan.fromContext(context);
       if (span != null) {
         // we'll land here for SQS send requests when DSM is enabled. In that case, we create the
         // span in SqsInterceptor to inject DSM tags.
@@ -94,7 +93,7 @@ public class TracingRequestHandler extends RequestHandler2 {
     AgentSpan span = null;
     if (context != null) {
       request.addHandlerContext(CONTEXT_CONTEXT_KEY, null);
-      span = spanFromContext(context);
+      span = AgentSpan.fromContext(context);
       if (span != null) {
         DECORATE.onResponse(span, response);
         DECORATE.onServiceResponse(span, request.getServiceName(), response);
@@ -153,7 +152,7 @@ public class TracingRequestHandler extends RequestHandler2 {
 
     if (context != null) {
       request.addHandlerContext(CONTEXT_CONTEXT_KEY, null);
-      final AgentSpan span = spanFromContext(context);
+      final AgentSpan span = AgentSpan.fromContext(context);
       if (span != null) {
         if (response != null) {
           DECORATE.onResponse(span, response);

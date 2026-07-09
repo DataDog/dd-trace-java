@@ -1,4 +1,7 @@
+import static org.gradle.api.file.DuplicatesStrategy.INCLUDE
+
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.github.jengelman.gradle.plugins.shadow.transformers.PreserveFirstFoundResourceTransformer
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.jar.JarFile
 
@@ -83,21 +86,19 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     mergeServiceFiles()
     addMultiReleaseAttribute = false
 
-    duplicatesStrategy = DuplicatesStrategy.FAIL
-    // Service descriptors are intentionally merged by mergeServiceFiles(); let
-    // duplicate service entries reach that transformer instead of failing first.
-    filesMatching('META-INF/services/**') {
-      duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    }
-    // Vendored dependencies often repeat license/notice metadata. Keep one copy
-    // while still failing on unexpected duplicate runtime resources and classes.
-    filesMatching([
-      'META-INF/LICENSE*',
-      'META-INF/NOTICE*',
-      'META-INF/AL2.0',
-      'META-INF/LGPL2.1',
-    ]) {
-      duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    // Allow duplicate to merge service files
+    duplicatesStrategy = INCLUDE
+    // Ensure there is no duplicate in the final jar after resource transformer applied
+    failOnDuplicateEntries = true
+
+    // Vendored dependencies repeat license/notice metadata; keep a single copy
+    transform(PreserveFirstFoundResourceTransformer) {
+      it.include(
+        'META-INF/LICENSE*',
+        'META-INF/NOTICE*',
+        'META-INF/AL2.0',
+        'META-INF/LGPL2.1',
+        )
     }
 
     // Remove some cruft from the final jar.

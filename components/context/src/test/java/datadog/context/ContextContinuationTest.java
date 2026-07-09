@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 
 @ParametersAreNonnullByDefault
 class ContextContinuationTest extends ContextTestBase {
-  private static final ContextKey<String> CONTINUATION_KEY = ContextKey.named("continuation-key");
 
   @Test
   void testCaptureRootContextIsNoop() {
@@ -36,7 +35,7 @@ class ContextContinuationTest extends ContextTestBase {
 
   @Test
   void testCaptureStoresContext() {
-    Context context = root().with(CONTINUATION_KEY, "captured");
+    Context context = root().with(TEST_KEY, "captured");
     try (ContextScope scope = context.attach()) {
       ContextContinuation continuation = context.capture();
       assertEquals(context, continuation.context());
@@ -48,19 +47,19 @@ class ContextContinuationTest extends ContextTestBase {
   void testCaptureFiresOnCaptureEvent() {
     TrackingListener listener = trackingListener();
     ContextManager.register(listener);
-    Context context = root().with(CONTINUATION_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     try (ContextScope scope = context.attach()) {
       ContextContinuation continuation =
           context.capture(); // capture while active (recommended pattern)
-      listener.assertNewEvents("attach", "capture");
+      listener.assertNewEvents("update:{root}->value", "capture:value");
       continuation.release();
     }
-    listener.assertNewEvents("release", "detach");
+    listener.assertNewEvents("release:value", "update:value->{root}");
   }
 
   @Test
   void testResumeAttachesContextAndRestoresPreviousOnClose() {
-    Context context = root().with(CONTINUATION_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     ContextContinuation continuation;
     try (ContextScope scope = context.attach()) {
       continuation = context.capture(); // capture while active (recommended pattern)
@@ -77,56 +76,59 @@ class ContextContinuationTest extends ContextTestBase {
   void testResumeAndScopeCloseFiresLifecycleEvents() {
     TrackingListener listener = trackingListener();
     ContextManager.register(listener);
-    Context context = root().with(CONTINUATION_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     ContextContinuation continuation;
     try (ContextScope scope = context.attach()) {
       continuation = context.capture(); // capture while active
     }
-    listener.assertNewEvents("attach", "capture", "detach");
+    listener.assertNewEvents("update:{root}->value", "capture:value", "update:value->{root}");
     try (ContextScope scope = continuation.resume()) {
-      listener.assertNewEvents("attach");
+      listener.assertNewEvents("update:{root}->value");
     }
-    // release fires before detach (continuation is released first inside ContextScopeImpl.close)
-    listener.assertNewEvents("release", "detach");
+    // release fires before update (continuation is released first inside ContextScopeImpl.close)
+    listener.assertNewEvents("release:value", "update:value->{root}");
   }
 
   @Test
   void testHoldPreventsAutoReleaseOnScopeClose() {
     TrackingListener listener = trackingListener();
     ContextManager.register(listener);
-    Context context = root().with(CONTINUATION_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     ContextContinuation continuation;
     try (ContextScope scope = context.attach()) {
       continuation = context.capture(); // capture while active
       continuation.hold();
+      listener.assertNewEvents("update:{root}->value", "capture:value");
     }
+    listener.assertNewEvents("update:value->{root}");
     try (ContextScope scope = continuation.resume()) {
       assertEquals(context, current());
+      listener.assertNewEvents("update:{root}->value");
     }
     assertEquals(root(), current());
-    // release should not fire while hold is active
-    listener.assertNewEvents("attach", "capture", "detach", "attach", "detach");
+    listener.assertNewEvents(
+        "update:value->{root}"); // release should not fire while hold is active
     continuation.release();
-    listener.assertNewEvents("release");
+    listener.assertNewEvents("release:value");
   }
 
   @Test
   void testExplicitReleaseWithoutResumeFiresReleaseEvent() {
     TrackingListener listener = trackingListener();
     ContextManager.register(listener);
-    Context context = root().with(CONTINUATION_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     ContextContinuation continuation;
     try (ContextScope scope = context.attach()) {
       continuation = context.capture(); // capture while active
     }
-    listener.assertNewEvents("attach", "capture", "detach");
+    listener.assertNewEvents("update:{root}->value", "capture:value", "update:value->{root}");
     continuation.release();
-    listener.assertNewEvents("release");
+    listener.assertNewEvents("release:value");
   }
 
   @Test
   void testResumeAfterReleaseIsNoop() {
-    Context context = root().with(CONTINUATION_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     ContextContinuation continuation;
     try (ContextScope scope = context.attach()) {
       continuation = context.capture(); // capture while active
@@ -141,7 +143,7 @@ class ContextContinuationTest extends ContextTestBase {
 
   @Test
   void testResumeOnDifferentThread() {
-    Context context = root().with(CONTINUATION_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     ContextContinuation continuation;
     try (ContextScope scope = context.attach()) {
       continuation = context.capture(); // capture while active (recommended pattern)
@@ -174,7 +176,7 @@ class ContextContinuationTest extends ContextTestBase {
             events.add("release");
           }
         });
-    Context context = root().with(CONTINUATION_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     ContextContinuation continuation;
     try (ContextScope scope = context.attach()) {
       continuation = context.capture(); // capture while active
@@ -225,78 +227,79 @@ class ContextContinuationTest extends ContextTestBase {
   void testSameContextResumeReleasesImmediately() {
     TrackingListener listener = trackingListener();
     ContextManager.register(listener);
-    Context context = root().with(CONTINUATION_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     try (ContextScope outer = context.attach()) {
       // Context is already current; resume is a noop and continuation is released immediately
       ContextContinuation continuation = context.capture();
       try (ContextScope noop = continuation.resume()) {
         assertEquals(context, current());
-        listener.assertNewEvents("attach", "capture", "release"); // released synchronously
+        listener.assertNewEvents(
+            "update:{root}->value", "capture:value", "release:value"); // released synchronously
       }
       assertEquals(context, current()); // outer scope still holds context
     }
-    listener.assertNewEvents("detach");
+    listener.assertNewEvents("update:value->{root}");
   }
 
   @Test
   void testOutOfOrderScopeCloseReleasesImmediately() {
     // Recommended pattern: attach C, capture, close original scope
-    Context contextC = root().with(CONTINUATION_KEY, "C");
+    Context contextC = root().with(TEST_KEY, "C");
     ContextContinuation continuation;
     try (ContextScope scope = contextC.attach()) {
       continuation = contextC.capture();
     }
 
-    TrackingListener listener = keyedTrackingListener(CONTINUATION_KEY);
+    TrackingListener listener = trackingListener();
     ContextManager.register(listener);
 
-    Context contextD = root().with(CONTINUATION_KEY, "D");
+    Context contextD = root().with(TEST_KEY, "D");
     try (ContextScope scopeR = continuation.resume()) {
       assertEquals(contextC, current());
-      try (ContextScope scopeD = contextD.attach()) { // attaching D fires detach:C, attach:D
+      try (ContextScope scopeD = contextD.attach()) { // attaching D fires update:C->D
         assertEquals(contextD, current());
 
         // close the resume scope out-of-order while D is still nested on top;
-        // release fires immediately, but detach:C does not (C is not current)
+        // release fires immediately, but update:C->{root} does not (C is not current)
         scopeR.close();
-        listener.assertNewEvents("attach:C", "detach:C", "attach:D", "release:C");
+        listener.assertNewEvents("update:{root}->C", "update:C->D", "release:C");
         assertEquals(contextD, current()); // D is still current
       } // scopeD closes here: unwind D normally, restores C
-      listener.assertNewEvents("detach:D", "attach:C");
+      listener.assertNewEvents("update:D->C");
     } // try-with-resources closes scopeR again; no second release, C unwinds to root
 
     assertEquals(root(), current());
-    listener.assertNewEvents("detach:C");
+    listener.assertNewEvents("update:C->{root}");
   }
 
   @Test
   void testHoldWithOutOfOrderScopeCloseFiresReleaseOnExplicitRelease() {
     // Regression test: hold() + out-of-order close must not corrupt the count,
     // which would cause release() to silently no-op and lose the release event.
-    Context contextC = root().with(CONTINUATION_KEY, "C");
+    Context contextC = root().with(TEST_KEY, "C");
     ContextContinuation continuation;
     try (ContextScope scope = contextC.attach()) {
       continuation = contextC.capture();
       continuation.hold();
     }
 
-    TrackingListener listener = keyedTrackingListener(CONTINUATION_KEY);
+    TrackingListener listener = trackingListener();
     ContextManager.register(listener);
 
-    Context contextD = root().with(CONTINUATION_KEY, "D");
+    Context contextD = root().with(TEST_KEY, "D");
     try (ContextScope scopeR = continuation.resume()) {
       assertEquals(contextC, current());
-      try (ContextScope scopeD = contextD.attach()) { // detach:C, attach:D
+      try (ContextScope scopeD = contextD.attach()) { // attaching D fires update:C->D
         assertEquals(contextD, current());
 
         scopeR.close(); // out-of-order close while D is still on top; hold prevents auto-release
-        listener.assertNewEvents("attach:C", "detach:C", "attach:D");
+        listener.assertNewEvents("update:{root}->C", "update:C->D");
         assertEquals(contextD, current());
       } // scopeD closes here: unwind D, restores C
-    } // TWR closes scopeR again (now in-order); detach:C, no release yet (hold is active)
+    } // TWR closes scopeR again (now in-order); update:C->{root}, no release yet (hold is active)
 
     assertEquals(root(), current());
-    listener.assertNewEvents("detach:D", "attach:C", "detach:C");
+    listener.assertNewEvents("update:D->C", "update:C->{root}");
 
     continuation.release(); // explicit release must fire release:C
     listener.assertNewEvents("release:C");
@@ -307,7 +310,7 @@ class ContextContinuationTest extends ContextTestBase {
     // Calling hold() more than once should not require more than one explicit release().
     TrackingListener listener = trackingListener();
     ContextManager.register(listener);
-    Context context = root().with(CONTINUATION_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     ContextContinuation continuation;
     try (ContextScope scope = context.attach()) {
       continuation = context.capture();
@@ -316,7 +319,8 @@ class ContextContinuationTest extends ContextTestBase {
     }
     // One explicit release() is enough — no extra releases needed for the second hold().
     continuation.release();
-    listener.assertNewEvents("attach", "capture", "detach", "release");
+    listener.assertNewEvents(
+        "update:{root}->value", "capture:value", "update:value->{root}", "release:value");
     continuation.release(); // still idempotent after the final release
     listener.assertNoNewEvents();
   }
@@ -326,13 +330,14 @@ class ContextContinuationTest extends ContextTestBase {
     // hold() on an already-released continuation must not resurrect it.
     TrackingListener listener = trackingListener();
     ContextManager.register(listener);
-    Context context = root().with(CONTINUATION_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     ContextContinuation continuation;
     try (ContextScope scope = context.attach()) {
       continuation = context.capture();
     }
     continuation.release();
-    listener.assertNewEvents("attach", "capture", "detach", "release");
+    listener.assertNewEvents(
+        "update:{root}->value", "capture:value", "update:value->{root}", "release:value");
     continuation.hold(); // must be silently ignored
     // resume() after release is already a noop, even with the spurious hold()
     try (ContextScope scope = continuation.resume()) {
@@ -346,14 +351,15 @@ class ContextContinuationTest extends ContextTestBase {
   void testHoldAllowsMultipleReleaseCalls() {
     TrackingListener listener = trackingListener();
     ContextManager.register(listener);
-    Context context = root().with(CONTINUATION_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     ContextContinuation continuation;
     try (ContextScope scope = context.attach()) {
       continuation = context.capture(); // capture while active
       continuation.hold();
     }
     continuation.release();
-    listener.assertNewEvents("attach", "capture", "detach", "release");
+    listener.assertNewEvents(
+        "update:{root}->value", "capture:value", "update:value->{root}", "release:value");
     continuation.release(); // second release is a no-op
     listener.assertNoNewEvents();
   }
