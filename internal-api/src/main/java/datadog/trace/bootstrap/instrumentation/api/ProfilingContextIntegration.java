@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.context.Context;
 import datadog.trace.api.EndpointCheckpointer;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
@@ -19,14 +20,15 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
   default void onDetach() {}
 
   /**
-   * Whether this integration stores the active span context in a carrier / OS-thread-keyed slot
-   * (e.g. ddprof's native {@code setContext}) rather than a virtual-thread-aware Java {@code
-   * ThreadLocal}. When {@code true}, the context must be re-applied to the current carrier on every
-   * virtual-thread mount and cleared on unmount.
+   * Applies {@code context} to the current thread's profiler context. Default is a no-op: only
+   * integrations that key profiler context by the running (carrier) thread need this, and only when
+   * driven by the legacy context manager, where the virtual-thread instrumentation seeds the scope
+   * stack once and calls this on each subsequent mount rather than swapping.
    */
-  default boolean isCarrierThreadBound() {
-    return false;
-  }
+  default void setContext(Context context) {}
+
+  /** Clears the current thread's profiler context. See {@link #setContext(Context)}. */
+  default void clearContext() {}
 
   default Stateful newScopeState(ProfilerContext profilerContext) {
     return Stateful.DEFAULT;

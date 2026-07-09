@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import datadog.context.Context;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
@@ -79,10 +80,14 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
-  public boolean isCarrierThreadBound() {
-    return true;
+  public void setContext(Context context) {
+    AgentSpan span = AgentSpan.fromContext(context);
+    if (span != null) {
+      contextManager.activate(span.spanContext());
+    }
   }
 
+  @Override
   public void clearContext() {
     DDPROF.clearSpanContext();
     DDPROF.clearContextValue(SPAN_NAME_INDEX);

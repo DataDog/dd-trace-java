@@ -40,12 +40,13 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
  * <ol>
  *   <li>{@code init()}: captures the current {@link Context} and an {@link Continuation} to prevent
  *       the enclosing context scope from completing early.
- *   <li>{@code mount()}: on the first mount, seeds the virtual thread's scope stack with the
- *       captured context; on later mounts, re-applies the profiler context to the current carrier
- *       (no-op unless carrier-bound profiling is active).
- *   <li>{@code unmount()}: clears the carrier's profiler context (no-op unless carrier-bound
- *       profiling is active). The scope stack is NOT swapped out — it lives in the virtual thread's
- *       own thread-local and follows it across park/unpark and carrier migration.
+ *   <li>{@code mount()}: with the legacy context manager, seeds the virtual thread's scope stack
+ *       with the captured context on the first mount only (it then follows the thread via its
+ *       virtual-thread-aware thread-local) and re-applies the profiler context on later mounts;
+ *       with the new context manager, swaps the context in on every mount (cheap, and drives the
+ *       profiler through its context listener).
+ *   <li>{@code unmount()}: with the legacy context manager, clears the carrier's profiler context;
+ *       with the new context manager, swaps the carrier's context back.
  *   <li>Steps 2-3 repeat on each park/unpark cycle, potentially on different carrier threads.
  *   <li>{@code afterDone()} / {@code afterTerminate()} for early VirtualThread support: cancels the
  *       help continuation, releasing the context scope to be closed.
