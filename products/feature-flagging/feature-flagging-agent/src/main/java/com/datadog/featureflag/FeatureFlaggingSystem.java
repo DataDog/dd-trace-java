@@ -28,10 +28,12 @@ public class FeatureFlaggingSystem {
     EXPOSURE_WRITER = new ExposureWriterImpl(sco, config);
     EXPOSURE_WRITER.init();
 
-    // APM span enrichment: agent-side listener for flag-evaluation seam events. Cheap to register
-    // (it only accumulates once the provider's gate-on capture hook actually dispatches events, and
-    // registers its trace interceptor lazily on the first such event).
-    SPAN_ENRICHMENT_WRITER = new SpanEnrichmentWriter();
+    // APM span enrichment: agent-side listener for flag-evaluation seam events. Uses the process-
+    // wide singleton so a subsystem restart reuses the one already-registered trace interceptor
+    // (which the tracer cannot remove) instead of registering a second, rejected one. Cheap: it
+    // only accumulates once the provider's gate-on capture hook dispatches events, and registers
+    // its interceptor lazily on the first such event.
+    SPAN_ENRICHMENT_WRITER = SpanEnrichmentWriter.getInstance();
     SPAN_ENRICHMENT_WRITER.init();
 
     LOGGER.debug("Feature Flagging system started");

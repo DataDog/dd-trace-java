@@ -2,6 +2,7 @@ package com.datadog.featureflag;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -100,6 +101,17 @@ class SpanEnrichmentWriterTest {
     writer.interceptor().onTraceComplete(Collections.singletonList(root));
     verify(root).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "BQ=="); // {5} -> 0x05
     assertTrue(writer.states().isEmpty(), "flush removes the accumulated state");
+  }
+
+  @Test
+  void agentSingletonIsStableAcrossRestarts() {
+    // FeatureFlaggingSystem reuses this one instance across start/stop, so the (unremovable) trace
+    // interceptor is registered exactly once and never re-registered on restart.
+    final SpanEnrichmentWriter first = SpanEnrichmentWriter.getInstance();
+    final SpanEnrichmentWriter second = SpanEnrichmentWriter.getInstance();
+    assertSame(first, second, "agent wiring must reuse one writer across restarts");
+    assertSame(first.interceptor(), second.interceptor(), "same interceptor across restarts");
+    assertSame(first.states(), second.states(), "same state store across restarts");
   }
 
   @Test
