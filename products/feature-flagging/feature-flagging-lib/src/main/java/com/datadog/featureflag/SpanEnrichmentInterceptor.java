@@ -5,6 +5,8 @@ import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collection;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link TraceInterceptor} that writes the accumulated {@code ffe_*} tags onto the local root span
@@ -43,6 +45,8 @@ import java.util.Map;
  * <p>All work is wrapped in try/catch — enrichment must NEVER break trace finish.
  */
 final class SpanEnrichmentInterceptor implements TraceInterceptor {
+
+  private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentInterceptor.class);
 
   /**
    * Unique priority in the "trace data enrichment" band, after {@code GIT_METADATA} (3) and before
@@ -85,7 +89,8 @@ final class SpanEnrichmentInterceptor implements TraceInterceptor {
         }
       }
     } catch (final Throwable t) {
-      // Never let span enrichment break trace finish.
+      // Never let span enrichment break trace finish; a debug line aids diagnosis if it does.
+      log.debug("Span-enrichment tag write failed", t);
     }
     return trace;
   }

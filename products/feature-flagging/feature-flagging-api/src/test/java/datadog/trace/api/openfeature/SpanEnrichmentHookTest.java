@@ -27,13 +27,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Capture-side unit suite for APM feature-flag span enrichment.
- *
- * <p>The published {@code dd-openfeature} provider has no tracer dependency: the hook dispatches a
- * {@link SpanEnrichmentEvent} onto {@link FeatureFlaggingGateway} (native JDK types only) and the
- * agent-side write tier does the accumulation. These tests therefore assert the dispatched events
- * (not span tags — those are covered in {@code feature-flagging-lib}) plus the {@link Provider}
- * gating.
+ * Capture-side unit suite for APM feature-flag span enrichment. The hook dispatches a {@link
+ * SpanEnrichmentEvent} onto {@link FeatureFlaggingGateway} and the agent-side write tier does the
+ * accumulation, so these tests assert the dispatched events (not span tags — those are covered in
+ * {@code feature-flagging-lib}) plus the {@link Provider} gating.
  */
 class SpanEnrichmentHookTest {
 

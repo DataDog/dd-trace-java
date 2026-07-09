@@ -2,8 +2,6 @@ package datadog.trace.api.openfeature;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -32,17 +30,6 @@ public class Provider extends EventProvider implements Metadata {
   static final String METADATA = "datadog-openfeature-provider";
   private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
 
-  /**
-   * Canonical config key for the span-enrichment gate ({@link
-   * FeatureFlaggingConfig#EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED}). Read through {@link
-   * ConfigProvider} so the full precedence applies — system property, env var ({@code
-   * DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED}), and stable config — exactly like
-   * the sibling provider-enabled gate. Distinct from the provider-enabled gate; OFF by default
-   * (experimental opt-in).
-   */
-  static final String SPAN_ENRICHMENT_ENABLED_KEY =
-      FeatureFlaggingConfig.EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED;
-
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
@@ -70,7 +57,7 @@ public class Provider extends EventProvider implements Metadata {
 
   /**
    * @param spanEnrichmentEnabledOverride when non-null, forces the span-enrichment gate (test
-   *     seam); when null, the gate is read from {@link #SPAN_ENRICHMENT_ENABLED_KEY}.
+   *     seam); when null, the gate is read via {@link SpanEnrichmentGate}.
    */
   Provider(
       final Options options,
@@ -90,14 +77,12 @@ public class Provider extends EventProvider implements Metadata {
     this.flagEvalMetrics = metrics;
     this.flagEvalHook = hook;
 
-    // Span enrichment is wired ONLY when the gate is on. When off, no capture hook is constructed
-    // and there is no idle per-evaluation overhead. The hook merely dispatches evaluation metadata
-    // onto FeatureFlaggingGateway; the agent-side write tier (feature-flagging-lib) resolves the
-    // span and accumulates, so this application-side provider holds no tracer dependency.
+    // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
+    // per-evaluation overhead.
     final boolean spanEnrichmentEnabled =
         spanEnrichmentEnabledOverride != null
             ? spanEnrichmentEnabledOverride
-            : isSpanEnrichmentEnabled();
+            : SpanEnrichmentGate.isEnabled();
     this.spanEnrichmentHook = spanEnrichmentEnabled ? new SpanEnrichmentHook() : null;
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
@@ -118,16 +103,6 @@ public class Provider extends EventProvider implements Metadata {
       log.info("{} span enrichment enabled", METADATA);
     } else {
       log.info("{} span enrichment disabled", METADATA);
-    }
-  }
-
-  private static boolean isSpanEnrichmentEnabled() {
-    try {
-      // Full config precedence (system property > stable config > env) via ConfigProvider, matching
-      // the sibling provider-enabled gate. "1"/"true" (any case) map to true; default false.
-      return ConfigProvider.getInstance().getBoolean(SPAN_ENRICHMENT_ENABLED_KEY, false);
-    } catch (final Throwable t) {
-      return false; // never let config reading break provider construction
     }
   }
 
@@ -299,7 +274,7 @@ public class Provider extends EventProvider implements Metadata {
     return evaluator.evaluate(Value.class, key, defaultValue, ctx);
   }
 
-  @SuppressForbidden // Class#forName(String) used to lazy load internal-api dependencies
+  @SuppressForbidden // Class#forName(String) used to lazy-load the evaluator implementation
   protected Class<?> loadEvaluatorClass() throws ClassNotFoundException {
     return Class.forName(EVALUATOR_IMPL);
   }

@@ -3,7 +3,6 @@ package datadog.trace.api.openfeature;
 import static java.util.Arrays.asList;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
-import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
@@ -17,7 +16,6 @@ import datadog.trace.api.featureflag.ufc.v1.ShardRange;
 import datadog.trace.api.featureflag.ufc.v1.Split;
 import datadog.trace.api.featureflag.ufc.v1.ValueType;
 import datadog.trace.api.featureflag.ufc.v1.Variant;
-import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.ImmutableMetadata;
@@ -56,7 +54,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   // Read once: when off, the __dd_* span-enrichment metadata is not attached to evaluations, so an
   // enabled provider pays nothing extra unless span enrichment is also enabled. The gate does not
   // change at runtime, and this class is loaded lazily (well after startup) so config is ready.
-  private static final boolean SPAN_ENRICHMENT_ENABLED = readSpanEnrichmentEnabled();
+  private static final boolean SPAN_ENRICHMENT_ENABLED = SpanEnrichmentGate.isEnabled();
 
   private final Runnable configCallback;
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
@@ -64,15 +62,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   public DDEvaluator(final Runnable configCallback) {
     this.configCallback = configCallback;
-  }
-
-  private static boolean readSpanEnrichmentEnabled() {
-    try {
-      return ConfigProvider.getInstance()
-          .getBoolean(FeatureFlaggingConfig.EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED, false);
-    } catch (final Throwable t) {
-      return false; // never let config reading break evaluator class initialization
-    }
   }
 
   @Override

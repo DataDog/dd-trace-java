@@ -6,6 +6,8 @@ import datadog.trace.api.featureflag.SpanEnrichmentEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Agent-side owner of APM feature-flag span enrichment. This is the WRITE tier of the
@@ -17,8 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p><b>Process-wide singleton (restart-safe).</b> Use {@link #getInstance()} for the agent wiring.
  * The tracer keeps trace interceptors for the life of the JVM and offers no removal API, so the
  * interceptor — and the weak-keyed state it reads — must outlive any single start/stop of the
- * feature-flagging subsystem. A fresh writer per {@code start()} would build a second interceptor at
- * the same priority; the tracer would reject it and its state would never be read, silently
+ * feature-flagging subsystem. A fresh writer per {@code start()} would build a second interceptor
+ * at the same priority; the tracer would reject it and its state would never be read, silently
  * disabling enrichment after a restart. Reusing one instance avoids that: the single interceptor is
  * registered exactly once and simply resumes when {@link #init()} re-subscribes the listener.
  *
@@ -31,6 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p>All work is wrapped in try/catch — enrichment must NEVER break flag evaluation.
  */
 public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEnrichmentListener {
+
+  private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentWriter.class);
 
   // The one instance used by the agent. Persisting it across FeatureFlaggingSystem start/stop keeps
   // the single registered interceptor (and its state) alive, so a restart never re-registers.
@@ -114,7 +118,8 @@ public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEn
         state.addDefault(event.flagKey(), event.defaultValue());
       }
     } catch (final Throwable t) {
-      // Never let span enrichment break flag evaluation.
+      // Never let span enrichment break flag evaluation; a debug line aids diagnosis if it does.
+      log.debug("Span-enrichment accumulation failed", t);
     }
   }
 
@@ -127,7 +132,8 @@ public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEn
         return;
       }
       try {
-        // addTraceInterceptor returns false (without throwing) when the tracer rejects it — e.g. the
+        // addTraceInterceptor returns false (without throwing) when the tracer rejects it — e.g.
+        // the
         // global tracer is still the no-op placeholder. Only latch on success so a later event
         // retries; otherwise a transient false would permanently disable enrichment.
         if (GlobalTracer.get().addTraceInterceptor(interceptor)) {

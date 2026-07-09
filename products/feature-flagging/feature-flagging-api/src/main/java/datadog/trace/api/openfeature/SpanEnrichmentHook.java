@@ -14,19 +14,15 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * OpenFeature {@code finally} hook that captures feature-flag evaluation metadata for APM span
- * enrichment. This is the CAPTURE half of the capture-vs-write split, and it runs in the
- * application classloader (returned from {@link Provider#getProviderHooks()} only when the gate is
- * on).
- *
- * <p>It holds <b>no tracer dependency</b>: rather than resolving the active span itself, it emits a
- * {@link SpanEnrichmentEvent} onto {@link FeatureFlaggingGateway}. The agent-side write tier
- * ({@code SpanEnrichmentWriter} in {@code feature-flagging-lib}) receives the event, resolves the
- * active local-root span, and accumulates the per-trace state that is flushed onto the root when
- * the trace completes. This keeps the published {@code dd-openfeature} product API free of {@code
- * internal-api}.
+ * enrichment. Registered from {@link Provider#getProviderHooks()} only when the gate is on. For
+ * each relevant evaluation it dispatches a {@link SpanEnrichmentEvent} onto {@link
+ * FeatureFlaggingGateway}; the agent-side write tier resolves the active local-root span and
+ * accumulates the per-trace state that is flushed onto the root when the trace completes.
  *
  * <p>Capture branch (frozen Node reference):
  *
@@ -40,6 +36,8 @@ import java.util.Map;
  * <p>All work is wrapped in try/catch — enrichment must NEVER break flag evaluation.
  */
 class SpanEnrichmentHook implements Hook<Object> {
+
+  private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentHook.class);
 
   // The metadata keys the DDEvaluator attaches for span enrichment (single source of truth there).
   static final String METADATA_SERIAL_ID = DDEvaluator.METADATA_SPLIT_SERIAL_ID;
@@ -75,7 +73,8 @@ class SpanEnrichmentHook implements Hook<Object> {
                 details.getFlagKey(), unwrapDefaultValue(details.getValue())));
       }
     } catch (final Throwable t) {
-      // Never let span enrichment break flag evaluation.
+      // Never let span enrichment break flag evaluation; a debug line aids diagnosis if it does.
+      log.debug("Span-enrichment capture failed for flag {}", details.getFlagKey(), t);
     }
   }
 
