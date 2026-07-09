@@ -18,7 +18,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.jar.JarFile;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import org.slf4j.Logger;
@@ -110,28 +109,23 @@ public final class AgentJarIndex {
     }
 
     void buildIndex() throws IOException {
+      Set<String> seen = new HashSet<>();
       try (Stream<Path> paths = Files.walk(resourcesDir)) {
-        List<Path> entries =
-            paths
-                .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
-                .map(resourcesDir::relativize)
-                .sorted(Comparator.comparing(IndexGenerator::normalizedPath))
-                .collect(Collectors.toList());
-
-        Set<String> seen = new HashSet<>();
-        for (Path entry : entries) {
-          if (entry.getNameCount() < 2) {
-            continue;
-          }
-
-          String prefix = entry.getName(0) + "/";
-          int prefixId = prefixIdFor(prefix);
-          String entryKey = computeEntryKey(entry.subpath(1, entry.getNameCount()));
-          if (null != entryKey && seen.add(prefixId + "\0" + entryKey)) {
-            collectedEntryKeys.add(entryKey);
-            collectedPrefixIds.add(prefixId);
-          }
-        }
+        paths
+            .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
+            .map(resourcesDir::relativize)
+            .sorted(Comparator.comparing(IndexGenerator::normalizedPath))
+            .filter(entry -> entry.getNameCount() >= 2)
+            .forEach(
+                entry -> {
+                  String prefix = entry.getName(0) + "/";
+                  int prefixId = prefixIdFor(prefix);
+                  String entryKey = computeEntryKey(entry.subpath(1, entry.getNameCount()));
+                  if (null != entryKey && seen.add(prefixId + "\0" + entryKey)) {
+                    collectedEntryKeys.add(entryKey);
+                    collectedPrefixIds.add(prefixId);
+                  }
+                });
       }
 
       for (int i = 0; i < collectedEntryKeys.size(); i++) {

@@ -236,6 +236,18 @@ class AgentJarIndexTest {
   }
 
   @Test
+  void buildIndexIgnoresTopLevelFilesWhenCollectingPrefixes(@TempDir Path tempDir)
+      throws Exception {
+    Path resources = tempDir.resolve("resources");
+    createFile(resources, "root-resource.properties");
+    createFile(resources, "inst/datadog/trace/instrumentation/servlet/ServletAdvice.classdata");
+
+    Path indexFile = writeIndex(resources, tempDir.resolve("dd-java-agent.index"));
+
+    assertEquals(Arrays.asList("inst/"), readPrefixes(indexFile));
+  }
+
+  @Test
   void buildIndexIsIndependentOfDirectoryCreationOrder(@TempDir Path tempDir) throws Exception {
     Path buildResources = tempDir.resolve("build-resources");
     createFile(buildResources, "appsec/com/datadog/appsec/Event.classdata");
