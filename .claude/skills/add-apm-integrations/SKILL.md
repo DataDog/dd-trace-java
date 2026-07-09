@@ -30,8 +30,8 @@ Compare the content of the three docs against the rules encoded in Steps 2–11 
 - Steps that are out of date relative to the current docs (e.g. renamed methods, new base classes)
 - Advice constraints or test requirements that have changed
 
-For every discrepancy found, edit this file (`.claude/skills/apm-integrations/SKILL.md`) to correct it using the
-`Edit` tool before continuing. Keep changes targeted: fix what diverged, add what is missing, remove what is wrong.
+For every discrepancy found, edit this file (`.claude/skills/add-apm-integrations/SKILL.md`) or its referenced files
+to correct it using the `Edit` tool before continuing. Keep changes targeted: fix what diverged, add what is missing, remove what is wrong.
 Do not touch content that already matches the docs.
 
 ## Step 2 – Clarify the task
@@ -57,19 +57,13 @@ pattern before writing new code. Use it as a template.
 1. Create directory: `dd-java-agent/instrumentation/$framework/$framework-$minVersion/`
 2. Under it, create the standard Maven source layout:
    - `src/main/java/` — instrumentation code
-   - `src/test/java/` — JUnit 5 tests (Groovy/Spock is not accepted for new code — see Step 9.1)
+   - `src/test/groovy/` — Groovy/Spock instrumentation tests (see Step 9.1)
 3. Create `build.gradle` with:
    - `compileOnly` dependencies for the target framework
    - `testImplementation` dependencies for tests
-   - `muzzle { pass { } }` directives (see Step 9)
+   - `muzzle { pass { } }` directives (see Step 9.2)
 4. Register the new module in `settings.gradle.kts` in **alphabetical order**
-5. Register the integration name in `metadata/supported-configurations.json` (see "Register new integration names" in Step 9), or
-   `checkInstrumenterModuleConfigurations` fails. The name in `super(...)` maps to env var
-   `DD_TRACE_<NAME>_ENABLED` (`.` and `-` become `_`, uppercased — `couchbase-3` →
-   `DD_TRACE_COUCHBASE_3_ENABLED`). Add a `"type": "boolean"` entry, in alphabetical order, with
-   aliases `DD_TRACE_INTEGRATION_<NAME>_ENABLED` and `DD_INTEGRATION_<NAME>_ENABLED`. Set `default`
-   to the module's real default — `"true"`, or `"false"` if it overrides `defaultEnabled()` (e.g.
-   OpenTelemetry, Hazelcast). Declaring several names (`super("a", "b")`) means one entry each.
+5. Register all integration names in `metadata/supported-configurations.json` — **read [Supported Configurations](references/supported-configurations.md)** for the exact key shapes and CI checks involved. Declaring several names (`super("a", "b")`) means one entry each.
 
 **See [Naming Conventions](references/naming-conventions.md) — module directory name must end with a version or an allowed suffix (`-common`, `-stubs`, `-iast`).**
 
@@ -83,13 +77,13 @@ Decide which kind of `InstrumenterModule` the library needs: `InstrumenterModule
 
 **Read [Naming Conventions](references/naming-conventions.md) § "Java naming consistency".**
 
-Filename and `public class` name MUST match character-for-character (including acronym casing). Use one canonical string everywhere: filename, class decl, `import static`, `ClassName.member` references. The reference file has a sanity-check script — run it before declaring done.
+Filename and `public class` name MUST match character-for-character (including acronym casing). Use one canonical string everywhere: filename, class decl, `import static`, `ClassName.member` references.
 
 ## Step 5 – Write the InstrumenterModule
 
 **Read [InstrumenterModule Guidance](references/instrumenter-module.md).**
 
-In short: annotate with `@AutoService`, extend the right `InstrumenterModule.*` subclass, implement the narrowest `Instrumenter` interface possible (`ForSingleType` > `ForKnownTypes` > `ForTypeHierarchy` — with a critical exception for interface-only API JARs like JMS/JPA/JDBC). Include a version-qualified alias in `instrumentationNames()` (`{"jedis", "jedis-3.0"}`). Declare all helper classes. When regenerating an existing module, preserve master's integration name to avoid churn in `supported-configurations.json`. Do NOT extract one-shot method return values into static constants.
+In short: annotate with `@AutoService`, extend the right `InstrumenterModule.*` subclass, implement the narrowest `Instrumenter` interface possible (`ForSingleType` > `ForKnownTypes` > `ForTypeHierarchy` — with a critical exception for interface-only API JARs like JMS/JPA/JDBC). Include a version-qualified alias in `super("jedis", "jedis-3.0")`. Declare all helper classes. When regenerating an existing module, preserve master's integration name to avoid churn in `supported-configurations.json`. Do NOT extract one-shot method return values into static constants.
 
 ## Step 6 – Write the Decorator
 
@@ -99,6 +93,8 @@ In short: annotate with `@AutoService`, extend the right `InstrumenterModule.*` 
 - Define `UTF8BytesString` constants for the component name and operation name
 - Keep all tag/naming/error logic here — not in the Advice class
 - Override `spanType()`, `component()`, `spanKind()` as appropriate
+- Override `instrumentationNames()` to return the primary integration name without a version suffix: `return new String[] {"jedis"};` not `"jedis-3.0"`.
+- `BaseDecorator` uses those names to resolve analytics settings (`DD_TRACE_<NAME>_ANALYTICS_ENABLED`, `DD_TRACE_<NAME>_ANALYTICS_SAMPLE_RATE`). Search `metadata/supported-configurations.json` for each returned name — if analytics keys are absent, add them (see [Supported Configurations](references/supported-configurations.md) for the JSON shape).
 
 ## Step 7 – Write the Advice class (highest-risk step)
 
@@ -118,17 +114,22 @@ Cover all mandatory test types:
 
 ### 1. Instrumentation test (mandatory)
 
-**Read [Writing Tests](references/tests.md).** Java tests only (JUnit 5) in `src/test/java/` — no new `.groovy` files (bot-enforced). Must cover error/exception scenarios. When adding new integration names, register them in `metadata/supported-configurations.json` (config-inversion-linter enforces). When `compileOnly` and `testImplementation` use different versions, comment the specific class that requires the higher version. Include the prior-version module as a `testImplementation` dependency for mutual-exclusion tests.
+**Read [Writing Tests](references/tests.md).** Instrumentation tests are Groovy/Spock (`src/test/groovy/`) — add `tag: override groovy enforcement` to the PR to bypass the groovy migration bot. Must cover error/exception scenarios. When adding new integration names, register them per [Supported Configurations](references/supported-configurations.md). When `compileOnly` and `testImplementation` use different versions, comment the specific class that requires the higher version. Include the prior-version module as a `testImplementation` dependency for mutual-exclusion tests.
 
 ### 2. Muzzle directives (mandatory)
 
 **Read [Muzzle Directives](references/muzzle.md).**
 
-Two valid patterns: open-ended range (`[$min,)` with `assertInverse = true` only when the true min is verified) or bounded range (`[$min,$max)` with explicit `fail { versions = "[,$min)" }` — no `assertInverse`). Muzzle range must exclude incompatible major versions when the same `group:module` republishes with a rewritten API. Library-specific quirks (malformed release versions like `jedis-3.6.2`) require `skipVersions` — search adjacent modules for these before declaring new ranges.
+Three valid patterns — see [Muzzle Directives](references/muzzle.md) for full examples:
+- **Open-ended** `[$min,)`: use `assertInverse = true` only when the declared min is the verified true minimum.
+- **Bounded, sibling module takes over at `$max`** `[$min,$max)`: use explicit `fail { versions = "[,$min)" }` with no `assertInverse` — the plugin can otherwise pick sibling-covered versions as inverse targets and fail unexpectedly.
+- **Bounded, incompatible major version above `$max`** `[$min,$max)`: `assertInverse = true` is fine because versions above `$max` genuinely fail muzzle.
+
+Library-specific quirks (malformed release versions like `jedis-3.6.2`) require `skipVersions` — search adjacent modules for these before declaring new ranges.
 
 ### 3. Latest dependency test (mandatory)
 
-Use the `latestDepTestLibrary` helper in `build.gradle` to pin the latest available version. Run with:
+Use `latestDepTestImplementation` in `build.gradle` to pin the latest available version. Run with:
 ```bash
 ./gradlew :dd-java-agent:instrumentation:$framework-$version:latestDepTest
 ```
@@ -161,12 +162,15 @@ Run these commands in order and fix any failures before proceeding:
 ./gradlew spotlessCheck
 ```
 
-**If muzzle fails:** check for missing helper class names in `helperClassNames()`.
+**If muzzle fails:**
+- Missing helper class names in `helperClassNames()` — the most common cause; add any missing inner, anonymous, or enum synthetic classes.
+- Wrong version range — the declared `versions` in `build.gradle` doesn't cover the versions actually used by tests; adjust the bounds.
+- API mismatch — the instrumented class or method doesn't exist in the declared version; check the library's changelog and narrow the `compileOnly` version or the muzzle range.
 
 **If `checkInstrumenterModuleConfigurations` fails:** an integration name from `super(...)` is missing
-(or mismatched) in `metadata/supported-configurations.json` — see Step 4, item 5.
+(or mismatched) in `metadata/supported-configurations.json` — see [Supported Configurations](references/supported-configurations.md).
 
-**If tests fail:** verify span lifecycle order (start → activate → error → finish → close), helper registration,
+**If tests fail:** verify span lifecycle order (start → activate → error → close → finish), helper registration,
 and `contextStore()` map entries match actual usage.
 
 **If spotlessCheck fails:** run `./gradlew spotlessApply` to auto-format, then re-check.
@@ -177,7 +181,10 @@ Output this checklist and confirm each item is satisfied:
 
 - [ ] `settings.gradle.kts` entry added in alphabetical order
 - [ ] `metadata/supported-configurations.json` has a `DD_TRACE_<NAME>_ENABLED` entry (+ the two aliases) for every name passed to `super(...)`
-- [ ] `build.gradle` has `compileOnly` deps and `muzzle` directives with `assertInverse = true`
+- [ ] `metadata/supported-configurations.json` has `DD_TRACE_<NAME>_ANALYTICS_ENABLED` and `DD_TRACE_<NAME>_ANALYTICS_SAMPLE_RATE` entries for every name returned by the decorator's `instrumentationNames()`
+- [ ] `build.gradle` has `compileOnly` deps and `muzzle` directives
+- [ ] Muzzle pattern is correct: Pattern A (`assertInverse = true`) for open-ended ranges where the min is verified; Pattern B (explicit `fail` blocks, no `assertInverse`) when a sibling module takes over at the upper bound; Pattern C (`assertInverse = true`) when the upper bound excludes an incompatible major version — see [Muzzle Directives](references/muzzle.md)
+- [ ] `latestDepTestImplementation` version range matches the instrumented version range (e.g. `2+` not `3+` for a `2.x` module)
 - [ ] `@AutoService(InstrumenterModule.class)` annotation present on the module class
 - [ ] `helperClassNames()` lists ALL referenced helpers (including inner, anonymous, and enum synthetic classes)
 - [ ] Advice methods are `static` with `@Advice.OnMethodEnter` / `@Advice.OnMethodExit` annotations
@@ -186,7 +193,7 @@ Output this checklist and confirm each item is satisfied:
 - [ ] No logger field in the Advice class or InstrumenterModule class
 - [ ] No `inline=false` left in production code
 - [ ] No `java.util.logging.*` / `java.nio.*` / `javax.management.*` in bootstrap path
-- [ ] Span lifecycle order is correct: startSpan → afterStart → activateSpan (enter); onError → beforeFinish → finish → close (exit)
+- [ ] Span lifecycle order is correct: startSpan → afterStart → activateSpan (enter); onError → beforeFinish → close → finish (exit)
 - [ ] Muzzle passes
 - [ ] Instrumentation tests pass
 - [ ] `latestDepTest` passes
@@ -205,7 +212,8 @@ After the instrumentation is complete (or abandoned), review the full session an
    reflected in any step of this skill?
 4. **User corrections** — did the user correct an output, override a decision, or point out a mistake?
 
-**For each lesson identified**, edit this file (`.claude/skills/apm-integrations/SKILL.md`) using the `Edit` tool:
+**For each lesson identified**, edit this file (`.claude/skills/add-apm-integrations/SKILL.md`) or its referenced files
+using the `Edit` tool:
 - Wrong rule → fix it in place
 - Missing rule → add it to the most relevant step
 - Wrong failure guidance → update the relevant "If X fails" section in Step 10

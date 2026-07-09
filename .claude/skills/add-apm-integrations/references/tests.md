@@ -4,101 +4,52 @@
 
 ## 1. Instrumentation test (mandatory)
 
-**Write Java tests (JUnit 5), NOT Groovy/Spock.** dd-trace-java policy
-forbids new `.groovy` files — the `Enforce Groovy Migration` workflow
-(`.github/workflows/enforce-groovy-migration.yaml`) rejects any PR containing them.
-All new tests must go in `src/test/java/`.
+**Write Groovy/Spock tests for instrumentation tests** (per `AGENTS.md`: "Only use Groovy / Spock tests for instrumentation and smoke tests"). Full Java instrumentation test support is not yet available. Adding new `.groovy` files to a PR will trigger the `Enforce Groovy Migration` bot — add the `tag: override groovy enforcement` label to bypass it.
 
-- JUnit 5 test class in `src/test/java/datadog/trace/instrumentation/<framework>/`
+- Groovy/Spock test class in `src/test/groovy/datadog/trace/instrumentation/<framework>/`
 - Verify: spans created, tags set, errors propagated, resource names correct
-- Use `TEST_WRITER.waitForTraces(N)` for assertions
-- Use `runUnderTrace("root", () -> { ... })` for synchronous code (Java lambda, not Groovy closure)
+- Use `assertTraces(N) { trace(N) { span { ... } } }` for span assertions (Spock DSL from `InstrumentationSpecification`)
+- Use `TEST_WRITER.waitForTraces(N)` for setup/teardown flushing (not for assertions)
+- Use `runUnderTrace("root") { ... }` from `TraceUtils` for synchronous code (trailing Groovy closure)
 
 **Tests must cover error/exception scenarios, not just the happy path.** At minimum, add a test that exercises an exception or error condition and asserts the span's error tags (`error.type`, `error.message`, `error.stack`) are set correctly:
 
-```java
-// Example error test (Java)
-@Test
-void testExceptionSetsErrorTags() throws Exception {
-    assertThrows(SomeException.class, () -> {
-        // trigger operation that throws
-        client.execute(badRequest);
-    });
-    List<List<AgentSpan>> traces = TEST_WRITER.waitForTraces(1);
-    AgentSpan span = traces.get(0).get(0);
-    assertNotNull(span.getTag("error.type"));
-    assertNotNull(span.getTag("error.message"));
+```groovy
+// Example error test (Groovy/Spock)
+def "exception sets error tags"() {
+    when:
+    client.execute(badRequest)
+
+    then:
+    thrown(SomeException)
+    assertTraces(1) {
+        trace(1) {
+            span {
+                errored true
+            }
+        }
+    }
 }
 ```
 
 For tests that need a separate JVM, suffix the test class with `ForkedTest` and run via the `forkedTest` task.
 
-### No new .groovy files (Java tests only)
+### Adding new .groovy test files
 
-dd-trace-java forbids new `.groovy` files (bot-enforced on every PR). Write Java:
+The `Enforce Groovy Migration` workflow blocks new `.groovy` files by default. For new instrumentation tests (which should be Groovy/Spock), add the `tag: override groovy enforcement` label to the PR to bypass the check.
 
-```java
-// WRONG — generates a .groovy file which CI rejects automatically
-// src/test/groovy/JedisClientTest.groovy
-
-// CORRECT — Java in src/test/java/
-// src/test/java/datadog/trace/instrumentation/jedis3/Jedis3ClientTest.java
-@ExtendWith(AgentJUnit5Extension.class)
-public class Jedis3ClientTest extends AgentInstrumentationTest {
-    @Test
-    void testCommandCreatesSpan() {
+```groovy
+// src/test/groovy/datadog/trace/instrumentation/jedis3/Jedis3ClientTest.groovy
+class Jedis3ClientTest extends InstrumentationSpecification {
+    def "command creates span"() {
         // test body
     }
 }
 ```
 
-The `Enforce Groovy Migration` workflow will fail the PR if any `.groovy` file is added.
-
 ### Register new integration names in `metadata/supported-configurations.json`
 
-Every new integration name in your module (whether from `super("foo-X.Y")` in `InstrumenterModule`, or from `instrumentationNames()` in the decorator) MUST have a corresponding entry in `metadata/supported-configurations.json` at the repo root. The `dd-gitlab/config-inversion-linter` CI job fails otherwise.
-
-For each new integration name `<NAME>` (uppercase, dashes/dots replaced with underscores), add:
-
-```json
-"DD_TRACE_<NAME>_ENABLED": [
-  {
-    "version": "A",
-    "type": "boolean",
-    "default": "true",
-    "aliases": ["DD_TRACE_INTEGRATION_<NAME>_ENABLED", "DD_INTEGRATION_<NAME>_ENABLED"]
-  }
-],
-```
-
-**Default value:** `"true"` for typical integrations (jedis, okhttp, kafka, spring-web, etc. — ~83% of existing entries). Set `"default": "false"` only if the module overrides `defaultEnabled()` to return `false` (e.g. OpenTelemetry, Hazelcast, sparkjava). Cross-check with `grep -A2 "defaultEnabled" dd-java-agent/instrumentation/<framework>*` before choosing.
-
-If the decorator's `instrumentationNames()` returns a shared name (e.g. `"sparkjava"` covering all sparkjava versions), also add the analytics keys for the shared name:
-
-```json
-"DD_TRACE_<SHARED>_ANALYTICS_ENABLED": [
-  {
-    "version": "A",
-    "type": "boolean",
-    "default": "false",
-    "aliases": ["DD_<SHARED>_ANALYTICS_ENABLED"]
-  }
-],
-"DD_TRACE_<SHARED>_ANALYTICS_SAMPLE_RATE": [
-  {
-    "version": "A",
-    "type": "decimal",
-    "default": "1.0",
-    "aliases": ["DD_<SHARED>_ANALYTICS_SAMPLE_RATE"]
-  }
-],
-```
-
-**Place entries alphabetically** in the JSON file. **Verify the JSON parses** before committing (`python3 -c "import json; json.load(open('metadata/supported-configurations.json'))"`).
-
-**Type names — match existing conventions**: use `"boolean"`, `"string"`, `"integer"`, `"decimal"` (for floating-point — NOT `"double"`). The `dd-gitlab/validate_supported_configurations_v2_local_file` CI job will fail with non-canonical type names like `"double"`. Cross-check by grepping existing entries for similar fields.
-
-**How to discover whether entries are missing**: after writing the instrumentation, search `metadata/supported-configurations.json` for each name used in `super(...)` and `instrumentationNames()`. If any is absent, add it. Do not assume master already has it — version-specific integration names (e.g. `sparkjava-2.3` vs `sparkjava-2.4`) are not interchangeable.
+See [Supported Configurations](supported-configurations.md) for the key shapes, CI checks, and JSON format.
 
 ### compileOnly and testImplementation may use different versions — explain why
 

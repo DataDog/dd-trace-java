@@ -35,11 +35,11 @@ For each boundary-crossing type in the library, the instrumentation needs to ide
 
 Context-tracking tests assert that **a span created by user code inside the wrapped callback becomes a child of the parent span active when the boundary was created**:
 
-```java
-runUnderTrace("parent", () -> {
-    constructBoundary()                                  // capture happens here
-        .subscribe(item -> userCodeStartsAChildSpan());  // restore happens around the lambda
-});
+```groovy
+runUnderTrace("parent") {
+    constructBoundary()                                    // capture happens here
+        .subscribe({ item -> userCodeStartsAChildSpan() }) // restore happens around the closure
+}
 // Assert: 1 trace, 2 spans — child has parent's spanId as parentId.
 ```
 

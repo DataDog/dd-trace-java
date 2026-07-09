@@ -4,7 +4,7 @@
 
 ## Muzzle directives (mandatory)
 
-In `build.gradle`, add `muzzle` blocks. **There are two valid patterns** — choose based on whether your version range is open-ended or bounded.
+In `build.gradle`, add `muzzle` blocks. **There are three valid patterns** — choose based on whether your version range is open-ended or bounded, and if bounded, why.
 
 **Pattern A — Open-ended range** (your instrumentation supports `[minVersion, ∞)` with no upper bound). Use `assertInverse = true` — the plugin auto-asserts that versions below `minVersion` fail muzzle:
 
@@ -19,14 +19,14 @@ muzzle {
 }
 ```
 
-**Pattern B — Bounded range** (your instrumentation supports `[minVersion, maxVersion)` and an existing sibling module covers `[maxVersion, ∞)`). **Do NOT use `assertInverse = true`** — it can pick boundary versions inside your declared range as inverse-test targets, causing `muzzle-AssertFail-...` failures:
+**Pattern B — Bounded range, sibling module takes over at `maxVersion`** (a separate module in `dd-java-agent/instrumentation/` covers `[maxVersion, ∞)`). **Do NOT use `assertInverse = true`** — the plugin can pick sibling-covered versions as inverse-test targets, causing unexpected failures:
 
 ```
 > Task :muzzle-AssertFail-redis.clients-jedis-jedis-3.6.2 FAILED
 MUZZLE PASSED JedisInstrumentation BUT FAILURE WAS EXPECTED
 ```
 
-Instead, declare BOTH the pass range AND the explicit fail ranges that bound it:
+To avoid this, declare the pass range AND an explicit fail range below `$minVersion` (the sibling module covers versions above `$maxVersion`):
 
 ```groovy
 muzzle {
@@ -39,6 +39,19 @@ muzzle {
     group = "com.example"
     module = "framework"
     versions = "[,$minVersion)"
+  }
+}
+```
+
+**Pattern C — Bounded range, incompatible major version above `maxVersion`** (the same `group:module` coordinates republish a completely different API at `maxVersion`). Use `assertInverse = true` — versions above `maxVersion` genuinely fail muzzle because the API is incompatible:
+
+```groovy
+muzzle {
+  pass {
+    group = "commons-httpclient"
+    module = "commons-httpclient"
+    versions = "[2.0,4.0)"
+    assertInverse = true
   }
 }
 ```

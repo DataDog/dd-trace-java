@@ -38,20 +38,23 @@
 
   ✅ `public String[] triggerClasses() { return new String[]{"com.example.Foo"}; }`
 
-### instrumentationNames() must include a version-qualified alias
+### Module constructor must include a version-qualified alias
+
+Pass a version-qualified alias to the `InstrumenterModule` constructor — this is what controls `DD_TRACE_<NAME>_ENABLED`:
 
 ```java
-@Override
-public String[] instrumentationNames() {
-    // WRONG — only generic name
-    return new String[]{"jedis"};
+// WRONG — only generic name; no per-version enable/disable
+public JedisInstrumentation() {
+    super("jedis");
+}
 
-    // CORRECT — generic + version alias
-    return new String[]{"jedis", "jedis-3.0"};
+// CORRECT — generic + version alias
+public JedisInstrumentation() {
+    super("jedis", "jedis-3.0");
 }
 ```
 
-The version alias (e.g. `"jedis-3.0"`) lets users enable/disable this specific version independently.
+The version alias (e.g. `"jedis-3.0"`) lets users enable/disable this specific version independently via `DD_TRACE_JEDIS_3_0_ENABLED`. Do NOT add version aliases to the decorator's `instrumentationNames()` — that method is for analytics keys only.
 
 ### Do not create a helper class just for CallDepthThreadLocalMap when only one type is instrumented
 
@@ -68,10 +71,11 @@ public class GsonHelper {
     }
 }
 
-// CORRECT — use CallDepthThreadLocalMap directly with the Advice or Decorator class as key
-if (CallDepthThreadLocalMap.incrementCallDepth(GsonInstrumentation.class) > 0) return;
+// CORRECT — use a target library class as key (instrumentation/module classes are not
+// helper-injected and must not appear as literals in inlined advice)
+if (CallDepthThreadLocalMap.incrementCallDepth(Gson.class) > 0) return;
 // ... in exit:
-CallDepthThreadLocalMap.reset(GsonInstrumentation.class);
+CallDepthThreadLocalMap.reset(Gson.class);
 ```
 
 A helper class is appropriate when multiple instrumentation classes share the same depth counter — use the shared sentinel class as the key in that case.
@@ -97,7 +101,7 @@ super("commons-httpclient", "commons-httpclient-2.0");
 For complex frameworks with multiple version-specific or feature-specific instrumentations, you can group them under a single `InstrumenterModule` (file ending in `Module.java`). The module class:
 
 - Must extend a `TargetSystem` subclass and have `@AutoService(InstrumenterModule.class)`
-- Must implement `typeInstrumentations()` returning an array of instrumentations
+- Must implement `typeInstrumentations()` returning a `List<Instrumenter>`
 - Must **not** implement an `Instrumenter` interface
 - Member instrumentations must **not** carry `@AutoService` and must **not** extend `TargetSystem` subclasses
 

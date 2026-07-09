@@ -28,12 +28,12 @@ Enter method:
 Exit method:
 4. `DECORATE.onError(span, throwable)` — only if throwable is non-null
 5. `DECORATE.beforeFinish(span)`
-6. `span.finish()`
-7. `scope.close()`
+6. `scope.close()`
+7. `span.finish()`
 
 ### onExit handling when the target method throws
 
-The `onThrowable = Throwable.class` attribute on `@Advice.OnMethodExit` controls whether the exit advice fires when the **instrumented target method** throws. Set it to `Throwable.class` (or omit it — this is the default) if you need to close the scope / finish the span regardless of whether the target method returned normally or threw.
+The `onThrowable = Throwable.class` attribute on `@Advice.OnMethodExit` controls whether the exit advice fires when the **instrumented target method** throws. You **must** set it explicitly to `Throwable.class` for any exit advice that closes a scope or finishes a span — the default skips exceptional termination, which leaks active scopes when the instrumented method throws.
 
 ```java
 // Standard pattern — exit fires whether the target method returned or threw
@@ -42,10 +42,11 @@ public static void exit(
     @Advice.Enter final AgentScope scope,
     @Advice.Thrown final Throwable thrown) {
   if (scope != null) {
-    DECORATE.onError(scope.span(), thrown);
-    DECORATE.beforeFinish(scope.span());
-    scope.span().finish();
+    AgentSpan span = scope.span();
+    DECORATE.onError(span, thrown);
+    DECORATE.beforeFinish(span);
     scope.close();
+    span.finish();
   }
 }
 ```
@@ -65,7 +66,7 @@ import java.nio.charset.StandardCharsets;
 String cmd = new String(commandBytes, StandardCharsets.UTF_8);
 ```
 
-**Note for bootstrap instrumentations:** `StandardCharsets` is `java.nio.*`, which the "Must NOT do" list forbids in bootstrap advice.
+**Note for bootstrap instrumentations:** `StandardCharsets` (`java.nio.charset`) is safe in bootstrap — it is a pure constants class and is used freely in bootstrap code. The `java.nio.*` bootstrap ban applies specifically to NIO filesystem operations (`FileSystems.getDefault()`, `Path.of()`, etc.) that trigger native library initialization during premain.
 
 ### Do NOT catch `NullPointerException`; use null-check guards instead
 
@@ -95,12 +96,12 @@ protected int status(final HttpMethod httpMethod) {
 
 ## Multiple advice classes and `@AppliesOn`
 
-If your instrumentation needs to apply multiple advices to the same method (e.g. separate context-tracking from tracing logic), use `applyAdvices()` instead of `applyAdvice()`:
+If your instrumentation needs to apply multiple advices to the same method (e.g. separate context-tracking from tracing logic), use `applyAdvices()` inside `methodAdvice()`:
 
 ```java
 @Override
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvices(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvices(
             named("someMethod")
                     .and(takesArgument(0, named("com.example.Request")))
                     .and(takesArgument(1, named("com.example.Response"))),
@@ -149,4 +150,4 @@ See `docs/how_instrumentations_work.md` section "@AppliesOn Annotation" for comp
 - **No references** to other methods in the same Advice class or in the InstrumenterModule class
 - **No `InstrumentationContext.get()`** outside of Advice code
 - **No `inline=false`** in production code (only for debugging; must be removed before committing)
-- **No `java.util.logging.*`, `java.nio.*`, or `javax.management.*`** in bootstrap instrumentations
+- **No `java.util.logging.*`, `java.nio.file.*`, or `javax.management.*`** in bootstrap instrumentations
