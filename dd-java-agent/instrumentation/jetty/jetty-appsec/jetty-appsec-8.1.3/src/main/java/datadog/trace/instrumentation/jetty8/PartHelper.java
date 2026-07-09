@@ -114,10 +114,9 @@ public class PartHelper {
   /**
    * Returns a name→values map of form-field parts (those without a {@code filename=} parameter).
    * File-upload parts are skipped to avoid reading potentially large content. Reads up to {@link
-   * Config#getAppSecMaxFileContentBytes()} bytes per field, up to {@link
-   * Config#getAppSecMaxFileContentCount()} fields total — same knobs and cap pattern as {@code
-   * MultipartHelper#extractContents()} uses for file content (PR #11706), reused here since there
-   * is no dedicated "max form fields" config.
+   * #MAX_CONTENT_BYTES} bytes per field, up to {@link #MAX_FILES_TO_INSPECT} fields total — same
+   * knobs and cap pattern as {@link #extractContents} uses for file content, reused here since
+   * there is no dedicated "max form fields" config.
    */
   public static Map<String, List<String>> extractFormFields(Collection<?> parts) {
     if (parts == null || parts.isEmpty()) {
