@@ -130,6 +130,21 @@ Labels are used to not only categorize but also alter the continuous integration
 > For reference, the [full list of all labels available](https://github.com/DataDog/dd-trace-java/labels).
 > If you feel one is missing, let [the maintainer team](https://github.com/orgs/DataDog/teams/apm-java) know!
 
+### Merge Queue
+
+Pull requests are merged into the protected branches using [the Datadog GitLab merge queue system](https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/3121612126/MergeQueue).
+Once approved, pull requests can be added to merge queue using the `Merge when ready` button at the bottom of the page, or by commenting `/merge`.
+The merge queue will run more tests than the pull request checks, meaning having test failures on merge queue while having pull request checks passing is an expected behavior - the pull request checks are lighter to provide quick feedback during development iterations.
+
+By default, the merge commit message uses the pull request title as its subject and the squashed pull request commit messages as its body.
+A custom commit message can be specified by commenting `/merge --commit-message "custom message"`.
+
+Pull requests can be force-merged by commenting: `/merge -f --reason "reason"`.
+
+>[!WARNING]
+> By-passing merge queue will effectively merge pull request content without running all continuous integration tests and checks.
+> Only by-pass the merge queue to fix the build or help restore the continuous integration status.
+
 ## Pull request reviews
 
 ### Review expectations

@@ -3129,6 +3129,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_EXPERIMENTAL_ASYNC_JMETHODID_OPTIM_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_EXPERIMENTAL_ASYNC_SCHEDULING_EVENT": [
       {
         "version": "A",
@@ -3146,6 +3154,14 @@
       }
     ],
     "DD_PROFILING_EXPERIMENTAL_ASYNC_WALL_JVMTI": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_JMETHODID_OPTIM_ENABLED": [
       {
         "version": "A",
         "type": "boolean",

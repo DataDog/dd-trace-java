@@ -3,7 +3,9 @@ package datadog.trace.instrumentation.resilience4j;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 
 import datadog.context.ContextScope;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -18,6 +20,20 @@ import reactor.core.publisher.SignalType;
 public class ReactorHelper {
 
   private static final Logger log = LoggerFactory.getLogger(ReactorHelper.class);
+
+  // These build the hand-off BiConsumer here rather than in @Advice code on purpose: a lambda
+  // defined in advice desugars to an invokedynamic that cannot be linked once the advice is inlined
+  // into the (third-party) operator, and fails silently. anyThread: the span is attached at
+  // assembly and the publisher may be subscribed later on another thread.
+  public static BiConsumer<Publisher<?>, AgentSpan> putInto(
+      final ContextStore<Publisher, HandoffContext> store) {
+    return (publisher, span) -> store.put(publisher, HandoffContext.anyThread(span));
+  }
+
+  public static BiConsumer<Publisher<?>, AgentSpan> putIfAbsentInto(
+      final ContextStore<Publisher, HandoffContext> store) {
+    return (publisher, span) -> store.putIfAbsent(publisher, HandoffContext.anyThread(span));
+  }
 
   public static Function<Publisher<?>, Publisher<?>> wrapFunction(
       Function<Publisher<?>, Publisher<?>> operator,

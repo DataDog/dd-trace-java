@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
@@ -191,7 +191,7 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
 
       Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
       Context parentContext =
-          (parentContextObj instanceof Context) ? (Context) parentContextObj : getRootContext();
+          (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
       final Context context = DECORATE.startSpan(req, parentContext);
       final ContextScope scope = context.attach();
       span = spanFromContext(context);

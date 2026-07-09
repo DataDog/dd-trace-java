@@ -387,6 +387,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  /** Override to false when the multipart implementation uses a set with non-deterministic ordering (e.g. HashSet). */
+  boolean testBodyFilesContentOrdering() {
+    true
+  }
+
   boolean testBodyJson() {
     false
   }
@@ -1767,7 +1772,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   def 'test instrumentation gateway file upload content max files limit'() {
     setup:
-    assumeTrue(testBodyFilesContent())
+    assumeTrue(testBodyFilesContent() && testBodyFilesContentOrdering())
     def maxFilesToInspect = Config.get().getAppSecMaxFileContentCount()
     def bodyBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM)
     (1..maxFilesToInspect + 1).each {
