@@ -1,4 +1,4 @@
-package datadog.trace.common.metrics;
+package datadog.trace.core.otlp.metrics;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,6 +12,8 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
+import datadog.trace.common.metrics.AggregateEntry;
+import datadog.trace.common.metrics.AggregateEntryTestUtils;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import java.io.IOException;
@@ -103,7 +105,7 @@ class OtlpStatsMetricWriterTest {
   private static AggregateEntry okEntry(long durationNanos, int hits) {
     AggregateEntry e = entry("GET /users", false, 0, null, null, null);
     for (int i = 0; i < hits; i++) {
-      e.recordOneDuration(durationNanos);
+      AggregateEntryTestUtils.recordOk(e, durationNanos);
     }
     return e;
   }
@@ -309,9 +311,9 @@ class OtlpStatsMetricWriterTest {
   @Test
   void okPlusErrorEntryProducesTwoDataPointsWithErrorStatus() throws IOException {
     AggregateEntry e = entry("GET /users", false, 0, null, null, null);
-    e.recordOneDuration(SECONDS.toNanos(1)); // ok
-    e.recordOneDuration(SECONDS.toNanos(2)); // ok
-    e.recordOneDuration(SECONDS.toNanos(3) | AggregateEntry.ERROR_TAG); // error
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1)); // ok
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(2)); // ok
+    AggregateEntryTestUtils.recordError(e, SECONDS.toNanos(3)); // error
 
     DecodedMetric metric = writeAndDecode(false, e);
     assertEquals(2, metric.dataPoints.size(), "ok+error → two data points");
@@ -342,8 +344,8 @@ class OtlpStatsMetricWriterTest {
 
     // Bucket 1: the entry sees an error, so its error histogram is allocated and emits a point.
     AggregateEntry e = entry("GET /users", false, 0, null, null, null);
-    e.recordOneDuration(SECONDS.toNanos(1)); // ok
-    e.recordOneDuration(SECONDS.toNanos(3) | AggregateEntry.ERROR_TAG); // error
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1)); // ok
+    AggregateEntryTestUtils.recordError(e, SECONDS.toNanos(3)); // error
 
     writer.startBucket(1, BUCKET_START, BUCKET_DURATION);
     writer.add(e);
@@ -357,8 +359,8 @@ class OtlpStatsMetricWriterTest {
 
     // Bucket 2: same entry, reset then only OK hits. errorLatencies survives clear() (cleared, not
     // nulled), so a non-null-but-empty histogram must NOT emit a phantom zero-count error series.
-    e.clear();
-    e.recordOneDuration(SECONDS.toNanos(2)); // ok only
+    AggregateEntryTestUtils.clear(e);
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(2)); // ok only
 
     writer.startBucket(2, BUCKET_START + BUCKET_DURATION, BUCKET_DURATION);
     writer.add(e);
@@ -373,7 +375,7 @@ class OtlpStatsMetricWriterTest {
   @Test
   void httpAndGrpcAttributesAppearOnlyWhenSet() throws IOException {
     AggregateEntry e = entry("GET /users/{id}", false, 200, "GET", "/users/{id}", "0");
-    e.recordOneDuration(SECONDS.toNanos(1));
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     DecodedMetric metric = writeAndDecode(false, e);
     assertEquals(1, metric.dataPoints.size());
@@ -422,7 +424,7 @@ class OtlpStatsMetricWriterTest {
   void defaultModeCarriesDatadogAttributes() throws IOException {
     // use an entry where all hits are top-level: OR in TOP_LEVEL_TAG
     AggregateEntry e = entry("servlet.request", false, 0, null, null, null);
-    e.recordOneDuration(SECONDS.toNanos(1) | AggregateEntry.TOP_LEVEL_TAG);
+    AggregateEntryTestUtils.recordTopLevel(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
     assertTrue(
@@ -448,7 +450,7 @@ class OtlpStatsMetricWriterTest {
   void defaultModeEmitsSyntheticOrigin(boolean synthetic, String expectedOrigin)
       throws IOException {
     AggregateEntry e = entry("servlet.request", synthetic, 0, null, null, null);
-    e.recordOneDuration(SECONDS.toNanos(1));
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
     if (expectedOrigin == null) {

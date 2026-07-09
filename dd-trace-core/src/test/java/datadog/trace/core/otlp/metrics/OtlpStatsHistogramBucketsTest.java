@@ -1,9 +1,9 @@
-package datadog.trace.common.metrics;
+package datadog.trace.core.otlp.metrics;
 
-import static datadog.trace.common.metrics.OtlpStatsHistogramBuckets.BOUNDS_SECONDS;
-import static datadog.trace.common.metrics.OtlpStatsHistogramBuckets.EXPLICIT_BOUNDS;
-import static datadog.trace.common.metrics.OtlpStatsHistogramBuckets.bucketIndex;
-import static datadog.trace.common.metrics.OtlpStatsHistogramBuckets.toHistogramPoint;
+import static datadog.trace.core.otlp.metrics.OtlpStatsHistogramBuckets.BOUNDS_SECONDS;
+import static datadog.trace.core.otlp.metrics.OtlpStatsHistogramBuckets.EXPLICIT_BOUNDS;
+import static datadog.trace.core.otlp.metrics.OtlpStatsHistogramBuckets.bucketIndex;
+import static datadog.trace.core.otlp.metrics.OtlpStatsHistogramBuckets.toHistogramPoint;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

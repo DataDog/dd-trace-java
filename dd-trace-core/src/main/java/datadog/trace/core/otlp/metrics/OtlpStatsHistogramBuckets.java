@@ -1,4 +1,4 @@
-package datadog.trace.common.metrics;
+package datadog.trace.core.otlp.metrics;
 
 import datadog.metrics.api.Histogram;
 import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;

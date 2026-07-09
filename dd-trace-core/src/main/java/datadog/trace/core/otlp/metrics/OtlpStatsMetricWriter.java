@@ -1,4 +1,4 @@
-package datadog.trace.common.metrics;
+package datadog.trace.core.otlp.metrics;
 
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
@@ -20,8 +20,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
-import datadog.trace.core.otlp.common.OtlpGrpcSender;
-import datadog.trace.core.otlp.common.OtlpHttpSender;
+import datadog.trace.common.metrics.AggregateEntry;
+import datadog.trace.common.metrics.MetricWriter;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import datadog.trace.core.otlp.common.OtlpSender;
 import javax.annotation.Nullable;
@@ -33,8 +33,8 @@ import org.slf4j.LoggerFactory;
  * vendor-neutral OTLP delta-temporality histogram named {@code traces.span.sdk.metrics.duration}
  * (unit {@code s}).
  *
- * <p>This is the parallel-to-{@link SerializingMetricWriter} OTLP export path. It hangs off the
- * same in-memory aggregation ({@link ClientStatsAggregator} / {@link Aggregator}) and consumes the
+ * <p>This is the parallel-to-{@code SerializingMetricWriter} OTLP export path. It hangs off the
+ * same in-memory aggregation ({@code ClientStatsAggregator} / {@code Aggregator}) and consumes the
  * same {@link AggregateEntry} stream; only the wire encoding and transport differ. Native msgpack
  * stats and OTLP export are mutually exclusive (selected at the factory).
  *
@@ -84,7 +84,15 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private int metricBytes;
 
   public OtlpStatsMetricWriter(Config config) {
-    this(createSender(config), config.isTraceOtelSemanticsEnabled());
+    // shared protocol-based sender selection so both OTLP metrics export paths agree
+    this(OtlpMetricsSenderFactory.create(config), config.isTraceOtelSemanticsEnabled());
+    if (this.sender == null) {
+      // HTTP_JSON has no protobuf-free encoder yet; JSON transport is deferred per the plan.
+      log.warn(
+          "OTLP trace metrics export disabled: unsupported metrics protocol {}. "
+              + "Set OTEL_EXPORTER_OTLP_METRICS_PROTOCOL to grpc or http/protobuf.",
+          config.getOtlpMetricsProtocol());
+    }
   }
 
   // visible for testing: lets tests inject a capturing sender to decode the emitted protobuf and
@@ -92,34 +100,6 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   OtlpStatsMetricWriter(@Nullable OtlpSender sender, boolean otelSemanticsMode) {
     this.sender = sender;
     this.otelSemanticsMode = otelSemanticsMode;
-  }
-
-  @Nullable
-  private static OtlpSender createSender(Config config) {
-    // mirrors OtlpMetricsService's protocol-based sender selection
-    switch (config.getOtlpMetricsProtocol()) {
-      case GRPC:
-        return new OtlpGrpcSender(
-            config.getOtlpMetricsEndpoint(),
-            "/opentelemetry.proto.collector.metrics.v1.MetricsService/Export",
-            config.getOtlpMetricsHeaders(),
-            config.getOtlpMetricsTimeout(),
-            config.getOtlpMetricsCompression());
-      case HTTP_PROTOBUF:
-        return new OtlpHttpSender(
-            config.getOtlpMetricsEndpoint(),
-            "/v1/metrics",
-            config.getOtlpMetricsHeaders(),
-            config.getOtlpMetricsTimeout(),
-            config.getOtlpMetricsCompression());
-      default:
-        // HTTP_JSON has no protobuf-free encoder yet; JSON transport is deferred per the plan.
-        log.warn(
-            "OTLP trace metrics export disabled: unsupported metrics protocol {}. "
-                + "Set OTEL_EXPORTER_OTLP_METRICS_PROTOCOL to grpc or http/protobuf.",
-            config.getOtlpMetricsProtocol());
-        return null;
-    }
   }
 
   @Override

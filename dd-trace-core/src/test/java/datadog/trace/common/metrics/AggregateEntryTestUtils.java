@@ -90,6 +90,30 @@ public final class AggregateEntryTestUtils {
   }
 
   /**
+   * Records one OK hit of {@code durationNanos} on {@code e}. Exposes the package-private {@link
+   * AggregateEntry#recordOneDuration} to tests in other packages (e.g. the OTLP metrics writer
+   * tests) without widening the production mutation API.
+   */
+  public static AggregateEntry recordOk(AggregateEntry e, long durationNanos) {
+    return e.recordOneDuration(durationNanos);
+  }
+
+  /** Records one error hit of {@code durationNanos} on {@code e}. See {@link #recordOk}. */
+  public static AggregateEntry recordError(AggregateEntry e, long durationNanos) {
+    return e.recordOneDuration(durationNanos | AggregateEntry.ERROR_TAG);
+  }
+
+  /** Records one top-level OK hit of {@code durationNanos} on {@code e}. See {@link #recordOk}. */
+  public static AggregateEntry recordTopLevel(AggregateEntry e, long durationNanos) {
+    return e.recordOneDuration(durationNanos | AggregateEntry.TOP_LEVEL_TAG);
+  }
+
+  /** Clears the per-cycle counters and histograms on {@code e}. See {@link #recordOk}. */
+  public static void clear(AggregateEntry e) {
+    e.clear();
+  }
+
+  /**
    * Whether {@code a} and {@code b} carry identical label fields. Counter and histogram state is
    * intentionally excluded -- this compares the key identity, not the aggregate.
    */
