@@ -114,7 +114,7 @@ public final class AgentJarIndex {
         paths
             .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
             .map(resourcesDir::relativize)
-            .sorted(Comparator.comparing(IndexGenerator::normalizedPath))
+            .sorted()
             .filter(entry -> entry.getNameCount() >= 2)
             .forEach(
                 entry -> {
@@ -199,10 +199,6 @@ public final class AgentJarIndex {
         }
       }
       return entryKey.replace('/', '.');
-    }
-
-    private static String normalizedPath(Path path) {
-      return path.toString().replace(File.separatorChar, '/');
     }
 
     public static void main(String[] args) throws IOException {
