@@ -16,28 +16,23 @@ if [ -z "$REFERENCE_SHA" ]; then
   exit 1
 fi
 
-if ! reference_commit="$(
-  curl --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-    "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/commits/${REFERENCE_SHA}"
-)"; then
-  echo "Unable to read commit metadata for ${REFERENCE_SHA}"
-  exit 1
-fi
+reference_remote="${CI_REPOSITORY_URL:-origin}"
 if ! REFERENCE_PIPELINE_ID="$(
-  printf '%s\n' "$reference_commit" \
-    | jq -r --arg sha "$REFERENCE_SHA" '.last_pipeline | select(.sha == $sha and .ref == "master" and .status == "success") | .id // empty'
+  git ls-remote "$reference_remote" 'refs/pipelines/*' \
+    | awk -v sha="$REFERENCE_SHA" '
+      $1 == sha && $2 ~ /^refs\/pipelines\/[0-9]+$/ {
+        sub(/^refs\/pipelines\//, "", $2)
+        print $2
+      }
+    ' \
+    | sort -n \
+    | tail -n 1
 )"; then
-  echo "Unable to parse master pipeline id for ${REFERENCE_SHA}"
+  echo "Unable to resolve master pipeline id for ${REFERENCE_SHA}"
   exit 1
 fi
 export REFERENCE_PIPELINE_ID
-if ! REFERENCE_PIPELINE_URL="$(
-  printf '%s\n' "$reference_commit" \
-    | jq -r --arg sha "$REFERENCE_SHA" '.last_pipeline | select(.sha == $sha and .ref == "master" and .status == "success") | .web_url // empty'
-)"; then
-  echo "Unable to parse master pipeline URL for ${REFERENCE_SHA}"
-  exit 1
-fi
+REFERENCE_PIPELINE_URL="${CI_PROJECT_URL}/-/pipelines/${REFERENCE_PIPELINE_ID}"
 export REFERENCE_PIPELINE_URL
 if [ -z "$REFERENCE_PIPELINE_ID" ]; then
   echo "Unable to find a successful master pipeline for ${REFERENCE_SHA}"
