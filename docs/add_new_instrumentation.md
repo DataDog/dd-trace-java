@@ -17,7 +17,7 @@ named `google-http-client`. (see [Naming](./how_instrumentations_work.md#naming)
 
 ## Configuring Gradle
 
-Add the new instrumentation to [`settings.gradle`](../settings.gradle)
+Add the new instrumentation to [`settings.gradle.kts`](../settings.gradle.kts)
 in alpha order with the other instrumentations in this format:
 
 ```groovy
@@ -102,11 +102,11 @@ public HttpResponse execute() throws IOException {/* */}
 ```
 
 Target the method using [appropriate Method Matchers](./how_instrumentations_work.md#method-matching) and include the
-name String to be used for the Advice class when calling `transformation.applyAdvice()`:
+name String to be used for the Advice class when calling `transformer.applyAdvice()`:
 
 ```java
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
             isMethod()
                     .and(isPublic())
                     .and(named("execute"))
@@ -121,8 +121,8 @@ public void adviceTransformations(AdviceTransformation transformation) {
 If you need to apply multiple advice classes to the same method (for example, to separate context tracking from tracing logic), you can pass multiple advice class names to `applyAdvices()`:
 
 ```java
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvices(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvices(
             named("service")
                     .and(takesArgument(0, named("org.apache.coyote.Request")))
                     .and(takesArgument(1, named("org.apache.coyote.Response"))),
@@ -252,7 +252,7 @@ public String[] helperClassNames() {
 ## Add Advice class
 
 1. Add a new static class to the Instrumentation class. The name must match what was passed to
-   the `adviceTransformations()` method earlier, here `GoogleHttpClientAdvice.`
+   the `methodAdvice()` method earlier, here `GoogleHttpClientAdvice.`
 2. Create two static methods named whatever you like.  `methodEnter` and `methodExit` are good choices. These **must**
    be static.
 3. With `methodEnter:`
@@ -360,8 +360,8 @@ public static class TracingAdvice {
 Then apply both advices:
 
 ```java
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvices(
             named("service"),
             getClass().getName() + "$ContextTrackingAdvice",  // Only for CONTEXT_TRACKING
             getClass().getName() + "$TracingAdvice"           // Only for TRACING

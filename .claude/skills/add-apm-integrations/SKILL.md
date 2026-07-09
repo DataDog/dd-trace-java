@@ -100,7 +100,7 @@ In short: annotate with `@AutoService`, extend the right `InstrumenterModule.*` 
 
 **Read [Writing the Advice Class](references/advice-class.md).**
 
-The reference file covers: `static` advice methods; enter/exit annotations (with the constructor exception); parameter annotations (`@Advice.This`, `@Advice.Argument`, `@Advice.Return`, `@Advice.Thrown`, `@Advice.Enter`, `@Advice.Local`); `CallDepthThreadLocalMap` reentrancy guarding; single-delegate-method instrumentation (not all overloads); span lifecycle order; `onExit` resilience to `onEnter` throwing; explicit charset for `byte[]` → `String`; no `NullPointerException` catches (SpotBugs blocks); `@AppliesOn` for multiple advice classes; and the "Must NOT do" list (no logger fields, no lambdas in advice, no `inline=false` in production, no `java.util.logging.*` / `java.nio.*` / `javax.management.*` in bootstrap).
+The reference file covers: `static` advice methods; enter/exit annotations (with the constructor exception); parameter annotations (`@Advice.This`, `@Advice.Argument`, `@Advice.Return`, `@Advice.Thrown`, `@Advice.Enter`, `@Advice.Local`); `CallDepthThreadLocalMap` reentrancy guarding; single-delegate-method instrumentation (not all overloads); span lifecycle order; `onExit` resilience to `onEnter` throwing; explicit charset for `byte[]` → `String`; no `NullPointerException` catches (SpotBugs blocks); `@AppliesOn` for multiple advice classes; and the "Must NOT do" list (no logger fields, no lambdas in advice, no `inline=false` in production, no `java.util.logging.*` / `java.nio.file.*` / `javax.management.*` in bootstrap).
 
 ## Step 8 – Add SETTER/GETTER adapters (if applicable)
 
@@ -159,8 +159,11 @@ Run these commands in order and fix any failures before proceeding:
 ./gradlew :dd-java-agent:instrumentation:$framework-$version:test
 ./gradlew :dd-java-agent:instrumentation:$framework-$version:latestDepTest
 ./gradlew checkInstrumenterModuleConfigurations
+./gradlew :dd-java-agent:updateAgentJarIntegrationsGoldenFile
 ./gradlew spotlessCheck
 ```
+
+After `updateAgentJarIntegrationsGoldenFile` runs, commit the updated `metadata/agent-jar-checks.properties` file alongside your instrumentation changes. The `verifyAgentJarIntegrations` check runs automatically in CI and fails if this file is out of date.
 
 **If muzzle fails:**
 - Missing helper class names in `helperClassNames()` — the most common cause; add any missing inner, anonymous, or enum synthetic classes.
@@ -192,7 +195,8 @@ Output this checklist and confirm each item is satisfied:
 - [ ] No static constants holding return values of one-shot instrumenter methods (`triggerClasses()`, `contextStore()`, etc.)
 - [ ] No logger field in the Advice class or InstrumenterModule class
 - [ ] No `inline=false` left in production code
-- [ ] No `java.util.logging.*` / `java.nio.*` / `javax.management.*` in bootstrap path
+- [ ] No `java.util.logging.*` / `java.nio.file.*` / `javax.management.*` in bootstrap path
+- [ ] `metadata/agent-jar-checks.properties` updated via `./gradlew :dd-java-agent:updateAgentJarIntegrationsGoldenFile` and committed
 - [ ] Span lifecycle order is correct: startSpan → afterStart → activateSpan (enter); onError → beforeFinish → close → finish (exit)
 - [ ] Muzzle passes
 - [ ] Instrumentation tests pass
