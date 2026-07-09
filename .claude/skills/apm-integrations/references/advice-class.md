@@ -53,7 +53,7 @@ public static void exit(
 
 **`onThrowable` does NOT compensate for `onEnter` throwing.** Per `docs/how_instrumentations_work.md`: "If the `Advice.OnMethodEnter` method throws an exception, the `Advice.OnMethodExit` method is not invoked" — this is unconditional. To keep `onEnter` from throwing in the first place, use `suppress = Throwable.class` on the enter advice (except constructor advice — see note below).
 
-When using `CallDepthThreadLocalMap`, keep the enter and exit calls symmetric — every `incrementCallDepth` must have a matching `reset` in exit, guarded by the same condition on enter.
+When using `CallDepthThreadLocalMap`, only the outermost call (the one where `incrementCallDepth` returned 0) should reset the counter. Recursive inner calls that returned early on enter must also return early on exit without resetting — otherwise an inner exit clears the counter while the outer call is still active, allowing subsequent nested calls to create duplicate spans. The exit guard must mirror the enter guard exactly.
 
 ### Specify charset explicitly when converting byte[] to String
 
@@ -65,8 +65,6 @@ String cmd = new String(commandBytes);
 import java.nio.charset.StandardCharsets;
 String cmd = new String(commandBytes, StandardCharsets.UTF_8);
 ```
-
-**Note for bootstrap instrumentations:** `StandardCharsets` (`java.nio.charset`) is safe in bootstrap — it is a pure constants class and is used freely in bootstrap code. The `java.nio.*` bootstrap ban applies specifically to NIO filesystem operations (`FileSystems.getDefault()`, `Path.of()`, etc.) that trigger native library initialization during premain.
 
 ### Do NOT catch `NullPointerException`; use null-check guards instead
 

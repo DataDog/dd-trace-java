@@ -131,7 +131,7 @@ Library-specific quirks (malformed release versions like `jedis-3.6.2`) require 
 
 Use `latestDepTestImplementation` in `build.gradle` to pin the latest available version. Run with:
 ```bash
-./gradlew :dd-java-agent:instrumentation:$framework-$version:latestDepTest
+./gradlew :dd-java-agent:instrumentation:$framework:$framework-$version:latestDepTest
 ```
 
 **`latestDepTestImplementation` version range must match the instrumented range.** If your module instruments version `2.x`, use `2+` as the version constraint, not `3+`:
@@ -155,10 +155,11 @@ Add a smoke test in `dd-smoke-tests/` only if the framework warrants a full end-
 Run these commands in order and fix any failures before proceeding:
 
 ```bash
-./gradlew :dd-java-agent:instrumentation:$framework-$version:muzzle
-./gradlew :dd-java-agent:instrumentation:$framework-$version:test
-./gradlew :dd-java-agent:instrumentation:$framework-$version:latestDepTest
+./gradlew :dd-java-agent:instrumentation:$framework:$framework-$version:muzzle
+./gradlew :dd-java-agent:instrumentation:$framework:$framework-$version:test
+./gradlew :dd-java-agent:instrumentation:$framework:$framework-$version:latestDepTest
 ./gradlew checkInstrumenterModuleConfigurations
+./gradlew checkDecoratorAnalyticsConfigurations
 ./gradlew :dd-java-agent:updateAgentJarIntegrationsGoldenFile
 ./gradlew spotlessCheck
 ```
@@ -172,6 +173,8 @@ After `updateAgentJarIntegrationsGoldenFile` runs, commit the updated `metadata/
 
 **If `checkInstrumenterModuleConfigurations` fails:** an integration name from `super(...)` is missing
 (or mismatched) in `metadata/supported-configurations.json` — see [Supported Configurations](references/supported-configurations.md).
+
+**If `checkDecoratorAnalyticsConfigurations` fails:** a name returned by the decorator's `instrumentationNames()` is missing `DD_TRACE_<NAME>_ANALYTICS_ENABLED` / `DD_TRACE_<NAME>_ANALYTICS_SAMPLE_RATE` entries in `metadata/supported-configurations.json` — add them per [Supported Configurations](references/supported-configurations.md).
 
 **If tests fail:** verify span lifecycle order (start → activate → error → close → finish), helper registration,
 and `contextStore()` map entries match actual usage.

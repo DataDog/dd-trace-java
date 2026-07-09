@@ -49,7 +49,7 @@ For each new integration name `<NAME>` (uppercase, dashes/dots replaced with und
 
 **Place entries alphabetically** in the JSON file.
 
-**Type names — match existing conventions**: use `"boolean"`, `"string"`, `"integer"`, `"decimal"` (for floating-point — NOT `"double"`). The `dd-gitlab/validate_supported_configurations_v2_local_file` CI job will fail with non-canonical type names.
+**Type names — match existing conventions**: use `"boolean"`, `"string"`, `"int"`, `"decimal"` (for floating-point — NOT `"double"`). The `dd-gitlab/validate_supported_configurations_v2_local_file` CI job will fail with non-canonical type names.
 
 **Verify the JSON parses** before committing:
 ```bash

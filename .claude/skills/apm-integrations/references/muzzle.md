@@ -86,16 +86,15 @@ Add `assertInverse = true` only when you've empirically verified the min via loc
 ## Muzzle range must exclude incompatible major versions
 
 If the library you are instrumenting has a major version break where a newer major version
-is published under the **same** `group:module` coordinates but with a completely different API
-(e.g. `commons-httpclient:commons-httpclient` 2.x vs 4.x), your muzzle `pass` range must
-have an explicit upper bound to exclude the incompatible major:
+is published under the **same** `group:module` coordinates but with a completely different API,
+your muzzle `pass` range must have an explicit upper bound to exclude the incompatible major:
 
 ```groovy
-// WRONG — open range accidentally covers commons-httpclient 4.x (different artifact family)
+// WRONG — open range accidentally covers 4.x (different API, same coordinates)
 muzzle {
   pass {
-    group = "commons-httpclient"
-    module = "commons-httpclient"
+    group = "com.example"
+    module = "framework"
     versions = "[2.0,)"   // 4.x would also match but has completely different API
     assertInverse = true
   }
@@ -104,8 +103,8 @@ muzzle {
 // CORRECT — bounded range excludes 4.x
 muzzle {
   pass {
-    group = "commons-httpclient"
-    module = "commons-httpclient"
+    group = "com.example"
+    module = "framework"
     versions = "[2.0,4.0)"
     assertInverse = true
   }
@@ -113,8 +112,8 @@ muzzle {
 ```
 
 **How to check**: search Maven Central for the `group:module` coordinates and look for versions
-that are clearly a different generation (3.x → 4.x breaks, major API rewrites). Look at the
-existing dd-trace-java module for the same library to see how it bounds its range.
+that are clearly a different generation (major API rewrites). Look at the existing dd-trace-java
+module for the same library to see how it bounds its range.
 
 ## Library-specific muzzle quirks: skipVersions
 
