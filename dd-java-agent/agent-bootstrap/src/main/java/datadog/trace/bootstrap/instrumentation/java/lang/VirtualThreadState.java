@@ -21,9 +21,16 @@ public final class VirtualThreadState {
   private static final boolean LEGACY_CONTEXT_MANAGER =
       InstrumenterConfig.get().isLegacyContextManagerEnabled();
 
+  /** The virtual thread's saved context (scope stack snapshot). */
   private Context context;
+
+  /** Prevents the enclosing context scope from completing before the virtual thread finishes. */
   private final Continuation continuation;
+
+  /** The carrier thread's saved context, set between mount and unmount. */
   private Context previousContext;
+
+  /** Determines whenever the context has been already set for the first mount */
   private boolean seeded;
 
   public VirtualThreadState(Context context, Continuation continuation) {
@@ -55,9 +62,10 @@ public final class VirtualThreadState {
     }
   }
 
+  /** Called on termination: releases the trace continuation. */
   public void onTerminate() {
-    if (continuation != null) {
-      continuation.cancel();
+    if (this.continuation != null) {
+      this.continuation.cancel();
     }
   }
 }
