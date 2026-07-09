@@ -49,19 +49,20 @@ class UfcHttpConfigServiceTest {
 
   @Test
   void appendsMockConfigPathWhenConfiguredUrlIsRoot() {
-    final Config config = config("http://mock-cdn:8092", "datadoghq.com", "");
+    final Config config = config("http://mock-backend:8092", "datadoghq.com", "");
 
     assertEquals(
-        "http://mock-cdn:8092/mock/ufc/config", UfcHttpConfigService.endpoint(config).toString());
+        "http://mock-backend:8092/mock/ufc/config",
+        UfcHttpConfigService.endpoint(config).toString());
   }
 
   @Test
   void preservesConfiguredFullEndpointUrl() {
     final Config config =
-        config("http://mock-cdn:8092/mock/ufc/config?fixture=valid", "datadoghq.com", "");
+        config("http://mock-backend:8092/mock/ufc/config?fixture=valid", "datadoghq.com", "");
 
     assertEquals(
-        "http://mock-cdn:8092/mock/ufc/config?fixture=valid",
+        "http://mock-backend:8092/mock/ufc/config?fixture=valid",
         UfcHttpConfigService.endpoint(config).toString());
   }
 

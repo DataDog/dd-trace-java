@@ -85,5 +85,5 @@ OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 ## Requirements
 
 - Java 11+
-- Datadog Agent with Remote Configuration enabled
-- `DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true`
+- Feature Flags provider enabled with `DD_FEATURE_FLAGS_ENABLED=true`, or left unset
+  for the default `agentless` configuration source.

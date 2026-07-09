@@ -72,6 +72,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.CodeSource;
 import java.util.EnumSet;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.PatternSyntaxException;
@@ -135,7 +136,7 @@ public class Agent {
     APP_LOGS_COLLECTION(GeneralConfig.APP_LOGS_COLLECTION_ENABLED, false),
     LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
     LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false),
-    FEATURE_FLAGGING(FeatureFlaggingConfig.FLAGGING_PROVIDER_ENABLED, false);
+    FEATURE_FLAGGING(FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED, false);
 
     private final String configKey;
     private final String systemProp;
@@ -282,9 +283,7 @@ public class Agent {
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
     appLogsCollectionEnabled = isFeatureEnabled(AgentFeature.APP_LOGS_COLLECTION);
     llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
-    featureFlaggingEnabled =
-        isFeatureEnabled(AgentFeature.FEATURE_FLAGGING)
-            || isFeatureFlaggingCdnConfigurationSourceConfigured();
+    featureFlaggingEnabled = isFeatureFlaggingEnabled();
 
     // setup writers when llmobs is enabled to accomodate apm and llmobs
     if (llmObsEnabled) {
@@ -1633,10 +1632,36 @@ public class Agent {
     }
   }
 
-  private static boolean isFeatureFlaggingCdnConfigurationSourceConfigured() {
+  private static boolean isFeatureFlaggingEnabled() {
+    final String enabled = getConfiguredValue(FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED);
+    if ("false".equalsIgnoreCase(enabled) || "0".equals(enabled)) {
+      return false;
+    }
+    if ("true".equalsIgnoreCase(enabled) || "1".equals(enabled)) {
+      return true;
+    }
+
+    final String oldEnabled = getConfiguredValue(FeatureFlaggingConfig.FLAGGING_PROVIDER_ENABLED);
+    if ("false".equalsIgnoreCase(oldEnabled) || "0".equals(oldEnabled)) {
+      return false;
+    }
+    if ("true".equalsIgnoreCase(oldEnabled) || "1".equals(oldEnabled)) {
+      return true;
+    }
+
+    return isFeatureFlaggingConfigurationSourceAutoEnabled();
+  }
+
+  private static boolean isFeatureFlaggingConfigurationSourceAutoEnabled() {
     final String configurationSource =
-        getConfiguredValue(FeatureFlaggingConfig.FLAGGING_CONFIGURATION_SOURCE);
-    return configurationSource != null && "cdn".equalsIgnoreCase(configurationSource.trim());
+        getConfiguredValue(FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE);
+    if (configurationSource == null) {
+      return true;
+    }
+    final String normalized = configurationSource.trim().toLowerCase(Locale.ROOT);
+    return "agentless".equals(normalized)
+        || "remote_config".equals(normalized)
+        || "offline".equals(normalized);
   }
 
   private static String getConfiguredValue(final String configKey) {

@@ -49,7 +49,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_INJECT_DATADOG_ATTRIBUTE = true;
   static final String DEFAULT_SITE = "datadoghq.com";
 
-  public static final String DEFAULT_FLAGGING_CONFIGURATION_SOURCE = "cdn";
+  public static final String DEFAULT_FLAGGING_CONFIGURATION_SOURCE = "agentless";
   public static final double DEFAULT_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS = 30.0D;
   public static final double DEFAULT_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS = 2.0D;
 

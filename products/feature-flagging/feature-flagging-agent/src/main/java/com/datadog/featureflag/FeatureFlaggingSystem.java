@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 public class FeatureFlaggingSystem {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
-  private static final String SOURCE_CDN = "cdn";
+  private static final String SOURCE_AGENTLESS = "agentless";
   private static final String SOURCE_REMOTE_CONFIG = "remote_config";
   private static final String SOURCE_OFFLINE = "offline";
 
@@ -41,7 +41,7 @@ public class FeatureFlaggingSystem {
         throw new IllegalStateException("Feature Flagging system started without RC");
       }
       return new RemoteConfigServiceImpl(sco, config);
-    } else if (SOURCE_CDN.equals(configurationSource)) {
+    } else if (SOURCE_AGENTLESS.equals(configurationSource)) {
       return new UfcHttpConfigService(config);
     } else if (SOURCE_OFFLINE.equals(configurationSource)) {
       LOGGER.debug(

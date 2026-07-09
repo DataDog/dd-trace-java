@@ -1497,6 +1497,54 @@
         "aliases": []
       }
     ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "agentless",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_EXTRA_HEADERS": [
+      {
+        "version": "A",
+        "type": "map",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "30",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "2",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED"]
+      }
+    ],
     "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": [
       {
         "version": "A",
@@ -1510,46 +1558,6 @@
         "version": "B",
         "type": "boolean",
         "default": "true",
-        "aliases": []
-      }
-    ],
-    "DD_FLAGGING_CONFIGURATION_SOURCE": [
-      {
-        "version": "A",
-        "type": "string",
-        "default": "cdn",
-        "aliases": []
-      }
-    ],
-    "DD_FLAGGING_CONFIGURATION_SOURCE_BASE_URL": [
-      {
-        "version": "A",
-        "type": "string",
-        "default": null,
-        "aliases": []
-      }
-    ],
-    "DD_FLAGGING_CONFIGURATION_SOURCE_EXTRA_HEADERS": [
-      {
-        "version": "A",
-        "type": "map",
-        "default": null,
-        "aliases": []
-      }
-    ],
-    "DD_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS": [
-      {
-        "version": "A",
-        "type": "decimal",
-        "default": "30",
-        "aliases": []
-      }
-    ],
-    "DD_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS": [
-      {
-        "version": "A",
-        "type": "decimal",
-        "default": "2",
         "aliases": []
       }
     ],

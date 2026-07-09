@@ -1,6 +1,6 @@
 package com.datadog.featureflag;
 
-import static datadog.trace.api.config.FeatureFlaggingConfig.FLAGGING_CONFIGURATION_SOURCE;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 class FeatureFlaggingSystemTest {
 
   @Test
-  @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "remote_config")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "true")
   void testFeatureFlagSystemInitialization() {
     ConfigurationPoller poller = mock(ConfigurationPoller.class);
@@ -53,7 +53,7 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
-  @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "remote_config")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
   void testThatRemoteConfigIsRequired() {
     SharedCommunicationObjects sharedCommunicationObjects = mock(SharedCommunicationObjects.class);
@@ -68,9 +68,9 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
-  @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "cdn")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
-  void cdnConfigurationSourceUsesHttpServiceWithoutRemoteConfig() {
+  void agentlessConfigurationSourceUsesHttpServiceWithoutRemoteConfig() {
     assertInstanceOf(
         UfcHttpConfigService.class,
         FeatureFlaggingSystem.createConfigurationSourceService(
@@ -78,7 +78,7 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
-  @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "remote_config")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "true")
   void explicitRemoteConfigUsesRemoteConfigService() {
     SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
@@ -92,7 +92,7 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
-  @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "invalid")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "invalid")
   void invalidConfigurationSourceFailsBeforeStartingNetworkSource() {
     assertThrows(
         IllegalArgumentException.class,
@@ -102,7 +102,7 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
-  @WithConfig(key = FLAGGING_CONFIGURATION_SOURCE, value = "offline")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
   void offlineConfigurationSourceDoesNotStartNetworkSource() {
     assertNull(
         FeatureFlaggingSystem.createConfigurationSourceService(
