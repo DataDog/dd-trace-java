@@ -476,4 +476,32 @@ class OtlpStatsMetricWriterTest {
     // OTel-semconv attrs must still be present
     assertTrue(attrs.containsKey("span.name"), "span.name present even in otel-semantics mode");
   }
+
+  @Test
+  void snapshotsEntryDataBeforeAggregatorClearsIt() throws IOException {
+    // The aggregator clears each entry's per-interval data immediately after add() returns
+    // (Aggregator#report), before finishBucket() runs. The writer must snapshot the latency data
+    // (and the top-level count) at add() time; if it deferred reading to finishBucket() it would
+    // encode the already-cleared (empty, zero-count) entry.
+    CapturingSender sender = new CapturingSender();
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
+
+    AggregateEntry e = entry("servlet.request", false, 0, null, null, null);
+    AggregateEntryTestUtils.recordTopLevel(e, SECONDS.toNanos(1));
+    AggregateEntryTestUtils.recordTopLevel(e, SECONDS.toNanos(1));
+    AggregateEntryTestUtils.recordTopLevel(e, SECONDS.toNanos(1));
+
+    writer.startBucket(1, BUCKET_START, BUCKET_DURATION);
+    writer.add(e);
+    AggregateEntryTestUtils.clear(e); // mimic Aggregator#report clearing right after add()
+    writer.finishBucket();
+
+    assertEquals(1, sender.sendCount, "cleared-after-add entry must still emit its snapshot");
+    DecodedMetric metric = decode(sender.lastPayload);
+    assertEquals(1, metric.dataPoints.size());
+    DataPoint dp = metric.dataPoints.get(0);
+    assertEquals(3L, dp.count, "count must reflect the pre-clear snapshot, not the cleared entry");
+    assertEquals(
+        1L, dp.attributes.get("datadog.span.top_level"), "all pre-clear hits were top-level");
+  }
 }

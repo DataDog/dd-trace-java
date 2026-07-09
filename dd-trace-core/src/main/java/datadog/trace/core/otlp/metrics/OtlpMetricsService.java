@@ -3,6 +3,7 @@ package datadog.trace.core.otlp.metrics;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.util.AgentTaskScheduler;
@@ -33,7 +34,7 @@ public final class OtlpMetricsService {
       LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
       this.collector = null;
     } else {
-      this.collector = OtlpMetricsProtoCollector.INSTANCE;
+      this.collector = new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
     }
 
     this.intervalMillis = config.getMetricsOtelInterval();

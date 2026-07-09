@@ -3,42 +3,30 @@ package datadog.trace.core.otlp.metrics;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
-import static datadog.trace.core.otlp.common.OtlpCommonProto.I64_WIRE_TYPE;
-import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
-import static datadog.trace.core.otlp.common.OtlpCommonProto.writeAttribute;
-import static datadog.trace.core.otlp.common.OtlpCommonProto.writeI64;
-import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
-import static datadog.trace.core.otlp.common.OtlpResourceProto.RESOURCE_MESSAGE;
-import static datadog.trace.core.otlp.metrics.OtlpMetricsProto.recordDataPointMessage;
-import static datadog.trace.core.otlp.metrics.OtlpMetricsProto.recordMetricMessage;
-import static datadog.trace.core.otlp.metrics.OtlpMetricsProto.recordScopedMetricsMessage;
 
-import datadog.communication.serialization.GrowableBuffer;
 import datadog.metrics.api.Histogram;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
-import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
+import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.common.metrics.AggregateEntry;
 import datadog.trace.common.metrics.MetricWriter;
-import datadog.trace.core.otlp.common.OtlpProtoBuffer;
+import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
+import java.util.ArrayList;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link MetricWriter} that exports the existing client-side trace (RED) stats as a single
- * vendor-neutral OTLP delta-temporality histogram named {@code traces.span.sdk.metrics.duration}
- * (unit {@code s}).
- *
- * <p>This is the parallel-to-{@code SerializingMetricWriter} OTLP export path. It hangs off the
- * same in-memory aggregation ({@code ClientStatsAggregator} / {@code Aggregator}) and consumes the
- * same {@link AggregateEntry} stream; only the wire encoding and transport differ. Native msgpack
- * stats and OTLP export are mutually exclusive (selected at the factory).
- *
- * <p>Assembly mirrors {@code OtlpMetricsProtoCollector}
+ * A {@link MetricWriter} that exports the client-side trace metrics as a delta-temporality OTLP
+ * histogram ({@code traces.span.sdk.metrics.duration}, unit {@code s}), the OTLP-native alternative
+ * to {@code SerializingMetricWriter}'s msgpack. It transforms each {@link AggregateEntry} into an
+ * OTLP histogram data point and pushes it through the shared {@link OtlpMetricsProtoCollector}.
  */
 public final class OtlpStatsMetricWriter implements MetricWriter {
   private static final Logger log = LoggerFactory.getLogger(OtlpStatsMetricWriter.class);
@@ -50,10 +38,6 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
       new OtelInstrumentDescriptor(METRIC_NAME, HISTOGRAM, false, null, METRIC_UNIT);
   private static final OtelInstrumentationScope SCOPE =
       new OtelInstrumentationScope("datadog.trace.metrics", null, null);
-
-  private static final int DP_START_TIME_FIELD = 2;
-  private static final int DP_TIME_FIELD = 3;
-  private static final int DP_ATTRIBUTES_FIELD = 9;
 
   private static final String SPAN_NAME = "span.name";
   private static final String SPAN_KIND = "span.kind";
@@ -72,16 +56,30 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   @Nullable private final OtlpSender sender;
   private final boolean otelSemanticsMode;
 
-  // Need a temporary buffer to know what size to write for the final protobuf buffer
-  private final GrowableBuffer buf = new GrowableBuffer(512);
-  private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
+  // own single-thread collector; forced to DELTA since trace-stats buckets are per-interval deltas
+  private final OtlpMetricsProtoCollector collector =
+      new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE, true);
+
+  // data points snapshotted during add(), replayed through the visitor in finishBucket()
+  private final List<PendingPoint> pending = new ArrayList<>();
 
   private long startNanos;
   private long endNanos;
 
-  private int payloadBytes;
-  private int scopedBytes;
-  private int metricBytes;
+  // Represent a single datapoint from Aggregator.add
+  private static final class PendingPoint {
+    final AggregateEntry entry;
+    final OtlpDataPoint point;
+    final boolean error;
+    final boolean allTopLevel;
+
+    PendingPoint(AggregateEntry entry, OtlpDataPoint point, boolean error, boolean allTopLevel) {
+      this.entry = entry;
+      this.point = point;
+      this.error = error;
+      this.allTopLevel = allTopLevel;
+    }
+  }
 
   public OtlpStatsMetricWriter(Config config) {
     // shared protocol-based sender selection so both OTLP metrics export paths agree
@@ -107,113 +105,109 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     // start/duration arrive as epoch nanos / interval nanos (see Aggregator#report)
     this.startNanos = start;
     this.endNanos = start + duration;
-    this.payloadBytes = 0;
-    this.scopedBytes = 0;
-    this.metricBytes = 0;
+    pending.clear();
   }
 
   @Override
   public void add(AggregateEntry entry) {
+    // Value gets wiped when Aggregator clears the entry. Need to save it here
+    boolean allTopLevel = entry.getTopLevelCount() == entry.getHitCount();
+
     Histogram okLatencies = entry.getOkLatencies();
     if (!okLatencies.isEmpty()) {
-      addDataPoint(entry, okLatencies, false);
+      pending.add(
+          new PendingPoint(
+              entry,
+              OtlpStatsHistogramBuckets.toHistogramPoint(okLatencies, entry.getOkDuration()),
+              false,
+              allTopLevel));
     }
 
     Histogram errorLatencies = entry.getErrorLatencies();
     if (errorLatencies != null && !errorLatencies.isEmpty()) {
-      addDataPoint(entry, errorLatencies, true);
+      pending.add(
+          new PendingPoint(
+              entry,
+              OtlpStatsHistogramBuckets.toHistogramPoint(errorLatencies, entry.getErrorDuration()),
+              true,
+              allTopLevel));
     }
-  }
-
-  private void addDataPoint(AggregateEntry entry, Histogram latencies, boolean error) {
-    writeDataPointAttributes(entry, error);
-    writeTag(buf, DP_START_TIME_FIELD, I64_WIRE_TYPE);
-    writeI64(buf, startNanos);
-    writeTag(buf, DP_TIME_FIELD, I64_WIRE_TYPE);
-    writeI64(buf, endNanos);
-    long sumNanos = error ? entry.getErrorDuration() : entry.getOkDuration();
-    OtlpHistogramPoint point = OtlpStatsHistogramBuckets.toHistogramPoint(latencies, sumNanos);
-    metricBytes += recordDataPointMessage(buf, point, protobuf);
-  }
-
-  private void writeDataPointAttributes(AggregateEntry entry, boolean error) {
-    if (error) {
-      writeStringAttribute(STATUS_CODE, STATUS_CODE_ERROR);
-    }
-    // OTel semconv attrs are emitted in both modes
-    writeStringAttribute(SPAN_NAME, entry.getResource());
-    writeStringAttribute(SPAN_KIND, entry.getSpanKind());
-    if (entry.hasHttpMethod()) {
-      writeStringAttribute(HTTP_REQUEST_METHOD, entry.getHttpMethod());
-    }
-    if (entry.getHttpStatusCode() != 0) {
-      writeLongAttribute(HTTP_RESPONSE_STATUS_CODE, entry.getHttpStatusCode());
-    }
-    if (entry.hasHttpEndpoint()) {
-      writeStringAttribute(HTTP_ROUTE, entry.getHttpEndpoint());
-    }
-    if (entry.hasGrpcStatusCode()) {
-      writeStringAttribute(RPC_RESPONSE_STATUS_CODE, entry.getGrpcStatusCode());
-    }
-    // Default (Datadog) mode: emit datadog.* per-point attributes
-    if (!otelSemanticsMode) {
-      writeStringAttribute(DATADOG_OPERATION_NAME, entry.getOperationName());
-      writeStringAttribute(DATADOG_SPAN_TYPE, entry.getType());
-      writeLongAttribute(
-          DATADOG_SPAN_TOP_LEVEL, entry.getTopLevelCount() == entry.getHitCount() ? 1L : 0L);
-      if (entry.isSynthetics()) {
-        writeStringAttribute(DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
-      }
-    }
-  }
-
-  private void writeStringAttribute(String key, @Nullable UTF8BytesString value) {
-    if (value != null) {
-      writeStringAttribute(key, value.toString());
-    }
-  }
-
-  private void writeStringAttribute(String key, String value) {
-    writeTag(buf, DP_ATTRIBUTES_FIELD, LEN_WIRE_TYPE);
-    writeAttribute(buf, STRING_ATTRIBUTE, key, value);
-  }
-
-  private void writeLongAttribute(String key, long value) {
-    writeTag(buf, DP_ATTRIBUTES_FIELD, LEN_WIRE_TYPE);
-    writeAttribute(buf, LONG_ATTRIBUTE, key, value);
   }
 
   @Override
   public void finishBucket() {
     try {
-      if (metricBytes > 0) {
-        // trace stats histograms are inherently per-interval deltas (buckets are cleared after
-        // every flush), so always encode DELTA regardless of the temporality preference
-        scopedBytes += recordMetricMessage(buf, METRIC_DESCRIPTOR, metricBytes, protobuf, true);
-      }
-      if (scopedBytes > 0) {
-        payloadBytes += recordScopedMetricsMessage(buf, SCOPE, scopedBytes, protobuf);
-      }
-      if (payloadBytes == 0) {
+      if (pending.isEmpty() || sender == null) {
         return;
       }
-      payloadBytes += protobuf.recordMessage(RESOURCE_MESSAGE);
-      protobuf.recordMessage(buf, 1, payloadBytes);
-
-      if (sender != null) {
-        sender.send(protobuf.toPayload());
+      OtlpPayload payload = collector.collectMetrics(this::emit, startNanos, endNanos);
+      if (payload != OtlpPayload.EMPTY) {
+        sender.send(payload);
       }
     } finally {
-      reset();
+      pending.clear();
     }
   }
 
   @Override
   public void reset() {
-    buf.reset();
-    protobuf.reset();
-    payloadBytes = 0;
-    scopedBytes = 0;
-    metricBytes = 0;
+    pending.clear();
+  }
+
+  /**
+   * Pushes the buffered entries through the metric visitor: one OTLP histogram data point per
+   * non-empty ok/error latency series. Called by {@link OtlpMetricsProtoCollector#collectMetrics}
+   * with the collector itself as the visitor.
+   */
+  private void emit(OtlpMetricsVisitor visitor) {
+    OtlpMetricVisitor metric = visitor.visitScopedMetrics(SCOPE).visitMetric(METRIC_DESCRIPTOR);
+    for (PendingPoint p : pending) {
+      // attributes must precede the data point (OtlpMetricVisitor contract)
+      writeDataPointAttributes(metric, p.entry, p.error, p.allTopLevel);
+      metric.visitDataPoint(p.point);
+    }
+  }
+
+  private void writeDataPointAttributes(
+      OtlpMetricVisitor metric, AggregateEntry entry, boolean error, boolean allTopLevel) {
+    if (error) {
+      writeStringAttribute(metric, STATUS_CODE, STATUS_CODE_ERROR);
+    }
+    // OTel semconv attrs are emitted in both modes
+    writeStringAttribute(metric, SPAN_NAME, entry.getResource());
+    writeStringAttribute(metric, SPAN_KIND, entry.getSpanKind());
+    if (entry.hasHttpMethod()) {
+      writeStringAttribute(metric, HTTP_REQUEST_METHOD, entry.getHttpMethod());
+    }
+    if (entry.getHttpStatusCode() != 0) {
+      writeLongAttribute(metric, HTTP_RESPONSE_STATUS_CODE, entry.getHttpStatusCode());
+    }
+    if (entry.hasHttpEndpoint()) {
+      writeStringAttribute(metric, HTTP_ROUTE, entry.getHttpEndpoint());
+    }
+    if (entry.hasGrpcStatusCode()) {
+      writeStringAttribute(metric, RPC_RESPONSE_STATUS_CODE, entry.getGrpcStatusCode());
+    }
+    // Default (Datadog) mode: emit datadog.* per-point attributes
+    if (!otelSemanticsMode) {
+      writeStringAttribute(metric, DATADOG_OPERATION_NAME, entry.getOperationName());
+      writeStringAttribute(metric, DATADOG_SPAN_TYPE, entry.getType());
+      writeLongAttribute(metric, DATADOG_SPAN_TOP_LEVEL, allTopLevel ? 1L : 0L);
+      if (entry.isSynthetics()) {
+        writeStringAttribute(metric, DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
+      }
+    }
+  }
+
+  // accepts both String literals and UTF8BytesString (both CharSequence); skips null values
+  private static void writeStringAttribute(
+      OtlpMetricVisitor metric, String key, @Nullable CharSequence value) {
+    if (value != null) {
+      metric.visitAttribute(STRING_ATTRIBUTE, key, value.toString());
+    }
+  }
+
+  private static void writeLongAttribute(OtlpMetricVisitor metric, String key, long value) {
+    metric.visitAttribute(LONG_ATTRIBUTE, key, value);
   }
 }
