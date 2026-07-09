@@ -127,7 +127,9 @@ public class LambdaAppSecHandler {
       // GatewayBridge propagates ASM_KEEP based on WAF attack events, but not on
       // isManuallyKept(), which is set by trace-tagging rules that produce no events.
       // Apply it here so those traces are not silently dropped.
-      AppSecContext appSecCtx = requestContext.getData(RequestContextSlot.APPSEC);
+      Object rawAppSecCtx = requestContext.getData(RequestContextSlot.APPSEC);
+      AppSecContext appSecCtx =
+          rawAppSecCtx instanceof AppSecContext ? (AppSecContext) rawAppSecCtx : null;
       if (appSecCtx != null && appSecCtx.isManuallyKept()) {
         TraceSegment traceSeg = requestContext.getTraceSegment();
         traceSeg.setTagTop(Tags.ASM_KEEP, true);
