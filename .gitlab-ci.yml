@@ -530,9 +530,16 @@ compare_artifacts_to_master_uploads:
     - cp workspace/dd-java-agent/build/libs/dd-java-agent-*.jar pipeline-artifacts/
     - cp workspace/dd-trace-api/build/libs/dd-trace-api-*.jar pipeline-artifacts/
     - cp workspace/dd-trace-ot/build/libs/dd-trace-ot-*.jar pipeline-artifacts/
-    - aws s3 cp s3://dd-trace-java-builds/master/dd-java-agent.jar reference-artifacts/dd-java-agent.jar
-    - aws s3 cp s3://dd-trace-java-builds/master/dd-trace-api.jar reference-artifacts/dd-trace-api.jar
-    - aws s3 cp s3://dd-trace-java-builds/master/dd-trace-ot.jar reference-artifacts/dd-trace-ot.jar
+    - source .gitlab/resolve-reference-pipeline-env.sh
+    - |
+      {
+        echo "REFERENCE_SHA=${REFERENCE_SHA}"
+        echo "REFERENCE_PIPELINE_ID=${REFERENCE_PIPELINE_ID}"
+        echo "REFERENCE_PIPELINE_URL=${REFERENCE_PIPELINE_URL}"
+      } > reference-artifacts/reference-pipeline.env
+    - aws s3 cp s3://dd-trace-java-builds/${REFERENCE_PIPELINE_ID}/dd-java-agent.jar reference-artifacts/dd-java-agent.jar
+    - aws s3 cp s3://dd-trace-java-builds/${REFERENCE_PIPELINE_ID}/dd-trace-api.jar reference-artifacts/dd-trace-api.jar
+    - aws s3 cp s3://dd-trace-java-builds/${REFERENCE_PIPELINE_ID}/dd-trace-ot.jar reference-artifacts/dd-trace-ot.jar
     - export DD_JAVA_AGENT_JAR="$(find "$CI_PROJECT_DIR/pipeline-artifacts" -maxdepth 1 -name 'dd-java-agent-*.jar' -print -quit)"
     - export DD_TRACE_API_JAR="$(find "$CI_PROJECT_DIR/pipeline-artifacts" -maxdepth 1 -name 'dd-trace-api-*.jar' -print -quit)"
     - export DD_TRACE_OT_JAR="$(find "$CI_PROJECT_DIR/pipeline-artifacts" -maxdepth 1 -name 'dd-trace-ot-*.jar' -print -quit)"
