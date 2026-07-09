@@ -104,17 +104,17 @@ Use `latestDepTestImplementation` in `build.gradle` to pin the latest available 
 ./gradlew :dd-java-agent:instrumentation:$framework:$framework-$version:latestDepTest
 ```
 
-**`latestDepTestImplementation` version range must match the instrumented range.** If your module instruments version `2.x`, use `2+` as the version constraint, not `3+`:
+**`latestDepTestImplementation` version range must match the instrumented range.** If your module instruments version `2.x`, use `2.+` as the version constraint, not `3.+`:
 
 ```groovy
 // WRONG — latestDep tests against 3.x but the module only instruments 2.x
-latestDepTestImplementation group: 'commons-httpclient', name: 'commons-httpclient', version: '3+'
+latestDepTestImplementation group: 'commons-httpclient', name: 'commons-httpclient', version: '3.+'
 
 // CORRECT — latestDep tests against the highest 2.x release
-latestDepTestImplementation group: 'commons-httpclient', name: 'commons-httpclient', version: '2+'
+latestDepTestImplementation group: 'commons-httpclient', name: 'commons-httpclient', version: '2.+'
 ```
 
-Using `3+` for a `2.x` instrumentation means `latestDepTest` runs against an incompatible API version and will either fail or silently test nothing.
+Using `3.+` for a `2.x` instrumentation means `latestDepTest` runs against an incompatible API version and will either fail or silently test nothing.
 
 ### 4. Smoke test (optional)
 

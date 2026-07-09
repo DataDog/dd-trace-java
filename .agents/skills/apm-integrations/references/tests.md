@@ -26,6 +26,7 @@ def "exception sets error tags"() {
         trace(1) {
             span {
                 errored true
+                errorTags(SomeException, "expected error message")
             }
         }
     }
