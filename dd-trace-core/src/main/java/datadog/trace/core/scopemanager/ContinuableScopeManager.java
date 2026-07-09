@@ -62,6 +62,7 @@ public final class ContinuableScopeManager implements ContextManager {
   final HealthMetrics healthMetrics;
   private final ProfilingContextIntegration profilingContextIntegration;
   private final boolean profilingEnabled;
+  private final boolean profilerCarrierBound;
   private final boolean hasDepthLimit;
 
   /**
@@ -95,6 +96,8 @@ public final class ContinuableScopeManager implements ContextManager {
     this.profilingContextIntegration = profilingContextIntegration;
     this.profilingEnabled =
         !(profilingContextIntegration instanceof ProfilingContextIntegration.NoOp);
+    this.profilerCarrierBound =
+        this.profilingEnabled && profilingContextIntegration.isCarrierThreadBound();
 
     ContextManager.register(this);
   }
@@ -368,6 +371,34 @@ public final class ContinuableScopeManager implements ContextManager {
 
   ScopeStack scopeStack() {
     return this.tlsScopeStack.get();
+  }
+
+  /**
+   * Re-applies the active scope's profiler context to the current carrier; no-op unless a
+   * carrier-bound profiling integration is active.
+   */
+  public void rebindProfilingContextToCarrier() {
+    if (!profilerCarrierBound) {
+      return;
+    }
+    final ContinuableScope active = scopeStack().active();
+    if (active != null) {
+      active.beforeActivated();
+    }
+  }
+
+  /**
+   * Clears the current carrier's profiler context; no-op unless a carrier-bound profiling
+   * integration is active.
+   */
+  public void unbindProfilingContextFromCarrier() {
+    if (!profilerCarrierBound) {
+      return;
+    }
+    final ContinuableScope active = scopeStack().active();
+    if (active != null) {
+      active.clearProfilingContext();
+    }
   }
 
   @Override

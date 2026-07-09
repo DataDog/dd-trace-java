@@ -177,6 +177,23 @@ class ContinuableScope implements AgentScope {
     }
   }
 
+  /**
+   * Clears the profiler context for this scope's state without closing the scope itself. The scope
+   * state must be idempotent and reusable, as this may be followed by another {@link
+   * #beforeActivated()} on the same scope (e.g. across virtual-thread unmount/remount).
+   */
+  public final void clearProfilingContext() {
+    if (scopeState == Stateful.DEFAULT) {
+      return;
+    }
+    try {
+      scopeState.close();
+    } catch (Throwable e) {
+      ContinuableScopeManager.ratelimitedLog.warn(
+          "ScopeState {} threw exception in clearProfilingContext()", scopeState.getClass(), e);
+    }
+  }
+
   public final void afterActivated() {
     boolean hasScopeListeners = !scopeManager.scopeListeners.isEmpty();
     boolean hasExtendedListeners = !scopeManager.extendedScopeListeners.isEmpty();

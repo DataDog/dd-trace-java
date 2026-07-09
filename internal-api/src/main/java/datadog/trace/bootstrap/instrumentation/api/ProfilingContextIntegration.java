@@ -18,6 +18,16 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
   /** Invoked when a thread exits */
   default void onDetach() {}
 
+  /**
+   * Whether this integration stores the active span context in a carrier / OS-thread-keyed slot
+   * (e.g. ddprof's native {@code setContext}) rather than a virtual-thread-aware Java {@code
+   * ThreadLocal}. When {@code true}, the context must be re-applied to the current carrier on every
+   * virtual-thread mount and cleared on unmount.
+   */
+  default boolean isCarrierThreadBound() {
+    return false;
+  }
+
   default Stateful newScopeState(ProfilerContext profilerContext) {
     return Stateful.DEFAULT;
   }

@@ -1439,6 +1439,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
+  public void rebindProfilingContextToCarrier() {
+    scopeManager.rebindProfilingContextToCarrier();
+  }
+
+  @Override
+  public void unbindProfilingContextFromCarrier() {
+    scopeManager.unbindProfilingContextFromCarrier();
+  }
+
+  @Override
   public SubscriptionService getSubscriptionService(RequestContextSlot slot) {
     return (SubscriptionService) instrumentationGateway.getCallbackProvider(slot);
   }

@@ -390,6 +390,12 @@ public class AgentTracer {
 
     ProfilingContextIntegration getProfilingContext();
 
+    /** Called by virtual-thread instrumentation on mount; see {@code ContinuableScopeManager}. */
+    default void rebindProfilingContextToCarrier() {}
+
+    /** Called by virtual-thread instrumentation on unmount; see {@code ContinuableScopeManager}. */
+    default void unbindProfilingContextFromCarrier() {}
+
     /**
      * Sets the new service name to be used as a default.
      *

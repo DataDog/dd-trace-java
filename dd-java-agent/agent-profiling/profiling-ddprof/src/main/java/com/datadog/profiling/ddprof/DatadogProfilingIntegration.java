@@ -78,6 +78,11 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     return "ddprof";
   }
 
+  @Override
+  public boolean isCarrierThreadBound() {
+    return true;
+  }
+
   public void clearContext() {
     DDPROF.clearSpanContext();
     DDPROF.clearContextValue(SPAN_NAME_INDEX);

@@ -2,42 +2,40 @@ package datadog.trace.bootstrap.instrumentation.java.lang;
 
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 
 /**
- * This class holds the saved context and scope continuation for a virtual thread.
- *
- * <p>Used by java-lang-21.0 {@code VirtualThreadInstrumentation} to swap the entire scope stack on
- * mount/unmount.
+ * The virtual thread's scope stack lives in a virtual-thread-aware {@code ThreadLocal}, so it is
+ * seeded once on the first mount and then follows the thread across park/unpark and carrier
+ * migration on its own. ddprof's profiler context is keyed by carrier thread instead, so it is
+ * re-bound on mount and cleared on unmount when a carrier-bound profiling integration is active.
  */
 public final class VirtualThreadState {
-  /** The virtual thread's saved context (scope stack snapshot). */
-  private Context context;
-
-  /** Prevents the enclosing context scope from completing before the virtual thread finishes. */
+  private Context seedContext;
+  // Keeps the enclosing trace alive until the virtual thread finishes.
   private final Continuation continuation;
+  private boolean seeded;
 
-  /** The carrier thread's saved context, set between mount and unmount. */
-  private Context previousContext;
-
-  public VirtualThreadState(Context context, Continuation continuation) {
-    this.context = context;
+  public VirtualThreadState(Context seedContext, Continuation continuation) {
+    this.seedContext = seedContext;
     this.continuation = continuation;
   }
 
-  /** Called on mount: swaps the virtual thread's context into the carrier thread. */
   public void onMount() {
-    this.previousContext = this.context.swap();
-  }
-
-  /** Called on unmount: restores the carrier thread's original context. */
-  public void onUnmount() {
-    if (this.previousContext != null) {
-      this.context = this.previousContext.swap();
-      this.previousContext = null;
+    if (!seeded) {
+      // First mount also applies the profiler context to the carrier.
+      seedContext.swap();
+      seeded = true;
+      seedContext = null;
+    } else {
+      AgentTracer.get().rebindProfilingContextToCarrier();
     }
   }
 
-  /** Called on termination: releases the trace continuation. */
+  public void onUnmount() {
+    AgentTracer.get().unbindProfilingContextFromCarrier();
+  }
+
   public void onTerminate() {
     if (this.continuation != null) {
       this.continuation.cancel();
