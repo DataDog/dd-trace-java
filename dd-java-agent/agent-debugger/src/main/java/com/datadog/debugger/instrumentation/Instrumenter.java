@@ -207,7 +207,7 @@ public abstract class Instrumenter {
         current = current.getNext();
       }
     } catch (AnalyzerException ex) {
-      LOGGER.debug("Failed to analyze method[%s::%s] instructions", owner, methodNode.name, ex);
+      LOGGER.debug("Failed to analyze method[{}::{}] instructions", owner, methodNode.name, ex);
     }
   }
 
