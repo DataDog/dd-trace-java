@@ -200,6 +200,36 @@ default:
       echo "Failed to find base ref for PR" >&2
     fi
 
+# The MASS pull-through cache (MASS_READ_URL) is served over the Fabric DNS endpoint, which presents
+# a Datadog-internal TLS certificate that the bundled JDKs do not trust out of the box. Fetch the
+# endpoint's certificate chain at runtime and merge it into a copy of the active JDK's truststore,
+# then point every JVM at that truststore via JAVA_TOOL_OPTIONS so both the Gradle wrapper download
+# and the build itself trust it. We copy cacerts first because javax.net.ssl.trustStore *replaces*
+# the default store, so the copy keeps all public CAs and merely adds the Datadog CA.
+.trust_mass_certs: &trust_mass_certs
+  - |
+    mass_host="${MASS_READ_URL#*://}"; mass_host="${mass_host%%/*}"
+    mass_name="${mass_host%%:*}"
+    mass_port="${mass_host##*:}"; [ "$mass_port" = "$mass_host" ] && mass_port=443
+    java_home="${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v keytool || command -v java)")")")}"
+    src_cacerts="${java_home}/lib/security/cacerts"
+    [ -f "$src_cacerts" ] || src_cacerts="${java_home}/jre/lib/security/cacerts"
+    truststore=/tmp/mass-truststore.p12
+    rm -f "$truststore" /tmp/mass-chain.pem /tmp/mass-cert-*.pem
+    cp "$src_cacerts" "$truststore" && chmod u+w "$truststore"
+    echo | openssl s_client -showcerts -servername "$mass_name" -connect "${mass_name}:${mass_port}" 2>/dev/null > /tmp/mass-chain.pem
+    awk '/-----BEGIN CERTIFICATE-----/{n++} /-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/{print > ("/tmp/mass-cert-" n ".pem")}' /tmp/mass-chain.pem
+    for cert in /tmp/mass-cert-*.pem; do
+      [ -s "$cert" ] || continue
+      keytool -importcert -noprompt -trustcacerts -storetype PKCS12 -storepass changeit \
+        -keystore "$truststore" -alias "mass-$(basename "$cert" .pem)" -file "$cert"
+    done
+    if [ -s "$truststore" ]; then
+      export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Djavax.net.ssl.trustStore=${truststore} -Djavax.net.ssl.trustStorePassword=changeit -Djavax.net.ssl.trustStoreType=PKCS12"
+    else
+      echo "WARNING: MASS truststore was not created; leaving default truststore in place" >&2
+    fi
+
 .gradle_build: &gradle_build
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: build
@@ -258,6 +288,8 @@ default:
       mass_read_host="${MASS_READ_URL#https://}"
       mass_read_host="${mass_read_host%/}"
       sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
+    # Trust the MASS Fabric endpoint's Datadog-internal TLS cert before the Gradle wrapper downloads the distribution.
+    - *trust_mass_certs
     - mkdir -p .mvn/caches
     # Redirect Spotless's Equo/Solstice P2 cache into the project tree so it is captured by the GitLab cache.
     # Solstice (https://github.com/equodev/equo-ide) defaults to ~/.m2/repository/dev/equo/p2-data, which is outside $CI_PROJECT_DIR.
@@ -817,6 +849,8 @@ muzzle-dep-report:
       mass_read_host="${MASS_READ_URL#https://}"
       mass_read_host="${mass_read_host%/}"
       sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
+    # Trust the MASS Fabric endpoint's Datadog-internal TLS cert before the Gradle wrapper downloads the distribution.
+    - *trust_mass_certs
     - *normalize_node_index
     - *prepare_test_env
     # Disable CDS in forked JVMs to avoid SIGSEGVs on Linux arm64.
