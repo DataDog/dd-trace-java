@@ -775,6 +775,42 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void buildFullPathEncodesSpecialCharactersInQueryParams() {
+    // Keys/values containing '&', '=', and spaces must be percent-encoded so they are not
+    // misinterpreted as query string delimiters when AppSec parses the raw query string.
+    String eventJson =
+        "{"
+            + "\"path\": \"/search\","
+            + "\"queryStringParameters\": {\"q\": \"hello world\", \"filter\": \"a&b\", \"eq\": \"x=y\"},"
+            + "\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-special\"}"
+            + "}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    String[] capturedQuery = {null};
+
+    setupMockCallbacks(
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedQuery[0] = uri.query();
+                }));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertNotNull(capturedQuery[0]);
+    // spaces encoded as '+' or '%20', '&' as '%26', '=' as '%3D'
+    assertFalse(capturedQuery[0].contains("hello world"), "space must be encoded");
+    assertFalse(capturedQuery[0].contains("a&b"), "'&' in value must be encoded");
+    assertFalse(capturedQuery[0].contains("x=y"), "'=' in value must be encoded");
+    assertTrue(
+        capturedQuery[0].contains("hello+world") || capturedQuery[0].contains("hello%20world"),
+        "space should be encoded as '+' or '%20'");
+    assertTrue(capturedQuery[0].contains("a%26b"), "'&' should be encoded as '%26'");
+    assertTrue(capturedQuery[0].contains("x%3Dy"), "'=' should be encoded as '%3D'");
+  }
+
+  @Test
   void extractsSchemeAndPortFromXForwardedHeaders() {
     String eventJson =
         "{"
