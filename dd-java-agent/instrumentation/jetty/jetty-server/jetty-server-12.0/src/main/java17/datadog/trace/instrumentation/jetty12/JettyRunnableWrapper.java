@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContin
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 
 public class JettyRunnableWrapper implements Runnable {
@@ -19,7 +20,7 @@ public class JettyRunnableWrapper implements Runnable {
 
   @Override
   public void run() {
-    try (AgentScope scope = continuation.activate()) {
+    try (ContextScope scope = continuation.activate()) {
       runnable.run();
     }
   }

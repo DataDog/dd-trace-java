@@ -3,8 +3,11 @@ package com.datadog.debugger.instrumentation;
 import com.datadog.debugger.probe.ProbeDefinition;
 import datadog.trace.bootstrap.debugger.Limits;
 import java.util.List;
+import java.util.Map;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InsnList;
+import org.objectweb.asm.tree.analysis.BasicValue;
+import org.objectweb.asm.tree.analysis.Frame;
 
 public class ExceptionInstrumenter extends CapturedContextInstrumenter {
 
@@ -25,7 +28,8 @@ public class ExceptionInstrumenter extends CapturedContextInstrumenter {
   }
 
   @Override
-  protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
+  protected InsnList getBeforeReturnInsnList(
+      AbstractInsnNode node, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     return null;
   }
 

@@ -2,6 +2,9 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static com.datadog.debugger.agent.DebuggerProductChangesListener.LOG_PROBE_PREFIX;
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.METRIC_PROBE_PREFIX;
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_DECORATION_PROBE_PREFIX;
+import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_PROBE_PREFIX;
 import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeLogProbe;
 import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeSpanDecorationProbe;
 import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeTriggerProbe;
@@ -643,7 +646,10 @@ public class ConfigurationUpdaterTest {
     ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
     Exception ex = new Exception("oops");
     configurationUpdater.handleException(LOG_PROBE_PREFIX + PROBE_ID.getId(), ex);
-    verify(probeStatusSink).addError(eq(ProbeId.from(PROBE_ID.getId() + ":0")), eq(ex));
+    configurationUpdater.handleException(METRIC_PROBE_PREFIX + PROBE_ID.getId(), ex);
+    configurationUpdater.handleException(SPAN_PROBE_PREFIX + PROBE_ID.getId(), ex);
+    configurationUpdater.handleException(SPAN_DECORATION_PROBE_PREFIX + PROBE_ID.getId(), ex);
+    verify(probeStatusSink, times(4)).addError(eq(ProbeId.from(PROBE_ID.getId() + ":0")), eq(ex));
   }
 
   @Test

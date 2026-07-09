@@ -59,7 +59,7 @@ docs/                     Developer documentation (see below)
 - **Static imports**: Prefer static imports over class-qualified calls for call-style helpers — JUnit `Assertions`, Mockito (`mock`, `when`, `verify`, `anyString`, `RETURNS_DEFAULTS`, ...), Hamcrest/AssertJ matchers, internal test DSLs, and similar. Same goes for production code: `Collections.emptyList()` is fine, but if you find yourself repeatedly writing `Foo.bar(...)` where `Foo` adds no information at the call site, static-import `bar`. Wildcard `import static x.*` is disallowed (enforced by IDE config in CONTRIBUTING.md).
 - **Instrumentation layout**: `dd-java-agent/instrumentation/{framework}/{framework}-{minVersion}/`
 - **Instrumentation pattern**: Type matching → Method matching → Advice class (bytecode advice, not AOP)
-- **Test frameworks**: Always use JUnit 5. **Do not write new Groovy / Spock tests** and migrate the existing one to JUnit 5 if it is written in Groovy.
+- **Test frameworks**: Always use JUnit 5 for unit tests. Only use Groovy / Spock tests for instrumentation and smoke tests.
 - **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
 - **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
 - **Instrumentation one-shot methods**: Never extract the return values of `triggerClasses()`, `contextStore()`, `classLoaderMatcher()`, or `methodAdvice()` into static constants. These are called once by the framework — extracting to a constant adds constant-pool bloat with no benefit.
@@ -67,9 +67,8 @@ docs/                     Developer documentation (see below)
 ## PR conventions
 
 - Title: imperative verb sentence describing user-visible change (e.g. "Fix span sampling rule parsing")
-- Labels: at least one `comp:` or `inst:` label + one `type:` label
+- Labels: always add `tag: ai generated` and at least one `comp:` or `inst:` label + one `type:` label
 - Use `tag: no release note` for internal/refactoring changes
-- Use `tag: ai generated` for AI generated code
 - Open as draft first, convert to ready when reviewable
 
 ## Bootstrap constraints (critical)

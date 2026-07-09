@@ -29,7 +29,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.4.2"
+  id("com.gradle.develocity") version "4.5.0"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
@@ -559,6 +559,7 @@ include(
   ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-client:jax-rs-client-2.0",
   ":dd-java-agent:instrumentation:rxjava:rxjava-1.0",
   ":dd-java-agent:instrumentation:rxjava:rxjava-2.0",
+  ":dd-java-agent:instrumentation:rxjava:rxjava-3.0",
   ":dd-java-agent:instrumentation:scala:scala-concurrent-2.8",
   ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10",
   ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13",

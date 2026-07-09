@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
 
 plugins {
   id 'java-test-fixtures'
@@ -30,14 +31,14 @@ configurations {
   javaxClassesToRelocate
 }
 
-tasks.register('relocatedJavaxJar', ShadowJar) {
+def relocatedJavaxJar = tasks.register('relocatedJavaxJar', ShadowJar) {
   relocate 'javax.servlet', 'jakarta.servlet'
   relocate 'datadog.trace.instrumentation.servlet3', 'datadog.trace.instrumentation.servlet5'
   relocate 'datadog.trace.instrumentation.servlet', 'datadog.trace.instrumentation.servlet5'
 
   archiveClassifier.set('relocated-javax')
 
-  configurations = [project.configurations.javaxClassesToRelocate]
+  configurations.add(project.configurations.named('javaxClassesToRelocate'))
 
   include '**/*.jar'
   include '**/Servlet31InputStreamWrapper.class'
@@ -49,9 +50,24 @@ tasks.register('relocatedJavaxJar', ShadowJar) {
 
   includeEmptyDirs = false
 }
+def relocatedJavaxJarFile = relocatedJavaxJar.flatMap { it.archiveFile }
 
 dependencies {
-  implementation files(relocatedJavaxJar.outputs.files)
+  // Wire the relocated javax->jakarta advice into this project without publishing
+  // the relocated jar as runtime output:
+  //
+  // - keep the relocated jar visible to main compilation through `compileOnly`
+  // - keep the relocated jar visible to tests through `testImplementation`
+  // - include the relocated classes into this project's jar (jar task config)
+  //
+  // NOTE:
+  // Do not add the relocated jar to `implementation`: `runtimeElements` publishes
+  // both the jar artifact and runtime dependencies derived from `implementation`.
+  // Publishing the relocated jar there would expose the same servlet5 advice classes
+  // twice to downstream projects, once from the module jar and once from the
+  // relocated jar.
+  compileOnly files(relocatedJavaxJarFile)
+  testImplementation files(relocatedJavaxJarFile)
   compileOnly group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   testImplementation group: 'jakarta.servlet', name: 'jakarta.servlet-api', version: '5.0.0'
   testImplementation group: 'jakarta.servlet.jsp', name: 'jakarta.servlet.jsp-api', version: '3.0.0'
@@ -76,5 +92,12 @@ dependencies {
 }
 
 tasks.named("jar", Jar) {
-  from zipTree(relocatedJavaxJar.outputs.files.asPath)
+  from zipTree(relocatedJavaxJarFile)
+}
+
+// Make the relocated jar visible to muzzle through `extraAgentClasspath`.
+// Muzzle uses the runtime classpath of a project, and this jar is produced
+// outside of it.
+tasks.withType(MuzzleTask).configureEach {
+  extraAgentClasspath.from(relocatedJavaxJarFile)
 }
