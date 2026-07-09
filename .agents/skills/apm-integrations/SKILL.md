@@ -23,17 +23,6 @@ Before writing any code, read all three files in full:
 
 These files are the single source of truth. Reference them while implementing.
 
-**After reading the docs, sync this skill with them:**
-
-Compare the content of the three docs against the rules encoded in Steps 2–11 of this skill file. Look for:
-- Patterns, APIs, or conventions described in the docs but absent or incorrect here
-- Steps that are out of date relative to the current docs (e.g. renamed methods, new base classes)
-- Advice constraints or test requirements that have changed
-
-For every discrepancy found, edit this file (`.agents/skills/apm-integrations/SKILL.md`) or its referenced files
-to correct it using the `Edit` tool before continuing. Keep changes targeted: fix what diverged, add what is missing, remove what is wrong.
-Do not touch content that already matches the docs.
-
 ## Step 2 – Clarify the task
 
 If the user has not already provided all of the following, ask before proceeding:
@@ -65,25 +54,15 @@ pattern before writing new code. Use it as a template.
 4. Register the new module in `settings.gradle.kts` in **alphabetical order**
 5. Register all integration names in `metadata/supported-configurations.json` — **read [Supported Configurations](references/supported-configurations.md)** for the exact key shapes and CI checks involved. Declaring several names (`super("a", "b")`) means one entry each.
 
-**See [Naming Conventions](references/naming-conventions.md) — module directory name must end with a version or an allowed suffix (`-common`, `-stubs`, `-iast`).**
+**See [Naming Conventions](references/naming-conventions.md) — module directory name must end with a version or an allowed suffix (`-common`, `-stubs`, `-iast`). Java filename and `public class` name MUST match character-for-character including acronym casing (CRITICAL — see § "Java naming consistency").**
 
 ## Step 4.1 – Span-creating vs context-tracking instrumentation
 
-**Read [Context-Tracking Instrumentation](references/context-tracking.md) before picking instrumentation targets.**
-
-Decide which kind of `InstrumenterModule` the library needs: `InstrumenterModule.Tracing` (creates spans around I/O — HTTP/DB/messaging/RPC — the common case) or `InstrumenterModule.ContextTracking` (bridges trace context across async boundaries — reactive/async/executor/coroutine libraries; creates no spans of its own). Get this wrong and you write the wrong shape of instrumentation.
-
-## Step 4.2 – Java naming consistency (CRITICAL — non-negotiable)
-
-**Read [Naming Conventions](references/naming-conventions.md) § "Java naming consistency".**
-
-Filename and `public class` name MUST match character-for-character (including acronym casing). Use one canonical string everywhere: filename, class decl, `import static`, `ClassName.member` references.
+Read [Context-Tracking Instrumentation](references/context-tracking.md) and decide whether the library needs `InstrumenterModule.Tracing` (I/O operations that create spans) or `InstrumenterModule.ContextTracking` (async-boundary bridging, no spans).
 
 ## Step 5 – Write the InstrumenterModule
 
 **Read [InstrumenterModule Guidance](references/instrumenter-module.md).**
-
-In short: annotate with `@AutoService`, extend the right `InstrumenterModule.*` subclass, implement the narrowest `Instrumenter` interface possible (`ForSingleType` > `ForKnownTypes` > `ForTypeHierarchy` — with a critical exception for interface-only API JARs like JMS/JPA/JDBC). Include a version-qualified alias in `super("jedis", "jedis-3.0")`. Declare all helper classes. When regenerating an existing module, preserve master's integration name to avoid churn in `supported-configurations.json`. Do NOT extract one-shot method return values into static constants.
 
 ## Step 6 – Write the Decorator
 
@@ -98,9 +77,7 @@ In short: annotate with `@AutoService`, extend the right `InstrumenterModule.*` 
 
 ## Step 7 – Write the Advice class (highest-risk step)
 
-**Read [Writing the Advice Class](references/advice-class.md).**
-
-The reference file covers: `static` advice methods; enter/exit annotations (with the constructor exception); parameter annotations (`@Advice.This`, `@Advice.Argument`, `@Advice.Return`, `@Advice.Thrown`, `@Advice.Enter`, `@Advice.Local`); `CallDepthThreadLocalMap` reentrancy guarding; single-delegate-method instrumentation (not all overloads); span lifecycle order; `onExit` resilience to `onEnter` throwing; explicit charset for `byte[]` → `String`; no `NullPointerException` catches (SpotBugs blocks); `@AppliesOn` for multiple advice classes; and the "Must NOT do" list (no logger fields, no lambdas in advice, no `inline=false` in production, no `java.util.logging.*` / `java.nio.file.*` / `javax.management.*` in bootstrap).
+**Read [Writing the Advice Class](references/advice-class.md) — the highest-risk step.** Pay particular attention to: `@Advice.OnMethodEnter/Exit` annotations; `CallDepthThreadLocalMap` reentrancy guarding; span lifecycle order; and the "Must NOT do" list.
 
 ## Step 8 – Add SETTER/GETTER adapters (if applicable)
 
@@ -114,18 +91,11 @@ Cover all mandatory test types:
 
 ### 1. Instrumentation test (mandatory)
 
-**Read [Writing Tests](references/tests.md).** Instrumentation tests are Groovy/Spock (`src/test/groovy/`) — add `tag: override groovy enforcement` to the PR to bypass the groovy migration bot. Must cover error/exception scenarios. When adding new integration names, register them per [Supported Configurations](references/supported-configurations.md). When `compileOnly` and `testImplementation` use different versions, comment the specific class that requires the higher version. Include the prior-version module as a `testImplementation` dependency for mutual-exclusion tests.
+**Read [Writing Tests](references/tests.md).** Instrumentation tests are Groovy/Spock (`src/test/groovy/`) — add the `tag: override groovy enforcement` label to suppress the `Enforce Groovy Migration` CI check (which blocks new `.groovy` files by default — instrumentation tests are intentionally Groovy/Spock). Must cover error/exception scenarios. When adding new integration names, register them per [Supported Configurations](references/supported-configurations.md). When `compileOnly` and `testImplementation` use different versions, comment the specific class that requires the higher version. Include sibling version modules as `testImplementation` dependencies for mutual-exclusion tests.
 
 ### 2. Muzzle directives (mandatory)
 
-**Read [Muzzle Directives](references/muzzle.md).**
-
-Three valid patterns — see [Muzzle Directives](references/muzzle.md) for full examples:
-- **Open-ended** `[$min,)`: use `assertInverse = true` only when the declared min is the verified true minimum.
-- **Bounded, sibling module takes over at `$max`** `[$min,$max)`: use explicit `fail { versions = "[,$min)" }` with no `assertInverse` — the plugin can otherwise pick sibling-covered versions as inverse targets and fail unexpectedly.
-- **Bounded, incompatible major version above `$max`** `[$min,$max)`: `assertInverse = true` is fine because versions above `$max` genuinely fail muzzle.
-
-Library-specific quirks (malformed release versions like `jedis-3.6.2`) require `skipVersions` — search adjacent modules for these before declaring new ranges.
+**Read [Muzzle Directives](references/muzzle.md)** — it covers all three valid patterns and their `assertInverse` rules. Search adjacent module `build.gradle` files for `skipVersions` before declaring a new version-bounded module's muzzle directives.
 
 ### 3. Latest dependency test (mandatory)
 
@@ -160,8 +130,8 @@ Run these commands in order and fix any failures before proceeding:
 ./gradlew :dd-java-agent:instrumentation:$framework:$framework-$version:latestDepTest
 ./gradlew checkInstrumenterModuleConfigurations
 ./gradlew checkDecoratorAnalyticsConfigurations
+./gradlew spotlessApply
 ./gradlew :dd-java-agent:updateAgentJarIntegrationsGoldenFile
-./gradlew spotlessCheck
 ```
 
 After `updateAgentJarIntegrationsGoldenFile` runs, commit the updated `metadata/agent-jar-checks.properties` file alongside your instrumentation changes. The `verifyAgentJarIntegrations` check runs automatically in CI and fails if this file is out of date.
@@ -179,8 +149,6 @@ After `updateAgentJarIntegrationsGoldenFile` runs, commit the updated `metadata/
 **If tests fail:** verify span lifecycle order (start → activate → error → close → finish), helper registration,
 and `contextStore()` map entries match actual usage.
 
-**If spotlessCheck fails:** run `./gradlew spotlessApply` to auto-format, then re-check.
-
 ## Step 11 – Checklist before finishing
 
 Output this checklist and confirm each item is satisfied:
@@ -189,7 +157,7 @@ Output this checklist and confirm each item is satisfied:
 - [ ] `metadata/supported-configurations.json` has a `DD_TRACE_<NAME>_ENABLED` entry (+ the two aliases) for every name passed to `super(...)`
 - [ ] `metadata/supported-configurations.json` has `DD_TRACE_<NAME>_ANALYTICS_ENABLED` and `DD_TRACE_<NAME>_ANALYTICS_SAMPLE_RATE` entries for every name returned by the decorator's `instrumentationNames()`
 - [ ] `build.gradle` has `compileOnly` deps and `muzzle` directives
-- [ ] Muzzle pattern is correct: Pattern A (`assertInverse = true`) for open-ended ranges where the min is verified; Pattern B (explicit `fail` blocks, no `assertInverse`) when a sibling module takes over at the upper bound; Pattern C (`assertInverse = true`) when the upper bound excludes an incompatible major version — see [Muzzle Directives](references/muzzle.md)
+- [ ] Muzzle pattern is correct (see [Muzzle Directives](references/muzzle.md))
 - [ ] `latestDepTestImplementation` version range matches the instrumented version range (e.g. `2+` not `3+` for a `2.x` module)
 - [ ] `@AutoService(InstrumenterModule.class)` annotation present on the module class
 - [ ] `helperClassNames()` lists ALL referenced helpers (including inner, anonymous, and enum synthetic classes)
@@ -201,10 +169,7 @@ Output this checklist and confirm each item is satisfied:
 - [ ] No `java.util.logging.*` / `java.nio.file.*` / `javax.management.*` in bootstrap path
 - [ ] `metadata/agent-jar-checks.properties` updated via `./gradlew :dd-java-agent:updateAgentJarIntegrationsGoldenFile` and committed
 - [ ] Span lifecycle order is correct: startSpan → afterStart → activateSpan (enter); onError → beforeFinish → close → finish (exit)
-- [ ] Muzzle passes
-- [ ] Instrumentation tests pass
-- [ ] `latestDepTest` passes
-- [ ] `spotlessCheck` passes
+- [ ] All Step 10 verification commands passed with no failures
 
 ## Step 12 – Retrospective: update this skill with what was learned
 

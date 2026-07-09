@@ -22,7 +22,7 @@ For each new integration name `<NAME>` (uppercase, dashes/dots replaced with und
 ],
 ```
 
-**Default value:** `"true"` for typical integrations (~83% of existing entries). Set `"default": "false"` only if the module overrides `defaultEnabled()` to return `false` (e.g. OpenTelemetry, Hazelcast, sparkjava). Cross-check with `grep -A2 "defaultEnabled" dd-java-agent/instrumentation/<framework>*` before choosing.
+**Default value:** the `_ENABLED` default mirrors the module's `defaultEnabled()` return value — `"true"` for typical integrations. Set `"default": "false"` only if the module overrides `defaultEnabled()` to return `false` (e.g. OpenTelemetry, Hazelcast, sparkjava). For new integrations this is always `"true"`; when modifying an existing module, verify with: `grep -A2 "defaultEnabled" dd-java-agent/instrumentation/<framework>*`.
 
 ## Analytics entries (for each decorator `instrumentationNames()` return value)
 
@@ -51,9 +51,6 @@ For each new integration name `<NAME>` (uppercase, dashes/dots replaced with und
 
 **Type names — match existing conventions**: use `"boolean"`, `"string"`, `"int"`, `"decimal"` (for floating-point — NOT `"double"`). The `dd-gitlab/validate_supported_configurations_v2_local_file` CI job will fail with non-canonical type names.
 
-**Verify the JSON parses** before committing:
-```bash
-python3 -c "import json; json.load(open('metadata/supported-configurations.json'))"
-```
+The Gradle checks (`checkInstrumenterModuleConfigurations`, `checkDecoratorAnalyticsConfigurations`) validate the JSON automatically — they will fail with a parse error if the file is malformed.
 
 **How to discover whether entries are missing**: after writing the instrumentation, search `metadata/supported-configurations.json` for each name used in `super(...)` and decorator `instrumentationNames()`. If any is absent, add it. Do not assume master already has it — version-specific integration names (e.g. `sparkjava-2.3` vs `sparkjava-2.4`) are not interchangeable.

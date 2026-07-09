@@ -81,7 +81,7 @@ muzzle {
 
 Add `assertInverse = true` only when you've empirically verified the min via local muzzle sweep. Otherwise, leaving it off is correct.
 
-**Background**: this failure mode is common when a module has both a "sync" instrumentation class (works on older versions) and an "async" instrumentation class (requires a newer API). Declaring the higher version as the muzzle min is conservative for `compileOnly`, but `assertInverse = true` then auto-tests a lower version with ONLY the sync class hooks active — that passes, creating the "MUZZLE PASSED BUT FAILURE WAS EXPECTED" failure.
+This is common whenever any instrumentation class in the module is compatible with versions below the declared min — `assertInverse` then contradicts that class's compatibility.
 
 ## Muzzle range must exclude incompatible major versions
 

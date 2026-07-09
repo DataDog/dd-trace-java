@@ -24,11 +24,10 @@ in alpha order with the other instrumentations in this format:
 include(":dd-java-agent:instrumentation:$framework:$framework-$minVersion")
 ```
 
-In this case
-we [added](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/settings.gradle#L209C3-L209C3):
+For example, the jedis 3.x instrumentation appears as:
 
 ```kotlin
-include(":dd-java-agent:instrumentation:google-http-client")
+include(":dd-java-agent:instrumentation:jedis:jedis-3.0")
 ```
 
 ## Create the Instrumentation class

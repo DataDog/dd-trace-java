@@ -34,19 +34,6 @@ def "exception sets error tags"() {
 
 For tests that need a separate JVM, suffix the test class with `ForkedTest` and run via the `forkedTest` task.
 
-### Adding new .groovy test files
-
-The `Enforce Groovy Migration` workflow blocks new `.groovy` files by default. For new instrumentation tests (which should be Groovy/Spock), add the `tag: override groovy enforcement` label to the PR to bypass the check.
-
-```groovy
-// src/test/groovy/datadog/trace/instrumentation/jedis3/Jedis3ClientTest.groovy
-class Jedis3ClientTest extends InstrumentationSpecification {
-    def "command creates span"() {
-        // test body
-    }
-}
-```
-
 ### Register new integration names in `metadata/supported-configurations.json`
 
 See [Supported Configurations](supported-configurations.md) for the key shapes, CI checks, and JSON format.
@@ -78,16 +65,20 @@ your instrumentation test. If a specific class raises `ClassNotFoundException` o
 class is the reason — check when it became public and use that version for `testImplementation`.
 Name the class in the comment.
 
-### Include prior version module in testImplementation for mutual exclusion
+### Include sibling version modules in testImplementation for mutual exclusion
 
-When two modules instrument the same library at different versions, add the prior
-version's module as a `testImplementation` dependency to confirm they don't double-instrument:
+When two modules instrument the same library at non-overlapping version ranges, each module should include the other as a `testImplementation` dependency to confirm they don't double-instrument. The rule is symmetric — both the older and the newer module should carry this dependency:
 
 ```groovy
 // jedis-3.0/build.gradle
 dependencies {
     testImplementation project(':dd-java-agent:instrumentation:jedis:jedis-1.4')
 }
+
+// jedis-1.4/build.gradle
+dependencies {
+    testImplementation project(':dd-java-agent:instrumentation:jedis:jedis-3.0')
+}
 ```
 
-This ensures `:test` validates that only the correct module fires for jedis-3.x requests.
+This ensures `:test` in each module validates that only the correct module fires for its version range.

@@ -1,6 +1,6 @@
 # Naming Conventions
 
-> Referenced from `SKILL.md` Step 4 (module directory name) and Step 4.2 (Java class/file naming).
+> Referenced from `SKILL.md` Step 4 (module directory name and Java class/file naming).
 
 ## Module directory name must end with a version OR an allowed suffix
 

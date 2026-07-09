@@ -391,7 +391,7 @@ Decorator class names should end in _Decorator._
 ## Advice Classes
 
 Byte Buddy injects compiled bytecode at runtime to wrap existing methods, so they communicate with Datadog at entry or exit.
-These modifications are referred to as _advice transformation_ or just _advice_.
+These modifications are referred to as _method advice_ or just _advice_.
 
 Instrumenters register advice transformations by calling `MethodTransformer.applyAdvice(ElementMatcher, String)` 
 and methods are matched by the instrumentation's `methodAdvice()` method.

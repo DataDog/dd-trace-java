@@ -39,23 +39,20 @@
 
   ✅ `public String[] triggerClasses() { return new String[]{"com.example.Foo"}; }`
 
-### Module constructor must include a version-qualified alias
+### Module constructor: new modules add a version alias; existing modules preserve existing names
 
-Pass a version-qualified alias to the `InstrumenterModule` constructor — this is what controls `DD_TRACE_<NAME>_ENABLED`:
+**New module**: pass a generic name AND a version-qualified alias so users can enable/disable this version independently:
 
 ```java
-// WRONG — only generic name; no per-version enable/disable
-public JedisInstrumentation() {
-    super("jedis");
-}
-
 // CORRECT — generic + version alias
 public JedisInstrumentation() {
     super("jedis", "jedis-3.0");
 }
 ```
 
-The version alias (e.g. `"jedis-3.0"`) lets users enable/disable this specific version independently via `DD_TRACE_JEDIS_3_0_ENABLED`. Do NOT add version aliases to the decorator's `instrumentationNames()` — that method is for analytics keys only.
+The version alias (e.g. `"jedis-3.0"`) maps to `DD_TRACE_JEDIS_3_0_ENABLED`. Do NOT add version aliases to the decorator's `instrumentationNames()` — that method is for analytics keys only.
+
+**Existing module** (modifying, refactoring, or splitting): read the existing module's `super(...)` and copy it verbatim. Integration names are public config API — renaming one silently breaks customer `DD_TRACE_*_ENABLED` settings.
 
 ### Do not create a helper class just for CallDepthThreadLocalMap when only one type is instrumented
 
@@ -80,22 +77,6 @@ CallDepthThreadLocalMap.reset(Gson.class);
 ```
 
 A helper class is appropriate when multiple instrumentation classes share the same depth counter — use the shared sentinel class as the key in that case.
-
-### When regenerating an existing module, preserve master's integration name convention
-
-If you are modifying or regenerating instrumentation for a library that **already exists** in `dd-java-agent/instrumentation/` on master (e.g. `commons-httpclient-2.0/`), READ the existing module's `super(...)` and `instrumentationNames()` declarations and reuse them.
-
-```java
-// Master's existing source uses dashed name:
-//   super("commons-http-client");
-// CORRECT (matches master, master's DD_TRACE_COMMONS_HTTP_CLIENT_* entries continue to work)
-super("commons-http-client");
-
-// WRONG (new name, requires adding 6 new supported-configurations.json entries)
-super("commons-httpclient", "commons-httpclient-2.0");
-```
-
-**Why**: dd-trace-java's `dd-gitlab/config-inversion-linter` requires registered names. Master already has registered entries for its existing convention; inventing a new convention forces a metadata change. Preserving the convention keeps the diff minimal and reviewer attention focused on the code, not boilerplate.
 
 ## Advanced: Grouping multiple instrumentations under one module
 

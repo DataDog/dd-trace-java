@@ -17,7 +17,7 @@ Before picking instrumentation targets, decide which kind of instrumentation the
 
 ## Reference implementation
 
-**`dd-java-agent/instrumentation/rxjava/rxjava-2.0/`** — the canonical context-tracking module. It uses `InstrumenterModule.ContextTracking`. Contents: 5 type-instrumenters (`ObservableInstrumentation`, `FlowableInstrumentation`, `SingleInstrumentation`, `MaybeInstrumentation`, `CompletableInstrumentation`), 5 wrapper classes (`TracingObserver`, `TracingSubscriber`, `TracingSingleObserver`, `TracingMaybeObserver`, `TracingCompletableObserver`), 1 `RxJavaModule.java`, 1 `RxJavaAsyncResultExtension.java`. ~600 LOC total. Read this before writing a new context-tracking module.
+**`dd-java-agent/instrumentation/rxjava/rxjava-2.0/`** — the canonical context-tracking module. It uses `InstrumenterModule.ContextTracking`. Contents: 5 type-instrumenters (`ObservableInstrumentation`, `FlowableInstrumentation`, `SingleInstrumentation`, `MaybeInstrumentation`, `CompletableInstrumentation`), 5 wrapper classes (`TracingObserver`, `TracingSubscriber`, `TracingSingleObserver`, `TracingMaybeObserver`, `TracingCompletableObserver`), 1 `RxJavaModule.java`, 1 `RxJavaAsyncResultExtension.java`. Read this before writing a new context-tracking module.
 
 ## What a context-tracking instrumentation captures
 

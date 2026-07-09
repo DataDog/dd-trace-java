@@ -68,7 +68,7 @@ String cmd = new String(commandBytes, StandardCharsets.UTF_8);
 
 ### Do NOT catch `NullPointerException`; use null-check guards instead
 
-dd-trace-java enforces SpotBugs rule `DCN_NULLPOINTER_EXCEPTION` (no NPE catch). Defensive `try { ... } catch (NullPointerException e) { ... }` patterns will fail `:spotbugsMain` and block the PR.
+Catching `NullPointerException` is always a sign of an unguarded precondition — fix the root cause with an explicit null check instead. dd-trace-java enforces this via SpotBugs rule `DCN_NULLPOINTER_EXCEPTION`; violations fail `:spotbugsMain` and block the PR.
 
 ```java
 // WRONG — SpotBugs DCN_NULLPOINTER_EXCEPTION
@@ -94,51 +94,9 @@ protected int status(final HttpMethod httpMethod) {
 
 ## Multiple advice classes and `@AppliesOn`
 
-If your instrumentation needs to apply multiple advices to the same method (e.g. separate context-tracking from tracing logic), use `applyAdvices()` inside `methodAdvice()`:
+If your instrumentation needs to apply multiple advices to the same method (e.g. separate context-tracking from tracing logic), use `applyAdvices()` inside `methodAdvice()`. Use the `@AppliesOn` annotation to control which target systems each advice applies to.
 
-```java
-@Override
-public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvices(
-            named("someMethod")
-                    .and(takesArgument(0, named("com.example.Request")))
-                    .and(takesArgument(1, named("com.example.Response"))),
-            getClass().getName() + "$ContextTrackingAdvice",  // Applied first
-            getClass().getName() + "$ServiceAdvice"           // Applied second
-    );
-}
-```
-
-Use the `@AppliesOn` annotation to control which target systems each advice applies to:
-
-```java
-import datadog.trace.agent.tooling.InstrumenterModule.TargetSystem;
-import datadog.trace.agent.tooling.annotation.AppliesOn;
-
-@AppliesOn(TargetSystem.CONTEXT_TRACKING)
-public static class ContextTrackingAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter(@Advice.Argument(0) Request request) {
-        // This advice only runs when CONTEXT_TRACKING is enabled
-    }
-}
-
-public static class TracingAdvice {
-    // Without @AppliesOn, this advice runs for the module's target system
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void enter(@Advice.Argument(0) Request request) {
-        // Tracing-specific logic
-    }
-}
-```
-
-**When to use `@AppliesOn`:**
-
-- Separate context-tracking logic from tracing logic
-- Different target systems need different instrumentation behaviours
-- Multiple advices apply to the same method with different system requirements
-
-See `docs/how_instrumentations_work.md` section "@AppliesOn Annotation" for complete details.
+See the `@AppliesOn Annotation` section of `docs/how_instrumentations_work.md` for the full API and examples.
 
 ## Must NOT do
 
