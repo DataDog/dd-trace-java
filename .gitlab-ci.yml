@@ -534,12 +534,16 @@ compare_artifacts_to_master_uploads:
     - |
       {
         echo "REFERENCE_SHA=${REFERENCE_SHA}"
-        echo "REFERENCE_PIPELINE_ID=${REFERENCE_PIPELINE_ID}"
-        echo "REFERENCE_PIPELINE_URL=${REFERENCE_PIPELINE_URL}"
-      } > reference-artifacts/reference-pipeline.env
-    - aws s3 cp s3://dd-trace-java-builds/${REFERENCE_PIPELINE_ID}/dd-java-agent.jar reference-artifacts/dd-java-agent.jar
-    - aws s3 cp s3://dd-trace-java-builds/${REFERENCE_PIPELINE_ID}/dd-trace-api.jar reference-artifacts/dd-trace-api.jar
-    - aws s3 cp s3://dd-trace-java-builds/${REFERENCE_PIPELINE_ID}/dd-trace-ot.jar reference-artifacts/dd-trace-ot.jar
+        echo "REFERENCE_BUILD_JOB_ID=${REFERENCE_BUILD_JOB_ID}"
+        echo "REFERENCE_BUILD_JOB_URL=${REFERENCE_BUILD_JOB_URL}"
+      } > reference-artifacts/reference-build.env
+    - curl --location --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --output reference-artifacts/reference-build-artifacts.zip "${REFERENCE_BUILD_JOB_ARTIFACTS_URL}"
+    - unzip -j reference-artifacts/reference-build-artifacts.zip 'workspace/dd-java-agent/build/libs/dd-java-agent-*.jar' -d reference-artifacts
+    - unzip -j reference-artifacts/reference-build-artifacts.zip 'workspace/dd-trace-api/build/libs/dd-trace-api-*.jar' -d reference-artifacts
+    - unzip -j reference-artifacts/reference-build-artifacts.zip 'workspace/dd-trace-ot/build/libs/dd-trace-ot-*.jar' -d reference-artifacts
+    - mv reference-artifacts/dd-java-agent-*.jar reference-artifacts/dd-java-agent.jar
+    - mv reference-artifacts/dd-trace-api-*.jar reference-artifacts/dd-trace-api.jar
+    - mv reference-artifacts/dd-trace-ot-*.jar reference-artifacts/dd-trace-ot.jar
     - export DD_JAVA_AGENT_JAR="$(find "$CI_PROJECT_DIR/pipeline-artifacts" -maxdepth 1 -name 'dd-java-agent-*.jar' -print -quit)"
     - export DD_TRACE_API_JAR="$(find "$CI_PROJECT_DIR/pipeline-artifacts" -maxdepth 1 -name 'dd-trace-api-*.jar' -print -quit)"
     - export DD_TRACE_OT_JAR="$(find "$CI_PROJECT_DIR/pipeline-artifacts" -maxdepth 1 -name 'dd-trace-ot-*.jar' -print -quit)"
