@@ -45,6 +45,21 @@ class JardiffPlugin : Plugin<Project> {
     val referenceDirProperty =
       project.providers.gradleProperty("jardiffReferenceDir").filter { it.isNotBlank() }
 
+    project.tasks.register<JardiffTask>(COMPARE_FILES_TASK_NAME) {
+      group = "verification"
+      description = "Compares an explicit candidate jar file against an explicit reference jar " +
+          "file using jardiff, failing if they differ. Set the files with --reference-jar=<path> " +
+          "and --candidate-jar=<path>."
+      jardiffClasspath.convention(toolClasspath)
+      mainClass.convention(extension.mainClass)
+      mode.convention(extension.mode)
+      additionalOptions.convention(extension.additionalOptions)
+      ignoreVersionFiles.convention(
+        project.providers.environmentVariable("CI").map { false }.orElse(true),
+      )
+      reportFile.convention(project.layout.buildDirectory.file("reports/jardiff/file-comparison.txt"))
+    }
+
     val compare = project.tasks.register<JardiffTask>(COMPARE_TASK_NAME) {
       group = "verification"
       description = "Compares the built jar against a reference jar (typically the CI `build` " +
@@ -61,6 +76,7 @@ class JardiffPlugin : Plugin<Project> {
       )
       reportFile.convention(project.layout.buildDirectory.file("reports/jardiff/comparison.txt"))
       referenceJar.convention(
+        // Use the same name as the candidate jar
         referenceDirProperty.flatMap { dir ->
           candidateJar.map { candidate -> projectDirectory.dir(dir).file(candidate.asFile.name) }
         },
@@ -92,5 +108,7 @@ class JardiffPlugin : Plugin<Project> {
     const val DEFAULT_MODE = "--stat"
 
     const val COMPARE_TASK_NAME = "compareToReferenceJar"
+
+    const val COMPARE_FILES_TASK_NAME = "compareJarFiles"
   }
 }

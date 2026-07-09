@@ -33,7 +33,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
 
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.FAILED)
     assertThat(result.output)
-      .contains("Built jar differs from the reference jar")
+      .contains("Candidate jar differs from the reference jar")
       .contains("1 file changed")
     assertThat(buildFile("reports/jardiff/comparison.txt")).exists().content()
       .contains("1 file changed")
@@ -55,7 +55,25 @@ class JardiffTaskIntegrationTest : GradleFixture() {
     )
 
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.FAILED)
-    assertThat(result.output).contains("Built jar differs from the reference jar")
+    assertThat(result.output).contains("Candidate jar differs from the reference jar")
+  }
+
+  @Test
+  fun `compareJarFiles compares explicit jars without running the archive task`() {
+    writeFileComparisonProject()
+    writeJar("reference.jar", "override-candidate-bytes")
+    writeJar("override-candidate.jar", "override-candidate-bytes")
+
+    val result = run(
+      "compareJarFiles",
+      "--reference-jar=${file("reference.jar").absolutePath}",
+      "--candidate-jar=${file("override-candidate.jar").absolutePath}",
+    )
+
+    assertThat(result.task(":compareJarFiles")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(result.task(":jar")).isNull()
+    assertThat(buildFile("reports/jardiff/file-comparison.txt")).exists().content()
+      .contains("no differences")
   }
 
   @Test
@@ -235,6 +253,29 @@ class JardiffTaskIntegrationTest : GradleFixture() {
         mainClass.set("fake.jardiff.Main")
         candidateJar.set(layout.projectDirectory.file("candidate.jar"))
         $referenceJarLine
+        $taskBody
+      }
+      """,
+    )
+  }
+
+  private fun writeFileComparisonProject(taskBody: String = "") {
+    writeSettings("""rootProject.name = "jardiff-files-stub-test"""")
+    writeJavaSource("fake.jardiff.Main", stubMainSource("fake.jardiff"))
+    // The file-comparison task intentionally has no candidate archive input.
+    writeRootProject(
+      """
+      import datadog.gradle.plugin.jardiff.JardiffTask
+
+      plugins {
+        java
+        id("dd-trace-java.jardiff")
+      }
+
+      tasks.named<JardiffTask>("compareJarFiles") {
+        dependsOn("classes")
+        jardiffClasspath.setFrom(sourceSets["main"].output)
+        mainClass.set("fake.jardiff.Main")
         $taskBody
       }
       """,

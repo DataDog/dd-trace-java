@@ -512,6 +512,50 @@ validate_build:
     # This will run the shadowJar task and exercise the build cache, allowing to identify build-cache issues
     - ./gradlew compareToReferenceJar -PjardiffReferenceDir="$CI_PROJECT_DIR/reference-artifacts" -PskipTests $GRADLE_ARGS
 
+compare_artifacts_to_master_uploads:
+  extends: .gradle_build
+  stage: tests
+  needs:
+    - job: build
+      artifacts: true
+  variables:
+    CACHE_TYPE: "lib"
+  rules:
+    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != "master" && $CI_COMMIT_BRANCH !~ /^mq-working-branch-/ && $CI_COMMIT_BRANCH !~ /^gh-readonly-queue\//'
+      when: manual
+      allow_failure: true
+    - when: never
+  script:
+    - mkdir -p pipeline-artifacts reference-artifacts jardiff-logs
+    - cp workspace/dd-java-agent/build/libs/dd-java-agent-*.jar pipeline-artifacts/
+    - cp workspace/dd-trace-api/build/libs/dd-trace-api-*.jar pipeline-artifacts/
+    - cp workspace/dd-trace-ot/build/libs/dd-trace-ot-*.jar pipeline-artifacts/
+    - aws s3 cp s3://dd-trace-java-builds/master/dd-java-agent.jar reference-artifacts/dd-java-agent.jar
+    - aws s3 cp s3://dd-trace-java-builds/master/dd-trace-api.jar reference-artifacts/dd-trace-api.jar
+    - aws s3 cp s3://dd-trace-java-builds/master/dd-trace-ot.jar reference-artifacts/dd-trace-ot.jar
+    - export DD_JAVA_AGENT_JAR="$(find pipeline-artifacts -maxdepth 1 -name 'dd-java-agent-*.jar' -print -quit)"
+    - export DD_TRACE_API_JAR="$(find pipeline-artifacts -maxdepth 1 -name 'dd-trace-api-*.jar' -print -quit)"
+    - export DD_TRACE_OT_JAR="$(find pipeline-artifacts -maxdepth 1 -name 'dd-trace-ot-*.jar' -print -quit)"
+    - |
+      comparison_status=0
+      ./gradlew :dd-java-agent:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-java-agent.jar" --candidate-jar="$DD_JAVA_AGENT_JAR" --ignore-version-files -PskipTests $GRADLE_ARGS > jardiff-logs/dd-java-agent.log 2>&1 || comparison_status=$?
+      cat jardiff-logs/dd-java-agent.log
+      ./gradlew :dd-trace-api:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-trace-api.jar" --candidate-jar="$DD_TRACE_API_JAR" --ignore-version-files -PskipTests $GRADLE_ARGS > jardiff-logs/dd-trace-api.log 2>&1 || comparison_status=$?
+      cat jardiff-logs/dd-trace-api.log
+      ./gradlew :dd-trace-ot:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-trace-ot.jar" --candidate-jar="$DD_TRACE_OT_JAR" --ignore-version-files -PskipTests $GRADLE_ARGS > jardiff-logs/dd-trace-ot.log 2>&1 || comparison_status=$?
+      cat jardiff-logs/dd-trace-ot.log
+      exit "$comparison_status"
+  artifacts:
+    when: always
+    paths:
+      - pipeline-artifacts
+      - reference-artifacts
+      - jardiff-logs
+      - workspace/dd-java-agent/build/reports/jardiff/file-comparison.txt
+      - workspace/dd-trace-api/build/reports/jardiff/file-comparison.txt
+      - workspace/dd-trace-ot/build/reports/jardiff/file-comparison.txt
+      - '.gradle/daemon/*/*.out.log'
+
 .check_job:
   extends: .gradle_build
   needs: [ build ]
