@@ -61,6 +61,7 @@ class JardiffPlugin : Plugin<Project> {
       )
       reportFile.convention(project.layout.buildDirectory.file("reports/jardiff/comparison.txt"))
       referenceJar.convention(
+        // Use the same name as the candidate jar
         referenceDirProperty.flatMap { dir ->
           candidateJar.map { candidate -> projectDirectory.dir(dir).file(candidate.asFile.name) }
         },

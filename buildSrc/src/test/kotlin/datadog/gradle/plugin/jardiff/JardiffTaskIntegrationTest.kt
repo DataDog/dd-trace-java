@@ -33,7 +33,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
 
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.FAILED)
     assertThat(result.output)
-      .contains("Built jar differs from the reference jar")
+      .contains("Candidate jar differs from the reference jar")
       .contains("1 file changed")
     assertThat(buildFile("reports/jardiff/comparison.txt")).exists().content()
       .contains("1 file changed")
@@ -55,7 +55,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
     )
 
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.FAILED)
-    assertThat(result.output).contains("Built jar differs from the reference jar")
+    assertThat(result.output).contains("Candidate jar differs from the reference jar")
   }
 
   @Test

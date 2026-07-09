@@ -22,32 +22,46 @@ import org.gradle.api.tasks.options.Option
 import org.gradle.process.ExecOperations
 
 /**
- * Compares a freshly built jar against a reference jar using the
+ * Compares a candidate jar against a reference jar using the
  * [jardiff](https://github.com/bric3/jardiff) CLI and fails the build if they differ.
  *
- * This guards Maven Central publication against non-deterministic rebuilds: the artifact about to
- * be published (that was possibly rebuilt with faults) is compared against a reference artifact.
+ * The same task class supports two plugin-configured modes:
+ * - `compareToReferenceJar` wires [candidateJar] to the project's archive output, so Gradle builds
+ *   that archive before comparing it.
+ * - `compareJarFiles` leaves [candidateJar] unset and expects `--candidate-jar=<path>`, so it can
+ *   compare an already-produced artifact without depending on `jar` or `shadowJar`.
  *
  * The reference jar is resolved, in order of precedence, from:
- * 1. the `--reference-jar=<path>` command-line option (handy to compare a single artifact locally
- *    before publishing), then
+ * 1. the `--reference-jar=<path>` command-line option, then
  * 2. the [referenceJar] property (wired by the `dd-trace-java.jardiff` plugin from the
  *    `-PjardiffReferenceDir` project property by matching the built jar's file name in that
  *    directory).
- *
- * The comparison is mandatory: once the task runs, a missing reference fails the build, so a
- * dropped CI property or a forgotten `--reference-jar` cannot silently publish an unverified jar.
- * Modules that have no reference artifact to compare can disable the task instead
- * (`compareToReferenceJar { enabled = false }`).
  */
 abstract class JardiffTask @Inject constructor(
   private val execOperations: ExecOperations,
 ) : DefaultTask() {
 
-  /** The freshly built jar to validate (the main publication artifact). */
+  /**
+   * The project archive to validate. Optional so the same task class can also compare explicit
+   * file paths without depending on the archive-producing task.
+   */
   @get:InputFile
+  @get:Optional
   @get:PathSensitive(PathSensitivity.NONE)
   abstract val candidateJar: RegularFileProperty
+
+  /**
+   * Command-line override for the candidate jar path; takes precedence over [candidateJar].
+   * A relative path is resolved against the current working directory (the Gradle invocation
+   * directory), matching how CLI users expect paths to behave.
+   */
+  @get:Input
+  @get:Optional
+  @get:Option(
+    option = "candidate-jar",
+    description = "Path to the candidate jar to compare against the reference jar.",
+  )
+  abstract val candidateJarPath: Property<String>
 
   /**
    * The reference jar to compare against. Optional; usually wired from `-PjardiffReferenceDir`.
@@ -66,8 +80,7 @@ abstract class JardiffTask @Inject constructor(
   @get:Optional
   @get:Option(
     option = "reference-jar",
-    description = "Path to the reference jar to compare the built jar against " +
-      "(typically the artifact produced by the CI `build` job).",
+    description = "Path to the reference jar to compare the candidate jar against.",
   )
   abstract val referenceJarPath: Property<String>
 
@@ -130,27 +143,14 @@ abstract class JardiffTask @Inject constructor(
   init {
     includes.convention(emptyList())
     excludes.convention(emptyList())
-    // This task is a publication gate, and as such must never be skipped as "up-to-date":
-    // i.e. always re-run so a divergent rebuild cannot slip through on a stale execution history.
+    // These comparisons are explicit verification gates and must never be skipped as up-to-date.
     outputs.upToDateWhen { false }
   }
 
   @TaskAction
   fun compare() {
     val reference = resolveReferenceJar()
-      ?: throw GradleException(
-        "No reference jar configured to compare the built jar against.\n" +
-          "Provide one via --reference-jar=<path> or -PjardiffReferenceDir=<dir> (the directory " +
-          "holding the `build` job artifacts), or disable this task for modules with no reference.",
-      )
-    if (!reference.isFile) {
-      throw GradleException(
-        "Reference jar does not exist: ${reference.absolutePath}\n" +
-          "Pass an existing jar via --reference-jar=<path> or point -PjardiffReferenceDir at the " +
-          "directory holding the `build` job artifacts.",
-      )
-    }
-    val candidate = candidateJar.get().asFile
+    val candidate = resolveCandidateJar()
 
     val effectiveExcludes = buildList {
       addAll(excludes.get())
@@ -195,7 +195,7 @@ abstract class JardiffTask @Inject constructor(
       JardiffComparison.Outcome.DIFFERENT ->
         throw GradleException(
           buildString {
-            appendLine("Built jar differs from the reference jar.")
+            appendLine("Candidate jar differs from the reference jar.")
             appendLine("TODO: inspect build")
             appendLine()
             appendLine("  candidate : ${candidate.absolutePath}")
@@ -216,11 +216,33 @@ abstract class JardiffTask @Inject constructor(
     }
   }
 
-  private fun resolveReferenceJar(): File? {
-    referenceJarPath.orNull?.takeIf { it.isNotBlank() }?.let { return File(it) }
-    if (referenceJar.isPresent) {
-      return referenceJar.get().asFile
+  private fun resolveReferenceJar(): File =
+    referenceJarPath.orNull?.takeIf { it.isNotBlank() }?.let(::File)?.let {
+      requireExistingJar(it, "Reference jar")
+    } ?: when {
+      referenceJar.isPresent -> requireExistingJar(referenceJar.get().asFile, "Reference jar")
+      else -> throw GradleException(
+        "No reference jar configured to compare the candidate jar against.\n" +
+          "Provide one via --reference-jar=<path> or -PjardiffReferenceDir=<dir> (the directory " +
+          "holding the `build` job artifacts), or disable this task for modules with no reference.",
+      )
     }
-    return null
+
+  private fun resolveCandidateJar(): File =
+    candidateJarPath.orNull?.takeIf { it.isNotBlank() }?.let(::File)?.let {
+      requireExistingJar(it, "Candidate jar")
+    } ?: when {
+      candidateJar.isPresent -> requireExistingJar(candidateJar.get().asFile, "Candidate jar")
+      else -> throw GradleException(
+        "No candidate jar configured to compare against the reference jar.\n" +
+          "Pass an existing jar via --candidate-jar=<path> or configure the task's candidateJar.",
+      )
+    }
+
+  private fun requireExistingJar(jar: File, role: String): File {
+    if (!jar.isFile) {
+      throw GradleException("$role does not exist: ${jar.absolutePath}")
+    }
+    return jar
   }
 }
