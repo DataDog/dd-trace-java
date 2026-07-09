@@ -21,8 +21,9 @@
   - **DO NOT classify interface-only API JARs as not_applicable.** They ARE instrumentable via `implementsInterface()`.
 - Add `classLoaderMatcher()` if a sentinel class identifies the framework on the classpath
 - Declare **all** helper class names in `helperClassNames()`:
-  - Include inner classes (`Foo$Bar`), anonymous classes (`Foo$1`), and enum synthetic classes
+  - Include inner classes (`Foo$Bar`), anonymous classes (`Foo$1`), and enum synthetic classes — for enums, each constant with an anonymous body generates its own synthetic class (`MyEnum$1`, `MyEnum$2`, …), each must be listed individually
 - Declare `contextStore()` entries if context stores are needed (key class → value class)
+- **Null-check before every `ContextStore` key** — `ContextStore` does not support null keys. Always guard with a null check before calling `store.put(obj, ...)` or `store.get(obj)`. Passing null throws at runtime; with `suppress = Throwable.class` this silently drops the span.
 - Keep method matchers as narrow as possible (name, parameter types, visibility)
 
 ## Must NOT do in InstrumenterModule

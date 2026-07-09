@@ -20,15 +20,15 @@ named `google-http-client`. (see [Naming](./how_instrumentations_work.md#naming)
 Add the new instrumentation to [`settings.gradle.kts`](../settings.gradle.kts)
 in alpha order with the other instrumentations in this format:
 
-```groovy
-include ':dd-java-agent:instrumentation:$framework?:$framework-$minVersion'
+```kotlin
+include(":dd-java-agent:instrumentation:$framework:$framework-$minVersion")
 ```
 
 In this case
 we [added](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/settings.gradle#L209C3-L209C3):
 
-```groovy
-include ':dd-java-agent:instrumentation:google-http-client'
+```kotlin
+include(":dd-java-agent:instrumentation:google-http-client")
 ```
 
 ## Create the Instrumentation class
@@ -59,7 +59,8 @@ include ':dd-java-agent:instrumentation:google-http-client'
 ```java
 
 @AutoService(InstrumenterModule.class)
-public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing implements Instrumenter.ForSingleType {
+public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
     public GoogleHttpClientInstrumentation() {
         super("google-http-client");
     }

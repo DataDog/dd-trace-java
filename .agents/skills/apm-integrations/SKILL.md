@@ -30,7 +30,7 @@ Compare the content of the three docs against the rules encoded in Steps 2–11 
 - Steps that are out of date relative to the current docs (e.g. renamed methods, new base classes)
 - Advice constraints or test requirements that have changed
 
-For every discrepancy found, edit this file (`.claude/skills/apm-integrations/SKILL.md`) or its referenced files
+For every discrepancy found, edit this file (`.agents/skills/apm-integrations/SKILL.md`) or its referenced files
 to correct it using the `Edit` tool before continuing. Keep changes targeted: fix what diverged, add what is missing, remove what is wrong.
 Do not touch content that already matches the docs.
 
@@ -194,7 +194,7 @@ Output this checklist and confirm each item is satisfied:
 - [ ] `@AutoService(InstrumenterModule.class)` annotation present on the module class
 - [ ] `helperClassNames()` lists ALL referenced helpers (including inner, anonymous, and enum synthetic classes)
 - [ ] Advice methods are `static` with `@Advice.OnMethodEnter` / `@Advice.OnMethodExit` annotations
-- [ ] `suppress = Throwable.class` on enter/exit (unless the hooked method is a constructor)
+- [ ] `@Advice.OnMethodEnter(suppress = Throwable.class)` on enter (omit `suppress` when hooking a constructor); `@Advice.OnMethodExit(suppress = Throwable.class)` on exit (suppress is always safe on exit, including constructors)
 - [ ] No static constants holding return values of one-shot instrumenter methods (`triggerClasses()`, `contextStore()`, etc.)
 - [ ] No logger field in the Advice class or InstrumenterModule class
 - [ ] No `inline=false` left in production code
@@ -219,7 +219,7 @@ After the instrumentation is complete (or abandoned), review the full session an
    reflected in any step of this skill?
 4. **User corrections** — did the user correct an output, override a decision, or point out a mistake?
 
-**For each lesson identified**, edit this file (`.claude/skills/apm-integrations/SKILL.md`) or its referenced files
+**For each lesson identified**, edit this file (`.agents/skills/apm-integrations/SKILL.md`) or its referenced files
 using the `Edit` tool:
 - Wrong rule → fix it in place
 - Missing rule → add it to the most relevant step
