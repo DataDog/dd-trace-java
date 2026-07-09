@@ -10,6 +10,7 @@ import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.Snapshot;
+import datadog.trace.api.Config;
 import datadog.trace.api.Pair;
 import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
@@ -20,9 +21,11 @@ import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.TagsHelper;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -206,10 +209,13 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
       CapturedContext.Status status,
       MethodLocation methodLocation,
       boolean singleProbe) {
+    // Only one timeout for all conditions
+    Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
+    TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
     for (Decoration decoration : decorations) {
       if (decoration.when != null) {
         try {
-          boolean condition = decoration.when.execute(context);
+          boolean condition = decoration.when.execute(context, timeoutChecker);
           if (!condition) {
             continue;
           }

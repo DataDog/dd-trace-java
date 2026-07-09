@@ -100,6 +100,7 @@ workflow:
       - "17"
       - "21"
       - "25"
+      - "27" # JDK 27 TODO: remove after GA (tip will move to 27)
       - "semeru11"
       - "oracle8"
       - "zulu8"
@@ -447,7 +448,9 @@ spotless:
     CACHE_TYPE: "spotless"
   script:
     - ./gradlew --version
-    - ./gradlew spotlessCheck $GRADLE_ARGS
+    # test-published-dependencies's build file needs main version file
+    - ./gradlew spotlessCheck writeMainVersionFile $GRADLE_ARGS
+    - cd test-published-dependencies && ./gradlew spotlessCheck $GRADLE_ARGS
 
 check-instrumentation-naming:
   extends: .gradle_build
@@ -742,7 +745,7 @@ muzzle-dep-report:
   needs: []
   variables:
     <<: *tier_m_variables
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|27|tip)$/ # Java 27 TODO: remove 27 after GA (tip will move to 27)
     GRADLE_PARAMS: "-PskipFlakyTests"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
     TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -978,7 +981,7 @@ test_inst_latest:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "25"] # the latest "tip" version is LTS v25
+      - testJvm: ["8", "17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -991,7 +994,7 @@ test_inst_latest_arm64:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "25"] # the latest "tip" version is LTS v25
+      - testJvm: ["8", "17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -1061,7 +1064,7 @@ test_debugger:
   variables:
     GRADLE_TARGET: ":debuggerTest"
     CACHE_TYPE: "base"
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "tip" version is LTS v25
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|27|tip|semeru8)$/ # Java 27 TODO: remove 27 after GA (tip will move to 27)
   parallel:
     matrix: *test_matrix
   # avoid running coverage for semeru8, semeru11, semeru17 and ibm8 as some tests are disabled and therefore cannot reach the

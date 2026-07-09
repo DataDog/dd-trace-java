@@ -1,4 +1,6 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.DependencyFilter
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.api.Action
 import org.gradle.kotlin.dsl.project
 
 plugins {
@@ -25,8 +27,7 @@ dependencies {
 tasks.named<ShadowJar>("shadowJar") {
   dependencies {
     val deps = project.extra["deps"] as Map<*, *>
-    val excludeShared = deps["excludeShared"] as groovy.lang.Closure<*>
-    excludeShared.delegate = this
-    excludeShared.call()
+    val excludeShared = deps["excludeShared"] as Action<DependencyFilter>
+    excludeShared.execute(this)
   }
 }

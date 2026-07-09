@@ -124,7 +124,7 @@ _Actions:_
 
 * Fail the PR if it introduces any new `.groovy` file, including added, copied, or renamed files whose previous name was not already `.groovy`.
 
-_Recovery:_ Re-write the new Groovy files in Java / JUnit. To override this check entirely, add the `tag: override-groovy-enforcement` label to the PR. Remove the label to re-enable enforcement.
+_Recovery:_ Re-write the new Groovy files in Java / JUnit. To override this check entirely, add the `tag: override groovy enforcement` label to the PR. Remove the label to re-enable enforcement.
 
 _Notes:_ The override label skips the workflow entirely.
 

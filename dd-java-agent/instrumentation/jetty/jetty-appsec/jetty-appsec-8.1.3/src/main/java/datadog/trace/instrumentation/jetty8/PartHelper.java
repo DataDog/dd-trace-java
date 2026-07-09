@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jetty8;
 import static datadog.trace.api.gateway.Events.EVENTS;
 
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -107,14 +108,23 @@ public class PartHelper {
 
   /**
    * Returns a name→values map of form-field parts (those without a {@code filename=} parameter).
-   * File-upload parts are skipped to avoid reading potentially large content.
+   * File-upload parts are skipped to avoid reading potentially large content. Reads up to {@link
+   * Config#getAppSecMaxFileContentBytes()} bytes per field, up to {@link
+   * Config#getAppSecMaxFileContentCount()} fields total — same knobs and cap pattern as {@code
+   * MultipartHelper#extractContents()} uses for file content (PR #11706), reused here since there
+   * is no dedicated "max form fields" config.
    */
   public static Map<String, List<String>> extractFormFields(Collection<?> parts) {
     if (parts == null || parts.isEmpty()) {
       return Collections.emptyMap();
     }
+    int maxFields = Config.get().getAppSecMaxFileContentCount();
     Map<String, List<String>> result = new LinkedHashMap<>();
+    int count = 0;
     for (Object obj : parts) {
+      if (count >= maxFields) {
+        break;
+      }
       try {
         Part part = (Part) obj;
         if (filenameFromPart(part) != null) {
@@ -129,6 +139,7 @@ public class PartHelper {
           continue;
         }
         result.computeIfAbsent(name, k -> new ArrayList<>()).add(value);
+        count++;
       } catch (Exception e) {
         log.debug("extractFormFields: skipping malformed part", e);
       }
@@ -259,12 +270,20 @@ public class PartHelper {
 
   private static String readPartContent(Part part) {
     Charset charset = charsetFromContentType(part.getContentType());
+    // Bound the buffered form-field text by the file-content byte cap. There is no dedicated
+    // "max form-field bytes" config, so we intentionally reuse getAppSecMaxFileContentBytes():
+    // this is the only framework that must manually buffer form-field text (Servlet 3.0 has no
+    // container-side bound), and without a cap a single huge text field could exhaust the heap.
+    int maxBytes = Config.get().getAppSecMaxFileContentBytes();
     try (InputStream is = part.getInputStream()) {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       byte[] buf = new byte[4096];
+      int total = 0;
       int read;
-      while ((read = is.read(buf)) != -1) {
+      while (total < maxBytes
+          && (read = is.read(buf, 0, Math.min(buf.length, maxBytes - total))) != -1) {
         baos.write(buf, 0, read);
+        total += read;
       }
       return new String(baos.toByteArray(), charset);
     } catch (IOException e) {
