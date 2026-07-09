@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.scala;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 
 import datadog.context.Context;
 import datadog.trace.api.InstrumenterConfig;
@@ -104,7 +103,7 @@ public class PromiseHelper {
       ContextStore<K, State> taskStore,
       K task,
       State state) {
-    final AgentSpan span = spanFromContext(tryStore.get(resolved));
+    final AgentSpan span = AgentSpan.fromContext(tryStore.get(resolved));
     if (span != null) {
       // Check if the new Span is the same as the currently stored one
       if (null != state && state.getSpan() == span) {
