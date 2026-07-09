@@ -1,7 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
@@ -14,8 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutionException;
@@ -150,10 +146,7 @@ public abstract class BaseDecorator {
 
   public AgentSpan onPeerConnection(
       final AgentSpan span, final InetSocketAddress remoteConnection) {
-    if (remoteConnection != null) {
-      onPeerConnection(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
-      setPeerPort(span, remoteConnection.getPort());
-    }
+    span.setTags(remoteConnection, PeerConnectionExtractor.INSTANCE);
     return span;
   }
 
@@ -162,17 +155,7 @@ public abstract class BaseDecorator {
   }
 
   public AgentSpan onPeerConnection(AgentSpan span, InetAddress remoteAddress, boolean resolved) {
-    if (remoteAddress != null) {
-      String ip = remoteAddress.getHostAddress();
-      if (resolved && Config.get().isPeerHostNameEnabled()) {
-        span.setTag(Tags.PEER_HOSTNAME, hostName(remoteAddress, ip));
-      }
-      if (remoteAddress instanceof Inet4Address) {
-        span.setTag(Tags.PEER_HOST_IPV4, ip);
-      } else if (remoteAddress instanceof Inet6Address) {
-        span.setTag(Tags.PEER_HOST_IPV6, ip);
-      }
-    }
+    PeerConnectionExtractor.setPeerAddress(span, remoteAddress, resolved);
     return span;
   }
 
