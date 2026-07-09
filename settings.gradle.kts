@@ -318,6 +318,7 @@ include(
   ":dd-java-agent:instrumentation:axis2-1.3",
   ":dd-java-agent:instrumentation:axway-api-7.5",
   ":dd-java-agent:instrumentation:azure-functions-1.2.2",
+  ":dd-java-agent:instrumentation:bucket4j-8.0",
   ":dd-java-agent:instrumentation:caffeine-1.0",
   ":dd-java-agent:instrumentation:cdi-1.2",
   ":dd-java-agent:instrumentation:cics-9.1",

@@ -1,0 +1,16 @@
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'idea'
+
+muzzle {
+  pass {
+    group = 'com.bucket4j'
+    module = 'bucket4j-core'
+    versions = '[8.0.0,)'
+  }
+}
+
+dependencies {
+  compileOnly group: 'com.bucket4j', name: 'bucket4j-core', version: '8.7.0'
+
+  testImplementation group: 'com.bucket4j', name: 'bucket4j-core', version: '8.7.0'
+}
