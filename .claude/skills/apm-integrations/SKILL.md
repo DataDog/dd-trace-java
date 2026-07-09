@@ -1,5 +1,5 @@
 ---
-name: add-apm-integrations
+name: apm-integrations
 description: Write a new library instrumentation end-to-end. Use when the user ask to add a new APM integration or a library instrumentation.
 context: fork
 allowed-tools:
@@ -30,7 +30,7 @@ Compare the content of the three docs against the rules encoded in Steps 2–11 
 - Steps that are out of date relative to the current docs (e.g. renamed methods, new base classes)
 - Advice constraints or test requirements that have changed
 
-For every discrepancy found, edit this file (`.claude/skills/add-apm-integrations/SKILL.md`) or its referenced files
+For every discrepancy found, edit this file (`.claude/skills/apm-integrations/SKILL.md`) or its referenced files
 to correct it using the `Edit` tool before continuing. Keep changes targeted: fix what diverged, add what is missing, remove what is wrong.
 Do not touch content that already matches the docs.
 
@@ -216,7 +216,7 @@ After the instrumentation is complete (or abandoned), review the full session an
    reflected in any step of this skill?
 4. **User corrections** — did the user correct an output, override a decision, or point out a mistake?
 
-**For each lesson identified**, edit this file (`.claude/skills/add-apm-integrations/SKILL.md`) or its referenced files
+**For each lesson identified**, edit this file (`.claude/skills/apm-integrations/SKILL.md`) or its referenced files
 using the `Edit` tool:
 - Wrong rule → fix it in place
 - Missing rule → add it to the most relevant step
