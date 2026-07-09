@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.rxjava2;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -10,7 +12,6 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import io.reactivex.Maybe;
 import io.reactivex.MaybeObserver;
 import net.bytebuddy.asm.Advice;
@@ -36,8 +37,8 @@ public final class MaybeInstrumentation
   public static class CaptureParentSpanAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onConstruct(@Advice.This final Maybe<?> maybe) {
-      Context parentContext = Java8BytecodeBridge.getCurrentContext();
-      if (parentContext != null && parentContext != Java8BytecodeBridge.getRootContext()) {
+      Context parentContext = currentContext();
+      if (parentContext != null && parentContext != rootContext()) {
         InstrumentationContext.get(Maybe.class, Context.class).put(maybe, parentContext);
       }
     }

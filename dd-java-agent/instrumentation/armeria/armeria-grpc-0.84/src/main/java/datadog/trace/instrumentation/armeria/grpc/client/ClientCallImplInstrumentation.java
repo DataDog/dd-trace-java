@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.armeria.grpc.client.GrpcClientDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.armeria.grpc.client.GrpcClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.armeria.grpc.client.GrpcClientDecorator.GRPC_MESSAGE;
@@ -21,7 +22,6 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -138,7 +138,7 @@ public final class ClientCallImplInstrumentation
   public static final class StartContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void before(@Advice.Argument(1) Metadata headers) {
-      DECORATE.injectContext(Java8BytecodeBridge.getCurrentContext(), headers, SETTER);
+      DECORATE.injectContext(currentContext(), headers, SETTER);
     }
   }
 
