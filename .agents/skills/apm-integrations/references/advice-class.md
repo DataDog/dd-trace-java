@@ -7,7 +7,7 @@
 - Advice methods **must** be `static`
 - Annotate enter: `@Advice.OnMethodEnter(suppress = Throwable.class)`
 - Annotate exit: `@Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)`
-  - **Exception**: do NOT use `suppress` when hooking a constructor
+  - **Exception**: do NOT use `onThrowable` when hooking a constructor — if the constructor throws, `@Advice.This` is a partially initialized object
 - Use `@Advice.Local("...")` for values shared between enter and exit (span, scope)
 - Use the correct parameter annotations:
   - `@Advice.This` — the receiver object
@@ -51,7 +51,7 @@ public static void exit(
 }
 ```
 
-**`onThrowable` does NOT compensate for `onEnter` throwing.** Per `docs/how_instrumentations_work.md`: "If the `Advice.OnMethodEnter` method throws an exception, the `Advice.OnMethodExit` method is not invoked" — this is unconditional. To keep `onEnter` from throwing in the first place, use `suppress = Throwable.class` on the enter advice (except constructor advice — see note below).
+**`onThrowable` does NOT compensate for `onEnter` throwing.** Per `docs/how_instrumentations_work.md`: "If the `Advice.OnMethodEnter` method throws an exception, the `Advice.OnMethodExit` method is not invoked" — this is unconditional. To keep `onEnter` from throwing in the first place, use `suppress = Throwable.class` on the enter advice.
 
 When using `CallDepthThreadLocalMap`, only the outermost call (the one where `incrementCallDepth` returned 0) should reset the counter. Recursive inner calls that returned early on enter must also return early on exit without resetting — otherwise an inner exit clears the counter while the outer call is still active, allowing subsequent nested calls to create duplicate spans. The exit guard must mirror the enter guard exactly.
 

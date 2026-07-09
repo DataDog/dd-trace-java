@@ -162,7 +162,7 @@ Output this checklist and confirm each item is satisfied:
 - [ ] `@AutoService(InstrumenterModule.class)` annotation present on the module class
 - [ ] `helperClassNames()` lists ALL referenced helpers (including inner, anonymous, and enum synthetic classes)
 - [ ] Advice methods are `static` with `@Advice.OnMethodEnter` / `@Advice.OnMethodExit` annotations
-- [ ] `@Advice.OnMethodEnter(suppress = Throwable.class)` on enter (omit `suppress` when hooking a constructor); `@Advice.OnMethodExit(suppress = Throwable.class)` on exit (suppress is always safe on exit, including constructors)
+- [ ] `@Advice.OnMethodEnter(suppress = Throwable.class)` on enter; `@Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)` on exit (omit `onThrowable` when hooking a constructor)
 - [ ] No static constants holding return values of one-shot instrumenter methods (`triggerClasses()`, `contextStore()`, etc.)
 - [ ] No logger field in the Advice class or InstrumenterModule class
 - [ ] No `inline=false` left in production code

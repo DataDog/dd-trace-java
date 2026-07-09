@@ -525,9 +525,8 @@ The opposite would be either no `suppress` annotation or equivalently `suppress 
 allow exceptions in Advice code to surface and is usually undesirable.
 
 > [!NOTE]
-> Don't use `suppress` on an advice hooking a constructor.
-> For older JVMs that do not support [flexible constructor bodies](https://openjdk.org/jeps/513), you can't decorate the
-> mandatory self or parent constructor call with try/catch, as it must be the first call from the constructor body.
+> Don't use `onThrowable` on exit advice hooking a constructor.
+> If the constructor throws, `@Advice.This` is a partially initialized object, making exit advice unsafe to run.
 
 If
 the [`Advice.OnMethodEnter`](https://javadoc.io/static/net.bytebuddy/byte-buddy/1.10.2/net/bytebuddy/asm/Advice.OnMethodEnter.html)
