@@ -12,6 +12,7 @@ import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
@@ -47,6 +48,10 @@ public abstract class BaseDecorator {
 
   // Deliberately not volatile, reading null and repeating the calculation is safe
   private TagMap.Entry cachedComponentEntry = null;
+
+  // Deliberately not volatile, same benign-race reasoning as cachedComponentEntry: baking twice is
+  // safe because the constant tags are identical.
+  private SpanPrototype cachedPrototype = null;
 
   protected BaseDecorator() {
     final Config config = Config.get();
@@ -88,6 +93,36 @@ public abstract class BaseDecorator {
 
   protected boolean traceAnalyticsDefault() {
     return false;
+  }
+
+  /**
+   * The baked-once {@link SpanPrototype} for this decorator: the constant identity + tags {@link
+   * #afterStart} would otherwise stamp one at a time. Composed across the hierarchy via {@link
+   * #prototypeBuilder()} and cached (lazily, to respect the same static-init ordering caution as
+   * {@link #componentEntry()}).
+   *
+   * <p>Not yet wired into span creation — this is the provider surface; the seed hook comes next.
+   */
+  public final SpanPrototype prototype() {
+    SpanPrototype prototype = cachedPrototype;
+    if (prototype == null) {
+      cachedPrototype = prototype = prototypeBuilder().build();
+    }
+    return prototype;
+  }
+
+  /**
+   * Contributes this decorator's constant identity + tags to the prototype under construction.
+   * Overrides must call {@code super.prototypeBuilder()} first, then add their own — mirroring the
+   * {@link #afterStart} super-chain, but run once at bake time rather than per span. Authors
+   * compose via the typed builder and never see {@link TagMap}.
+   */
+  protected SpanPrototype.Builder prototypeBuilder() {
+    return SpanPrototype.builder()
+        .instrumentationName(instrumentationNames())
+        .spanType(spanType())
+        .initComponent(component())
+        .initTag(traceAnalyticsEntry);
   }
 
   public void afterStart(final AgentSpan span) {

@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 public abstract class ClientDecorator extends BaseDecorator {
@@ -42,5 +43,10 @@ public abstract class ClientDecorator extends BaseDecorator {
     // Generate metrics for all client spans.
     span.setMeasured(true);
     super.afterStart(span);
+  }
+
+  @Override
+  protected SpanPrototype.Builder prototypeBuilder() {
+    return super.prototypeBuilder().initKind(spanKind());
   }
 }
