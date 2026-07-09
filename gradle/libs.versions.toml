@@ -6,10 +6,11 @@ develocity = "4.4.1"
 forbiddenapis = "3.10"
 gradle-tooling-api = "8.14.5"
 jsr305 = "3.0.2"
+shadow = "9.4.2"
 spotbugs_annotations = "4.9.8"
 
 # DataDog libs and forks
-ddprof = "1.44.0"
+ddprof = "1.46.0"
 dogstatsd = "4.4.5"
 okhttp = "3.12.15" # Datadog fork to support Java 7
 
@@ -52,7 +53,7 @@ cafe_crypto = "0.1.0"
 
 # Common utils
 commons = "3.2"
-guava = "[16.0,20.0]" # Last version to support Java 7
+guava = "33.6.0-jre"
 javaparser = "3.28.2"
 jctools = "4.0.6"
 lz4 = "1.11.0"
@@ -190,3 +191,6 @@ junit-platform = ["junit-platform-launcher"]
 mockito = ["mokito-core", "mokito-junit-jupiter", "bytebuddy", "bytebuddyagent"]
 groovy = ["groovy", "groovy-json"]
 spock = ["spock-core", "objenesis"]
+
+[plugins]
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }

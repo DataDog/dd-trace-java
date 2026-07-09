@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.pekko.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.checkpointActiveForRollback;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackActiveToCheckpoint;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -68,7 +68,7 @@ public class PekkoMailboxInstrumentation extends InstrumenterModule.ContextTrack
         checkpointActiveForRollback();
         return null;
       } else {
-        return getCurrentContext().swap();
+        return currentContext().swap();
       }
     }
 

@@ -171,6 +171,9 @@ class PayloadDispatcherImplTest extends DDSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       PropagationTags.factory().empty())
-    return new DDSpan("test", 0, context, null)
+    def span = new DDSpan("test", 0, context, null)
+    // Stub explicitly to avoid Spock fabricating a dummy DDSpan per call (slow reflection fallback).
+    trace.getRootSpan() >> span
+    return span
   }
 }

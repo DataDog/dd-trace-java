@@ -210,6 +210,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   }
 
   Integer evaluateSamplingPriority() {
+    @SuppressWarnings("resource")
     DDSpan span = spans.peek();
     if (span == null) {
       return null;

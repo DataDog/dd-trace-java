@@ -40,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
@@ -58,6 +59,8 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.analysis.BasicValue;
+import org.objectweb.asm.tree.analysis.Frame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -265,7 +268,8 @@ public class CapturedContextInstrumenter extends Instrumenter {
   }
 
   @Override
-  protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
+  protected InsnList getBeforeReturnInsnList(
+      AbstractInsnNode node, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     InsnList insnList = new InsnList();
     // stack [ret_value]
     insnList.add(new VarInsnNode(Opcodes.ALOAD, entryContextVar));

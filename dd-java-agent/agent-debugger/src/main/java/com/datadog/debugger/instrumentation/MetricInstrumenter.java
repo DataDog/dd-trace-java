@@ -56,6 +56,7 @@ import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -71,6 +72,8 @@ import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.analysis.BasicValue;
+import org.objectweb.asm.tree.analysis.Frame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -158,7 +161,8 @@ public class MetricInstrumenter extends Instrumenter {
   }
 
   @Override
-  protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
+  protected InsnList getBeforeReturnInsnList(
+      AbstractInsnNode node, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     int size = 1;
     int storeOpCode = 0;
     int loadOpCode = 0;
@@ -166,7 +170,9 @@ public class MetricInstrumenter extends Instrumenter {
     switch (node.getOpcode()) {
       case Opcodes.RET:
       case Opcodes.RETURN:
-        return wrapTryCatch(callMetric(metricProbe, node));
+        InsnList insnList = wrapTryCatch(callMetric(metricProbe, node));
+        insnList.insert(stackCleanupInsnList(node, 0, frames)); // void return: nothing to keep
+        return insnList;
       case Opcodes.LRETURN:
         storeOpCode = Opcodes.LSTORE;
         loadOpCode = Opcodes.LLOAD;
@@ -202,7 +208,10 @@ public class MetricInstrumenter extends Instrumenter {
         wrapTryCatch(
             callMetric(metricProbe, node, new ReturnContext(tmpIdx, loadOpCode, returnType)));
     // store return value from the stack to local before wrapped call
-    insnList.insert(new VarInsnNode(storeOpCode, tmpIdx));
+    InsnList prefixInsns = new InsnList();
+    prefixInsns.add(new VarInsnNode(storeOpCode, tmpIdx));
+    prefixInsns.add(stackCleanupInsnList(node, 1, frames)); // keep 1 value (the one we just stored)
+    insnList.insert(prefixInsns);
     // restore return value to the stack after wrapped call
     insnList.add(new VarInsnNode(loadOpCode, tmpIdx));
     return insnList;

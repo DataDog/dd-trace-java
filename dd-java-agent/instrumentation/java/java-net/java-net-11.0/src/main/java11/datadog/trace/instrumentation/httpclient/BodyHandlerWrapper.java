@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.httpclient;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.http.HttpResponse.BodyHandler;
@@ -56,21 +57,21 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
 
     @Override
     public void onNext(List<ByteBuffer> item) {
-      try (AgentScope ignore = continuation.activate()) {
+      try (ContextScope ignore = continuation.activate()) {
         delegate.onNext(item);
       }
     }
 
     @Override
     public void onError(Throwable throwable) {
-      try (AgentScope ignore = continuation.activate()) {
+      try (ContextScope ignore = continuation.activate()) {
         delegate.onError(throwable);
       }
     }
 
     @Override
     public void onComplete() {
-      try (AgentScope ignore = continuation.activate()) {
+      try (ContextScope ignore = continuation.activate()) {
         delegate.onComplete();
       }
     }

@@ -13,6 +13,8 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextListener;
 import datadog.context.ContextManager;
 import datadog.context.ContextScope;
 import datadog.logging.RatelimitedLogger;
@@ -28,6 +30,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -374,12 +377,12 @@ public final class ContinuableScopeManager implements ContextManager {
   }
 
   @Override
-  public ContextScope attach(Context context) {
+  public ContextScope attach(@NonNull Context context) {
     return activate(context);
   }
 
   @Override
-  public Context swap(Context context) {
+  public Context swap(@NonNull Context context) {
     ScopeStack oldStack = tlsScopeStack.get();
     ContinuableScope oldScope = oldStack.top;
 
@@ -407,6 +410,31 @@ public final class ContinuableScopeManager implements ContextManager {
     }
 
     return new ScopeContext(oldStack);
+  }
+
+  @Override
+  public ContextContinuation capture(@NonNull Context context) {
+    // respect async propagation flag for Context.current().capture()
+    ContinuableScope activeScope = scopeStack().active();
+    if (activeScope != null
+        && activeScope.context == context
+        && !activeScope.isAsyncPropagating()) {
+      return AgentTracer.noopContinuation();
+    }
+    AgentSpan span = AgentSpan.fromContext(context);
+    AgentTraceCollector traceCollector;
+    if (span != null) {
+      traceCollector = span.spanContext().getTraceCollector();
+    } else {
+      traceCollector = AgentTracer.NoopAgentTraceCollector.INSTANCE;
+    }
+    return new ScopeContinuation(this, context, CONTEXT, traceCollector).register();
+  }
+
+  @Override
+  public void addListener(@NonNull ContextListener unused) {
+    // this new API is not expected to be used in legacy mode...
+    log.warn("Unexpected call to ContextManager.addListener(...)");
   }
 
   static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {
