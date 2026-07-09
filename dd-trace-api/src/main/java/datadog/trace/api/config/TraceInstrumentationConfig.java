@@ -180,6 +180,8 @@ public final class TraceInstrumentationConfig {
       "trace.elasticsearch.body-and-params.enabled";
 
   public static final String SPARK_TASK_HISTOGRAM_ENABLED = "spark.task-histogram.enabled";
+  public static final String SPARK_TASK_SPAN_ON_FAILURE_ENABLED =
+      "spark.task-span-on-failure.enabled";
   public static final String SPARK_APP_NAME_AS_SERVICE = "spark.app-name-as-service";
 
   public static final String TRACE_WEBSOCKET_MESSAGES_ENABLED = "trace.websocket.messages.enabled";

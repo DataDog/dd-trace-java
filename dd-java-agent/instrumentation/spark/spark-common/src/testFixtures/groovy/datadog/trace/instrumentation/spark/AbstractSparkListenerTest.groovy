@@ -6,6 +6,7 @@ import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.ProcessTags
+import org.apache.spark.ExceptionFailure
 import org.apache.spark.SparkConf
 import org.apache.spark.Success$
 import org.apache.spark.executor.TaskMetrics
@@ -178,6 +179,52 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
       0,
       "task_type",
       Success$.MODULE$,
+      taskInfo,
+      null,
+      taskMetrics
+      )
+  }
+
+  protected failedTaskEndEvent(Integer stageId, Long launchTime) {
+    def taskInfo = new TaskInfo(
+      0,
+      0,
+      0,
+      launchTime,
+      "some_executor_id",
+      "some_host",
+      TaskLocality.PROCESS_LOCAL(),
+      false
+      )
+    taskInfo.markFinished(org.apache.spark.TaskState.FAILED(), launchTime + 100)
+
+    def taskMetrics = new TaskMetrics()
+
+    def reason = new ExceptionFailure(
+      "java.lang.NullPointerException",
+      "null",
+      "java.lang.NullPointerException: null\n\tat SomeClass.method(SomeClass.java:1)",
+      "java.lang.NullPointerException: null\n\tat SomeClass.method(SomeClass.java:1)",
+      Option.empty(),
+      JavaConverters.asScalaBuffer([]).toSeq()
+      )
+
+    if (TestSparkComputation.getSparkVersion() < "3") {
+      return new SparkListenerTaskEnd(
+        stageId,
+        0,
+        "task_type",
+        reason,
+        taskInfo,
+        taskMetrics
+        )
+    }
+
+    return new SparkListenerTaskEnd(
+      stageId,
+      0,
+      "task_type",
+      reason,
       taskInfo,
       null,
       taskMetrics
@@ -400,6 +447,80 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
         span {
           operationName "spark.stage"
           assert span.tags["_dd.spark.task_run_time"] == null
+          spanType "spark"
+          childOf(span(1))
+        }
+      }
+    }
+  }
+
+  def "failing task emits spark.task span by default"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onJobStart(jobStartEvent(1, 1900L, [1]))
+    listener.onStageSubmitted(stageSubmittedEvent(1, 1900L))
+    listener.onTaskEnd(failedTaskEndEvent(1, 1900L))
+    listener.onStageCompleted(stageCompletedEvent(1, 2200L))
+    listener.onJobEnd(jobEndEvent(1, 2200L))
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(3100L))
+
+    expect:
+    assertTraces(1) {
+      trace(4) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.task"
+          spanType "spark"
+          errored true
+          childOf(span(2))
+          assert span.tags["error.type"] == "Spark Task Failed"
+        }
+      }
+    }
+  }
+
+  def "feature flag disables spark.task span on failure"() {
+    setup:
+    injectSysConfig("spark.task-span-on-failure.enabled", "false")
+    def listener = getTestDatadogSparkListener()
+
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onJobStart(jobStartEvent(1, 1900L, [1]))
+    listener.onStageSubmitted(stageSubmittedEvent(1, 1900L))
+    listener.onTaskEnd(failedTaskEndEvent(1, 1900L))
+    listener.onStageCompleted(stageCompletedEvent(1, 2200L))
+    listener.onJobEnd(jobEndEvent(1, 2200L))
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(3100L))
+
+    expect:
+    assertTraces(1) {
+      trace(3) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
           spanType "spark"
           childOf(span(1))
         }
