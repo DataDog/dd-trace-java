@@ -146,8 +146,7 @@ public abstract class BaseDecorator {
 
   public AgentSpan onPeerConnection(
       final AgentSpan span, final InetSocketAddress remoteConnection) {
-    // Direct extract (not span.setTags) so this legacy path also runs on mocked spans.
-    PeerConnectionExtractor.INSTANCE.extract(remoteConnection, span);
+    span.setTags(remoteConnection, PeerConnectionExtractor.INSTANCE);
     return span;
   }
 

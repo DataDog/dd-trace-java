@@ -31,12 +31,12 @@ public final class PeerConnectionExtractor implements TagExtractor<InetSocketAdd
 
   @Override
   public void extract(final InetSocketAddress remoteConnection, final AgentSpan span) {
-    if (remoteConnection != null) {
-      setPeerAddress(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
-      final int port = remoteConnection.getPort();
-      if (port > UNSET_PORT) {
-        span.setTag(Tags.PEER_PORT, port);
-      }
+    // Non-null guaranteed by AgentSpan.setTags (the sole entry point); extractors skip
+    // null-handling.
+    setPeerAddress(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
+    final int port = remoteConnection.getPort();
+    if (port > UNSET_PORT) {
+      span.setTag(Tags.PEER_PORT, port);
     }
   }
 
