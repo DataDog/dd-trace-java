@@ -2,8 +2,8 @@ package datadog.trace.api.openfeature;
 
 import static java.util.Arrays.asList;
 
-import datadog.trace.api.config.FeatureFlaggingConfig;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
