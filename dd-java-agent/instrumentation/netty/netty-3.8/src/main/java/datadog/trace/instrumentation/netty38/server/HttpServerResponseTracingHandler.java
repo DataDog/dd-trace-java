@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.netty38.server;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.DECORATE;
 
+import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -36,7 +36,7 @@ public class HttpServerResponseTracingHandler extends SimpleChannelDownstreamHan
       return;
     }
 
-    try (final ContextScope scope = getCurrentContext().with(span).attach()) {
+    try (final ContextScope scope = Context.current().with(span).attach()) {
       final HttpResponse response = (HttpResponse) msg.getMessage();
 
       try {
