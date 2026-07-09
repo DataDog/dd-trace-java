@@ -533,16 +533,17 @@ compare_artifacts_to_master_uploads:
     - aws s3 cp s3://dd-trace-java-builds/master/dd-java-agent.jar reference-artifacts/dd-java-agent.jar
     - aws s3 cp s3://dd-trace-java-builds/master/dd-trace-api.jar reference-artifacts/dd-trace-api.jar
     - aws s3 cp s3://dd-trace-java-builds/master/dd-trace-ot.jar reference-artifacts/dd-trace-ot.jar
-    - export DD_JAVA_AGENT_JAR="$(find pipeline-artifacts -maxdepth 1 -name 'dd-java-agent-*.jar' -print -quit)"
-    - export DD_TRACE_API_JAR="$(find pipeline-artifacts -maxdepth 1 -name 'dd-trace-api-*.jar' -print -quit)"
-    - export DD_TRACE_OT_JAR="$(find pipeline-artifacts -maxdepth 1 -name 'dd-trace-ot-*.jar' -print -quit)"
+    - export DD_JAVA_AGENT_JAR="$(find "$CI_PROJECT_DIR/pipeline-artifacts" -maxdepth 1 -name 'dd-java-agent-*.jar' -print -quit)"
+    - export DD_TRACE_API_JAR="$(find "$CI_PROJECT_DIR/pipeline-artifacts" -maxdepth 1 -name 'dd-trace-api-*.jar' -print -quit)"
+    - export DD_TRACE_OT_JAR="$(find "$CI_PROJECT_DIR/pipeline-artifacts" -maxdepth 1 -name 'dd-trace-ot-*.jar' -print -quit)"
+    - export JARDIFF_VERSION_METADATA_EXCLUDE="--exclude=**/*.version,**/META-INF/MANIFEST.MF,**/META-INF/maven/**/pom.properties"
     - |
       comparison_status=0
-      ./gradlew :dd-java-agent:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-java-agent.jar" --candidate-jar="$DD_JAVA_AGENT_JAR" --ignore-version-files -PskipTests $GRADLE_ARGS > jardiff-logs/dd-java-agent.log 2>&1 || comparison_status=$?
+      ./gradlew :dd-java-agent:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-java-agent.jar" --candidate-jar="$DD_JAVA_AGENT_JAR" --jardiff-option="$JARDIFF_VERSION_METADATA_EXCLUDE" -PskipTests $GRADLE_ARGS > jardiff-logs/dd-java-agent.log 2>&1 || comparison_status=$?
       cat jardiff-logs/dd-java-agent.log
-      ./gradlew :dd-trace-api:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-trace-api.jar" --candidate-jar="$DD_TRACE_API_JAR" --ignore-version-files -PskipTests $GRADLE_ARGS > jardiff-logs/dd-trace-api.log 2>&1 || comparison_status=$?
+      ./gradlew :dd-trace-api:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-trace-api.jar" --candidate-jar="$DD_TRACE_API_JAR" --jardiff-option="$JARDIFF_VERSION_METADATA_EXCLUDE" -PskipTests $GRADLE_ARGS > jardiff-logs/dd-trace-api.log 2>&1 || comparison_status=$?
       cat jardiff-logs/dd-trace-api.log
-      ./gradlew :dd-trace-ot:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-trace-ot.jar" --candidate-jar="$DD_TRACE_OT_JAR" --ignore-version-files -PskipTests $GRADLE_ARGS > jardiff-logs/dd-trace-ot.log 2>&1 || comparison_status=$?
+      ./gradlew :dd-trace-ot:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-trace-ot.jar" --candidate-jar="$DD_TRACE_OT_JAR" --jardiff-option="$JARDIFF_VERSION_METADATA_EXCLUDE" -PskipTests $GRADLE_ARGS > jardiff-logs/dd-trace-ot.log 2>&1 || comparison_status=$?
       cat jardiff-logs/dd-trace-ot.log
       exit "$comparison_status"
   artifacts:
