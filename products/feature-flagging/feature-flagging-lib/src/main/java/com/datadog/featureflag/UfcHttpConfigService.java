@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 final class UfcHttpConfigService implements ConfigurationSourceService {
   private static final Logger LOGGER = LoggerFactory.getLogger(UfcHttpConfigService.class);
 
-  private static final String SERVER_DISTRIBUTION_PATH =
+  private static final String DATADOG_API_SERVER_DISTRIBUTION_PATH =
       "/api/v2/feature-flagging/config/server-distribution";
   private static final int MAX_ATTEMPTS = 3;
 
@@ -53,10 +53,11 @@ final class UfcHttpConfigService implements ConfigurationSourceService {
     this(
         endpoint,
         config,
-        millis(config.getFlaggingConfigurationSourcePollIntervalSeconds()),
+        millis(config.getFeatureFlaggingConfigurationSourcePollIntervalSeconds()),
         new OkHttpUfcHttpClient(
             OkHttpUtils.buildHttpClient(
-                endpoint, millis(config.getFlaggingConfigurationSourceRequestTimeoutSeconds()))),
+                endpoint,
+                millis(config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds()))),
         Executors.newSingleThreadScheduledExecutor(new UfcHttpThreadFactory()));
   }
 
@@ -69,7 +70,7 @@ final class UfcHttpConfigService implements ConfigurationSourceService {
     this.endpoint = endpoint;
     this.config = config;
     final Map<String, String> configuredExtraHeaders =
-        config.getFlaggingConfigurationSourceExtraHeaders();
+        config.getFeatureFlaggingConfigurationSourceExtraHeaders();
     this.extraHeaders =
         configuredExtraHeaders == null ? Collections.emptyMap() : configuredExtraHeaders;
     this.pollIntervalMillis = pollIntervalMillis;
@@ -175,10 +176,10 @@ final class UfcHttpConfigService implements ConfigurationSourceService {
   }
 
   static HttpUrl endpoint(final Config config) {
-    final String configuredBaseUrl = config.getFlaggingConfigurationSourceBaseUrl();
+    final String configuredBaseUrl = config.getFeatureFlaggingConfigurationSourceBaseUrl();
     final String endpoint =
         configuredBaseUrl == null
-            ? defaultEndpoint(config)
+            ? datadogApiServerDistributionEndpoint(config)
             : endpointFromConfiguredUrl(configuredBaseUrl);
     final HttpUrl parsed = HttpUrl.parse(endpoint);
     if (parsed == null) {
@@ -195,7 +196,11 @@ final class UfcHttpConfigService implements ConfigurationSourceService {
           "Invalid Feature Flagging HTTP configuration source URL: " + configuredUrl);
     }
     if (isRootPath(parsed)) {
-      return parsed.newBuilder().addPathSegments("mock/ufc/config").build().toString();
+      return parsed
+          .newBuilder()
+          .addPathSegments(datadogApiServerDistributionPath())
+          .build()
+          .toString();
     }
     return parsed.toString();
   }
@@ -204,16 +209,20 @@ final class UfcHttpConfigService implements ConfigurationSourceService {
     return "/".equals(url.encodedPath()) || url.encodedPath().isEmpty();
   }
 
-  private static String defaultEndpoint(final Config config) {
+  private static String datadogApiServerDistributionEndpoint(final Config config) {
     final StringBuilder endpoint =
         new StringBuilder("https://api.")
             .append(config.getSite().toLowerCase(Locale.ROOT))
-            .append(SERVER_DISTRIBUTION_PATH);
+            .append(DATADOG_API_SERVER_DISTRIBUTION_PATH);
     final String env = config.getEnv();
     if (env != null && !env.isEmpty()) {
       endpoint.append("?dd_env=").append(urlEncode(env));
     }
     return endpoint.toString();
+  }
+
+  private static String datadogApiServerDistributionPath() {
+    return DATADOG_API_SERVER_DISTRIBUTION_PATH.substring(1);
   }
 
   private static String urlEncode(final String value) {

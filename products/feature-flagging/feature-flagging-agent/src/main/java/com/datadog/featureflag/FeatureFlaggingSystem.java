@@ -8,9 +8,6 @@ import org.slf4j.LoggerFactory;
 public class FeatureFlaggingSystem {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
-  private static final String SOURCE_AGENTLESS = "agentless";
-  private static final String SOURCE_REMOTE_CONFIG = "remote_config";
-  private static final String SOURCE_OFFLINE = "offline";
 
   private static volatile ConfigurationSourceService CONFIG_SERVICE;
   private static volatile ExposureWriter EXPOSURE_WRITER;
@@ -34,22 +31,25 @@ public class FeatureFlaggingSystem {
 
   static ConfigurationSourceService createConfigurationSourceService(
       final SharedCommunicationObjects sco, final Config config) {
-    final String configurationSource = config.getFlaggingConfigurationSource();
+    final ConfigurationSource configurationSource =
+        ConfigurationSource.from(config.getFeatureFlaggingConfigurationSource());
 
-    if (SOURCE_REMOTE_CONFIG.equals(configurationSource)) {
-      if (!config.isRemoteConfigEnabled()) {
-        throw new IllegalStateException("Feature Flagging system started without RC");
-      }
-      return new RemoteConfigServiceImpl(sco, config);
-    } else if (SOURCE_AGENTLESS.equals(configurationSource)) {
-      return new UfcHttpConfigService(config);
-    } else if (SOURCE_OFFLINE.equals(configurationSource)) {
-      LOGGER.debug(
-          "Feature Flagging offline configuration source selected; no config service started");
-      return null;
-    } else {
-      throw new IllegalArgumentException(
-          "Unsupported Feature Flagging configuration source: " + configurationSource);
+    switch (configurationSource) {
+      case REMOTE_CONFIG:
+        if (!config.isRemoteConfigEnabled()) {
+          throw new IllegalStateException("Feature Flagging system started without RC");
+        }
+        return new RemoteConfigServiceImpl(sco, config);
+      case AGENTLESS:
+        return new UfcHttpConfigService(config);
+      case OFFLINE:
+        LOGGER.debug(
+            "Feature Flagging offline configuration source selected; no config service started");
+        return null;
+      default:
+        throw new IllegalArgumentException(
+            "Unsupported Feature Flagging configuration source: "
+                + config.getFeatureFlaggingConfigurationSource());
     }
   }
 
@@ -63,5 +63,27 @@ public class FeatureFlaggingSystem {
       CONFIG_SERVICE = null;
     }
     LOGGER.debug("Feature Flagging system stopped");
+  }
+
+  private enum ConfigurationSource {
+    AGENTLESS("agentless"),
+    REMOTE_CONFIG("remote_config"),
+    OFFLINE("offline");
+
+    private final String value;
+
+    ConfigurationSource(final String value) {
+      this.value = value;
+    }
+
+    private static ConfigurationSource from(final String value) {
+      for (final ConfigurationSource source : values()) {
+        if (source.value.equals(value)) {
+          return source;
+        }
+      }
+      throw new IllegalArgumentException(
+          "Unsupported Feature Flagging configuration source: " + value);
+    }
   }
 }

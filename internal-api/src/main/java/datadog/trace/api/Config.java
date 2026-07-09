@@ -86,9 +86,9 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_AND_PA
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_FLAGGING_CONFIGURATION_SOURCE;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -1221,11 +1221,11 @@ public class Config {
 
   private final int remoteConfigMaxExtraServices;
 
-  private final String flaggingConfigurationSource;
-  private final String flaggingConfigurationSourceBaseUrl;
-  private final double flaggingConfigurationSourcePollIntervalSeconds;
-  private final double flaggingConfigurationSourceRequestTimeoutSeconds;
-  private final Map<String, String> flaggingConfigurationSourceExtraHeaders;
+  private final String featureFlaggingConfigurationSource;
+  private final String featureFlaggingConfigurationSourceBaseUrl;
+  private final double featureFlaggingConfigurationSourcePollIntervalSeconds;
+  private final double featureFlaggingConfigurationSourceRequestTimeoutSeconds;
+  private final Map<String, String> featureFlaggingConfigurationSourceExtraHeaders;
 
   private final boolean dbmInjectSqlBaseHash;
   private final String dbmPropagationMode;
@@ -2849,23 +2849,24 @@ public class Config {
         configProvider.getInteger(
             REMOTE_CONFIG_MAX_EXTRA_SERVICES, DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES);
 
-    flaggingConfigurationSource =
-        normalizeFlaggingConfigurationSource(
+    featureFlaggingConfigurationSource =
+        normalizeFeatureFlaggingConfigurationSource(
             configProvider.getString(
-                FEATURE_FLAGS_CONFIGURATION_SOURCE, DEFAULT_FLAGGING_CONFIGURATION_SOURCE));
-    flaggingConfigurationSourceBaseUrl =
+                FEATURE_FLAGS_CONFIGURATION_SOURCE, DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE));
+    featureFlaggingConfigurationSourceBaseUrl =
         configProvider.getStringNotEmpty(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
-    flaggingConfigurationSourcePollIntervalSeconds =
+    featureFlaggingConfigurationSourcePollIntervalSeconds =
         configProvider.getDouble(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS,
-            DEFAULT_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS);
-    flaggingConfigurationSourceRequestTimeoutSeconds =
+            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS);
+    featureFlaggingConfigurationSourceRequestTimeoutSeconds =
         configProvider.getDouble(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS,
-            DEFAULT_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS);
-    flaggingConfigurationSourceExtraHeaders =
-        configProvider.getMergedMap(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_EXTRA_HEADERS, '=');
+            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS);
+    featureFlaggingConfigurationSourceExtraHeaders =
+        configProvider.getMergedMap(
+            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_EXTRA_HEADERS, '=');
 
     dynamicInstrumentationEnabled =
         configProvider.getBoolean(
@@ -3779,12 +3780,12 @@ public class Config {
     return traceInferredProxyEnabled;
   }
 
-  private static String normalizeFlaggingConfigurationSource(final String source) {
+  private static String normalizeFeatureFlaggingConfigurationSource(final String source) {
     if (source == null) {
-      return DEFAULT_FLAGGING_CONFIGURATION_SOURCE;
+      return DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
     }
     final String normalized = source.trim().toLowerCase(Locale.ROOT);
-    return normalized.isEmpty() ? DEFAULT_FLAGGING_CONFIGURATION_SOURCE : normalized;
+    return normalized.isEmpty() ? DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE : normalized;
   }
 
   public boolean isBaggageExtract() {
@@ -4694,24 +4695,24 @@ public class Config {
     return remoteConfigMaxExtraServices;
   }
 
-  public String getFlaggingConfigurationSource() {
-    return flaggingConfigurationSource;
+  public String getFeatureFlaggingConfigurationSource() {
+    return featureFlaggingConfigurationSource;
   }
 
-  public String getFlaggingConfigurationSourceBaseUrl() {
-    return flaggingConfigurationSourceBaseUrl;
+  public String getFeatureFlaggingConfigurationSourceBaseUrl() {
+    return featureFlaggingConfigurationSourceBaseUrl;
   }
 
-  public double getFlaggingConfigurationSourcePollIntervalSeconds() {
-    return flaggingConfigurationSourcePollIntervalSeconds;
+  public double getFeatureFlaggingConfigurationSourcePollIntervalSeconds() {
+    return featureFlaggingConfigurationSourcePollIntervalSeconds;
   }
 
-  public double getFlaggingConfigurationSourceRequestTimeoutSeconds() {
-    return flaggingConfigurationSourceRequestTimeoutSeconds;
+  public double getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds() {
+    return featureFlaggingConfigurationSourceRequestTimeoutSeconds;
   }
 
-  public Map<String, String> getFlaggingConfigurationSourceExtraHeaders() {
-    return flaggingConfigurationSourceExtraHeaders;
+  public Map<String, String> getFeatureFlaggingConfigurationSourceExtraHeaders() {
+    return featureFlaggingConfigurationSourceExtraHeaders;
   }
 
   public boolean isDynamicInstrumentationEnabled() {
@@ -6546,16 +6547,16 @@ public class Config {
         + remoteConfigMaxPayloadSize
         + ", remoteConfigIntegrityCheckEnabled="
         + remoteConfigIntegrityCheckEnabled
-        + ", flaggingConfigurationSource="
-        + flaggingConfigurationSource
-        + ", flaggingConfigurationSourceBaseUrl="
-        + flaggingConfigurationSourceBaseUrl
-        + ", flaggingConfigurationSourcePollIntervalSeconds="
-        + flaggingConfigurationSourcePollIntervalSeconds
-        + ", flaggingConfigurationSourceRequestTimeoutSeconds="
-        + flaggingConfigurationSourceRequestTimeoutSeconds
-        + ", flaggingConfigurationSourceExtraHeaderNames="
-        + flaggingConfigurationSourceExtraHeaders.keySet()
+        + ", featureFlaggingConfigurationSource="
+        + featureFlaggingConfigurationSource
+        + ", featureFlaggingConfigurationSourceBaseUrl="
+        + featureFlaggingConfigurationSourceBaseUrl
+        + ", featureFlaggingConfigurationSourcePollIntervalSeconds="
+        + featureFlaggingConfigurationSourcePollIntervalSeconds
+        + ", featureFlaggingConfigurationSourceRequestTimeoutSeconds="
+        + featureFlaggingConfigurationSourceRequestTimeoutSeconds
+        + ", featureFlaggingConfigurationSourceExtraHeaderNames="
+        + featureFlaggingConfigurationSourceExtraHeaders.keySet()
         + ", debuggerEnabled="
         + dynamicInstrumentationEnabled
         + ", debuggerUploadTimeout="

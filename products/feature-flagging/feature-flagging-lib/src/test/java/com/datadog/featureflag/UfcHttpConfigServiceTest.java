@@ -48,26 +48,29 @@ class UfcHttpConfigServiceTest {
   }
 
   @Test
-  void appendsMockConfigPathWhenConfiguredUrlIsRoot() {
+  void appendsDatadogApiServerDistributionPathWhenConfiguredUrlIsRoot() {
     final Config config = config("http://mock-backend:8092", "datadoghq.com", "");
 
     assertEquals(
-        "http://mock-backend:8092/mock/ufc/config",
+        "http://mock-backend:8092/api/v2/feature-flagging/config/server-distribution",
         UfcHttpConfigService.endpoint(config).toString());
   }
 
   @Test
   void preservesConfiguredFullEndpointUrl() {
     final Config config =
-        config("http://mock-backend:8092/mock/ufc/config?fixture=valid", "datadoghq.com", "");
+        config(
+            "http://mock-backend:8092/api/v2/feature-flagging/config/server-distribution?fixture=valid",
+            "datadoghq.com",
+            "");
 
     assertEquals(
-        "http://mock-backend:8092/mock/ufc/config?fixture=valid",
+        "http://mock-backend:8092/api/v2/feature-flagging/config/server-distribution?fixture=valid",
         UfcHttpConfigService.endpoint(config).toString());
   }
 
   @Test
-  void derivesDefaultEndpointFromSiteAndEnv() {
+  void derivesDatadogApiServerDistributionEndpointFromSiteAndEnv() {
     final Config config = config(null, "datad0g.com", "staging env");
 
     assertEquals(
@@ -188,7 +191,7 @@ class UfcHttpConfigServiceTest {
       final FakeClient client, final Map<String, String> extraHeaders) {
     final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     return new UfcHttpConfigService(
-        HttpUrl.get("http://localhost/mock/ufc/config"),
+        HttpUrl.get("http://localhost/api/v2/feature-flagging/config/server-distribution"),
         config("http://localhost", "datadoghq.com", "", extraHeaders),
         60_000,
         client,
@@ -205,10 +208,16 @@ class UfcHttpConfigServiceTest {
       final String env,
       final Map<String, String> extraHeaders) {
     final Config config = mock(Config.class);
-    lenient().when(config.getFlaggingConfigurationSourceBaseUrl()).thenReturn(baseUrl);
-    lenient().when(config.getFlaggingConfigurationSourceExtraHeaders()).thenReturn(extraHeaders);
-    lenient().when(config.getFlaggingConfigurationSourcePollIntervalSeconds()).thenReturn(30.0D);
-    lenient().when(config.getFlaggingConfigurationSourceRequestTimeoutSeconds()).thenReturn(2.0D);
+    lenient().when(config.getFeatureFlaggingConfigurationSourceBaseUrl()).thenReturn(baseUrl);
+    lenient()
+        .when(config.getFeatureFlaggingConfigurationSourceExtraHeaders())
+        .thenReturn(extraHeaders);
+    lenient()
+        .when(config.getFeatureFlaggingConfigurationSourcePollIntervalSeconds())
+        .thenReturn(30.0D);
+    lenient()
+        .when(config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds())
+        .thenReturn(2.0D);
     lenient().when(config.getApiKey()).thenReturn("test-api-key");
     lenient().when(config.getSite()).thenReturn(site);
     lenient().when(config.getEnv()).thenReturn(env);
