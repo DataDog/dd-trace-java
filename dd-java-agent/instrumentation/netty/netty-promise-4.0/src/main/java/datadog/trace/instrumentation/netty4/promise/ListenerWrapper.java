@@ -1,12 +1,10 @@
 package datadog.trace.instrumentation.netty4.promise;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.concurrent.GenericProgressiveFutureListener;
@@ -62,8 +60,7 @@ public final class ListenerWrapper {
     @Override
     public void operationProgressed(S future, long progress, long total) throws Exception {
       // not yet complete, not ready to do final activation of continuation
-      AgentSpan span = AgentSpan.fromContext(continuation.context());
-      try (ContextScope scope = span != null ? activateSpan(span) : null) {
+      try (ContextScope scope = continuation.context().attach()) {
         listener.operationProgressed(future, progress, total);
       }
     }

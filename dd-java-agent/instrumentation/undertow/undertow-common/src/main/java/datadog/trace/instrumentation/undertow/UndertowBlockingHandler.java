@@ -120,10 +120,10 @@ public class UndertowBlockingHandler implements HttpHandler {
   private static void markAsEffectivelyBlocked(HttpServerExchange xchg) {
     ContextContinuation continuation = xchg.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
     if (continuation != null) {
-      AgentSpan.fromContext(continuation.context())
-          .getRequestContext()
-          .getTraceSegment()
-          .effectivelyBlocked();
+      AgentSpan span = AgentSpan.fromContext(continuation.context());
+      if (span != null) {
+        span.getRequestContext().getTraceSegment().effectivelyBlocked();
+      }
     }
   }
 }
