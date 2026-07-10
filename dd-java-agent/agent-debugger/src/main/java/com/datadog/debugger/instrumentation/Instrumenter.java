@@ -13,6 +13,7 @@ import com.datadog.debugger.util.JvmLanguage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import org.objectweb.asm.Opcodes;
@@ -28,9 +29,17 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
+import org.objectweb.asm.tree.analysis.Analyzer;
+import org.objectweb.asm.tree.analysis.AnalyzerException;
+import org.objectweb.asm.tree.analysis.BasicInterpreter;
+import org.objectweb.asm.tree.analysis.BasicValue;
+import org.objectweb.asm.tree.analysis.Frame;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Common class for generating instrumentation */
 public abstract class Instrumenter {
+  private static final Logger LOGGER = LoggerFactory.getLogger(Instrumenter.class);
   protected static final String CONSTRUCTOR_NAME = "<init>";
   protected static final String PROBEID_TAG_NAME = "debugger.probeid";
 
@@ -151,12 +160,14 @@ public abstract class Instrumenter {
   }
 
   protected void processInstructions() {
+    Map<AbstractInsnNode, Frame<BasicValue>> frames = new IdentityHashMap<>();
+    computeFrames(classNode.name, methodNode, frames);
     AbstractInsnNode node = methodNode.instructions.getFirst();
     LabelNode sentinelNode = new LabelNode();
     methodNode.instructions.add(sentinelNode);
     while (node != null && !node.equals(sentinelNode)) {
       if (node.getType() != AbstractInsnNode.LINE) {
-        node = processInstruction(node);
+        node = processInstruction(node, frames);
       }
       node = node.getNext();
     }
@@ -168,7 +179,40 @@ public abstract class Instrumenter {
     }
   }
 
-  protected AbstractInsnNode processInstruction(AbstractInsnNode node) {
+  // returns the extra values sitting *below* `valuesToKeep` values already
+  // accounted for at the top of the stack (e.g. the return value), as POP/POP2 insns
+  protected InsnList stackCleanupInsnList(
+      AbstractInsnNode node, int valuesToKeep, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
+    InsnList result = new InsnList();
+    Frame<BasicValue> frame = frames.get(node);
+    if (frame == null) {
+      return result;
+    }
+    for (int i = frame.getStackSize() - valuesToKeep - 1; i >= 0; i--) {
+      BasicValue value = frame.getStack(i);
+      result.add(new InsnNode(value.getSize() == 2 ? Opcodes.POP2 : Opcodes.POP));
+    }
+    return result;
+  }
+
+  private static void computeFrames(
+      String owner, MethodNode methodNode, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
+    try {
+      Frame<BasicValue>[] frameArray =
+          new Analyzer<>(new BasicInterpreter()).analyze(owner, methodNode);
+      AbstractInsnNode current = methodNode.instructions.getFirst();
+      int idx = 0;
+      while (current != null) {
+        frames.put(current, frameArray[idx++]);
+        current = current.getNext();
+      }
+    } catch (AnalyzerException ex) {
+      LOGGER.debug("Failed to analyze method[{}::{}] instructions", owner, methodNode.name, ex);
+    }
+  }
+
+  protected AbstractInsnNode processInstruction(
+      AbstractInsnNode node, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     switch (node.getOpcode()) {
       case Opcodes.RET:
       case Opcodes.RETURN:
@@ -179,7 +223,7 @@ public abstract class Instrumenter {
       case Opcodes.ARETURN:
         {
           // stack [ret_value]
-          InsnList beforeReturnInsnList = getBeforeReturnInsnList(node);
+          InsnList beforeReturnInsnList = getBeforeReturnInsnList(node, frames);
           if (beforeReturnInsnList != null) {
             methodNode.instructions.insertBefore(node, beforeReturnInsnList);
           }
@@ -193,7 +237,8 @@ public abstract class Instrumenter {
     return node;
   }
 
-  protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
+  protected InsnList getBeforeReturnInsnList(
+      AbstractInsnNode node, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     return null;
   }
 

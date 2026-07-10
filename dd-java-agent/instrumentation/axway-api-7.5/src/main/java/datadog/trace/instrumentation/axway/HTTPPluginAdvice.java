@@ -2,8 +2,7 @@ package datadog.trace.instrumentation.axway;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.DECORATE;
 import static datadog.trace.instrumentation.axway.AxwayHTTPPluginDecorator.SERVER_TRANSACTION_CLASS;
 
@@ -20,8 +19,8 @@ public class HTTPPluginAdvice {
     final AgentSpan span = startSpan("axway-http", DECORATE.spanName()).setMeasured(true);
     DECORATE.afterStart(span);
     // serverTransaction is like request + connection in one object:
-    DECORATE.onRequest(span, serverTransaction, serverTransaction, getRootContext());
-    return getCurrentContext().with(span).attach();
+    DECORATE.onRequest(span, serverTransaction, serverTransaction, rootContext());
+    return span.attachWithContext();
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

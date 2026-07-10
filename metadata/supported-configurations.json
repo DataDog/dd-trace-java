@@ -129,6 +129,14 @@
         "aliases": []
       }
     ],
+    "DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "0.5",
+        "aliases": []
+      }
+    ],
     "DD_API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE": [
       {
         "version": "A",
@@ -3121,6 +3129,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_EXPERIMENTAL_ASYNC_JMETHODID_OPTIM_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_EXPERIMENTAL_ASYNC_SCHEDULING_EVENT": [
       {
         "version": "A",
@@ -3138,6 +3154,14 @@
       }
     ],
     "DD_PROFILING_EXPERIMENTAL_ASYNC_WALL_JVMTI": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_JMETHODID_OPTIM_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
@@ -9607,6 +9631,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_RXJAVA_ENABLED", "DD_INTEGRATION_RXJAVA_ENABLED"]
+      }
+    ],
+    "DD_TRACE_RXJAVA_3_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_RXJAVA_3_ENABLED", "DD_INTEGRATION_RXJAVA_3_ENABLED"]
       }
     ],
     "DD_TRACE_S3_ENABLED": [
