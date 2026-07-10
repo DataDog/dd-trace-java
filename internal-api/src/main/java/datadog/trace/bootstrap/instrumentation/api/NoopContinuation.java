@@ -21,7 +21,7 @@ final class NoopContinuation implements AgentScope.Continuation {
 
   @Override
   public Context context() {
-    return NoopSpan.INSTANCE;
+    return Context.root();
   }
 
   @Override
