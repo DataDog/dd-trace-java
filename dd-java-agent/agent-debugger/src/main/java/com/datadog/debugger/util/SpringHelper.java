@@ -76,7 +76,7 @@ public class SpringHelper {
     return false;
   }
 
-  private static class ParsedSpringVersion {
+  static class ParsedSpringVersion {
     private static final Pattern VERSION_PATTERN = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)");
 
     final int major;

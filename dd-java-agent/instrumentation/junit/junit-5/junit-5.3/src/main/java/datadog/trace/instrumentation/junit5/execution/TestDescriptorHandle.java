@@ -106,7 +106,6 @@ public class TestDescriptorHandle {
         return copy;
       }
     }
-
     return legacyCopy(testDescriptor, idTransform);
   }
 

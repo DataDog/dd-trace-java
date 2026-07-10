@@ -422,6 +422,40 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertTrue(span.getLinks().isEmpty());
   }
 
+  @Test
+  @WithConfig(key = "trace.propagation.behavior.extract", value = "ignore")
+  void appSecContextPreservedFromTagContextWithIgnoreBehavior() {
+    Object appSecData = new Object();
+    Object iastData = new Object();
+    TagContext tagContext =
+        new TagContext()
+            .withRequestContextDataAppSec(appSecData)
+            .withRequestContextDataIast(iastData);
+
+    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
+
+    assertEquals(appSecData, span.getRequestContext().getData(RequestContextSlot.APPSEC));
+    assertEquals(iastData, span.getRequestContext().getData(RequestContextSlot.IAST));
+    span.finish();
+  }
+
+  @Test
+  @WithConfig(key = "trace.propagation.behavior.extract", value = "restart")
+  void appSecContextPreservedFromTagContextWithRestartBehavior() {
+    Object appSecData = new Object();
+    Object iastData = new Object();
+    TagContext tagContext =
+        new TagContext()
+            .withRequestContextDataAppSec(appSecData)
+            .withRequestContextDataIast(iastData);
+
+    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
+
+    assertEquals(appSecData, span.getRequestContext().getData(RequestContextSlot.APPSEC));
+    assertEquals(iastData, span.getRequestContext().getData(RequestContextSlot.IAST));
+    span.finish();
+  }
+
   @TableTest({
     "scenario      | origin      | tagMap      ",
     "empty tag map |             | [:]         ",

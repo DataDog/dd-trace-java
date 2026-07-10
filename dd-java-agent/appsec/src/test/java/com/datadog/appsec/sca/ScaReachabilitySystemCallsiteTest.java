@@ -34,6 +34,20 @@ class ScaReachabilitySystemCallsiteTest {
   }
 
   @Test
+  void findCallsite_skipsRepeatedVulnerableFrames() {
+    StackTraceElement[] stack = {
+      frame(VULNERABLE_CLASS, "load"),
+      frame(VULNERABLE_CLASS, "loadAll"),
+      frame("sca.test.TestController", "yamlHitRecursive"),
+    };
+
+    StackTraceElement result = ScaReachabilitySystem.findCallsite(VULNERABLE_CLASS, stack);
+
+    assertEquals("sca.test.TestController", result.getClassName());
+    assertEquals("yamlHitRecursive", result.getMethodName());
+  }
+
+  @Test
   void findCallsite_skipsIntermediateLibraryFrameAndReturnsClientCode() {
     // com.google.* is excluded by the SCA trie (value >= 1)
     StackTraceElement[] stack = {

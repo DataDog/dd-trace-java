@@ -37,7 +37,7 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().wafUpdates('rules.3', false)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
-    WafMetricCollector.get().raspRuleMatch(RuleType.SQL_INJECTION)
+    WafMetricCollector.get().raspRuleMatch(RuleType.SQL_INJECTION, false)
     WafMetricCollector.get().raspRuleEval(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspTimeout(RuleType.SQL_INJECTION)
     WafMetricCollector.get().raspErrorCode(RuleType.SHELL_INJECTION, DD_WAF_RUN_INTERNAL_ERROR)
@@ -85,7 +85,7 @@ class WafMetricCollectorTest extends DDSpecification {
     raspRuleMatch.value == 1
     raspRuleMatch.namespace == 'appsec'
     raspRuleMatch.metricName == 'rasp.rule.match'
-    raspRuleMatch.tags.toSet() == ['rule_type:sql_injection', 'waf_version:waf_ver1'].toSet()
+    raspRuleMatch.tags.toSet() == ['rule_type:sql_injection', 'waf_version:waf_ver1', 'block:false'].toSet()
 
     def raspTimeout = (WafMetricCollector.RaspTimeout) metrics[5]
     raspTimeout.type == 'count'
@@ -317,7 +317,7 @@ class WafMetricCollectorTest extends DDSpecification {
     WafMetricCollector.get().wafInit('waf_ver1', 'rules.1', true)
     WafMetricCollector.get().raspRuleEval(ruleType)
     WafMetricCollector.get().raspRuleEval(ruleType)
-    WafMetricCollector.get().raspRuleMatch(ruleType)
+    WafMetricCollector.get().raspRuleMatch(ruleType, false)
     WafMetricCollector.get().raspRuleEval(ruleType)
     WafMetricCollector.get().raspTimeout(ruleType)
     WafMetricCollector.get().raspErrorCode(ruleType, DD_WAF_RUN_INTERNAL_ERROR)
@@ -349,7 +349,8 @@ class WafMetricCollectorTest extends DDSpecification {
       'rule_type:command_injection',
       'rule_variant:' + ruleType.variant,
       'waf_version:waf_ver1',
-      'event_rules_version:rules.1'
+      'event_rules_version:rules.1',
+      'block:false'
     ].toSet()
 
     def raspTimeout = (WafMetricCollector.RaspTimeout) metrics[3]
@@ -431,6 +432,7 @@ class WafMetricCollectorTest extends DDSpecification {
   void 'test waf request metrics'() {
     given:
     def collector = WafMetricCollector.get()
+    collector.wafInit('waf_ver1', 'rules.1', true)
 
     when:
     collector.wafRequest(
@@ -440,7 +442,8 @@ class WafMetricCollectorTest extends DDSpecification {
       wafTimeout,
       blockFailure,
       rateLimited,
-      inputTruncated
+      inputTruncated,
+      requestExcluded
       )
 
     then:
@@ -448,10 +451,12 @@ class WafMetricCollectorTest extends DDSpecification {
     def metrics = collector.drain()
     def requestMetrics = metrics.findAll { it.metricName == 'waf.requests' }
 
+    requestMetrics.size() == 1
     final metric = requestMetrics[0]
     metric.type == 'count'
     metric.metricName == 'waf.requests'
     metric.namespace == 'appsec'
+    metric.value == 1
     metric.tags == [
       "waf_version:waf_ver1",
       "event_rules_version:rules.1",
@@ -461,11 +466,21 @@ class WafMetricCollectorTest extends DDSpecification {
       "waf_timeout:${wafTimeout}",
       "block_failure:${blockFailure}",
       "rate_limited:${rateLimited}",
-      "input_truncated:${inputTruncated}"
+      "input_truncated:${inputTruncated}",
+      "request_excluded:${requestExcluded ? 'full' : 'none'}"
     ]
 
     where:
-    [triggered, blocked, wafError, wafTimeout, blockFailure, rateLimited, inputTruncated] << allBooleanCombinations(7)
+    [
+      triggered,
+      blocked,
+      wafError,
+      wafTimeout,
+      blockFailure,
+      rateLimited,
+      inputTruncated,
+      requestExcluded
+    ] << allBooleanCombinations(8)
   }
 
   void 'test waf input truncated metrics'() {
@@ -583,6 +598,70 @@ class WafMetricCollectorTest extends DDSpecification {
 
     where:
     type << [MESSAGES, CONTENT]
+  }
+
+  void 'test rasp rule match block tag'() {
+    given:
+    final collector = WafMetricCollector.get()
+    collector.wafInit('waf_ver1', 'rules.1', true)
+
+    when:
+    collector.raspRuleMatch(ruleType, blocked)
+
+    then:
+    collector.prepareMetrics()
+    final metrics = collector.drain()
+    final matchMetrics = metrics.findAll { it.metricName == 'rasp.rule.match' }
+
+    matchMetrics.size() == 1
+    final metric = matchMetrics[0]
+    metric.type == 'count'
+    metric.value == 1
+    metric.namespace == 'appsec'
+    final expectedTags = ruleType.variant != null
+      ? [
+        'rule_type:' + ruleType.type,
+        'rule_variant:' + ruleType.variant,
+        'waf_version:waf_ver1',
+        'event_rules_version:rules.1',
+        'block:' + blocked
+      ].toSet()
+      : ['rule_type:' + ruleType.type, 'waf_version:waf_ver1', 'block:' + blocked].toSet()
+    metric.tags.toSet() == expectedTags
+
+    where:
+    ruleType                      | blocked
+    RuleType.SQL_INJECTION        | true
+    RuleType.SQL_INJECTION        | false
+    RuleType.LFI                  | true
+    RuleType.LFI                  | false
+    RuleType.SSRF_REQUEST         | true
+    RuleType.SSRF_REQUEST         | false
+    RuleType.SSRF_RESPONSE        | true
+    RuleType.SSRF_RESPONSE        | false
+    RuleType.SHELL_INJECTION      | true
+    RuleType.SHELL_INJECTION      | false
+    RuleType.COMMAND_INJECTION    | true
+    RuleType.COMMAND_INJECTION    | false
+  }
+
+  void 'test rasp rule match drains blocked and non-blocked as separate metrics'() {
+    given:
+    final collector = WafMetricCollector.get()
+    collector.wafInit('waf_ver1', 'rules.1', true)
+
+    when:
+    collector.raspRuleMatch(RuleType.SQL_INJECTION, true)
+    collector.raspRuleMatch(RuleType.SQL_INJECTION, false)
+
+    then:
+    collector.prepareMetrics()
+    final metrics = collector.drain()
+    final matchMetrics = metrics.findAll { it.metricName == 'rasp.rule.match' }
+
+    matchMetrics.size() == 2
+    matchMetrics.find { it.tags.contains('block:true') }?.value == 1
+    matchMetrics.find { it.tags.contains('block:false') }?.value == 1
   }
 
   /**
