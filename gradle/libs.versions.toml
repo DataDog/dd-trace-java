@@ -69,12 +69,13 @@ moshi = "1.11.0"
 
 # Testing
 assertj = "3.27.7"
+awaitility = "4.3.0"
+json-unit = "2.40.1"
 junit4 = "4.13.2"
 junit5 = "5.14.1"
 junit-platform = "1.14.1"
 mockito = "4.4.0"
 spock = "2.4-groovy-3.0"
-json-unit = "2.40.1"
 tabletest = "1.2.1"
 testcontainers = "1.21.4"
 
@@ -158,6 +159,7 @@ moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshi" }
 
 # Testing
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
 json-unit-assertj = { module = "net.javacrumbs.json-unit:json-unit-assertj", version.ref = "json-unit" }
 junit4 = { module = "junit:junit", version.ref = "junit4" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }

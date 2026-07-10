@@ -51,7 +51,7 @@ dependencies {
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.moshi)
-  testImplementation("org.awaitility:awaitility:4.3.0")
+  testImplementation(libs.awaitility)
 }
 
 fun AbstractCompile.configureCompiler(
