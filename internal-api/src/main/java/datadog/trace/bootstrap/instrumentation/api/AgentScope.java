@@ -17,6 +17,7 @@ public interface AgentScope extends ContextScope, TraceScope, Closeable {
   @Override
   void close();
 
+  @Deprecated
   interface Continuation extends TraceScope.Continuation, ContextContinuation {
     @Override
     Continuation hold();

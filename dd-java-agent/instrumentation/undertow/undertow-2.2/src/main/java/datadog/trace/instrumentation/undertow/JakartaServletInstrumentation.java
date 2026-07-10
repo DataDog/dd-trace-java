@@ -9,9 +9,9 @@ import static datadog.trace.instrumentation.undertow.UndertowDecorator.SERVLET_R
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.servlet.handlers.ServletRequestContext;
@@ -56,9 +56,9 @@ public final class JakartaServletInstrumentation extends InstrumenterModule.Trac
     public static void enter(
         @Advice.Argument(0) final HttpServerExchange exchange,
         @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
-      AgentScope.Continuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
+      ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
       if (continuation != null) {
-        AgentSpan undertowSpan = continuation.span();
+        AgentSpan undertowSpan = AgentSpan.fromContext(continuation.context());
         ServletRequest request = servletRequestContext.getServletRequest();
         request.setAttribute(DD_CONTEXT_ATTRIBUTE, continuation.context());
         undertowSpan.setSpanName(SERVLET_REQUEST);

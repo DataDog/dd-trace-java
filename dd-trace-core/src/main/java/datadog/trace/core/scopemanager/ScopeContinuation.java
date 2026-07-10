@@ -3,6 +3,7 @@ package datadog.trace.core.scopemanager;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
@@ -10,12 +11,13 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
  * Used to pass async context between workers. A trace will not be reported until all spans and
- * continuations are resolved. You must call activate (and close on the returned scope) or cancel on
+ * continuations are resolved. You must call resume (and close on the returned scope) or release on
  * each continuation to avoid discarding traces.
  *
  * <p>This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
  * references (using too much memory).
  */
+@SuppressWarnings("deprecation")
 final class ScopeContinuation implements AgentScope.Continuation {
   private static final AtomicIntegerFieldUpdater<ScopeContinuation> COUNT =
       AtomicIntegerFieldUpdater.newUpdater(ScopeContinuation.class, "count");
@@ -45,8 +47,8 @@ final class ScopeContinuation implements AgentScope.Continuation {
    *
    * <p>A negative value of CANCELLED reflects that the continuation has either been activated and
    * all associated scopes are now closed, or it has been explicitly cancelled. This value was
-   * chosen to be half the size of MIN_INT to avoid speculative additions in {@link #activate()}
-   * from overflowing to a positive count.
+   * chosen to be half the size of MIN_INT to avoid speculative additions in {@link #resume()} from
+   * overflowing to a positive count.
    */
   private volatile int count = 0;
 
@@ -68,14 +70,14 @@ final class ScopeContinuation implements AgentScope.Continuation {
   }
 
   @Override
-  public AgentScope.Continuation hold() {
+  public ScopeContinuation hold() {
     // update initial count to record that this continuation has a hold
     COUNT.compareAndSet(this, 0, HELD);
     return this;
   }
 
   @Override
-  public AgentScope activate() {
+  public ContextScope resume() {
     if (COUNT.incrementAndGet(this) > 0) {
       // speculative update succeeded, continuation can be activated
       return scopeManager.continueSpan(this, context, source);
@@ -87,7 +89,12 @@ final class ScopeContinuation implements AgentScope.Continuation {
   }
 
   @Override
-  public void cancel() {
+  public AgentScope activate() {
+    return (AgentScope) resume();
+  }
+
+  @Override
+  public void release() {
     int current = count;
     while (current >= HELD) {
       // remove the hold on this continuation by removing the offset
@@ -106,6 +113,11 @@ final class ScopeContinuation implements AgentScope.Continuation {
     scopeManager.healthMetrics.onCancelContinuation();
   }
 
+  @Override
+  public void cancel() {
+    release();
+  }
+
   void cancelFromContinuedScopeClose() {
     if (COUNT.compareAndSet(this, 1, CANCELLED)) {
       // fast path: only one activation of the continuation (no hold)
@@ -113,7 +125,7 @@ final class ScopeContinuation implements AgentScope.Continuation {
       scopeManager.healthMetrics.onFinishContinuation();
     } else if (COUNT.decrementAndGet(this) == 0) {
       // slow path: multiple activations, all have now closed (no hold)
-      cancel();
+      release();
     } /* else there are outstanding activations or hold is in place */
   }
 

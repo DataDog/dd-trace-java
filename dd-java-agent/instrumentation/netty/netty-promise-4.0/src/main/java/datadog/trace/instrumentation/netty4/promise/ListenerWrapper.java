@@ -4,8 +4,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.concurrent.GenericProgressiveFutureListener;
@@ -17,7 +18,7 @@ public final class ListenerWrapper {
     if (listener == null || listener instanceof GenericWrapper) {
       return listener;
     }
-    AgentScope.Continuation continuation = captureActiveSpan();
+    ContextContinuation continuation = captureActiveSpan();
     if (continuation == noopContinuation()) {
       return listener;
     }
@@ -31,17 +32,17 @@ public final class ListenerWrapper {
   private static class GenericWrapper<T extends Future<?>> implements GenericFutureListener<T> {
 
     private final GenericFutureListener<T> listener;
-    final AgentScope.Continuation continuation;
+    final ContextContinuation continuation;
 
     public GenericWrapper(
-        final GenericFutureListener<T> listener, AgentScope.Continuation continuation) {
+        final GenericFutureListener<T> listener, ContextContinuation continuation) {
       this.listener = listener;
       this.continuation = continuation;
     }
 
     @Override
     public void operationComplete(T future) throws Exception {
-      try (ContextScope scope = continuation.activate()) {
+      try (ContextScope scope = continuation.resume()) {
         listener.operationComplete(future);
       }
     }
@@ -53,7 +54,7 @@ public final class ListenerWrapper {
     private final GenericProgressiveFutureListener<S> listener;
 
     public GenericProgressiveWrapper(
-        GenericProgressiveFutureListener<S> listener, AgentScope.Continuation continuation) {
+        GenericProgressiveFutureListener<S> listener, ContextContinuation continuation) {
       super(listener, continuation);
       this.listener = listener;
     }
@@ -61,7 +62,7 @@ public final class ListenerWrapper {
     @Override
     public void operationProgressed(S future, long progress, long total) throws Exception {
       // not yet complete, not ready to do final activation of continuation
-      try (ContextScope scope = activateSpan(continuation.span())) {
+      try (ContextScope scope = activateSpan(AgentSpan.fromContext(continuation.context()))) {
         listener.operationProgressed(future, progress, total);
       }
     }

@@ -8,10 +8,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.undertow.server.HttpServerExchange;
 import net.bytebuddy.asm.Advice;
@@ -62,7 +62,7 @@ public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.
         return false;
       }
 
-      AgentScope.Continuation continuation = xchg.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
+      ContextContinuation continuation = xchg.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
       if (continuation == null) {
         return false;
       }
@@ -71,7 +71,7 @@ public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.
       }
       xchg.putAttachment(IgnoreSendAttribute.IGNORE_SEND_KEY, IgnoreSendAttribute.INSTANCE);
 
-      AgentSpan span = continuation.span();
+      AgentSpan span = AgentSpan.fromContext(continuation.context());
       Flow<Void> flow =
           UndertowDecorator.DECORATE.callIGCallbackResponseAndHeaders(
               span, xchg, xchg.getStatusCode(), UndertowExtractAdapter.Response.GETTER);
