@@ -89,7 +89,6 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     }
   }
 
-  @Override
   public void clearContext() {
     DDPROF.clearTraceContext();
   }
