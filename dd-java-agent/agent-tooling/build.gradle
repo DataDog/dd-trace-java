@@ -60,28 +60,17 @@ jmh {
 }
 
 tasks.named("compileJava") { dependsOn 'generateClassNameTries' }
+tasks.named("compileJmhJava") { dependsOn tasks.named("compileTestJava") }
+tasks.named("compileTestJava") { dependsOn('generateTestClassNameTries') }
+
 tasks.named("sourcesJar") { dependsOn 'generateClassNameTries' }
 
-tasks.named("compileJmhJava") { dependsOn tasks.named("compileTestJava") }
+tasks.named("forbiddenApisJmh") { ignoreFailures = true }
 
-tasks.named("forbiddenApisJmh") {
-  ignoreFailures = true
-}
-
-tasks.named("compileTestJava") {
-  dependsOn('generateTestClassNameTries')
-}
-tasks.named("compileTestGroovy") {
-  configureCompiler(it,
-    8,
-    JavaVersion.VERSION_1_8,
-    "Groovy generates synthetic accessors methods from superclass, we don't want that for `URLClassLoader`," +
-    " otherwise anonymous class has one `loadClass` accessor's signature has `java.lang.Module`"
-    )
-}
 tasks.named("compileTest_java11Java") {
   configureCompiler(it, 11, JavaVersion.VERSION_11)
 }
+
 tasks.named("compileTest_java21Java") {
   configureCompiler(
     it,
