@@ -1520,7 +1520,9 @@ public class Config {
         configProvider.getBoolean(WRITER_BAGGAGE_INJECT, isDatadogTraceWriter);
     injectLinksAsTagsEnabled = configProvider.getBoolean(WRITER_LINKS_INJECT, isDatadogTraceWriter);
     String lambdaInitType = getEnv("AWS_LAMBDA_INITIALIZATION_TYPE");
-    if (lambdaInitType != null && lambdaInitType.equals("snap-start")) {
+    String lambdaMicrovmImageArn = ConfigHelper.env("AWS_LAMBDA_MICROVM_IMAGE_ARN");
+    if ((lambdaInitType != null && lambdaInitType.equals("snap-start"))
+        || (lambdaMicrovmImageArn != null && !lambdaMicrovmImageArn.isEmpty())) {
       secureRandom = true;
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);

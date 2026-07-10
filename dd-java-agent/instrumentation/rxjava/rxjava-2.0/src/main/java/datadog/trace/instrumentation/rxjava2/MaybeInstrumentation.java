@@ -38,7 +38,7 @@ public final class MaybeInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onConstruct(@Advice.This final Maybe<?> maybe) {
       Context parentContext = currentContext();
-      if (parentContext != null && parentContext != rootContext()) {
+      if (parentContext != rootContext()) {
         InstrumentationContext.get(Maybe.class, Context.class).put(maybe, parentContext);
       }
     }

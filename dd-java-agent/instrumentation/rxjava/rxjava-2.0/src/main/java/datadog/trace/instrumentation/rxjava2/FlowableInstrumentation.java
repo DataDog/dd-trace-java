@@ -39,7 +39,7 @@ public final class FlowableInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onConstruct(@Advice.This final Flowable<?> flowable) {
       Context parentContext = currentContext();
-      if (parentContext != null && parentContext != rootContext()) {
+      if (parentContext != rootContext()) {
         InstrumentationContext.get(Flowable.class, Context.class).put(flowable, parentContext);
       }
     }

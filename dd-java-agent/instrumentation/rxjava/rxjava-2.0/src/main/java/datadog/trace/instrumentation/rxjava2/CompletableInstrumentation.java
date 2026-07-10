@@ -39,7 +39,7 @@ public final class CompletableInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onConstruct(@Advice.This final Completable completable) {
       Context parentContext = currentContext();
-      if (parentContext != null && parentContext != rootContext()) {
+      if (parentContext != rootContext()) {
         InstrumentationContext.get(Completable.class, Context.class)
             .put(completable, parentContext);
       }
