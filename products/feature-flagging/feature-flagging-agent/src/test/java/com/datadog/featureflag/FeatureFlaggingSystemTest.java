@@ -2,6 +2,7 @@ package com.datadog.featureflag;
 
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -107,6 +108,16 @@ class FeatureFlaggingSystemTest {
     assertNull(
         FeatureFlaggingSystem.createConfigurationSourceService(
             sharedCommunicationObjects(), Config.get()));
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
+  void startWithOfflineConfigurationSourceSkipsConfigService() {
+    try {
+      assertDoesNotThrow(() -> FeatureFlaggingSystem.start(sharedCommunicationObjects()));
+    } finally {
+      FeatureFlaggingSystem.stop();
+    }
   }
 
   private static SharedCommunicationObjects sharedCommunicationObjects() {

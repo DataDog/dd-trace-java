@@ -4,17 +4,21 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +32,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +41,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class AgentlessConfigurationSourceTest {
+  private static final String CONFIG_PATH = "/api/v2/feature-flagging/config/server-distribution";
 
   @Mock private FeatureFlaggingGateway.ConfigListener listener;
 
@@ -55,6 +61,97 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
+  void derivesDatadogApiServerDistributionEndpointWithoutEnv() {
+    assertEquals(
+        "https://api.datadoghq.com/api/v2/feature-flagging/config/server-distribution",
+        AgentlessConfigurationSource.endpoint(config("datadoghq.com", "")).toString());
+    assertEquals(
+        "https://api.datadoghq.com/api/v2/feature-flagging/config/server-distribution",
+        AgentlessConfigurationSource.endpoint(config("datadoghq.com", null)).toString());
+  }
+
+  @Test
+  void rejectsInvalidDatadogApiServerDistributionEndpoint() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> AgentlessConfigurationSource.endpoint(config("datadoghq.com:bad", "")));
+  }
+
+  @Test
+  void defaultConstructorBuildsHttpClientFromConfig() {
+    final AgentlessConfigurationSource service =
+        new AgentlessConfigurationSource(config("datad0g.com", "staging"));
+
+    service.close();
+  }
+
+  @Test
+  void realHttpClientSendsAgentlessHeadersAndReadsResponse() throws Exception {
+    try (JavaTestHttpServer server =
+        JavaTestHttpServer.httpServer(
+            s ->
+                s.handlers(
+                    h ->
+                        h.get(
+                            CONFIG_PATH,
+                            api ->
+                                api.getResponse()
+                                    .addHeader("ETag", "etag-b")
+                                    .send(emptyConfig()))))) {
+      final OkHttpClient httpClient = new OkHttpClient.Builder().build();
+      final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
+          new AgentlessConfigurationSource.OkHttpUfcHttpClient(httpClient);
+
+      try {
+        final AgentlessConfigurationSource.UfcHttpResponse response =
+            client.fetch(HttpUrl.get(server.getAddress().resolve(CONFIG_PATH)), config(), "etag-a");
+
+        assertEquals(HttpURLConnection.HTTP_OK, response.status);
+        assertEquals("etag-b", response.etag);
+        assertEquals(emptyConfig(), new String(response.body, UTF_8));
+        assertEquals("test-api-key", server.getLastRequest().getHeader("DD-API-KEY"));
+        assertEquals("etag-a", server.getLastRequest().getHeader("If-None-Match"));
+        assertEquals("java", server.getLastRequest().getHeader("Datadog-Meta-Lang"));
+      } finally {
+        httpClient.dispatcher().executorService().shutdownNow();
+        httpClient.connectionPool().evictAll();
+      }
+    }
+  }
+
+  @Test
+  void realHttpClientAllowsMissingEtagAndEmptyResponseBody() throws Exception {
+    try (JavaTestHttpServer server =
+        JavaTestHttpServer.httpServer(
+            s ->
+                s.handlers(
+                    h ->
+                        h.get(
+                            CONFIG_PATH,
+                            api ->
+                                api.getResponse()
+                                    .status(HttpURLConnection.HTTP_NO_CONTENT)
+                                    .send())))) {
+      final OkHttpClient httpClient = new OkHttpClient.Builder().build();
+      final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
+          new AgentlessConfigurationSource.OkHttpUfcHttpClient(httpClient);
+
+      try {
+        final AgentlessConfigurationSource.UfcHttpResponse response =
+            client.fetch(HttpUrl.get(server.getAddress().resolve(CONFIG_PATH)), config(), null);
+
+        assertEquals(HttpURLConnection.HTTP_NO_CONTENT, response.status);
+        assertNull(response.etag);
+        assertEquals(0, response.body.length);
+        assertNull(server.getLastRequest().getHeader("If-None-Match"));
+      } finally {
+        httpClient.dispatcher().executorService().shutdownNow();
+        httpClient.connectionPool().evictAll();
+      }
+    }
+  }
+
+  @Test
   void appliesAcceptedUfcThroughGatewayAndSendsApiKey() throws Exception {
     final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
     final AgentlessConfigurationSource service = service(client);
@@ -65,6 +162,20 @@ class AgentlessConfigurationSourceTest {
     verify(listener).accept(any(ServerConfiguration.class));
     assertEquals("test-api-key", client.requests.get(0).apiKey);
     assertNull(client.requests.get(0).etag);
+  }
+
+  @Test
+  void ignoresBlankEtag() throws Exception {
+    final FakeClient client =
+        new FakeClient(response(200, " ", emptyConfig()), response(304, null, null));
+    final AgentlessConfigurationSource service = service(client);
+    FeatureFlaggingGateway.addConfigListener(listener);
+
+    assertTrue(service.pollOnce());
+    assertTrue(service.pollOnce());
+
+    assertNull(client.requests.get(1).etag);
+    verify(listener).accept(any(ServerConfiguration.class));
   }
 
   @Test
@@ -99,6 +210,27 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
+  void rejectsForbiddenNonOkMissingBodyAndNullConfiguration() throws Exception {
+    final FakeClient client =
+        new FakeClient(
+            response(403, null, null),
+            response(404, null, null),
+            response(600, null, null),
+            response(200, null, null),
+            response(200, null, "null"));
+    final AgentlessConfigurationSource service = service(client);
+    FeatureFlaggingGateway.addConfigListener(listener);
+
+    assertFalse(service.pollOnce());
+    assertFalse(service.pollOnce());
+    assertFalse(service.pollOnce());
+    assertFalse(service.pollOnce());
+    assertFalse(service.pollOnce());
+
+    verifyNoInteractions(listener);
+  }
+
+  @Test
   void retriesTimeoutBeforeApplyingConfig() throws Exception {
     final FakeClient client =
         new FakeClient(
@@ -115,6 +247,24 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
+  void retriesClientTimeoutAndRateLimitStatusBeforeApplyingConfig() throws Exception {
+    final FakeClient client =
+        new FakeClient(
+            response(408, null, null),
+            response(200, "etag-a", emptyConfig()),
+            response(429, null, null),
+            response(200, "etag-b", emptyConfig()));
+    final AgentlessConfigurationSource service = service(client);
+    FeatureFlaggingGateway.addConfigListener(listener);
+
+    assertTrue(service.pollOnce());
+    assertTrue(service.pollOnce());
+
+    assertEquals(4, client.calls.get());
+    verify(listener, times(2)).accept(any(ServerConfiguration.class));
+  }
+
+  @Test
   void retriesServerErrorThenKeepsColdStateOnNotModified() throws Exception {
     final FakeClient client = new FakeClient(response(500, null, null), response(304, null, null));
     final AgentlessConfigurationSource service = service(client);
@@ -123,6 +273,36 @@ class AgentlessConfigurationSourceTest {
     assertTrue(service.pollOnce());
 
     assertEquals(2, client.calls.get());
+    verifyNoInteractions(listener);
+  }
+
+  @Test
+  void givesUpAfterRetryableFailuresAreExhausted() throws Exception {
+    final FakeClient client =
+        new FakeClient(
+            response(503, null, null), response(503, null, null), response(503, null, null));
+    final AgentlessConfigurationSource service = service(client);
+    FeatureFlaggingGateway.addConfigListener(listener);
+
+    assertFalse(service.pollOnce());
+
+    assertEquals(3, client.calls.get());
+    verifyNoInteractions(listener);
+  }
+
+  @Test
+  void givesUpAfterIoFailuresAreExhausted() throws Exception {
+    final FakeClient client =
+        new FakeClient(
+            new SocketTimeoutException("slow HTTP configuration source"),
+            new SocketTimeoutException("slow HTTP configuration source"),
+            new SocketTimeoutException("slow HTTP configuration source"));
+    final AgentlessConfigurationSource service = service(client);
+    FeatureFlaggingGateway.addConfigListener(listener);
+
+    assertFalse(service.pollOnce());
+
+    assertEquals(3, client.calls.get());
     verifyNoInteractions(listener);
   }
 
@@ -151,6 +331,25 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
+  void initSchedulesPollAndCloseCancelsFuture() throws Exception {
+    final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
+    final AgentlessConfigurationSource service =
+        new AgentlessConfigurationSource(
+            HttpUrl.get("http://localhost" + CONFIG_PATH),
+            config(),
+            1,
+            client,
+            Executors.newSingleThreadScheduledExecutor());
+    FeatureFlaggingGateway.addConfigListener(listener);
+
+    service.init();
+    awaitCalls(client, 1);
+    service.close();
+
+    verify(listener).accept(any(ServerConfiguration.class));
+  }
+
+  @Test
   void closePreventsFurtherPolls() throws Exception {
     final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
     final AgentlessConfigurationSource service = service(client);
@@ -161,14 +360,34 @@ class AgentlessConfigurationSourceTest {
     assertEquals(0, client.calls.get());
   }
 
+  @Test
+  void initAfterCloseDoesNotSchedulePoll() throws Exception {
+    final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
+    final AgentlessConfigurationSource service = service(client);
+
+    service.close();
+    service.init();
+
+    assertEquals(0, client.calls.get());
+  }
+
+  @Test
+  void threadFactoryCreatesDaemonPollerThread() {
+    final Thread thread =
+        new AgentlessConfigurationSource.UfcHttpThreadFactory().newThread(() -> {});
+
+    assertEquals("dd-feature-flagging-http-poller", thread.getName());
+    assertTrue(thread.isDaemon());
+  }
+
   private static AgentlessConfigurationSource service(final FakeClient client) {
     final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     return new AgentlessConfigurationSource(
-        HttpUrl.get("http://localhost/api/v2/feature-flagging/config/server-distribution"),
-        config("datadoghq.com", ""),
-        60_000,
-        client,
-        executor);
+        HttpUrl.get("http://localhost" + CONFIG_PATH), config(), 60_000, client, executor);
+  }
+
+  private static Config config() {
+    return config("datadoghq.com", "");
   }
 
   private static Config config(final String site, final String env) {
@@ -198,6 +417,16 @@ class AgentlessConfigurationSourceTest {
         + "\"environment\":{\"name\":\"Test\"},"
         + "\"flags\":{}"
         + "}";
+  }
+
+  private static void awaitCalls(final FakeClient client, final int count) throws Exception {
+    for (int i = 0; i < 100; i++) {
+      if (client.calls.get() >= count) {
+        return;
+      }
+      TimeUnit.MILLISECONDS.sleep(10);
+    }
+    assertEquals(count, client.calls.get());
   }
 
   private static final class FakeClient implements AgentlessConfigurationSource.UfcHttpClient {
@@ -232,6 +461,9 @@ class AgentlessConfigurationSourceTest {
       final Object response = responses.remove();
       if (response instanceof IOException) {
         throw (IOException) response;
+      }
+      if (response instanceof RuntimeException) {
+        throw (RuntimeException) response;
       }
       return (AgentlessConfigurationSource.UfcHttpResponse) response;
     }

@@ -34,23 +34,18 @@ public class FeatureFlaggingSystem {
     final ConfigurationSource configurationSource =
         ConfigurationSource.from(config.getFeatureFlaggingConfigurationSource());
 
-    switch (configurationSource) {
-      case REMOTE_CONFIG:
-        if (!config.isRemoteConfigEnabled()) {
-          throw new IllegalStateException("Feature Flagging system started without RC");
-        }
-        return new RemoteConfigServiceImpl(sco, config);
-      case AGENTLESS:
-        return new AgentlessConfigurationSource(config);
-      case OFFLINE:
-        LOGGER.debug(
-            "Feature Flagging offline configuration source selected; no config service started");
-        return null;
-      default:
-        throw new IllegalArgumentException(
-            "Unsupported Feature Flagging configuration source: "
-                + config.getFeatureFlaggingConfigurationSource());
+    if (configurationSource == ConfigurationSource.REMOTE_CONFIG) {
+      if (!config.isRemoteConfigEnabled()) {
+        throw new IllegalStateException("Feature Flagging system started without RC");
+      }
+      return new RemoteConfigServiceImpl(sco, config);
     }
+    if (configurationSource == ConfigurationSource.AGENTLESS) {
+      return new AgentlessConfigurationSource(config);
+    }
+    LOGGER.debug(
+        "Feature Flagging offline configuration source selected; no config service started");
+    return null;
   }
 
   public static void stop() {

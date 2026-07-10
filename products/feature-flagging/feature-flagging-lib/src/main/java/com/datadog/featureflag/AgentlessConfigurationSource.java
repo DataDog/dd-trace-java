@@ -113,7 +113,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
   }
 
   private boolean fetchAndApply() {
-    for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    for (int attempt = 1; ; attempt++) {
       try {
         final UfcHttpResponse response = client.fetch(endpoint, config, etag);
         if (isRetryableStatus(response.status) && attempt < MAX_ATTEMPTS) {
@@ -127,7 +127,6 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         }
       }
     }
-    return false;
   }
 
   private boolean apply(final UfcHttpResponse response) {
@@ -220,10 +219,10 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     }
   }
 
-  private static final class OkHttpUfcHttpClient implements UfcHttpClient {
+  static final class OkHttpUfcHttpClient implements UfcHttpClient {
     private final OkHttpClient httpClient;
 
-    private OkHttpUfcHttpClient(final OkHttpClient httpClient) {
+    OkHttpUfcHttpClient(final OkHttpClient httpClient) {
       this.httpClient = httpClient;
     }
 
@@ -237,15 +236,12 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       final Request request = prepareRequest(endpoint, headers, config, true).get().build();
       try (Response response = httpClient.newCall(request).execute()) {
         final ResponseBody responseBody = response.body();
-        return new UfcHttpResponse(
-            response.code(),
-            response.header("ETag"),
-            responseBody == null ? null : responseBody.bytes());
+        return new UfcHttpResponse(response.code(), response.header("ETag"), responseBody.bytes());
       }
     }
   }
 
-  private static final class UfcHttpThreadFactory implements ThreadFactory {
+  static final class UfcHttpThreadFactory implements ThreadFactory {
     @Override
     public Thread newThread(final Runnable runnable) {
       final Thread thread = new Thread(runnable, "dd-feature-flagging-http-poller");
