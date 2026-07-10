@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.doAnswer;
@@ -25,7 +24,6 @@ import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.util.TestSnapshotListener;
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
@@ -134,13 +132,8 @@ public class DebuggerTransformerTest {
     DebuggerContext.initProbeResolver(null);
   }
 
-  private static void assumeNotJdk27() {
-    assumeFalse(JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
-  }
-
   @Test
   public void testDump() {
-    assumeNotJdk27();
     Config config = createConfig();
     Path initialTmpDir = DebuggerTransformer.DUMP_PATH;
     DebuggerTransformer.DUMP_PATH = Paths.get("/tmp/debugger");
@@ -178,7 +171,6 @@ public class DebuggerTransformerTest {
 
   @Test
   public void testMultiProbes() {
-    assumeNotJdk27();
     doTestMultiProbes(
         Class::getName,
         new ProbeTestInfo(ArrayList.class, "add"),
@@ -187,7 +179,6 @@ public class DebuggerTransformerTest {
 
   @Test
   public void testMultiProbesSimpleName() {
-    assumeNotJdk27();
     doTestMultiProbes(
         Class::getSimpleName,
         new ProbeTestInfo(ArrayList.class, "add"),
@@ -282,7 +273,6 @@ public class DebuggerTransformerTest {
 
   @Test
   public void classBeingRedefinedNull() {
-    assumeNotJdk27();
     Config config = createConfig();
     LogProbe logProbe = LogProbe.builder().where("ArrayList", "add").probeId("", 0).build();
     Configuration configuration =
@@ -315,7 +305,6 @@ public class DebuggerTransformerTest {
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9: Flaky")
   public void classGenerationFailed() {
-    assumeNotJdk27();
     Config config = createConfig();
     final String CLASS_NAME = ArrayList.class.getTypeName();
     final String METHOD_NAME = "add";
@@ -382,7 +371,6 @@ public class DebuggerTransformerTest {
 
   @Test
   public void ordering() {
-    assumeNotJdk27();
     Config config = createConfig();
     List<ProbeDefinition> invocationOrder = new ArrayList<>();
     MetricProbe metricProbe = createMock(MetricProbe.class, invocationOrder, "metric");

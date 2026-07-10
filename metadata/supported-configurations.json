@@ -749,7 +749,7 @@
       {
         "version": "A",
         "type": "string",
-        "default": "0.8.14",
+        "default": "0.8.15",
         "aliases": []
       }
     ],
