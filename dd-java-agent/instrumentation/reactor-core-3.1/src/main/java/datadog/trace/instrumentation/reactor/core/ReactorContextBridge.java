@@ -4,6 +4,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import reactor.core.CoreSubscriber;
@@ -48,38 +49,43 @@ public final class ReactorContextBridge {
   /**
    * On subscribe, hands the explicit context recorded for {@code subscriber} (a context-writing
    * subscriber) to the publisher store so the reactive-streams layer can propagate it, and attaches
-   * it.
+   * it. The deposit is {@linkplain HandoffContext#threadConfined thread-confined} since the
+   * subscribed publisher may be a concurrently-subscribed shared sink.
    */
   public static ContextScope captureOnSubscribe(
       final Publisher<?> publisher,
       final Subscriber<?> subscriber,
-      final ContextStore<Publisher, Context> publisherContexts,
+      final ContextStore<Publisher, HandoffContext> publisherContexts,
       final ContextStore<Subscriber, Context> subscriberContexts) {
     final Context context = subscriberContexts.get(subscriber);
     if (context == null) {
       return null;
     }
 
-    publisherContexts.put(publisher, context);
+    publisherContexts.put(publisher, HandoffContext.threadConfined(context));
     return attachIfRequired(context, Context.current());
   }
 
   public static ContextScope activateForBlocking(
-      final Publisher<?> publisher, final ContextStore<Publisher, Context> publisherContexts) {
-    return attachIfRequired(publisherContexts.get(publisher), Context.current());
+      final Publisher<?> publisher,
+      final ContextStore<Publisher, HandoffContext> publisherContexts) {
+    final HandoffContext handoff = publisherContexts.get(publisher);
+    return attachIfRequired(
+        handoff == null ? null : handoff.contextForCurrentThread(), Context.current());
   }
 
   public static void transferToOptimizedSubscriber(
       final Publisher<?> publisher,
       final Subscriber<?> source,
       final Subscriber<?> target,
-      final ContextStore<Publisher, Context> publisherContexts,
+      final ContextStore<Publisher, HandoffContext> publisherContexts,
       final ContextStore<Subscriber, Context> subscriberContexts) {
     if (source == null || target == null) {
       return;
     }
 
-    Context context = publisherContexts.get(publisher);
+    final HandoffContext handoff = publisherContexts.get(publisher);
+    Context context = handoff == null ? null : handoff.contextForCurrentThread();
     if (context == null) {
       context = subscriberContexts.get(source);
     }

@@ -1,10 +1,8 @@
 package datadog.trace.instrumentation.netty41.client;
 
-import static datadog.context.Context.current;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
@@ -81,7 +79,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     NettyHttpClientDecorator decorate = isSecure ? DECORATE_SECURE : DECORATE;
 
     final AgentSpan span = startSpan(NETTY_CLIENT.toString(), NETTY_CLIENT_REQUEST);
-    final Context context = getCurrentContext().with(span);
+    final Context context = Context.current().with(span);
     try (final ContextScope scope = activateSpan(span)) {
       decorate.afterStart(span);
       decorate.onRequest(span, request);
@@ -93,7 +91,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
 
       // AWS calls are often signed, so we can't add headers without breaking the signature.
       if (!awsClientCall) {
-        DECORATE.injectContext(current(), request.headers(), SETTER);
+        DECORATE.injectContext(Context.current(), request.headers(), SETTER);
       }
 
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(context);
