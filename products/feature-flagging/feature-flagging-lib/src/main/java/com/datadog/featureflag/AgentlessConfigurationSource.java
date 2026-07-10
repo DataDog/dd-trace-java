@@ -170,13 +170,33 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
   }
 
   static HttpUrl endpoint(final Config config) {
-    final String endpoint = datadogApiServerDistributionEndpoint(config);
+    final String configuredBaseUrl = config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl();
+    final String endpoint =
+        configuredBaseUrl == null
+            ? datadogApiServerDistributionEndpoint(config)
+            : endpointFromConfiguredBaseUrl(configuredBaseUrl);
     final HttpUrl parsed = HttpUrl.parse(endpoint);
     if (parsed == null) {
       throw new IllegalArgumentException(
           "Invalid Feature Flagging HTTP configuration source URL: " + endpoint);
     }
     return parsed;
+  }
+
+  private static String endpointFromConfiguredBaseUrl(final String configuredBaseUrl) {
+    final HttpUrl parsed = HttpUrl.parse(configuredBaseUrl.trim());
+    if (parsed == null) {
+      throw new IllegalArgumentException(
+          "Invalid Feature Flagging HTTP configuration source URL: " + configuredBaseUrl);
+    }
+    if ("/".equals(parsed.encodedPath()) || parsed.encodedPath().isEmpty()) {
+      return parsed
+          .newBuilder()
+          .addPathSegments(DATADOG_API_SERVER_DISTRIBUTION_PATH.substring(1))
+          .build()
+          .toString();
+    }
+    return parsed.toString();
   }
 
   private static String datadogApiServerDistributionEndpoint(final Config config) {

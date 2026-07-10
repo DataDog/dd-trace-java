@@ -71,6 +71,41 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
+  void appendsServerDistributionPathToConfiguredAgentlessBaseUrl() {
+    final Config config = config();
+    lenient()
+        .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
+        .thenReturn("http://mock-backend:8080");
+
+    assertEquals(
+        "http://mock-backend:8080/api/v2/feature-flagging/config/server-distribution",
+        AgentlessConfigurationSource.endpoint(config).toString());
+  }
+
+  @Test
+  void usesConfiguredAgentlessEndpointWithPathUnchanged() {
+    final Config config = config();
+    lenient()
+        .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
+        .thenReturn("http://mock-backend:8080/custom/ufc?tenant=test");
+
+    assertEquals(
+        "http://mock-backend:8080/custom/ufc?tenant=test",
+        AgentlessConfigurationSource.endpoint(config).toString());
+  }
+
+  @Test
+  void rejectsInvalidConfiguredAgentlessBaseUrl() {
+    final Config config = config();
+    lenient()
+        .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
+        .thenReturn("not a URL");
+
+    assertThrows(
+        IllegalArgumentException.class, () -> AgentlessConfigurationSource.endpoint(config));
+  }
+
+  @Test
   void rejectsInvalidDatadogApiServerDistributionEndpoint() {
     assertThrows(
         IllegalArgumentException.class,
@@ -398,6 +433,7 @@ class AgentlessConfigurationSourceTest {
     lenient()
         .when(config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds())
         .thenReturn(2.0D);
+    lenient().when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl()).thenReturn(null);
     lenient().when(config.getApiKey()).thenReturn("test-api-key");
     lenient().when(config.getSite()).thenReturn(site);
     lenient().when(config.getEnv()).thenReturn(env);

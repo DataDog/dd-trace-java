@@ -365,6 +365,7 @@ import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_EXCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_SHADING_IDENTIFIERS;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL;
@@ -1220,6 +1221,7 @@ public class Config {
   private final int remoteConfigMaxExtraServices;
 
   private final String featureFlaggingConfigurationSource;
+  private final String featureFlaggingConfigurationSourceAgentlessBaseUrl;
   private final double featureFlaggingConfigurationSourcePollIntervalSeconds;
   private final double featureFlaggingConfigurationSourceRequestTimeoutSeconds;
 
@@ -2849,6 +2851,9 @@ public class Config {
         normalizeFeatureFlaggingConfigurationSource(
             configProvider.getString(
                 FEATURE_FLAGS_CONFIGURATION_SOURCE, DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE));
+    featureFlaggingConfigurationSourceAgentlessBaseUrl =
+        configProvider.getStringNotEmpty(
+            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
     featureFlaggingConfigurationSourcePollIntervalSeconds =
         configProvider.getDouble(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS,
@@ -4687,6 +4692,10 @@ public class Config {
 
   public String getFeatureFlaggingConfigurationSource() {
     return featureFlaggingConfigurationSource;
+  }
+
+  public String getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() {
+    return featureFlaggingConfigurationSourceAgentlessBaseUrl;
   }
 
   public double getFeatureFlaggingConfigurationSourcePollIntervalSeconds() {
@@ -6531,6 +6540,8 @@ public class Config {
         + remoteConfigIntegrityCheckEnabled
         + ", featureFlaggingConfigurationSource="
         + featureFlaggingConfigurationSource
+        + ", featureFlaggingConfigurationSourceAgentlessBaseUrl="
+        + featureFlaggingConfigurationSourceAgentlessBaseUrl
         + ", featureFlaggingConfigurationSourcePollIntervalSeconds="
         + featureFlaggingConfigurationSourcePollIntervalSeconds
         + ", featureFlaggingConfigurationSourceRequestTimeoutSeconds="

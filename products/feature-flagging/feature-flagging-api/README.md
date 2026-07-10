@@ -86,6 +86,10 @@ OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 
 - Java 11+
 - `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` uses the Datadog agentless
-  backend. `remote_config` uses the existing Agent Remote Configuration path.
-  `offline` is reserved for startup-provided UFC bytes; until those bytes are
-  implemented, no network source starts and evaluations use defaults.
+  backend. Set `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` to a
+  different HTTP backend while keeping agentless delivery semantics. A bare
+  host uses the standard server-distribution path; a URL with a path is used as
+  the exact UFC endpoint. `remote_config` uses the existing Agent Remote
+  Configuration path. `offline` is reserved for startup-provided UFC bytes;
+  until those bytes are implemented, no network source starts and evaluations
+  use defaults.
