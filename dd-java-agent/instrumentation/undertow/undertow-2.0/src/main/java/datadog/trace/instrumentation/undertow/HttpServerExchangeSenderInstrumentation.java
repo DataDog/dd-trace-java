@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DATADOG_UNDERTOW_CONTINUATION;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -71,7 +72,7 @@ public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.
       }
       xchg.putAttachment(IgnoreSendAttribute.IGNORE_SEND_KEY, IgnoreSendAttribute.INSTANCE);
 
-      AgentSpan span = AgentSpan.fromContext(continuation.context());
+      AgentSpan span = spanFromContext(continuation.context());
       Flow<Void> flow =
           UndertowDecorator.DECORATE.callIGCallbackResponseAndHeaders(
               span, xchg, xchg.getStatusCode(), UndertowExtractAdapter.Response.GETTER);

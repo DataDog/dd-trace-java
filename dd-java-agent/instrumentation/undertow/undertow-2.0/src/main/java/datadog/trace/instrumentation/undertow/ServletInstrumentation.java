@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
@@ -66,7 +67,7 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
         @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
       ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
       if (continuation != null) {
-        AgentSpan undertowSpan = AgentSpan.fromContext(continuation.context());
+        AgentSpan undertowSpan = spanFromContext(continuation.context());
         ServletRequest request = servletRequestContext.getServletRequest();
         request.setAttribute(DD_CONTEXT_ATTRIBUTE, continuation.context());
         undertowSpan.setSpanName(SERVLET_REQUEST);

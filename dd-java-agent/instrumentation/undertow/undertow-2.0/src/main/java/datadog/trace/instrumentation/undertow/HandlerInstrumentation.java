@@ -115,7 +115,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
       ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
       if (continuation != null) {
         // not yet complete, not ready to do final activation of continuation
-        scope = AgentSpan.fromContext(continuation.context()).attach();
+        scope = spanFromContext(continuation.context()).attach();
         return;
       }
 
