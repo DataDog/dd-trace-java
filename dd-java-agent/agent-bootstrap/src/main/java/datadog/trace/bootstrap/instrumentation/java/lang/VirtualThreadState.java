@@ -8,11 +8,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 /**
  * Holds the context and continuation for a virtual thread.
  *
- * <p>With the legacy context manager, {@code swap()} rebuilds the whole scope stack on every
- * mount/unmount, which is costly on the virtual-thread park/unpark hot path. There the context is
- * seeded once on the first mount; it then follows the thread across park/unpark and carrier
- * migration via its virtual-thread-aware {@code ThreadLocal} scope stack, and the profiler context
- * (which is keyed by carrier thread) is re-applied on each subsequent mount and cleared on unmount.
+ * <p>The legacy context manager's {@code swap()} wraps the current scope stack together with the
+ * context so the original stack can be restored when the context is swapped back; doing that on
+ * every mount/unmount is costly on the virtual-thread park/unpark hot path. So instead the context
+ * is seeded once on the first mount, then follows the thread across park/unpark and carrier
+ * migration via its virtual-thread-aware {@code ThreadLocal} scope stack, while the profiler
+ * context (which is keyed by carrier thread) is re-applied on each subsequent mount and restored on
+ * unmount.
  *
  * <p>With the new context manager {@code swap()} is cheap and drives the profiler through its
  * context listener, so we simply swap in on mount and out on unmount.
