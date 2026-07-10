@@ -1163,6 +1163,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
+  public TraceScope.Continuation captureActiveSpan() {
+    // ContinuableScopeManager always returns ScopeContinuation or NoopContinuation,
+    // both of which implement TraceScope.Continuation and ContextContinuation.
+    return (TraceScope.Continuation) scopeManager.capture(Context.current());
+  }
+
+  @Override
   public ContextContinuation captureSpan(final AgentSpan span) {
     return scopeManager.captureSpan(span);
   }
