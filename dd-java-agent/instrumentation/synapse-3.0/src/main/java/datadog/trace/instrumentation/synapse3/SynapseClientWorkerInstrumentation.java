@@ -16,7 +16,6 @@ import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.http.HttpResponse;
@@ -70,15 +69,7 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
       ContextContinuation continuation =
           (ContextContinuation)
               response.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
-      if (null != continuation) {
-        AgentScope agentScope = (AgentScope) continuation.resume();
-        try {
-          return agentScope.span().attachWithContext();
-        } finally {
-          agentScope.close();
-        }
-      }
-      return null;
+      return null != continuation ? continuation.resume() : null;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
