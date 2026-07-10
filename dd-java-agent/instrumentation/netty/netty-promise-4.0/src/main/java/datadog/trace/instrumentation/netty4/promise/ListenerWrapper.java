@@ -62,7 +62,8 @@ public final class ListenerWrapper {
     @Override
     public void operationProgressed(S future, long progress, long total) throws Exception {
       // not yet complete, not ready to do final activation of continuation
-      try (ContextScope scope = activateSpan(AgentSpan.fromContext(continuation.context()))) {
+      AgentSpan span = AgentSpan.fromContext(continuation.context());
+      try (ContextScope scope = span != null ? activateSpan(span) : null) {
         listener.operationProgressed(future, progress, total);
       }
     }
