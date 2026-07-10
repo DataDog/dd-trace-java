@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.java.lang;
 
 import datadog.context.Context;
+import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -20,8 +21,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
  * context listener, so we simply swap in on mount and out on unmount.
  */
 public final class VirtualThreadState {
-  private static final boolean LEGACY_CONTEXT_MANAGER =
-      InstrumenterConfig.get().isLegacyContextManagerEnabled();
+  // note: cws is relying on scope listener. This is disabled by default but when enabled
+  // let's use the full swap logic since otherwise listeners won't be called
+  private static final boolean USE_SIMPLE_SWAP =
+      !InstrumenterConfig.get().isLegacyContextManagerEnabled() || Config.get().isCwsEnabled();
 
   /** The virtual thread's saved context (scope stack snapshot). */
   private Context context;
@@ -38,7 +41,9 @@ public final class VirtualThreadState {
   }
 
   public void onMount() {
-    if (LEGACY_CONTEXT_MANAGER) {
+    if (USE_SIMPLE_SWAP) {
+      previousContext = context.swap();
+    } else {
       if (context != null) {
         // First mount also applies the profiler context to the carrier.
         previousContext = context.swap();
@@ -46,18 +51,16 @@ public final class VirtualThreadState {
       } else {
         AgentTracer.get().getProfilingContext().setContext(Context.current());
       }
-    } else {
-      previousContext = context.swap();
     }
   }
 
   public void onUnmount() {
     if (previousContext != null) {
-      if (LEGACY_CONTEXT_MANAGER) {
-        AgentTracer.get().getProfilingContext().setContext(previousContext);
-      } else {
+      if (USE_SIMPLE_SWAP) {
         context = previousContext.swap();
         previousContext = null;
+      } else {
+        AgentTracer.get().getProfilingContext().setContext(previousContext);
       }
     }
   }
