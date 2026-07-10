@@ -15,8 +15,8 @@ public class SpanFinishListener implements FutureListener<Object> {
 
   @Override
   public void operationComplete(Future<Object> future) throws Exception {
-    AgentSpan span = AgentSpan.fromContext(continuation.context());
     try (final ContextScope scope = continuation.resume()) {
+      AgentSpan span = AgentSpan.fromContext(scope.context());
       if (!future.isSuccess()) {
         RedissonClientDecorator.DECORATE.onError(scope, future.cause());
       }

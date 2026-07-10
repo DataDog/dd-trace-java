@@ -14,8 +14,8 @@ public class SpanFinishListener implements BiConsumer<Object, Throwable> {
 
   @Override
   public void accept(Object o, Throwable throwable) {
-    AgentSpan span = AgentSpan.fromContext(continuation.context());
     try (final ContextScope scope = continuation.resume()) {
+      AgentSpan span = AgentSpan.fromContext(scope.context());
       if (throwable != null) {
         RedissonClientDecorator.DECORATE.onError(scope, throwable);
       }

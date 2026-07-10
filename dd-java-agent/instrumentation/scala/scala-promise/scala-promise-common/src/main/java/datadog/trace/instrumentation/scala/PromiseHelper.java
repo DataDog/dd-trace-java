@@ -69,7 +69,7 @@ public class PromiseHelper {
    * mark migration accordingly.
    *
    * @param state the State related to the task becoming active.
-   * @return tha active ContextScope
+   * @return the active ContextScope
    */
   public static ContextScope runActivateSpan(State state) {
     if (state == null) {
