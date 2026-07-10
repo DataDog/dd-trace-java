@@ -92,6 +92,12 @@ protected int status(final HttpMethod httpMethod) {
 
 **How to discover**: when implementing a method that calls library code which may NPE on null internal state, READ the master module's analogous method for the canonical null-check pattern. The master typically exposes the nullable intermediate (e.g. `getStatusLine()`) so you can guard it.
 
+### Do not double-span async HTTP clients
+
+If the target method delegates to a sync client that is already instrumented (common in async-wrapper classes like `AsyncFeignClient`, `AsyncHttpClient`, etc.), do NOT open a second span in the async wrapper. The sync client's advice already opens the client span; wrapping again produces two spans per request, with the outer span holding no additional context.
+
+Before adding advice to an async wrapper, trace the call path to the sync delegate. If the delegate is already instrumented for span emission, the async wrapper only needs context-propagation advice (capture on submission, restore on completion) — not a second span. See `context-tracking.md` for the propagation pattern.
+
 ## Multiple advice classes and `@AppliesOn`
 
 If your instrumentation needs to apply multiple advices to the same method (e.g. separate context-tracking from tracing logic), use `applyAdvices()` inside `methodAdvice()`. Use the `@AppliesOn` annotation to control which target systems each advice applies to.
@@ -107,3 +113,4 @@ See the `@AppliesOn Annotation` section of `docs/how_instrumentations_work.md` f
 - **No `InstrumentationContext.get()`** outside of Advice code
 - **No `inline=false`** in production code (only for debugging; must be removed before committing)
 - **No `java.util.logging.*`, `java.nio.file.*`, or `javax.management.*`** in bootstrap instrumentations
+- **Do not extract advice logic into a helper class just to shorten the advice body.** Advice methods are inlined by ByteBuddy; extracting into `SomethingHelper.doTheThing(...)` adds a static-method hop, an extra file, and misleads reviewers into thinking the helper is shared when it is used by exactly one advice. Keep advice inline unless the same logic is genuinely shared across multiple advice classes. When it IS shared, the helper belongs in `helperClassNames()` and named accordingly (e.g. `TracingUtils`, not `FooBarHelper`). The CallDepth helper-class carveout (see `instrumenter-module.md`) is a separate case for multi-type instrumentations.

@@ -56,6 +56,28 @@ muzzle {
 }
 ```
 
+## Test dependencies must match the module's declared minimum version
+
+The base `testImplementation` dep version in `build.gradle` must match the module's declared minimum version (from the module directory suffix and the muzzle `versions = "[X.Y,)"` range). Do not pin `testImplementation` to a newer version than the module claims to support — the tests will silently exercise a version the module wasn't declared to work with, and `muzzle` won't catch it because muzzle checks classpath compatibility, not test behavior.
+
+```groovy
+// WRONG — module is jedis-3.0 (min = 3.0.0) but tests run against 4.0
+muzzle {
+  pass { group = "redis.clients"; module = "jedis"; versions = "[3.0,)" }
+}
+dependencies {
+  testImplementation("redis.clients:jedis:4.0.0")   // ← breaks the min-version guarantee
+}
+
+// CORRECT — testImplementation at the declared min; latestDepTestImplementation for the newest
+dependencies {
+  testImplementation("redis.clients:jedis:3.0.0")
+  latestDepTestImplementation("redis.clients:jedis:+")
+}
+```
+
+This is a stricter form of the `latestDep` range rule (see Step 9.3 of the main SKILL.md) — it applies to the *base* test dependency too, not just latestDep.
+
 ## Do NOT use `assertInverse = true` unless the declared min is the actual minimum compatible version
 
 The `assertInverse = true` directive tells muzzle to auto-test versions below the declared minimum and assert they fail. If your instrumentation is actually compatible with versions below the declared minimum (a common case when only ONE of several instrumentation classes requires the new feature), this auto-assertion will fail with:

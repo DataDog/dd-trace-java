@@ -39,6 +39,19 @@
 
   ✅ `public String[] triggerClasses() { return new String[]{"com.example.Foo"}; }`
 
+### Before writing a new module, scan for an existing one
+
+Before creating `dd-java-agent/instrumentation/$framework/$framework-$version/`, list the parent directory `dd-java-agent/instrumentation/$framework/` to see what's already there:
+
+```
+ls dd-java-agent/instrumentation/$framework/
+# e.g. commons-httpclient-2.0/  (already exists)
+```
+
+If an existing module covers the same framework at a compatible version, **modify it in place** — do NOT create a parallel `$framework-2.0-generated/` or nested `$framework/$framework-2.0/` copy. Duplicate modules cause muzzle to match twice, double the CI cost, and create reviewer confusion (see PR #10941's "the more I read about it, the less I understand what was done" — a duplicate module that the reviewer could not disentangle from the original).
+
+If the existing module targets a genuinely different version range (e.g. existing `foo-1.0/` and you're adding `foo-3.0/`), a version-sibling is correct — but confirm by reading the existing module's muzzle range first.
+
 ### Module constructor: new modules add a version alias; existing modules preserve existing names
 
 **New module**: pass a generic name AND a version-qualified alias so users can enable/disable this version independently:
@@ -53,6 +66,8 @@ public JedisInstrumentation() {
 The version alias (e.g. `"jedis-3.0"`) maps to `DD_TRACE_JEDIS_3_0_ENABLED`. Do NOT add version aliases to the decorator's `instrumentationNames()` — that method is for analytics keys only.
 
 **Existing module** (modifying, refactoring, or splitting): read the existing module's `super(...)` and copy it verbatim. Integration names are public config API — renaming one silently breaks customer `DD_TRACE_*_ENABLED` settings.
+
+**When regenerating an existing module, preserve every override the master version has.** Not just `super(...)` — also `defaultEnabled()`, `helperClassNames()`, `contextStore()`, `orderPriority()`, `muzzleDirective()`, and any other overridden method. Read the current version of the file (on master) before generating; carry each override forward verbatim unless there's a documented reason to change it. Silent loss of `defaultEnabled() = false` (or similar opt-in flags) ships an integration with a different default than users expected.
 
 ### Do not create a helper class just for CallDepthThreadLocalMap when only one type is instrumented
 
