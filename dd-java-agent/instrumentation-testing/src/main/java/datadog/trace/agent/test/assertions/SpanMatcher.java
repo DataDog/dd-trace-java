@@ -45,6 +45,8 @@ import org.opentest4j.AssertionFailedError;
  *       #durationLongerThan(Duration)}
  *   <li>span type with {@link #type(String)}
  *   <li>span error status with {@link #error()} and {@link #error(boolean)}
+ *   <li>span measured status with {@link #measured()} and {@link #measured(boolean)}
+ *   <li>span top-level status with {@link #topLevel()} and {@link #topLevel(boolean)}
  *   <li>span tags with {@link #tags(TagsMatcher...)}
  *   <li>span links with {@link #links(SpanLinkMatcher...)}
  * </ul>
@@ -60,6 +62,8 @@ public final class SpanMatcher {
   private Matcher<Duration> durationMatcher;
   private Matcher<String> typeMatcher;
   private Matcher<Boolean> errorMatcher;
+  private Matcher<Boolean> measuredMatcher;
+  private Matcher<Boolean> topLevelMatcher;
   private TagsMatcher[] tagMatchers;
   private SpanLinkMatcher[] linkMatchers;
 
@@ -300,6 +304,50 @@ public final class SpanMatcher {
     return this;
   }
 
+  /**
+   * Checks the span is measured.
+   *
+   * @return The current {@link SpanMatcher} instance updated with the specified measured
+   *     constraint.
+   */
+  public SpanMatcher measured() {
+    return measured(true);
+  }
+
+  /**
+   * Checks the span measured status matches the given value.
+   *
+   * @param measured The expected measured status.
+   * @return The current {@link SpanMatcher} instance updated with the specified measured
+   *     constraint.
+   */
+  public SpanMatcher measured(boolean measured) {
+    this.measuredMatcher = measured ? isTrue() : isFalse();
+    return this;
+  }
+
+  /**
+   * Checks the span is a top-level span.
+   *
+   * @return The current {@link SpanMatcher} instance updated with the specified top-level
+   *     constraint.
+   */
+  public SpanMatcher topLevel() {
+    return topLevel(true);
+  }
+
+  /**
+   * Checks the span top-level status matches the given value.
+   *
+   * @param topLevel The expected top-level status.
+   * @return The current {@link SpanMatcher} instance updated with the specified top-level
+   *     constraint.
+   */
+  public SpanMatcher topLevel(boolean topLevel) {
+    this.topLevelMatcher = topLevel ? isTrue() : isFalse();
+    return this;
+  }
+
   public SpanMatcher tags(TagsMatcher... matchers) {
     this.tagMatchers = matchers;
     return this;
@@ -341,6 +389,8 @@ public final class SpanMatcher {
     assertValue(this.durationMatcher, ofNanos(span.getDurationNano()), "Unexpected duration");
     assertValue(this.typeMatcher, span.getSpanType(), "Unexpected span type");
     assertValue(this.errorMatcher, span.isError(), "Unexpected error status");
+    assertValue(this.measuredMatcher, span.isMeasured(), "Unexpected measured status");
+    assertValue(this.topLevelMatcher, span.isTopLevel(), "Unexpected top-level status");
     assertSpanTags(span.getTags());
     assertSpanLinks(spanLinks(span));
   }
