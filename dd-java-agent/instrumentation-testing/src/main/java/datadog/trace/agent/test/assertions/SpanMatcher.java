@@ -399,7 +399,7 @@ public final class SpanMatcher {
           .buildAndThrow();
     }
     for (int i = 0; i < expectedLinkCount; i++) {
-      SpanLinkMatcher linkMatcher = this.linkMatchers[expectedLinkCount];
+      SpanLinkMatcher linkMatcher = this.linkMatchers[i];
       AgentSpanLink link = links.get(i);
       linkMatcher.assertLink(link);
     }
