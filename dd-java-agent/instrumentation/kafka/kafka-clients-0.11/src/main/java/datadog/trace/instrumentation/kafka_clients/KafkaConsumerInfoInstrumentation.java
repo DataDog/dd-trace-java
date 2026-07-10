@@ -283,7 +283,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       }
       AgentSpan span = scope.span();
       span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
-      if (throwable != null && !(throwable instanceof WakeupException)) {
+      if (!(throwable instanceof WakeupException)) {
         span.addThrowable(throwable);
       }
       span.finish();

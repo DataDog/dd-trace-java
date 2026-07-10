@@ -65,7 +65,7 @@ public class RedisSubscriptionSubscribeAdvice {
       @Advice.FieldValue("subscriptionCommand") RedisCommand subscriptionCommand,
       @Advice.Enter State state,
       @Advice.Thrown Throwable throwable) {
-    if (!expectsResponse(command) || throwable != null) {
+    if (throwable != null || !expectsResponse(command)) {
       DECORATE.onError(state.span, throwable);
       DECORATE.beforeFinish(state.span);
       state.span.finish();
