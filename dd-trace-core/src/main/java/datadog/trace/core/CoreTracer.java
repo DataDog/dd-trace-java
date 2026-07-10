@@ -1163,11 +1163,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public ContextContinuation captureActiveContext() {
-    return scopeManager.captureActiveContext();
-  }
-
-  @Override
   public ContextContinuation captureSpan(final AgentSpan span) {
     return scopeManager.captureSpan(span);
   }
