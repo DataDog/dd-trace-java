@@ -53,16 +53,9 @@ class SpanEnrichmentHook implements Hook<Object> {
     }
     try {
       final ImmutableMetadata metadata = details.getFlagMetadata();
-      final String serialIdStr = metadata != null ? metadata.getString(METADATA_SERIAL_ID) : null;
-      if (serialIdStr != null) {
-        final int serialId;
-        try {
-          serialId = Integer.parseInt(serialIdStr);
-        } catch (final NumberFormatException e) {
-          return; // malformed serial id — drop, never break eval
-        }
-        final String doLogStr = metadata.getString(METADATA_DO_LOG);
-        final boolean doLog = "true".equalsIgnoreCase(doLogStr);
+      final Integer serialId = metadata != null ? metadata.getInteger(METADATA_SERIAL_ID) : null;
+      if (serialId != null) {
+        final boolean doLog = Boolean.TRUE.equals(metadata.getBoolean(METADATA_DO_LOG));
         FeatureFlaggingGateway.dispatch(
             SpanEnrichmentEvent.serialId(serialId, doLog, targetingKey(ctx)));
       } else if (details.getVariant() == null) {

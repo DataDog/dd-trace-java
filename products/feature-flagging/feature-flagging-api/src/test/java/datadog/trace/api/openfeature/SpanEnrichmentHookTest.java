@@ -65,9 +65,9 @@ class SpanEnrichmentHookTest {
   private static ImmutableMetadata metadata(final Integer serialId, final boolean doLog) {
     final ImmutableMetadata.ImmutableMetadataBuilder builder = ImmutableMetadata.builder();
     if (serialId != null) {
-      builder.addString(SpanEnrichmentHook.METADATA_SERIAL_ID, serialId.toString());
+      builder.addInteger(SpanEnrichmentHook.METADATA_SERIAL_ID, serialId);
     }
-    builder.addString(SpanEnrichmentHook.METADATA_DO_LOG, String.valueOf(doLog));
+    builder.addBoolean(SpanEnrichmentHook.METADATA_DO_LOG, doLog);
     return builder.build();
   }
 
@@ -116,16 +116,17 @@ class SpanEnrichmentHookTest {
   }
 
   @Test
-  void malformedSerialIdDispatchesNothing() {
+  void wrongTypedSerialIdDispatchesNothing() {
+    // Defensive: a non-integer value under the serial-id key (wrong type) is ignored, not crashed.
     final ImmutableMetadata bad =
         ImmutableMetadata.builder()
             .addString(SpanEnrichmentHook.METADATA_SERIAL_ID, "not-a-number")
-            .addString(SpanEnrichmentHook.METADATA_DO_LOG, "true")
+            .addBoolean(SpanEnrichmentHook.METADATA_DO_LOG, true)
             .build();
     new SpanEnrichmentHook()
         .finallyAfter(
             ctx("flag", "user-1"), details("flag", "on", "v", bad), Collections.emptyMap());
-    assertTrue(captured.isEmpty(), "a malformed serial id must never break eval or dispatch");
+    assertTrue(captured.isEmpty(), "a wrong-typed serial id must never break eval or dispatch");
   }
 
   // ---- runtime-default branch (missing variant) ----

@@ -51,6 +51,14 @@ public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEn
     AgentSpan activeLocalRoot();
   }
 
+  /**
+   * Registers the interceptor with the tracer, returning {@code true} when accepted. Injectable so
+   * tests are deterministic without a globally-installed tracer.
+   */
+  interface InterceptorRegistrar {
+    boolean register(SpanEnrichmentInterceptor interceptor);
+  }
+
   private static final RootSpanResolver DEFAULT_RESOLVER =
       () -> {
         final AgentSpan active = AgentTracer.activeSpan();
@@ -61,7 +69,11 @@ public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEn
         return localRoot != null ? localRoot : active;
       };
 
+  private static final InterceptorRegistrar DEFAULT_REGISTRAR =
+      interceptor -> GlobalTracer.get().addTraceInterceptor(interceptor);
+
   private final RootSpanResolver rootSpanResolver;
+  private final InterceptorRegistrar registrar;
   private final SpanEnrichmentStates states;
   private final SpanEnrichmentInterceptor interceptor;
   // Registered with the tracer at most once, lazily on the first enrichment event with an active
@@ -70,13 +82,20 @@ public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEn
   private final AtomicBoolean interceptorRegistered = new AtomicBoolean(false);
 
   private SpanEnrichmentWriter() {
-    this(DEFAULT_RESOLVER);
+    this(DEFAULT_RESOLVER, DEFAULT_REGISTRAR);
   }
 
-  // Visible for tests: each test gets an isolated writer (own state + interceptor), bypassing the
-  // shared INSTANCE so tests never contaminate each other or the agent singleton.
+  // Visible for tests: an isolated writer (own state + interceptor) whose interceptor registration
+  // is assumed to succeed, bypassing the shared INSTANCE and any globally-installed tracer.
   SpanEnrichmentWriter(final RootSpanResolver rootSpanResolver) {
+    this(rootSpanResolver, interceptor -> true);
+  }
+
+  // Visible for tests: also inject the registrar to exercise the not-registered path.
+  SpanEnrichmentWriter(
+      final RootSpanResolver rootSpanResolver, final InterceptorRegistrar registrar) {
     this.rootSpanResolver = rootSpanResolver;
+    this.registrar = registrar;
     this.states = new SpanEnrichmentStates();
     this.interceptor = new SpanEnrichmentInterceptor(states);
   }
@@ -106,7 +125,11 @@ public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEn
       if (root == null) {
         return; // no active span → nothing to enrich (and nothing to register the interceptor for)
       }
-      ensureInterceptorRegistered();
+      if (!ensureInterceptorRegistered()) {
+        // The interceptor isn't registered (e.g. tracer absent), so nothing would ever flush this
+        // state — skip accumulating. A later event retries registration.
+        return;
+      }
       final SpanEnrichmentAccumulator state = states.getOrCreate(root);
       if (event.hasSerialId()) {
         final int serialId = event.serialId();
@@ -123,25 +146,28 @@ public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEn
     }
   }
 
-  private void ensureInterceptorRegistered() {
+  /**
+   * @return true once the interceptor is registered with the tracer.
+   */
+  private boolean ensureInterceptorRegistered() {
     if (interceptorRegistered.get()) {
-      return;
+      return true;
     }
     synchronized (this) {
       if (interceptorRegistered.get()) {
-        return;
+        return true;
       }
       try {
-        // addTraceInterceptor returns false (without throwing) when the tracer rejects it — e.g.
-        // the
-        // global tracer is still the no-op placeholder. Only latch on success so a later event
-        // retries; otherwise a transient false would permanently disable enrichment.
-        if (GlobalTracer.get().addTraceInterceptor(interceptor)) {
+        // register() returns false (without throwing) when the tracer rejects it — e.g. the global
+        // tracer is still the no-op placeholder. Only latch on success so a later event retries;
+        // otherwise a transient false would permanently disable enrichment.
+        if (registrar.register(interceptor)) {
           interceptorRegistered.set(true);
         }
       } catch (final Throwable t) {
         // Leave unregistered; a later event retries.
       }
+      return interceptorRegistered.get();
     }
   }
 

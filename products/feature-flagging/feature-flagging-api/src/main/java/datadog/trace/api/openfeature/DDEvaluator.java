@@ -409,10 +409,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     // subject.
     if (SPAN_ENRICHMENT_ENABLED) {
       if (split.serialId != null) {
-        metadataBuilder.addString(METADATA_SPLIT_SERIAL_ID, split.serialId.toString());
+        metadataBuilder.addInteger(METADATA_SPLIT_SERIAL_ID, split.serialId);
       }
-      metadataBuilder.addString(
-          METADATA_DO_LOG, String.valueOf(allocation.doLog != null && allocation.doLog));
+      metadataBuilder.addBoolean(METADATA_DO_LOG, allocation.doLog != null && allocation.doLog);
     }
     final ProviderEvaluation<T> result =
         ProviderEvaluation.<T>builder()

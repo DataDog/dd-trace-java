@@ -104,6 +104,16 @@ class SpanEnrichmentWriterTest {
   }
 
   @Test
+  void doesNotAccumulateWhenInterceptorCannotRegister() {
+    final AgentSpan root = rootSpan();
+    // Registrar always rejects → nothing would ever flush the state, so we must not accumulate.
+    final SpanEnrichmentWriter writer = new SpanEnrichmentWriter(() -> root, interceptor -> false);
+    writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
+    assertTrue(
+        writer.states().isEmpty(), "no accumulation when the interceptor cannot be registered");
+  }
+
+  @Test
   void agentSingletonIsStableAcrossRestarts() {
     // FeatureFlaggingSystem reuses this one instance across start/stop, so the (unremovable) trace
     // interceptor is registered exactly once and never re-registered on restart.
