@@ -92,6 +92,20 @@ public class TestDescriptorHandle {
         return copy;
       }
     }
+
+    // per-engine reconstruction (Spock, Cucumber)
+    RetryDescriptorFactory factory =
+        RetryDescriptorFactories.forEngine(JUnitPlatformUtils.getEngineId(testDescriptor));
+    if (factory != null) {
+      TestDescriptor copy = factory.copy(testDescriptor, idTransform);
+      if (copy != null) {
+        // reconstructed descriptors are detached, so we link them back to the original's suite
+        if (copy instanceof AbstractTestDescriptor) {
+          ((AbstractTestDescriptor) copy).setParent(testDescriptor.getParent().orElse(null));
+        }
+        return copy;
+      }
+    }
     return legacyCopy(testDescriptor, idTransform);
   }
 

@@ -260,7 +260,7 @@ public interface AgentSpan
    *
    * @return a scope to be closed when the combined context is invalid.
    */
-  default ContextScope attachWithCurrent() {
+  default ContextScope attachWithContext() {
     return storeInto(Context.current()).attach();
   }
 
