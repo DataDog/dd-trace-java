@@ -90,7 +90,9 @@ public class AgentTracer {
    *
    * @return Continuation of the active span, no-op continuation if there's no active span or
    *     asynchronous propagation is disabled.
+   * @deprecated Use {@link Context#current()} followed by {@link Context#capture()} instead.
    */
+  @Deprecated
   @Nonnull
   public static ContextContinuation captureActiveSpan() {
     return get().captureActiveSpan();
@@ -103,7 +105,9 @@ public class AgentTracer {
    * <p>Should be called on the parent thread.
    *
    * @return Continuation of the given span.
+   * @deprecated Use {@link Context#capture()} instead.
    */
+  @Deprecated
   @Nonnull
   public static ContextContinuation captureSpan(final AgentSpan span) {
     return get().captureSpan(span);
@@ -334,11 +338,12 @@ public class AgentTracer {
     void activateSpanWithoutScope(AgentSpan span);
 
     @Override
+    @Deprecated
     @SuppressWarnings("deprecation")
     AgentScope.Continuation captureActiveSpan();
 
-    @SuppressWarnings("deprecation")
-    AgentScope.Continuation captureSpan(AgentSpan span);
+    @Deprecated
+    ContextContinuation captureSpan(AgentSpan span);
 
     void checkpointActiveForRollback();
 
@@ -504,8 +509,7 @@ public class AgentTracer {
     }
 
     @Override
-    @SuppressWarnings("deprecation")
-    public AgentScope.Continuation captureSpan(final AgentSpan span) {
+    public ContextContinuation captureSpan(final AgentSpan span) {
       return NoopContinuation.INSTANCE;
     }
 
