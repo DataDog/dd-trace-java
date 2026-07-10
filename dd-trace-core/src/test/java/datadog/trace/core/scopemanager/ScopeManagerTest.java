@@ -86,6 +86,10 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
   ProfilingContextIntegration profilingContext;
   Stateful state;
 
+  private ContextContinuation captureActiveSpan() {
+    return (ContextContinuation) tracer.captureActiveSpan();
+  }
+
   @BeforeEach
   void setup() {
     ContextManager.allowTesting();
@@ -204,12 +208,12 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
     AgentSpan span = tracer.buildSpan("test", "test").start();
     tracer.activateSpan(span);
     tracer.setAsyncPropagationEnabled(false);
-    ContextContinuation continuation = (ContextContinuation) tracer.captureActiveSpan();
+    ContextContinuation continuation = captureActiveSpan();
 
     assertSame(noopContinuation(), continuation);
 
     tracer.setAsyncPropagationEnabled(true);
-    continuation = (ContextContinuation) tracer.captureActiveSpan();
+    continuation = captureActiveSpan();
 
     assertNotSame(noopContinuation(), continuation);
     assertNotNull(continuation);
@@ -221,7 +225,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
   void continuationCancelDoesNotCloseParentScope() {
     AgentSpan span = tracer.buildSpan("test", "test").start();
     AgentScope scope = tracer.activateSpan(span);
-    ContextContinuation continuation = (ContextContinuation) tracer.captureActiveSpan();
+    ContextContinuation continuation = captureActiveSpan();
 
     assertNotNull(continuation);
 
@@ -235,7 +239,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
   void testContinuationDoesNotHaveHardReferenceOnScope() throws InterruptedException {
     AgentSpan span = tracer.buildSpan("test", "test").start();
     AtomicReference<AgentScope> scopeRef = new AtomicReference<>(tracer.activateSpan(span));
-    ContextContinuation continuation = (ContextContinuation) tracer.captureActiveSpan();
+    ContextContinuation continuation = captureActiveSpan();
 
     assertNotNull(continuation);
 
@@ -259,7 +263,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
       throws Exception {
     AgentSpan span = tracer.buildSpan("test", "test").start();
     AgentScope scope = tracer.activateSpan(span);
-    ContextContinuation continuation = (ContextContinuation) tracer.captureActiveSpan();
+    ContextContinuation continuation = captureActiveSpan();
 
     assertNotNull(continuation);
 
@@ -285,7 +289,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
     AgentSpan childSpan = tracer.buildSpan("test", "child").start();
     AgentScope childScope = tracer.activateSpan(childSpan);
 
-    ContextContinuation continuation = (ContextContinuation) tracer.captureActiveSpan();
+    ContextContinuation continuation = captureActiveSpan();
     childScope.close();
 
     assertNotNull(continuation);
@@ -317,7 +321,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
     assertTrue(writer.isEmpty());
 
     // creating and activating a second continuation
-    ContextContinuation newContinuation = (ContextContinuation) tracer.captureActiveSpan();
+    ContextContinuation newContinuation = captureActiveSpan();
     newScope.close();
     AgentScope secondContinuedScope = (AgentScope) newContinuation.resume();
     secondContinuedScope.close();
@@ -337,7 +341,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
     // creating and activating a continuation
     AgentSpan span = tracer.buildSpan("test", "test").start();
     AgentScope scope = tracer.activateSpan(span);
-    ContextContinuation continuation = (ContextContinuation) tracer.captureActiveSpan();
+    ContextContinuation continuation = captureActiveSpan();
     scope.close();
     span.finish();
 
@@ -582,7 +586,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
   void closingAContinuedScopeOutOfOrderCancelsTheContinuation() throws Exception {
     AgentSpan span = tracer.buildSpan("test", "test").start();
     AgentScope scope = tracer.activateSpan(span);
-    ContextContinuation continuation = (ContextContinuation) tracer.captureActiveSpan();
+    ContextContinuation continuation = captureActiveSpan();
     scope.close();
     span.finish();
 
@@ -658,7 +662,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
 
     AgentSpan span = tracer.buildSpan("test", "test").start();
     AgentScope scope = tracer.activateSpan(span);
-    ContextContinuation continuation = (ContextContinuation) tracer.captureActiveSpan();
+    ContextContinuation continuation = captureActiveSpan();
     scope.close();
     span.finish();
 
@@ -683,7 +687,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
     // completing another async scope lifecycle
     AgentSpan span2 = tracer.buildSpan("test", "test").start();
     AgentScope scope2 = tracer.activateSpan(span2);
-    ContextContinuation continuation2 = (ContextContinuation) tracer.captureActiveSpan();
+    ContextContinuation continuation2 = captureActiveSpan();
 
     assertNotNull(continuation2);
     assertSame(scope2, scopeManager.active());
@@ -969,7 +973,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
     assertEquals("test-value", scopeManager.current().get(testKey));
 
     AgentScope innerScope = tracer.activateSpan(span);
-    AgentScope scope = (AgentScope) ((ContextContinuation) tracer.captureActiveSpan()).resume();
+    AgentScope scope = (AgentScope) captureActiveSpan().resume();
     innerScope.close();
 
     assertSame(scope, scopeManager.active());
@@ -1107,7 +1111,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
   void continuationResumeActivatesSpan() throws Exception {
     AgentSpan span = tracer.buildSpan("test", "test").start();
     AgentScope scope = tracer.activateSpan(span);
-    ContextContinuation continuation = (ContextContinuation) tracer.captureActiveSpan();
+    ContextContinuation continuation = captureActiveSpan();
     scope.close();
     span.finish();
 
@@ -1128,7 +1132,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
   void continuationReleaseIsSameAsCancel() throws Exception {
     AgentSpan span = tracer.buildSpan("test", "test").start();
     AgentScope scope = tracer.activateSpan(span);
-    ContextContinuation continuation = (ContextContinuation) tracer.captureActiveSpan();
+    ContextContinuation continuation = captureActiveSpan();
     scope.close();
     span.finish();
 
