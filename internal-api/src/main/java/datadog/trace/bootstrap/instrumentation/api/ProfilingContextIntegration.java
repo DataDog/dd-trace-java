@@ -27,9 +27,6 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
    */
   default void setContext(Context context) {}
 
-  /** Clears the current thread's profiler context. See {@link #setContext(Context)}. */
-  default void clearContext() {}
-
   default Stateful newScopeState(ProfilerContext profilerContext) {
     return Stateful.DEFAULT;
   }

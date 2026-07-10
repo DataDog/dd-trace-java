@@ -87,7 +87,6 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     }
   }
 
-  @Override
   public void clearContext() {
     DDPROF.clearSpanContext();
     DDPROF.clearContextValue(SPAN_NAME_INDEX);
