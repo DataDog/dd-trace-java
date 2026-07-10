@@ -95,7 +95,7 @@ public class AgentTracer {
   @Deprecated
   @Nonnull
   public static ContextContinuation captureActiveSpan() {
-    return get().captureActiveSpan();
+    return get().captureActiveContext();
   }
 
   /**
@@ -337,10 +337,30 @@ public class AgentTracer {
     /** Activate a span which will be closed by {@link #closeActive()} instead of a scope. */
     void activateSpanWithoutScope(AgentSpan span);
 
+    ContextContinuation captureActiveContext();
+
     @Override
     @Deprecated
-    @SuppressWarnings("deprecation")
-    AgentScope.Continuation captureActiveSpan();
+    default TraceScope.Continuation captureActiveSpan() {
+      ContextContinuation ctx = captureActiveContext();
+      return new TraceScope.Continuation() {
+        @Override
+        public TraceScope.Continuation hold() {
+          ctx.hold();
+          return this;
+        }
+
+        @Override
+        public TraceScope activate() {
+          return ctx.resume()::close;
+        }
+
+        @Override
+        public void cancel() {
+          ctx.release();
+        }
+      };
+    }
 
     @Deprecated
     ContextContinuation captureSpan(AgentSpan span);
@@ -503,8 +523,7 @@ public class AgentTracer {
     public void activateSpanWithoutScope(final AgentSpan span) {}
 
     @Override
-    @SuppressWarnings("deprecation")
-    public AgentScope.Continuation captureActiveSpan() {
+    public ContextContinuation captureActiveContext() {
       return NoopContinuation.INSTANCE;
     }
 

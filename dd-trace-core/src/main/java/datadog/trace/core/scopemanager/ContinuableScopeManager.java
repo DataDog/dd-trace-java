@@ -103,13 +103,12 @@ public final class ContinuableScopeManager {
     return activate(span, MANUAL, false, /* ignored */ false);
   }
 
-  @SuppressWarnings("deprecation")
-  public AgentScope.Continuation captureActiveSpan() {
+  public ContextContinuation captureActiveContext() {
     ContinuableScope activeScope = scopeStack().active();
     if (null != activeScope && activeScope.isAsyncPropagating()) {
       AgentSpan span = activeScope.span();
       if (span != null) {
-        return (AgentScope.Continuation) captureSpan(activeScope.context, activeScope.source(), span);
+        return captureSpan(activeScope.context, activeScope.source(), span);
       }
     }
     return AgentTracer.noopContinuation();
