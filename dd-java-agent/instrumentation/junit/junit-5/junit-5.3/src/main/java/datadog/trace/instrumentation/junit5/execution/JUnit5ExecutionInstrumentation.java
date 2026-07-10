@@ -58,6 +58,8 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
     return new String[] {
       packageName + ".TestTaskHandle",
       packageName + ".TestDescriptorHandle",
+      packageName + ".RetryDescriptorFactory",
+      packageName + ".RetryDescriptorFactories",
       packageName + ".ThrowableCollectorFactoryWrapper",
       parentPackageName + ".JUnitPlatformUtils",
       parentPackageName + ".TestDataFactory",
