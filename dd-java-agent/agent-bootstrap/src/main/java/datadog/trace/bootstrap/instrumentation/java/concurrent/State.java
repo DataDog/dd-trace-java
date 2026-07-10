@@ -60,10 +60,10 @@ public final class State {
 
   public AgentSpan getSpan() {
     ContextContinuation continuation = CONTINUATION.get(this);
-    if (null != continuation) {
-      return AgentSpan.fromContext(continuation.context());
+    if (null == continuation || CLAIMED == continuation) {
+      return null;
     }
-    return null;
+    return AgentSpan.fromContext(continuation.context());
   }
 
   public ContextContinuation getAndResetContinuation() {
