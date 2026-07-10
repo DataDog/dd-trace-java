@@ -1,5 +1,5 @@
+import datadog.context.ContextContinuation
 import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.servicetalk.concurrent.api.AsyncContext
 import io.servicetalk.concurrent.api.CapturedContext
@@ -150,10 +150,10 @@ class ContextPreservingInstrumentationTest extends InstrumentationSpecification 
    */
   private class ParentContext {
     final CapturedContext capturedContext = asyncContextProvider.captureContext()
-    final AgentScope.Continuation spanContinuation = AgentTracer.captureActiveSpan()
+    final ContextContinuation spanContinuation = AgentTracer.captureActiveSpan()
 
     def releaseParentSpan() {
-      spanContinuation.cancel()
+      spanContinuation.release()
     }
   }
 
