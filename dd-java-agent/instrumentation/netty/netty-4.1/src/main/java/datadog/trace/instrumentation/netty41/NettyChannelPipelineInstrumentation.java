@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -12,7 +13,6 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
-import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -257,7 +257,7 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean addParentSpan(@Advice.This final ChannelPipeline pipeline) {
       ContextContinuation continuation = captureActiveSpan();
-      if (continuation.context() != Context.root()) {
+      if (continuation.context() != rootContext()) {
         final Attribute<ContextContinuation> attribute =
             pipeline.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY);
         if (!attribute.compareAndSet(null, continuation)) {
