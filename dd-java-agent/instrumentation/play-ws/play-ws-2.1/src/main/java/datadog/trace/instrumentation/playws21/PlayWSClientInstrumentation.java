@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.playws21;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.PLAY_WS_REQUEST;
 
@@ -8,7 +9,6 @@ import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.instrumentation.playws.BasePlayWSClientInstrumentation;
 import net.bytebuddy.asm.Advice;
 import play.shaded.ahc.org.asynchttpclient.AsyncHandler;
@@ -36,7 +36,7 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
         asyncHandler = new AsyncHandlerWrapper(asyncHandler, span);
       }
 
-      return Java8BytecodeBridge.getCurrentContext().with(span).attach();
+      return span.attachWithContext();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -46,7 +46,7 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
         return;
       }
       if (throwable != null) {
-        final AgentSpan span = Java8BytecodeBridge.spanFromContext(scope.context());
+        final AgentSpan span = spanFromContext(scope.context());
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
         span.finish();

@@ -54,7 +54,10 @@ public class EntryBuilder {
 
       if (offset == c.length // empty line
           || c[offset] == '#' // comment
-          || c[offset] == '[') { // section header
+          || c[offset] == '[' // section header
+          || (c[offset] == '^'
+              && offset + 1 < c.length
+              && c[offset + 1] == '[')) { // GitLab optional section header (^[...])
         return null;
       }
 

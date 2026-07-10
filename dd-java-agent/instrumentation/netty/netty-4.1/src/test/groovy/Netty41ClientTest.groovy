@@ -3,7 +3,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static org.asynchttpclient.Dsl.asyncHttpClient
 
-import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -23,7 +22,6 @@ import org.asynchttpclient.DefaultAsyncHttpClientConfig
 import org.asynchttpclient.Response
 import org.asynchttpclient.proxy.ProxyServer
 import spock.lang.AutoCleanup
-import spock.lang.IgnoreIf
 import spock.lang.Timeout
 
 import java.util.concurrent.ExecutionException
@@ -97,9 +95,6 @@ abstract class Netty41ClientTest extends HttpClientTest {
     return false
   }
 
-  @IgnoreIf(reason = "JDK 27 TODO: address failing test", value = {
-    JavaVirtualMachine.isJavaVersion(27)
-  })
   def "connection error (unopened port)"() {
     given:
     def uri = new URI("http://127.0.0.1:$UNUSABLE_PORT/")
@@ -126,7 +121,9 @@ abstract class Netty41ClientTest extends HttpClientTest {
           errored true
           tags {
             "$Tags.COMPONENT" "netty"
-            errorTags AbstractChannel.AnnotatedConnectException, "Connection refused: /127.0.0.1:$UNUSABLE_PORT"
+            errorTags AbstractChannel.AnnotatedConnectException, {
+              it.startsWith("Connection refused") && it.endsWith("/127.0.0.1:$UNUSABLE_PORT")
+            }
             defaultTags()
           }
         }

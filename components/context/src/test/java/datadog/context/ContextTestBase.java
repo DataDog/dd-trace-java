@@ -7,13 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
 @ParametersAreNonnullByDefault
 abstract class ContextTestBase {
+  static final ContextKey<String> TEST_KEY = ContextKey.named("test-key");
+
   @BeforeEach
   void verifyNoContextBefore() {
     assertEquals(root(), current());
@@ -26,51 +27,35 @@ abstract class ContextTestBase {
   }
 
   static TrackingListener trackingListener() {
-    return new TrackingListener(null);
-  }
-
-  static TrackingListener keyedTrackingListener(ContextKey<String> key) {
-    return new TrackingListener(key);
+    return new TrackingListener();
   }
 
   /**
-   * A {@link ContextListener} that records the events it receives so tests can assert on them.
-   *
-   * <p>With a {@link ContextKey}, each event is suffixed with that key's context value; otherwise
-   * only the event name is recorded (e.g. {@code "attach"}).
+   * A {@link ContextListener} that records events suffixed with {@link #TEST_KEY} context values.
+   * Uses {@code {root}} when the key is absent from the context.
    */
   static final class TrackingListener implements ContextListener {
-    private final List<String> events;
-    @Nullable private final ContextKey<String> key;
+    private final List<String> events = new ArrayList<>();
     private int checkpoint;
 
-    private TrackingListener(@Nullable ContextKey<String> key) {
-      this.events = new ArrayList<>();
-      this.key = key;
-    }
-
     @Override
-    public void onAttach(Context context) {
-      record("attach", context);
-    }
-
-    @Override
-    public void onDetach(Context context) {
-      record("detach", context);
+    public void onUpdate(Context before, Context after) {
+      this.events.add("update:" + label(before) + "->" + label(after));
     }
 
     @Override
     public void onCapture(Context context) {
-      record("capture", context);
+      this.events.add("capture:" + label(context));
     }
 
     @Override
     public void onRelease(Context context) {
-      record("release", context);
+      this.events.add("release:" + label(context));
     }
 
-    private void record(String event, Context context) {
-      this.events.add(this.key == null ? event : event + ":" + context.get(this.key));
+    private static String label(Context context) {
+      String value = context.get(TEST_KEY);
+      return value != null ? value : "{root}";
     }
 
     /** Asserts the full sequence of recorded events equals {@code expected}. */
