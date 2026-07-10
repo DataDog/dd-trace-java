@@ -219,8 +219,8 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     }
   }
 
-  static long millis(final double seconds) {
-    return Math.max(1L, Math.round(seconds * 1000));
+  static long millis(final int seconds) {
+    return Math.max(1L, seconds * 1000L);
   }
 
   interface UfcHttpClient {

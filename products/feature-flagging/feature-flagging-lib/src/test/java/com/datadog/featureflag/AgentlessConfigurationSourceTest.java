@@ -429,10 +429,10 @@ class AgentlessConfigurationSourceTest {
     final Config config = mock(Config.class);
     lenient()
         .when(config.getFeatureFlaggingConfigurationSourcePollIntervalSeconds())
-        .thenReturn(30.0D);
+        .thenReturn(30);
     lenient()
         .when(config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds())
-        .thenReturn(2.0D);
+        .thenReturn(2);
     lenient().when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl()).thenReturn(null);
     lenient().when(config.getApiKey()).thenReturn("test-api-key");
     lenient().when(config.getSite()).thenReturn(site);

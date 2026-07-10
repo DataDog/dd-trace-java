@@ -1222,8 +1222,8 @@ public class Config {
 
   private final String featureFlaggingConfigurationSource;
   private final String featureFlaggingConfigurationSourceAgentlessBaseUrl;
-  private final double featureFlaggingConfigurationSourcePollIntervalSeconds;
-  private final double featureFlaggingConfigurationSourceRequestTimeoutSeconds;
+  private final int featureFlaggingConfigurationSourcePollIntervalSeconds;
+  private final int featureFlaggingConfigurationSourceRequestTimeoutSeconds;
 
   private final boolean dbmInjectSqlBaseHash;
   private final String dbmPropagationMode;
@@ -2855,11 +2855,11 @@ public class Config {
         configProvider.getStringNotEmpty(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
     featureFlaggingConfigurationSourcePollIntervalSeconds =
-        configProvider.getDouble(
+        configProvider.getInteger(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS,
             DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS);
     featureFlaggingConfigurationSourceRequestTimeoutSeconds =
-        configProvider.getDouble(
+        configProvider.getInteger(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS,
             DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS);
 
@@ -4698,11 +4698,11 @@ public class Config {
     return featureFlaggingConfigurationSourceAgentlessBaseUrl;
   }
 
-  public double getFeatureFlaggingConfigurationSourcePollIntervalSeconds() {
+  public int getFeatureFlaggingConfigurationSourcePollIntervalSeconds() {
     return featureFlaggingConfigurationSourcePollIntervalSeconds;
   }
 
-  public double getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds() {
+  public int getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds() {
     return featureFlaggingConfigurationSourceRequestTimeoutSeconds;
   }
 
