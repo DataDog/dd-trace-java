@@ -5,9 +5,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jaxrs.InjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator.JAX_RS_CLIENT;
 import static datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator.JAX_RS_CLIENT_CALL;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.Priority;
 import javax.ws.rs.Priorities;
@@ -22,8 +23,8 @@ public class ClientTracingFilter implements ClientRequestFilter, ClientResponseF
 
   @Override
   public void filter(final ClientRequestContext requestContext) {
-    final AgentSpan span = startSpan("jax-rs", JAX_RS_CLIENT_CALL);
-    try (final AgentScope scope = activateSpan(span)) {
+    final AgentSpan span = startSpan(JAX_RS_CLIENT.toString(), JAX_RS_CLIENT_CALL);
+    try (final ContextScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, requestContext);
       DECORATE.injectContext(current().with(span), requestContext.getHeaders(), SETTER);

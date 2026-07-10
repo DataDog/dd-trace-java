@@ -1,18 +1,22 @@
+import static datadog.trace.api.ProcessTags.tagsForSerialization
+import static datadog.trace.api.TagMap.fromMap
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
+import static java.lang.Thread.currentThread
+import static java.util.Collections.emptyList
+
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.IdGenerationStrategy
-import datadog.trace.api.ProcessTags
 import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.Metadata
 import datadog.trace.core.MetadataConsumer
-
+import datadog.trace.core.SpanKindFilter
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
-
-import static datadog.trace.api.sampling.PrioritySampling.UNSET
 
 class TraceGenerator {
 
@@ -156,9 +160,9 @@ class TraceGenerator {
       this.error = error
       this.type = type
       this.measured = measured
-      this.metadata = new Metadata(Thread.currentThread().getId(),
-        UTF8BytesString.create(Thread.currentThread().getName()), TagMap.fromMap(tags), baggage, UNSET, measured, topLevel, null, null, 0,
-        ProcessTags.tagsForSerialization)
+      this.metadata = new Metadata(currentThread().getId(),
+        UTF8BytesString.create(currentThread().getName()), fromMap(tags), baggage, UNSET, measured, topLevel, null, null, 0,
+        tagsForSerialization, emptyList())
     }
 
     @Override
@@ -169,6 +173,11 @@ class TraceGenerator {
     @Override
     String getServiceName() {
       return serviceName
+    }
+
+    @Override
+    CharSequence getServiceNameSource() {
+      return null
     }
 
     @Override
@@ -296,6 +305,12 @@ class TraceGenerator {
       return false
     }
 
+    @Override
+    boolean isKind(SpanKindFilter filter) {
+      Object kind = unsafeGetTag(SPAN_KIND)
+      return filter.matches(kind == null ? null : kind.toString())
+    }
+
     Map<String, String> getBaggage() {
       return metadata.getBaggage()
     }
@@ -385,6 +400,16 @@ class TraceGenerator {
           value = tags.get(tag)
       }
       return value as U
+    }
+
+    @Override
+    <U> U unsafeGetTag(CharSequence name, U defaultValue) {
+      return getTag(name, defaultValue)
+    }
+
+    @Override
+    <U> U unsafeGetTag(CharSequence name) {
+      return getTag(name)
     }
 
     @Override

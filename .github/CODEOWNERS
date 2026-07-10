@@ -22,8 +22,8 @@
 /dd-smoke-tests/wildfly/                                                                         @DataDog/apm-idm-java
 
 # @DataDog/apm-release-platform
-/.gitlab/                              @DataDog/apm-release-platform
-/.gitlab-ci.yml                        @DataDog/apm-release-platform
+/.gitlab/                              @DataDog/apm-release-platform @DataDog/apm-lang-platform-java
+/.gitlab-ci.yml                        @DataDog/apm-release-platform @DataDog/apm-lang-platform-java
 
 # @DataDog/apm-sdk-capabilities-java
 /dd-java-agent/agent-otel                                       @DataDog/apm-sdk-capabilities-java
@@ -65,6 +65,7 @@
 /remote-config/                         @DataDog/apm-lang-platform-java
 /telemetry/                             @DataDog/apm-lang-platform-java
 /test-published-dependencies/           @DataDog/apm-lang-platform-java
+/repository.datadog.yaml                @DataDog/apm-lang-platform-java
 
 # @DataDog/asm-java (AppSec/IAST)
 /buildSrc/call-site-instrumentation-plugin/                     @DataDog/asm-java
@@ -88,6 +89,9 @@
 /dd-trace-api/src/main/java/datadog/trace/api/aiguard/          @DataDog/asm-java
 /dd-trace-api/src/main/java/datadog/trace/api/EventTracker.java @DataDog/asm-java
 /internal-api/src/main/java/datadog/trace/api/gateway/          @DataDog/asm-java
+/internal-api/src/main/java/datadog/trace/api/http/             @DataDog/asm-java
+/internal-api/src/main/java/datadog/trace/api/telemetry/ScaReachability* @DataDog/asm-java
+/telemetry/src/main/java/datadog/telemetry/sca/                 @DataDog/asm-java
 **/appsec/                                                      @DataDog/asm-java
 **/*CallSite*.java                                              @DataDog/asm-java
 **/*CallSite*.groovy                                            @DataDog/asm-java

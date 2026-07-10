@@ -6,7 +6,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
+import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.DECORATE;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.SPRING_INBOUND;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageExtractAdapter.GETTER;
@@ -66,7 +67,7 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
         @Advice.Argument(0) Message<?> message, @Advice.Local("ctxScope") ContextScope scope) {
       if (activeSpan() == null) {
         // no local active span, so extract from message to avoid disconnected trace
-        scope = defaultPropagator().extract(getRootContext(), message, GETTER).attach();
+        scope = defaultPropagator().extract(rootContext(), message, GETTER).attach();
       }
     }
 
@@ -80,7 +81,7 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This InvocableHandlerMethod thiz) {
-      AgentSpan span = startSpan(SPRING_INBOUND);
+      AgentSpan span = startSpan(COMPONENT_NAME.toString(), SPRING_INBOUND);
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.spanNameForMethod(thiz.getMethod()));
       return activateSpan(span);

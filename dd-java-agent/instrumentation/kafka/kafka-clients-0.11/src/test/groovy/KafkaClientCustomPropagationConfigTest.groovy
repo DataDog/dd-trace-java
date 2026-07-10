@@ -5,7 +5,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.Headers
 import org.apache.kafka.common.header.internals.RecordHeaders
-import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
@@ -44,8 +43,16 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     return false
   }
 
-  @Rule
-  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, SHARED_TOPIC[0], SHARED_TOPIC[1], SHARED_TOPIC[2], SHARED_TOPIC[3])
+  KafkaEmbedded embeddedKafka
+
+  def setup() {
+    embeddedKafka = new KafkaEmbedded(1, true, SHARED_TOPIC[0], SHARED_TOPIC[1], SHARED_TOPIC[2], SHARED_TOPIC[3])
+    embeddedKafka.before()
+  }
+
+  def cleanup() {
+    embeddedKafka?.after()
+  }
 
   @Override
   void configurePreAgent() {
@@ -239,7 +246,7 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     when:
     Headers header = new RecordHeaders()
 
-    AgentSpan span = startSpan(KAFKA_PRODUCE)
+    AgentSpan span = startSpan("kafka", KAFKA_PRODUCE)
     activateSpan(span).withCloseable {
       for (String topic : SHARED_TOPIC) {
         ProducerRecord record = new ProducerRecord<>(

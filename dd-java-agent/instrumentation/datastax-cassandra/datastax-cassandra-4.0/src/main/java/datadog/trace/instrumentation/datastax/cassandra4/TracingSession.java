@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.datastax.cassandra4;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.datastax.cassandra4.CassandraClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.datastax.cassandra4.CassandraClientDecorator.JAVA_CASSANDRA;
 import static datadog.trace.instrumentation.datastax.cassandra4.CassandraClientDecorator.OPERATION_NAME;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_CASSANDRA_ASYNC_SESSION;
 
@@ -16,16 +17,16 @@ import com.datastax.oss.driver.api.core.session.Request;
 import com.datastax.oss.driver.api.core.session.Session;
 import com.datastax.oss.driver.api.core.type.reflect.GenericType;
 import com.datastax.oss.driver.internal.core.session.SessionWrapper;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.util.AgentThreadFactory;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class TracingSession extends SessionWrapper implements CqlSession {
   private static final ExecutorService EXECUTOR_SERVICE =
@@ -54,14 +55,14 @@ public class TracingSession extends SessionWrapper implements CqlSession {
   }
 
   private ResultSet wrapSyncRequest(Statement request) {
-    AgentSpan span = startSpan(OPERATION_NAME);
+    AgentSpan span = startSpan(JAVA_CASSANDRA.toString(), OPERATION_NAME);
 
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, getDelegate());
     DECORATE.onStatement(span, getQuery(request));
     span.setTag(InstrumentationTags.CASSANDRA_CONTACT_POINTS, contactPoints);
 
-    try (AgentScope scope = activateSpan(span)) {
+    try (ContextScope scope = activateSpan(span)) {
       ResultSet resultSet = getDelegate().execute(request, Statement.SYNC);
       DECORATE.onResponse(span, resultSet);
       DECORATE.beforeFinish(span);
@@ -78,14 +79,14 @@ public class TracingSession extends SessionWrapper implements CqlSession {
   }
 
   private CompletionStage<AsyncResultSet> wrapAsyncRequest(Statement request) {
-    AgentSpan span = startSpan(OPERATION_NAME);
+    AgentSpan span = startSpan(JAVA_CASSANDRA.toString(), OPERATION_NAME);
 
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, getDelegate());
     DECORATE.onStatement(span, getQuery(request));
     span.setTag(InstrumentationTags.CASSANDRA_CONTACT_POINTS, contactPoints);
 
-    try (AgentScope scope = activateSpan(span)) {
+    try (ContextScope scope = activateSpan(span)) {
       CompletionStage<AsyncResultSet> completionStage =
           getDelegate().execute(request, Statement.ASYNC);
 

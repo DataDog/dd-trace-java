@@ -1,7 +1,9 @@
 package datadog.trace.api.datastreams;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,7 +40,7 @@ public final class TransactionInfo implements InboxItem {
     int id = ID_COUNTER.getAndIncrement();
 
     // update cache bytes
-    byte[] checkpointBytes = checkpoint.getBytes();
+    byte[] checkpointBytes = checkpoint.getBytes(StandardCharsets.UTF_8);
     byte[] bytesToAdd = new byte[checkpointBytes.length + 2];
     bytesToAdd[0] = (byte) id;
     bytesToAdd[1] = (byte) checkpointBytes.length;
@@ -56,7 +58,7 @@ public final class TransactionInfo implements InboxItem {
   }
 
   public byte[] getBytes() {
-    byte[] idBytes = id.getBytes();
+    byte[] idBytes = id.getBytes(StandardCharsets.UTF_8);
 
     // long ids will be truncated
     int idLen = Math.min(idBytes.length, MAX_ID_SIZE);
@@ -70,7 +72,7 @@ public final class TransactionInfo implements InboxItem {
     return buffer.array();
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   static synchronized void resetCache() {
     CACHE.clear();
     CACHE_BYTES = new byte[0];

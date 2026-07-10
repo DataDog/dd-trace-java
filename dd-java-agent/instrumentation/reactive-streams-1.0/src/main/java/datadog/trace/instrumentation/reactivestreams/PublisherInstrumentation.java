@@ -13,7 +13,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -53,21 +53,11 @@ public class PublisherInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onSubscribe(
         @Advice.This final Publisher self, @Advice.Argument(value = 0) final Subscriber s) {
-
-      final Context context =
-          InstrumentationContext.get(Publisher.class, Context.class).remove(self);
-      final Context activeContext = Java8BytecodeBridge.getCurrentContext();
-      if (s == null || (context == null && activeContext == null)) {
-        return null;
-      }
-      final Context current =
-          InstrumentationContext.get(Subscriber.class, Context.class)
-              .putIfAbsent(s, context != null ? context : activeContext);
-      if (current != null) {
-        return current.attach();
-      }
-
-      return null;
+      return ReactiveStreamsContextPropagation.captureOnSubscribe(
+          self,
+          s,
+          InstrumentationContext.get(Publisher.class, HandoffContext.class),
+          InstrumentationContext.get(Subscriber.class, Context.class));
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)

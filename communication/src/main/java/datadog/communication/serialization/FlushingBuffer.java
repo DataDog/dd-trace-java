@@ -1,5 +1,6 @@
 package datadog.communication.serialization;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.nio.ByteBuffer;
 
 public final class FlushingBuffer implements StreamingBuffer {
@@ -106,7 +107,7 @@ public final class FlushingBuffer implements StreamingBuffer {
     mark = 0;
   }
 
-  // for tests only
+  @VisibleForTesting
   int getMessageCount() {
     return messageCount;
   }

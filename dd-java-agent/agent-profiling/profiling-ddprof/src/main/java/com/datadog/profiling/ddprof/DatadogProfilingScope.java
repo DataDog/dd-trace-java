@@ -5,11 +5,16 @@ import datadog.trace.api.profiling.ProfilingScope;
 
 public class DatadogProfilingScope implements ProfilingScope {
   private final DatadogProfiler profiler;
-  private final int[] snapshot;
+  // Snapshot of the app-managed context slots at scope creation (those registered via
+  // ProfilingContextAttribute). Restored on close() so ambient values set before this
+  // scope are not lost when the scope exits.
+  // Span context slots (managed by DatadogProfilingIntegration) are not snapshotted
+  // here; their lifecycle is controlled by the tracer's activate/deactivate path.
+  private final DatadogProfiler.AppContextSnapshot savedAppContext;
 
   public DatadogProfilingScope(DatadogProfiler profiler) {
     this.profiler = profiler;
-    this.snapshot = profiler.snapshot();
+    this.savedAppContext = profiler.saveAppContext();
   }
 
   @Override
@@ -38,8 +43,15 @@ public class DatadogProfilingScope implements ProfilingScope {
 
   @Override
   public void close() {
-    for (int i = 0; i < snapshot.length; i++) {
-      profiler.setContextValue(i, snapshot[i]);
-    }
+    // Restores the app-managed context slots that were active when this scope opened.
+    // Span context slots are NOT touched here; they are managed independently by the
+    // tracer via DatadogProfilingIntegration.activate()/close().
+    //
+    // Prior to ddprof 1.45.0 this method was a no-op: ddprof 1.41.0 removed the
+    // int-encoding setter that the previous snapshot/restore relied on, leaving no
+    // supported API for restoring context. The new setContextValuesByIdAndBytes API
+    // (1.45.0) makes targeted per-slot restore possible again — for app slots only.
+    profiler.restoreAppContext(savedAppContext);
+    profiler.syncNativeAppContext();
   }
 }

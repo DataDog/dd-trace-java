@@ -8,6 +8,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.JAVA_PUBSUB;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PUBSUB_PRODUCE;
 import static datadog.trace.instrumentation.googlepubsub.TextMapInjectAdapter.SETTER;
@@ -42,7 +43,7 @@ public final class PublisherInstrumentation
   public static final class Wrap {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(@Advice.This Publisher publisher) {
-      final AgentSpan span = startSpan(PUBSUB_PRODUCE);
+      final AgentSpan span = startSpan(JAVA_PUBSUB.toString(), PUBSUB_PRODUCE);
 
       final CharSequence topicName = PRODUCER_DECORATE.extractTopic(publisher.getTopicNameString());
       PRODUCER_DECORATE.afterStart(span);

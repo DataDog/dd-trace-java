@@ -1,0 +1,35 @@
+[
+  {
+    "version": "9.5.0-rc-4",
+    "buildTime": "20260420120000+0000",
+    "snapshot": false,
+    "nightly": false,
+    "releaseNightly": false,
+    "broken": false,
+    "activeRc": false,
+    "rcFor": "9.5.0",
+    "milestoneFor": ""
+  },
+  {
+    "version": "9.6.0-milestone-1",
+    "buildTime": "20260419120000+0000",
+    "snapshot": false,
+    "nightly": false,
+    "releaseNightly": false,
+    "broken": false,
+    "activeRc": false,
+    "rcFor": "",
+    "milestoneFor": "9.6.0"
+  },
+  {
+    "version": "9.4.1",
+    "buildTime": "20260422110000+0000",
+    "snapshot": false,
+    "nightly": false,
+    "releaseNightly": false,
+    "broken": false,
+    "activeRc": false,
+    "rcFor": "",
+    "milestoneFor": ""
+  }
+]

@@ -51,7 +51,7 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
     when:
     SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties))
 
-    DDSpan span = tracer.buildSpan("operation")
+    DDSpan span = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start() as DDSpan
@@ -87,11 +87,11 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
     when:
     SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties))
 
-    DDSpan rootSpan = tracer.buildSpan("web.request")
+    DDSpan rootSpan = tracer.buildSpan("datadog", "web.request")
       .withServiceName("webserver")
       .ignoreActiveSpan().start() as DDSpan
 
-    DDSpan childSpan = tracer.buildSpan("web.handler")
+    DDSpan childSpan = tracer.buildSpan("datadog", "web.handler")
       .withServiceName("webserver")
       .asChildOf(rootSpan)
       .ignoreActiveSpan().start() as DDSpan
@@ -127,12 +127,12 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
     when:
     SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties))
 
-    DDSpan span1 = tracer.buildSpan("operation")
+    DDSpan span1 = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start() as DDSpan
 
-    DDSpan span2 = tracer.buildSpan("operation")
+    DDSpan span2 = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start() as DDSpan
@@ -167,7 +167,7 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
     when:
     SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties))
 
-    DDSpan span1 = tracer.buildSpan("operation")
+    DDSpan span1 = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start() as DDSpan
@@ -189,7 +189,7 @@ class SingleSpanSamplerTest extends DDCoreSpecification {
     when:
     SingleSpanSampler sampler = SingleSpanSampler.Builder.forConfig(Config.get(properties))
 
-    DDSpan span1 = tracer.buildSpan("operation")
+    DDSpan span1 = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start() as DDSpan

@@ -55,6 +55,11 @@ class Jersey2JettyTest extends HttpServerTest<JettyServer> {
   }
 
   @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
   boolean testBodyJson() {
     true
   }

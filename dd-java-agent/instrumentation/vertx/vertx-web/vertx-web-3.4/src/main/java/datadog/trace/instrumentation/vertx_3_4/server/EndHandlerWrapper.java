@@ -1,9 +1,5 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
-import static datadog.trace.instrumentation.vertx_3_4.server.RouteHandlerWrapper.HANDLER_SPAN_CONTEXT_KEY;
-import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.DECORATE;
-
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
 
@@ -18,16 +14,12 @@ public class EndHandlerWrapper implements Handler<Void> {
 
   @Override
   public void handle(final Void event) {
-    AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
     try {
       if (actual != null) {
         actual.handle(event);
       }
     } finally {
-      if (span != null) {
-        DECORATE.onResponse(span, routingContext.response());
-        span.finish();
-      }
+      RouteHandlerWrapper.finishHandlerSpan(routingContext);
     }
   }
 }

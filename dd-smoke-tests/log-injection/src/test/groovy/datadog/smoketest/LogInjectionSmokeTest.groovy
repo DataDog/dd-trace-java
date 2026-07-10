@@ -362,7 +362,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return unmangled.split(" ")[1..2]
   }
 
-  @Flaky(condition = () -> JavaVirtualMachine.isIbm8() || JavaVirtualMachine.isOracleJDK8())
+  @Flaky(condition = () -> JavaVirtualMachine.isIbm8() || JavaVirtualMachine.isOracleJDK8() || JavaVirtualMachine.isZulu8())
   def "check raw file injection"() {
     when:
     def count = waitForTraceCount(2)
@@ -378,10 +378,11 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
 
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", """{"lib_config":{}}""".toString())
 
-    testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
-    def exitValue = testedProcess.exitValue()
-
+    // Wait for all 4 traces before waiting for process exit to ensure trace delivery is confirmed
     count = waitForTraceCount(4)
+
+    assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS) : "Process did not exit within ${TIMEOUT_SECS}s"
+    def exitValue = testedProcess.exitValue()
 
     def logLines = outputLogFile.readLines()
     println "log lines: " + logLines

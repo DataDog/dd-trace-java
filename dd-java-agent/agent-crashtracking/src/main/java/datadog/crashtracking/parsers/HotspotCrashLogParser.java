@@ -12,6 +12,7 @@ import datadog.crashtracking.dto.Experimental;
 import datadog.crashtracking.dto.Metadata;
 import datadog.crashtracking.dto.OSInfo;
 import datadog.crashtracking.dto.ProcInfo;
+import datadog.crashtracking.dto.RuntimeInfo;
 import datadog.crashtracking.dto.SigInfo;
 import datadog.crashtracking.dto.StackFrame;
 import datadog.crashtracking.dto.StackTrace;
@@ -44,6 +45,9 @@ import java.util.regex.Pattern;
  */
 public final class HotspotCrashLogParser {
   private static final String HOTSPOT_JVM_ARGS_PREFIX = "jvm_args:";
+  private static final String JRE_VERSION_PREFIX = "# JRE version: ";
+  private static final String JAVA_VM_PREFIX = "# Java VM: ";
+  private static final String VM_INFO_PREFIX = "vm_info: ";
   private static final DateTimeFormatter ZONED_DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("EEE MMM ppd HH:mm:ss yyyy zzz", Locale.getDefault());
   private static final DateTimeFormatter OFFSET_DATE_TIME_FORMATTER =
@@ -62,6 +66,7 @@ public final class HotspotCrashLogParser {
     SUMMARY,
     THREAD,
     STACKTRACE,
+    REGISTER_TO_MEMORY_MAPPING,
     REGISTERS,
     PROCESS,
     VM_ARGUMENTS,
@@ -95,12 +100,15 @@ public final class HotspotCrashLogParser {
   // per line.
   private static final Pattern REGISTER_ENTRY_PARSER =
       Pattern.compile("([A-Za-z][A-Za-z0-9]*)\\s*=\\s*(0x[0-9a-fA-F]+)");
+  private static final Pattern REGISTER_TO_MEMORY_MAPPING_PARSER =
+      Pattern.compile("^\\s*([A-Za-z][A-Za-z0-9]*)\\s*=");
   // Used for the REGISTERS-state exit condition only: the register name must start the line
   // (after optional whitespace). This prevents lines like "Top of Stack: (sp=0x...)" and
   // "Instructions: (pc=0x...)" from being mistaken for register entries by REGISTER_ENTRY_PARSER's
   // find(), which would otherwise match the lowercase "sp"/"pc" tokens embedded in those lines.
   private static final Pattern REGISTER_LINE_START =
       Pattern.compile("^\\s*[A-Za-z][A-Za-z0-9]*\\s*=\\s*0x");
+  private static final Pattern SUBSECTION_TITLE = Pattern.compile("^\\s*[A-Za-z][\\w ]*:.+$");
   private static final Pattern COMPILED_JAVA_ADDRESS_PARSER =
       Pattern.compile("@\\s+(0x[0-9a-fA-F]+)\\s+\\[(0x[0-9a-fA-F]+)\\+(0x[0-9a-fA-F]+)\\]");
 
@@ -350,10 +358,17 @@ public final class HotspotCrashLogParser {
     String datetimeRaw = null;
     boolean incomplete = false;
     String oomMessage = null;
-    Map<String, String> registers = null;
+    Map<String, String> registers = new LinkedHashMap<>();
+    Map<String, String> registerToMemoryMapping = new LinkedHashMap<>();
+    String currentRegisterToMemoryMapping = "";
     List<String> runtimeArgs = null;
     List<String> dynamicLibraryLines = null;
     String dynamicLibraryKey = null;
+    boolean previousLineBlank = false;
+    State nextThreadSectionState = null;
+    String jreVersion = null;
+    String javaVm = null;
+    String vmInfo = null;
 
     String[] lines = NEWLINE_SPLITTER.split(crashLog);
     outer:
@@ -384,6 +399,11 @@ public final class HotspotCrashLogParser {
               }
             }
           }
+          if (jreVersion == null && line.startsWith(JRE_VERSION_PREFIX)) {
+            jreVersion = line.substring(JRE_VERSION_PREFIX.length()).trim();
+          } else if (javaVm == null && line.startsWith(JAVA_VM_PREFIX)) {
+            javaVm = line.substring(JAVA_VM_PREFIX.length()).trim();
+          }
           break;
         case HEADER:
           if (line.contains("S U M M A R Y")) {
@@ -410,7 +430,10 @@ public final class HotspotCrashLogParser {
           }
           break;
         case STACKTRACE:
-          if (line.startsWith("siginfo:")) {
+          nextThreadSectionState = nextThreadSectionState(line, previousLineBlank);
+          if (nextThreadSectionState != null) {
+            state = nextThreadSectionState;
+          } else if (line.startsWith("siginfo:")) {
             // spotless:off
             // siginfo: si_signo: 11 (SIGSEGV), si_code: 1 (SEGV_MAPERR), si_addr: 0x70
             // siginfo: si_signo: 11 (SIGSEGV), si_code: 0 (SI_USER), si_pid: 554848, si_uid: 1000
@@ -426,11 +449,6 @@ public final class HotspotCrashLogParser {
               Integer siUid = safelyParseInt(siginfoMatcher.group(7));
               sigInfo = new SigInfo(number, name, siCode, sigAction, address, siPid, siUid);
             }
-          } else if (line.startsWith("Registers:")) {
-            registers = new LinkedHashMap<>();
-            state = State.REGISTERS;
-          } else if (line.contains("P R O C E S S")) {
-            state = State.PROCESS;
           } else {
             // Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
             final StackFrame frame = parseLine(line);
@@ -439,8 +457,31 @@ public final class HotspotCrashLogParser {
             }
           }
           break;
+        case REGISTER_TO_MEMORY_MAPPING:
+          nextThreadSectionState = nextThreadSectionState(line, previousLineBlank);
+          if (nextThreadSectionState != null) {
+            currentRegisterToMemoryMapping = "";
+            state = nextThreadSectionState;
+          } else if (line.startsWith("siginfo:")) {
+            // siginfo marks the end of the register-to-memory mapping section;
+            // stop appending continuations to the last register's value
+            currentRegisterToMemoryMapping = "";
+          } else if (!line.isEmpty()) {
+            final Matcher m = REGISTER_TO_MEMORY_MAPPING_PARSER.matcher(line);
+            if (m.lookingAt()) {
+              currentRegisterToMemoryMapping = m.group(1);
+              registerToMemoryMapping.put(currentRegisterToMemoryMapping, line.substring(m.end()));
+            } else if (!currentRegisterToMemoryMapping.isEmpty()) {
+              registerToMemoryMapping.computeIfPresent(
+                  currentRegisterToMemoryMapping, (key, value) -> value + "\n" + line);
+            }
+          }
+          break;
         case REGISTERS:
-          if (!line.isEmpty() && !REGISTER_LINE_START.matcher(line).find()) {
+          nextThreadSectionState = nextThreadSectionState(line, previousLineBlank);
+          if (nextThreadSectionState != null) {
+            state = nextThreadSectionState;
+          } else if (!line.isEmpty() && !REGISTER_LINE_START.matcher(line).find()) {
             // non-empty line that does not start with a register entry signals end of section
             state = State.STACKTRACE;
           } else {
@@ -457,6 +498,8 @@ public final class HotspotCrashLogParser {
             state = State.DYNAMIC_LIBRARIES;
           } else if (line.contains("S Y S T E M")) {
             state = State.SYSTEM;
+          } else if (vmInfo == null && line.startsWith(VM_INFO_PREFIX)) {
+            vmInfo = line.substring(VM_INFO_PREFIX.length()).trim();
           } else if (line.equals("END.")) {
             state = State.DONE;
           }
@@ -498,6 +541,8 @@ public final class HotspotCrashLogParser {
             datetimeRaw = line.substring(6).trim();
           } else if (datetime == null && datetimeRaw != null && line.startsWith("timezone: ")) {
             datetime = dateTimeToISO(datetimeRaw + " " + line.substring(10).trim());
+          } else if (vmInfo == null && line.startsWith(VM_INFO_PREFIX)) {
+            vmInfo = line.substring(VM_INFO_PREFIX.length()).trim();
           }
           break;
         case DONE:
@@ -508,6 +553,7 @@ public final class HotspotCrashLogParser {
           // unexpected parser state; bail out
           break outer;
       }
+      previousLineBlank = line.isEmpty();
     }
 
     // PROCESS and SYSTEM sections are late enough that all critical data is captured
@@ -520,9 +566,12 @@ public final class HotspotCrashLogParser {
     if (oomMessage != null) {
       kind = "OutOfMemory";
       message = oomMessage;
-    } else {
-      kind = sigInfo != null && sigInfo.name != null ? sigInfo.name : "UNKNOWN";
+    } else if (sigInfo != null && sigInfo.name != null) {
+      kind = sigInfo.name;
       message = "Process terminated by signal " + kind;
+    } else {
+      kind = "InternalError";
+      message = "Process terminated by Internal error";
     }
 
     final List<StackFrame> enrichedFrames = new ArrayList<>(frames.size());
@@ -571,10 +620,21 @@ public final class HotspotCrashLogParser {
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
+    Map<String, String> resolvedMapping = null;
+    if (!registerToMemoryMapping.isEmpty()) {
+      registerToMemoryMapping.replaceAll((k, v) -> RedactUtils.redactRegisterToMemoryMapping(v));
+      resolvedMapping = registerToMemoryMapping;
+    }
+    RuntimeInfo runtimeInfo =
+        (jreVersion != null || javaVm != null || vmInfo != null)
+            ? new RuntimeInfo(jreVersion, javaVm, vmInfo)
+            : null;
     Experimental experimental =
-        (registers != null && !registers.isEmpty())
+        !registers.isEmpty()
+                || resolvedMapping != null
                 || (runtimeArgs != null && !runtimeArgs.isEmpty())
-            ? new Experimental(registers, runtimeArgs)
+                || runtimeInfo != null
+            ? new Experimental(registers, resolvedMapping, runtimeArgs, runtimeInfo)
             : null;
     DynamicLibs files =
         (dynamicLibraryLines != null && !dynamicLibraryLines.isEmpty())
@@ -606,6 +666,27 @@ public final class HotspotCrashLogParser {
         return null;
       }
     }
+  }
+
+  private static State nextThreadSectionState(String line, boolean previousLineBlank) {
+    if (line.startsWith("Register to memory mapping:")) {
+      return State.REGISTER_TO_MEMORY_MAPPING;
+    }
+    if (line.startsWith("Registers:")) {
+      return State.REGISTERS;
+    }
+    if (line.startsWith("siginfo:")) {
+      // siginfo is handled directly in the STACKTRACE case; returning null here does not change the
+      // parser state
+      return null;
+    }
+    if (line.contains("P R O C E S S")) {
+      return State.PROCESS;
+    }
+    if (previousLineBlank && SUBSECTION_TITLE.matcher(line).matches()) {
+      return State.STACKTRACE;
+    }
+    return null;
   }
 
   /**

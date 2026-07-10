@@ -8,7 +8,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.JMSDecorator.logJMSException;
@@ -70,7 +70,7 @@ public final class MDBMessageConsumerInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(0) final Message message, @Advice.Local("ctxScope") ContextScope scope) {
-      scope = defaultPropagator().extract(getRootContext(), message, GETTER).attach();
+      scope = defaultPropagator().extract(rootContext(), message, GETTER).attach();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -85,7 +85,7 @@ public final class MDBMessageConsumerInstrumentation
       if (CallDepthThreadLocalMap.incrementCallDepth(MessageListener.class) > 0) {
         return null;
       }
-      AgentSpan span = startSpan(JMS_CONSUME);
+      AgentSpan span = startSpan("jms", JMS_CONSUME);
       CONSUMER_DECORATE.afterStart(span);
       CharSequence consumerResourceName;
       try {

@@ -24,13 +24,13 @@ jobs:
       group: APM Larger Runners
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
         with:
           submodules: 'recursive'
           fetch-depth: 0
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.gradle/caches
@@ -53,7 +53,7 @@ jobs:
             --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Upload artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: binaries
           path: workspace/dd-java-agent/build/libs/
@@ -75,8 +75,11 @@ jobs:
       desired_execution_time: 900  # 15 minutes
       scenarios_groups: tracer-release
       excluded_scenarios: APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN,PROFILING  # exclude flaky scenarios
-      skip_empty_scenarios: true
-      push_to_test_optimization: false # disabled to avoid pushing to Test Optimization while API key is transitioning to system-tests
+      skip_empty_scenarios: ${{ github.event_name != 'push' && github.event_name != 'schedule' }}
+      push_to_test_optimization: true
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
   # Ensure the main job is run to completion
   check:

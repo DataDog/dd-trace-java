@@ -15,6 +15,7 @@ public final class TraceInstrumentationConfig {
   public static final String CODE_ORIGIN_MAX_USER_FRAMES = "code.origin.max.user.frames";
   public static final String TRACE_ENABLED = "trace.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
+  public static final String DETAILED_INSTRUMENTATION_ERRORS = "detailed.instrumentation.errors";
 
   public static final String TRACE_EXTENSIONS_PATH = "trace.extensions.path";
 

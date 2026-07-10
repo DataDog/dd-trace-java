@@ -101,6 +101,18 @@ public class FileIORaspHelper {
     invokeRaspCallback(EVENTS.fileWritten(), path);
   }
 
+  /**
+   * Fires {@link #beforeFileLoaded} for read modes ("r"), and both {@link #beforeFileLoaded} and
+   * {@link #beforeFileWritten} for write modes ("rw", "rws", "rwd").
+   */
+  public void beforeRandomAccessFileOpened(@Nonnull final String path, @Nonnull final String mode) {
+    // "r" = read only; "rw", "rws", "rwd" = read + write
+    beforeFileLoaded(path);
+    if (mode.length() > 1) {
+      beforeFileWritten(path);
+    }
+  }
+
   private void invokeRaspCallback(
       EventType<BiFunction<RequestContext, String, Flow<Void>>> eventType,
       @Nonnull final String path) {

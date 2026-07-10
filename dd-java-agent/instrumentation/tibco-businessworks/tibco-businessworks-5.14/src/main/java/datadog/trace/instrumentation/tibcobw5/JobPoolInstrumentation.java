@@ -48,7 +48,7 @@ public class JobPoolInstrumentation extends AbstractTibcoInstrumentation
       if (suffixIdx > 0) {
         workflowName = workflowName.substring(0, suffixIdx);
       }
-      AgentSpan span = startSpan(TIBCO_PROCESS_OPERATION);
+      AgentSpan span = startSpan("tibco_bw", TIBCO_PROCESS_OPERATION);
       DECORATE.afterStart(span);
       DECORATE.onProcessStart(span, workflowName);
       Map<String, AgentSpan> map = new HashMap<>();

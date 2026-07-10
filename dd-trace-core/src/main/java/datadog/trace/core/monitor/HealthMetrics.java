@@ -2,6 +2,7 @@ package datadog.trace.core.monitor;
 
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.propagation.opg.OrgGuard;
 import java.util.List;
 
 /**
@@ -65,6 +66,12 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onScopeStackOverflow() {}
 
+  /**
+   * Reports that the Org Propagation Guard dropped the inbound Datadog context for an extracted
+   * trace.
+   */
+  public void onOrgGuardEnforce(OrgGuard.Reason reason) {}
+
   public void onSend(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {}
 
@@ -90,6 +97,22 @@ public abstract class HealthMetrics implements AutoCloseable {
   public void onClientStatErrorReceived() {}
 
   public void onClientStatDowngraded() {}
+
+  public void onStatsAggregateDropped() {}
+
+  /**
+   * Reports a single span whose stats snapshot was dropped because the aggregator inbox was full.
+   */
+  public void onStatsInboxFull() {}
+
+  /**
+   * Reports a batch of {@code count} tag values collapsed into the {@code blocked_by_tracer}
+   * sentinel for {@code tag} during the just-completed reporting cycle (per-tag cardinality budget
+   * exhausted, or per-value length cap exceeded). Called from the aggregator thread once per
+   * affected tag at cycle reset, so the implementation can do a single counter update rather than
+   * one per blocked value.
+   */
+  public void onTagCardinalityBlocked(String[] statsDTag, long count) {}
 
   /**
    * @return Human-readable summary of the current health metrics.

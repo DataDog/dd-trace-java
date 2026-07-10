@@ -197,9 +197,9 @@ class SpockTest extends CiVisibilityInstrumentationTest {
     testcaseName                                | success | tests              | attemptToFix                                                  | quarantined                                                   | disabled
     "test-attempt-to-fix-failed"                | false   | [TestFailedSpock]  | [new TestFQN("org.example.TestFailedSpock", "test failed")]   | []                                                            | []
     "test-attempt-to-fix-succeeded"             | true    | [TestSucceedSpock] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | []                                                            | []
-    "test-attempt-to-fix-quarantined-failed"    | true    | [TestFailedSpock]  | [new TestFQN("org.example.TestFailedSpock", "test failed")]   | [new TestFQN("org.example.TestFailedSpock", "test failed")]   | []
+    "test-attempt-to-fix-quarantined-failed"    | false   | [TestFailedSpock]  | [new TestFQN("org.example.TestFailedSpock", "test failed")]   | [new TestFQN("org.example.TestFailedSpock", "test failed")]   | []
     "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceedSpock] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | []
-    "test-attempt-to-fix-disabled-failed"       | true    | [TestFailedSpock]  | [new TestFQN("org.example.TestFailedSpock", "test failed")]   | []                                                            | [new TestFQN("org.example.TestFailedSpock", "test failed")]
+    "test-attempt-to-fix-disabled-failed"       | false   | [TestFailedSpock]  | [new TestFQN("org.example.TestFailedSpock", "test failed")]   | []                                                            | [new TestFQN("org.example.TestFailedSpock", "test failed")]
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceedSpock] | [new TestFQN("org.example.TestSucceedSpock", "test success")] | []                                                            | [new TestFQN("org.example.TestSucceedSpock", "test success")]
   }
 

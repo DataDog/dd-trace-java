@@ -5,6 +5,15 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:rs:jax-rs:jax-rs-annotations:jax-rs-annotations-2.0')
   testImplementation project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0')
+  // Dropwizard 0.8 transitively depends on Jetty 9.2.9, so load the jetty-server
+  // instrumentation modules whose muzzle ranges cover that version, matching the
+  // production classpath:
+  //   - jetty-server-9.0     applies to [9, 10) and owns the request span
+  //   - jetty-server-9.0.4   applies to [9.0.4, 9.3.0.M1) and owns the AppSec
+  //                          response-commit hook used by Jetty 9.2.x
+  // Without these, the server span is owned by Servlet3Decorator.
+  testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
+  testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0.4')
 
   // First version with DropwizardTestSupport:
   testImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '0.8.0'
@@ -13,4 +22,12 @@ dependencies {
 
   // Anything 1.0+ fails with a java.lang.NoClassDefFoundError: org/eclipse/jetty/server/RequestLog
   //  latestDepTestImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '1.+'
+}
+
+// Dropwizard 0.8 (via Jackson's FuzzyEnumModule) references the CharMatcher.WHITESPACE field,
+// which present only until 25.1-jre.
+['testCompileClasspath', 'testRuntimeClasspath'].each {
+  configurations.named(it) {
+    resolutionStrategy.force 'com.google.guava:guava:25.1-jre'
+  }
 }

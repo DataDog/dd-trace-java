@@ -10,10 +10,14 @@ import org.springframework.boot.autoconfigure.web.servlet.MultipartAutoConfigura
 public class SpringbootApplication {
 
   public static void main(final String[] args) {
-    try {
-      activateAppSec();
-    } catch (Exception e) {
-      System.out.println("Could not activate appSec: " + e.getMessage());
+    if (!Boolean.getBoolean("smoketest.skipAppSecActivation")) {
+      try {
+        activateAppSec();
+      } catch (Exception e) {
+        System.out.println("Could not activate appSec: " + e.getMessage());
+      }
+    } else {
+      System.out.println("AppSec activation skipped");
     }
 
     SpringApplication.run(SpringbootApplication.class, args);

@@ -16,6 +16,11 @@ if (hasProperty('appBuildDir')) {
 
 version = ""
 
+// Target Java 8 bytecode as daemon can run on JDK 21
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+}
+
 dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-webflux'
   implementation 'org.springframework.boot:spring-boot-starter-data-jpa'

@@ -6,6 +6,8 @@ import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.HTTP_S
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.MANUAL_INSTRUMENTATION;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_USER_AGENT;
@@ -16,6 +18,7 @@ import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -44,10 +47,11 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     SUPPORTED_PROXIES = new HashMap<>();
     SUPPORTED_PROXIES.put("aws-apigateway", "aws.apigateway");
     SUPPORTED_PROXIES.put("aws-httpapi", "aws.httpapi");
+    SUPPORTED_PROXIES.put("azure-apim", "azure.apim");
   }
 
   private final Map<String, String> headers;
-  private AgentSpan span;
+  @VisibleForTesting AgentSpan span;
   // Service-entry span registered at startSpan() time; used to guard against premature finishing
   // by child spans (e.g., Spring MVC handler spans) before the response status is known.
   private AgentSpan registeredServiceEntrySpan;
@@ -164,7 +168,7 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     // Store inferred span
     this.span = span;
     // Return inferred span as new parent context
-    return this.span.context();
+    return this.span.spanContext();
   }
 
   private String header(String name) {
@@ -176,7 +180,8 @@ public class InferredProxySpan implements ImplicitContextKeyed {
    * arn:aws:apigateway:{region}::/restapis/{api-id} Format for v2 HTTP:
    * arn:aws:apigateway:{region}::/apis/{api-id}
    */
-  private String computeArn(String proxySystem, String region, String apiId) {
+  @VisibleForTesting
+  String computeArn(String proxySystem, String region, String apiId) {
     if (proxySystem == null || region == null || apiId == null) {
       return null;
     }
@@ -290,6 +295,19 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     Object userAgent = serviceEntrySpan.getTag(HTTP_USER_AGENT);
     if (userAgent != null) {
       this.span.setTag(HTTP_USER_AGENT, userAgent.toString());
+    }
+
+    // Forward the Datadog scan/test markers so the API endpoint reducer can keep
+    // scan/test traffic out of the inventory even when the local root is the inferred span.
+    // These markers are only tagged on the service-entry span (by HttpServerDecorator), so
+    // calls from non-service-entry handler spans during phasedFinish are no-ops here.
+    Object endpointScan = serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN);
+    if (endpointScan != null) {
+      this.span.setTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN, endpointScan.toString());
+    }
+    Object securityTest = serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST);
+    if (securityTest != null) {
+      this.span.setTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST, securityTest.toString());
     }
   }
 

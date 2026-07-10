@@ -11,6 +11,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.http.OkHttpUtils;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
@@ -24,10 +25,11 @@ import datadog.trace.api.aiguard.AIGuard.ToolCall;
 import datadog.trace.api.aiguard.AIGuard.ToolCall.Function;
 import datadog.trace.api.aiguard.Evaluator;
 import datadog.trace.api.aiguard.noop.NoOpEvaluator;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.telemetry.WafMetricCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -75,6 +77,15 @@ public class AIGuardInternal implements Evaluator {
   static final String META_STRUCT_CATEGORIES = "attack_categories";
   static final String META_STRUCT_SDS = "sds";
   static final String META_STRUCT_TAG_PROBS = "tag_probs";
+
+  /**
+   * Anomaly detection tags copied from the local root span onto every {@code ai_guard} span with
+   * the {@code ai_guard.} prefix, so the AI Guard backend can correlate AI Guard requests with the
+   * request context (client IP, user, session) without depending on the local root span.
+   */
+  static final String[] ANOMALY_DETECTION_TAGS = {
+    Tags.HTTP_CLIENT_IP, Tags.NETWORK_CLIENT_IP, Tags.HTTP_USER_AGENT, "usr.id", "usr.session_id"
+  };
 
   public static void install() {
     final Config config = Config.get();
@@ -213,6 +224,42 @@ public class AIGuardInternal implements Evaluator {
     return options.block() && "true".equalsIgnoreCase(isBlockingEnabled.toString());
   }
 
+  /**
+   * Applies the {@link ClientIpAddressData} captured during HTTP server request decoration to the
+   * local root span. This is the lazy half of AI Guard client IP collection: {@code
+   * HttpServerDecorator} resolves the IP eagerly and stashes it on the {@link RequestContext}; we
+   * consume it here once an {@code ai_guard} span is created, so IP tags are not added to spans of
+   * non-AI requests in services that have AI Guard enabled.
+   */
+  private static void applyClientIpTags(final AgentSpan localRootSpan) {
+    final RequestContext requestContext = localRootSpan.getRequestContext();
+    if (requestContext == null) {
+      return;
+    }
+    final ClientIpAddressData clientIpAddressData = requestContext.getClientIpAddressData();
+    if (clientIpAddressData == null) {
+      return;
+    }
+    final String peerIp = clientIpAddressData.getPeerIp();
+    if (peerIp != null && localRootSpan.getTag(Tags.NETWORK_CLIENT_IP) == null) {
+      localRootSpan.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
+    }
+    final String inferredClientIp = clientIpAddressData.getInferredClientIp();
+    if (inferredClientIp != null && localRootSpan.getTag(Tags.HTTP_CLIENT_IP) == null) {
+      localRootSpan.setTag(Tags.HTTP_CLIENT_IP, inferredClientIp);
+    }
+  }
+
+  private static void copyAnomalyDetectionTags(
+      final AgentSpan span, final AgentSpan localRootSpan) {
+    for (final String tag : ANOMALY_DETECTION_TAGS) {
+      final Object value = localRootSpan.getTag(tag);
+      if (value != null) {
+        span.setTag("ai_guard." + tag, value.toString());
+      }
+    }
+  }
+
   @Override
   public Evaluation evaluate(final List<Message> messages, final Options options) {
     if (messages == null || messages.isEmpty()) {
@@ -222,15 +269,19 @@ public class AIGuardInternal implements Evaluator {
     final AgentTracer.SpanBuilder builder = tracer.buildSpan(SPAN_NAME, SPAN_NAME);
     final AgentSpan parent = AgentTracer.activeSpan();
     if (parent != null) {
-      builder.asChildOf(parent.context());
+      builder.asChildOf(parent.spanContext());
     }
     final AgentSpan span = builder.start();
     final AgentSpan localRootSpan = span.getLocalRootSpan();
     if (localRootSpan != null) {
       localRootSpan.setTag(Tags.AI_GUARD_KEEP, true);
       localRootSpan.setTag(EVENT_TAG, true);
+      applyClientIpTags(localRootSpan);
+      // copyAnomalyDetectionTags MUST run after applyClientIpTags, to make
+      // sure client IP tags were populated.
+      copyAnomalyDetectionTags(span, localRootSpan);
     }
-    try (final AgentScope scope = tracer.activateSpan(span)) {
+    try (final ContextScope scope = tracer.activateSpan(span)) {
       final Message last = messages.get(messages.size() - 1);
       if (isToolCall(last)) {
         span.setTag(TARGET_TAG, "tool");

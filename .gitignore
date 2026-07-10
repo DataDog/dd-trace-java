@@ -8,7 +8,7 @@ target
 #########
 !**/gradle/wrapper/*
 /.gradle
-*/.gradle
+**/.gradle
 **/build/
 examples/**/build/
 
@@ -53,6 +53,8 @@ out/
 # Claude Code local custom settings #
 #####################################
 .claude/*.local.*
+.claude-invariants.md
+.claude-status.md
 
 # Vim #
 #######

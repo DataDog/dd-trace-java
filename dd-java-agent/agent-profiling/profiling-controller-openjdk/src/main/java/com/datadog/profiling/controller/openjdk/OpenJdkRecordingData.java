@@ -15,6 +15,7 @@
  */
 package com.datadog.profiling.controller.openjdk;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
 import java.io.IOException;
@@ -54,7 +55,7 @@ public class OpenJdkRecordingData extends RecordingData {
     return recording.getName();
   }
 
-  // Visible for testing
+  @VisibleForTesting
   Recording getRecording() {
     return recording;
   }

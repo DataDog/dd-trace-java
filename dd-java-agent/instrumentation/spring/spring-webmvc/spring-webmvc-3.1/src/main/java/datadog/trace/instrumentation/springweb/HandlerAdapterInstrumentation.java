@@ -5,8 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_CONTINUE_SUFFIX;
@@ -80,7 +79,7 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
         Context context = (Context) contextObj;
         AgentSpan parentSpan = spanFromContext(context);
         if (parentSpan != null) {
-          DECORATE.onRequest(parentSpan, request, request, getRootContext());
+          DECORATE.onRequest(parentSpan, request, request, rootContext());
         }
       }
 
@@ -104,12 +103,13 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
         return ((Context) existingContext).attach();
       }
 
-      final AgentSpan span = startSpan(DECORATE.spanName()).setMeasured(true);
+      final AgentSpan span =
+          startSpan("spring-web-controller", DECORATE.spanName()).setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onHandle(span, handler);
 
       request.setAttribute(handlerSpanKey, span);
-      return getCurrentContext().with(span).attach();
+      return span.attachWithContext();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

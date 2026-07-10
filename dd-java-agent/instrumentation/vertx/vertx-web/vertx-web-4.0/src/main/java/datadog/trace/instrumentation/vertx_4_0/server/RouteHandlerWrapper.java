@@ -8,7 +8,8 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.INSTRUMENTATION_NAME;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.vertx.core.Handler;
@@ -40,24 +41,53 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
         AgentSpan parentSpan = activeSpan();
         routingContext.put(PARENT_SPAN_CONTEXT_KEY, parentSpan);
 
-        span = startSpan(INSTRUMENTATION_NAME);
+        span = startSpan("vertx", INSTRUMENTATION_NAME);
         routingContext.put(HANDLER_SPAN_CONTEXT_KEY, span);
 
         routingContext.response().endHandler(new EndHandlerWrapper(routingContext));
+        // Fallback finish path: HttpServerResponse.endHandler is silently skipped
+        // by Vert.x's Http1xServerResponse.end() when the underlying connection
+        // has already closed (Http1xServerResponse#end gates `endHandler.handle()`
+        // behind `!closed`). This happens in synthetic transports such as
+        // quarkus-amazon-lambda-rest's virtual Netty channel, where writes and
+        // close are synchronous in-memory, leaving the route-handler span unfinished
+        // and orphaning all jakarta-rs.request / aws.http child spans in the trace.
+        // RoutingContext#addEndHandler fires on routing-context completion regardless
+        // of underlying connection state and on both success and failure.
+        routingContext.addEndHandler(ar -> finishHandlerSpan(routingContext));
         DECORATE.afterStart(span);
         span.setResourceName(DECORATE.className(actual.getClass()));
       }
       setRoute(routingContext);
     }
 
-    try (final AgentScope scope = span != null ? activateSpan(span) : noopScope()) {
+    try (final ContextScope scope = span != null ? activateSpan(span) : noopScope()) {
       try {
         actual.handle(routingContext);
       } catch (final Throwable t) {
         DECORATE.onError(span, t);
+        if (t instanceof BlockingException) {
+          // AppSec uses BlockingException as control flow after committing a blocking response
+          // from advice such as WafPublishingBodyHandler and RoutingContextJsonAdvice. Finish
+          // immediately because that abort path may bypass Vert.x response/routing end callbacks.
+          finishHandlerSpan(routingContext);
+        }
         throw t;
       }
     }
+  }
+
+  // Idempotently finish the route-handler span. Both EndHandlerWrapper (the
+  // response.endHandler path) and the routingContext.addEndHandler fallback may call
+  // this; the first one to win clears HANDLER_SPAN_CONTEXT_KEY so the second is a no-op.
+  static void finishHandlerSpan(final RoutingContext routingContext) {
+    final AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+    if (span == null) {
+      return;
+    }
+    routingContext.put(HANDLER_SPAN_CONTEXT_KEY, null);
+    DECORATE.onResponse(span, routingContext.response());
+    span.finish();
   }
 
   private void setRoute(RoutingContext routingContext) {

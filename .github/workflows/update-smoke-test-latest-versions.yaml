@@ -8,6 +8,8 @@ jobs:
   update-smoke-test-latest-versions:
     runs-on: ubuntu-latest
     name: Update smoke test latest versions
+    env:
+      MIN_DEPENDENCY_AGE_HOURS: 48
     permissions:
       contents: read
       id-token: write # Required for OIDC token federation
@@ -19,7 +21,7 @@ jobs:
           policy: self.update-smoke-test-latest-versions.create-pr
 
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
 
       - name: Define branch name
         id: define-branch
@@ -27,82 +29,100 @@ jobs:
           DATE=$(date +'%Y%m%d')
           echo "branch=ci/update-smoke-test-latest-versions-${DATE}" >> "$GITHUB_OUTPUT"
 
-      - name: Fetch latest Gradle version
+      - name: Read current pinned versions
+        id: current
+        run: |
+          gradle_props="dd-smoke-tests/gradle/src/test/resources/latest-tool-versions.properties"
+          maven_props="dd-smoke-tests/maven/src/test/resources/latest-tool-versions.properties"
+          get_prop() { grep "^$1=" "$2" 2>/dev/null | cut -d= -f2 || true; }
+          echo "gradle_version=$(get_prop gradle.latest "$gradle_props")" >> "$GITHUB_OUTPUT"
+          echo "maven_version=$(get_prop maven.latest "$maven_props")" >> "$GITHUB_OUTPUT"
+          echo "surefire_version=$(get_prop maven-surefire.latest "$maven_props")" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve latest eligible Gradle version
         id: gradle
         run: |
-          VERSION=$(curl -sf https://services.gradle.org/versions/current | jq -r '.version')
-          if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
-            echo "::error::Failed to fetch latest Gradle version"
-            exit 1
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Latest Gradle version: $VERSION"
+          python3 .github/scripts/dependency_age.py select-gradle \
+            --min-age-hours "${MIN_DEPENDENCY_AGE_HOURS}" \
+            --current-version "${{ steps.current.outputs.gradle_version }}" \
+            --github-output "$GITHUB_OUTPUT"
 
-      - name: Fetch latest stable Maven version
+      - name: Resolve latest eligible stable Maven version
         id: maven
         run: |
-          METADATA=$(curl -sf https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml)
-          # Get all versions, filter out alpha/beta/rc, take the latest
-          VERSION=$(echo "$METADATA" \
-            | grep -o '<version>[^<]*</version>' \
-            | sed 's/<[^>]*>//g' \
-            | grep -v -E '(alpha|beta|rc)' \
-            | sort -V \
-            | tail -1)
-          if [ -z "$VERSION" ]; then
-            echo "::error::Failed to fetch latest stable Maven version"
-            exit 1
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Latest stable Maven version: $VERSION"
+          python3 .github/scripts/dependency_age.py select-maven \
+            --group-id org.apache.maven \
+            --artifact-id apache-maven \
+            --prerelease-pattern alpha \
+            --prerelease-pattern beta \
+            --prerelease-pattern rc \
+            --min-age-hours "${MIN_DEPENDENCY_AGE_HOURS}" \
+            --current-version "${{ steps.current.outputs.maven_version }}" \
+            --github-output "$GITHUB_OUTPUT"
 
-      - name: Fetch latest stable Maven Surefire version
+      - name: Resolve latest eligible stable Maven Surefire version
         id: surefire
         run: |
-          METADATA=$(curl -sf https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-surefire-plugin/maven-metadata.xml)
-          # Get all versions, filter out alpha/beta, take the latest
-          VERSION=$(echo "$METADATA" \
-            | grep -o '<version>[^<]*</version>' \
-            | sed 's/<[^>]*>//g' \
-            | grep -v -E '(alpha|beta)' \
-            | sort -V \
-            | tail -1)
-          if [ -z "$VERSION" ]; then
-            echo "::error::Failed to fetch latest stable Maven Surefire version"
-            exit 1
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Latest stable Maven Surefire version: $VERSION"
+          python3 .github/scripts/dependency_age.py select-maven \
+            --group-id org.apache.maven.plugins \
+            --artifact-id maven-surefire-plugin \
+            --prerelease-pattern alpha \
+            --prerelease-pattern beta \
+            --prerelease-pattern rc \
+            --prerelease-pattern='-m\d' \
+            --min-age-hours "${MIN_DEPENDENCY_AGE_HOURS}" \
+            --current-version "${{ steps.current.outputs.surefire_version }}" \
+            --github-output "$GITHUB_OUTPUT"
 
       - name: Update properties files
+        id: update
         env:
           GRADLE_VERSION: ${{ steps.gradle.outputs.version }}
+          GRADLE_PUBLISHED: ${{ steps.gradle.outputs.published_at }}
+          GRADLE_LATEST_BY_MAJOR: ${{ steps.gradle.outputs.latest_by_major }}
           MAVEN_VERSION: ${{ steps.maven.outputs.version }}
+          MAVEN_PUBLISHED: ${{ steps.maven.outputs.published_at }}
           SUREFIRE_VERSION: ${{ steps.surefire.outputs.version }}
+          SUREFIRE_PUBLISHED: ${{ steps.surefire.outputs.published_at }}
         run: |
-          echo "Writing resolved versions to properties files:"
-          echo "  Gradle:         ${GRADLE_VERSION}"
-          echo "  Maven:          ${MAVEN_VERSION}"
-          echo "  Maven Surefire: ${SUREFIRE_VERSION}"
+          version_line() { if [ -n "$2" ]; then echo "$1 (published $2)"; else echo "$1 (unchanged)"; fi; }
+          echo "Writing latest eligible stable versions (>=${MIN_DEPENDENCY_AGE_HOURS}h old) to properties files:"
+          echo "  Gradle:         $(version_line "${GRADLE_VERSION}" "${GRADLE_PUBLISHED}")"
+          echo "  Maven:          $(version_line "${MAVEN_VERSION}" "${MAVEN_PUBLISHED}")"
+          echo "  Maven Surefire: $(version_line "${SUREFIRE_VERSION}" "${SUREFIRE_PUBLISHED}")"
+
+          # Build version lines for PR body
+          echo "gradle_line=$(version_line "${GRADLE_VERSION}" "${GRADLE_PUBLISHED}")" >> "$GITHUB_OUTPUT"
+          echo "maven_line=$(version_line "${MAVEN_VERSION}" "${MAVEN_PUBLISHED}")" >> "$GITHUB_OUTPUT"
+          echo "surefire_line=$(version_line "${SUREFIRE_VERSION}" "${SUREFIRE_PUBLISHED}")" >> "$GITHUB_OUTPUT"
 
           printf '%s\n' \
-            "# Pinned \"latest\" versions for CI Visibility Gradle smoke tests." \
+            "# Pinned latest eligible stable versions (>=${MIN_DEPENDENCY_AGE_HOURS}h old) for CI Visibility Gradle smoke tests." \
             "# Updated automatically by the update-smoke-test-latest-versions workflow." \
-            "gradle.version=${GRADLE_VERSION}" \
+            "gradle.latest=${GRADLE_VERSION}" \
+            "# Latest eligible stable patch per Gradle major release. Used to resolve the \"oldest\" smoke-test" \
+            "# Gradle version (the latest patch of the oldest major the current TestKit supports)." \
+            "${GRADLE_LATEST_BY_MAJOR}" \
             > dd-smoke-tests/gradle/src/test/resources/latest-tool-versions.properties
 
           printf '%s\n' \
-            "# Pinned \"latest\" versions for CI Visibility Maven smoke tests." \
+            "# Pinned latest eligible stable versions (>=${MIN_DEPENDENCY_AGE_HOURS}h old) for CI Visibility Maven smoke tests." \
             "# Updated automatically by the update-smoke-test-latest-versions workflow." \
-            "maven.version=${MAVEN_VERSION}" \
-            "maven-surefire.version=${SUREFIRE_VERSION}" \
+            "maven.latest=${MAVEN_VERSION}" \
+            "maven-surefire.latest=${SUREFIRE_VERSION}" \
             > dd-smoke-tests/maven/src/test/resources/latest-tool-versions.properties
+
+          printf '%s\n' \
+            "# Pinned latest eligible stable version (>=${MIN_DEPENDENCY_AGE_HOURS}h old) for the Maven instrumentation latestDepTest." \
+            "# Updated automatically by the update-smoke-test-latest-versions workflow." \
+            "maven-surefire.latest=${SUREFIRE_VERSION}" \
+            > dd-java-agent/instrumentation/maven/maven-3.2.1/src/test/resources/latest-tool-versions.properties
 
       - name: Check for changes
         id: check-changes
         run: |
           if [[ -z "$(git status -s)" ]]; then
-            echo "No changes detected — pinned versions are already up to date."
+            echo "No changes detected — pinned versions are already on the latest eligible stable releases."
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
           else
             echo "Changes detected in the following files:"
@@ -121,23 +141,21 @@ jobs:
 
       - name: Create commit
         if: steps.check-changes.outputs.has_changes == 'true'
-        id: create-commit
         run: |
           git add dd-smoke-tests/gradle/src/test/resources/latest-tool-versions.properties \
-                  dd-smoke-tests/maven/src/test/resources/latest-tool-versions.properties
+                  dd-smoke-tests/maven/src/test/resources/latest-tool-versions.properties \
+                  dd-java-agent/instrumentation/maven/maven-3.2.1/src/test/resources/latest-tool-versions.properties
           git commit -m "chore: Update smoke test latest tool versions"
-          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Push changes
         if: steps.check-changes.outputs.has_changes == 'true'
-        uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
+        uses: DataDog/commit-headless@567f7eedac58750aa573f48fd60cfe478abc65bd # action/v3.3.0
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branch.outputs.branch }}"
           head-sha: "${{ github.sha }}"
           create-branch: true
           command: push
-          commits: "${{ steps.create-commit.outputs.commit }}"
 
       - name: Create pull request
         if: steps.check-changes.outputs.has_changes == 'true'
@@ -152,14 +170,17 @@ jobs:
             --body "$(cat <<'EOF'
           # What Does This Do
 
-          This PR updates the pinned "latest" tool versions used by CI Visibility smoke tests:
-          - Gradle: ${{ steps.gradle.outputs.version }}
-          - Maven: ${{ steps.maven.outputs.version }}
-          - Maven Surefire: ${{ steps.surefire.outputs.version }}
+          This PR updates the pinned latest eligible stable tool versions used by CI Visibility smoke tests
+          and by the Maven instrumentation latestDepTest.
+          Only releases at least ${{ env.MIN_DEPENDENCY_AGE_HOURS }} hours old are eligible.
+
+          - Gradle: ${{ steps.update.outputs.gradle_line }}
+          - Maven: ${{ steps.update.outputs.maven_line }}
+          - Maven Surefire: ${{ steps.update.outputs.surefire_line }}
 
           # Motivation
 
-          Keep smoke tests running against the latest stable versions of build tools.
+          Keep smoke tests running against the latest eligible stable versions of build tools without adopting releases in their first 48 hours.
 
           # Contributor Checklist
 

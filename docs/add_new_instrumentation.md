@@ -17,18 +17,17 @@ named `google-http-client`. (see [Naming](./how_instrumentations_work.md#naming)
 
 ## Configuring Gradle
 
-Add the new instrumentation to [`settings.gradle`](../settings.gradle)
+Add the new instrumentation to [`settings.gradle.kts`](../settings.gradle.kts)
 in alpha order with the other instrumentations in this format:
 
-```groovy
-include ':dd-java-agent:instrumentation:$framework?:$framework-$minVersion'
+```kotlin
+include(":dd-java-agent:instrumentation:$framework:$framework-$minVersion")
 ```
 
-In this case
-we [added](https://github.com/DataDog/dd-trace-java/blob/297b575f0f265c1dc78f9958e7b4b9365c80d1f9/settings.gradle#L209C3-L209C3):
+For example, the jedis 3.x instrumentation appears as:
 
-```groovy
-include ':dd-java-agent:instrumentation:google-http-client'
+```kotlin
+include(":dd-java-agent:instrumentation:jedis:jedis-3.0")
 ```
 
 ## Create the Instrumentation class
@@ -50,16 +49,34 @@ include ':dd-java-agent:instrumentation:google-http-client'
    see [Type Matching](./how_instrumentations_work.md#type-matching))
 7. Pass the instrumentation name to the superclass constructor
 
+> [!NOTE]
+> **Need reflective access to a named Java module (Java 9+)?** If your instrumentation performs reflection on types
+> inside a module whose packages are not opened by the host application, also implement
+> `JavaModuleOpenProvider` on your `InstrumenterModule` and return the trigger classes from `triggerClasses()`.
+> See [JPMS Module Opening](./how_instrumentations_work.md#jpms-module-opening) for details.
+
 ```java
 
 @AutoService(InstrumenterModule.class)
-public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing implements Instrumenter.ForSingleType {
+public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
     public GoogleHttpClientInstrumentation() {
         super("google-http-client");
     }
     // ...
 }
 ```
+
+> [!IMPORTANT]
+> **The instrumentation name controls a config flag that must be registered.** The name passed to
+> `super(...)` becomes the config key `dd.trace.<name>.enabled` → environment variable
+> `DD_TRACE_<NAME>_ENABLED` (`.` and `-` become `_`, then uppercased — e.g. `couchbase-3` →
+> `DD_TRACE_COUCHBASE_3_ENABLED`). Every such name must be registered in
+> `metadata/supported-configurations.json` with the two standard aliases
+> (`DD_TRACE_INTEGRATION_<NAME>_ENABLED` and `DD_INTEGRATION_<NAME>_ENABLED`), or the
+> `checkInstrumenterModuleConfigurations` Gradle task fails the build. A module declaring multiple
+> names (`super("a", "b")`) needs **one entry per name**. See
+> [Add new configurations](./add_new_configurations.md) for the JSON entry shape.
 
 ## Match the target class
 
@@ -85,11 +102,11 @@ public HttpResponse execute() throws IOException {/* */}
 ```
 
 Target the method using [appropriate Method Matchers](./how_instrumentations_work.md#method-matching) and include the
-name String to be used for the Advice class when calling `transformation.applyAdvice()`:
+name String to be used for the Advice class when calling `transformer.applyAdvice()`:
 
 ```java
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
             isMethod()
                     .and(isPublic())
                     .and(named("execute"))
@@ -104,8 +121,8 @@ public void adviceTransformations(AdviceTransformation transformation) {
 If you need to apply multiple advice classes to the same method (for example, to separate context tracking from tracing logic), you can pass multiple advice class names to `applyAdvices()`:
 
 ```java
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvices(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvices(
             named("service")
                     .and(takesArgument(0, named("org.apache.coyote.Request")))
                     .and(takesArgument(1, named("org.apache.coyote.Response"))),
@@ -235,7 +252,7 @@ public String[] helperClassNames() {
 ## Add Advice class
 
 1. Add a new static class to the Instrumentation class. The name must match what was passed to
-   the `adviceTransformations()` method earlier, here `GoogleHttpClientAdvice.`
+   the `methodAdvice()` method earlier, here `GoogleHttpClientAdvice.`
 2. Create two static methods named whatever you like.  `methodEnter` and `methodExit` are good choices. These **must**
    be static.
 3. With `methodEnter:`
@@ -343,8 +360,8 @@ public static class TracingAdvice {
 Then apply both advices:
 
 ```java
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvices(
             named("service"),
             getClass().getName() + "$ContextTrackingAdvice",  // Only for CONTEXT_TRACKING
             getClass().getName() + "$TracingAdvice"           // Only for TRACING
@@ -431,6 +448,22 @@ There are four verification strategies, three of which are mandatory.
 - [Instrumentation Tests](./how_instrumentations_work.md#instrumentation-tests) (Required)
 - [Latest Dependency Tests](./how_instrumentations_work.md#latest-dependency-tests) (Required)
 - [Smoke tests](./how_instrumentations_work.md#smoke-tests) (Not required)
+
+### Agent jar integrations golden file
+
+The agent jar check task `verifyAgentJarIntegrations` verifies that the set of integrations
+listed under the `expected.integrations` key in `metadata/agent-jar-checks.properties`
+exactly matches the integrations shipped in the built agent jar. This catches accidental additions or removals.
+
+When you add or remove an integration, update the properties file:
+
+```shell
+./gradlew :dd-java-agent:updateAgentJarIntegrationsGoldenFile
+```
+
+Then commit `metadata/agent-jar-checks.properties` alongside your instrumentation changes.
+The `check` task runs `verifyAgentJarIntegrations` automatically, so CI will fail if the file
+is out of date.
 
 All integrations must include sufficient test coverage. This HTTP client integration will include
 a [standard HTTP test class](../dd-java-agent/instrumentation/google-http-client/src/test/groovy/GoogleHttpClientTest.groovy)

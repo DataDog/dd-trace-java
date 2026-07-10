@@ -3,7 +3,7 @@ package runnable;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public final class Descendant implements Runnable {
@@ -16,8 +16,8 @@ public final class Descendant implements Runnable {
 
   @Override
   public void run() {
-    AgentSpan span = startSpan(parent + "-child");
-    try (AgentScope scope = activateSpan(span)) {
+    AgentSpan span = startSpan("test", parent + "-child");
+    try (ContextScope scope = activateSpan(span)) {
 
     } finally {
       span.finish();

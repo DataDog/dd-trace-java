@@ -9,7 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.jms.JMSDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
@@ -96,7 +96,7 @@ public final class JMSMessageConsumerInstrumentation
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         closePrevious(finishSpan);
       } else {
-        final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+        final AgentSpan previousSpan = spanFromContext(rootContext().swap());
         if (previousSpan != null) {
           CONSUMER_DECORATE.beforeFinish(previousSpan);
           previousSpan.finishWithEndToEnd();
@@ -142,13 +142,13 @@ public final class JMSMessageConsumerInstrumentation
       }
       long startMillis = GETTER.extractTimeInQueueStart(message);
       if (startMillis == 0 || !TIME_IN_QUEUE_ENABLED) {
-        span = startSpan(JMS_CONSUME, propagatedContext);
+        span = startSpan("jms", JMS_CONSUME, propagatedContext);
       } else {
         long batchId = GETTER.extractMessageBatchId(message);
         AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
         if (null == timeInQueue) {
           timeInQueue =
-              startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
+              startSpan("jms", JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
           BROKER_DECORATE.afterStart(timeInQueue);
           BROKER_DECORATE.onTimeInQueue(
               timeInQueue,
@@ -156,7 +156,7 @@ public final class JMSMessageConsumerInstrumentation
               consumerState.getBrokerServiceName());
           consumerState.setTimeInQueueSpan(batchId, timeInQueue);
         }
-        span = startSpan(JMS_CONSUME, timeInQueue.context());
+        span = startSpan("jms", JMS_CONSUME, timeInQueue.spanContext());
       }
 
       CONSUMER_DECORATE.afterStart(span);
@@ -209,7 +209,7 @@ public final class JMSMessageConsumerInstrumentation
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
           closePrevious(finishSpan);
         } else {
-          final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+          final AgentSpan previousSpan = spanFromContext(rootContext().swap());
           if (previousSpan != null) {
             CONSUMER_DECORATE.beforeFinish(previousSpan);
             previousSpan.finishWithEndToEnd();

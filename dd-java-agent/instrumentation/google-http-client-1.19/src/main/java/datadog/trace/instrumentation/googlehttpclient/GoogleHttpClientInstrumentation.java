@@ -5,7 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.googlehttpclient.HeadersInjectAdapter.SETTER;
@@ -80,7 +80,8 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
           return null;
         }
       }
-      return activateSpan(DECORATE.prepareSpan(startSpan(HTTP_REQUEST), request));
+      return activateSpan(
+          DECORATE.prepareSpan(startSpan("google-http-client", HTTP_REQUEST), request));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -108,7 +109,8 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.This HttpRequest request) {
-      return activateSpan(DECORATE.prepareSpan(startSpan(HTTP_REQUEST), request));
+      return activateSpan(
+          DECORATE.prepareSpan(startSpan("google-http-client", HTTP_REQUEST), request));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -131,7 +133,7 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class GoogleHttpClientContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(@Advice.This HttpRequest request) {
-      DECORATE.injectContext(getCurrentContext(), request, SETTER);
+      DECORATE.injectContext(currentContext(), request, SETTER);
     }
   }
 }

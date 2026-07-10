@@ -14,6 +14,7 @@ import org.gradle.jvm.toolchain.JvmImplementation
 import org.gradle.jvm.toolchain.JvmVendorSpec
 import org.gradle.jvm.toolchain.internal.DefaultToolchainSpec
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec
+import org.gradle.kotlin.dsl.property
 import org.gradle.kotlin.dsl.support.serviceOf
 import java.nio.file.Files
 import java.nio.file.Path
@@ -36,6 +37,16 @@ import java.nio.file.Paths
 class TestJvmSpec(val project: Project) {
   companion object {
     const val TEST_JVM = "testJvm"
+
+    // JDK 27 TODO: remove after GA (tip will move to 27)
+    internal fun resolveTipJavaVersion(javaVersions: List<Int>): String {
+      val tipJavaVersions = javaVersions.filterNot { it == 27 }
+      if (tipJavaVersions.isEmpty()) {
+        throw GradleException("No Java installations found for tip after excluding Java 27.")
+      }
+
+      return tipJavaVersions.max().toString()
+    }
   }
 
   private val currentJavaHomePath = project.providers.systemProperty("java.home").map { it.normalizeToJDKJavaHome() }
@@ -62,7 +73,7 @@ class TestJvmSpec(val project: Project) {
           throw GradleException("No Java installations found via toolchains or JAVA_X_HOME environment variables.")
         }
 
-        javaVersions.max().toString()
+        resolveTipJavaVersion(javaVersions) // JDK 27 TODO: revert back to "javaVersions.max().toString()" after GA
       }
 
       else -> testJvm
@@ -151,7 +162,7 @@ class TestJvmSpec(val project: Project) {
     project.providers.zip(testJvmSpec, normalizedTestJvm) { jvmSpec, testJvm ->
       // Only change test JVM if it's not the one we are running the gradle build with
       if ((jvmSpec as? SpecificInstallationToolchainSpec)?.javaHome == currentJavaHomePath.get()) {
-        project.providers.provider<JavaLauncher?> { null }
+        project.objects.property<JavaLauncher>()
       } else {
         // The provider always says that a value is present so we need to wrap it for proper error messages
         project.javaToolchains.launcherFor(jvmSpec).orElse(project.providers.provider {

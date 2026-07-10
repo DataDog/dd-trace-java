@@ -4,7 +4,7 @@ plugins {
   id 'application'
   id 'java'
   id 'java-test-fixtures'
-  id 'com.google.protobuf' version '0.9.4'
+  id 'com.google.protobuf' version '0.10.0'
   id 'com.gradleup.shadow'
 }
 
@@ -39,8 +39,12 @@ protobuf {
 }
 
 tasks.withType(ShadowJar).configureEach {
+  duplicatesStrategy = DuplicatesStrategy.INCLUDE
   archiveClassifier.set("fat")
   mergeServiceFiles()
+  filesNotMatching('META-INF/services/**') {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  }
 }
 
 tasks.withType(Test).configureEach {

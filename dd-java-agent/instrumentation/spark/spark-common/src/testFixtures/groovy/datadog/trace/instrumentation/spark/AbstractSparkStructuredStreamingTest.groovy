@@ -44,7 +44,7 @@ class AbstractSparkStructuredStreamingTest extends InstrumentationSpecification 
       .config("spark.databricks.sparkContextId", "3291395623902517763")
       .config("spark.databricks.job.id", "3822225623902514353")
       .config("spark.databricks.job.parentRunId", "3851395623902519743")
-      .config("spark.databricks.job.runId", "3851395623902519743")
+      .config("spark.databricks.job.runId", "4851395623902519743")
       .getOrCreate()
   }
 
@@ -92,8 +92,8 @@ class AbstractSparkStructuredStreamingTest extends InstrumentationSpecification 
           resourceName "test-query"
           spanType "spark"
           parent()
-          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
-          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
+          assert span.spanContext().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.spanContext().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           tags {
             defaultTags()
             // Streaming tags
@@ -201,8 +201,8 @@ class AbstractSparkStructuredStreamingTest extends InstrumentationSpecification 
           operationName "spark.streaming_batch"
           spanType "spark"
           assert span.tags["streaming_query.batch_id"] == 1
-          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
-          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
+          assert span.spanContext().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.spanContext().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           parent()
         }
         span {
@@ -303,7 +303,7 @@ class AbstractSparkStructuredStreamingTest extends InstrumentationSpecification 
           spanType "spark"
           parent()
           links({
-            link(DDTraceId.from((long)12052652441736835200), (long)-6394091631972716416)
+            link(DDTraceId.from((long)12052652441736835200), (long)1375416004467624525)
           })
         }
         span {

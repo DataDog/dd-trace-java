@@ -1,6 +1,8 @@
+plugins {
+  id 'dd-trace-java.version-file'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
-// We do not publish separate jar, but having version file is useful
-apply from: "$rootDir/gradle/version.gradle"
 
 // Most of the classes are just object model
 // Those which needs test coverage, test classes are in agent-debugger project
@@ -12,4 +14,5 @@ dependencies {
   implementation libs.slf4j
   implementation libs.instrument.java
   implementation project(':internal-api')
+  testImplementation libs.bundles.mockito
 }

@@ -22,12 +22,6 @@ import spock.lang.Shared
 
 class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
-  // TODO since mule uses reactor core, things sometime propagate to places where they're not closed
-  @Override
-  boolean useStrictTraceWrites() {
-    return false
-  }
-
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
@@ -115,6 +109,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             "$Tags.PEER_PORT" { true } // is this really the best way to ignore tags?
             defaultTags()
           }
@@ -174,6 +169,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             "$Tags.PEER_PORT" { Integer }
             defaultTags()
           }

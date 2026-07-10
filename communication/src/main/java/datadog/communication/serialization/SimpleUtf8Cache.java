@@ -160,7 +160,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
       }
     }
 
-    // If we get here, then we're evicting the LRU
+    // If we get here, then we're evicting the LFU
     entries[lfuIndex] = newEntry;
     return true;
   }
@@ -177,10 +177,6 @@ public final class SimpleUtf8Cache implements EncodingCache {
       this.adjHash = adjHash;
       this.value = value;
       this.valueUtf8 = utf8(value);
-    }
-
-    boolean matches(CacheEntry thatEntry) {
-      return (this == thatEntry) || this.matches(thatEntry.adjHash, thatEntry.value);
     }
 
     boolean matches(int adjHash, String value) {

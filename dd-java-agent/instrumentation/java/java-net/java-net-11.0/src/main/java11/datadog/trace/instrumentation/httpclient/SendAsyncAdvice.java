@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.httpclient;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.INSTRUMENTATION_NAME;
@@ -38,7 +37,10 @@ public class SendAsyncAdvice {
       final AgentSpan span = startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
       final AgentScope scope = activateSpan(span);
       if (bodyHandler != null) {
-        bodyHandler = new BodyHandlerWrapper<>(bodyHandler, captureSpan(span));
+        // Pass span directly — BodyHandlerWrapper captures the continuation lazily in apply(),
+        // only once response headers arrive. This avoids leaking a continuation when the
+        // connection fails before headers are received.
+        bodyHandler = new BodyHandlerWrapper<>(bodyHandler, span);
       }
 
       DECORATE.afterStart(span);

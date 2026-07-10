@@ -11,12 +11,12 @@ import com.google.auto.service.AutoService;
 import com.tibco.pvm.api.PmProcessInstance;
 import com.tibco.pvm.api.PmWorkUnit;
 import com.tibco.pvm.api.session.PmContext;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -65,8 +65,8 @@ public class ProcessInstrumentation extends AbstractTibcoInstrumentation
           // cannot find the name
         }
       }
-      try (AgentScope maybeScope = parentSpan != null ? activateSpan(parentSpan) : null) {
-        AgentSpan span = startSpan(TibcoDecorator.TIBCO_PROCESS_OPERATION);
+      try (ContextScope maybeScope = parentSpan != null ? activateSpan(parentSpan) : null) {
+        AgentSpan span = startSpan("tibco_bw", TibcoDecorator.TIBCO_PROCESS_OPERATION);
         TibcoDecorator.DECORATE.afterStart(span);
         if (appName != null) {
           AgentSpan root = span.getLocalRootSpan();

@@ -7,14 +7,15 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
+import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORATE;
 
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstanceStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -27,6 +28,7 @@ import software.amazon.awssdk.core.interceptor.Context.BeforeExecution;
 import software.amazon.awssdk.core.interceptor.Context.BeforeTransmission;
 import software.amazon.awssdk.core.interceptor.Context.FailedExecution;
 import software.amazon.awssdk.core.interceptor.Context.ModifyHttpRequest;
+import software.amazon.awssdk.core.interceptor.Context.ModifyResponse;
 import software.amazon.awssdk.core.interceptor.ExecutionAttribute;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
@@ -54,7 +56,8 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       return; // SQS messages spans are created by aws-java-sqs-2.0
     }
 
-    final AgentSpan span = startSpan("aws-sdk", DECORATE.spanName(executionAttributes));
+    final AgentSpan span =
+        startSpan(COMPONENT_NAME.toString(), DECORATE.spanName(executionAttributes));
     // TODO If DSM is enabled, add DSM context here too
     DECORATE.afterStart(span);
     executionAttributes.putAttribute(CONTEXT_ATTRIBUTE, span);
@@ -66,7 +69,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     final Context ddContext = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
     final AgentSpan span = fromContext(ddContext);
     if (context != null && span != null) {
-      try (AgentScope ignored = activateSpan(span)) {
+      try (ContextScope ignored = activateSpan(span)) {
         DECORATE.onRequest(span, context.httpRequest());
         DECORATE.onSdkRequest(
             ddContext, context.request(), context.httpRequest(), executionAttributes);
@@ -110,6 +113,22 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   }
 
   @Override
+  public SdkResponse modifyResponse(
+      final ModifyResponse context, final ExecutionAttributes executionAttributes) {
+    final SdkResponse response = context.response();
+    if (!AWS_LEGACY_TRACING && isPollingRequest(context.request()) && isPollingResponse(response)) {
+      // Attach queueUrl before AWS SDK core rebuilds the response with
+      // toBuilder().sdkHttpResponse(...).build(). afterExecution sees this pre-rebuild response,
+      // not the final response returned to user code, so capturing queueUrl there is too late.
+      context
+          .request()
+          .getValueForField("QueueUrl", String.class)
+          .ifPresent(queueUrl -> responseQueueStore.put(response, queueUrl));
+    }
+    return response;
+  }
+
+  @Override
   public void afterExecution(
       final AfterExecution context, final ExecutionAttributes executionAttributes) {
     final Context ddContext = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
@@ -121,13 +140,6 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       DECORATE.onResponse(span, context.httpResponse());
       DECORATE.beforeFinish(span);
       span.finish();
-    }
-    if (!AWS_LEGACY_TRACING && isPollingResponse(context.response())) {
-      // store queueUrl inside response for SqsReceiveResultInstrumentation
-      context
-          .request()
-          .getValueForField("QueueUrl", String.class)
-          .ifPresent(queueUrl -> responseQueueStore.put(context.response(), queueUrl));
     }
   }
 

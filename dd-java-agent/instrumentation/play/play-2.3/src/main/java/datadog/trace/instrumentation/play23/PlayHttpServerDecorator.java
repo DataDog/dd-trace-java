@@ -10,6 +10,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
@@ -88,7 +89,14 @@ public class PlayHttpServerDecorator
       final Request<?> connection,
       final Request<?> request,
       final Context parentContext) {
-    super.onRequest(span, connection, request, parentContext);
+    // Play's Request#remoteAddress() returns the address resolved from X-Forwarded-For (and
+    // similar) proxy headers, not the actual TCP socket peer. If the upstream framework
+    // (akka/netty) already populated peer information on the span from the real socket,
+    // wrap the connection so super.onRequest sees the captured value instead of Play's
+    // forwarded one. This way the IG callbacks and tags receive the correct peer.
+    // (APPSEC-62562)
+    final Request<?> connectionForSuper = withCapturedPeer(span, connection);
+    super.onRequest(span, connectionForSuper, request, parentContext);
     if (request != null) {
       // more about routes here:
       // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md#router-tags-are-now-attributes
@@ -131,6 +139,27 @@ public class PlayHttpServerDecorator
     } catch (final Throwable t) {
       LOG.debug("Failed to dispatch route", t);
     }
+  }
+
+  /**
+   * Wraps the connection so that {@code remoteAddress()} returns the real socket peer IP instead of
+   * Play's X-Forwarded-For-resolved value. We look up the local root span (the upstream akka/netty
+   * span) because the play span is a fresh child that has no peer tags yet when {@code onRequest}
+   * is called. When called on the root span itself (e.g. to propagate route info), we use the root
+   * span's existing peer IP so the forwarded value cannot overwrite it.
+   */
+  private static Request<?> withCapturedPeer(final AgentSpan span, final Request<?> connection) {
+    if (connection == null) {
+      return null;
+    }
+    final AgentSpan source = span.getLocalRootSpan();
+    final AgentSpan peerSource = source != null ? source : span;
+    final Object capturedIp = peerSource.getTag(Tags.PEER_HOST_IPV4);
+    final Object peerIp = capturedIp != null ? capturedIp : peerSource.getTag(Tags.PEER_HOST_IPV6);
+    if (peerIp != null) {
+      return new RequestWithCapturedPeer(connection, peerIp.toString());
+    }
+    return connection;
   }
 
   @Override

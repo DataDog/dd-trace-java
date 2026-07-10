@@ -37,7 +37,6 @@ dependencies {
     transitive = false
   }
 
-  testImplementation project(':dd-java-agent:instrumentation:mongo:mongo-common').sourceSets.test.output
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:mongo:mongo-common'))
 
   testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()

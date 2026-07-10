@@ -28,6 +28,14 @@ public interface Writable {
   void writeBinary(byte[] binary, int offset, int length);
 
   /**
+   * Encodes 128 bits as binary.
+   *
+   * @param hi the high-order 64 bits.
+   * @param lo The low-order 64 bits.
+   */
+  void writeBinary(long hi, long lo);
+
+  /**
    * Start a part of the message containing key-value pairs
    *
    * @param elementCount how many key-value pairs in the section of the message

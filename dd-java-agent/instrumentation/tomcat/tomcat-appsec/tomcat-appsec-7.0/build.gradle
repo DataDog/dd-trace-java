@@ -15,6 +15,13 @@ muzzle {
     extraDependency 'org.apache.tomcat:tomcat-catalina:7.0.4'
     assertInverse = true
   }
+  pass {
+    name = 'glassfish'
+    group = 'org.glassfish.main.extras'
+    module = 'glassfish-embedded-all'
+    versions = '[4.0, 6.1.0)' // GlassFish 6.1.0+ uses jakarta.* namespace; our advice uses javax.servlet.http.Part
+    assertInverse = true
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -22,10 +29,20 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   compileOnly group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '7.0.4'
   compileOnly group: 'org.apache.tomcat', name: 'tomcat-coyote', version: '7.0.4'
+  // Servlet 3.1 API needed to reference Part.getSubmittedFileName() in GlassFishMultipartInstrumentation.
+  // tomcat-catalina:7.0.4 provides only Servlet 3.0 (no getSubmittedFileName); GlassFish 4+ is Servlet 3.1.
+  compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
+  // org.apache.catalina.Request and org.apache.catalina.Response interfaces are GlassFish-specific —
+  // Tomcat 7.x removed them from its published API. Required to cast connector.Request to the
+  // catalina Request interface in GlassFishBlockingHelper without reflection.
+  compileOnly group: 'org.glassfish.main.extras', name: 'glassfish-embedded-all', version: '4.0'
   implementation project(':dd-java-agent:instrumentation:tomcat:tomcat-common')
 
   testImplementation group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '7.0.4'
   testImplementation group: 'org.apache.tomcat', name: 'tomcat-coyote', version: '7.0.4'
+  testImplementation group: 'javax.servlet', name: 'javax.servlet-api', version: '3.1.0'
+  testImplementation libs.bundles.mockito
+  testCompileOnly group: 'org.glassfish.main.extras', name: 'glassfish-embedded-all', version: '4.0'
 }
 
 // testing happens in tomcat-5.5 module

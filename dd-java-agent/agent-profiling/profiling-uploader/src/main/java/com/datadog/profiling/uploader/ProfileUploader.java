@@ -31,6 +31,7 @@ import datadog.trace.api.Platform;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -134,10 +135,7 @@ public final class ProfileUploader {
     this(config, configProvider, new IOLogger(log), TERMINATION_TIMEOUT_SEC);
   }
 
-  /**
-   * Note that this method is only visible for testing and should not be used from outside this
-   * class.
-   */
+  @VisibleForTesting
   ProfileUploader(
       final Config config,
       final ConfigProvider configProvider,
@@ -443,10 +441,7 @@ public final class ProfileUploader {
         .collect(Collectors.toList());
   }
 
-  /**
-   * Note that this method is only visible for testing and should not be used from outside this
-   * class.
-   */
+  @VisibleForTesting
   OkHttpClient getClient() {
     return client;
   }

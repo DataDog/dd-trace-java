@@ -4,6 +4,7 @@ import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.KNUTH_SAMPLING_RATE_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.ORG_PROPAGATION_MARKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_SOURCE_TAG;
 
@@ -49,7 +50,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   @Override
   public final PropagationTags empty() {
-    return createValid(null, null, null, ProductTraceSource.UNSET);
+    return createValid(null, null, null, ProductTraceSource.UNSET, null);
   }
 
   @Override
@@ -57,12 +58,27 @@ public class PTagsFactory implements PropagationTags.Factory {
     return DEC_ENC_MAP.get(headerType).fromHeaderValue(this, value);
   }
 
+  @Override
+  public final PropagationTags emptyW3C(String originalTracestate) {
+    if (originalTracestate == null || originalTracestate.isEmpty()) {
+      return empty();
+    }
+    return W3CPTagsCodec.empty(this, originalTracestate);
+  }
+
   PropagationTags createValid(
       List<TagElement> tagPairs,
       TagValue decisionMakerTagValue,
       TagValue traceIdTagValue,
-      int productTraceSource) {
-    return new PTags(this, tagPairs, decisionMakerTagValue, traceIdTagValue, productTraceSource);
+      int productTraceSource,
+      TagValue orgPropagationMarkerTagValue) {
+    return new PTags(
+        this,
+        tagPairs,
+        decisionMakerTagValue,
+        traceIdTagValue,
+        productTraceSource,
+        orgPropagationMarkerTagValue);
   }
 
   PropagationTags createInvalid(String error) {
@@ -93,6 +109,8 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     private volatile double knuthSamplingRate = Double.NaN;
     private volatile TagValue knuthSamplingRateTagValue;
+
+    private volatile TagValue orgPropagationMarkerTagValue;
 
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
@@ -134,12 +152,13 @@ public class PTagsFactory implements PropagationTags.Factory {
      */
     private volatile CharSequence lastParentId;
 
-    public PTags(
+    PTags(
         PTagsFactory factory,
         List<TagElement> tagPairs,
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
-        int traceSource) {
+        int traceSource,
+        TagValue orgPropagationMarkerTagValue) {
       this(
           factory,
           tagPairs,
@@ -148,7 +167,8 @@ public class PTagsFactory implements PropagationTags.Factory {
           traceSource,
           PrioritySampling.UNSET,
           null,
-          null);
+          null,
+          orgPropagationMarkerTagValue);
     }
 
     PTags(
@@ -159,7 +179,8 @@ public class PTagsFactory implements PropagationTags.Factory {
         int traceSource,
         int samplingPriority,
         CharSequence origin,
-        CharSequence lastParentId) {
+        CharSequence lastParentId,
+        TagValue orgPropagationMarkerTagValue) {
       assert tagPairs == null || tagPairs.size() % 2 == 0;
       this.factory = factory;
       this.tagPairs = tagPairs;
@@ -169,6 +190,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.samplingPriority = samplingPriority;
       this.origin = origin;
       this.lastParentId = lastParentId;
+      this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
         this.traceIdHighOrderBits =
@@ -188,6 +210,7 @@ public class PTagsFactory implements PropagationTags.Factory {
               null,
               ProductTraceSource.UNSET,
               PrioritySampling.UNSET,
+              null,
               null,
               null);
       pTags.error = error;
@@ -336,6 +359,25 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
+    public CharSequence getOrgPropagationMarker() {
+      return orgPropagationMarkerTagValue;
+    }
+
+    @Override
+    public void updateOrgPropagationMarker(CharSequence opm) {
+      TagValue newValue = opm == null ? null : TagValue.from(opm);
+      if (!Objects.equals(this.orgPropagationMarkerTagValue, newValue)) {
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+        this.orgPropagationMarkerTagValue = newValue;
+      }
+    }
+
+    TagValue getOrgPropagationMarkerTagValue() {
+      return orgPropagationMarkerTagValue;
+    }
+
+    @Override
     public int getSamplingPriority() {
       return samplingPriority;
     }
@@ -463,6 +505,9 @@ public class PTagsFactory implements PropagationTags.Factory {
         size =
             PTagsCodec.calcXDatadogTagsSize(
                 size, KNUTH_SAMPLING_RATE_TAG, getKnuthSamplingRateTagValue());
+        size =
+            PTagsCodec.calcXDatadogTagsSize(
+                size, ORG_PROPAGATION_MARKER_TAG, getOrgPropagationMarkerTagValue());
         int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
           size =

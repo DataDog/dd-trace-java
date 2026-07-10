@@ -15,6 +15,10 @@ if (hasProperty('appBuildDir')) {
 
 version = ""
 
+// Avoid unlimited CPU usage on CI.
+def isCI = providers.environmentVariable("CI").isPresent()
+def ciBuildCpuCount = providers.environmentVariable("KUBERNETES_CPU_REQUEST").getOrElse("4")
+
 dependencies {
   implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
   implementation 'io.quarkus:quarkus-resteasy'
@@ -25,3 +29,26 @@ dependencies {
   }
 }
 
+if (hasProperty('agentJar')) {
+  // The Quarkus Gradle plugin reads `quarkus.native.additional-build-args` from
+  // MicroProfile Config, which honours system properties. Setting it at script
+  // evaluation time is equivalent to passing `-Dquarkus.native.additional-build-args=...`
+  // on the gradle invocation, but keeps the agent jar path resolution inside this
+  // script (where `agentJar` is forwarded by the outer smoke-test plugin).
+  //
+  // Note, however, the way these system properties are set in this nested project
+  // are not properly tracked by this nested gradle build cache, it needs to be tracked
+  // from the outside (see smokeTestApp).
+  final agentJar = property('agentJar')
+  def nativeBuildArgs = [
+    "-J-javaagent:${agentJar}",
+    "-J-Ddatadog.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ss.SSS'Z [dd.trace]'",
+    "-J-Ddd.profiling.enabled=true",
+    "-march=native",
+  ]
+  if (isCI) {
+    nativeBuildArgs.add("-H:NumberOfThreads=$ciBuildCpuCount")
+    nativeBuildArgs.add("-J-XX:ActiveProcessorCount=$ciBuildCpuCount")
+  }
+  System.setProperty('quarkus.native.additional-build-args', nativeBuildArgs.join(','))
+}

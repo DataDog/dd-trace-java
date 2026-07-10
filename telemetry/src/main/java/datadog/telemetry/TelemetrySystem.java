@@ -15,11 +15,14 @@ import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.LLMObsMetricPeriodicAction;
 import datadog.telemetry.metric.OtelEnvMetricPeriodicAction;
+import datadog.telemetry.metric.OtelSpiMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.telemetry.products.ProductChangeAction;
 import datadog.telemetry.rum.RumPeriodicAction;
+import datadog.telemetry.sca.ScaReachabilityPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.util.AgentThreadFactory;
@@ -56,6 +59,9 @@ public class TelemetrySystem {
     if (telemetryMetricsEnabled) {
       actions.add(new CoreMetricsPeriodicAction());
       actions.add(new OtelEnvMetricPeriodicAction());
+      if (InstrumenterConfig.get().getTraceExtensionsPath() != null) {
+        actions.add(new OtelSpiMetricPeriodicAction());
+      }
       actions.add(new ConfigInversionMetricPeriodicAction());
       actions.add(new IntegrationPeriodicAction());
       actions.add(new WafMetricPeriodicAction());
@@ -70,7 +76,14 @@ public class TelemetrySystem {
       }
     }
     if (null != dependencyService) {
-      actions.add(new DependencyPeriodicAction(dependencyService));
+      if (Config.get().isAppSecScaEnabled()) {
+        // ScaReachabilityPeriodicAction takes over all dep reporting when SCA is enabled:
+        // it merges DependencyService drains with CVE registry state into one entry per dep.
+        // DependencyPeriodicAction is skipped to avoid duplicate app-dependencies-loaded entries.
+        actions.add(new ScaReachabilityPeriodicAction(dependencyService));
+      } else {
+        actions.add(new DependencyPeriodicAction(dependencyService));
+      }
     }
     if (Config.get().isTelemetryLogCollectionEnabled()) {
       actions.add(new LogPeriodicAction());
@@ -94,9 +107,24 @@ public class TelemetrySystem {
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     Config config = Config.get();
+    boolean debug = config.isTelemetryDebugRequestsEnabled();
+    boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
+
+    // CI Visibility bazel mode writes telemetry to files instead of the network
+    if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
+      String telemetryDir = BazelMode.get().getTelemetryPayloadsDir();
+      log.info("[bazel mode] Writing telemetry payloads to {}", telemetryDir);
+      DependencyService dependencyService = createDependencyService(instrumentation);
+      TelemetryService telemetryService =
+          TelemetryService.buildFileBased(new FileBasedTelemetryClient(telemetryDir), debug);
+      TELEMETRY_THREAD =
+          createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
+      TELEMETRY_THREAD.start();
+      return;
+    }
+
     sco.createRemaining(config);
     DependencyService dependencyService = createDependencyService(instrumentation);
-    boolean debug = config.isTelemetryDebugRequestsEnabled();
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
 
     HttpRetryPolicy.Factory httpRetryPolicy =
@@ -114,7 +142,6 @@ public class TelemetrySystem {
         TelemetryService.build(
             ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault, debug);
 
-    boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
     TELEMETRY_THREAD =
         createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
     TELEMETRY_THREAD.start();

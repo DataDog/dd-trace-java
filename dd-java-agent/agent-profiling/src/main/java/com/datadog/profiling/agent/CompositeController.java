@@ -17,6 +17,7 @@ import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.ProfilerFlareLogger;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
@@ -50,7 +51,7 @@ public class CompositeController implements Controller {
     this.controllers = controllers;
   }
 
-  // visible for testing
+  @VisibleForTesting
   public List<Controller> getControllers() {
     return Collections.unmodifiableList(controllers);
   }

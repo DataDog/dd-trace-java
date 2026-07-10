@@ -396,7 +396,19 @@ public final class Events<D> {
         REQUEST_FILES_FILENAMES;
   }
 
-  static final int FILE_WRITTEN_ID = 31;
+  static final int REQUEST_FILES_CONTENT_ID = 31;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType REQUEST_FILES_CONTENT =
+      new ET<>("request.body.files.content", REQUEST_FILES_CONTENT_ID);
+
+  /** Contents of files uploaded in a multipart/form-data request */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, List<String>, Flow<Void>>> requestFilesContent() {
+    return (EventType<BiFunction<RequestContext, List<String>, Flow<Void>>>) REQUEST_FILES_CONTENT;
+  }
+
+  static final int FILE_WRITTEN_ID = 32;
 
   @SuppressWarnings("rawtypes")
   private static final EventType FILE_WRITTEN = new ET<>("file.written", FILE_WRITTEN_ID);

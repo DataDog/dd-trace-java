@@ -10,9 +10,4 @@ public class TestFailed {
   public void test_failed() {
     assertTrue(Calculator.add(2, 2) == 5);
   }
-
-  @Test
-  public void test_another_failed() {
-    assertTrue(Calculator.add(2, 2) == 5);
-  }
 }

@@ -65,7 +65,7 @@ public final class AgentCLI {
 
     int numTraces = 0;
     while (++numTraces <= count || count < 0) {
-      AgentSpan span = AgentTracer.startSpan("sample");
+      AgentSpan span = AgentTracer.startSpan("datadog", "sample");
       try {
         Thread.sleep(Math.max((long) (1000.0 * interval), 1L));
       } catch (InterruptedException ignore) {
@@ -84,12 +84,12 @@ public final class AgentCLI {
     String error = null;
     ConfigManager.StoredConfig storedConfig = null;
     if (configFile != null) {
-      Path configPath = Paths.get(configFile);
-      if (!Files.exists(configPath)) {
+      File configFilePath = new File(configFile);
+      if (!configFilePath.exists()) {
         log.error("Config file {} does not exist", configFile);
         error = "Config file does not exist";
       }
-      storedConfig = readConfig(Config.get(), configPath);
+      storedConfig = readConfig(Config.get(), configFilePath);
       if (storedConfig == null) {
         log.error("Unable to parse config file {}", configFile);
         if (error == null) {

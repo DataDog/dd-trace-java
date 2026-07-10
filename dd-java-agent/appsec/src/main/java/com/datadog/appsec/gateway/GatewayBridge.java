@@ -131,6 +131,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo execCmdSubInfo;
   private volatile DataSubscriberInfo shellCmdSubInfo;
   private volatile DataSubscriberInfo requestFilesFilenamesSubInfo;
+  private volatile DataSubscriberInfo requestFilesContentSubInfo;
 
   public GatewayBridge(
       SubscriptionService subscriptionService,
@@ -208,6 +209,10 @@ public class GatewayBridge {
       subscriptionService.registerCallback(
           EVENTS.requestFilesFilenames(), this::onRequestFilesFilenames);
     }
+    if (additionalIGEvents.contains(EVENTS.requestFilesContent())) {
+      subscriptionService.registerCallback(
+          EVENTS.requestFilesContent(), this::onRequestFilesContent);
+    }
   }
 
   /**
@@ -235,6 +240,7 @@ public class GatewayBridge {
     execCmdSubInfo = null;
     shellCmdSubInfo = null;
     requestFilesFilenamesSubInfo = null;
+    requestFilesContentSubInfo = null;
   }
 
   private Flow<Void> onUser(final RequestContext ctx_, final String user) {
@@ -605,6 +611,31 @@ public class GatewayBridge {
     }
   }
 
+  private Flow<Void> onRequestFilesContent(RequestContext ctx_, List<String> filesContent) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null || filesContent == null || filesContent.isEmpty()) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = requestFilesContentSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_FILES_CONTENT);
+        requestFilesContentSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new SingletonDataBundle<>(KnownAddresses.REQUEST_FILES_CONTENT, filesContent);
+      try {
+        GatewayContext gwCtx = new GatewayContext(false);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        requestFilesContentSubInfo = null;
+      }
+    }
+  }
+
   private Flow<Void> onDatabaseSqlQuery(RequestContext ctx_, String sql) {
     AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
     if (ctx == null) {
@@ -955,9 +986,6 @@ public class GatewayBridge {
 
         span.setTag("appsec.event", true);
 
-        String peerAddress = ctx.getPeerAddress();
-        span.setTag("network.client.ip", peerAddress);
-
         // Reflect client_ip as actor.ip for backward compatibility
         Object clientIp = tags.get(Tags.HTTP_CLIENT_IP);
         if (clientIp != null) {
@@ -1029,7 +1057,8 @@ public class GatewayBridge {
               ctx.getWafTimeouts() > 0, // wafTimeout,
               ctx.isWafRequestBlockFailure(), // blockFailure,
               ctx.isWafRateLimited(), // rateLimited,
-              ctx.isWafTruncated() // inputTruncated
+              ctx.isWafTruncated(), // inputTruncated
+              ctx.isWafRequestExcluded() // requestExcluded
               );
     }
 
@@ -1464,6 +1493,7 @@ public class GatewayBridge {
       DATA_DEPENDENCIES.put(KnownAddresses.REQUEST_BODY_OBJECT, l(EVENTS.requestBodyProcessed()));
       DATA_DEPENDENCIES.put(
           KnownAddresses.REQUEST_FILES_FILENAMES, l(EVENTS.requestFilesFilenames()));
+      DATA_DEPENDENCIES.put(KnownAddresses.REQUEST_FILES_CONTENT, l(EVENTS.requestFilesContent()));
     }
 
     private static Collection<datadog.trace.api.gateway.EventType<?>> l(

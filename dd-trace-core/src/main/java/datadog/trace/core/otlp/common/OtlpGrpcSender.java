@@ -76,6 +76,11 @@ public final class OtlpGrpcSender implements OtlpSender {
     client.connectionPool().evictAll();
   }
 
+  // only used by tests
+  public HttpUrl url() {
+    return url;
+  }
+
   private Request makeRequest(OtlpPayload payload) {
     Request.Builder requestBuilder = new Request.Builder().url(url);
     if (gzip) {

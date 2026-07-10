@@ -12,10 +12,9 @@
   Use `solves` instead, and assign the PR [milestone](https://github.com/DataDog/dd-trace-java/milestones) to the issue
 - Update the [CODEOWNERS](https://github.com/DataDog/dd-trace-java/blob/master/.github/CODEOWNERS) file on source file addition, migration, or deletion
 - Update [public documentation](https://docs.datadoghq.com/tracing/trace_collection/library_config/java/) with any new configuration flags or behaviors
+- Once approved, [use merge queue](https://github.com/DataDog/dd-trace-java/blob/master/CONTRIBUTING#merge-queue) to merge the PR
 
 Jira ticket: [PROJ-IDENT]
-
-***Note:*** **Once your PR is ready to merge, add it to the merge queue by commenting `/merge`.** `/merge -c` cancels the queue request. `/merge -f --reason "reason"` skips all merge queue checks; please use this judiciously, as some checks do not run at the PR-level. For more information, see [this doc](https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/3121612126/MergeQueue).
 
 <!--
 # Opening vs Drafting a PR:

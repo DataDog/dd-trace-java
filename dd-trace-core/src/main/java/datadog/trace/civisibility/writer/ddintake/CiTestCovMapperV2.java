@@ -189,7 +189,7 @@ public class CiTestCovMapperV2 implements RemoteMapper {
 
     // backend requires _some_ JSON to be present
     private static final RequestBody DUMMY_JSON_BODY =
-        jsonRequestBodyOf("{\"dummy\":true}".getBytes());
+        jsonRequestBodyOf("{\"dummy\":true}".getBytes(StandardCharsets.UTF_8));
 
     private final boolean compressionEnabled;
 

@@ -181,7 +181,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-succeeded"             | true    | ["org/example/cucumber/calculator/basic_arithmetic.feature"]        | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
     ]                                                                                                                                          | []                                                                                                                      | []
-    "test-attempt-to-fix-quarantined-failed"    | true    | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+    "test-attempt-to-fix-quarantined-failed"    | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]                                                                                                                                          | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
@@ -191,7 +191,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     ]                                                                                                                                          | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
     ]                                                                                                                                                                                                                                                                    | []
-    "test-attempt-to-fix-disabled-failed"       | true    | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+    "test-attempt-to-fix-disabled-failed"       | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]                                                                                                                                          | []                                                                                                                      | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")

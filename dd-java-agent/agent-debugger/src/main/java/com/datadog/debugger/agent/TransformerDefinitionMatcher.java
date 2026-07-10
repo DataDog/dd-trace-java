@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,12 +60,18 @@ public class TransformerDefinitionMatcher {
       if (fileName == null) {
         continue;
       }
+      fileName = normalizeWindowsToUnixPath(fileName);
+      fileName = fileName.toLowerCase(Locale.ROOT);
       Map<String, List<ProbeDefinition>> targetMap =
           fileName.indexOf('/') != -1
               ? definitionsByQualifiedFileNames
               : definitionsBySimpleFileNames;
       targetMap.computeIfAbsent("/" + fileName, key -> new ArrayList<>()).add(definition);
     }
+  }
+
+  private static String normalizeWindowsToUnixPath(String fileName) {
+    return fileName.replace('\\', '/');
   }
 
   private Trie buildDefinitionFileNamesTrie(
@@ -134,6 +141,7 @@ public class TransformerDefinitionMatcher {
       sb.append(reversedPackageName);
     }
     String reversedFileName = sb.toString();
+    reversedFileName = reversedFileName.toLowerCase(Locale.ROOT);
     List<ProbeDefinition> bySourceFileDefinitions = new ArrayList<>();
     // try match qualified filenames
     Collection<String> matchingFileNames =
@@ -148,6 +156,7 @@ public class TransformerDefinitionMatcher {
       }
     }
     // try match simple filenames
+    sourceFileName = sourceFileName.toLowerCase(Locale.ROOT);
     List<ProbeDefinition> definitions = definitionsBySimpleFileNames.get("/" + sourceFileName);
     if (definitions != null) {
       bySourceFileDefinitions.addAll(definitions);

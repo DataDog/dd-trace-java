@@ -60,4 +60,32 @@ class PathCallSiteTest extends BaseIoRaspCallSiteTest {
     then:
     1 * helper.beforeFileLoaded(path)
   }
+
+  void 'test RASP resolve with Path argument'() {
+    setup:
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
+    final parent = getRootFolder()
+    final other = newFile('test_rasp_path_resolve.txt').toPath()
+
+    when:
+    TestPathSuite.resolveWithPath(parent, other)
+
+    then:
+    1 * helper.beforeFileLoaded(other.toString())
+  }
+
+  void 'test RASP resolveSibling with Path argument'() {
+    setup:
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
+    final sibling = newFile('test_rasp_path_sibling_1.txt').toPath()
+    final other = newFile('test_rasp_path_sibling_2.txt').toPath()
+
+    when:
+    TestPathSuite.resolveSiblingWithPath(sibling, other)
+
+    then:
+    1 * helper.beforeFileLoaded(other.toString())
+  }
 }

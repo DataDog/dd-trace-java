@@ -1,6 +1,9 @@
 package server
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -10,6 +13,10 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.api.Config
+import okhttp3.MediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
@@ -80,6 +87,47 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   @Override
   boolean testBodyMultipart() {
     true
+  }
+
+  @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
+  boolean testBodyFilesContent() {
+    true
+  }
+
+  @Override
+  boolean testBodyFilesContentOrdering() {
+    false
+  }
+
+  // fileUploads() returns a HashSet in Vert.x: check count instead of which specific file is excluded
+  def 'test instrumentation gateway file upload content max files limit count'() {
+    setup:
+    assumeTrue(testBodyFilesContent())
+    def maxFilesToInspect = Config.get().getAppSecMaxFileContentCount()
+    def bodyBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM)
+    (1..maxFilesToInspect + 1).each { i ->
+      bodyBuilder.addFormDataPart("file${i}", "file${i}.bin",
+        RequestBody.create(MediaType.parse('application/octet-stream'), "content_of_file_${i}"))
+    }
+    def httpRequest = request(BODY_MULTIPART, 'POST', bodyBuilder.build()).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any { span ->
+      def tag = span.getTag('request.body.files_content') as String
+      tag != null && tag.count('content_of_file_') == maxFilesToInspect
+    }
+
+    cleanup:
+    response.close()
   }
 
   @Override
@@ -175,5 +223,29 @@ class VertxHttpServerWorkerForkedTest extends VertxHttpServerForkedTest {
   @Override
   HttpServer server() {
     return new VertxServer(verticle(), routerBasePath(), true)
+  }
+
+  def 'test blocking of JSON request body finishes route handler span'() {
+    setup:
+    // VertxTestServer handles BODY_JSON by calling ctx.body().asJsonObject().
+    // The IG_BODY_CONVERTED_HEADER is consumed by HttpServerTest's AppSec test callback, which
+    // returns a RequestBlockingAction from requestBodyProcessed() when that JSON body is converted.
+    def request = request(
+      BODY_JSON, 'POST',
+      RequestBody.create(MediaType.get('application/json'), '{"a": "x"}'))
+      .header(IG_BODY_CONVERTED_HEADER, 'true')
+      .build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == 413
+    response.body().charStream().text.contains('"title":"You\'ve been blocked"')
+    !handlerRan
+    // The client receiving a 413 only proves the blocking response was committed.
+    // We want to make sure that a BlockingException does now abort the worker route handler
+    // before the vertx.route-handler span has been finished (which would leave it dangling)
+    TEST_WRITER.waitForTraces(1)
   }
 }

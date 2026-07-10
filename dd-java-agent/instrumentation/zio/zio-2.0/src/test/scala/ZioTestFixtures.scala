@@ -121,7 +121,7 @@ object ZioTestFixtures {
         ddSpan <- ZIO.succeed(
           AgentTracer
             .get()
-            .buildSpan(opName)
+            .buildSpan("zio.experimental", opName)
             .withResourceName("zio-test")
             .start()
         )

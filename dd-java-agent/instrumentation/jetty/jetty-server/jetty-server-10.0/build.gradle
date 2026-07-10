@@ -36,6 +36,9 @@ tracerJava {
 
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
+// Exercises jetty-appsec-9.4's early_10_series muzzle pass: _multiParts was
+// MultiPartFormInputStream in [10.0.0, 10.0.10) before switching to MultiParts in 10.0.10.
+addTestSuiteForDir("earlyDep10ForkedTest", "test")
 
 dependencies {
   main_java11Implementation project(':dd-java-agent:instrumentation:jetty:jetty-common')
@@ -48,9 +51,11 @@ dependencies {
   }
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
 
-  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.0.0'
-  testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.0.0'
-  testImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.0.0'
+  // Use 10.0.10+ so jetty-appsec-9.4 applies: _multiParts changed from MultiPartFormInputStream
+  // to MultiParts in 10.0.10 (jetty-appsec-9.4's muzzle requires the MultiParts type).
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.0.10'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.0.10'
+  testImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.0.10'
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testImplementation testFixtures(project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0"))
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
@@ -63,7 +68,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-7.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-8.1.3')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.2')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.4')
   // Include all websocket instrumentation modules for testing. Only the version-compatible module will apply at runtime.
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
@@ -72,14 +77,42 @@ dependencies {
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.+'
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.+'
   latestDepTestImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.+'
-  latestDepTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3')
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.4')
   latestDepTestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
 
   latestDepForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.+'
   latestDepForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.+'
   latestDepForkedTestImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.+'
-  latestDepForkedTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3')
+  latestDepForkedTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.4')
   latestDepForkedTestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
+
+  // Early Jetty 10 (10.0.0–10.0.9): _multiParts is MultiPartFormInputStream, not MultiParts.
+  earlyDep10ForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.0.9'
+  earlyDep10ForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.0.9'
+  earlyDep10ForkedTestImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.0.9'
+  earlyDep10ForkedTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.4')
+  earlyDep10ForkedTestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
+}
+
+tasks.named('earlyDep10ForkedTest', Test) {
+  systemProperty 'test.dd.earlyJetty10', 'true'
+}
+
+// Force Jetty 10.0.9 for the early suite: earlyDep10ForkedTestImplementation extends
+// testImplementation (which pins 10.0.10), so without this force Gradle would pick 10.0.10
+// and never exercise the MultiPartFormInputStream path.
+['earlyDep10ForkedTestCompileClasspath', 'earlyDep10ForkedTestRuntimeClasspath'].each { conf ->
+  configurations.named(conf) {
+    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+      if (details.requested.group == 'org.eclipse.jetty' ||
+        details.requested.group == 'org.eclipse.jetty.websocket') {
+        if (details.requested.version.startsWith('10.')) {
+          details.useVersion '10.0.9'
+          details.because 'earlyDep10ForkedTest must stay on Jetty 10.0.9 to exercise MultiPartFormInputStream path'
+        }
+      }
+    }
+  }
 }
 
 configurations.named('latestDepForkedTestRuntimeClasspath') {

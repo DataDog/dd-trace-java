@@ -3,7 +3,9 @@ muzzle {
   pass {
     group = "org.glassfish.grizzly"
     module = "grizzly-http-client"
-    versions = "[1.9,1.16]"
+    // The old 1.16 upper bound was historical; Grizzly 5 still exposes the com.ning AHC API
+    // this instrumentation matches, so inverse muzzle should not treat 5.x as unsupported.
+    versions = "[1.9,1.16],[5,6)"
     assertInverse = true
   }
   pass {
@@ -21,7 +23,22 @@ repositories {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('latest5DepTest', 'test')
 addTestSuiteForDir('muleLatestDepTest', 'test')
+
+// Grizzly 5.x is compiled for JDK 21, so its test suite must run on JDK 21+.
+tasks.named("latest5DepTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_21
+  }
+  javaLauncher = getJavaLauncherFor(21)
+}
+
+tasks.named("compileLatest5DepTestJava", JavaCompile) {
+  configureCompiler(it, 21, JavaVersion.VERSION_1_8)
+}
+
+configureGroovyCompiler(21, "compileLatest5DepTestGroovy")
 
 configurations.named("muleLatestDepTestRuntimeClasspath") {
   exclude(group: 'org.glassfish.grizzly')
@@ -32,6 +49,8 @@ dependencies {
   // for some reason, the tests don't *load* until 1.12, but muzzles works as far back as 1.9
   testImplementation group: 'org.glassfish.grizzly', name: 'grizzly-http-client', version: '1.12'
 
-  latestDepTestImplementation group: 'org.glassfish.grizzly', name: 'grizzly-http-client', version: '+'
+  // grizzly-http-client 5.x requires JDK 21; the 5.x test suite is `latest5DepTest`.
+  latestDepTestImplementation group: 'org.glassfish.grizzly', name: 'grizzly-http-client', version: '1.+'
+  latest5DepTestImplementation group: 'org.glassfish.grizzly', name: 'grizzly-http-client', version: '5.+'
   muleLatestDepTestImplementation group: 'org.mule.glassfish.grizzly', name: 'grizzly-http-client', version: '+'
 }

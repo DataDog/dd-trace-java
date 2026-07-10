@@ -39,6 +39,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
@@ -57,7 +58,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   public boolean initialize(
       final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
     FeatureFlaggingGateway.addConfigListener(this);
-    return initializationLatch.await(timeout, unit); // await for initialization
+    return initializationLatch.await(timeout, unit) || hasConfiguration();
+  }
+
+  @Override
+  public boolean hasConfiguration() {
+    return configuration.get() != null;
   }
 
   @Override
@@ -68,8 +74,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   @Override
   public void accept(final ServerConfiguration config) {
     configuration.set(config);
-    initializationLatch.countDown();
-    configCallback.run();
+    if (config != null) {
+      initializationLatch.countDown();
+      configCallback.run();
+    } else if (initializationLatch.getCount() == 0) {
+      configCallback.run();
+    }
   }
 
   @Override
@@ -100,8 +110,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .build();
       }
 
-      if (isEmpty(flag.allocations)) {
-        return error(defaultValue, ErrorCode.GENERAL, "Missing allocations for flag " + flag.key);
+      if (flag.allocations == null) {
+        return error(defaultValue, ErrorCode.GENERAL, "Missing allocations for flag " + key);
       }
 
       final Date now = new Date();
@@ -122,7 +132,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           for (final Split split : allocation.splits) {
             if (isEmpty(split.shards)) {
               return resolveVariant(
-                  target, key, defaultValue, flag, split.variationKey, allocation, context);
+                  target, key, defaultValue, flag, split.variationKey, allocation, split, context);
             } else {
               if (targetingKey == null) {
                 return error(defaultValue, ErrorCode.TARGETING_KEY_MISSING);
@@ -137,7 +147,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
               }
               if (allShardsMatch) {
                 return resolveVariant(
-                    target, key, defaultValue, flag, split.variationKey, allocation, context);
+                    target,
+                    key,
+                    defaultValue,
+                    flag,
+                    split.variationKey,
+                    allocation,
+                    split,
+                    context);
               }
             }
           }
@@ -148,6 +165,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           .value(defaultValue)
           .reason(Reason.DEFAULT.name())
           .build();
+    } catch (final PatternSyntaxException e) {
+      return error(defaultValue, ErrorCode.PARSE_ERROR, e);
     } catch (final NumberFormatException e) {
       return error(defaultValue, ErrorCode.TYPE_MISMATCH, e);
     } catch (final Exception e) {
@@ -251,12 +270,10 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static boolean matchesRegex(final Object attributeValue, final Object conditionValue) {
-    try {
-      final Pattern pattern = Pattern.compile(String.valueOf(conditionValue));
-      return pattern.matcher(String.valueOf(attributeValue)).find();
-    } catch (Exception e) {
-      return false;
-    }
+    // PatternSyntaxException is intentionally not caught here so it propagates to evaluate(),
+    // which maps it to ErrorCode.PARSE_ERROR.
+    final Pattern pattern = Pattern.compile(String.valueOf(conditionValue));
+    return pattern.matcher(String.valueOf(attributeValue)).find();
   }
 
   private static boolean isOneOf(final Object attributeValue, final Object conditionValue) {
@@ -333,6 +350,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final Flag flag,
       final String variationKey,
       final Allocation allocation,
+      final Split split,
       final EvaluationContext context) {
     final Variant variant = flag.variations.get(variationKey);
     if (variant == null) {
@@ -377,7 +395,10 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     final ProviderEvaluation<T> result =
         ProviderEvaluation.<T>builder()
             .value(mappedValue)
-            .reason(Reason.TARGETING_MATCH.name())
+            .reason(
+                !isEmpty(allocation.rules)
+                    ? Reason.TARGETING_MATCH.name()
+                    : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
             .variant(variant.key)
             .flagMetadata(metadataBuilder.build())
             .build();

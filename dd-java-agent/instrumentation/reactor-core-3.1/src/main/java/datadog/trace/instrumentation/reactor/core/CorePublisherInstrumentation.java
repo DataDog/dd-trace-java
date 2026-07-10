@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.instrumentation.reactor.core.ContextSpanHelper.extractContextFromSubscriberContext;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -14,6 +13,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -51,20 +51,16 @@ public class CorePublisherInstrumentation
   public static class PropagateContextSpanOnSubscribe {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope before(
-        @Advice.This Publisher<?> self, @Advice.Argument(0) final CoreSubscriber<?> subscriber) {
-      final Context context = extractContextFromSubscriberContext(subscriber);
-
-      if (context != null) {
-        /*
-         we force storing the context state linked to publisher and subscriber to the one
-         explicitly  present in the reactor context so that, if PublisherInstrumentation is kicking in
-         after this advice, it won't override that active context.
-        */
-        InstrumentationContext.get(Publisher.class, Context.class).put(self, context);
-        InstrumentationContext.get(Subscriber.class, Context.class).put(subscriber, context);
-        return context.attach();
-      }
-      return null;
+        @Advice.This final Publisher<?> self,
+        @Advice.Argument(0) final CoreSubscriber<?> subscriber) {
+      // Hands the explicit context recorded for a context-writing subscriber to the publisher store
+      // (for the reactive-streams hand-off) and attaches it. The subscriber wrapping for
+      // context-reading operators lives in ContextReadingPublisherInstrumentation.
+      return ReactorContextBridge.captureOnSubscribe(
+          self,
+          subscriber,
+          InstrumentationContext.get(Publisher.class, HandoffContext.class),
+          InstrumentationContext.get(Subscriber.class, Context.class));
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)

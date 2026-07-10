@@ -21,9 +21,13 @@ import spock.util.concurrent.PollingConditions
 class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
 
   @Shared
-  private final rcPayload = new JsonSlurper().parse(fetchResource("config/flags-v1.json")).with { json ->
-    return JsonOutput.toJson(json.data.attributes)
-  }
+  private final rcConfig = new JsonSlurper().parse(fetchResource("ffe-system-test-data/ufc-config.json")) as Map<String, Object>
+
+  @Shared
+  private final rcPayload = JsonOutput.toJson(rcConfig)
+
+  @Shared
+  private final loggedAllocations = buildLoggedAllocations(rcConfig)
 
   @Override
   ProcessBuilder createProcessBuilder() {
@@ -51,14 +55,18 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     }
   }
 
-  void 'test remote config'() {
+  void 'test first remote config poll asks agent for feature flags'() {
     when:
-    final rcRequest = waitForRcClientRequest { req ->
-      decodeProducts(req).find { it == Product.FFE_FLAGS } != null
+    final firstRcRequest = waitForRcClientRequest { req ->
+      return true
     }
 
     then:
-    final capabilities = decodeCapabilities(rcRequest)
+    firstRcRequest == rcClientMessages.first()
+    // An already-running Agent gives a newly-started tracer one new-client cache bypass. If
+    // FFE_FLAGS is missing here and only appears on a later poll, the Agent can miss the fast path.
+    decodeProducts(firstRcRequest).find { it == Product.FFE_FLAGS } != null
+    final capabilities = decodeCapabilities(firstRcRequest)
     hasCapability(capabilities, Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES)
   }
 
@@ -66,34 +74,40 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     setup:
     setRemoteConfig("datadog/2/FFE_FLAGS/1/config", rcPayload)
     final url = "http://localhost:${httpPort}/openfeature/evaluate"
-    final testCases = parseTestCases().findAll {
-      it.result.flagMetadata?.doLog
-    }
+    final testCases = parseTestCases()
+    assert !testCases.isEmpty()
 
     when:
-    final responses = testCases.collect {
+    final results = testCases.collect {
       testCase ->
       final request = new Request.Builder()
       .url(url)
       .post(RequestBody.create(MediaType.parse('application/json'), JsonOutput.toJson(testCase)))
       .build()
-      client.newCall(request).execute()
+      final response = client.newCall(request).execute()
+      final responseBody = new JsonSlurper().parse(response.body().byteStream())
+      return [testCase: testCase, response: response, body: responseBody]
     }
+    final expectedExposures = uniqueExpectedExposures(results)
 
     then:
-    responses.every {
-      it.code() == 200
+    results.every {
+      it.response.code() == 200
     }
+    !expectedExposures.isEmpty()
     new PollingConditions(timeout: 10).eventually {
       final requests = evpProxyMessages*.getV2() as List<Map<String, Object>>
       final events = requests*.exposures.flatten()
-      assert events.size() == testCases.size()
-      testCases.each {
-        testCase ->
+      assert events.size() == expectedExposures.size()
+      expectedExposures.each {
+        expected ->
         assert events.find {
           event ->
-          event.flag.key == testCase.flag && event.subject.id == testCase.targetingKey
-        } != null : "Unable to find exposure with flag=${testCase.flag} and targetingKey=${testCase.targetingKey}"
+          event.flag.key == expected.flag &&
+          event.allocation.key == expected.allocation &&
+          event.variant.key == expected.variant &&
+          event.subject.id == expected.targetingKey
+        } != null : "Unable to find exposure ${expected}"
       }
     }
   }
@@ -115,8 +129,16 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     response.code() == 200
     final responseBody = new JsonSlurper().parse(response.body().byteStream())
     responseBody.value == testCase.result.value
-    responseBody.variant == testCase.result.variant
-    responseBody.flagMetadata?.allocationKey == testCase.result.flagMetadata?.allocationKey
+    responseBody.reason == testCase.result.reason
+    if (testCase.result.containsKey('errorCode')) {
+      assert responseBody.errorCode == testCase.result.errorCode
+    }
+    if (testCase.result.containsKey('variant')) {
+      assert responseBody.variant == testCase.result.variant
+    }
+    if (testCase.result.flagMetadata?.allocationKey) {
+      assert responseBody.flagMetadata?.allocationKey == testCase.result.flagMetadata?.allocationKey
+    }
 
     where:
     testCase << parseTestCases()
@@ -127,11 +149,12 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
   }
 
   private static List<Map<String, Object>> parseTestCases() {
-    final folder = fetchResource('data')
+    final folder = fetchResource('ffe-system-test-data/evaluation-cases')
     final uri = folder.toURI()
     final testsPath = Paths.get(uri)
     final files = Files.list(testsPath)
     .filter(path -> path.toString().endsWith('.json'))
+    .sorted(Comparator.comparing(path -> path.fileName.toString()))
     final result = []
     final slurper = new JsonSlurper()
     files.each {
@@ -144,7 +167,49 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
       }
       result.addAll(testCases)
     }
+    assert !result.isEmpty()
     return result
+  }
+
+  private List<Map<String, String>> uniqueExpectedExposures(final List<Map<String, Object>> results) {
+    final expected = []
+    final seen = [] as Set<String>
+    results.each { result ->
+      final testCase = result.testCase as Map<String, Object>
+      final body = result.body as Map<String, Object>
+      final flag = testCase.flag as String
+      final allocation = body.flagMetadata?.allocationKey as String
+      final variant = body.variant as String
+      if (!variant || !allocation || !allocationLogs(flag, allocation)) {
+        return
+      }
+
+      final exposure = [
+        flag: flag,
+        allocation: allocation,
+        variant: variant,
+        targetingKey: testCase.targetingKey
+      ]
+      final key = "${exposure.flag}\u0000${exposure.targetingKey}\u0000${exposure.allocation}\u0000${exposure.variant}"
+      if (seen.add(key)) {
+        expected.add(exposure)
+      }
+    }
+    return expected
+  }
+
+  private boolean allocationLogs(final String flag, final String allocation) {
+    return loggedAllocations["${flag}\u0000${allocation}"] == true
+  }
+
+  private static Map<String, Boolean> buildLoggedAllocations(final Map<String, Object> config) {
+    final logged = [:]
+    (config.flags as Map<String, Object>).each { flag, definition ->
+      (definition.allocations ?: []).each { allocation ->
+        logged["${flag}\u0000${allocation.key}"] = allocation.doLog == true
+      }
+    }
+    return logged
   }
 
   private static Set<Product> decodeProducts(final Map<String, Object> request) {

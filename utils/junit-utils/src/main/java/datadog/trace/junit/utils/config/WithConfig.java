@@ -1,9 +1,11 @@
 package datadog.trace.junit.utils.config;
 
-import java.lang.annotation.ElementType;
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.ElementType.TYPE;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -16,19 +18,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
  *
  * <p>Examples:
  *
- * <pre>{@code
- * @WithConfig(key = "service", value = "my_service")
- * @WithConfig(key = "trace.resolver.enabled", value = "false")
+ * <pre>
+ * &#64;WithConfig(key = "service", value = "my_service")
+ * &#64;WithConfig(key = "trace.resolver.enabled", value = "false")
  * class MyTest extends DDJavaSpecification {
  *
- *   @Test
- *   @WithConfig(key = "AGENT_HOST", value = "localhost", env = true)
+ *   &#64;Test
+ *   &#64;WithConfig(key = "AGENT_HOST", value = "localhost", env = true)
  *   void testWithEnv() { ... }
  * }
- * }</pre>
+ * </pre>
  */
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RUNTIME)
+@Target({TYPE, METHOD})
 @Repeatable(WithConfigs.class)
 @ExtendWith(WithConfigExtension.class)
 public @interface WithConfig {

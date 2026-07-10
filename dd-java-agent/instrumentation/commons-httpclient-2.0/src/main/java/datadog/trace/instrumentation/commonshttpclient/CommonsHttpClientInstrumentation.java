@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.commonshttpclient.HttpHeadersInjectAdapter.SETTER;
@@ -65,7 +65,7 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
           return null;
         }
 
-        final AgentSpan span = startSpan(HTTP_REQUEST);
+        final AgentSpan span = startSpan("commons-http-client", HTTP_REQUEST);
         final AgentScope scope = activateSpan(span);
 
         DECORATE.afterStart(span);
@@ -105,7 +105,7 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class ContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
-      DECORATE.injectContext(getCurrentContext(), httpMethod, SETTER);
+      DECORATE.injectContext(currentContext(), httpMethod, SETTER);
     }
   }
 }

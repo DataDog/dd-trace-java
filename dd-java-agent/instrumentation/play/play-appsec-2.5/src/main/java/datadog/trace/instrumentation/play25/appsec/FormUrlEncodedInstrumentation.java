@@ -31,7 +31,7 @@ public class FormUrlEncodedInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".BodyParserHelpers",
+      packageName + ".BodyParserHelpers", packageName + ".BodyParserHelpers$ScalaIteratorAdapter",
     };
   }
 

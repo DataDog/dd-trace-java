@@ -1,29 +1,22 @@
 package datadog.trace.core.otlp.common;
 
-import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.nio.ByteBuffer;
 
-/** OTLP payload consisting of a sequence of chunked byte-arrays. */
 public final class OtlpPayload {
-  public static final OtlpPayload EMPTY = new OtlpPayload(new ArrayDeque<>(), 0, "");
+  public static final OtlpPayload EMPTY = new OtlpPayload(ByteBuffer.allocate(0), "");
 
-  private final Deque<byte[]> chunks;
+  private final ByteBuffer content;
   private final int contentLength;
   private final String contentType;
 
-  public OtlpPayload(Deque<byte[]> chunks, int contentLength, String contentType) {
-    this.chunks = chunks;
-    this.contentLength = contentLength;
+  public OtlpPayload(ByteBuffer content, String contentType) {
+    this.content = content;
+    this.contentLength = content.remaining();
     this.contentType = contentType;
   }
 
-  /** Drains the chunked payload to the given sink. */
-  public void drain(OtlpSink sink) throws IOException {
-    byte[] chunk;
-    while ((chunk = chunks.pollFirst()) != null) {
-      sink.write(chunk);
-    }
+  public ByteBuffer getContent() {
+    return content.asReadOnlyBuffer();
   }
 
   public int getContentLength() {

@@ -8,6 +8,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEnd
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithExchange;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -18,6 +19,7 @@ import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUM
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.OPERATION_AMQP_COMMAND;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.OPERATION_AMQP_OUTBOUND;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.PRODUCER_DECORATE;
+import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.RABBITMQ_AMQP;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.rabbitmq.amqp.TextMapInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.canThrow;
@@ -129,7 +131,7 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
 
       final Connection connection = channel.getConnection();
 
-      final AgentSpan span = startSpan(OPERATION_AMQP_COMMAND);
+      final AgentSpan span = startSpan(RABBITMQ_AMQP.toString(), OPERATION_AMQP_COMMAND);
       span.setResourceName(method);
       CLIENT_DECORATE.setPeerPort(span, connection.getPort());
       CLIENT_DECORATE.afterStart(span);
@@ -166,7 +168,7 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
 
       final Connection connection = channel.getConnection();
 
-      final AgentSpan span = startSpan(OPERATION_AMQP_OUTBOUND);
+      final AgentSpan span = startSpan(RABBITMQ_AMQP.toString(), OPERATION_AMQP_OUTBOUND);
       PRODUCER_DECORATE.setPeerPort(span, connection.getPort());
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onPeerConnection(span, connection.getAddress());
@@ -206,8 +208,10 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span = activeSpan();
       if (span == null) return;
       Config config = Config.get();
+      final boolean isDefaultExchange = exchange == null || exchange.isEmpty();
+      final String destination = isDefaultExchange ? routingKey : exchange;
       if (!config.isRabbitPropagationEnabled()
-          || config.isRabbitPropagationDisabledForDestination(exchange)) return;
+          || config.isRabbitPropagationDisabledForDestination(destination)) return;
       // This is the internal behavior when props are null.  We're just doing it earlier now.
       if (props == null) {
         props = MessageProperties.MINIMAL_BASIC;
@@ -218,9 +222,13 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       if (TIME_IN_QUEUE_ENABLED) {
         RabbitDecorator.injectTimeInQueueStart(headers);
       }
-      DataStreamsTags tags =
-          createWithExchange(
-              "rabbitmq", OUTBOUND, exchange, routingKey != null && !routingKey.isEmpty());
+      final boolean hasRoutingKey = routingKey != null && !routingKey.isEmpty();
+      DataStreamsTags tags;
+      if (isDefaultExchange && hasRoutingKey) {
+        tags = create("rabbitmq", OUTBOUND, routingKey);
+      } else {
+        tags = createWithExchange("rabbitmq", OUTBOUND, exchange, hasRoutingKey);
+      }
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
       props =

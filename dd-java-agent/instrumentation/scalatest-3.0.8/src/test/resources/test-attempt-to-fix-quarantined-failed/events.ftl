@@ -14,7 +14,7 @@
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "scalatest-3.0.8",
       "test.source.file" : "dummy_source_path",
-      "test.status" : "pass",
+      "test.status" : "fail",
       "test.suite" : "org.example.TestFailed",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -52,8 +52,7 @@
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
-      "test.failure_suppressed" : "true",
-      "test.final_status" : "pass",
+      "test.final_status" : "fail",
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "scalatest-3.0.8",
@@ -104,7 +103,7 @@
       "test.command" : "scalatest-3.0.8",
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "pass",
+      "test.status" : "fail",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -137,7 +136,7 @@
       "test.framework" : "scalatest",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "scalatest-3.0.8",
-      "test.status" : "pass",
+      "test.status" : "fail",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"

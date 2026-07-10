@@ -102,7 +102,7 @@ public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
       }
 
       // Don't automatically close the span with the scope if we're executing an async method
-      final AgentSpan span = startSpan(TWILIO_SDK);
+      final AgentSpan span = startSpan("twilio-sdk", TWILIO_SDK);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 

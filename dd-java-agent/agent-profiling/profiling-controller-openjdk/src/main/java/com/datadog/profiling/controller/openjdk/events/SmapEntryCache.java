@@ -1,6 +1,7 @@
 package com.datadog.profiling.controller.openjdk.events;
 
 import datadog.environment.JavaVirtualMachine;
+import datadog.trace.api.internal.VisibleForTesting;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -60,7 +61,7 @@ final class SmapEntryCache {
     this.smapsPath = smapsPath;
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   void invalidate() {
     UPDATER.getAndSet(this, System.nanoTime() - (2 * ttl));
   }
@@ -81,7 +82,7 @@ final class SmapEntryCache {
     return (List<SmapEntryEvent>) events[index];
   }
 
-  // accessible for testing
+  @VisibleForTesting
   static AnnotatedRegion fromAnnotatedEntry(String line, int javaVersion) {
     boolean isRegion = line.startsWith("0x");
     if (isRegion) {
@@ -149,7 +150,7 @@ final class SmapEntryCache {
     return ((firstChar >= '0' && firstChar <= '9') || (firstChar >= 'a' && firstChar <= 'f'));
   }
 
-  // accessible for testing
+  @VisibleForTesting
   static void readEvents(BufferedReader br, List<SmapEntryEvent> events) throws IOException {
     String line = br.readLine();
     while (line != null) {

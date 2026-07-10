@@ -28,6 +28,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.internal.TraceSegment
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData
 import datadog.trace.api.telemetry.LoginEvent
 import datadog.trace.api.telemetry.RuleType
 import datadog.trace.api.telemetry.WafMetricCollector
@@ -80,6 +81,14 @@ class GatewayBridgeSpecification extends DDSpecification {
     }
 
     @Override
+    void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+
+    @Override
+    ClientIpAddressData getClientIpAddressData() {
+      return null
+    }
+
+    @Override
     void close() throws IOException {}
   }
   EventProducerService.DataSubscriberInfo nonEmptyDsInfo = {
@@ -123,6 +132,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String, Flow<Void>> fileLoadedCB
   BiFunction<RequestContext, String, Flow<Void>> fileWrittenCB
   BiFunction<RequestContext, List<String>, Flow<Void>> requestFilesFilenamesCB
+  BiFunction<RequestContext, List<String>, Flow<Void>> requestFilesContentCB
   BiFunction<RequestContext, String, Flow<Void>> requestSessionCB
   BiFunction<RequestContext, String[], Flow<Void>> execCmdCB
   BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
@@ -188,12 +198,10 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * spanInfo.getTags() >> TagMap.fromMap(['http.client_ip': '1.1.1.1'])
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
-    1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close()
     1 * spanInfo.setMetric("_dd.appsec.enabled", 1)
     1 * spanInfo.setTag("_dd.runtime_family", "jvm")
     1 * spanInfo.setTag('appsec.event', true)
-    1 * spanInfo.setTag('network.client.ip', '2001::1')
     1 * spanInfo.setTag('actor.ip', '1.1.1.1')
     1 * traceSegment.setDataTop('appsec', new AppSecEventWrapper([event]))
     1 * mockAppSecCtx.isWafBlocked()
@@ -202,7 +210,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * mockAppSecCtx.isWafRequestBlockFailure()
     1 * mockAppSecCtx.isWafRateLimited()
     1 * mockAppSecCtx.isWafTruncated()
-    1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _) // call waf request metric
+    1 * wafMetricCollector.wafRequest(_, _, _, _, _, _, _, _) // call waf request metric
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE
   }
@@ -463,7 +471,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void callInitAndCaptureCBs() {
     // force all callbacks to be registered
-    _ * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT, KnownAddresses.REQUEST_FILES_FILENAMES]
+    _ * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT, KnownAddresses.REQUEST_FILES_FILENAMES, KnownAddresses.REQUEST_FILES_CONTENT]
 
     1 * ig.registerCallback(EVENTS.requestStarted(), _) >> {
       requestStartedCB = it[1]; null
@@ -560,6 +568,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     }
     1 * ig.registerCallback(EVENTS.requestFilesFilenames(), _) >> {
       requestFilesFilenamesCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestFilesContent(), _) >> {
+      requestFilesContentCB = it[1]; null
     }
     0 * ig.registerCallback(_, _)
 
@@ -1142,6 +1153,38 @@ class GatewayBridgeSpecification extends DDSpecification {
     0 * eventDispatcher.publishDataEvent(*_)
   }
 
+  void 'process request files content'() {
+    setup:
+    final filesContent = ['%PDF-1.4 malicious content', '#!/bin/bash\nrm -rf /']
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_FILES_CONTENT in it
+    }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = requestFilesContentCB.apply(ctx, filesContent)
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
+    bundle.get(KnownAddresses.REQUEST_FILES_CONTENT) == filesContent
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
+  }
+
+  void 'process request files content with empty list returns noop'() {
+    when:
+    Flow<?> flow = requestFilesContentCB.apply(ctx, [])
+
+    then:
+    flow == NoopFlow.INSTANCE
+    0 * eventDispatcher.publishDataEvent(*_)
+  }
+
   void 'process exec cmd'() {
     setup:
     final cmd = ['/bin/../usr/bin/reboot', '-f'] as String[]
@@ -1216,6 +1259,14 @@ class GatewayBridgeSpecification extends DDSpecification {
 
       @Override
       def <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+        return null
+      }
+
+      @Override
+      void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+
+      @Override
+      ClientIpAddressData getClientIpAddressData() {
         return null
       }
 

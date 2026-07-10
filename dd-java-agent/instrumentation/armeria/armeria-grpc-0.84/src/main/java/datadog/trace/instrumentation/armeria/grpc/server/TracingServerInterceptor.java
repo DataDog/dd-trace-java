@@ -11,7 +11,10 @@ import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecora
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecorator.GRPC_SERVER;
 import static datadog.trace.instrumentation.armeria.grpc.server.GrpcServerDecorator.SERVER_PATHWAY_EDGE_TAGS;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -19,7 +22,6 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -43,6 +45,10 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 public class TracingServerInterceptor implements ServerInterceptor {
+  private static final Function<String, Metadata.Key<String>> KEY_MAKER =
+      key -> Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER);
+  private static final DDCache<String, Metadata.Key<String>> KEY_CACHE =
+      DDCaches.newFixedSizeCache(64);
 
   public static final TracingServerInterceptor INSTANCE = new TracingServerInterceptor();
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredInboundMethods();
@@ -85,7 +91,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     DECORATE.onCall(span, call);
 
     final ServerCall.Listener<ReqT> result;
-    try (AgentScope scope = activateSpan(span)) {
+    try (ContextScope scope = activateSpan(span)) {
       // Wrap the server call so that we can decorate the span
       // with the resulting status
       final TracingServerCall<ReqT, RespT> tracingServerCall = new TracingServerCall<>(span, call);
@@ -117,7 +123,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void close(final Status status, final Metadata trailers) {
       DECORATE.onClose(span, status);
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final ContextScope scope = activateSpan(span)) {
         delegate().close(status, trailers);
       } catch (final Throwable e) {
         DECORATE.onError(span, e);
@@ -144,10 +150,10 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onMessage(final ReqT message) {
       final AgentSpan msgSpan =
-          startSpan(DECORATE.instrumentationNames()[0], GRPC_MESSAGE, this.span.context())
+          startSpan(DECORATE.instrumentationNames()[0], GRPC_MESSAGE, this.span.spanContext())
               .setTag("message.type", message.getClass().getName());
       DECORATE.afterStart(msgSpan);
-      try (AgentScope scope = activateSpan(msgSpan)) {
+      try (ContextScope scope = activateSpan(msgSpan)) {
         callIGCallbackGrpcMessage(msgSpan, message);
         delegate().onMessage(message);
       } catch (final Throwable e) {
@@ -167,7 +173,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     @Override
     public void onHalfClose() {
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final ContextScope scope = activateSpan(span)) {
         delegate().onHalfClose();
       } catch (final Throwable e) {
         if (span.phasedFinish()) {
@@ -183,7 +189,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onCancel() {
       // Finishes span.
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final ContextScope scope = activateSpan(span)) {
         delegate().onCancel();
         span.setTag("canceled", true);
       } catch (CancellationException e) {
@@ -204,7 +210,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onComplete() {
       // Finishes span.
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final ContextScope scope = activateSpan(span)) {
         delegate().onComplete();
       } catch (final Throwable e) {
         DECORATE.onError(span, e);
@@ -224,7 +230,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     @Override
     public void onReady() {
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final ContextScope scope = activateSpan(span)) {
         delegate().onReady();
       } catch (final Throwable e) {
         if (span.phasedFinish()) {
@@ -294,7 +300,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     }
     for (String key : metadata.keys()) {
       if (!key.endsWith(Metadata.BINARY_HEADER_SUFFIX) && !key.startsWith(":")) {
-        Metadata.Key<String> mdKey = Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER);
+        Metadata.Key<String> mdKey = KEY_CACHE.computeIfAbsent(key, KEY_MAKER);
         for (String value : metadata.getAll(mdKey)) {
           headerCb.accept(reqCtx, key, value);
         }

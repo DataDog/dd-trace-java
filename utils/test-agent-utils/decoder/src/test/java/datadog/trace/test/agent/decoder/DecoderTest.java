@@ -4,6 +4,7 @@ import static datadog.trace.test.util.AssertionsUtils.assertMapContainsKeyValues
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
@@ -18,12 +19,13 @@ import org.junit.jupiter.api.Test;
 public class DecoderTest {
 
   @Test
-  public void decode() throws Throwable {
+  public void decodeV05() throws Throwable {
     String resourceName = "/greeting.msgpack";
     byte[] buffer = readResourceFile(resourceName);
-    DecodedMessage message = Decoder.decode(buffer);
+    DecodedMessage message = Decoder.decodeV05(buffer);
     List<DecodedTrace> traces = message.getTraces();
     assertEquals(1, traces.size());
+    assertNull(traces.get(0).getSamplingPriority());
     List<DecodedSpan> spans = traces.get(0).getSpans();
     assertEquals(2, spans.size());
     List<DecodedSpan> sorted = Decoder.sortByStart(spans);
@@ -53,12 +55,51 @@ public class DecoderTest {
   }
 
   @Test
-  public void decode04() throws Throwable {
+  public void decodeV04() throws Throwable {
     byte[] buffer = readResourceFile("/webflux.04.msgpack");
 
     DecodedMessage message = Decoder.decodeV04(buffer);
     List<DecodedTrace> traces = message.getTraces();
     assertEquals(1, traces.size());
+    assertNull(traces.get(0).getSamplingPriority());
+    List<DecodedSpan> spans = traces.get(0).getSpans();
+    assertEquals(2, spans.size());
+    List<DecodedSpan> sorted = Decoder.sortByStart(spans);
+
+    DecodedSpan first = sorted.get(0);
+    long traceId = first.getTraceId();
+    validateSpan(
+        first,
+        traceId,
+        0,
+        "netty.request",
+        "GET /hello",
+        "smoke-test-java-app",
+        "web",
+        singletonMap("component", "netty"),
+        singletonMap("_dd.agent_psr", 1.0));
+
+    DecodedSpan second = sorted.get(1);
+    validateSpan(
+        second,
+        traceId,
+        first.getSpanId(),
+        "WebController.hello",
+        "WebController.hello",
+        "smoke-test-java-app",
+        "web",
+        singletonMap("component", "spring-webflux-controller"),
+        singletonMap("_dd.measured", 1));
+  }
+
+  @Test
+  public void decodeV1() throws Throwable {
+    byte[] buffer = readResourceFile("/sample_v1.msgpack");
+
+    DecodedMessage message = Decoder.decodeV1(buffer);
+    List<DecodedTrace> traces = message.getTraces();
+    assertEquals(1, traces.size());
+    assertEquals(1, traces.get(0).getSamplingPriority());
     List<DecodedSpan> spans = traces.get(0).getSpans();
     assertEquals(2, spans.size());
     List<DecodedSpan> sorted = Decoder.sortByStart(spans);
@@ -92,7 +133,7 @@ public class DecoderTest {
   @Test
   public void sortByStart() throws Throwable {
     byte[] buffer = readResourceFile("/greeting.msgpack");
-    DecodedMessage message = Decoder.decode(buffer);
+    DecodedMessage message = Decoder.decodeV05(buffer);
     List<DecodedTrace> traces = message.getTraces();
     assertEquals(1, traces.size());
     final List<DecodedSpan> spans = traces.get(0).getSpans();

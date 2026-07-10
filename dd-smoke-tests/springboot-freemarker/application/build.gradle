@@ -1,0 +1,26 @@
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '2.7.15'
+  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+}
+
+def sharedRootDir = "$rootDir/../../../"
+def sharedConfigDirectory = "$sharedRootDir/gradle"
+rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
+
+apply from: "$sharedConfigDirectory/repositories.gradle"
+
+if (hasProperty('appBuildDir')) {
+  buildDir = property('appBuildDir')
+}
+
+version = ""
+
+java {
+  sourceCompatibility = '1.8'
+}
+
+dependencies {
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
+  implementation group: 'org.freemarker', name: 'freemarker', version: '2.3.24-incubating'
+}

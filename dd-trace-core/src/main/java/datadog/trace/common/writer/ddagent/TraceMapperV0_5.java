@@ -9,6 +9,7 @@ import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagMap.EntryReader;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
@@ -123,6 +124,16 @@ public final class TraceMapperV0_5 implements TraceMapper {
   @Override
   public String endpoint() {
     return "v0.5";
+  }
+
+  @VisibleForTesting
+  Map<Object, Integer> getEncoding() {
+    return encoding;
+  }
+
+  @VisibleForTesting
+  GrowableBuffer getDictionary() {
+    return dictionary;
   }
 
   private static class DictionaryMapper implements Mapper<Object> {

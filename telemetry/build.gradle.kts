@@ -5,30 +5,27 @@ plugins {
 
 apply(from = "$rootDir/gradle/java.gradle")
 
-val minimumBranchCoverage by extra(0.6)
-val minimumInstructionCoverage by extra(0.8)
-val excludedClassesCoverage by extra(
-  listOf(
-    "datadog.telemetry.TelemetryRunnable.ThreadSleeperImpl",
-    "datadog.telemetry.HostInfo",
-    "datadog.telemetry.HostInfo.Os",
-    "datadog.telemetry.dependency.LocationsCollectingTransformer",
-    "datadog.telemetry.dependency.JbossVirtualFileHelper",
-    "datadog.telemetry.RequestBuilder.NumberJsonAdapter",
-    "datadog.telemetry.RequestBuilderSupplier",
-    "datadog.telemetry.TelemetrySystem",
-    "datadog.telemetry.api.*",
-    "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction"
-  )
+extra["minimumBranchCoverage"] = 0.6
+extra["minimumInstructionCoverage"] = 0.8
+extra["excludedClassesCoverage"] = listOf(
+  "datadog.telemetry.TelemetryRunnable.ThreadSleeperImpl",
+  "datadog.telemetry.HostInfo",
+  "datadog.telemetry.HostInfo.Os",
+  "datadog.telemetry.dependency.LocationsCollectingTransformer",
+  "datadog.telemetry.dependency.JbossVirtualFileHelper",
+  "datadog.telemetry.RequestBuilder.NumberJsonAdapter",
+  "datadog.telemetry.RequestBuilderSupplier",
+  "datadog.telemetry.TelemetrySystem",
+  "datadog.telemetry.api.*",
+  "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction",
+  "datadog.telemetry.metric.OtelSpiMetricPeriodicAction"
 )
-val excludedClassesBranchCoverage by extra(
-  listOf(
-    "datadog.telemetry.PolymorphicAdapterFactory.1",
-    "datadog.telemetry.HostInfo",
-    "datadog.telemetry.HostInfo.Os"
-  )
+extra["excludedClassesBranchCoverage"] = listOf(
+  "datadog.telemetry.PolymorphicAdapterFactory.1",
+  "datadog.telemetry.HostInfo",
+  "datadog.telemetry.HostInfo.Os"
 )
-val excludedClassesInstructionCoverage by extra(emptyList<String>())
+extra["excludedClassesInstructionCoverage"] = emptyList<String>()
 
 dependencies {
   implementation(libs.slf4j)
@@ -49,6 +46,7 @@ dependencies {
   api(libs.moshi)
 
   testImplementation(project(":utils:test-utils"))
+  testImplementation(libs.bundles.mockito)
   testImplementation(group = "org.jboss", name = "jboss-vfs", version = "3.2.16.Final")
 }
 

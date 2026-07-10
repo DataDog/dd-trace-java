@@ -303,7 +303,7 @@ class ReactorCoreTest extends InstrumentationSpecification {
       // The "add one" operations in the publisher created here should be children of the publisher-parent
       Publisher<Integer> publisher = publisherSupplier()
 
-      AgentSpan intermediate = startSpan("intermediate")
+      AgentSpan intermediate = startSpan("test", "intermediate")
       AgentScope scope = activateSpan(intermediate)
       try {
         if (publisher instanceof Mono) {
@@ -383,6 +383,50 @@ class ReactorCoreTest extends InstrumentationSpecification {
     "immediate"   | Schedulers.immediate()
   }
 
+  def "subscribe-time context propagates across threads with #name"() {
+    // Guards that the thread-confined publisher hand-off (HandoffContext) does not break cross-thread
+    // propagation: the @Trace "addOne" spans run in map's onNext on scheduler threads and must still
+    // be children of the subscribe-time parent.
+    when:
+    runUnderTrace("parent") {
+      pipeline.call().collectList().block()
+    }
+
+    then:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          operationName "parent"
+          parent()
+        }
+        span {
+          operationName "addOne"
+          childOf span(0)
+        }
+        span {
+          operationName "addOne"
+          childOf span(0)
+        }
+      }
+    }
+
+    where:
+    name                    | pipeline
+    "publishOn"             | {
+      Flux.just(1, 2).publishOn(Schedulers.parallel()).map(addOne)
+    }
+    "subscribeOn"           | {
+      Flux.just(1, 2).subscribeOn(Schedulers.single()).map(addOne)
+    }
+    "subscribeOn+publishOn" | {
+      Flux.just(1, 2)
+      .subscribeOn(Schedulers.single())
+      .publishOn(Schedulers.parallel())
+      .map(addOne)
+    }
+  }
+
   def "Context propagation through reactor context with span #spanType"() {
     when:
     runUnderTrace("parent", {
@@ -417,7 +461,7 @@ class ReactorCoreTest extends InstrumentationSpecification {
     where:
     spanType      | buildSpan                                                                                                                      | finishSpan
     "datadog"     | {
-      TEST_TRACER.buildSpan("contextual").start()
+      TEST_TRACER.buildSpan("reactor-core", "contextual").start()
     }                                                                                | {
       AgentSpan span -> span.finish()
     }
@@ -497,7 +541,7 @@ class ReactorCoreTest extends InstrumentationSpecification {
 
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def assemblePublisherUnderTrace(def publisherSupplier) {
-    def span = startSpan("publisher-parent")
+    def span = startSpan("test", "publisher-parent")
     // After this activation, the "add two" operations below should be children of this span
     def scope = activateSpan(span)
 
@@ -519,7 +563,7 @@ class ReactorCoreTest extends InstrumentationSpecification {
 
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def cancelUnderTrace(def publisherSupplier) {
-    final AgentSpan span = startSpan("publisher-parent")
+    final AgentSpan span = startSpan("test", "publisher-parent")
     AgentScope scope = activateSpan(span)
 
     def publisher = publisherSupplier()

@@ -1,9 +1,10 @@
 package datadog.trace.agent.test.assertions;
 
+import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
+
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
-import org.opentest4j.AssertionFailedError;
 
 /** This class is a utility class to create generic matchers. */
 public final class Matchers {
@@ -103,12 +104,11 @@ public final class Matchers {
   static <T> void assertValue(Matcher<T> matcher, T value, String message) {
     if (matcher != null && !matcher.test(value)) {
       Optional<T> expected = matcher.expected();
-      if (expected.isPresent()) {
-        throw new AssertionFailedError(
-            message + ". " + matcher.failureReason(), expected.get(), value);
-      } else {
-        throw new AssertionFailedError(message + ": " + value + ". " + matcher.failureReason());
-      }
+      assertionFailure()
+          .message(message + ". " + matcher.failureReason())
+          .expected(expected.orElse(null))
+          .actual(value)
+          .buildAndThrow();
     }
   }
 }

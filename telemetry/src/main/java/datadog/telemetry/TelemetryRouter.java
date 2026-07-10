@@ -10,9 +10,9 @@ import org.slf4j.LoggerFactory;
 public class TelemetryRouter {
   private static final Logger log = LoggerFactory.getLogger(TelemetryRouter.class);
 
-  private final DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery;
+  @Nullable private final DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery;
   private final TelemetryClient agentClient;
-  private final TelemetryClient intakeClient;
+  @Nullable private final TelemetryClient intakeClient;
   private final boolean useIntakeClientByDefault;
   private TelemetryClient currentClient;
   private boolean errorReported;
@@ -29,7 +29,22 @@ public class TelemetryRouter {
     this.currentClient = useIntakeClientByDefault ? intakeClient : agentClient;
   }
 
+  /**
+   * Single-client constructor used for CiVis' Bazel mode file-based telemetry. Feature discovery
+   * and client-switching logic are skipped.
+   */
+  public TelemetryRouter(TelemetryClient singleClient) {
+    this.ddAgentFeaturesDiscovery = null;
+    this.agentClient = singleClient;
+    this.intakeClient = null;
+    this.useIntakeClientByDefault = false;
+    this.currentClient = singleClient;
+  }
+
   public TelemetryClient.Result sendRequest(TelemetryRequest request) {
+    if (ddAgentFeaturesDiscovery == null) {
+      return currentClient.sendHttpRequest(request.httpRequest());
+    }
     ddAgentFeaturesDiscovery.discoverIfOutdated();
     boolean agentSupportsTelemetryProxy = ddAgentFeaturesDiscovery.supportsTelemetryProxy();
 

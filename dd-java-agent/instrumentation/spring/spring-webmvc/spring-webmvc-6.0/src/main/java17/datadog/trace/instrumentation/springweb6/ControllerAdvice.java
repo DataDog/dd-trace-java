@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.springweb6;
 import static datadog.context.Context.root;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_CONTINUE_SUFFIX;
@@ -25,7 +24,11 @@ public class ControllerAdvice {
       @Advice.Argument(2) final Object handler,
       @Advice.Local("handlerSpanKey") String handlerSpanKey) {
     handlerSpanKey = "";
-    // Name the parent span based on the matching pattern
+
+    /*
+    By the time HandlerAdapter.handle runs, every handler mapping kind (annotated and SimpleUrlHandlerMapping via its
+    PathExposingHandlerInterceptor) has populated BEST_MATCHING_PATTERN_ATTRIBUTE.
+    */
     Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
     if (contextObj instanceof Context) {
       Context context = (Context) contextObj;
@@ -55,12 +58,13 @@ public class ControllerAdvice {
       return ((Context) existingContext).attach();
     }
 
-    final AgentSpan span = startSpan(DECORATE.spanName()).setMeasured(true);
+    final AgentSpan span =
+        startSpan("spring-web-controller", DECORATE.spanName()).setMeasured(true);
     DECORATE.afterStart(span);
     DECORATE.onHandle(span, handler);
 
     request.setAttribute(handlerSpanKey, span);
-    return getCurrentContext().with(span).attach();
+    return span.attachWithContext();
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

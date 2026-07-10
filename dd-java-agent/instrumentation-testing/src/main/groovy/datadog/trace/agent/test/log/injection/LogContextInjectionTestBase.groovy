@@ -41,7 +41,7 @@ abstract class LogContextInjectionTestBase extends InstrumentationSpecification 
   def "Log context shows trace and span ids for active scope"() {
     when:
     put("foo", "bar")
-    AgentSpan rootSpan = startSpan("root")
+    AgentSpan rootSpan = startSpan("test", "root")
     AgentScope rootScope = activateSpan(rootSpan)
 
     then:
@@ -50,7 +50,7 @@ abstract class LogContextInjectionTestBase extends InstrumentationSpecification 
     get("foo") == "bar"
 
     when:
-    AgentSpan childSpan = startSpan("child")
+    AgentSpan childSpan = startSpan("test", "child")
     AgentScope childScope = activateSpan(childSpan)
 
     then:
@@ -93,7 +93,7 @@ abstract class LogContextInjectionTestBase extends InstrumentationSpecification 
         @Override
         void run() {
           // other trace in scope
-          final AgentSpan thread2Span = startSpan("root2")
+          final AgentSpan thread2Span = startSpan("test", "root2")
           final AgentScope thread2Scope = activateSpan(thread2Span)
           try {
             thread2TraceId.set(get(CorrelationIdentifier.getTraceIdKey()))
@@ -104,7 +104,7 @@ abstract class LogContextInjectionTestBase extends InstrumentationSpecification 
         }
       }
 
-    final AgentSpan mainSpan = startSpan("root")
+    final AgentSpan mainSpan = startSpan("test", "root")
     final AgentScope mainScope = activateSpan(mainSpan)
     thread1.start()
     thread2.start()

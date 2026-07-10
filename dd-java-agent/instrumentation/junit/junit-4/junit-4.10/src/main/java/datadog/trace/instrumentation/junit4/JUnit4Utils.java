@@ -41,6 +41,8 @@ public abstract class JUnit4Utils {
 
   private static final String SYNCHRONIZED_LISTENER =
       "org.junit.runner.notification.SynchronizedRunListener";
+  private static final String BAZEL_RUN_NOTIFIER_WRAPPER =
+      "com.google.testing.junit.junit4.runner.RunNotifierWrapper";
 
   // Regex for the final brackets with its content in the test name. E.g. test_name[0] --> [0]
   private static final Pattern testNameNormalizerRegex = Pattern.compile("\\[[^\\[]*\\]$");
@@ -55,6 +57,8 @@ public abstract class JUnit4Utils {
   private static final MethodHandle RUN_NOTIFIER_LISTENERS = accessListenersFieldInRunNotifier();
   private static final MethodHandle INNER_SYNCHRONIZED_LISTENER =
       accessListenerFieldInSynchronizedListener();
+  private static final MethodHandle BAZEL_RUN_NOTIFIER_WRAPPER_DELEGATE =
+      accessDelegateFieldInBazelRunNotifierWrapper();
   private static final MethodHandle DESCRIPTION_UNIQUE_ID =
       METHOD_HANDLES.privateFieldGetter(Description.class, "fUniqueId");
 
@@ -89,8 +93,49 @@ public abstract class JUnit4Utils {
         .privateFieldGetter(SYNCHRONIZED_LISTENER, "listener");
   }
 
+  private static MethodHandle accessDelegateFieldInBazelRunNotifierWrapper() {
+    MethodHandle handle = METHOD_HANDLES.privateFieldGetter(BAZEL_RUN_NOTIFIER_WRAPPER, "delegate");
+    if (handle != null) {
+      return handle;
+    }
+    ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+    return new MethodHandles(contextClassLoader)
+        .privateFieldGetter(BAZEL_RUN_NOTIFIER_WRAPPER, "delegate");
+  }
+
   public static List<RunListener> runListenersFromRunNotifier(final RunNotifier runNotifier) {
-    return METHOD_HANDLES.invoke(RUN_NOTIFIER_LISTENERS, runNotifier);
+    return METHOD_HANDLES.invoke(RUN_NOTIFIER_LISTENERS, unwrapRunNotifier(runNotifier));
+  }
+
+  /**
+   * Walks through {@link RunNotifier} wrappers (e.g. Bazel's {@code RunNotifierWrapper}) and
+   * returns the inner notifier whose {@code listeners} field actually receives {@code addListener}
+   * calls. Returns the input untouched when it is not a known wrapper.
+   */
+  public static RunNotifier unwrapRunNotifier(RunNotifier notifier) {
+    RunNotifier current = notifier;
+    for (int i = 0; i < 8 && current != null; i++) {
+      if (!isBazelRunNotifierWrapper(current)) {
+        return current;
+      }
+      RunNotifier delegate = METHOD_HANDLES.invoke(BAZEL_RUN_NOTIFIER_WRAPPER_DELEGATE, current);
+      if (delegate == null || delegate == current) {
+        return current;
+      }
+      current = delegate;
+    }
+    return current;
+  }
+
+  private static boolean isBazelRunNotifierWrapper(RunNotifier notifier) {
+    Class<?> cls = notifier.getClass();
+    while (cls != null && cls != Object.class) {
+      if (BAZEL_RUN_NOTIFIER_WRAPPER.equals(cls.getName())) {
+        return true;
+      }
+      cls = cls.getSuperclass();
+    }
+    return false;
   }
 
   public static TracingListener toTracingListener(final RunListener listener) {

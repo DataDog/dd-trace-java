@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE_RENDER;
@@ -97,10 +96,10 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(@Advice.Argument(0) final ModelAndView mv) {
-      final AgentSpan span = startSpan(RESPONSE_RENDER);
+      final AgentSpan span = startSpan("spring-webmvc", RESPONSE_RENDER);
       DECORATE_RENDER.afterStart(span);
       DECORATE_RENDER.onRender(span, mv);
-      return getCurrentContext().with(span).attach();
+      return span.attachWithContext();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

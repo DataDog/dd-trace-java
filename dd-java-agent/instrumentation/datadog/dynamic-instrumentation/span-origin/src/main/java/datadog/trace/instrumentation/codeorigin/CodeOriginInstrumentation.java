@@ -1,13 +1,12 @@
 package datadog.trace.instrumentation.codeorigin;
 
-import static net.bytebuddy.matcher.ElementMatchers.declaresMethod;
-import static net.bytebuddy.matcher.ElementMatchers.hasSuperType;
-import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
-import static net.bytebuddy.matcher.ElementMatchers.isInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresMethod;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
+import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule.Tracing;
-import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.OneOf;
 import datadog.trace.api.InstrumenterConfig;
@@ -16,7 +15,6 @@ import java.util.Set;
 import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 public abstract class CodeOriginInstrumentation extends Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
@@ -44,13 +42,9 @@ public abstract class CodeOriginInstrumentation extends Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     ElementMatcher.Junction<TypeDescription> matcher =
-        HierarchyMatchers.declaresMethod(HierarchyMatchers.isAnnotatedWith(this.matcher));
+        declaresMethod(isAnnotatedWith(this.matcher));
     if (InstrumenterConfig.get().isCodeOriginInterfaceSupport()) {
-      matcher =
-          matcher.or(
-              HierarchyMatchers.implementsInterface(
-                  HierarchyMatchers.declaresMethod(
-                      HierarchyMatchers.isAnnotatedWith(this.matcher))));
+      matcher = matcher.or(implementsInterface(declaresMethod(isAnnotatedWith(this.matcher))));
     }
     return matcher;
   }
@@ -58,12 +52,10 @@ public abstract class CodeOriginInstrumentation extends Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        HierarchyMatchers.isAnnotatedWith(matcher),
-        "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
+        isAnnotatedWith(matcher), "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
     if (InstrumenterConfig.get().isCodeOriginInterfaceSupport()) {
       transformer.applyAdvice(
-          ElementMatchers.isDeclaredBy(
-              hasSuperType(isInterface().and(declaresMethod(isAnnotatedWith(matcher))))),
+          isDeclaredBy(implementsInterface(declaresMethod(isAnnotatedWith(matcher)))),
           "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
     }
   }

@@ -55,6 +55,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] DD = "_dd".getBytes(StandardCharsets.UTF_8);
   private static final byte[] APM_TRACE_ID = "apm_trace_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] PARENT_ID = "parent_id".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] SESSION_ID = "session_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] NAME = "name".getBytes(StandardCharsets.UTF_8);
   private static final byte[] DURATION = "duration".getBytes(StandardCharsets.UTF_8);
   private static final byte[] START_NS = "start_ns".getBytes(StandardCharsets.UTF_8);
@@ -88,6 +89,8 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] LLM_TOOL_RESULT_RESULT = "result".getBytes(StandardCharsets.UTF_8);
 
   private static final String PARENT_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "parent_id";
+  private static final String SESSION_ID_TAG_INTERNAL_FULL =
+      LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID;
 
   private final MetaWriter metaWriter = new MetaWriter();
   private final int size;
@@ -126,7 +129,17 @@ public class LLMObsSpanMapper implements RemoteMapper {
     }
 
     for (CoreSpan<?> span : llmobsSpans) {
-      writable.startMap(11);
+      // Read session_id off the span before opening the map so we can size it correctly.
+      // We deliberately do NOT remove the tag (unlike parent_id) — the session_id:<value>
+      // entry must remain in the tags[] array to match dd-trace-py and dd-trace-js behavior.
+      // span.getTag returns Object — guard against generic tag APIs setting a non-string
+      // session_id value, which would otherwise throw ClassCastException here and drop
+      // the entire LLMObs payload for the trace.
+      Object rawSessionId = span.getTag(SESSION_ID_TAG_INTERNAL_FULL);
+      String sessionId = rawSessionId instanceof String ? (String) rawSessionId : null;
+      boolean hasSessionId = sessionId != null && !sessionId.isEmpty();
+
+      writable.startMap(hasSessionId ? 12 : 11);
       // 1
       writable.writeUTF8(SPAN_ID);
       writable.writeString(String.valueOf(span.getSpanId()), null);
@@ -166,7 +179,14 @@ public class LLMObsSpanMapper implements RemoteMapper {
       writable.writeUTF8(APM_TRACE_ID);
       writable.writeString(span.getTraceId().toHexString(), null);
 
-      /* 9 (metrics), 10 (tags), 11 meta */
+      // 9 — optional top-level session_id field. Required by the LLMObs HTTP intake schema
+      // and by the LLM Trace Explorer's Sessions filter, which keys off this field.
+      if (hasSessionId) {
+        writable.writeUTF8(SESSION_ID);
+        writable.writeString(sessionId, null);
+      }
+
+      /* 10 (metrics), 11 (tags), 12 meta — shift down 1 if session_id absent */
       span.processTagsAndBaggage(metaWriter.withWritable(writable, getErrorsMap(span)));
     }
 

@@ -7,12 +7,14 @@ class SharedDBCommenterForkedTest extends Specification {
     System.setProperty("dd.service.name", "test-service")
     System.setProperty("dd.env", "test-env")
     System.setProperty("dd.version", "1.0.0")
+    SharedDBCommenter.resetStaticPrefixForTesting()
   }
 
   def cleanup() {
     System.clearProperty("dd.service.name")
     System.clearProperty("dd.env")
     System.clearProperty("dd.version")
+    SharedDBCommenter.resetStaticPrefixForTesting()
   }
 
   def "buildComment generates expected format for MongoDB"() {

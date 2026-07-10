@@ -50,6 +50,11 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
   }
 
   @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
   boolean testBodyJson() {
     true
   }

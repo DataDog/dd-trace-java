@@ -4,21 +4,43 @@ muzzle {
     module = "connect-runtime"
     versions = "[0.11.0.0,)"
     javaVersion = "17"
-    // broken POMs: depend on non-existent org.eclipse.jetty:jetty-server:9.4.59
+    // broken POMs: depend on non-existent org.eclipse.jetty:*:9.4.NN (7.x lines only; 8.x uses jetty 12)
     // can be fixed after https://github.com/confluentinc/kafka-connect-storage-common/issues/468 is resolved
     skipVersions += [
       '7.4.14-ce',
       '7.4.14-ccs',
+      '7.4.15-ce',
+      '7.4.15-ccs',
       '7.5.13-ce',
       '7.5.13-ccs',
+      '7.5.14-ce',
+      '7.5.14-ccs',
+      '7.5.15-ce',
+      '7.5.15-ccs',
       '7.6.10-ce',
       '7.6.10-ccs',
+      '7.6.11-ce',
+      '7.6.11-ccs',
+      '7.6.12-ce',
+      '7.6.12-ccs',
       '7.7.8-ce',
       '7.7.8-ccs',
+      '7.7.9-ce',
+      '7.7.9-ccs',
+      '7.7.10-ce',
+      '7.7.10-ccs',
       '7.8.7-ce',
       '7.8.7-ccs',
+      '7.8.8-ce',
+      '7.8.8-ccs',
+      '7.8.9-ce',
+      '7.8.9-ccs',
       '7.9.6-ce',
-      '7.9.6-ccs'
+      '7.9.6-ccs',
+      '7.9.7-ce',
+      '7.9.7-ccs',
+      '7.9.8-ce',
+      '7.9.8-ccs'
     ]
     excludeDependency "io.confluent.cloud:*"
     excludeDependency "io.confluent.observability:*"

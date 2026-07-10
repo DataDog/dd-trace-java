@@ -171,9 +171,9 @@ class ScalatestTest extends CiVisibilityInstrumentationTest {
     testcaseName                                | success | tests         | attemptToFix                                                             | quarantined                                                              | disabled
     "test-attempt-to-fix-failed"                | false   | [TestFailed]  | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]  | []                                                                       | []
     "test-attempt-to-fix-succeeded"             | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")] | []                                                                       | []
-    "test-attempt-to-fix-quarantined-failed"    | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]  | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]  | []
+    "test-attempt-to-fix-quarantined-failed"    | false   | [TestFailed]  | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]  | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]  | []
     "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")] | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")] | []
-    "test-attempt-to-fix-disabled-failed"       | true    | [TestFailed]  | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]  | []                                                                       | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]
+    "test-attempt-to-fix-disabled-failed"       | false   | [TestFailed]  | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]  | []                                                                       | [new TestFQN("org.example.TestFailed", "Example.add adds two numbers")]
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceed] | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")] | []                                                                       | [new TestFQN("org.example.TestSucceed", "Example.add adds two numbers")]
   }
 

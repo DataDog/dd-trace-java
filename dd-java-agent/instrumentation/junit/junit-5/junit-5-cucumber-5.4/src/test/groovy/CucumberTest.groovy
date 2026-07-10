@@ -4,6 +4,7 @@ import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
 import datadog.trace.instrumentation.junit5.TestEventsHandlerHolder
+import datadog.trace.util.ComparableVersion
 import io.cucumber.core.api.TypeRegistry
 import io.cucumber.core.options.Constants
 import org.junit.platform.engine.DiscoverySelector
@@ -31,10 +32,10 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     where:
     testcaseName                                 | features                                                                           | parallel
     "test-succeed"                               | ["org/example/cucumber/calculator/basic_arithmetic.feature"]                       | false
-    "test-scenario-outline-${version()}"         | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"]         | false
+    "test-scenario-outline-${fixtureVersion()}"         | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"]         | false
     "test-skipped"                               | ["org/example/cucumber/calculator/basic_arithmetic_skipped.feature"]               | false
     "test-skipped-feature"                       | ["org/example/cucumber/calculator/basic_arithmetic_skipped_feature.feature"]       | false
-    "test-skipped-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_skipped.feature"] | false
+    "test-skipped-scenario-outline-${fixtureVersion()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples_skipped.feature"] | false
     "test-parallel"                              | [
       "org/example/cucumber/calculator/basic_arithmetic.feature",
       "org/example/cucumber/calculator/basic_arithmetic_skipped.feature"
@@ -78,7 +79,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     "test-failed-then-succeed"                        | true    | ["org/example/cucumber/calculator/basic_arithmetic_failed_then_succeed.feature"]  | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed_then_succeed.feature:Basic Arithmetic", "Addition")
     ]
-    "test-retry-failed-scenario-outline-${version()}" | false   | ["org/example/cucumber/calculator/basic_arithmetic_with_failed_examples.feature"] | [
+    "test-retry-failed-scenario-outline-${fixtureVersion()}" | false   | ["org/example/cucumber/calculator/basic_arithmetic_with_failed_examples.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_with_failed_examples.feature:Basic Arithmetic With Examples", "Many additions.Single digits.${parameterizedTestNameSuffix()}")
     ]
   }
@@ -97,7 +98,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
     ]
     "test-efd-new-test"                          | ["org/example/cucumber/calculator/basic_arithmetic.feature"]               | []
-    "test-efd-new-scenario-outline-${version()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"] | []
+    "test-efd-new-scenario-outline-${fixtureVersion()}" | ["org/example/cucumber/calculator/basic_arithmetic_with_examples.feature"] | []
     "test-efd-new-slow-test"                     | ["org/example/cucumber/calculator/basic_arithmetic_slow.feature"]          | []
     "test-efd-skip-new-test"                     | ["org/example/cucumber/calculator/basic_arithmetic_skip_efd.feature"]      | []
   }
@@ -190,7 +191,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     "test-attempt-to-fix-succeeded"             | true    | ["org/example/cucumber/calculator/basic_arithmetic.feature"]        | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
     ]                                                                                                                                          | []          | []
-    "test-attempt-to-fix-quarantined-failed"    | true    | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+    "test-attempt-to-fix-quarantined-failed"    | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]                                                                                                                                          | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
@@ -200,7 +201,7 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
     ]                                                                                                                                          | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic.feature:Basic Arithmetic", "Addition")
     ]                                                                                                                                                        | []
-    "test-attempt-to-fix-disabled-failed"       | true    | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
+    "test-attempt-to-fix-disabled-failed"       | false   | ["org/example/cucumber/calculator/basic_arithmetic_failed.feature"] | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
     ]                                                                                                                                          | []          | [
       new TestFQN("classpath:org/example/cucumber/calculator/basic_arithmetic_failed.feature:Basic Arithmetic", "Addition")
@@ -221,13 +222,22 @@ class CucumberTest extends CiVisibilityInstrumentationTest {
   }
 
   private String parameterizedTestNameSuffix() {
-    // older releases report different example names
-    version() == "5.4.0" ? "Example #1" : "Example #1.1"
+    // Cucumber 7.11.0 changed scenario-outline example naming from the flat "Example #<row>"
+    // to "Example #<examplesBlock>.<row>".
+    usesFlatExampleNaming() ? "Example #1" : "Example #1.1"
   }
 
-  private String version() {
+  private String fixtureVersion() {
+    // Scenario-outline fixtures only differ by the example naming scheme, so every release that
+    // still uses the flat naming shares the "legacy" fixture bucket; the rest use "latest".
+    usesFlatExampleNaming() ? "legacy" : "latest"
+  }
+
+  private boolean usesFlatExampleNaming() {
     def version = TypeRegistry.package.getImplementationVersion()
-    return version != null ? "latest" : "5.4.0" // older releases do not have package version populated
+    // 5.4.0 does not populate the package version; cucumber 7.11.0 switched from the flat
+    // "Example #<row>" naming to "Example #<examplesBlock>.<row>".
+    return version == null || new ComparableVersion(version) < new ComparableVersion("7.11.0")
   }
 
   protected void runFeatures(List<String> classpathFeatures, boolean parallel, boolean expectSuccess = true) {

@@ -2,11 +2,11 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.version-file'
+  id 'java-test-fixtures'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-// We do not publish separate jar, but having version file is useful
-apply from: "$rootDir/gradle/version.gradle"
 
 minimumInstructionCoverage = 0.1
 minimumBranchCoverage = 0.6
@@ -27,7 +27,11 @@ excludedClassesCoverage += [
   // tested through smoke tests
   'com.datadog.debugger.exception.FailedTestReplayExceptionDebugger',
   // dynamically compiled test classes - exclude to prevent Jacoco instrumentation interference
-  'com.datadog.debugger.symboltest.SymbolExtraction*'
+  'com.datadog.debugger.symboltest.SymbolExtraction*',
+  // Depends on multiple versions of Spring to be tested while we have dep lockfiles
+  'com.datadog.debugger.util.SpringHelper*',
+  // Used for helper methods that are JDK version specific
+  'com.datadog.debugger.agent.ConfigurationUpdater.JDKVersionSpecificHelper'
 ]
 
 dependencies {
@@ -47,6 +51,14 @@ dependencies {
   implementation libs.moshi
   implementation libs.okhttp
   implementation libs.slf4j
+
+  // Dependencies needed to compile the test-fixture helpers (LogProbeTestHelper,
+  // MoshiSnapshotTestHelper); they reference siblings + Moshi + internal-api.
+  testFixturesImplementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
+  testFixturesImplementation project(':dd-java-agent:agent-debugger:debugger-el')
+  testFixturesImplementation project(':internal-api')
+  testFixturesImplementation libs.moshi
+  testFixturesImplementation libs.junit.jupiter
 
   testImplementation libs.asm.util
   testImplementation libs.bundles.junit5

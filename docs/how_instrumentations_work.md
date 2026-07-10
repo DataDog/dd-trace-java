@@ -241,7 +241,7 @@ or [`UrlInstrumentation`](https://github.com/DataDog/dd-trace-java/blob/3e81c006
 ### Method Matching
 
 After the type is selected, the type’s target members(e.g., methods) must next be selected using the Instrumentation
-class’s `adviceTransformations()` method.
+class’s `methodAdvice()` method.
 ByteBuddy’s [`ElementMatchers`](https://javadoc.io/doc/net.bytebuddy/byte-buddy/1.4.17/net/bytebuddy/matcher/ElementMatchers.html)
 are used to describe the target members to be instrumented.
 Datadog’s [`DDElementMatchers`](../dd-java-agent/agent-installer/src/main/java/datadog/trace/agent/tooling/bytebuddy/matcher/DDElementMatchers.java)
@@ -262,8 +262,8 @@ Here, any public `execute()` method taking no arguments will have `PreparedState
 
 ```java
 @Override
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
             nameStartsWith("execute")
                     .and(takesArguments(0))
                     .and(isPublic()),
@@ -276,8 +276,8 @@ Here, any matching `connect()` method will have `DriverAdvice` applied:
 
 ```java
 @Override
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
             nameStartsWith("connect")
                     .and(takesArgument(0, String.class))
                     .and(takesArgument(1, Properties.class))
@@ -292,8 +292,8 @@ The `applyAdvices` method supports applying multiple advice classes to the same 
 
 ```java
 @Override
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvices(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvices(
             named("service")
                     .and(takesArgument(0, named("org.apache.coyote.Request")))
                     .and(takesArgument(1, named("org.apache.coyote.Response"))),
@@ -391,10 +391,10 @@ Decorator class names should end in _Decorator._
 ## Advice Classes
 
 Byte Buddy injects compiled bytecode at runtime to wrap existing methods, so they communicate with Datadog at entry or exit.
-These modifications are referred to as _advice transformation_ or just _advice_.
+These modifications are referred to as _method advice_ or just _advice_.
 
-Instrumenters register advice transformations by calling `AdviceTransformation.applyAdvice(ElementMatcher, String)` 
-and Methods are matched by the instrumentation's `adviceTransformations()` method.
+Instrumenters register advice transformations by calling `MethodTransformer.applyAdvice(ElementMatcher, String)` 
+and methods are matched by the instrumentation's `methodAdvice()` method.
 
 The Advice is injected into the type so Advice can only refer to those classes on the bootstrap class-path or helpers
 injected into the application class-loader.
@@ -491,8 +491,8 @@ In the Tomcat instrumentation, we apply both context tracking and tracing advice
 
 ```java
 @Override
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvices(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvices(
             named("service")
                     .and(takesArgument(0, named("org.apache.coyote.Request")))
                     .and(takesArgument(1, named("org.apache.coyote.Response"))),
@@ -525,9 +525,8 @@ The opposite would be either no `suppress` annotation or equivalently `suppress 
 allow exceptions in Advice code to surface and is usually undesirable.
 
 > [!NOTE]
-> Don't use `suppress` on an advice hooking a constructor.
-> For older JVMs that do not support [flexible constructor bodies](https://openjdk.org/jeps/513), you can't decorate the
-> mandatory self or parent constructor call with try/catch, as it must be the first call from the constructor body.
+> Don't use `onThrowable` on exit advice hooking a constructor.
+> If the constructor throws, `@Advice.This` is a partially initialized object, making exit advice unsafe to run.
 
 If
 the [`Advice.OnMethodEnter`](https://javadoc.io/static/net.bytebuddy/byte-buddy/1.10.2/net/bytebuddy/asm/Advice.OnMethodEnter.html)
@@ -854,6 +853,71 @@ If reflection must be used the reflection usage should be added to
 `dd-java-agent/agent-bootstrap/src/main/resources/META-INF/native-image/com.datadoghq/dd-java-agent/reflect-config.json`.
 
 See [GraalVM configuration docs](https://www.graalvm.org/jdk17/reference-manual/native-image/dynamic-features/Reflection/#manual-configuration).
+
+## JPMS Module Opening
+
+Java 9 introduced the Java Platform Module System (JPMS), which restricts reflective access across module boundaries.
+When the agent needs to reflect into a named JDK or library module whose packages are not opened (i.e., the host
+application has not passed the corresponding `--add-opens` flag), the reflection fails at runtime.
+
+### The `JavaModuleOpenProvider` interface
+
+Any `InstrumenterModule` can additionally implement
+[`JavaModuleOpenProvider`](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/JavaModuleOpenProvider.java)
+to declare _trigger classes_. The first time a trigger class is instantiated, the agent opens the class's enclosing
+package to the agent module and to the unnamed module of the class's class loader so that subsequent reflective operations succeed.
+
+```java
+import static java.util.Collections.singleton;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.JavaModuleOpenProvider;
+
+@AutoService(InstrumenterModule.class)
+public class JpmsInetAddressInstrumentation extends InstrumenterModule
+    implements JavaModuleOpenProvider {
+
+  public JpmsInetAddressInstrumentation() {
+    super("java-net");
+  }
+
+  @Override
+  public Collection<String> triggerClasses() {
+    return singleton("java.net.InetAddress");
+  }
+}
+```
+
+This module has no `methodAdvice()` — its only purpose is to register the trigger class.
+
+### How it works
+
+1. During startup, `AgentInstaller` collects every `InstrumenterModule` that implements `JavaModuleOpenProvider`
+   and registers their trigger classes with `JpmsHelper.addTriggers()`.
+2. `JpmsClearanceInstrumentation` (a built-in module) instruments the **constructors** of all registered trigger
+   classes.
+3. On the first constructor call of a trigger class, its advice (inlined via ByteBuddy) calls
+   `module.addOpens(packageName, agentModule)`. The call is inlined into the trigger class's constructor, which
+   satisfies the JDK's requirement that the caller must belong to the module being opened.
+4. `JpmsHelper.shouldBeOpened()` ensures the `addOpens` is performed only once per class.
+
+> [!NOTE]
+> The `module.addOpens()` call must be inlined (via ByteBuddy advice) into the trigger class's constructor — it
+> cannot be delegated to a helper method, because the JDK verifies that the calling class belongs to the module
+> being opened.
+
+### When to use it
+
+Implement `JavaModuleOpenProvider` when:
+- Your instrumentation uses reflection on types inside a named JDK or library module.
+- You cannot rely on the host application having passed `--add-opens` flags.
+
+**Examples in the codebase:**
+- [`JpmsInetAddressInstrumentation`](../dd-java-agent/instrumentation/java/java-net/java-net-11.0/src/main/java/datadog/trace/instrumentation/httpclient/JpmsInetAddressInstrumentation.java)
+  — opens `java.net` for `InetAddress` reflective operations.
+- [`JpmsMuleInstrumentation`](../dd-java-agent/instrumentation/mule-4.5/src/main/java/datadog/trace/instrumentation/mule4/JpmsMuleInstrumentation.java)
+  — opens Mule's internal tracer packages.
 
 ## Testing
 

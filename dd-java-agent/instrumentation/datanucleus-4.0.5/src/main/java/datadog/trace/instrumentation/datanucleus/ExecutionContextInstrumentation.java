@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DATANUCLEUS_FIND_OBJECT;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DECORATE;
+import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.JAVA_DATANUCLEUS;
 import static java.util.Collections.singleton;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -78,7 +79,7 @@ public class ExecutionContextInstrumentation
         @Advice.This final ExecutionContext executionContext,
         @Advice.Origin("datanucleus.#m") final String operationName) {
 
-      final AgentSpan span = startSpan(operationName);
+      final AgentSpan span = startSpan(JAVA_DATANUCLEUS.toString(), operationName);
       DECORATE.afterStart(span);
 
       return activateSpan(span);
@@ -111,7 +112,7 @@ public class ExecutionContextInstrumentation
         return null;
       }
 
-      final AgentSpan span = startSpan(operationName);
+      final AgentSpan span = startSpan(JAVA_DATANUCLEUS.toString(), operationName);
       DECORATE.afterStart(span);
 
       return activateSpan(span);
@@ -141,7 +142,7 @@ public class ExecutionContextInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startMethod() {
 
-      final AgentSpan span = startSpan(DATANUCLEUS_FIND_OBJECT);
+      final AgentSpan span = startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_FIND_OBJECT);
       DECORATE.afterStart(span);
 
       return activateSpan(span);
@@ -172,7 +173,7 @@ public class ExecutionContextInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startMethod() {
 
-      final AgentSpan span = startSpan(DATANUCLEUS_FIND_OBJECT);
+      final AgentSpan span = startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_FIND_OBJECT);
       DECORATE.afterStart(span);
 
       return activateSpan(span);

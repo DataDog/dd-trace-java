@@ -60,6 +60,7 @@ import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
+import datadog.trace.util.JDK9ModuleAccess;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.instrument.Instrumentation;
@@ -442,12 +443,6 @@ public class Agent {
           propertyNameToSystemPropertyName("integration.spark.enabled"), "true");
       setSystemPropertyDefault(
           propertyNameToSystemPropertyName("integration.spark-executor.enabled"), "true");
-      // needed for e2e pipeline
-      setSystemPropertyDefault(propertyNameToSystemPropertyName("data.streams.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.aws-sdk.enabled"), "true");
-      setSystemPropertyDefault(
-          propertyNameToSystemPropertyName("integration.kafka.enabled"), "true");
 
       if ("true".equals(ddGetProperty(propertyNameToSystemPropertyName(DATA_JOBS_ENABLED)))) {
         setSystemPropertyDefault(
@@ -665,6 +660,8 @@ public class Agent {
       }
 
       installDatadogMeter(initTelemetry);
+      // Must run before installDatadogTracer, which triggers the ddprof profiler load.
+      prepareDatadogProfilerContextStorage(instrumentation);
       installDatadogTracer(initTelemetry, scoClass, sco);
       maybeInstallLogsIntake(scoClass, sco);
       maybeStartIast(instrumentation);
@@ -682,13 +679,15 @@ public class Agent {
       }
 
       maybeStartAppSec(scoClass, sco);
+      maybeStartScaReachability(instrumentation);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
       maybeStartLLMObs(instrumentation, scoClass, sco);
-      // start debugger before remote config to subscribe to it before starting to poll
+      // Start RC-backed products before remote config so their products and capabilities are
+      // included in the first poll.
       maybeStartDebugger(instrumentation, scoClass, sco);
+      maybeStartFeatureFlagging(scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
       maybeStartAiGuard();
-      maybeStartFeatureFlagging(scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
@@ -1079,6 +1078,27 @@ public class Agent {
     return true;
   }
 
+  private static void maybeStartScaReachability(Instrumentation instrumentation) {
+    if (!Config.get().isAppSecScaEnabled()) {
+      return;
+    }
+    if (!telemetryEnabled || !Config.get().isTelemetryDependencyServiceEnabled()) {
+      log.warn(
+          "Not starting SCA Reachability subsystem: telemetry or dependency collection disabled");
+      return;
+    }
+    StaticEventLogger.begin("ScaReachability");
+    try {
+      final Class<?> scaClass =
+          AGENT_CLASSLOADER.loadClass("com.datadog.appsec.sca.ScaReachabilitySystem");
+      final Method startMethod = scaClass.getMethod("start", Instrumentation.class);
+      startMethod.invoke(null, instrumentation);
+    } catch (final Throwable ex) {
+      log.warn("Not starting SCA Reachability subsystem: {}", ex.getMessage());
+    }
+    StaticEventLogger.end("ScaReachability");
+  }
+
   private static void maybeStartIast(Instrumentation instrumentation) {
     if (iastEnabled || !iastFullyDisabled) {
 
@@ -1337,6 +1357,33 @@ public class Agent {
             }
           }
         });
+  }
+
+  /**
+   * Exports {@code jdk.internal.misc} to the classloader that loads {@code
+   * com.datadoghq.profiler.*} before the Datadog profiler is loaded.
+   *
+   * <p>On JDK 21+, the profiler scopes its context {@code ThreadContext} storage to the carrier
+   * thread using {@code jdk.internal.misc.CarrierThreadLocal}, so a mounted virtual thread resolves
+   * to its current carrier's record — fixing a virtual-thread context use-after-free. That type
+   * lives in a non-exported package, hence the export. Must run before {@code
+   * installDatadogTracer}, which loads the profiler via {@link
+   * #createProfilingContextIntegration()}.
+   */
+  private static void prepareDatadogProfilerContextStorage(Instrumentation inst) {
+    try {
+      if (inst == null
+          || !Config.get().isProfilingEnabled()
+          || !Config.get().isDatadogProfilerEnabled()
+          || OperatingSystem.isWindows()
+          || !isJavaVersionAtLeast(21)) {
+        return;
+      }
+      JDK9ModuleAccess.exportModuleToUnnamedModule(
+          inst, "java.base", new String[] {"jdk.internal.misc"}, AGENT_CLASSLOADER);
+    } catch (Throwable t) {
+      log.debug("Unable to export jdk.internal.misc for the Datadog profiler", t);
+    }
   }
 
   /**

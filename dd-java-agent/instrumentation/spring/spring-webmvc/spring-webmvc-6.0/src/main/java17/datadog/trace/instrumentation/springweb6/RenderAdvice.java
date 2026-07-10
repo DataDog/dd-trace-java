@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springweb6;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 
 import datadog.context.ContextScope;
@@ -13,10 +12,10 @@ public class RenderAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope onEnter(@Advice.Argument(0) final ModelAndView mv) {
-    final AgentSpan span = startSpan(SpringWebHttpServerDecorator.RESPONSE_RENDER);
+    final AgentSpan span = startSpan("spring-webmvc", SpringWebHttpServerDecorator.RESPONSE_RENDER);
     SpringWebHttpServerDecorator.DECORATE_RENDER.afterStart(span);
     SpringWebHttpServerDecorator.DECORATE_RENDER.onRender(span, mv);
-    return getCurrentContext().with(span).attach();
+    return span.attachWithContext();
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

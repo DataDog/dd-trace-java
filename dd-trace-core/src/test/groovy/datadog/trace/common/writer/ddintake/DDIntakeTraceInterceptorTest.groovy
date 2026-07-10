@@ -22,7 +22,7 @@ class DDIntakeTraceInterceptorTest extends DDCoreSpecification {
 
   def "test normalization for dd intake"() {
     setup:
-    tracer.buildSpan("my-operation-name")
+    tracer.buildSpan("datadog", "my-operation-name")
       .withResourceName("my-resource-name")
       .withSpanType("my-span-type")
       .withServiceName("my-service-name")
@@ -58,7 +58,7 @@ class DDIntakeTraceInterceptorTest extends DDCoreSpecification {
   def "test normalization does not implicitly convert span type"() {
     setup:
     def originalSpanType = UTF8BytesString.create("a UTF8 span type")
-    tracer.buildSpan("my-operation-name")
+    tracer.buildSpan("datadog", "my-operation-name")
       .withSpanType(originalSpanType)
       .start().finish()
 
@@ -75,7 +75,7 @@ class DDIntakeTraceInterceptorTest extends DDCoreSpecification {
 
   def "test default env setting"() {
     setup:
-    tracer.buildSpan("my-operation-name").start().finish()
+    tracer.buildSpan("datadog", "my-operation-name").start().finish()
     writer.waitForTraces(1)
 
     expect:

@@ -12,8 +12,10 @@ public class BaggageMetrics {
   private final AtomicLong extractedCounter = new AtomicLong(0);
   private final AtomicLong injectedCounter = new AtomicLong(0);
   private final AtomicLong malformedCounter = new AtomicLong(0);
-  private final AtomicLong truncatedByteCounter = new AtomicLong(0);
-  private final AtomicLong truncatedItemCounter = new AtomicLong(0);
+  private final AtomicLong truncatedInjectByteCounter = new AtomicLong(0);
+  private final AtomicLong truncatedInjectItemCounter = new AtomicLong(0);
+  private final AtomicLong truncatedExtractByteCounter = new AtomicLong(0);
+  private final AtomicLong truncatedExtractItemCounter = new AtomicLong(0);
   private final Collection<TaggedCounter> taggedCounters;
 
   public static BaggageMetrics getInstance() {
@@ -34,13 +36,23 @@ public class BaggageMetrics {
     counters.add(
         new TaggedCounter(
             "context_header.truncated",
-            this.truncatedByteCounter,
+            this.truncatedInjectByteCounter,
             "truncation_reason:baggage_byte_count_exceeded"));
     counters.add(
         new TaggedCounter(
             "context_header.truncated",
-            this.truncatedItemCounter,
+            this.truncatedInjectItemCounter,
             "truncation_reason:baggage_item_count_exceeded"));
+    counters.add(
+        new TaggedCounter(
+            "context_header.truncated",
+            this.truncatedExtractByteCounter,
+            "truncation_reason:baggage_extract_byte_exceeded"));
+    counters.add(
+        new TaggedCounter(
+            "context_header.truncated",
+            this.truncatedExtractItemCounter,
+            "truncation_reason:baggage_extract_item_exceeded"));
     this.taggedCounters = Collections.unmodifiableList(counters);
   }
 
@@ -56,12 +68,20 @@ public class BaggageMetrics {
     this.malformedCounter.incrementAndGet();
   }
 
-  public void onBaggageTruncatedByByteLimit() {
-    this.truncatedByteCounter.incrementAndGet();
+  public void onBaggageTruncatedByInjectByteLimit() {
+    this.truncatedInjectByteCounter.incrementAndGet();
   }
 
-  public void onBaggageTruncatedByItemLimit() {
-    this.truncatedItemCounter.incrementAndGet();
+  public void onBaggageTruncatedByInjectItemLimit() {
+    this.truncatedInjectItemCounter.incrementAndGet();
+  }
+
+  public void onBaggageTruncatedByExtractByteLimit() {
+    this.truncatedExtractByteCounter.incrementAndGet();
+  }
+
+  public void onBaggageTruncatedByExtractItemLimit() {
+    this.truncatedExtractItemCounter.incrementAndGet();
   }
 
   public Collection<TaggedCounter> getTaggedCounters() {

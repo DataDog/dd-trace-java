@@ -53,7 +53,7 @@ public final class AxisEngineInstrumentation
         @Advice.Argument(0) final MessageContext message) {
       // only create a span if the message has a clear action and there's a surrounding request
       if (DECORATE.shouldTrace(message)) {
-        AgentSpan span = startSpan(AXIS2_MESSAGE);
+        AgentSpan span = startSpan("axis2", AXIS2_MESSAGE);
         DECORATE.afterStart(span);
         DECORATE.onMessage(span, message);
         return activateSpan(span);
@@ -88,7 +88,7 @@ public final class AxisEngineInstrumentation
         message.removeSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY);
         // resuming is a distinct operation, so create a new span under the original request
         try (AgentScope parentScope = ((AgentScope.Continuation) continuation).activate()) {
-          AgentSpan span = startSpan(AXIS2_MESSAGE);
+          AgentSpan span = startSpan("axis2", AXIS2_MESSAGE);
           DECORATE.afterStart(span);
           DECORATE.onMessage(span, message);
           return activateSpan(span);
