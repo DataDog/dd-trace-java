@@ -6,6 +6,7 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -33,6 +34,7 @@ public class AIGuardSamplingTest extends DDCoreJavaSpecification {
     DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
     span.setTag(Tags.AI_GUARD_KEEP, true);
     span.setTag(Tags.AI_GUARD_EVENT, true);
+    span.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD);
     span.finish();
     writer.waitForTraces(1);
     assertEquals(USER_KEEP, (int) span.getSamplingPriority());
@@ -45,6 +47,7 @@ public class AIGuardSamplingTest extends DDCoreJavaSpecification {
     DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
     span.setTag(Tags.AI_GUARD_KEEP, true);
     span.setTag(Tags.AI_GUARD_EVENT, true);
+    span.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD);
     span.finish();
     writer.waitForTraces(1);
     assertEquals(USER_KEEP, (int) span.getSamplingPriority());
@@ -58,25 +61,26 @@ public class AIGuardSamplingTest extends DDCoreJavaSpecification {
     DDSpan span = (DDSpan) tracer.buildSpan("datadog", "operation").start();
     span.setTag(Tags.AI_GUARD_KEEP, true);
     span.setTag(Tags.AI_GUARD_EVENT, true);
+    span.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD);
     span.finish();
     writer.waitForTraces(1);
     assertEquals(USER_KEEP, (int) span.getSamplingPriority());
     assertDecisionMakerIsAiGuard(span);
   }
 
-  /** ai_guard.event alone (without AI_GUARD_KEEP) must not bypass the sampler. */
+  /** _dd.p.ts alone (without AI_GUARD_KEEP) must not bypass the sampler. */
   @Test
   @WithConfig(key = APM_TRACING_ENABLED, value = "false")
   @WithConfig(key = APPSEC_ENABLED, value = "true")
-  void aiGuardEventTagAloneDoesNotBypassSampler() throws Exception {
+  void propagatedTraceSourceAloneDoesNotBypassSampler() throws Exception {
     // consume the first allowed slot
     DDSpan first = (DDSpan) tracer.buildSpan("datadog", "op").start();
     first.finish();
     writer.waitForTraces(1);
 
-    // second trace sets ai_guard.event but NOT AI_GUARD_KEEP — should still be dropped
+    // second trace sets _dd.p.ts but NOT AI_GUARD_KEEP — should still be dropped
     DDSpan second = (DDSpan) tracer.buildSpan("datadog", "op").start();
-    second.setTag(Tags.AI_GUARD_EVENT, true);
+    second.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD);
     second.finish();
     writer.waitForTraces(2);
 
@@ -99,6 +103,7 @@ public class AIGuardSamplingTest extends DDCoreJavaSpecification {
     DDSpan aiGuard = (DDSpan) tracer.buildSpan("datadog", "op").start();
     aiGuard.setTag(Tags.AI_GUARD_KEEP, true);
     aiGuard.setTag(Tags.AI_GUARD_EVENT, true);
+    aiGuard.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD);
     aiGuard.finish();
     writer.waitForTraces(2);
 
@@ -109,5 +114,6 @@ public class AIGuardSamplingTest extends DDCoreJavaSpecification {
   private static void assertDecisionMakerIsAiGuard(DDSpan span) {
     Map<String, String> ptags = span.spanContext().getPropagationTags().createTagMap();
     assertEquals("-13", ptags.get("_dd.p.dm"), "_dd.p.dm must be -13 (AI Guard decision maker)");
+    assertEquals("20", ptags.get("_dd.p.ts"), "_dd.p.ts must have AI Guard bit set (0x20)");
   }
 }

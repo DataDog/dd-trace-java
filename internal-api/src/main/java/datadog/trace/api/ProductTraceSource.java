@@ -22,6 +22,7 @@ public class ProductTraceSource {
   public static final int DSM = 0x04;
   public static final int DJM = 0x08;
   public static final int DBM = 0x10;
+  public static final int AI_GUARD = 0x20;
 
   /** Updates the bitfield by setting the bit corresponding to a specific product. */
   public static int updateProduct(int bitfield, int product) {
@@ -30,7 +31,15 @@ public class ProductTraceSource {
 
   /** Checks if the bitfield is marked for a specific product. */
   public static boolean isProductMarked(final int bitfield, int product) {
-    return (bitfield & product) != 0; // Check if the bit is set
+    return (bitfield & product) != 0;
+  }
+
+  /** Checks if the bitfield is marked for any of the given products. */
+  public static boolean isProductMarked(final int bitfield, int... products) {
+    for (int product : products) {
+      if ((bitfield & product) != 0) return true;
+    }
+    return false;
   }
 
   /**

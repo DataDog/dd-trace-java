@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.squareup.moshi.Moshi
 import datadog.common.version.VersionInfo
 import datadog.trace.api.Config
+import datadog.trace.api.ProductTraceSource
 import datadog.trace.api.aiguard.AIGuard
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.telemetry.WafMetricCollector
@@ -193,6 +194,7 @@ class AIGuardInternalTests extends DDSpecification {
     1 * span.setTag(AIGuardInternal.TARGET_TAG, suite.target)
     1 * localRootSpan.setTag(Tags.AI_GUARD_KEEP, true)
     1 * localRootSpan.setTag(Tags.AI_GUARD_EVENT, true)
+    1 * localRootSpan.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD)
     if (suite.target == 'tool') {
       1 * span.setTag(AIGuardInternal.TOOL_TAG, 'calc')
     }

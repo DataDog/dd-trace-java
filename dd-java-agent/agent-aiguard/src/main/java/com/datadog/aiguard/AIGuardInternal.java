@@ -13,6 +13,7 @@ import com.squareup.moshi.Types;
 import datadog.communication.http.OkHttpUtils;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
 import datadog.trace.api.aiguard.AIGuard.AIGuardClientError;
@@ -276,6 +277,7 @@ public class AIGuardInternal implements Evaluator {
     if (localRootSpan != null) {
       localRootSpan.setTag(Tags.AI_GUARD_KEEP, true);
       localRootSpan.setTag(Tags.AI_GUARD_EVENT, true);
+      localRootSpan.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD);
       applyClientIpTags(localRootSpan);
       // copyAnomalyDetectionTags MUST run after applyClientIpTags, to make
       // sure client IP tags were populated.

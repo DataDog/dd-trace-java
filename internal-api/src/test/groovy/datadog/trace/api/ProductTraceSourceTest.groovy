@@ -28,6 +28,23 @@ class ProductTraceSourceTest extends DDSpecification {
     value         | product       | expected
     ProductTraceSource.ASM | ProductTraceSource.ASM | true
     ProductTraceSource.DSM | ProductTraceSource.ASM | false
+    ProductTraceSource.AI_GUARD | ProductTraceSource.AI_GUARD | true
+    ProductTraceSource.ASM | ProductTraceSource.AI_GUARD | false
+  }
+
+  void 'test isProductMarked with varargs'(){
+    when:
+    final result = ProductTraceSource.isProductMarked(value, products as int[])
+
+    then:
+    result == expected
+
+    where:
+    value                   | products                                            | expected
+    ProductTraceSource.ASM      | [ProductTraceSource.ASM, ProductTraceSource.AI_GUARD] | true
+    ProductTraceSource.AI_GUARD | [ProductTraceSource.ASM, ProductTraceSource.AI_GUARD] | true
+    ProductTraceSource.DSM      | [ProductTraceSource.ASM, ProductTraceSource.AI_GUARD] | false
+    ProductTraceSource.UNSET    | [ProductTraceSource.ASM, ProductTraceSource.AI_GUARD] | false
   }
 
   void 'test getBitfieldHex'(){
@@ -41,6 +58,7 @@ class ProductTraceSourceTest extends DDSpecification {
     value         | expected
     ProductTraceSource.UNSET               | "00"
     ProductTraceSource.ASM | "02"
+    ProductTraceSource.AI_GUARD | "20"
   }
 
   void 'test parseBitfieldHex'(){
@@ -56,5 +74,6 @@ class ProductTraceSourceTest extends DDSpecification {
     null | ProductTraceSource.UNSET
     ""   | ProductTraceSource.UNSET
     "02" | ProductTraceSource.ASM
+    "20" | ProductTraceSource.AI_GUARD
   }
 }
