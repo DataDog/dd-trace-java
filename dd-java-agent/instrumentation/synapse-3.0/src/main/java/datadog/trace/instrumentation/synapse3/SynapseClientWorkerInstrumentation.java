@@ -12,10 +12,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.http.HttpResponse;
@@ -55,7 +55,7 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
   public static final class NewClientWorkerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void createWorker(@Advice.Argument(2) final TargetResponse response) {
-      AgentScope.Continuation continuation = captureActiveSpan();
+      ContextContinuation continuation = captureActiveSpan();
       if (continuation != noopContinuation()) {
         response.getConnection().getContext().setAttribute(SYNAPSE_CONTINUATION_KEY, continuation);
       }
@@ -66,18 +66,10 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginResponse(
         @Advice.FieldValue("response") final TargetResponse response) {
-      AgentScope.Continuation continuation =
-          (AgentScope.Continuation)
+      ContextContinuation continuation =
+          (ContextContinuation)
               response.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
-      if (null != continuation) {
-        AgentScope agentScope = continuation.activate();
-        try {
-          return agentScope.span().attachWithContext();
-        } finally {
-          agentScope.close();
-        }
-      }
-      return null;
+      return null != continuation ? continuation.resume() : null;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

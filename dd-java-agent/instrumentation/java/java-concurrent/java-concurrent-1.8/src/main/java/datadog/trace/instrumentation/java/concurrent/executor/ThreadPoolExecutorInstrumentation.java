@@ -14,10 +14,10 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.TPEHelper;
@@ -154,7 +154,7 @@ public final class ThreadPoolExecutorInstrumentation
 
   public static final class BeforeExecute {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beforeExecuteEnter(
+    public static ContextScope beforeExecuteEnter(
         @Advice.This final ThreadPoolExecutor zis,
         @Advice.Argument(readOnly = false, value = 1) Runnable task) {
       if (TPEHelper.shouldPropagate(
@@ -171,7 +171,7 @@ public final class ThreadPoolExecutorInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void beforeExecuteExit(
-        @Advice.Enter final AgentScope scope, @Advice.Argument(value = 1) Runnable task) {
+        @Advice.Enter final ContextScope scope, @Advice.Argument(value = 1) Runnable task) {
       if (scope != null) {
         TPEHelper.setThreadLocalScope(scope, task);
       }
@@ -180,7 +180,7 @@ public final class ThreadPoolExecutorInstrumentation
 
   public static final class AfterExecute {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope afterExecuteEnter(
+    public static ContextScope afterExecuteEnter(
         @Advice.This final ThreadPoolExecutor zis,
         @Advice.Argument(readOnly = false, value = 0) Runnable task) {
       if (TPEHelper.shouldPropagate(
@@ -196,7 +196,7 @@ public final class ThreadPoolExecutorInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterExecuteExit(
-        @Advice.Enter final AgentScope scope, @Advice.Argument(value = 0) Runnable task) {
+        @Advice.Enter final ContextScope scope, @Advice.Argument(value = 0) Runnable task) {
       if (scope != null) {
         TPEHelper.endScope(scope, task);
       }
