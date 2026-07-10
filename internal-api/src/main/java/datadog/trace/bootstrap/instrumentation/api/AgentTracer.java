@@ -248,8 +248,7 @@ public class AgentTracer {
    *
    * @return the noop continuation instance.
    */
-  @SuppressWarnings("deprecation")
-  public static AgentScope.Continuation noopContinuation() {
+  public static ContextContinuation noopContinuation() {
     return NoopContinuation.INSTANCE;
   }
 
