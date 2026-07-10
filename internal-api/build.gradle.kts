@@ -97,6 +97,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI.1",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan.Context",
   "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",
