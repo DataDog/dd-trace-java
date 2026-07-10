@@ -17,9 +17,7 @@ import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -37,7 +35,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class UfcHttpConfigServiceTest {
+class AgentlessConfigurationSourceTest {
 
   @Mock private FeatureFlaggingGateway.ConfigListener listener;
 
@@ -48,48 +46,24 @@ class UfcHttpConfigServiceTest {
   }
 
   @Test
-  void appendsDatadogApiServerDistributionPathWhenConfiguredUrlIsRoot() {
-    final Config config = config("http://mock-backend:8092", "datadoghq.com", "");
-
-    assertEquals(
-        "http://mock-backend:8092/api/v2/feature-flagging/config/server-distribution",
-        UfcHttpConfigService.endpoint(config).toString());
-  }
-
-  @Test
-  void preservesConfiguredFullEndpointUrl() {
-    final Config config =
-        config(
-            "http://mock-backend:8092/api/v2/feature-flagging/config/server-distribution?fixture=valid",
-            "datadoghq.com",
-            "");
-
-    assertEquals(
-        "http://mock-backend:8092/api/v2/feature-flagging/config/server-distribution?fixture=valid",
-        UfcHttpConfigService.endpoint(config).toString());
-  }
-
-  @Test
   void derivesDatadogApiServerDistributionEndpointFromSiteAndEnv() {
-    final Config config = config(null, "datad0g.com", "staging env");
+    final Config config = config("datad0g.com", "staging env");
 
     assertEquals(
         "https://api.datad0g.com/api/v2/feature-flagging/config/server-distribution?dd_env=staging+env",
-        UfcHttpConfigService.endpoint(config).toString());
+        AgentlessConfigurationSource.endpoint(config).toString());
   }
 
   @Test
-  void appliesAcceptedUfcThroughGatewayAndSendsHeaders() throws Exception {
+  void appliesAcceptedUfcThroughGatewayAndSendsApiKey() throws Exception {
     final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
-    final UfcHttpConfigService service = service(client, extraHeaders());
+    final AgentlessConfigurationSource service = service(client);
     FeatureFlaggingGateway.addConfigListener(listener);
 
     assertTrue(service.pollOnce());
 
     verify(listener).accept(any(ServerConfiguration.class));
     assertEquals("test-api-key", client.requests.get(0).apiKey);
-    assertEquals("app-key", client.requests.get(0).extraHeaders.get("DD-APPLICATION-KEY"));
-    assertEquals("1", client.requests.get(0).extraHeaders.get("fastly-client"));
     assertNull(client.requests.get(0).etag);
   }
 
@@ -97,7 +71,7 @@ class UfcHttpConfigServiceTest {
   void usesEtagAndSkipsDispatchOnUnchangedConfig() throws Exception {
     final FakeClient client =
         new FakeClient(response(200, "etag-a", emptyConfig()), response(304, null, null));
-    final UfcHttpConfigService service = service(client, extraHeaders());
+    final AgentlessConfigurationSource service = service(client);
     FeatureFlaggingGateway.addConfigListener(listener);
 
     assertTrue(service.pollOnce());
@@ -114,7 +88,7 @@ class UfcHttpConfigServiceTest {
             response(401, null, null),
             response(200, null, "{not-json}"),
             response(200, null, "{\"flags\":[]}"));
-    final UfcHttpConfigService service = service(client, extraHeaders());
+    final AgentlessConfigurationSource service = service(client);
     FeatureFlaggingGateway.addConfigListener(listener);
 
     assertFalse(service.pollOnce());
@@ -131,7 +105,7 @@ class UfcHttpConfigServiceTest {
             new SocketTimeoutException("slow HTTP configuration source"),
             new SocketTimeoutException("slow HTTP configuration source"),
             response(200, "etag-a", emptyConfig()));
-    final UfcHttpConfigService service = service(client, extraHeaders());
+    final AgentlessConfigurationSource service = service(client);
     FeatureFlaggingGateway.addConfigListener(listener);
 
     assertTrue(service.pollOnce());
@@ -143,7 +117,7 @@ class UfcHttpConfigServiceTest {
   @Test
   void retriesServerErrorThenKeepsColdStateOnNotModified() throws Exception {
     final FakeClient client = new FakeClient(response(500, null, null), response(304, null, null));
-    final UfcHttpConfigService service = service(client, extraHeaders());
+    final AgentlessConfigurationSource service = service(client);
     FeatureFlaggingGateway.addConfigListener(listener);
 
     assertTrue(service.pollOnce());
@@ -158,7 +132,7 @@ class UfcHttpConfigServiceTest {
     final CountDownLatch releaseRequest = new CountDownLatch(1);
     final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
     client.block(requestStarted, releaseRequest);
-    final UfcHttpConfigService service = service(client, extraHeaders());
+    final AgentlessConfigurationSource service = service(client);
     final ExecutorService runner = Executors.newFixedThreadPool(2);
 
     try {
@@ -179,7 +153,7 @@ class UfcHttpConfigServiceTest {
   @Test
   void closePreventsFurtherPolls() throws Exception {
     final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
-    final UfcHttpConfigService service = service(client, extraHeaders());
+    final AgentlessConfigurationSource service = service(client);
 
     service.close();
 
@@ -187,31 +161,18 @@ class UfcHttpConfigServiceTest {
     assertEquals(0, client.calls.get());
   }
 
-  private static UfcHttpConfigService service(
-      final FakeClient client, final Map<String, String> extraHeaders) {
+  private static AgentlessConfigurationSource service(final FakeClient client) {
     final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    return new UfcHttpConfigService(
+    return new AgentlessConfigurationSource(
         HttpUrl.get("http://localhost/api/v2/feature-flagging/config/server-distribution"),
-        config("http://localhost", "datadoghq.com", "", extraHeaders),
+        config("datadoghq.com", ""),
         60_000,
         client,
         executor);
   }
 
-  private static Config config(final String baseUrl, final String site, final String env) {
-    return config(baseUrl, site, env, new HashMap<>());
-  }
-
-  private static Config config(
-      final String baseUrl,
-      final String site,
-      final String env,
-      final Map<String, String> extraHeaders) {
+  private static Config config(final String site, final String env) {
     final Config config = mock(Config.class);
-    lenient().when(config.getFeatureFlaggingConfigurationSourceBaseUrl()).thenReturn(baseUrl);
-    lenient()
-        .when(config.getFeatureFlaggingConfigurationSourceExtraHeaders())
-        .thenReturn(extraHeaders);
     lenient()
         .when(config.getFeatureFlaggingConfigurationSourcePollIntervalSeconds())
         .thenReturn(30.0D);
@@ -224,16 +185,9 @@ class UfcHttpConfigServiceTest {
     return config;
   }
 
-  private static Map<String, String> extraHeaders() {
-    final Map<String, String> headers = new HashMap<>();
-    headers.put("DD-APPLICATION-KEY", "app-key");
-    headers.put("fastly-client", "1");
-    return headers;
-  }
-
-  private static UfcHttpConfigService.UfcHttpResponse response(
+  private static AgentlessConfigurationSource.UfcHttpResponse response(
       final int status, final String etag, final String body) {
-    return new UfcHttpConfigService.UfcHttpResponse(
+    return new AgentlessConfigurationSource.UfcHttpResponse(
         status, etag, body == null ? null : body.getBytes(UTF_8));
   }
 
@@ -246,7 +200,7 @@ class UfcHttpConfigServiceTest {
         + "}";
   }
 
-  private static final class FakeClient implements UfcHttpConfigService.UfcHttpClient {
+  private static final class FakeClient implements AgentlessConfigurationSource.UfcHttpClient {
     private final AtomicInteger calls = new AtomicInteger();
     private final List<Request> requests = new ArrayList<>();
     private final BlockingQueue<Object> responses = new LinkedBlockingQueue<>();
@@ -265,14 +219,10 @@ class UfcHttpConfigServiceTest {
     }
 
     @Override
-    public UfcHttpConfigService.UfcHttpResponse fetch(
-        final HttpUrl endpoint,
-        final Config config,
-        final Map<String, String> extraHeaders,
-        final String etag)
-        throws IOException {
+    public AgentlessConfigurationSource.UfcHttpResponse fetch(
+        final HttpUrl endpoint, final Config config, final String etag) throws IOException {
       calls.incrementAndGet();
-      requests.add(new Request(config.getApiKey(), etag, extraHeaders));
+      requests.add(new Request(config.getApiKey(), etag));
       if (requestStarted != null) {
         requestStarted.countDown();
       }
@@ -283,7 +233,7 @@ class UfcHttpConfigServiceTest {
       if (response instanceof IOException) {
         throw (IOException) response;
       }
-      return (UfcHttpConfigService.UfcHttpResponse) response;
+      return (AgentlessConfigurationSource.UfcHttpResponse) response;
     }
 
     private static void await(final CountDownLatch latch) throws IOException {
@@ -301,13 +251,10 @@ class UfcHttpConfigServiceTest {
   private static final class Request {
     private final String apiKey;
     private final String etag;
-    private final Map<String, String> extraHeaders;
 
-    private Request(
-        final String apiKey, final String etag, final Map<String, String> extraHeaders) {
+    private Request(final String apiKey, final String etag) {
       this.apiKey = apiKey;
       this.etag = etag;
-      this.extraHeaders = new HashMap<>(extraHeaders);
     }
   }
 }

@@ -72,7 +72,7 @@ class FeatureFlaggingSystemTest {
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
   void agentlessConfigurationSourceUsesHttpServiceWithoutRemoteConfig() {
     assertInstanceOf(
-        UfcHttpConfigService.class,
+        AgentlessConfigurationSource.class,
         FeatureFlaggingSystem.createConfigurationSourceService(
             sharedCommunicationObjects(), Config.get()));
   }

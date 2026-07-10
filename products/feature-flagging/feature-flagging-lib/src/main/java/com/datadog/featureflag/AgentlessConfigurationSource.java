@@ -9,7 +9,6 @@ import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -27,16 +26,16 @@ import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class UfcHttpConfigService implements ConfigurationSourceService {
-  private static final Logger LOGGER = LoggerFactory.getLogger(UfcHttpConfigService.class);
+final class AgentlessConfigurationSource implements ConfigurationSourceService {
+  private static final Logger LOGGER = LoggerFactory.getLogger(AgentlessConfigurationSource.class);
 
+  // TODO before merge: confirm the final backend route with the server-distribution API owners.
   private static final String DATADOG_API_SERVER_DISTRIBUTION_PATH =
       "/api/v2/feature-flagging/config/server-distribution";
   private static final int MAX_ATTEMPTS = 3;
 
   private final HttpUrl endpoint;
   private final Config config;
-  private final Map<String, String> extraHeaders;
   private final long pollIntervalMillis;
   private final UfcHttpClient client;
   private final ScheduledExecutorService executor;
@@ -45,11 +44,11 @@ final class UfcHttpConfigService implements ConfigurationSourceService {
   private volatile ScheduledFuture<?> scheduledPoll;
   private volatile String etag;
 
-  UfcHttpConfigService(final Config config) {
+  AgentlessConfigurationSource(final Config config) {
     this(config, endpoint(config));
   }
 
-  private UfcHttpConfigService(final Config config, final HttpUrl endpoint) {
+  private AgentlessConfigurationSource(final Config config, final HttpUrl endpoint) {
     this(
         endpoint,
         config,
@@ -61,7 +60,7 @@ final class UfcHttpConfigService implements ConfigurationSourceService {
         Executors.newSingleThreadScheduledExecutor(new UfcHttpThreadFactory()));
   }
 
-  UfcHttpConfigService(
+  AgentlessConfigurationSource(
       final HttpUrl endpoint,
       final Config config,
       final long pollIntervalMillis,
@@ -69,10 +68,6 @@ final class UfcHttpConfigService implements ConfigurationSourceService {
       final ScheduledExecutorService executor) {
     this.endpoint = endpoint;
     this.config = config;
-    final Map<String, String> configuredExtraHeaders =
-        config.getFeatureFlaggingConfigurationSourceExtraHeaders();
-    this.extraHeaders =
-        configuredExtraHeaders == null ? Collections.emptyMap() : configuredExtraHeaders;
     this.pollIntervalMillis = pollIntervalMillis;
     this.client = client;
     this.executor = executor;
@@ -120,7 +115,7 @@ final class UfcHttpConfigService implements ConfigurationSourceService {
   private boolean fetchAndApply() {
     for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
-        final UfcHttpResponse response = client.fetch(endpoint, config, extraHeaders, etag);
+        final UfcHttpResponse response = client.fetch(endpoint, config, etag);
         if (isRetryableStatus(response.status) && attempt < MAX_ATTEMPTS) {
           continue;
         }
@@ -176,37 +171,13 @@ final class UfcHttpConfigService implements ConfigurationSourceService {
   }
 
   static HttpUrl endpoint(final Config config) {
-    final String configuredBaseUrl = config.getFeatureFlaggingConfigurationSourceBaseUrl();
-    final String endpoint =
-        configuredBaseUrl == null
-            ? datadogApiServerDistributionEndpoint(config)
-            : endpointFromConfiguredUrl(configuredBaseUrl);
+    final String endpoint = datadogApiServerDistributionEndpoint(config);
     final HttpUrl parsed = HttpUrl.parse(endpoint);
     if (parsed == null) {
       throw new IllegalArgumentException(
           "Invalid Feature Flagging HTTP configuration source URL: " + endpoint);
     }
     return parsed;
-  }
-
-  private static String endpointFromConfiguredUrl(final String configuredUrl) {
-    final HttpUrl parsed = HttpUrl.parse(configuredUrl.trim());
-    if (parsed == null) {
-      throw new IllegalArgumentException(
-          "Invalid Feature Flagging HTTP configuration source URL: " + configuredUrl);
-    }
-    if (isRootPath(parsed)) {
-      return parsed
-          .newBuilder()
-          .addPathSegments(datadogApiServerDistributionPath())
-          .build()
-          .toString();
-    }
-    return parsed.toString();
-  }
-
-  private static boolean isRootPath(final HttpUrl url) {
-    return "/".equals(url.encodedPath()) || url.encodedPath().isEmpty();
   }
 
   private static String datadogApiServerDistributionEndpoint(final Config config) {
@@ -219,10 +190,6 @@ final class UfcHttpConfigService implements ConfigurationSourceService {
       endpoint.append("?dd_env=").append(urlEncode(env));
     }
     return endpoint.toString();
-  }
-
-  private static String datadogApiServerDistributionPath() {
-    return DATADOG_API_SERVER_DISTRIBUTION_PATH.substring(1);
   }
 
   private static String urlEncode(final String value) {
@@ -238,9 +205,7 @@ final class UfcHttpConfigService implements ConfigurationSourceService {
   }
 
   interface UfcHttpClient {
-    UfcHttpResponse fetch(
-        HttpUrl endpoint, Config config, Map<String, String> extraHeaders, String etag)
-        throws IOException;
+    UfcHttpResponse fetch(HttpUrl endpoint, Config config, String etag) throws IOException;
   }
 
   static final class UfcHttpResponse {
@@ -263,13 +228,9 @@ final class UfcHttpConfigService implements ConfigurationSourceService {
     }
 
     @Override
-    public UfcHttpResponse fetch(
-        final HttpUrl endpoint,
-        final Config config,
-        final Map<String, String> extraHeaders,
-        final String etag)
+    public UfcHttpResponse fetch(final HttpUrl endpoint, final Config config, final String etag)
         throws IOException {
-      final Map<String, String> headers = new HashMap<>(extraHeaders);
+      final Map<String, String> headers = new HashMap<>();
       if (etag != null) {
         headers.put("If-None-Match", etag);
       }

@@ -85,5 +85,7 @@ OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 ## Requirements
 
 - Java 11+
-- Feature Flags provider enabled with `DD_FEATURE_FLAGS_ENABLED=true`, or left unset
-  for the default `agentless` configuration source.
+- `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` uses the Datadog agentless
+  backend. `remote_config` uses the existing Agent Remote Configuration path.
+  `offline` is reserved for startup-provided UFC bytes; until those bytes are
+  implemented, no network source starts and evaluations use defaults.

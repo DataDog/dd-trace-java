@@ -41,7 +41,7 @@ public class FeatureFlaggingSystem {
         }
         return new RemoteConfigServiceImpl(sco, config);
       case AGENTLESS:
-        return new UfcHttpConfigService(config);
+        return new AgentlessConfigurationSource(config);
       case OFFLINE:
         LOGGER.debug(
             "Feature Flagging offline configuration source selected; no config service started");

@@ -365,8 +365,6 @@ import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_EXCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_SHADING_IDENTIFIERS;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
-import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
-import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_EXTRA_HEADERS;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL;
@@ -1222,10 +1220,8 @@ public class Config {
   private final int remoteConfigMaxExtraServices;
 
   private final String featureFlaggingConfigurationSource;
-  private final String featureFlaggingConfigurationSourceBaseUrl;
   private final double featureFlaggingConfigurationSourcePollIntervalSeconds;
   private final double featureFlaggingConfigurationSourceRequestTimeoutSeconds;
-  private final Map<String, String> featureFlaggingConfigurationSourceExtraHeaders;
 
   private final boolean dbmInjectSqlBaseHash;
   private final String dbmPropagationMode;
@@ -2853,9 +2849,6 @@ public class Config {
         normalizeFeatureFlaggingConfigurationSource(
             configProvider.getString(
                 FEATURE_FLAGS_CONFIGURATION_SOURCE, DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE));
-    featureFlaggingConfigurationSourceBaseUrl =
-        configProvider.getStringNotEmpty(
-            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
     featureFlaggingConfigurationSourcePollIntervalSeconds =
         configProvider.getDouble(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS,
@@ -2864,9 +2857,6 @@ public class Config {
         configProvider.getDouble(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS,
             DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS);
-    featureFlaggingConfigurationSourceExtraHeaders =
-        configProvider.getMergedMap(
-            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_EXTRA_HEADERS, '=');
 
     dynamicInstrumentationEnabled =
         configProvider.getBoolean(
@@ -4699,20 +4689,12 @@ public class Config {
     return featureFlaggingConfigurationSource;
   }
 
-  public String getFeatureFlaggingConfigurationSourceBaseUrl() {
-    return featureFlaggingConfigurationSourceBaseUrl;
-  }
-
   public double getFeatureFlaggingConfigurationSourcePollIntervalSeconds() {
     return featureFlaggingConfigurationSourcePollIntervalSeconds;
   }
 
   public double getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds() {
     return featureFlaggingConfigurationSourceRequestTimeoutSeconds;
-  }
-
-  public Map<String, String> getFeatureFlaggingConfigurationSourceExtraHeaders() {
-    return featureFlaggingConfigurationSourceExtraHeaders;
   }
 
   public boolean isDynamicInstrumentationEnabled() {
@@ -6549,14 +6531,10 @@ public class Config {
         + remoteConfigIntegrityCheckEnabled
         + ", featureFlaggingConfigurationSource="
         + featureFlaggingConfigurationSource
-        + ", featureFlaggingConfigurationSourceBaseUrl="
-        + featureFlaggingConfigurationSourceBaseUrl
         + ", featureFlaggingConfigurationSourcePollIntervalSeconds="
         + featureFlaggingConfigurationSourcePollIntervalSeconds
         + ", featureFlaggingConfigurationSourceRequestTimeoutSeconds="
         + featureFlaggingConfigurationSourceRequestTimeoutSeconds
-        + ", featureFlaggingConfigurationSourceExtraHeaderNames="
-        + featureFlaggingConfigurationSourceExtraHeaders.keySet()
         + ", debuggerEnabled="
         + dynamicInstrumentationEnabled
         + ", debuggerUploadTimeout="
