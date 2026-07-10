@@ -75,7 +75,7 @@ docs/                     Developer documentation (see below)
 
 Code running in the agent's `premain` phase must **not** use:
 - `java.util.logging.*` — locks in log manager before app configures it
-- `java.nio.*` — triggers premature provider initialization
+- `java.nio.file.*` — triggers premature provider initialization
 - `javax.management.*` — causes class loading issues
 
 See [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) for details and alternatives.
