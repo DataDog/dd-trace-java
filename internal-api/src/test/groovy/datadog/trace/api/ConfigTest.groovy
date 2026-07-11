@@ -2,6 +2,8 @@ package datadog.trace.api
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
@@ -55,6 +57,8 @@ import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.VERSION
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS
@@ -3477,5 +3481,33 @@ class ConfigTest extends DDSpecification {
     "false" | false
     "1"     | true
     "0"     | false
+  }
+
+  def "agentless feature flag timing uses positive configured values"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS, "60")
+    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS, "4")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.featureFlaggingConfigurationSourcePollIntervalSeconds == 60
+    config.featureFlaggingConfigurationSourceRequestTimeoutSeconds == 4
+  }
+
+  def "agentless feature flag timing falls back for non-positive values"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS, "0")
+    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS, "-1")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.featureFlaggingConfigurationSourcePollIntervalSeconds == DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS
+    config.featureFlaggingConfigurationSourceRequestTimeoutSeconds == DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS
   }
 }

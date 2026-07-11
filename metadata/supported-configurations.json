@@ -1497,6 +1497,38 @@
         "aliases": []
       }
     ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "agentless",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "30",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "2",
+        "aliases": []
+      }
+    ],
     "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": [
       {
         "version": "A",
