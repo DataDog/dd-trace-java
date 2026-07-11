@@ -14,31 +14,93 @@ public class FeatureFlaggingSystem {
 
   private FeatureFlaggingSystem() {}
 
-  public static void start(final SharedCommunicationObjects sco) {
+  public static synchronized void start(final SharedCommunicationObjects sco) {
+    if (CONFIG_SERVICE != null || EXPOSURE_WRITER != null) {
+      LOGGER.debug("Feature Flagging system already started");
+      return;
+    }
     LOGGER.debug("Feature Flagging system starting");
     final Config config = Config.get();
-
-    if (!config.isRemoteConfigEnabled()) {
-      throw new IllegalStateException("Feature Flagging system started without RC");
-    }
-    CONFIG_SERVICE = new RemoteConfigServiceImpl(sco, config);
-    CONFIG_SERVICE.init();
-
-    EXPOSURE_WRITER = new ExposureWriterImpl(sco, config);
-    EXPOSURE_WRITER.init();
+    final ConfigurationSourceService configService = createConfigurationSourceService(sco, config);
+    final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
+    initialize(configService, exposureWriter);
 
     LOGGER.debug("Feature Flagging system started");
   }
 
-  public static void stop() {
-    if (EXPOSURE_WRITER != null) {
-      EXPOSURE_WRITER.close();
-      EXPOSURE_WRITER = null;
+  static void initialize(
+      final ConfigurationSourceService configService, final ExposureWriter exposureWriter) {
+    try {
+      if (configService != null) {
+        configService.init();
+      }
+      exposureWriter.init();
+      CONFIG_SERVICE = configService;
+      EXPOSURE_WRITER = exposureWriter;
+    } catch (final RuntimeException | Error e) {
+      exposureWriter.close();
+      if (configService != null) {
+        configService.close();
+      }
+      throw e;
     }
-    if (CONFIG_SERVICE != null) {
-      CONFIG_SERVICE.close();
-      CONFIG_SERVICE = null;
+  }
+
+  static ConfigurationSourceService createConfigurationSourceService(
+      final SharedCommunicationObjects sco, final Config config) {
+    final ConfigurationSource configurationSource =
+        ConfigurationSource.from(config.getFeatureFlaggingConfigurationSource());
+
+    if (configurationSource == ConfigurationSource.REMOTE_CONFIG) {
+      if (!config.isRemoteConfigEnabled()) {
+        throw new IllegalStateException("Feature Flagging system started without RC");
+      }
+      return new RemoteConfigServiceImpl(sco, config);
+    }
+    if (configurationSource == ConfigurationSource.AGENTLESS) {
+      return new AgentlessConfigurationSource(config);
+    }
+    LOGGER.debug(
+        "Feature Flagging offline configuration source selected; no config service started");
+    return null;
+  }
+
+  public static synchronized void stop() {
+    final ExposureWriter exposureWriter = EXPOSURE_WRITER;
+    final ConfigurationSourceService configService = CONFIG_SERVICE;
+    EXPOSURE_WRITER = null;
+    CONFIG_SERVICE = null;
+    try {
+      if (exposureWriter != null) {
+        exposureWriter.close();
+      }
+    } finally {
+      if (configService != null) {
+        configService.close();
+      }
     }
     LOGGER.debug("Feature Flagging system stopped");
+  }
+
+  private enum ConfigurationSource {
+    AGENTLESS("agentless"),
+    REMOTE_CONFIG("remote_config"),
+    OFFLINE("offline");
+
+    private final String value;
+
+    ConfigurationSource(final String value) {
+      this.value = value;
+    }
+
+    private static ConfigurationSource from(final String value) {
+      for (final ConfigurationSource source : values()) {
+        if (source.value.equals(value)) {
+          return source;
+        }
+      }
+      throw new IllegalArgumentException(
+          "Unsupported Feature Flagging configuration source: " + value);
+    }
   }
 }

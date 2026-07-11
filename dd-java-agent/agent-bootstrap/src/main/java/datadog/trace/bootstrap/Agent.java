@@ -528,6 +528,9 @@ public class Agent {
     if (flareEnabled) {
       stopFlarePoller();
     }
+    if (featureFlaggingEnabled) {
+      shutdownFeatureFlagging(AGENT_CLASSLOADER);
+    }
 
     if (agentlessLogSubmissionEnabled) {
       shutdownLogsIntake();
@@ -1176,6 +1179,20 @@ public class Agent {
       }
 
       StaticEventLogger.end("Feature Flagging");
+    }
+  }
+
+  static void shutdownFeatureFlagging(final ClassLoader agentClassLoader) {
+    if (agentClassLoader == null) {
+      return;
+    }
+    try {
+      final Class<?> ffSysClass =
+          agentClassLoader.loadClass("com.datadog.featureflag.FeatureFlaggingSystem");
+      final Method stopMethod = ffSysClass.getMethod("stop");
+      stopMethod.invoke(null);
+    } catch (final Throwable e) {
+      log.warn("Unable to stop Feature Flagging subsystem", e);
     }
   }
 
