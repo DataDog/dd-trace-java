@@ -29,7 +29,7 @@ final class TestContextBinder implements ContextBinder {
 
   private static ContextBinder delegate() {
     ContextBinder delegate = ContextProviders.customBinder;
-    if (delegate == TEST_INSTANCE) {
+    if (delegate == TEST_INSTANCE || delegate == null) {
       // fall back to default context binder
       return WeakMapContextBinder.INSTANCE;
     } else {

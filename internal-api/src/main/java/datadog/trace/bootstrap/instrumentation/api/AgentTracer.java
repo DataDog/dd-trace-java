@@ -1,5 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.context.Context;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextListener;
+import datadog.context.ContextManager;
+import datadog.context.ContextScope;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
@@ -402,6 +407,14 @@ public class AgentTracer {
     void updatePreferredServiceName(String serviceName, CharSequence source);
 
     void addShutdownListener(Runnable listener);
+
+    Context currentContext();
+
+    ContextScope attach(Context context);
+
+    Context swap(Context context);
+
+    ContextContinuation capture(Context context);
   }
 
   public interface SpanBuilder {
@@ -653,6 +666,26 @@ public class AgentTracer {
     public void updatePreferredServiceName(String serviceName, CharSequence preferredServiceName) {
       // no ops
     }
+
+    @Override
+    public Context currentContext() {
+      return Context.root();
+    }
+
+    @Override
+    public ContextScope attach(Context context) {
+      return noopScope();
+    }
+
+    @Override
+    public Context swap(Context context) {
+      return Context.root();
+    }
+
+    @Override
+    public ContextContinuation capture(Context context) {
+      return noopContinuation();
+    }
   }
 
   public static class NoopAgentTraceCollector implements AgentTraceCollector {
@@ -737,6 +770,41 @@ public class AgentTracer {
     @Override
     public List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors() {
       return null;
+    }
+  }
+
+  /** Must be called ahead of instrumentation, before any use of the Context API. */
+  public static void installLegacyContextManager() {
+    ContextManager.register(LegacyContextManager.INSTANCE);
+  }
+
+  /** Shim mapping new Context API to legacy scope manager. */
+  static final class LegacyContextManager implements ContextManager {
+    static final LegacyContextManager INSTANCE = new LegacyContextManager();
+
+    @Override
+    public Context current() {
+      return AgentTracer.get().currentContext();
+    }
+
+    @Override
+    public ContextScope attach(@Nonnull Context context) {
+      return AgentTracer.get().attach(context);
+    }
+
+    @Override
+    public Context swap(@Nonnull Context context) {
+      return AgentTracer.get().swap(context);
+    }
+
+    @Override
+    public ContextContinuation capture(@Nonnull Context context) {
+      return AgentTracer.get().capture(context);
+    }
+
+    @Override
+    public void addListener(@Nonnull ContextListener listener) {
+      // this method is never used in legacy mode...
     }
   }
 }

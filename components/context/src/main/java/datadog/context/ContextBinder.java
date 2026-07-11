@@ -46,4 +46,13 @@ public interface ContextBinder {
   static boolean allowTesting() {
     return TestContextBinder.register();
   }
+
+  /**
+   * Clears any custom {@link ContextBinder} registered with {@link #register(ContextBinder)}.
+   *
+   * @see #allowTesting()
+   */
+  static void resetForTesting() {
+    ContextProviders.customBinder = null;
+  }
 }

@@ -8,6 +8,8 @@ import datadog.trace.agent.jmxfetch.JMXFetch;
 import datadog.trace.agent.tooling.MeterInstaller;
 import datadog.trace.agent.tooling.ProfilerInstaller;
 import datadog.trace.agent.tooling.TracerInstaller;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +20,10 @@ public final class TracerActivation {
 
   public static void activate() {
     try {
+      // Bind legacy context manager (if enabled)
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        AgentTracer.installLegacyContextManager();
+      }
       // Initialize meter
       MeterInstaller.installMeter();
       // Initialize tracer

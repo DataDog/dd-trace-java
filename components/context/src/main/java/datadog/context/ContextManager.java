@@ -70,4 +70,13 @@ public interface ContextManager {
   static boolean allowTesting() {
     return TestContextManager.register();
   }
+
+  /**
+   * Clears any custom {@link ContextManager} registered with {@link #register(ContextManager)}.
+   *
+   * @see #allowTesting()
+   */
+  static void resetForTesting() {
+    ContextProviders.customManager = null;
+  }
 }

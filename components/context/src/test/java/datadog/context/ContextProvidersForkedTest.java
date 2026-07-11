@@ -123,4 +123,90 @@ class ContextProvidersForkedTest {
     // NOOP manager, no events emitted
     listener.assertNoEvents();
   }
+
+  @Test
+  void testResetBinder() {
+    assertTrue(ContextBinder.allowTesting());
+
+    Context context = root().with(STRING_KEY, "value");
+    Object carrier = new Object();
+
+    // register a NOOP context binder
+    ContextBinder.register(
+        new ContextBinder() {
+          @Override
+          public Context from(@Nonnull Object carrier) {
+            return root();
+          }
+
+          @Override
+          public void attachTo(@Nonnull Object carrier, @Nonnull Context context) {
+            // no-op
+          }
+
+          @Override
+          public Context detachFrom(@Nonnull Object carrier) {
+            return root();
+          }
+        });
+
+    // NOOP binder, context will always be root
+    context.attachTo(carrier);
+    assertSame(root(), Context.from(carrier));
+
+    // reset back to the default binder
+    ContextBinder.resetForTesting();
+
+    context.attachTo(carrier);
+    assertSame(context, Context.from(carrier));
+    assertSame(context, Context.detachFrom(carrier));
+    assertSame(root(), Context.from(carrier));
+  }
+
+  @Test
+  void testResetManager() {
+    assertTrue(ContextManager.allowTesting());
+
+    Context context = root().with(STRING_KEY, "value");
+
+    // register a NOOP context manager
+    ContextManager.register(
+        new ContextManager() {
+          @Override
+          public Context current() {
+            return root();
+          }
+
+          @Override
+          public ContextScope attach(@Nonnull Context context) {
+            return new NoopContextScope(root());
+          }
+
+          @Override
+          public Context swap(@Nonnull Context context) {
+            return root();
+          }
+
+          @Override
+          public ContextContinuation capture(@Nonnull Context context) {
+            return new NoopContextContinuation(root());
+          }
+
+          @Override
+          public void addListener(@Nonnull ContextListener listener) {}
+        });
+
+    // NOOP manager, context will always be root
+    try (ContextScope scope = context.attach()) {
+      assertSame(root(), Context.current());
+    }
+
+    // reset back to the default manager
+    ContextManager.resetForTesting();
+
+    try (ContextScope scope = context.attach()) {
+      assertSame(context, scope.context());
+      assertSame(context, Context.current());
+    }
+  }
 }

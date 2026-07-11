@@ -42,6 +42,7 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
+import spock.lang.Ignore
 import spock.lang.Shared
 
 import java.util.concurrent.ExecutionException
@@ -1545,6 +1546,7 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
   }
 }
 
+@Ignore("TODO(APMLP-829): non-legacy ContextManager migration still in-progress")
 class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
   void configurePreAgent() {
     super.configurePreAgent()

@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextKey;
+import datadog.context.ContextManager;
 import datadog.context.ContextScope;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Stateful;
@@ -36,6 +37,7 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.context.TraceScope;
@@ -77,6 +79,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
 
   ListWriter writer;
   CoreTracer tracer;
+  AgentTracer.TracerAPI originalTracer;
   ContinuableScopeManager scopeManager;
   EventCountingListener eventCountingListener;
   EventCountingExtendedListener eventCountingExtendedListener;
@@ -85,12 +88,16 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
 
   @BeforeEach
   void setup() {
+    ContextManager.allowTesting();
+    AgentTracer.installLegacyContextManager();
     state = mock(Stateful.class);
     profilingContext = mock(ProfilingContextIntegration.class);
     when(profilingContext.newScopeState(any())).thenReturn(state);
     when(profilingContext.name()).thenReturn("mock");
     writer = new ListWriter();
     tracer = tracerBuilder().writer(writer).profilingContextIntegration(profilingContext).build();
+    originalTracer = AgentTracer.get();
+    AgentTracer.forceRegister(tracer);
     scopeManager = ScopeManagerTestBridge.getScopeManager(tracer);
     eventCountingListener = new EventCountingListener();
     scopeManager.addScopeListener(eventCountingListener);
@@ -102,6 +109,8 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
 
   @AfterEach
   void cleanup() {
+    ContextManager.resetForTesting();
+    AgentTracer.forceRegister(originalTracer);
     tracer.close();
   }
 
