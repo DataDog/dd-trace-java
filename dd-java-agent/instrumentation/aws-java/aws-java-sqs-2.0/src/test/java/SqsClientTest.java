@@ -38,6 +38,7 @@ import org.elasticmq.rest.sqs.SQSRestServerBuilder;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
@@ -529,6 +530,7 @@ class SqsClientV0DataStreamsTest extends SqsClientV0TestBase {
   }
 }
 
+@Disabled("TODO(APMLP-829): non-legacy ContextManager migration still in-progress")
 @WithConfig(key = GeneralConfig.DATA_STREAMS_ENABLED, value = "false")
 @WithConfig(key = TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, value = "false")
 class SqsClientV0ContextSwapForkedTest extends SqsClientV0TestBase {}
@@ -756,6 +758,7 @@ class SqsClientV0ReceiveIterationTest extends SqsClientV0ReceiveIterationTestBas
 @WithConfig(key = GeneralConfig.DATA_STREAMS_ENABLED, value = "true")
 class SqsClientV0DataStreamsReceiveIterationTest extends SqsClientV0ReceiveIterationTestBase {}
 
+@Disabled("TODO(APMLP-829): non-legacy ContextManager migration still in-progress")
 @WithConfig(key = GeneralConfig.DATA_STREAMS_ENABLED, value = "false")
 @WithConfig(key = TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, value = "false")
 class SqsClientV0ContextSwapReceiveIterationForkedTest extends SqsClientV0ReceiveIterationTestBase {

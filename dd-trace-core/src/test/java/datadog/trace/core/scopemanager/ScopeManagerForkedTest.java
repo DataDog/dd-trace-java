@@ -2,8 +2,8 @@ package datadog.trace.core.scopemanager;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
-import static datadog.trace.core.scopemanager.ScopeManagerTest.EVENT.ACTIVATE;
-import static datadog.trace.core.scopemanager.ScopeManagerTest.EVENT.CLOSE;
+import static datadog.trace.core.scopemanager.ScopeManagerForkedTest.EVENT.ACTIVATE;
+import static datadog.trace.core.scopemanager.ScopeManagerForkedTest.EVENT.CLOSE;
 import static datadog.trace.test.util.GCUtils.awaitGC;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -36,6 +36,7 @@ import datadog.trace.api.scopemanager.ExtendedScopeListener;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.context.TraceScope;
@@ -56,13 +57,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
-class ScopeManagerTest extends DDCoreJavaSpecification {
+class ScopeManagerForkedTest extends DDCoreJavaSpecification {
 
   enum EVENT {
     ACTIVATE,
@@ -83,6 +85,11 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
   ProfilingContextIntegration profilingContext;
   Stateful state;
 
+  @BeforeAll
+  static void installLegacyContextManager() {
+    AgentTracer.installLegacyContextManager();
+  }
+
   @BeforeEach
   void setup() {
     state = mock(Stateful.class);
@@ -91,6 +98,7 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
     when(profilingContext.name()).thenReturn("mock");
     writer = new ListWriter();
     tracer = tracerBuilder().writer(writer).profilingContextIntegration(profilingContext).build();
+    AgentTracer.forceRegister(tracer);
     scopeManager = ScopeManagerTestBridge.getScopeManager(tracer);
     eventCountingListener = new EventCountingListener();
     scopeManager.addScopeListener(eventCountingListener);

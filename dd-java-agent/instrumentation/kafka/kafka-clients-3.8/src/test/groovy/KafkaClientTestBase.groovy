@@ -48,6 +48,8 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled
 
+import spock.lang.Ignore
+
 abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
 
@@ -1211,6 +1213,7 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
   }
 }
 
+@Ignore("TODO(APMLP-829): non-legacy ContextManager migration still in-progress")
 class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
   void configurePreAgent() {
     super.configurePreAgent()

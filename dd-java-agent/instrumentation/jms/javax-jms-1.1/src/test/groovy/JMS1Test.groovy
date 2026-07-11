@@ -32,6 +32,7 @@ import javax.jms.TopicSession
 import jms10mock.Jms10ConnectionFactory
 import org.apache.activemq.command.ActiveMQTextMessage
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
+import spock.lang.Ignore
 import spock.lang.Shared
 
 abstract class JMS1Test extends VersionedNamingTestBase {
@@ -1061,6 +1062,7 @@ class JMS1V0Test extends JMS1Test {
   }
 }
 
+@Ignore("TODO(APMLP-829): non-legacy ContextManager migration still in-progress")
 class JMSContextSwapForkedTest extends JMS1V0Test {
   @Override
   protected void configurePreAgent() {

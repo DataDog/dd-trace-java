@@ -43,6 +43,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
 import datadog.trace.api.IdGenerationStrategy
+import datadog.trace.api.InstrumenterConfig
 import datadog.trace.api.Pair
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
@@ -351,17 +352,21 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   void setupSpec() {
     InstrumentationErrors.resetErrors()
 
-    AgentMeter.registerIfAbsent(
-    STATS_D_CLIENT,
-    new MonitoringImpl(STATS_D_CLIENT, 10, TimeUnit.SECONDS),
-    DDSketchHistograms.FACTORY
-    )
-
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath. If one test extends AgentTestRunner in a module, all tests must extend
     assert Config.getClassLoader() == null: "Config must load on the bootstrap classpath."
 
     configurePreAgent()
+
+    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+      AgentTracer.installLegacyContextManager()
+    }
+
+    AgentMeter.registerIfAbsent(
+    STATS_D_CLIENT,
+    new MonitoringImpl(STATS_D_CLIENT, 10, TimeUnit.SECONDS),
+    DDSketchHistograms.FACTORY
+    )
 
     TEST_DATA_STREAMS_WRITER = new RecordingDatastreamsPayloadWriter()
     DDAgentFeaturesDiscovery features = new MockFeaturesDiscovery(true)
