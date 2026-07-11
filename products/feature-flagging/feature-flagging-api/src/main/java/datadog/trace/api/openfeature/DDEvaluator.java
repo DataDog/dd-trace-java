@@ -607,7 +607,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     } else if (value.isString()) {
       return value.asString();
     } else if (value.isInstant()) {
-      return value.asInstant();
+      return value.asInstant().toString();
     }
     throw new IllegalArgumentException("Unsupported OpenFeature value type: " + value);
   }

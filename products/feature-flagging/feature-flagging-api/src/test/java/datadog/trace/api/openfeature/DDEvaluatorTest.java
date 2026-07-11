@@ -36,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Date;
@@ -213,6 +214,8 @@ public class DDEvaluatorTest {
     arguments.add(
         Arguments.of(
             mapOf("plan", "gold", "cohort", "gold"), mapOf("plan", "gold", "cohort", "gold")));
+    final Instant instant = Instant.parse("2026-07-10T12:34:56Z");
+    arguments.add(Arguments.of(mapOf("instant", instant), mapOf("instant", instant.toString())));
     return arguments.toArray(new Arguments[0]);
   }
 
