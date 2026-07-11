@@ -18,6 +18,7 @@ dependencies {
   api(libs.moshi)
   api(libs.jctools)
   api(project(":communication"))
+  implementation(project(":internal-api"))
   api(project(":products:feature-flagging:feature-flagging-bootstrap"))
   api(project(":utils:queue-utils"))
 
