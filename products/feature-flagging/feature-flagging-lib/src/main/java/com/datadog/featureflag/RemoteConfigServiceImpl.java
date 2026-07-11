@@ -32,7 +32,7 @@ import javax.annotation.Nullable;
 import okio.Okio;
 
 public class RemoteConfigServiceImpl
-    implements RemoteConfigService, ConfigurationChangesTypedListener<ServerConfiguration> {
+    implements ConfigurationSourceService, ConfigurationChangesTypedListener<ServerConfiguration> {
 
   private final ConfigurationPoller configurationPoller;
 

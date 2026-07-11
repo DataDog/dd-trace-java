@@ -86,6 +86,9 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_AND_PA
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -361,6 +364,10 @@ import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_DETECTION_INCL
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_EXCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_SHADING_IDENTIFIERS;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL;
@@ -1212,6 +1219,11 @@ public class Config {
   private final String remoteConfigTargetsKey;
 
   private final int remoteConfigMaxExtraServices;
+
+  private final String featureFlaggingConfigurationSource;
+  private final String featureFlaggingConfigurationSourceAgentlessBaseUrl;
+  private final int featureFlaggingConfigurationSourcePollIntervalSeconds;
+  private final int featureFlaggingConfigurationSourceRequestTimeoutSeconds;
 
   private final boolean dbmInjectSqlBaseHash;
   private final String dbmPropagationMode;
@@ -2837,6 +2849,22 @@ public class Config {
         configProvider.getInteger(
             REMOTE_CONFIG_MAX_EXTRA_SERVICES, DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES);
 
+    featureFlaggingConfigurationSource =
+        normalizeFeatureFlaggingConfigurationSource(
+            configProvider.getString(
+                FEATURE_FLAGS_CONFIGURATION_SOURCE, DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE));
+    featureFlaggingConfigurationSourceAgentlessBaseUrl =
+        configProvider.getStringNotEmpty(
+            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
+    featureFlaggingConfigurationSourcePollIntervalSeconds =
+        configProvider.getInteger(
+            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS,
+            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS);
+    featureFlaggingConfigurationSourceRequestTimeoutSeconds =
+        configProvider.getInteger(
+            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS,
+            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS);
+
     dynamicInstrumentationEnabled =
         configProvider.getBoolean(
             DYNAMIC_INSTRUMENTATION_ENABLED, DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED);
@@ -3749,6 +3777,14 @@ public class Config {
     return traceInferredProxyEnabled;
   }
 
+  private static String normalizeFeatureFlaggingConfigurationSource(final String source) {
+    if (source == null) {
+      return DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
+    }
+    final String normalized = source.trim().toLowerCase(Locale.ROOT);
+    return normalized.isEmpty() ? DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE : normalized;
+  }
+
   public boolean isBaggageExtract() {
     return tracePropagationStylesToExtract.contains(TracePropagationStyle.BAGGAGE);
   }
@@ -4654,6 +4690,22 @@ public class Config {
 
   public int getRemoteConfigMaxExtraServices() {
     return remoteConfigMaxExtraServices;
+  }
+
+  public String getFeatureFlaggingConfigurationSource() {
+    return featureFlaggingConfigurationSource;
+  }
+
+  public String getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() {
+    return featureFlaggingConfigurationSourceAgentlessBaseUrl;
+  }
+
+  public int getFeatureFlaggingConfigurationSourcePollIntervalSeconds() {
+    return featureFlaggingConfigurationSourcePollIntervalSeconds;
+  }
+
+  public int getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds() {
+    return featureFlaggingConfigurationSourceRequestTimeoutSeconds;
   }
 
   public boolean isDynamicInstrumentationEnabled() {
@@ -6488,6 +6540,14 @@ public class Config {
         + remoteConfigMaxPayloadSize
         + ", remoteConfigIntegrityCheckEnabled="
         + remoteConfigIntegrityCheckEnabled
+        + ", featureFlaggingConfigurationSource="
+        + featureFlaggingConfigurationSource
+        + ", featureFlaggingConfigurationSourceAgentlessBaseUrl="
+        + featureFlaggingConfigurationSourceAgentlessBaseUrl
+        + ", featureFlaggingConfigurationSourcePollIntervalSeconds="
+        + featureFlaggingConfigurationSourcePollIntervalSeconds
+        + ", featureFlaggingConfigurationSourceRequestTimeoutSeconds="
+        + featureFlaggingConfigurationSourceRequestTimeoutSeconds
         + ", debuggerEnabled="
         + dynamicInstrumentationEnabled
         + ", debuggerUploadTimeout="

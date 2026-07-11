@@ -2,7 +2,7 @@ package com.datadog.featureflag;
 
 import java.io.Closeable;
 
-public interface RemoteConfigService extends Closeable {
+public interface ConfigurationSourceService extends Closeable {
 
   void init();
 
