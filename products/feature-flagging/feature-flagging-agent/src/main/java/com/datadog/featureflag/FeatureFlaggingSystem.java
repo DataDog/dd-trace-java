@@ -9,7 +9,7 @@ public class FeatureFlaggingSystem {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
 
-  private static volatile RemoteConfigService CONFIG_SERVICE;
+  private static volatile ConfigurationSourceService CONFIG_SERVICE;
   private static volatile ExposureWriter EXPOSURE_WRITER;
 
   private FeatureFlaggingSystem() {}

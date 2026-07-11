@@ -1,5 +1,6 @@
 package com.datadog.featureflag;
 
+import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -23,6 +24,8 @@ import org.junit.jupiter.api.Test;
 class FeatureFlaggingSystemTest {
 
   @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
+  @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "true")
   void testFeatureFlagSystemInitialization() {
     ConfigurationPoller poller = mock(ConfigurationPoller.class);
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
@@ -48,6 +51,7 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
   void testThatRemoteConfigIsRequired() {
     SharedCommunicationObjects sharedCommunicationObjects = mock(SharedCommunicationObjects.class);
