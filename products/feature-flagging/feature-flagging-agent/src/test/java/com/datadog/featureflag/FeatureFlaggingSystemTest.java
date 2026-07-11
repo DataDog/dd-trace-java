@@ -2,6 +2,9 @@ package com.datadog.featureflag;
 
 import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -63,5 +66,68 @@ class FeatureFlaggingSystemTest {
     } finally {
       FeatureFlaggingSystem.stop();
     }
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
+  void agentlessConfigurationSourceUsesHttpServiceWithoutRemoteConfig() {
+    assertInstanceOf(
+        AgentlessConfigurationSource.class,
+        FeatureFlaggingSystem.createConfigurationSourceService(
+            sharedCommunicationObjects(), Config.get()));
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
+  @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "true")
+  void explicitRemoteConfigUsesRemoteConfigService() {
+    SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
+    when(sharedCommunicationObjects.configurationPoller(any(Config.class)))
+        .thenReturn(mock(ConfigurationPoller.class));
+
+    assertInstanceOf(
+        RemoteConfigServiceImpl.class,
+        FeatureFlaggingSystem.createConfigurationSourceService(
+            sharedCommunicationObjects, Config.get()));
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "invalid")
+  void invalidConfigurationSourceFailsBeforeStartingNetworkSource() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            FeatureFlaggingSystem.createConfigurationSourceService(
+                sharedCommunicationObjects(), Config.get()));
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
+  void offlineConfigurationSourceDoesNotStartNetworkSource() {
+    assertNull(
+        FeatureFlaggingSystem.createConfigurationSourceService(
+            sharedCommunicationObjects(), Config.get()));
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
+  void startWithOfflineConfigurationSourceSkipsConfigService() {
+    try {
+      assertDoesNotThrow(() -> FeatureFlaggingSystem.start(sharedCommunicationObjects()));
+    } finally {
+      FeatureFlaggingSystem.stop();
+    }
+  }
+
+  private static SharedCommunicationObjects sharedCommunicationObjects() {
+    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+    when(discovery.supportsEvpProxy()).thenReturn(true);
+    when(discovery.getEvpProxyEndpoint()).thenReturn("/evp_proxy/");
+    SharedCommunicationObjects sharedCommunicationObjects = mock(SharedCommunicationObjects.class);
+    when(sharedCommunicationObjects.featuresDiscovery(any(Config.class))).thenReturn(discovery);
+    sharedCommunicationObjects.agentUrl = HttpUrl.get("http://localhost");
+    sharedCommunicationObjects.agentHttpClient = new OkHttpClient.Builder().build();
+    return sharedCommunicationObjects;
   }
 }
