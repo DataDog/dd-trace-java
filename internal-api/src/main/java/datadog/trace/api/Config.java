@@ -669,6 +669,7 @@ import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
+import static datadog.trace.api.config.TracerConfig.TEST_AGENT_SESSION_TOKEN;
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
@@ -1365,6 +1366,7 @@ public class Config {
   private final boolean azureFunctions;
   private final boolean awsServerless;
   private final String traceAgentPath;
+  private final String testAgentSessionToken;
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
@@ -3105,6 +3107,7 @@ public class Config {
 
     azureAppServices = configProvider.getBoolean(AZURE_APP_SERVICES, false);
     traceAgentPath = configProvider.getString(TRACE_AGENT_PATH);
+    testAgentSessionToken = configProvider.getString(TEST_AGENT_SESSION_TOKEN);
     String traceAgentArgsString = configProvider.getString(TRACE_AGENT_ARGS);
     if (traceAgentArgsString == null) {
       traceAgentArgs = Collections.emptyList();
@@ -5026,6 +5029,10 @@ public class Config {
 
   public String getTraceAgentPath() {
     return traceAgentPath;
+  }
+
+  public String getTestAgentSessionToken() {
+    return testAgentSessionToken;
   }
 
   public List<String> getTraceAgentArgs() {

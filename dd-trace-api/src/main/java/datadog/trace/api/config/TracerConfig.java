@@ -32,6 +32,7 @@ public final class TracerConfig {
   public static final String PROXY_NO_PROXY = "proxy.no_proxy";
   public static final String TRACE_AGENT_PATH = "trace.agent.path";
   public static final String TRACE_AGENT_ARGS = "trace.agent.args";
+  public static final String TEST_AGENT_SESSION_TOKEN = "test.agent.session.token";
   public static final String PRIORITY_SAMPLING = "priority.sampling";
   public static final String PRIORITY_SAMPLING_FORCE = "priority.sampling.force";
   @Deprecated public static final String TRACE_RESOLVER_ENABLED = "trace.resolver.enabled";
