@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import javax.annotation.Nonnull;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -267,7 +266,7 @@ public class WithConfigExtension
     }
 
     @Override
-    public String get(@Nonnull String name) {
+    public String get(String name) {
       return env.get(name);
     }
 
