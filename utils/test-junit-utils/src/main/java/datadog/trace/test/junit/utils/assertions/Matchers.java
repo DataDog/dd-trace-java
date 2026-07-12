@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 
 /** This class is a utility class to create generic matchers. */
 public final class Matchers {
@@ -101,7 +102,18 @@ public final class Matchers {
     return new Any<>();
   }
 
-  public static <T> void assertValue(Matcher<T> matcher, T value, String message) {
+  /**
+   * Asserts that a value matches a given matcher. If the value does not match, an assertion error
+   * is thrown.
+   *
+   * @param matcher The matcher to test the value against, {@code null} if no validation is
+   *     required.
+   * @param value The value to be tested, {@code null} if no value is available.
+   * @param message The error message to include in the assertion failure.
+   * @param <T> The type of the value being tested.
+   */
+  public static <T> void assertValue(
+      @Nullable Matcher<T> matcher, @Nullable T value, String message) {
     if (matcher != null && !matcher.test(value)) {
       Optional<T> expected = matcher.expected();
       assertionFailure()
