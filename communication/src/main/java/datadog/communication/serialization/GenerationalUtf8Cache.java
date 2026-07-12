@@ -219,32 +219,42 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     CacheEntry[] tenuredEntries = this.tenuredEntries;
     int matchingTenuredIndex = lookupEntryIndex(tenuredEntries, MAX_TENURED_PROBES, adjHash, value);
     if (matchingTenuredIndex != -1) {
+      // The slot can be mutated concurrently between the lookup and this read: nulled (recalibrate
+      // purge / eviction) or reassigned to a *different* value. CacheEntry identity is immutable
+      // (adjHash/value/valueUtf8 are final), so re-validate the loaded reference against the
+      // request; anything but a match means the slot moved out from under us, so fall through and
+      // treat it as a miss rather than NPE'ing (null) or returning another value's bytes
+      // (reassigned).
       CacheEntry tenuredEntry = tenuredEntries[matchingTenuredIndex];
+      if (tenuredEntry != null && tenuredEntry.matches(adjHash, value)) {
+        tenuredEntry.hit(accessTimeMs);
 
-      tenuredEntry.hit(accessTimeMs);
-
-      this.tenuredHits += 1;
-      return tenuredEntry.utf8();
+        this.tenuredHits += 1;
+        return tenuredEntry.utf8();
+      }
     }
 
     CacheEntry[] edenEntries = this.edenEntries;
     int matchingEdenIndex = lookupEntryIndex(edenEntries, MAX_EDEN_PROBES, adjHash, value);
     if (matchingEdenIndex != -1) {
+      // Same lookup-then-read race as tenured, plus concurrent promotion nulls the slot (line
+      // below); re-validate the loaded reference and treat null-or-mismatch as a miss.
       CacheEntry edenEntry = edenEntries[matchingEdenIndex];
+      if (edenEntry != null && edenEntry.matches(adjHash, value)) {
+        double hits = edenEntry.hit(accessTimeMs);
+        if (hits > this.promotionThreshold) {
+          // mark promoted first - to avoid racy insertions
+          this.promotions += 1;
 
-      double hits = edenEntry.hit(accessTimeMs);
-      if (hits > this.promotionThreshold) {
-        // mark promoted first - to avoid racy insertions
-        this.promotions += 1;
+          boolean evicted = lruInsert(this.tenuredEntries, MAX_TENURED_PROBES, edenEntry);
+          if (evicted) this.tenuredEvictions += 1;
 
-        boolean evicted = lruInsert(this.tenuredEntries, MAX_TENURED_PROBES, edenEntry);
-        if (evicted) this.tenuredEvictions += 1;
+          edenEntries[matchingEdenIndex] = null;
+        }
 
-        edenEntries[matchingEdenIndex] = null;
+        this.edenHits += 1;
+        return edenEntry.utf8();
       }
-
-      this.edenHits += 1;
-      return edenEntry.utf8();
     }
 
     boolean wasMarked = Caching.mark(this.edenMarkers, adjHash);
