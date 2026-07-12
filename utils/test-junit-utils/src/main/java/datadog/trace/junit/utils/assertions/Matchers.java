@@ -1,4 +1,4 @@
-package datadog.trace.agent.test.assertions;
+package datadog.trace.junit.utils.assertions;
 
 import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 
@@ -101,7 +101,7 @@ public final class Matchers {
     return new Any<>();
   }
 
-  static <T> void assertValue(Matcher<T> matcher, T value, String message) {
+  public static <T> void assertValue(Matcher<T> matcher, T value, String message) {
     if (matcher != null && !matcher.test(value)) {
       Optional<T> expected = matcher.expected();
       assertionFailure()

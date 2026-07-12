@@ -1,8 +1,6 @@
 package opentelemetry14;
 
 import static datadog.opentelemetry.shim.trace.OtelSpanEventTestHelper.stringifyErrorStack;
-import static datadog.trace.agent.test.assertions.Matchers.any;
-import static datadog.trace.agent.test.assertions.Matchers.is;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
 import static datadog.trace.agent.test.assertions.TagsMatcher.tag;
@@ -17,6 +15,8 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
+import static datadog.trace.junit.utils.assertions.Matchers.any;
+import static datadog.trace.junit.utils.assertions.Matchers.is;
 import static io.opentelemetry.api.common.AttributeKey.booleanArrayKey;
 import static io.opentelemetry.api.common.AttributeKey.doubleArrayKey;
 import static io.opentelemetry.api.common.AttributeKey.longArrayKey;
@@ -43,8 +43,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.opentelemetry.shim.trace.OtelSpanEvent;
-import datadog.trace.agent.test.assertions.Matcher;
-import datadog.trace.agent.test.assertions.Matchers;
 import datadog.trace.agent.test.assertions.TagsMatcher;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
@@ -52,6 +50,8 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import datadog.trace.core.DDSpan;
+import datadog.trace.junit.utils.assertions.Matcher;
+import datadog.trace.junit.utils.assertions.Matchers;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;

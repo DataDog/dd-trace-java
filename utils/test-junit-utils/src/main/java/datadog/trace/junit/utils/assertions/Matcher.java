@@ -1,4 +1,4 @@
-package datadog.trace.agent.test.assertions;
+package datadog.trace.junit.utils.assertions;
 
 import java.util.Optional;
 import java.util.function.Predicate;

@@ -1,14 +1,14 @@
-package datadog.trace.agent.test.assertions;
+package datadog.trace.junit.utils.assertions;
 
 import java.util.Optional;
 
 /**
- * A {@link Matcher} implementation that checks if a given value is {@code null}.
+ * A {@link Matcher} implementation that checks if a given value is not {@code null}.
  *
  * @param <T> The type of the value being matched.
  */
-public class IsNull<T> implements Matcher<T> {
-  IsNull() {}
+public class IsNonNull<T> implements Matcher<T> {
+  IsNonNull() {}
 
   @Override
   public Optional<T> expected() {
@@ -17,11 +17,11 @@ public class IsNull<T> implements Matcher<T> {
 
   @Override
   public String failureReason() {
-    return "Null value expected";
+    return "Non-null value expected";
   }
 
   @Override
   public boolean test(T t) {
-    return t == null;
+    return t != null;
   }
 }

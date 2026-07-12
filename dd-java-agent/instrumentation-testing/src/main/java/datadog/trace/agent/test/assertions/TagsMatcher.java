@@ -1,8 +1,5 @@
 package datadog.trace.agent.test.assertions;
 
-import static datadog.trace.agent.test.assertions.Matchers.any;
-import static datadog.trace.agent.test.assertions.Matchers.is;
-import static datadog.trace.agent.test.assertions.Matchers.isNonNull;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.api.DDTags.DD_INTEGRATION;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
@@ -25,7 +22,12 @@ import static datadog.trace.api.DDTags.TRACER_HOST;
 import static datadog.trace.common.sampling.RateByServiceTraceSampler.SAMPLING_AGENT_RATE;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.core.DDSpanContext.SAMPLE_RATE_KEY;
+import static datadog.trace.junit.utils.assertions.Matchers.any;
+import static datadog.trace.junit.utils.assertions.Matchers.is;
+import static datadog.trace.junit.utils.assertions.Matchers.isNonNull;
 
+import datadog.trace.junit.utils.assertions.Matcher;
+import datadog.trace.junit.utils.assertions.Matchers;
 import java.util.HashMap;
 import java.util.Map;
 
