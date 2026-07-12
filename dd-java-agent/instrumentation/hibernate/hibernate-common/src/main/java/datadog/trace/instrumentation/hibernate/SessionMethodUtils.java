@@ -77,10 +77,11 @@ public class SessionMethodUtils {
         DECORATOR.onOperation(span, entity);
       }
       DECORATOR.beforeFinish(span);
+      scope.close();
       span.finish();
+    } else {
+      scope.close();
     }
-
-    scope.close();
     sessionState.setMethodScope(null);
   }
 

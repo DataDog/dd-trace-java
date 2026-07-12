@@ -281,8 +281,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       }
       AgentSpan span = scope.span();
       span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
-      span.finish();
       scope.close();
+      span.finish();
     }
   }
 }

@@ -63,6 +63,7 @@ docs/                     Developer documentation (see below)
 - **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
 - **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
 - **Instrumentation one-shot methods**: Never extract the return values of `triggerClasses()`, `contextStore()`, `classLoaderMatcher()`, or `methodAdvice()` into static constants. These are called once by the framework — extracting to a constant adds constant-pool bloat with no benefit.
+- **Scope lifecycle order**: Keep the scope open until all work that needs the current active span is done — decorator calls, async callback registration, etc. Required order: decorator calls + callback registration → `scope.close()` → `span.finish()`.
 
 ## PR conventions
 
