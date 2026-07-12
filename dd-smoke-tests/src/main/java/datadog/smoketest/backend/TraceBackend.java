@@ -2,6 +2,8 @@ package datadog.smoketest.backend;
 
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import java.net.URI;
+import org.opentest4j.TestAbortedException;
+import org.testcontainers.DockerClientFactory;
 
 /**
  * A pluggable trace backend a smoke-test app sends its traces to. Two implementations are planned:
@@ -37,7 +39,30 @@ public interface TraceBackend extends AutoCloseable {
     return new MockAgentBackend();
   }
 
-  // TODO S3: testAgent() — a Testcontainers-managed .container() / external CI agent backend, plus
-  //  the test-agent trace-invariant checks (ENABLED_CHECKS) and JSON decoding via
-  //  TestAgentTraceDecoder.
+  /** Fluent builder for a {@link TestAgentBackend} (dd-apm-test-agent container or external). */
+  static TestAgentBackend.Builder testAgent() {
+    return TestAgentBackend.builder();
+  }
+
+  /**
+   * Resolves the environment's default test-agent backend (Q4): reuse the external CI sidecar when
+   * {@code CI_AGENT_HOST} is set, else a Testcontainers-managed container when Docker is available,
+   * else skip loudly (a {@link TestAbortedException} marks the test as aborted rather than failed —
+   * a dev not running smoke tests isn't blocked). The mock backend is never an automatic fallback;
+   * select it explicitly with {@link #mockAgent()}.
+   *
+   * <p>The reusable conditional-execution annotation over this policy is S7.
+   */
+  static TraceBackend testAgentFromEnv() {
+    String ciAgentHost = System.getenv("CI_AGENT_HOST");
+    if (ciAgentHost != null && !ciAgentHost.isEmpty()) {
+      return testAgent().external(ciAgentHost, 8126).build();
+    }
+    if (DockerClientFactory.instance().isDockerAvailable()) {
+      return testAgent().build();
+    }
+    throw new TestAbortedException(
+        "No test-agent backend available: set CI_AGENT_HOST for an external agent, or start Docker "
+            + "for a container. Use TraceBackend.mockAgent() to opt into the in-process mock.");
+  }
 }

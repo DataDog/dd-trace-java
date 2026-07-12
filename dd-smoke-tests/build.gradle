@@ -11,8 +11,20 @@ dependencies {
 
   compileOnly(libs.junit.jupiter)
 
+  // Testcontainers backs the test-agent .container() backend (TestAgentBackend). Kept compileOnly
+  // so it is NOT forced onto the ~79 modules that depend on this base for the mock/.external()
+  // backends; modules using .container() opt in with their own testImplementation dependency.
+  compileOnly(libs.testcontainers)
+
   compileOnly(libs.bundles.groovy)
   compileOnly(libs.bundles.spock)
+
+  testImplementation(libs.testcontainers)
+}
+
+tasks.withType(Test).configureEach {
+  // Cap concurrent Testcontainers usage across the build (TestAgentBackend container tests).
+  usesService(testcontainersLimit)
 }
 
 tasks.withType(GroovyCompile).configureEach {

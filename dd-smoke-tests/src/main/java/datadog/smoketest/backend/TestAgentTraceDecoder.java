@@ -67,10 +67,12 @@ public final class TestAgentTraceDecoder {
     }
   }
 
-  // TODO verify these field names against a live ddapm-test-agent v1.44.0 /test/traces response.
-  //  They follow the standard v0.4 trace shape (matching the msgpack Decoder's fields), but have
-  // not
-  //  yet been validated end-to-end against the container — do so when S3/S8 run with Docker.
+  // Field names follow the standard v0.4 trace shape and are verified end-to-end against a live
+  // ddapm-test-agent v1.44.0 /test/session/traces response (S3 TestAgentBackendContainerTest):
+  // service/name/resource/type, trace_id/span_id/parent_id, start/duration/error, meta, metrics.
+  // TODO the exact meta_struct wire shape over JSON is not asserted yet (no meta_struct-bearing
+  // span
+  //  in the fixture) — confirm when a smoke test needs meta_struct.
   static final class RawSpan implements DecodedSpan {
     String service;
     String name;
