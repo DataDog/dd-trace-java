@@ -10691,9 +10691,10 @@
     ],
     "DD_TRACE_STATS_CARDINALITY_LIMIT": [
       {
-        "version": "A",
+        "version": "B",
         "type": "int",
-        "default": "2048"
+        "default": "2048",
+        "aliases": ["DD_TRACE_TRACER_METRICS_MAX_AGGREGATES"]
       }
     ],
     "DD_TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION": [
