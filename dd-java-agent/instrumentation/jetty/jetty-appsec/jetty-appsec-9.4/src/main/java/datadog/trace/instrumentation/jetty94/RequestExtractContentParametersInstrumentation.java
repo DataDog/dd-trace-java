@@ -168,6 +168,9 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         return;
       }
       t = MultipartHelper.fireFilenamesEvent(parts, reqCtx);
+      if (t == null) {
+        t = MultipartHelper.fireFilesContentEvent(parts, reqCtx);
+      }
     }
   }
 
@@ -194,6 +197,9 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         return;
       }
       t = MultipartHelper.fireFilenamesEvent(parts, reqCtx);
+      if (t == null) {
+        t = MultipartHelper.fireFilesContentEvent(parts, reqCtx);
+      }
     }
   }
 }

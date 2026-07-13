@@ -99,9 +99,10 @@ public class CapturedContextInstrumenter extends Instrumenter {
       installFinallyBlocks();
       return InstrumentationResult.Status.INSTALLED;
     }
+    Map<AbstractInsnNode, Frame<BasicValue>> frames = computeFrames(classNode.name, methodNode);
     instrumentMethodEnter();
     instrumentTryCatchHandlers();
-    processInstructions();
+    processInstructions(frames);
     addFinallyHandler(contextInitLabel, returnHandlerLabel);
     installFinallyBlocks();
     return InstrumentationResult.Status.INSTALLED;
