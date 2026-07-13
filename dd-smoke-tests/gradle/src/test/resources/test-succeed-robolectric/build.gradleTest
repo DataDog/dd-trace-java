@@ -8,6 +8,10 @@ import org.gradle.api.attributes.CompatibilityCheckDetails
 import org.gradle.api.attributes.LibraryElements
 
 apply plugin: 'java'
+// Inert stand-in for the Android Gradle Plugin (see buildSrc/): real AGP needs the Android SDK,
+// which is absent in the smoke-test environment. Our build-level Android detection only checks for
+// the 'com.android.base' plugin id, so applying an id-only stand-in exercises it.
+apply plugin: 'com.android.base'
 
 repositories {
   mavenLocal()

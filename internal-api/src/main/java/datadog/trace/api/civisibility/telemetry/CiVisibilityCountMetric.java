@@ -22,6 +22,7 @@ import datadog.trace.api.civisibility.telemetry.tag.GitShaMatch;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.HasFailedAllRetries;
 import datadog.trace.api.civisibility.telemetry.tag.ImpactedTestsDetectionEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.IsAndroid;
 import datadog.trace.api.civisibility.telemetry.tag.IsAndroidEmulated;
 import datadog.trace.api.civisibility.telemetry.tag.IsAttemptToFix;
 import datadog.trace.api.civisibility.telemetry.tag.IsDisabled;
@@ -73,7 +74,8 @@ public enum CiVisibilityCountMetric {
       HasCodeowner.class,
       IsUnsupportedCI.class,
       EarlyFlakeDetectionAbortReason.class,
-      FailedTestReplayEnabled.SessionMetric.class),
+      FailedTestReplayEnabled.SessionMetric.class,
+      IsAndroid.class),
   /** The number of test events finished */
   TEST_EVENT_FINISHED(
       "event_finished",
