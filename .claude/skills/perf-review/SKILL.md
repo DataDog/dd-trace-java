@@ -10,7 +10,7 @@ description: >-
   asks to check a diff or PR for allocation / GC / memory / latency / startup cost,
   or mentions the "perf rubric" or the "do no harm / assume hot" tracer posture —
   even if they just say "review this for perf" without naming the rubric. Advisory and READ-ONLY: it reports ranked,
-  verify-first findings; it never blocks a merge and never edits code.
+  verify-first findings; it never edits code.
 user-invocable: true
 context: fork
 allowed-tools:
@@ -25,7 +25,7 @@ allowed-tools:
 Review the current branch's changes for performance overhead in the dd-trace-java
 tracer, using the tracer performance rubric bundled in `references/`. This is a
 **low-friction advisory nudge**, not a gate: it reports findings and stops. It
-never edits code and never blocks a merge.
+never edits code.
 
 ## Why this exists (read first — it sets the whole posture)
 
