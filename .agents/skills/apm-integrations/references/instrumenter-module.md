@@ -52,20 +52,41 @@ If an existing module covers the same framework at a compatible version, **modif
 
 If the existing module targets a genuinely different version range (e.g. existing `foo-1.0/` and you're adding `foo-3.0/`), a version-sibling is correct — but confirm by reading the existing module's muzzle range first.
 
-### Module constructor: new modules add a version alias; existing modules preserve existing names
+### Module constructor: choose names based on sibling structure
 
-**New module**: pass a generic name AND a version-qualified alias so users can enable/disable this version independently:
+Each name passed to `super(...)` becomes a distinct `DD_TRACE_<NAME>_ENABLED` flag. Choose the number of names based on whether version-specific siblings exist (or are imminent):
+
+**Single module, no version siblings, no imminent sibling planned** — pass ONE name:
 
 ```java
-// CORRECT — generic + version alias
-public JedisInstrumentation() {
-    super("jedis", "jedis-3.0");
+// CORRECT — single-module framework
+public FeignInstrumentation() {
+    super("feign");
 }
 ```
 
-The version alias (e.g. `"jedis-3.0"`) maps to `DD_TRACE_JEDIS_3_0_ENABLED`. Do NOT add version aliases to the decorator's `instrumentationNames()` — that method is for analytics keys only.
+Adding a version alias here mints a `DD_TRACE_<NAME>_<VER>_ENABLED` flag that has no counterpart to gate against; it doubles the config surface for no operator benefit. Empirically, most single-module frameworks in dd-trace-java (`feign`, `freemarker`, `liberty`, `sparkjava`) use one name — even when they live in a versioned directory.
+
+**Multiple version siblings exist** (`okhttp-2.0/` AND `okhttp-3.0/`, `jedis-1.4/` AND `jedis-3.0/` AND `jedis-4.0/`) — pass a shared group name PLUS a version-qualified alias so each version has an independent toggle sharing one group flag:
+
+```java
+// CORRECT — okhttp has real siblings (okhttp-2.0 and okhttp-3.0)
+public OkHttp3Instrumentation() {
+    super("okhttp", "okhttp-3");
+}
+```
+
+Users can then set `DD_TRACE_OKHTTP_ENABLED=false` (group off) OR `DD_TRACE_OKHTTP_3_ENABLED=false` (this version only).
+
+**New module you expect will imminently sibling** — add the alias upfront and document why in the commit message. If no sibling appears, drop the alias in a follow-up.
 
 **Existing module** (modifying, refactoring, or splitting): read the existing module's `super(...)` and copy it verbatim. Integration names are public config API — renaming one silently breaks customer `DD_TRACE_*_ENABLED` settings.
+
+Before choosing, run `ls dd-java-agent/instrumentation/$framework/` — the directory contents are the ground truth for whether siblings exist.
+
+Do NOT add version aliases to the decorator's `instrumentationNames()` — that method is for analytics keys only.
+
+_Rationale traceable to reviewer comments: single-name-for-single-module (Valentin Zakharov on PR #11709, comment `3532152120`); version alias when siblings exist (Stuart McCulloch on PR #11760, comment `3552616459`)._
 
 **When regenerating an existing module, preserve every override the master version has.** Not just `super(...)` — also `defaultEnabled()`, `helperClassNames()`, `contextStore()`, `orderPriority()`, `muzzleDirective()`, and any other overridden method. Read the current version of the file (on master) before generating; carry each override forward verbatim unless there's a documented reason to change it. Silent loss of `defaultEnabled() = false` (or similar opt-in flags) ships an integration with a different default than users expected.
 
