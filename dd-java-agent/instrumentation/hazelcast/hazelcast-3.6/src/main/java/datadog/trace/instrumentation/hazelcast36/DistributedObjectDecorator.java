@@ -76,7 +76,7 @@ public class DistributedObjectDecorator extends ClientDecorator {
   }
 
   /** Decorate trace based on service execution metadata. */
-  public AgentSpan onServiceExecution(
+  public void onServiceExecution(
       final AgentSpan span, final DistributedObject object, final String methodName) {
 
     final String objectName =
@@ -88,12 +88,8 @@ public class DistributedObjectDecorator extends ClientDecorator {
     span.setTag(HAZELCAST_SERVICE, object.getServiceName());
     span.setTag(HAZELCAST_OPERATION, methodName);
     span.setTag(HAZELCAST_NAME, objectName);
-
-    return span;
   }
 
   /** Annotate the span with the results of the operation. */
-  public AgentSpan onResult(final AgentSpan span, Object result) {
-    return span;
-  }
+  public void onResult(final AgentSpan span, Object result) {}
 }

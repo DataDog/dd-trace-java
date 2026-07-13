@@ -110,7 +110,8 @@ public class DDEventTracer implements EventTracer<CoreEvent> {
     }
     if (spanState.getSpanContextSpan() != null) {
       final AgentSpan span = spanState.getSpanContextSpan();
-      DECORATE.beforeFinish(span).finish();
+      DECORATE.beforeFinish(span);
+      span.finish();
     }
     eventContextStore.put(eventContext, spanState.getPreviousState());
   }

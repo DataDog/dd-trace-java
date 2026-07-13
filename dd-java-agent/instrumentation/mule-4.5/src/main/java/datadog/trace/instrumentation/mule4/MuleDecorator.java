@@ -51,10 +51,10 @@ public class MuleDecorator extends BaseDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(final AgentSpan span) {
+  public void afterStart(final AgentSpan span) {
     span.setMeasured(true);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-    return super.afterStart(span);
+    super.afterStart(span);
   }
 
   public AgentSpan onMuleSpan(
@@ -89,6 +89,7 @@ public class MuleDecorator extends BaseDecorator {
     } else {
       span.setResourceName(spanInfo.getName());
     }
-    return afterStart(span);
+    afterStart(span);
+    return span;
   }
 }

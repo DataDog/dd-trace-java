@@ -57,8 +57,9 @@ public class WebsocketDecorator extends BaseDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(AgentSpan span) {
-    return super.afterStart(span).setMeasured(true);
+  public void afterStart(AgentSpan span) {
+    super.afterStart(span);
+    span.setMeasured(true);
   }
 
   @Nonnull
@@ -116,7 +117,8 @@ public class WebsocketDecorator extends BaseDecorator {
         wsSpan.setTag(WEBSOCKET_MESSAGE_LENGTH, handlerContext.getMsgSize());
         wsSpan.setTag(WEBSOCKET_MESSAGE_TYPE, handlerContext.getMessageType());
       }
-      (beforeFinish(wsSpan)).finish();
+      beforeFinish(wsSpan);
+      wsSpan.finish();
     } finally {
       handlerContext.reset();
     }

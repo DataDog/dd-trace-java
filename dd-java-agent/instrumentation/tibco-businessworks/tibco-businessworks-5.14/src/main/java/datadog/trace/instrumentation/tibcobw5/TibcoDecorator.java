@@ -57,20 +57,19 @@ public class TibcoDecorator extends BaseDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(final AgentSpan span) {
+  public void afterStart(final AgentSpan span) {
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-    return super.afterStart(span);
+    super.afterStart(span);
   }
 
-  public AgentSpan onProcessStart(AgentSpan span, String processName) {
-    return span.setResourceName(processName)
-        .setTag(TIBCO_NODE, JobPool.getName())
-        .setTag(TIBCO_VERSION, VERSION)
-        .setMeasured(true);
+  public void onProcessStart(AgentSpan span, String processName) {
+    span.setResourceName(processName);
+    span.setTag(TIBCO_NODE, JobPool.getName());
+    span.setTag(TIBCO_VERSION, VERSION);
+    span.setMeasured(true);
   }
 
-  public AgentSpan onActivityStart(final AgentSpan span, String activityName) {
+  public void onActivityStart(final AgentSpan span, String activityName) {
     span.setResourceName(activityName);
-    return span;
   }
 }

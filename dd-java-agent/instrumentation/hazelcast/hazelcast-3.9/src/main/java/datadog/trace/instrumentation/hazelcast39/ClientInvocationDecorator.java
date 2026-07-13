@@ -43,7 +43,7 @@ public class ClientInvocationDecorator extends ClientDecorator {
   }
 
   /** Decorate trace based on service execution metadata. */
-  public AgentSpan onServiceExecution(
+  public void onServiceExecution(
       final AgentSpan span,
       final String operationName,
       final String objectName,
@@ -62,17 +62,12 @@ public class ClientInvocationDecorator extends ClientDecorator {
     if (correlationId > 0) {
       span.setTag(HAZELCAST_CORRELATION_ID, correlationId);
     }
-
-    return span;
   }
 
-  public AgentSpan onHazelcastInstance(final AgentSpan span, String instanceName) {
+  public void onHazelcastInstance(final AgentSpan span, String instanceName) {
     span.setTag(HAZELCAST_INSTANCE, instanceName);
-    return span;
   }
 
   /** Annotate the span with the results of the operation. */
-  public AgentSpan onResult(final AgentSpan span, Object result) {
-    return span;
-  }
+  public void onResult(final AgentSpan span, Object result) {}
 }
