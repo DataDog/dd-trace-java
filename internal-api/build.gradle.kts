@@ -127,6 +127,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.civisibility.coverage.CoveragePerTestBridge",
   "datadog.trace.api.civisibility.coverage.CoveragePerTestBridge.TotalProbeCount",
   "datadog.trace.api.civisibility.coverage.CoveragePercentageBridge",
+  "datadog.trace.api.civisibility.coverage.CoverageProbes",
   "datadog.trace.api.civisibility.coverage.NoOpCoverageStore",
   "datadog.trace.api.civisibility.coverage.NoOpCoverageStore.Factory",
   "datadog.trace.api.civisibility.coverage.NoOpProbes",

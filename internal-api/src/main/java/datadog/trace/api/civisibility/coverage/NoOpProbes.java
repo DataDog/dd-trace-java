@@ -9,8 +9,5 @@ public class NoOpProbes implements CoverageProbes {
   public void record(Class<?> clazz) {}
 
   @Override
-  public void record(Class<?> clazz, long classId, int probeId) {}
-
-  @Override
   public void recordNonCodeResource(String absolutePath) {}
 }

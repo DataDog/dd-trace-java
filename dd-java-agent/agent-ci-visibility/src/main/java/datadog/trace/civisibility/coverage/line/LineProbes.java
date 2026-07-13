@@ -19,7 +19,6 @@ import javax.annotation.concurrent.NotThreadSafe;
 public class LineProbes implements CoverageProbes {
 
   private final CiVisibilityMetricCollector metrics;
-  private final Map<String, Integer> probeCounts;
 
   private final Map<Class<?>, ExecutionDataAdapter> executionData;
   private final Map<String, String> nonCodeResources;
@@ -27,10 +26,8 @@ public class LineProbes implements CoverageProbes {
   private Class<?> lastCoveredClass;
   private ExecutionDataAdapter lastCoveredExecutionData;
 
-  LineProbes(
-      CiVisibilityMetricCollector metrics, Map<String, Integer> probeCounts, boolean isTestThread) {
+  LineProbes(CiVisibilityMetricCollector metrics, boolean isTestThread) {
     this.metrics = metrics;
-    this.probeCounts = probeCounts;
     executionData = isTestThread ? new IdentityHashMap<>() : new ConcurrentHashMap<>();
     nonCodeResources = isTestThread ? new HashMap<>() : new ConcurrentHashMap<>();
   }
@@ -41,20 +38,21 @@ public class LineProbes implements CoverageProbes {
   }
 
   @Override
-  public void record(Class<?> clazz, long classId, int probeId) {
+  public boolean[] resolveProbeArray(Class<?> clazz, long classId, boolean[] jacocoProbes) {
     try {
       if (lastCoveredClass != clazz) {
-        // optimization to avoid map lookup if activating several probes for same class in a row
+        // optimization to avoid map lookup if resolving the array for the same class in a row
         lastCoveredExecutionData =
             executionData.computeIfAbsent(
                 lastCoveredClass = clazz,
-                k -> new ExecutionDataAdapter(classId, k.getName(), probeCounts.get(k.getName())));
+                k -> new ExecutionDataAdapter(classId, k.getName(), jacocoProbes));
       }
-      lastCoveredExecutionData.record(probeId);
+      return lastCoveredExecutionData.getProbeActivations();
 
     } catch (Exception e) {
       metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.RECORD);
-      throw e;
+      // fall back to Jacoco's shared array so coverage is still recorded
+      return jacocoProbes;
     }
   }
 

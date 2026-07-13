@@ -13,11 +13,7 @@ public interface CoverageStore extends TestReportHolder {
    */
   boolean report(DDTraceId testSessionId, Long testSuiteId, long testSpanId);
 
-  interface Factory extends Registry {
+  interface Factory {
     CoverageStore create(@Nullable TestIdentifier testIdentifier);
-  }
-
-  interface Registry {
-    void setTotalProbeCount(String className, int totalProbeCount);
   }
 }

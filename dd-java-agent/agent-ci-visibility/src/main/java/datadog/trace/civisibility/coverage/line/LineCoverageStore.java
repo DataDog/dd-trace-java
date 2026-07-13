@@ -21,7 +21,6 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.jacoco.core.analysis.Analyzer;
@@ -70,6 +69,12 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
     Map<String, BitSet> coveredLinesBySourcePath = new HashMap<>();
     for (Map.Entry<Class<?>, ExecutionDataAdapter> e : combinedExecutionData.entrySet()) {
       ExecutionDataAdapter executionDataAdapter = e.getValue();
+      // Back-fill Jacoco's aggregate coverage (total coverage percentage and report uploads). Skip
+      // classes with no covered probes: the per-test array is allocated on method entry, so a
+      // method that throws before its first probe fires would otherwise yield an empty entry.
+      if (!executionDataAdapter.mergeIntoJacocoProbes()) {
+        continue;
+      }
       String className = executionDataAdapter.getClassName();
 
       Class<?> clazz = e.getKey();
@@ -134,8 +139,6 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
 
   public static final class Factory implements CoverageStore.Factory {
 
-    private final Map<String, Integer> probeCounts = new ConcurrentHashMap<>();
-
     private final CiVisibilityMetricCollector metrics;
     private final SourcePathResolver sourcePathResolver;
 
@@ -150,12 +153,7 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
     }
 
     private LineProbes createProbes(boolean isTestThread) {
-      return new LineProbes(metrics, probeCounts, isTestThread);
-    }
-
-    @Override
-    public void setTotalProbeCount(String className, int totalProbeCount) {
-      probeCounts.put(className.replace('/', '.'), totalProbeCount);
+      return new LineProbes(metrics, isTestThread);
     }
   }
 }

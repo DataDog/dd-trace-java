@@ -31,10 +31,5 @@ public class NoOpCoverageStore implements CoverageStore {
     public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
       return INSTANCE;
     }
-
-    @Override
-    public void setTotalProbeCount(String className, int totalProbeCount) {
-      // no op
-    }
   }
 }

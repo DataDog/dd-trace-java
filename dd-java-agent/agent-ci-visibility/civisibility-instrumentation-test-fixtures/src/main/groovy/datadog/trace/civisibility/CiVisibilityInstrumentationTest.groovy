@@ -15,7 +15,6 @@ import datadog.trace.api.civisibility.config.LibraryCapability
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.config.TestMetadata
-import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge
 import datadog.trace.api.civisibility.events.TestEventsHandler
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
 import datadog.trace.api.civisibility.telemetry.tag.Provider
@@ -201,8 +200,6 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
     InstrumentationBridge.registerBuildEventsHandlerFactory {
       decorator -> new BuildEventsHandlerImpl<>(buildSystemSessionFactory, new JvmInfoFactoryImpl())
     }
-
-    CoveragePerTestBridge.registerCoverageStoreRegistry(coverageStoreFactory)
   }
 
   private static final class MockExecutionSettingsFactory implements ExecutionSettingsFactory {
