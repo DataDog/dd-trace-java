@@ -14,6 +14,7 @@ class FeatureFlaggingGatewayTest {
 
   private FeatureFlaggingGateway.ConfigListener configListener;
   private FeatureFlaggingGateway.ExposureListener exposureListener;
+  private FeatureFlaggingGateway.SpanEnrichmentListener spanEnrichmentListener;
   private ServerConfiguration firstConfiguration;
   private ServerConfiguration secondConfiguration;
   private ExposureEvent firstExposure;
@@ -23,6 +24,7 @@ class FeatureFlaggingGatewayTest {
   void setUp() {
     configListener = mock(FeatureFlaggingGateway.ConfigListener.class);
     exposureListener = mock(FeatureFlaggingGateway.ExposureListener.class);
+    spanEnrichmentListener = mock(FeatureFlaggingGateway.SpanEnrichmentListener.class);
     firstConfiguration = mock(ServerConfiguration.class);
     secondConfiguration = mock(ServerConfiguration.class);
     firstExposure = mock(ExposureEvent.class);
@@ -33,6 +35,7 @@ class FeatureFlaggingGatewayTest {
   void tearDown() {
     FeatureFlaggingGateway.removeConfigListener(configListener);
     FeatureFlaggingGateway.removeExposureListener(exposureListener);
+    FeatureFlaggingGateway.removeSpanEnrichmentListener(spanEnrichmentListener);
   }
 
   @Test
@@ -72,6 +75,23 @@ class FeatureFlaggingGatewayTest {
 
     verify(exposureListener).accept(secondExposure);
     verifyNoMoreInteractions(exposureListener);
+  }
+
+  @Test
+  void testAttachingASpanEnrichmentListener() {
+    final SpanEnrichmentEvent firstEvent = SpanEnrichmentEvent.serialId(42, true, "user-1");
+    final SpanEnrichmentEvent secondEvent = SpanEnrichmentEvent.runtimeDefault("flag", "value");
+
+    FeatureFlaggingGateway.addSpanEnrichmentListener(spanEnrichmentListener);
+    FeatureFlaggingGateway.dispatch(firstEvent);
+
+    verify(spanEnrichmentListener).accept(firstEvent);
+    verifyNoMoreInteractions(spanEnrichmentListener);
+
+    FeatureFlaggingGateway.dispatch(secondEvent);
+
+    verify(spanEnrichmentListener).accept(secondEvent);
+    verifyNoMoreInteractions(spanEnrichmentListener);
   }
 
   private static void clearCurrentServerConfiguration() {

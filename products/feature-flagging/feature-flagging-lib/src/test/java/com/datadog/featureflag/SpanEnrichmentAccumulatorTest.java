@@ -169,6 +169,75 @@ class SpanEnrichmentAccumulatorTest {
   }
 
   @Test
+  void encoderNullAndNonSortedInput() {
+    assertEquals("", ULeb128Encoder.encodeDeltaVarint(null), "null → empty string");
+    // A non-SortedSet input must still encode identically (it is sorted internally).
+    final java.util.Set<Integer> unsorted =
+        new java.util.HashSet<>(java.util.Arrays.asList(130, 100, 128, 108));
+    assertEquals("ZAgUAg==", ULeb128Encoder.encodeDeltaVarint(unsorted));
+  }
+
+  @Test
+  void serialIdDedupeAtCap() {
+    final SpanEnrichmentAccumulator acc = new SpanEnrichmentAccumulator();
+    for (int i = 0; i < SpanEnrichmentAccumulator.MAX_SERIAL_IDS; i++) {
+      acc.addSerialId(i);
+    }
+    acc.addSerialId(0); // already present + at cap → no-op, not dropped as "new"
+    acc.addSerialId(9999); // new + at cap → dropped
+    assertEquals(SpanEnrichmentAccumulator.MAX_SERIAL_IDS, acc.serialIdsView().size());
+    assertTrue(acc.serialIdsView().contains(0));
+    assertFalse(acc.serialIdsView().contains(9999));
+  }
+
+  @Test
+  void subjectNullKeyIgnoredAndPerSubjectDedupeAtCap() {
+    final SpanEnrichmentAccumulator acc = new SpanEnrichmentAccumulator();
+    acc.addSubject(null, 1); // null targeting key → ignored
+    assertEquals(0, acc.subjectCount());
+    for (int i = 0; i < SpanEnrichmentAccumulator.MAX_EXPERIMENTS_PER_SUBJECT; i++) {
+      acc.addSubject("s", i);
+    }
+    acc.addSubject("s", 0); // existing subject, at exp cap, id present → no-op
+    acc.addSubject("s", 9999); // existing subject, at exp cap, id new → dropped
+    assertEquals(1, acc.subjectCount());
+  }
+
+  @Test
+  void stringifyDefaultCoversAllNativeShapes() {
+    // list containing Double, Long, Short, Byte, null, and a nested Map — exercises every
+    // writeJsonValue branch (Number/double, Integer|Long|Short|Byte/long, null, Map, Iterable).
+    final Object nested =
+        java.util.Arrays.asList(
+            1.5d, 3L, (short) 7, (byte) 2, null, Collections.singletonMap("k", "v"));
+    assertEquals(
+        "[1.5,3,7,2,null,{\"k\":\"v\"}]", SpanEnrichmentAccumulator.stringifyDefault(nested));
+
+    // Java array routes through isArray → serialized via its (non-JSON) string form, but must not
+    // throw; assert it produced a quoted string.
+    final String arr = SpanEnrichmentAccumulator.stringifyDefault(new int[] {1, 2});
+    assertTrue(arr.startsWith("\"") && arr.endsWith("\""));
+
+    // Character scalar (CharSequence/Character branch).
+    assertEquals("x", SpanEnrichmentAccumulator.stringifyDefault('x'));
+  }
+
+  @Test
+  void runtimeDefaultTruncationIsSurrogateSafe() {
+    // 63 ASCII chars then an astral emoji (a surrogate pair): truncating to 64 would split the
+    // pair at index 63, so utf8SafeTruncate must drop the dangling high surrogate → 63 chars.
+    final StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < 63; i++) {
+      sb.append('a');
+    }
+    sb.append("😀"); // 😀 (high + low surrogate)
+    final SpanEnrichmentAccumulator acc = new SpanEnrichmentAccumulator();
+    acc.addDefault("flag", sb.toString());
+    final String tag = acc.toSpanTags().get(SpanEnrichmentAccumulator.TAG_RUNTIME_DEFAULTS);
+    assertEquals("{\"flag\":\"" + sb.substring(0, 63) + "\"}", tag);
+  }
+
+  @Test
   void noDataWhenEmpty() {
     final SpanEnrichmentAccumulator acc = new SpanEnrichmentAccumulator();
     assertFalse(acc.hasData());

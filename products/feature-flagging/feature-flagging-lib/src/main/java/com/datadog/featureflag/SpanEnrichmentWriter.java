@@ -60,14 +60,17 @@ public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEn
   }
 
   private static final RootSpanResolver DEFAULT_RESOLVER =
-      () -> {
-        final AgentSpan active = AgentTracer.activeSpan();
-        if (active == null) {
-          return null;
-        }
-        final AgentSpan localRoot = active.getLocalRootSpan();
-        return localRoot != null ? localRoot : active;
-      };
+      () -> resolveLocalRoot(AgentTracer.activeSpan());
+
+  // Visible for tests: the local-root resolution, decoupled from the static AgentTracer so it can
+  // be exercised without a live tracer.
+  static AgentSpan resolveLocalRoot(final AgentSpan active) {
+    if (active == null) {
+      return null;
+    }
+    final AgentSpan localRoot = active.getLocalRootSpan();
+    return localRoot != null ? localRoot : active;
+  }
 
   private static final InterceptorRegistrar DEFAULT_REGISTRAR =
       interceptor -> GlobalTracer.get().addTraceInterceptor(interceptor);

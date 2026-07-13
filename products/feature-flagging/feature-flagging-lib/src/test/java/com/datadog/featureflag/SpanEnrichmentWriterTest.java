@@ -2,6 +2,7 @@ package com.datadog.featureflag;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -122,6 +123,74 @@ class SpanEnrichmentWriterTest {
     assertSame(first, second, "agent wiring must reuse one writer across restarts");
     assertSame(first.interceptor(), second.interceptor(), "same interceptor across restarts");
     assertSame(first.states(), second.states(), "same state store across restarts");
+  }
+
+  @Test
+  void resolveLocalRootLogic() {
+    assertNull(SpanEnrichmentWriter.resolveLocalRoot(null));
+
+    final AgentSpan root = rootSpan(); // reports itself as its own local root
+    assertSame(root, SpanEnrichmentWriter.resolveLocalRoot(root));
+
+    final AgentSpan child = mock(AgentSpan.class);
+    final AgentSpan childRoot = rootSpan();
+    when(child.getLocalRootSpan()).thenReturn(childRoot);
+    assertSame(childRoot, SpanEnrichmentWriter.resolveLocalRoot(child));
+
+    final AgentSpan noLocal = mock(AgentSpan.class);
+    when(noLocal.getLocalRootSpan()).thenReturn(null);
+    assertSame(
+        noLocal, SpanEnrichmentWriter.resolveLocalRoot(noLocal), "no local root → active span");
+  }
+
+  @Test
+  void initSubscribesAndCloseClearsState() {
+    final AgentSpan root = rootSpan();
+    final SpanEnrichmentWriter writer = writerFor(root);
+    writer.init();
+    try {
+      writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
+      assertNotNull(writer.states().peek(root));
+    } finally {
+      writer.close();
+    }
+    assertTrue(writer.states().isEmpty(), "close() clears accumulated state");
+  }
+
+  @Test
+  void runtimeDefaultWithNullFlagKeyIsIgnored() {
+    final AgentSpan root = rootSpan();
+    final SpanEnrichmentWriter writer = writerFor(root);
+    writer.accept(SpanEnrichmentEvent.runtimeDefault(null, "v"));
+    // No serial id and null flag key → nothing recorded (getOrCreate ran, but no data added).
+    final SpanEnrichmentAccumulator state = writer.states().peek(root);
+    assertTrue(state == null || !state.hasData());
+  }
+
+  @Test
+  void acceptSwallowsResolverErrors() {
+    final SpanEnrichmentWriter writer =
+        new SpanEnrichmentWriter(
+            () -> {
+              throw new RuntimeException("resolver boom");
+            });
+    // Must not propagate — enrichment can never break flag evaluation.
+    writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
+    assertTrue(writer.states().isEmpty());
+  }
+
+  @Test
+  void registrarErrorIsSwallowedAndNotLatched() {
+    final AgentSpan root = rootSpan();
+    final SpanEnrichmentWriter writer =
+        new SpanEnrichmentWriter(
+            () -> root,
+            interceptor -> {
+              throw new RuntimeException("register boom");
+            });
+    // Registration throws → swallowed, not latched, and nothing accumulates (never flushable).
+    writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
+    assertTrue(writer.states().isEmpty());
   }
 
   @Test

@@ -2,6 +2,7 @@ package com.datadog.featureflag;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -143,6 +144,60 @@ class SpanEnrichmentInterceptorTest {
       states.getOrCreate(root).addSerialId(i % 1000 + 1);
     }
     assertEquals(churn, states.size(), "no cap/eviction: every live root keeps its accumulator");
+  }
+
+  @Test
+  void nullTraceIsANoOp() {
+    final SpanEnrichmentInterceptor interceptor =
+        new SpanEnrichmentInterceptor(new SpanEnrichmentStates());
+    assertNull(interceptor.onTraceComplete(null));
+  }
+
+  @Test
+  void rootPresentButNoAccumulatorEntryWritesNothing() {
+    // states is non-empty (has rootA) but we flush rootB which has no entry → remove returns null.
+    final SpanEnrichmentStates states = new SpanEnrichmentStates();
+    final SpanEnrichmentInterceptor interceptor = new SpanEnrichmentInterceptor(states);
+    final AgentSpan rootA = rootSpan();
+    states.getOrCreate(rootA).addSerialId(1);
+    final AgentSpan rootB = rootSpan();
+    interceptor.onTraceComplete(Collections.singletonList(rootB));
+    verify(rootB, never()).setTag(anyString(), anyString());
+  }
+
+  @Test
+  void emptyAccumulatorWritesNoTags() {
+    final SpanEnrichmentStates states = new SpanEnrichmentStates();
+    final SpanEnrichmentInterceptor interceptor = new SpanEnrichmentInterceptor(states);
+    final AgentSpan root = rootSpan();
+    states.getOrCreate(root); // entry exists but has no data
+    interceptor.onTraceComplete(Collections.singletonList(root));
+    verify(root, never()).setTag(anyString(), anyString());
+    assertTrue(states.isEmpty(), "empty accumulator is still removed on the final flush");
+  }
+
+  @Test
+  void fallbackResolvesSelfRootWhenFirstSpanReportsNoLocalRoot() {
+    // First span reports a null local root; a later span that is its own local root is chosen.
+    final SpanEnrichmentStates states = new SpanEnrichmentStates();
+    final SpanEnrichmentInterceptor interceptor = new SpanEnrichmentInterceptor(states);
+    final AgentSpan noRootFirst = mock(AgentSpan.class);
+    when(noRootFirst.getLocalRootSpan()).thenReturn(null);
+    final AgentSpan root = rootSpan();
+    states.getOrCreate(root).addSerialId(5);
+    interceptor.onTraceComplete(Arrays.<MutableSpan>asList(noRootFirst, root));
+    verify(root).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "BQ==");
+  }
+
+  @Test
+  void neverThrowsWhenSetTagFails() {
+    final SpanEnrichmentStates states = new SpanEnrichmentStates();
+    final SpanEnrichmentInterceptor interceptor = new SpanEnrichmentInterceptor(states);
+    final AgentSpan root = rootSpan();
+    when(root.setTag(anyString(), anyString())).thenThrow(new RuntimeException("boom"));
+    states.getOrCreate(root).addSerialId(5);
+    // Must swallow the exception — enrichment can never break trace finish.
+    interceptor.onTraceComplete(Collections.singletonList(root));
   }
 
   @Test

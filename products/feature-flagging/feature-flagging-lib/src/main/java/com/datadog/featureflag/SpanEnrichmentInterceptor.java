@@ -82,11 +82,9 @@ final class SpanEnrichmentInterceptor implements TraceInterceptor {
       if (state == null || !state.hasData()) {
         return trace;
       }
+      // toSpanTags() only ever returns present, non-empty values, so write them directly.
       for (final Map.Entry<String, String> tag : state.toSpanTags().entrySet()) {
-        final String value = tag.getValue();
-        if (value != null && !value.isEmpty()) {
-          localRoot.setTag(tag.getKey(), value);
-        }
+        localRoot.setTag(tag.getKey(), tag.getValue());
       }
     } catch (final Throwable t) {
       // Never let span enrichment break trace finish; a debug line aids diagnosis if it does.
