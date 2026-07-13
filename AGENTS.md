@@ -73,7 +73,7 @@ docs/                     Developer documentation (see below)
 
 ## Review Guidelines
 
-Before marking a PR ready, run the applicable reviews below over the branch changes (the diff since the merge-base with `master`). These are **advisory, precision-first** checks — they surface high-severity issues early and are not merge gates. The linked guidelines are the tool-agnostic source of truth; in Claude Code each is also runnable as a `/`-skill.
+Before marking a PR ready, run the applicable reviews below over the branch changes (the diff since the merge-base with `master`). These are **advisory, precision-first** checks — they surface high-severity issues early and are not merge gates. The linked guidelines are the tool-agnostic source of truth.
 
 ### Performance Review
 
