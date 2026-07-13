@@ -8,10 +8,8 @@ description: >-
   String.format, ByteBuddy-Advice anti-patterns) using the tracer performance
   rubric. Use whenever the user wants a performance / overhead / hot-path review,
   asks to check a diff or PR for allocation / GC / memory / latency / startup cost,
-  mentions the "perf rubric" or the "do no harm / assume hot" tracer posture, or is
-  about to open a PR touching span lifecycle, tag maps, serialization/encoding,
-  decorators, propagation, or instrumentation — even if they just say "review this
-  for perf" without naming the rubric. Advisory and READ-ONLY: it reports ranked,
+  or mentions the "perf rubric" or the "do no harm / assume hot" tracer posture —
+  even if they just say "review this for perf" without naming the rubric. Advisory and READ-ONLY: it reports ranked,
   verify-first findings; it never blocks a merge and never edits code.
 user-invocable: true
 context: fork

@@ -89,7 +89,7 @@ application heap — there is no isolation. A false positive here is cheap insur
 container kill. Flag aggressively.
 
 **Raw unbounded cache.** No size or byte bound, keyed by data that grows with load (URL, SQL,
-resource names). Fix: `DDCache.newFixedSizeWeightedCache(n, weigher, maxBytes)`.
+resource names). Fix: `DDCaches.newFixedSizeWeightedCache(n, weigher, maxBytes)`.
 
 **Cardinality-sensitive aggregator.** A collection with a nominal size bound, but keyed by data
 that explodes in cardinality (tag combinations, user-supplied dimensions). High-cardinality input
@@ -206,7 +206,7 @@ type-safe. A 5-line record is often *easier* to write than a map.
 
 **Mis-sized collections.** `ArrayList` grows 1.5×; `HashMap` doubles and rehashes. Both pay
 allocation + copy on growth. Fix: pre-size accurately at construction. Note: `new HashMap<>(n)`
-still rehashes at 75% fill — use `HashMap.newHashMap(n)` (JDK 19+) for accurate pre-sizing.
+still rehashes at 75% fill — pre-size with `new HashMap<>((int) (n / 0.75f) + 1)` (Java 8-safe); `HashMap.newHashMap(n)` is cleaner but only where the source set is known JDK 19+.
 
 **Concurrency choice — nominate, don't prescribe.** Replacing `ConcurrentHashMap` with `HashMap`
 on a wrong concurrency judgment introduces a data race — trading a performance overhead for a
