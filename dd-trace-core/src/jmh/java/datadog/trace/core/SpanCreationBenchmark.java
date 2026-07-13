@@ -49,6 +49,47 @@ import org.openjdk.jmh.annotations.Warmup;
  *
  * <p>Multi-threaded on purpose ({@code @Threads(8)}); some tracer optimizations only show under
  * contention. Use {@code -t 1} for a single-threaded run.
+ *
+ * <p><b>Historical allocation</b> (B/op, {@code gc.alloc.rate.norm}), this benchmark grafted onto
+ * each release tag and run {@code @Threads(8) -f3 -wi5 -i5 -prof gc} (measured 2026-07). The ~1.59
+ * drop is the TagMap 1.0 shared-Entry default flip; the ~1.61 drop is the interceptor/links
+ * cluster. Net 1.53 &rarr; 1.64 is -20% to -31% per arm.
+ *
+ * <pre>
+ * ver    bareStart bareBuild webServer viaBuilder jdbcClient
+ * 1.53      1330.7    1331.1    2058.7     2434.7     1821.3
+ * 1.54      1423.8    1423.8    2131.4     2491.1     2037.8
+ * 1.55      1308.8    1422.0    2098.1     2477.2     2029.4
+ * 1.56      1322.2    1393.0    2131.5     2464.2     2016.6
+ * 1.57      1321.6    1363.3    2063.3     2410.6     2073.8
+ * 1.58      1312.6    1310.5    2018.0     2442.1     2065.3
+ * 1.59      1174.9    1166.1    1869.0     1987.2     1866.0
+ * 1.60      1180.6    1192.1    1858.9     1963.3     1818.0
+ * 1.61       959.2     951.7    1639.2     1774.1     1619.4
+ * 1.62       948.0     948.7    1674.9     1787.1     1614.1
+ * 1.63       927.0     926.7    1626.8     1737.7     1429.8
+ * 1.64       923.3     958.4    1636.6     1751.1     1421.5
+ * Δ%         -30.6     -28.0     -20.5      -28.1      -22.0
+ * </pre>
+ *
+ * <p>Throughput (ops/us) from the same runs — <b>noisier, treat as directional only</b> (laptop
+ * thermals + per-fork inlining bimodality; no Δ% given because there is no reliable trend):
+ *
+ * <pre>
+ * ver    bareStart bareBuild webServer viaBuilder jdbcClient
+ * 1.53        5.69      5.49      4.00       3.99       5.33
+ * 1.54        4.26      4.25      3.47       3.55       3.15
+ * 1.55        3.87      4.13      3.37       3.52       3.14
+ * 1.56        3.92      4.03      3.79       3.33       3.15
+ * 1.57        4.21      4.11      3.31       3.49       3.37
+ * 1.58        4.16      4.19      3.34       3.52       3.27
+ * 1.59        4.20      4.66      3.43       3.52       3.45
+ * 1.60        5.48      5.66      3.42       3.54       3.77
+ * 1.61        4.17      4.31      3.46       3.58       3.46
+ * 1.62        5.53      5.72      4.20       4.37       4.49
+ * 1.63        6.03      5.97      4.66       5.13       4.49
+ * 1.64        5.37      5.26      4.62       5.29       5.06
+ * </pre>
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 5)

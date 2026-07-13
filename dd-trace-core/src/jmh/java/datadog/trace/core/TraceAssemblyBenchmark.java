@@ -37,6 +37,49 @@ import org.openjdk.jmh.annotations.Warmup;
  * be forced to WARN or DEBUG-line allocation corrupts the numbers. Drift-stable v1.53→master
  * ({@code buildSpan}/{@code asChildOf}/{@code setTag}/{@code finish}, {@link Tags}, {@link
  * datadog.trace.common.writer.Writer}) so it can be grafted onto old tags for the historical curve.
+ *
+ * <p><b>Historical allocation</b> (B/op, {@code gc.alloc.rate.norm}) per {@code childCount},
+ * grafted onto each release tag, {@code @Threads(8) -f3 -wi5 -i5 -prof gc} (measured 2026-07). The
+ * per-child slope is the level-split target: note the total falls far less than the single-span
+ * arms (net -13% to -20% vs -20% to -31%), because most of an N-span trace's allocation is the
+ * per-child trace-level-tag copy that TagMap 1.0 does not yet remove — the level-split read-through
+ * is what should flatten it.
+ *
+ * <pre>
+ * ver    trace[1] trace[5] trace[20]
+ * 1.53     2792.0   5701.3   16674.7
+ * 1.54     2874.7   5773.3   16728.0
+ * 1.55     2816.7   5752.0   16733.4
+ * 1.56     2826.7   5762.7   16728.0
+ * 1.57     2746.7   5301.3   15058.7
+ * 1.58     2640.0   5642.7   15072.0
+ * 1.59     2504.0   5376.0   15370.7
+ * 1.60     2519.2   5264.0   14986.7
+ * 1.61     2240.0   4634.7   14258.7
+ * 1.62     2256.2   4650.7   13688.7
+ * 1.63     2238.6   4868.9   14992.0
+ * 1.64     2241.3   4720.5   14592.0
+ * Δ%        -19.7    -17.2     -12.5
+ * </pre>
+ *
+ * <p>Throughput (ops/us) from the same runs — <b>noisier, treat as directional only</b> (laptop
+ * thermals + per-fork inlining bimodality; no Δ% given because there is no reliable trend):
+ *
+ * <pre>
+ * ver    trace[1] trace[5] trace[20]
+ * 1.53      2.428    0.781     0.247
+ * 1.54      2.318    0.840     0.260
+ * 1.55      2.355    0.931     0.254
+ * 1.56      2.515    0.904     0.278
+ * 1.57      2.296    0.953     0.305
+ * 1.58      2.481    1.049     0.301
+ * 1.59      2.285    1.022     0.276
+ * 1.60      2.297    0.980     0.303
+ * 1.61      2.371    0.884     0.258
+ * 1.62      2.341    1.141     0.296
+ * 1.63      2.911    1.039     0.247
+ * 1.64      2.422    0.944     0.253
+ * </pre>
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 5)
