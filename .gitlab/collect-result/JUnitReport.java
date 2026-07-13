@@ -153,20 +153,23 @@ final class JUnitReport {
     }
   }
 
-  /// Downgrades failing testcases to `test.final_status=skip` for jobs that tolerate failures.
+  /// Marks every testcase as `test.final_status=skip` for jobs that tolerate failures.
   ///
   /// The flaky test jobs (`test_flaky`, `test_flaky_inst`) run with `CONTINUE_ON_FAILURE=true`, so
-  /// Gradle test failures are swallowed and a failing flaky test does not fail the job. Reporting
-  /// those failures to Test Optimization as `fail` produces false-positive failure notifications
-  /// and skews SLIs, so we record them as `skip` instead. Passing and skipped tests keep their 
-  /// natural status, so the tests stay visible in Test Optimization.
+  /// their result never gates the pipeline: it runs to completion regardless of pass or fail.
+  /// `test.final_status` records that CI impact rather than the raw outcome, so every test in these
+  /// jobs is `skip` — a failure is a non-blocking failure and a pass is a non-blocking pass. This
+  /// keeps flaky failures from creating false-positive notifications and skewing SLIs, while the
+  /// real per-test outcome stays available in `test.status` (derived from the `<failure>`,
+  /// `<error>`, and `<skipped>` children, which are left in place). Always-green tests that could
+  /// leave the flaky pipeline are then found with `@test.status:pass @test.final_status:skip`.
   ///
-  /// **Must run before {@link #tagFinalStatuses()}** so the natural `fail` status is never assigned
-  /// to these testcases. Testcases already tagged by {@link #tagRetriedAttempts()} or
-  /// {@link #tagSyntheticFailures()} are left untouched.
-  void tagFailuresAsSkipped() {
+  /// **Must run before {@link #tagFinalStatuses()}** so the natural pass/fail status is never
+  /// assigned. Testcases already tagged by {@link #tagRetriedAttempts()} or
+  /// {@link #tagSyntheticFailures()} are left untouched (already `skip`).
+  void tagAllAsSkipped() {
     for (var testcase : testcases()) {
-      if (hasFinalStatusProperty(testcase) || !isFailed(testcase)) {
+      if (hasFinalStatusProperty(testcase)) {
         continue;
       }
       addFinalStatusProperty(testcase, "skip", MissingPropertiesPlacement.FIRST_CHILD);
@@ -259,17 +262,13 @@ final class JUnitReport {
   }
 
   private static String finalStatus(Element testcase) {
-    if (isFailed(testcase)) {
+    if (hasChildElement(testcase, "failure") || hasChildElement(testcase, "error")) {
       return "fail";
     }
     if (hasChildElement(testcase, "skipped")) {
       return "skip";
     }
     return "pass";
-  }
-
-  private static boolean isFailed(Element testcase) {
-    return hasChildElement(testcase, "failure") || hasChildElement(testcase, "error");
   }
 
   private static Element firstChildElement(Element parent, String tagName) {
