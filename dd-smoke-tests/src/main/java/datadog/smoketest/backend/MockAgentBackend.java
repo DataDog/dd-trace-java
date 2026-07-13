@@ -28,8 +28,24 @@ public final class MockAgentBackend implements TraceBackend {
 
   private final List<DecodedTrace> traces = new CopyOnWriteArrayList<>();
   private volatile JavaTestHttpServer server;
+  private boolean shared;
 
   MockAgentBackend() {}
+
+  /**
+   * Marks this backend as shared across multiple apps — declare it as its own
+   * {@code @RegisterExtension} field so it is started/reset/closed once rather than by each app
+   * (S6/Q8).
+   */
+  public MockAgentBackend shared() {
+    this.shared = true;
+    return this;
+  }
+
+  @Override
+  public boolean isShared() {
+    return shared;
+  }
 
   @Override
   public void start() {

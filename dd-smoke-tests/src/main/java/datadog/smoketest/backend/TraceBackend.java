@@ -2,6 +2,10 @@ package datadog.smoketest.backend;
 
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import java.net.URI;
+import org.junit.jupiter.api.extension.AfterAllCallback;
+import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.opentest4j.TestAbortedException;
 import org.testcontainers.DockerClientFactory;
 
@@ -15,7 +19,8 @@ import org.testcontainers.DockerClientFactory;
  * <p>The lifecycle mirrors the JUnit extension that will own the backend (S4/S6): {@link #start()}
  * once per test class, {@link #clear()} between methods, {@link #close()} at teardown.
  */
-public interface TraceBackend extends AutoCloseable {
+public interface TraceBackend
+    extends AutoCloseable, BeforeAllCallback, BeforeEachCallback, AfterAllCallback {
   /** Starts the backend and binds it to a port. Idempotent. */
   void start();
 
@@ -49,6 +54,26 @@ public interface TraceBackend extends AutoCloseable {
    */
   default boolean isShared() {
     return false;
+  }
+
+  // JUnit lifecycle: a backend declared as its own `@RegisterExtension` field (shared across apps,
+  // S6/Q8) drives its own start/clear/close. An inline backend passed to `SmokeApp.backend(...)` is
+  // not registered as an extension, so `SmokeApp` drives it instead. start() is idempotent, so a
+  // shared backend that an app also (defensively) starts is unaffected.
+
+  @Override
+  default void beforeAll(ExtensionContext context) {
+    start();
+  }
+
+  @Override
+  default void beforeEach(ExtensionContext context) {
+    clear();
+  }
+
+  @Override
+  default void afterAll(ExtensionContext context) {
+    close();
   }
 
   /** Creates an in-process mock-agent backend wrapping the testing {@code JavaTestHttpServer}. */

@@ -157,9 +157,11 @@ public final class SmokeApp
 
   @Override
   public void beforeAll(ExtensionContext context) throws Exception {
-    if (ownsBackend) {
-      backend.start();
-    }
+    // Always start the backend before launching (start() is idempotent). This makes the app robust
+    // to @RegisterExtension callback ordering: a shared backend also self-starts via its own
+    // beforeAll, and an inline (owned) backend is started only here. Ownership governs
+    // clear()/close.
+    backend.start();
     launch();
     if (server) {
       PortUtils.waitForPortToOpen(httpPort, startupTimeoutSeconds, TimeUnit.SECONDS, process);
