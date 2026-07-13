@@ -95,7 +95,7 @@ public class DDEventTracer implements EventTracer<CoreEvent> {
     final EventContext eventContext = event.getContext();
 
     final AgentSpan span =
-        DECORATE.onMuleSpan(findParent(eventContext), spanInfo, event, findComponent(spanInfo));
+        DECORATE.startMuleSpan(findParent(eventContext), spanInfo, event, findComponent(spanInfo));
     linkToContext(eventContext, span);
   }
 

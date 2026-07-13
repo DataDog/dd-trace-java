@@ -57,7 +57,7 @@ public class MuleDecorator extends BaseDecorator {
     super.afterStart(span);
   }
 
-  public AgentSpan onMuleSpan(
+  public AgentSpan startMuleSpan(
       AgentSpan parentSpan, InitialSpanInfo spanInfo, CoreEvent event, Component component) {
     // we stick with the same level of detail of OTEL exporter.
     // if not exportable we're not going to create a real span but we still need to track those
