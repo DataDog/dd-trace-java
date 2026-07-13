@@ -20,8 +20,10 @@ import java.util.Map;
  * Karate v2.
  *
  * <ul>
- *   <li>{@code ScenarioRuntime#call()} is advised to re-run the scenario while the execution policy is applicable, overriding the returned {@code ScenarioResult} with the final attempt.
- *   <li>{@code ScenarioResult#addStepResult(StepResult)} is advised to replace a failing step with a skipped one when the policy requests failure suppression.
+ *   <li>{@code ScenarioRuntime#call()} is advised to re-run the scenario while the execution policy
+ *       is applicable, overriding the returned {@code ScenarioResult} with the final attempt.
+ *   <li>{@code ScenarioResult#addStepResult(StepResult)} is advised to replace a failing step with
+ *       a skipped one when the policy requests failure suppression.
  * </ul>
  *
  * Compiled for Java 8 (see {@link KarateInstrumentation}); the advice lives in the {@code java21}

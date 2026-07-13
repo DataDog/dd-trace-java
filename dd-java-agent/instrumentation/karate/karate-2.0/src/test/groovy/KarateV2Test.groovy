@@ -66,9 +66,7 @@ class KarateV2Test extends CiVisibilityInstrumentationTest {
     testcaseName               | success | tests                           | retriedTests
     "test-failed"              | false   | [TestFailedKarate]              | []
     "test-retry-failed"        | false   | [TestFailedKarate]              | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
-    "test-failed-then-succeed" | true    | [TestFailedThenSucceedKarate]   | [
-      new TestFQN("[org/example/test_failed_then_succeed] test failed", "flaky scenario")
-    ]
+    "test-failed-then-succeed" | true    | [TestFailedThenSucceedKarate]   | [new TestFQN("[org/example/test_failed_then_succeed] test failed", "flaky scenario")]
     "test-retry-parameterized" | false   | [TestFailedParameterizedKarate] | [
       new TestFQN("[org/example/test_failed_parameterized] test parameterized", "first scenario as an outline")
     ]
@@ -84,9 +82,7 @@ class KarateV2Test extends CiVisibilityInstrumentationTest {
 
     where:
     testcaseName                        | tests                              | knownTestsList
-    "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | [
-      new TestFQN("[org/example/test_succeed_one_case] test succeed", "first scenario")
-    ]
+    "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | [new TestFQN("[org/example/test_succeed_one_case] test succeed", "first scenario")]
     "test-efd-known-parameterized-test" | [TestParameterizedKarate]          | [
       new TestFQN("[org/example/test_parameterized] test parameterized", "first scenario as an outline")
     ]
