@@ -2,6 +2,7 @@ package datadog.communication.serialization;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.charset.StandardCharsets;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * 2-level generational cache of UTF8 values - primarily intended to be used for tag values
@@ -62,6 +63,7 @@ import java.nio.charset.StandardCharsets;
  * calling ValueUtf8Cache#reclibrate will adjust promotion thresholds to
  * provide better cache utilization.
  */
+@ThreadSafe
 @SuppressFBWarnings(
     value = "IS2_INCONSISTENT_SYNC",
     justification =
