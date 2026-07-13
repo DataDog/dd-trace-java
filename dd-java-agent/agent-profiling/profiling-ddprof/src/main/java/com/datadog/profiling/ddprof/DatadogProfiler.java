@@ -502,6 +502,16 @@ public final class DatadogProfiler {
       CharSequence operationName,
       int resourceOffset,
       CharSequence resourceName) {
+    if (spanId == 0) {
+      // The native setTraceContext is the activation path and rejects a zero span with
+      // IllegalArgumentException — which the catch below would swallow, leaving the previous
+      // span's context stale on this thread. Span ids are non-zero by construction
+      // (IdGenerationStrategy never returns 0; DDSpanId.ZERO means "no span"), so a zero here is
+      // not expected; degrade to a clean clear rather than a silently-swallowed throw over stale
+      // state.
+      clearTraceContext();
+      return;
+    }
     debugLogging(rootSpanId);
     try {
       profiler.setTraceContext(
@@ -568,6 +578,17 @@ public final class DatadogProfiler {
     return false;
   }
 
+  /**
+   * Clears the app-managed context attribute at {@code offset} on this thread (native slot plus the
+   * per-thread snapshot). The underlying native {@code clearContextValue} is best-effort and
+   * returns no status. No caller currently consumes the result; it is kept for symmetry with {@link
+   * #setContextValue(int, String)} and to signal an unconfigured/failed clear.
+   *
+   * @param offset the app-managed context-attribute slot to clear; a negative value (an
+   *     unconfigured attribute) is a no-op
+   * @return {@code true} if a valid, non-negative {@code offset} was cleared without error; {@code
+   *     false} if {@code offset} is negative or the native clear threw
+   */
   public boolean clearContextValue(int offset) {
     if (offset >= 0) {
       try {

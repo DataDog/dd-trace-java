@@ -455,6 +455,29 @@ class DatadogProfilerTest {
           scope6.close();
         },
         "Acceptance 6: DatadogProfilingScope.close() must not throw even when scopeStack is absent");
+
+    // Guard: a zero span id must not throw and must degrade to a clean clear that still reapplies
+    // app context. The native setTraceContext rejects spanId==0 (IllegalArgumentException); the
+    // bridge routes a zero span to clearTraceContext rather than letting that throw be swallowed
+    // over stale context. Span ids are non-zero by construction, so this only exercises the
+    // defensive path. Note: the clean-clear-vs-stale distinction lives in the trace/span and
+    // operation/resource slots, which this fixture does not expose (operation/resource context
+    // attributes are not configured here, and snapshot() reads only custom app-attribute
+    // encodings); so this locks the observable contract — no throw, app context preserved.
+    profiler.clearSpanContext();
+    profiler.clearContextValue("foo");
+    profiler.clearAppContextSnapshot();
+    fooSetter.set("zero-span-guard");
+    assertNotEquals(
+        0, profiler.snapshot()[fooOffset], "foo must be live before the zero-span activation");
+    assertDoesNotThrow(
+        () -> profiler.setSpanContext(1L, 0L, 0L, 1L),
+        "Guard: a zero span id must not throw (routed to clearTraceContext, not a swallowed IAE)");
+    assertNotEquals(
+        0,
+        profiler.snapshot()[fooOffset],
+        "Guard: zero-span activation must degrade to a clean clear that still reapplies app context");
+    profiler.clearContextValue("foo");
   }
 
   private static ConfigProvider configProvider(
