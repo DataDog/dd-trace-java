@@ -173,7 +173,7 @@ Drop anything that resolves to benign. Then report in the format below.
 - **Small, focused diff** (one method, a handful of files): report *every* genuinely
   high-confidence finding, ranked by severity. A tight diff with four real allocation
   smells should list all four (as the worked example does).
-- **Large PR:** lead with the 1–2 highest-severity findings and note that lower-severity
+- **Large PR:** lead with the 1–3 highest-severity findings and note that lower-severity
   ones may exist — don't bury the important one under a wall of CPU-micro nits.
 - Either way, the gate is *confidence*, not a count: silence on the uncertain ones is
   what earns the review its credibility.
