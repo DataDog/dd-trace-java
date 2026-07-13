@@ -465,6 +465,7 @@ include(
   ":dd-java-agent:instrumentation:kafka:kafka-streams-0.11",
   ":dd-java-agent:instrumentation:kafka:kafka-streams-1.0",
   ":dd-java-agent:instrumentation:karate:karate-1.0",
+  ":dd-java-agent:instrumentation:karate:karate-2.0",
   ":dd-java-agent:instrumentation:kotlin-coroutines-1.3",
   ":dd-java-agent:instrumentation:lettuce:lettuce-4.0",
   ":dd-java-agent:instrumentation:lettuce:lettuce-5.0",
