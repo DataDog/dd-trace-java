@@ -72,6 +72,14 @@ docs/                     Developer documentation (see below)
 - Use `tag: no release note` for internal/refactoring changes
 - Open as draft first, convert to ready when reviewable
 
+## Review Guidelines
+
+Before marking a PR ready, run the applicable reviews below over the branch changes (the diff since the merge-base with `master`). These are **advisory, precision-first** checks — they surface high-severity issues early and are not merge gates. The linked guidelines are the tool-agnostic source of truth.
+
+### Performance Review
+
+Follow the performance-review guidelines in [.claude/skills/perf-review/SKILL.md](.claude/skills/perf-review/SKILL.md) — the do-no-harm / assume-hot posture, the hot-path checks (universal + Java J1–J11 + ByteBuddy-Advice idioms), and the confidence/severity model, with the detailed rubric in its `references/`. Scope: hot-path allocation, unbounded memory, repeated work, escaping objects, native-boundary crossings, and JVM-specific pitfalls.
+
 ## Bootstrap constraints (critical)
 
 Code running in the agent's `premain` phase must **not** use:

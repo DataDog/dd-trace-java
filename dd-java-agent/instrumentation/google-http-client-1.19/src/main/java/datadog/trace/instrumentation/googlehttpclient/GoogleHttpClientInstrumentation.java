@@ -80,8 +80,9 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
           return null;
         }
       }
-      return activateSpan(
-          DECORATE.prepareSpan(startSpan("google-http-client", HTTP_REQUEST), request));
+      AgentSpan span = startSpan("google-http-client", HTTP_REQUEST);
+      DECORATE.prepareSpan(span, request);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -108,8 +109,9 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.This HttpRequest request) {
-      return activateSpan(
-          DECORATE.prepareSpan(startSpan("google-http-client", HTTP_REQUEST), request));
+      AgentSpan span = startSpan("google-http-client", HTTP_REQUEST);
+      DECORATE.prepareSpan(span, request);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

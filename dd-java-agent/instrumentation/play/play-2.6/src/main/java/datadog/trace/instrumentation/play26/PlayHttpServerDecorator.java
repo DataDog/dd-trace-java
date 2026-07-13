@@ -126,7 +126,7 @@ public class PlayHttpServerDecorator
   }
 
   @Override
-  public AgentSpan onRequest(
+  public void onRequest(
       final AgentSpan span,
       final Request<?> connection,
       final Request<?> request,
@@ -155,7 +155,6 @@ public class PlayHttpServerDecorator
         dispatchRoute(span, path);
       }
     }
-    return span;
   }
 
   /**
@@ -214,7 +213,7 @@ public class PlayHttpServerDecorator
   }
 
   @Override
-  public AgentSpan onError(final AgentSpan span, Throwable throwable) {
+  public void onError(final AgentSpan span, Throwable throwable) {
     if (REPORT_HTTP_STATUS) {
       span.setHttpStatusCode(500);
     }
@@ -226,7 +225,7 @@ public class PlayHttpServerDecorator
         && throwable.getCause() != null) {
       throwable = throwable.getCause();
     }
-    return super.onError(span, throwable);
+    super.onError(span, throwable);
   }
 
   public void updateOn404Only(final AgentSpan span, final Result result) {

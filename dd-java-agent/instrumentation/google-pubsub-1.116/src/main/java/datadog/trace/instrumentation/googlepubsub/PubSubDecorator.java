@@ -121,7 +121,7 @@ public class PubSubDecorator extends MessagingClientDecorator {
     return spanKind;
   }
 
-  public AgentSpan onConsume(final PubsubMessage message, final String subscription) {
+  public AgentSpan startConsumeSpan(final PubsubMessage message, final String subscription) {
     final AgentSpanContext spanContext =
         extractContextAndGetSpanContext(message, TextMapExtractAdapter.GETTER);
     final AgentSpan span = startSpan(JAVA_PUBSUB.toString(), PUBSUB_CONSUME, spanContext);
