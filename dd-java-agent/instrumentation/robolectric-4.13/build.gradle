@@ -1,12 +1,8 @@
 muzzle {
-  // Robolectric pulls androidx.test artifacts that are published only to Google's Maven, which is
-  // not in muzzle's default repositories.
   extraRepository('google', 'https://maven.google.com')
   pass {
     group = 'org.robolectric'
     module = 'robolectric'
-    // 4.13 is the first release that ships org.robolectric.versioning.AndroidVersions, which the
-    // helper relies on to resolve the release/codename.
     versions = '[4.13,)'
     // androidx.test:monitor is an Android archive (.aar) that a JVM configuration cannot consume;
     // it is not referenced by the advice/helper. Mirror the compileOnly exclusion below.
@@ -18,8 +14,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 repositories {
   // Robolectric drags in androidx.test.* transitive dependencies that are published only to
-  // Google's Maven. Declared after java.gradle so Maven Central is tried first; the content filter
-  // keeps Gradle from probing Google for unrelated artifacts.
+  // Google's Maven. Declared after java.gradle so Maven Central is tried first
   maven {
     url = 'https://maven.google.com'
     content {
