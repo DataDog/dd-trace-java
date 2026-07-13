@@ -347,6 +347,70 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return logEvent[key]
   }
 
+  // waitForTraceCount, but on timeout it dumps the forked process' threads so an OpenJ9/Semeru
+  // startup hang produces an actionable stack instead of a bare "Condition not satisfied".
+  int waitForTraceCountAlive(int count) {
+    try {
+      defaultPoll.eventually {
+        if (traceDecodingFailure != null) {
+          throw traceDecodingFailure
+        }
+        assert traceCount.get() >= count
+      }
+    } catch (AssertionError e) {
+      // An early exit and a hang look the same to PollingConditions; only the hang warrants a dump.
+      if (testedProcess != null && !testedProcess.isAlive()) {
+        throw new AssertionError("Process exited with code ${testedProcess.exitValue()} while waiting for " +
+        "${count} traces (received ${traceCount.get()}, RC polls: ${rcClientMessages.size()}).", e)
+      }
+      throw new AssertionError("Timed out waiting for ${count} traces after ${defaultPoll.timeout}s " +
+      "(traceCount=${traceCount.get()}, RC polls: ${rcClientMessages.size()}).\n${forkedThreadDump()}", e)
+    }
+    traceCount.get()
+  }
+
+  // Best-effort jstack of the forked process. Full dump goes to stdout (job log); a truncated copy
+  // goes in the assertion message so it survives CI Visibility's ~5000-char error.message cap.
+  private String forkedThreadDump() {
+    File tmp = null
+    try {
+      long pid = forkedPid()
+      if (pid <= 0 || !testedProcess.isAlive()) {
+        return "(no thread dump: pid=$pid)"
+      }
+      tmp = File.createTempFile("jstack", ".txt")
+      // Redirect to a file to avoid a pipe-buffer deadlock on large dumps.
+      def p = new ProcessBuilder("${System.getProperty('java.home')}/bin/jstack", "$pid")
+      .redirectErrorStream(true).redirectOutput(tmp).start()
+      if (!p.waitFor(10, SECONDS)) {
+        p.destroyForcibly()
+        return "(jstack timed out)"
+      }
+      def dump = tmp.getText("UTF-8")
+      println "=== forked process jstack (pid $pid) ===\n$dump"
+      return dump.length() > 4500 ? dump.substring(0, 4500) + "\n(truncated; full dump in job log)" : dump
+    } catch (Throwable t) {
+      return "(thread dump failed: ${t.message})"
+    } finally {
+      tmp?.delete()
+    }
+  }
+
+  // Process.pid() (JDK 9+) with a JDK 8 UNIXProcess.pid reflection fallback.
+  private long forkedPid() {
+    try {
+      return (long) testedProcess.getClass().getMethod("pid").invoke(testedProcess)
+    } catch (Throwable ignored) {
+      try {
+        def f = testedProcess.getClass().getDeclaredField("pid")
+        f.accessible = true
+        return f.getInt(testedProcess) as long
+      } catch (Throwable ignored2) {
+        return -1L
+      }
+    }
+  }
+
   def parseTraceFromStdOut( String line ) {
     if (line == null) {
       throw new IllegalArgumentException("Line is null")
@@ -365,7 +429,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   @Flaky(condition = () -> JavaVirtualMachine.isIbm8() || JavaVirtualMachine.isOracleJDK8() || JavaVirtualMachine.isZulu8())
   def "check raw file injection"() {
     when:
-    def count = waitForTraceCount(2)
+    def count = waitForTraceCountAlive(2)
 
     def newConfig = """
         {"lib_config":
@@ -374,12 +438,12 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
      """.toString()
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", newConfig)
 
-    count = waitForTraceCount(3)
+    count = waitForTraceCountAlive(3)
 
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", """{"lib_config":{}}""".toString())
 
     // Wait for all 4 traces before waiting for process exit to ensure trace delivery is confirmed
-    count = waitForTraceCount(4)
+    count = waitForTraceCountAlive(4)
 
     assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS) : "Process did not exit within ${TIMEOUT_SECS}s"
     def exitValue = testedProcess.exitValue()
