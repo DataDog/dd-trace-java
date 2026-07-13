@@ -12,79 +12,42 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.TraceMatcher;
-import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
-import java.io.ByteArrayOutputStream;
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.regex.Pattern;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
+public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
 
   private static final String FIRST_PATH = "/pipelined/first";
   private static final String SECOND_PATH = "/pipelined/second";
   private static final String THIRD_PATH = "/pipelined/third";
 
-  private EventLoopGroup eventLoopGroup;
-  private PipeliningHandler handler;
-  private int port;
+  private final PipeliningHandler handler = new PipeliningHandler(3);
 
-  @BeforeAll
-  void startServer() throws Exception {
-    eventLoopGroup = new NioEventLoopGroup();
-    handler = new PipeliningHandler(3);
-    ServerBootstrap bootstrap =
-        new ServerBootstrap()
-            .group(eventLoopGroup)
-            .channel(NioServerSocketChannel.class)
-            .childHandler(
-                new ChannelInitializer<Channel>() {
-                  @Override
-                  protected void initChannel(Channel ch) {
-                    ch.pipeline().addLast(new HttpServerCodec());
-                    ch.pipeline().addLast(new HttpObjectAggregator(65536));
-                    ch.pipeline().addLast(handler);
-                  }
-                });
-    Channel channel = bootstrap.bind(0).sync().channel();
-    port = ((InetSocketAddress) channel.localAddress()).getPort();
-  }
-
-  @AfterAll
-  void stopServer() {
-    if (eventLoopGroup != null) {
-      eventLoopGroup.shutdownGracefully();
-    }
+  @Override
+  protected void configurePipeline(Channel ch) {
+    ch.pipeline().addLast(new HttpServerCodec());
+    ch.pipeline().addLast(new HttpObjectAggregator(65536));
+    ch.pipeline().addLast(handler);
   }
 
   @Test
   void createsServerSpanForEachPipelinedRequest() throws Exception {
-    try (Socket socket = new Socket("localhost", port)) {
-      socket.setSoTimeout(5000);
+    try (Socket socket = connect()) {
       socket.getOutputStream().write(pipelinedRequests().getBytes(US_ASCII));
       socket.getOutputStream().flush();
 
@@ -125,52 +88,6 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
             .operationName(Pattern.compile("netty\\.request"))
             .resourceName(Pattern.compile("GET " + Pattern.quote(path)))
             .type("web"));
-  }
-
-  private static String readHttpResponseBody(InputStream in) throws IOException {
-    String headers = readHeaders(in);
-    assertTrue(headers.startsWith("HTTP/1.1 200 "), "unexpected response: " + headers);
-    int contentLength = contentLength(headers);
-    byte[] body = new byte[contentLength];
-    int read = 0;
-    while (read < contentLength) {
-      int count = in.read(body, read, contentLength - read);
-      if (count == -1) {
-        throw new EOFException("response ended before body was complete");
-      }
-      read += count;
-    }
-    return new String(body, UTF_8);
-  }
-
-  private static String readHeaders(InputStream in) throws IOException {
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    int state = 0;
-    while (state < 4) {
-      int b = in.read();
-      if (b == -1) {
-        throw new EOFException("response ended before headers were complete");
-      }
-      out.write(b);
-      if ((state == 0 || state == 2) && b == '\r') {
-        state++;
-      } else if ((state == 1 || state == 3) && b == '\n') {
-        state++;
-      } else {
-        state = b == '\r' ? 1 : 0;
-      }
-    }
-    return out.toString(US_ASCII.name());
-  }
-
-  private static int contentLength(String headers) {
-    for (String line : headers.split("\r\n")) {
-      int separator = line.indexOf(':');
-      if (separator > 0 && "content-length".equalsIgnoreCase(line.substring(0, separator))) {
-        return Integer.parseInt(line.substring(separator + 1).trim());
-      }
-    }
-    throw new AssertionError("missing content-length header: " + headers);
   }
 
   private static final class PipeliningHandler
