@@ -29,53 +29,33 @@ final class AggregateEntry extends Hashtable.Entry {
 
   private static final UTF8BytesString[] EMPTY_TAGS = new UTF8BytesString[0];
 
-  // Per-field cardinality handlers. Limits are tunable via DD_TRACE_STATS_{field}_CARDINALITY_LIMIT
-  // (e.g. DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT). Defaults live on MetricCardinalityLimits.
-  // Frozen at first class-load from Config.
+  // Configurable per-field cardinality handlers — tunable via env var.
   static final PropertyCardinalityHandler RESOURCE_HANDLER =
       new PropertyCardinalityHandler(
           "resource",
           Config.get().getTraceStatsCardinalityLimit("resource", MetricCardinalityLimits.RESOURCE));
-  static final PropertyCardinalityHandler SERVICE_HANDLER =
-      new PropertyCardinalityHandler(
-          "service",
-          Config.get().getTraceStatsCardinalityLimit("service", MetricCardinalityLimits.SERVICE));
-  static final PropertyCardinalityHandler OPERATION_HANDLER =
-      new PropertyCardinalityHandler(
-          "operation",
-          Config.get()
-              .getTraceStatsCardinalityLimit("operation", MetricCardinalityLimits.OPERATION));
-  static final PropertyCardinalityHandler SERVICE_SOURCE_HANDLER =
-      new PropertyCardinalityHandler(
-          "service_source",
-          Config.get()
-              .getTraceStatsCardinalityLimit(
-                  "service_source", MetricCardinalityLimits.SERVICE_SOURCE));
-  static final PropertyCardinalityHandler TYPE_HANDLER =
-      new PropertyCardinalityHandler(
-          "type", Config.get().getTraceStatsCardinalityLimit("type", MetricCardinalityLimits.TYPE));
-  static final PropertyCardinalityHandler SPAN_KIND_HANDLER =
-      new PropertyCardinalityHandler(
-          "span_kind",
-          Config.get()
-              .getTraceStatsCardinalityLimit("span_kind", MetricCardinalityLimits.SPAN_KIND));
-  static final PropertyCardinalityHandler HTTP_METHOD_HANDLER =
-      new PropertyCardinalityHandler(
-          "http_method",
-          Config.get()
-              .getTraceStatsCardinalityLimit("http_method", MetricCardinalityLimits.HTTP_METHOD));
   static final PropertyCardinalityHandler HTTP_ENDPOINT_HANDLER =
       new PropertyCardinalityHandler(
           "http_endpoint",
           Config.get()
               .getTraceStatsCardinalityLimit(
                   "http_endpoint", MetricCardinalityLimits.HTTP_ENDPOINT));
+
+  // Fixed per-field cardinality handlers — hardcoded, not user-configurable.
+  static final PropertyCardinalityHandler SERVICE_HANDLER =
+      new PropertyCardinalityHandler("service", MetricCardinalityLimits.SERVICE);
+  static final PropertyCardinalityHandler OPERATION_HANDLER =
+      new PropertyCardinalityHandler("operation", MetricCardinalityLimits.OPERATION);
+  static final PropertyCardinalityHandler SERVICE_SOURCE_HANDLER =
+      new PropertyCardinalityHandler("service_source", MetricCardinalityLimits.SERVICE_SOURCE);
+  static final PropertyCardinalityHandler TYPE_HANDLER =
+      new PropertyCardinalityHandler("type", MetricCardinalityLimits.TYPE);
+  static final PropertyCardinalityHandler SPAN_KIND_HANDLER =
+      new PropertyCardinalityHandler("span_kind", MetricCardinalityLimits.SPAN_KIND);
+  static final PropertyCardinalityHandler HTTP_METHOD_HANDLER =
+      new PropertyCardinalityHandler("http_method", MetricCardinalityLimits.HTTP_METHOD);
   static final PropertyCardinalityHandler GRPC_STATUS_CODE_HANDLER =
-      new PropertyCardinalityHandler(
-          "grpc_status_code",
-          Config.get()
-              .getTraceStatsCardinalityLimit(
-                  "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE));
+      new PropertyCardinalityHandler("grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE);
 
   // Single authoritative list used by resetCardinalityHandlers(). populateFrom() and hashOf() keep
   // named access for readability and to avoid per-span iteration overhead; this array ensures the
