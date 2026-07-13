@@ -17,5 +17,11 @@ public final class RumConfig {
   public static final String RUM_SESSION_REPLAY_SAMPLE_RATE = "rum.session.replay.sample.rate";
   public static final String RUM_REMOTE_CONFIGURATION_ID = "rum.remote.configuration.id";
 
+  /**
+   * Enables the structure-aware HTML parser for RUM injection instead of a literal {@code </head>}
+   * match. Defaults to {@code true}.
+   */
+  public static final String RUM_HTML_PARSER_ENABLED = "rum.html.parser.enabled";
+
   private RumConfig() {}
 }

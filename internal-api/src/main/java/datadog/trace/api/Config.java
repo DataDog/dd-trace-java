@@ -143,6 +143,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_MAX_PAYLOAD
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_TARGETS_KEY_ID;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_HTML_PARSER_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_MAJOR_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_ITERATION_KEEP_ALIVE;
@@ -554,6 +555,7 @@ import static datadog.trace.api.config.RumConfig.RUM_APPLICATION_ID;
 import static datadog.trace.api.config.RumConfig.RUM_CLIENT_TOKEN;
 import static datadog.trace.api.config.RumConfig.RUM_DEFAULT_PRIVACY_LEVEL;
 import static datadog.trace.api.config.RumConfig.RUM_ENVIRONMENT;
+import static datadog.trace.api.config.RumConfig.RUM_HTML_PARSER_ENABLED;
 import static datadog.trace.api.config.RumConfig.RUM_MAJOR_VERSION;
 import static datadog.trace.api.config.RumConfig.RUM_REMOTE_CONFIGURATION_ID;
 import static datadog.trace.api.config.RumConfig.RUM_SERVICE;
@@ -1419,6 +1421,7 @@ public class Config {
   private final boolean eventbridgeInjectDatadogAttributeEnabled;
 
   private final RumInjectorConfig rumInjectorConfig;
+  private final boolean rumHtmlParserEnabled;
 
   private final boolean aiGuardEnabled;
   private final String aiGuardEndpoint;
@@ -3308,6 +3311,8 @@ public class Config {
         configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
 
     this.rumInjectorConfig = parseRumConfig(configProvider);
+    this.rumHtmlParserEnabled =
+        configProvider.getBoolean(RUM_HTML_PARSER_ENABLED, DEFAULT_RUM_HTML_PARSER_ENABLED);
 
     this.aiGuardEnabled = configProvider.getBoolean(AI_GUARD_ENABLED, DEFAULT_AI_GUARD_ENABLED);
     this.aiGuardEndpoint = configProvider.getString(AI_GUARD_ENDPOINT);
@@ -5961,6 +5966,10 @@ public class Config {
 
   public RumInjectorConfig getRumInjectorConfig() {
     return this.rumInjectorConfig;
+  }
+
+  public boolean isRumHtmlParserEnabled() {
+    return this.rumHtmlParserEnabled;
   }
 
   public boolean isAiGuardEnabled() {

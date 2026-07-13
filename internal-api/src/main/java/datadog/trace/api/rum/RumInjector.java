@@ -26,6 +26,7 @@ public final class RumInjector {
       };
 
   private final boolean enabled;
+  private final boolean htmlParserEnabled;
   private final String snippet;
   private final char[] snippetChars;
 
@@ -41,6 +42,7 @@ public final class RumInjector {
     // If both RUM is enabled and injector config is valid
     if (rumEnabled && injectorConfig != null) {
       this.enabled = true;
+      this.htmlParserEnabled = config.isRumHtmlParserEnabled();
       this.snippet = injectorConfig.getSnippet();
       this.snippetCache = DDCaches.newFixedSizeCache(16);
       this.markerCache = DDCaches.newFixedSizeCache(16);
@@ -55,6 +57,7 @@ public final class RumInjector {
           };
     } else {
       this.enabled = false;
+      this.htmlParserEnabled = false;
       this.snippet = null;
       this.snippetCache = null;
       this.markerCache = null;
@@ -74,6 +77,16 @@ public final class RumInjector {
    */
   public boolean isEnabled() {
     return this.enabled;
+  }
+
+  /**
+   * Checks whether the structure-aware HTML parser should be used to locate the {@code </head>} end
+   * tag, instead of a literal marker match.
+   *
+   * @return {@code true} if the HTML parser is enabled.
+   */
+  public boolean isHtmlParserEnabled() {
+    return this.htmlParserEnabled;
   }
 
   /**

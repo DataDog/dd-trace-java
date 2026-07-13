@@ -227,4 +227,49 @@ class InjectingPipeWriterTest extends DDSpecification {
     then:
     noExceptionThrown()
   }
+
+  def streamingPipe(Writer downstream, String content) {
+    return new InjectingPipeWriter(downstream, content.toCharArray(), new HtmlCharMatcher(), null, null, null)
+  }
+
+  def 'streaming parser should inject before the real </head> for #description'() {
+    setup:
+    def downstream = new StringWriter()
+    def piped = streamingPipe(downstream, content)
+    when:
+    try (def closeme = piped) {
+      piped.write(body.toCharArray())
+    }
+    then:
+    downstream.toString() == expected
+    where:
+    description                     | body                                                         | content   | expected
+    'plain'                         | "<html><head><foo/></head><body/></html>"                    | "<i></i>" | "<html><head><foo/><i></i></head><body/></html>"
+    'uppercase tag'                 | "<html><HEAD></HEAD></html>"                                 | "<i></i>" | "<html><HEAD><i></i></HEAD></html>"
+    'trailing whitespace'           | "<head></head >"                                             | "<i></i>" | "<head><i></i></head >"
+    'ignores </head> in comment'    | "<head><!-- </head> --></head>"                              | "<i></i>" | "<head><!-- </head> --><i></i></head>"
+    'ignores </head> in script'     | "<head><script>var x='</head>';</script></head>"            | "<i></i>" | "<head><script>var x='</head>';</script><i></i></head>"
+    'does not match </header>'      | "<head></header></head>"                                     | "<i></i>" | "<head></header><i></i></head>"
+    'no head means no injection'    | "<html><body/></html>"                                       | "<i></i>" | "<html><body/></html>"
+  }
+
+  def 'streaming parser should give identical output writing char by char'() {
+    setup:
+    def body = "<html><head><!-- </head> --><script>'</head>'</script></head><body/></html>"
+    def bulk = new StringWriter()
+    def single = new StringWriter()
+    def bulkPipe = streamingPipe(bulk, "<i></i>")
+    def singlePipe = streamingPipe(single, "<i></i>")
+    when:
+    bulkPipe.write(body.toCharArray())
+    bulkPipe.close()
+    for (char c : body.toCharArray()) {
+      singlePipe.write((int) c)
+    }
+    singlePipe.close()
+    then:
+    def expected = "<html><head><!-- </head> --><script>'</head>'</script><i></i></head><body/></html>"
+    bulk.toString() == expected
+    single.toString() == expected
+  }
 }

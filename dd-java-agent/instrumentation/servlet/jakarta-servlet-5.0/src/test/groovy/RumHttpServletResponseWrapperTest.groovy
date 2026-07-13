@@ -192,7 +192,7 @@ class RumHttpServletResponseWrapperTest extends InstrumentationSpecification {
       mockTelemetryCollector.onInjectionResponseSize(SERVLET_VERSION, bytes)
     }
     def wrappedStream = new WrappedServletOutputStream(
-      downstream, marker, contentToInject, null, onBytesWritten, null)
+      downstream, new InjectingPipeOutputStream(downstream, marker, contentToInject, null, onBytesWritten, null))
     def testBytes = "test content"
 
     when:

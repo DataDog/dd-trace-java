@@ -3681,6 +3681,14 @@
         "aliases": []
       }
     ],
+    "DD_RUM_HTML_PARSER_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_RUM_MAJOR_VERSION": [
       {
         "version": "A",

@@ -211,4 +211,76 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     then:
     noExceptionThrown()
   }
+
+  def streamingPipe(OutputStream downstream, String content) {
+    return new InjectingPipeOutputStream(downstream, content.getBytes("UTF-8"), new HtmlByteMatcher(), null, null, null)
+  }
+
+  def 'streaming parser should inject before the real </head> for #description'() {
+    setup:
+    def downstream = new ByteArrayOutputStream()
+    def piped = streamingPipe(downstream, content)
+    when:
+    try (def closeme = piped) {
+      piped.write(body.getBytes("UTF-8"))
+    }
+    then:
+    new String(downstream.toByteArray(), "UTF-8") == expected
+    where:
+    description                     | body                                                         | content   | expected
+    'plain'                         | "<html><head><foo/></head><body/></html>"                    | "<i></i>" | "<html><head><foo/><i></i></head><body/></html>"
+    'uppercase tag'                 | "<html><HEAD></HEAD></html>"                                 | "<i></i>" | "<html><HEAD><i></i></HEAD></html>"
+    'mixed case tag'                | "<head></HeAd>"                                              | "<i></i>" | "<head><i></i></HeAd>"
+    'trailing whitespace'           | "<head></head >"                                             | "<i></i>" | "<head><i></i></head >"
+    'newline before gt'            | "<head></head\n></html>"                                     | "<i></i>" | "<head><i></i></head\n></html>"
+    'ignores </head> in comment'    | "<head><!-- </head> --></head>"                              | "<i></i>" | "<head><!-- </head> --><i></i></head>"
+    'ignores </head> in script'     | "<head><script>var x='</head>';</script></head>"            | "<i></i>" | "<head><script>var x='</head>';</script><i></i></head>"
+    'ignores </head> in document.write' | '<head><script>document.write("<head></head>");</script></head>' | "<i></i>" | '<head><script>document.write("<head></head>");</script><i></i></head>'
+    'ignores bare </head> in script' | "<head><script>if (a</head>b) {}</script></head>"           | "<i></i>" | "<head><script>if (a</head>b) {}</script><i></i></head>"
+    'ignores uppercase </HEAD> in script' | "<head><script>x='</HEAD>'</script></head>"            | "<i></i>" | "<head><script>x='</HEAD>'</script><i></i></head>"
+    'ignores </head> in style'      | "<head><style>/* </head> */</style></head>"                  | "<i></i>" | "<head><style>/* </head> */</style><i></i></head>"
+    'ignores </head> in script src attr' | '<head><script src="/a?x=</head>"></script></head>'    | "<i></i>" | '<head><script src="/a?x=</head>"></script><i></i></head>'
+    'does not match </header>'      | "<head></header></head>"                                     | "<i></i>" | "<head></header><i></i></head>"
+    'no head means no injection'    | "<html><body/></html>"                                       | "<i></i>" | "<html><body/></html>"
+    'only injects once'             | "<head></head></head>"                                       | "<i></i>" | "<head><i></i></head></head>"
+    'after doctype'                 | "<!DOCTYPE html><head></head>"                               | "<i></i>" | "<!DOCTYPE html><head><i></i></head>"
+  }
+
+  def 'streaming parser should give identical output writing byte by byte'() {
+    setup:
+    def body = "<html><head><!-- </head> --><script>'</head>'</script></head><body/></html>"
+    def bulk = new ByteArrayOutputStream()
+    def single = new ByteArrayOutputStream()
+    def bulkPipe = streamingPipe(bulk, "<i></i>")
+    def singlePipe = streamingPipe(single, "<i></i>")
+    when:
+    bulkPipe.write(body.getBytes("UTF-8"))
+    bulkPipe.close()
+    for (byte b : body.getBytes("UTF-8")) {
+      singlePipe.write((int) b)
+    }
+    singlePipe.close()
+    then:
+    def expected = "<html><head><!-- </head> --><script>'</head>'</script><i></i></head><body/></html>"
+    new String(bulk.toByteArray(), "UTF-8") == expected
+    new String(single.toByteArray(), "UTF-8") == expected
+  }
+
+  def 'streaming parser should count original bytes and fire injection callbacks'() {
+    setup:
+    def body = "<html><head></head></html>"
+    def downstream = new ByteArrayOutputStream()
+    def counter = new Counter()
+    def injected = new Counter()
+    def piped = new InjectingPipeOutputStream(downstream, "<i></i>".getBytes("UTF-8"),
+    new HtmlByteMatcher(), { -> injected.value++ }, { long bytes -> counter.incr(bytes) }, null)
+    when:
+    piped.write(body.getBytes("UTF-8"))
+    piped.close()
+    then:
+    // callback reports the original response size, not counting the injected content
+    counter.value == body.length()
+    injected.value == 1
+    new String(downstream.toByteArray(), "UTF-8") == "<html><head><i></i></head></html>"
+  }
 }

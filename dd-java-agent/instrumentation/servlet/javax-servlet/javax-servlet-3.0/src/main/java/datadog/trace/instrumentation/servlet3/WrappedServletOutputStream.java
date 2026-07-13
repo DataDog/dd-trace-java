@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeOutputStream;
 import datadog.trace.util.MethodHandles;
 import java.io.IOException;
 import java.lang.invoke.MethodHandle;
-import java.util.function.LongConsumer;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.WriteListener;
 
@@ -30,15 +29,8 @@ public class WrappedServletOutputStream extends ServletOutputStream {
   }
 
   public WrappedServletOutputStream(
-      ServletOutputStream delegate,
-      byte[] marker,
-      byte[] contentToInject,
-      Runnable onInjected,
-      LongConsumer onBytesWritten,
-      LongConsumer onInjectionTime) {
-    this.filtered =
-        new InjectingPipeOutputStream(
-            delegate, marker, contentToInject, onInjected, onBytesWritten, onInjectionTime);
+      ServletOutputStream delegate, InjectingPipeOutputStream filtered) {
+    this.filtered = filtered;
     this.delegate = delegate;
   }
 
