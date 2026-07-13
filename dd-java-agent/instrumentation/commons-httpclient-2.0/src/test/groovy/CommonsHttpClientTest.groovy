@@ -1,6 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
-import datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientDecorator
 import org.apache.commons.httpclient.HttpClient
 import org.apache.commons.httpclient.HttpMethod
 import org.apache.commons.httpclient.methods.DeleteMethod
@@ -9,75 +8,77 @@ import org.apache.commons.httpclient.methods.HeadMethod
 import org.apache.commons.httpclient.methods.OptionsMethod
 import org.apache.commons.httpclient.methods.PostMethod
 import org.apache.commons.httpclient.methods.PutMethod
-import org.apache.commons.httpclient.methods.TraceMethod
 import spock.lang.Shared
 import spock.lang.Timeout
 
-@Timeout(5)
 abstract class CommonsHttpClientTest extends HttpClientTest {
   @Shared
-  HttpClient client = new HttpClient()
+  def client = new HttpClient()
 
   def setupSpec() {
-    client.setConnectionTimeout(CONNECT_TIMEOUT_MS)
-    client.setTimeout(READ_TIMEOUT_MS)
-  }
-
-  @Override
-  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
-    HttpMethod httpMethod
-
-    switch (method) {
-      case "GET":
-        httpMethod = new GetMethod(uri.toString())
-        break
-      case "PUT":
-        httpMethod = new PutMethod(uri.toString())
-        break
-      case "POST":
-        httpMethod = new PostMethod(uri.toString())
-        break
-      case "HEAD":
-        httpMethod = new HeadMethod(uri.toString())
-        break
-      case "DELETE":
-        httpMethod = new DeleteMethod(uri.toString())
-        break
-      case "OPTIONS":
-        httpMethod = new OptionsMethod(uri.toString())
-        break
-      case "TRACE":
-        httpMethod = new TraceMethod(uri.toString())
-        break
-      default:
-        throw new RuntimeException("Unsupported method: " + method)
-    }
-
-    headers.each { httpMethod.setRequestHeader(it.key, it.value) }
-
-    try {
-      client.executeMethod(httpMethod)
-      callback?.call()
-      return httpMethod.getStatusCode()
-    } finally {
-      httpMethod.releaseConnection()
-    }
+    client.httpConnectionManager.params.connectionTimeout = CONNECT_TIMEOUT_MS
+    client.httpConnectionManager.params.soTimeout = READ_TIMEOUT_MS
   }
 
   @Override
   CharSequence component() {
-    return CommonsHttpClientDecorator.DECORATE.component()
+    return "commons-http-client"
+  }
+
+  @Override
+  int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
+    def httpMethod = createHttpMethod(method, uri)
+    headers.each { key, value ->
+      httpMethod.setRequestHeader(key, value)
+    }
+    if (body && httpMethod instanceof PostMethod) {
+      ((PostMethod) httpMethod).setRequestBody(body)
+    } else if (body && httpMethod instanceof PutMethod) {
+      ((PutMethod) httpMethod).setRequestBody(body)
+    }
+
+    client.executeMethod(httpMethod)
+    callback?.call()
+
+    def statusCode = httpMethod.getStatusCode()
+    httpMethod.releaseConnection()
+    return statusCode
   }
 
   @Override
   boolean testRedirects() {
-    // Generates 4 spans
+    true
+  }
+
+  @Override
+  boolean testRemoteConnection() {
     false
+  }
+
+  static HttpMethod createHttpMethod(String method, URI uri) {
+    switch (method) {
+      case "GET":
+        return new GetMethod(uri.toString())
+      case "POST":
+        return new PostMethod(uri.toString())
+      case "PUT":
+        return new PutMethod(uri.toString())
+      case "DELETE":
+        return new DeleteMethod(uri.toString())
+      case "HEAD":
+        return new HeadMethod(uri.toString())
+      case "OPTIONS":
+        return new OptionsMethod(uri.toString())
+      default:
+        throw new IllegalArgumentException("Unsupported HTTP method: " + method)
+    }
   }
 }
 
+@Timeout(5)
 class CommonsHttpClientV0ForkedTest extends CommonsHttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
 }
 
+@Timeout(5)
 class CommonsHttpClientV1ForkedTest extends CommonsHttpClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }

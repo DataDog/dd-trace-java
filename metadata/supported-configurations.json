@@ -10185,12 +10185,36 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_SPARKJAVA_2_3_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_SPARKJAVA_2_3_ENABLED", "DD_INTEGRATION_SPARKJAVA_2_3_ENABLED"]
+      }
+    ],
     "DD_TRACE_SPARKJAVA_2_4_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_TRACE_INTEGRATION_SPARKJAVA_2_4_ENABLED", "DD_INTEGRATION_SPARKJAVA_2_4_ENABLED"]
+      }
+    ],
+    "DD_TRACE_SPARKJAVA_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_SPARKJAVA_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_SPARKJAVA_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_SPARKJAVA_ANALYTICS_SAMPLE_RATE"]
       }
     ],
     "DD_TRACE_SPARKJAVA_ENABLED": [
