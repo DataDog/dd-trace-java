@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -43,5 +44,62 @@ class TestAgentBackendTest {
     TestAgentBackend backend = TraceBackend.testAgent().build();
     assertThrows(IllegalStateException.class, backend::url, "url() before start()");
     assertThrows(IllegalStateException.class, backend::port, "port() before start()");
+  }
+
+  @Test
+  void assertNoInvariantFailuresPassesWhenAgentReportsNoFailures() {
+    // A stub agent for /test/session/* and /test/trace_check/failures verifies the check logic
+    // without Docker; HTTP 200 from the failures endpoint means all checks passed.
+    try (JavaTestHttpServer agent = stubAgent(200, "")) {
+      TestAgentBackend backend =
+          TraceBackend.testAgent()
+              .external(agent.getAddress().getHost(), agent.getAddress().getPort())
+              .build();
+      backend.start();
+      try {
+        backend.assertNoInvariantFailures(); // HTTP 200 => no failures => no throw
+      } finally {
+        backend.close();
+      }
+    }
+  }
+
+  @Test
+  void assertNoInvariantFailuresThrowsWhenAgentReportsFailures() {
+    try (JavaTestHttpServer agent = stubAgent(400, "span_count check failed")) {
+      TestAgentBackend backend =
+          TraceBackend.testAgent()
+              .external(agent.getAddress().getHost(), agent.getAddress().getPort())
+              .build();
+      backend.start();
+      try {
+        AssertionError error =
+            assertThrows(AssertionError.class, backend::assertNoInvariantFailures);
+        assertTrue(error.getMessage().contains("span_count check failed"), error.getMessage());
+      } finally {
+        backend.close();
+      }
+    }
+  }
+
+  /** A stub test agent: 200 on {@code /test/session/start}, {@code failuresStatus} on failures. */
+  private static JavaTestHttpServer stubAgent(int failuresStatus, String failuresBody) {
+    return JavaTestHttpServer.httpServer(
+        server ->
+            server.handlers(
+                handlers -> {
+                  handlers.prefix(
+                      "/test/session/start", api -> api.getResponse().status(200).send());
+                  handlers.prefix(
+                      "/test/trace_check/failures",
+                      api -> {
+                        if (failuresBody.isEmpty()) {
+                          api.getResponse().status(failuresStatus).send();
+                        } else {
+                          api.getResponse().status(failuresStatus).send(failuresBody);
+                        }
+                      });
+                  handlers.all(api -> api.getResponse().status(200).send());
+                }));
   }
 }

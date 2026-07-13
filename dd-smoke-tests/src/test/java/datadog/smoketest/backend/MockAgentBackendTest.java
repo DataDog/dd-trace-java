@@ -1,5 +1,7 @@
 package datadog.smoketest.backend;
 
+import static datadog.smoketest.trace.SpanMatcher.span;
+import static datadog.smoketest.trace.TraceMatcher.trace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -85,6 +87,19 @@ class MockAgentBackendTest {
     DecodedSpan child = spans.get(1);
     assertEquals("WebController.hello", child.getName());
     assertEquals(root.getSpanId(), child.getParentId(), "child parents the root span");
+  }
+
+  @Test
+  void assertTracesFacadeMatchesDecodedTraces() throws IOException {
+    putTraces("/v0.4/traces", v04Payload);
+
+    // The fluent facade (S5) chains count-polling into the thin smoke matcher (S1). Both fixture
+    // spans share the service, so this holds regardless of the received span order.
+    backend
+        .traces()
+        .waitForTraceCount(1)
+        .assertTraces(
+            trace(span().service("smoke-test-java-app"), span().service("smoke-test-java-app")));
   }
 
   @Test

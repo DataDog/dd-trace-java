@@ -153,14 +153,48 @@ public final class TestAgentBackend implements TraceBackend {
   @Override
   public void close() {
     GenericContainer<?> running = container;
-    if (running != null) {
-      container = null;
-      running.stop();
+    try {
+      // Container backends auto-validate their trace-invariant checks at teardown (Q5). External CI
+      // agents are validated by the job-final .gitlab/check_test_agent_results.sh instead, so we
+      // don't check them here. Run before stopping so the agent is still reachable.
+      if (running != null) {
+        assertNoInvariantFailures();
+      }
+    } finally {
+      if (running != null) {
+        container = null;
+        running.stop();
+      }
+      baseUrl = null;
     }
-    baseUrl = null;
-    // TODO S5: on teardown of a container backend, query /test/trace_check/failures and fail the
-    //  class if any enabled trace-invariant check failed (Q5). External CI agents are validated by
-    //  the job-final .gitlab/check_test_agent_results.sh instead.
+  }
+
+  /**
+   * Fails (with an {@link AssertionError}) if the test agent recorded any trace-invariant check
+   * failure ({@code ENABLED_CHECKS}) for this backend's session. Auto-invoked at container teardown
+   * (Q5); may also be called explicitly against an external agent mid-test.
+   */
+  public void assertNoInvariantFailures() {
+    HttpUrl url =
+        requireStarted()
+            .newBuilder()
+            .addPathSegments("test/trace_check/failures")
+            .addQueryParameter("test_session_token", sessionToken)
+            .build();
+    Request request = new Request.Builder().url(url).get().build();
+    try (Response response = client.newCall(request).execute()) {
+      int code = response.code();
+      // 200 => all checks passed; 404 => a real agent is running (no checks). Anything else is a
+      // recorded failure, whose body describes the failing check(s) (see check_test_agent_results).
+      if (code == 200 || code == 404) {
+        return;
+      }
+      String body = response.body() == null ? "" : response.body().string();
+      throw new AssertionError(
+          "Test-agent trace-invariant checks failed (HTTP " + code + "):\n" + body);
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to query trace-invariant checks at " + url, e);
+    }
   }
 
   private List<DecodedTrace> fetchTraces() {

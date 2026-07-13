@@ -1,5 +1,7 @@
 package datadog.smoketest.backend;
 
+import datadog.smoketest.trace.SmokeTraceAssertions;
+import datadog.smoketest.trace.TraceMatcher;
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import datadog.trace.test.util.PollingConditions;
 import java.util.List;
@@ -51,6 +53,20 @@ public final class Traces {
     return this;
   }
 
-  // TODO S5: fluent assertTraces(TraceMatcher...) delegating to the smoke matcher, and (test-agent
-  //  backends only) trace-invariant check assertions over /test/trace_check/failures.
+  /**
+   * Asserts the received traces against the thin smoke matcher — one {@link TraceMatcher} per
+   * expected trace (matched positionally). Sugar over {@link SmokeTraceAssertions#assertTraces}:
+   *
+   * <pre>{@code
+   * app.traces().waitForTraceCount(1)
+   *    .assertTraces(trace(span().operationName("servlet.request").resourceName("GET /greeting")));
+   * }</pre>
+   */
+  public void assertTraces(TraceMatcher... matchers) {
+    SmokeTraceAssertions.assertTraces(getTraces(), matchers);
+  }
+
+  // Trace-invariant checks (ENABLED_CHECKS) are a test-agent-specific concern, validated by that
+  // backend itself (TestAgentBackend#assertNoInvariantFailures, auto-run at container teardown per
+  // Q5) rather than on this common facade, which stays portable across both backends (Q2).
 }
