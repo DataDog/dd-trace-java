@@ -32,11 +32,6 @@ public class FileProbes implements CoverageProbes {
   }
 
   @Override
-  public void record(Class<?> clazz, long classId, int probeId) {
-    record(clazz);
-  }
-
-  @Override
   public void record(Class<?> clazz) {
     try {
       if (lastCoveredClass != clazz) {

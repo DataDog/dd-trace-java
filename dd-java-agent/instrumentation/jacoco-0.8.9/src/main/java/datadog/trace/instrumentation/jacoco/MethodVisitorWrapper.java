@@ -17,6 +17,7 @@ public class MethodVisitorWrapper {
   private static final MethodHandle visitMethodInsnHandle;
   private static final MethodHandle visitInsnHandle;
   private static final MethodHandle visitIntInsnHandle;
+  private static final MethodHandle visitVarInsnHandle;
   private static final MethodHandle visitLdcInsnHandle;
   private static final MethodHandle getTypeHandle;
 
@@ -43,6 +44,8 @@ public class MethodVisitorWrapper {
     visitInsnHandle = accessMethod(lookup, shadedMethodVisitorClass, "visitInsn", int.class);
     visitIntInsnHandle =
         accessMethod(lookup, shadedMethodVisitorClass, "visitIntInsn", int.class, int.class);
+    visitVarInsnHandle =
+        accessMethod(lookup, shadedMethodVisitorClass, "visitVarInsn", int.class, int.class);
     visitLdcInsnHandle =
         accessMethod(lookup, shadedMethodVisitorClass, "visitLdcInsn", Object.class);
 
@@ -95,6 +98,10 @@ public class MethodVisitorWrapper {
   public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf)
       throws Throwable {
     visitMethodInsnHandle.invoke(mv, opcode, owner, name, desc, itf);
+  }
+
+  public void visitVarInsn(int opcode, int var) throws Throwable {
+    visitVarInsnHandle.invoke(mv, opcode, var);
   }
 
   public void visitLdcInsn(Object cst) throws Throwable {

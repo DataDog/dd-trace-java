@@ -8,7 +8,6 @@ import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.config.LibraryCapability;
-import datadog.trace.api.civisibility.coverage.CoveragePerTestBridge;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -118,7 +117,6 @@ public class CiVisibilitySystem {
       TestEventsHandlerFactory testEventsHandlerFactory =
           new TestEventsHandlerFactory(services, repoServices, coverageServices, executionSettings);
       InstrumentationBridge.registerTestEventsHandlerFactory(testEventsHandlerFactory);
-      CoveragePerTestBridge.registerCoverageStoreRegistry(coverageServices.coverageStoreFactory);
 
       AgentTracer.TracerAPI tracerAPI = AgentTracer.get();
       tracerAPI.addShutdownListener(testEventsHandlerFactory::shutdown);

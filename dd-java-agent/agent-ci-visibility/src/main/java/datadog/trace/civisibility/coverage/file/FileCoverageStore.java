@@ -118,10 +118,5 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
     private FileProbes createProbes(boolean isTestThread) {
       return new FileProbes(metrics, isTestThread);
     }
-
-    @Override
-    public void setTotalProbeCount(String className, int totalProbeCount) {
-      // no op
-    }
   }
 }

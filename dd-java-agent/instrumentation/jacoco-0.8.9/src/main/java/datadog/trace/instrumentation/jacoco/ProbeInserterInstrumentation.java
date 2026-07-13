@@ -112,29 +112,17 @@ public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibilit
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("visitMaxs")).and(takesArguments(2)).and(takesArgument(0, int.class)),
-        getClass().getName() + "$VisitMaxsAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(named("insertProbe"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, int.class)),
-        getClass().getName() + "$InsertProbeAdvice");
+        isMethod().and(named("visitCode")).and(takesArguments(0)),
+        getClass().getName() + "$VisitCodeAdvice");
   }
 
-  public static class VisitMaxsAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void enter(@Advice.Argument(value = 0, readOnly = false) int maxStack) {
-      maxStack = maxStack + 2;
-    }
-  }
-
-  public static class InsertProbeAdvice {
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+  public static class VisitCodeAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
     static void exit(
         @Advice.FieldValue(value = "mv") final Object mv,
         @Advice.FieldValue(value = "arrayStrategy") final Object arrayStrategy,
-        @Advice.Argument(0) final int id)
+        @Advice.FieldValue(value = "variable") final int variable,
+        @Advice.FieldValue(value = "accessorStackSize", readOnly = false) int accessorStackSize)
         throws Throwable {
       Field classNameField = arrayStrategy.getClass().getDeclaredField("className");
       classNameField.setAccessible(true);
@@ -167,16 +155,24 @@ public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibilit
 
       MethodVisitorWrapper methodVisitor = MethodVisitorWrapper.wrap(mv);
 
+      // Jacoco's storeInstance() has just stored the class' shared probe array into local variable
+      // `variable`. Swap it for the per-test array so Jacoco's own probe writes
+      // (probes[id] = true) record per-test coverage with no per-probe overhead. When no test is
+      // active the bridge returns the shared array unchanged, preserving Jacoco's aggregate.
+      methodVisitor.visitVarInsn(Opcodes.ALOAD, variable);
       methodVisitor.pushClass(className);
       methodVisitor.visitLdcInsn(classId);
-      methodVisitor.push(id);
-
       methodVisitor.visitMethodInsn(
           Opcodes.INVOKESTATIC,
           "datadog/trace/api/civisibility/coverage/CoveragePerTestBridge",
-          "recordCoverage",
-          "(Ljava/lang/Class;JI)V",
+          "resolveProbeArray",
+          "([ZLjava/lang/Class;J)[Z",
           false);
+      methodVisitor.visitVarInsn(Opcodes.ASTORE, variable);
+
+      // the swap leaves 4 slots on the stack (boolean[] + Class + long); Jacoco sizes the method's
+      // max stack as max(maxStack + 3, accessorStackSize) in visitMaxs
+      accessorStackSize = Math.max(accessorStackSize, 4);
     }
   }
 }

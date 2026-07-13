@@ -31,9 +31,4 @@ public class SkippableAwareCoverageStoreFactory implements CoverageStore.Factory
       return delegate.create(testIdentifier);
     }
   }
-
-  @Override
-  public void setTotalProbeCount(String className, int totalProbeCount) {
-    delegate.setTotalProbeCount(className, totalProbeCount);
-  }
 }
