@@ -1,0 +1,41 @@
+muzzle {
+  // Robolectric pulls androidx.test artifacts that are published only to Google's Maven, which is
+  // not in muzzle's default repositories.
+  extraRepository('google', 'https://maven.google.com')
+  pass {
+    group = 'org.robolectric'
+    module = 'robolectric'
+    // 4.13 is the first release that ships org.robolectric.versioning.AndroidVersions, which the
+    // helper relies on to resolve the release/codename.
+    versions = '[4.13,)'
+    // androidx.test:monitor is an Android archive (.aar) that a JVM configuration cannot consume;
+    // it is not referenced by the advice/helper. Mirror the compileOnly exclusion below.
+    excludeDependency 'androidx.test:monitor'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+repositories {
+  // Robolectric drags in androidx.test.* transitive dependencies that are published only to
+  // Google's Maven. Declared after java.gradle so Maven Central is tried first; the content filter
+  // keeps Gradle from probing Google for unrelated artifacts.
+  maven {
+    url = 'https://maven.google.com'
+    content {
+      includeGroupAndSubgroups 'androidx'
+    }
+  }
+}
+
+dependencies {
+  // Instrumentation is validated through a scenario in `GradleDaemonSmokeTest`.
+  // Exclude androidx.test:monitor: it is an Android archive (.aar) published only to Google's Maven
+  // repository, is not referenced by the advice/helper.
+  compileOnly(group: 'org.robolectric', name: 'robolectric', version: '4.16.1') {
+    exclude group: 'androidx.test', module: 'monitor'
+  }
+  // RobolectricTestRunner extends JUnit's BlockJUnit4ClassRunner; JUnit must be on the compile
+  // classpath so its supertypes resolve (both javac and forbiddenApis walk the class hierarchy).
+  compileOnly group: 'junit', name: 'junit', version: '4.13.2'
+}
