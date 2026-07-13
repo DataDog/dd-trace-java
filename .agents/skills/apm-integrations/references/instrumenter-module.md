@@ -103,3 +103,18 @@ For complex frameworks with multiple version-specific or feature-specific instru
 - Member instrumentations must **not** carry `@AutoService` and must **not** extend `TargetSystem` subclasses
 
 See `docs/how_instrumentations_work.md` section "Grouping Instrumentations" for details.
+
+## Enrichment helpers must be declared in `helperClassNames()`
+
+If your advice delegates to a helper class (e.g. `SparkJavaRouteEnricher.enrich(...)` from inside `RoutesAdvice`), the helper's fully-qualified class name MUST be listed in `helperClassNames()` on the `InstrumenterModule`:
+
+```java
+@Override
+public String[] helperClassNames() {
+  return new String[] {
+    packageName + ".SparkJavaRouteEnricher",
+  };
+}
+```
+
+Without this, the helper class is not loaded into the target application's classloader at instrumentation time, and the advice will `NoClassDefFoundError` at runtime. This is checked by muzzle; a missing helper reference is a common failure mode when refactoring advice.

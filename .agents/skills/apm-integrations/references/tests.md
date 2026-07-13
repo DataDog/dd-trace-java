@@ -83,3 +83,33 @@ dependencies {
 ```
 
 This ensures `:test` in each module validates that only the correct module fires for its version range.
+
+## Test hygiene
+
+### No `Thread.sleep()` in tests — use deterministic waits
+
+`Thread.sleep(...)` is a recipe for flake. Use a deterministic mechanism instead:
+
+- `TEST_WRITER.waitForTraces(N)` — waits until exactly N traces have been recorded, with a bounded timeout
+- `CountDownLatch` / `CompletableFuture.get(timeout, TimeUnit)` — for signalling from async callbacks
+- Spock's `PollingConditions` — for polling an assertion until it holds
+
+If you catch yourself writing `Thread.sleep(...)`, name the specific signal you're waiting for and wait on that signal directly.
+
+### Embedded servers use a static field — do not recreate per test
+
+For tests that start an embedded server (Jetty, Netty, Undertow, Spark, etc.), initialize the server once as a `@Shared` or `static` field and reuse it across test methods. Do NOT construct a new server in each `setup:` / `@Before` unless you have a concrete reason (e.g. per-test configuration). Recreating the server per test multiplies test wall-time and adds a startup-race surface for no benefit. Follow the pattern of existing server-instrumentation tests in the same framework family.
+
+### Factor shared test scaffolding into a base class
+
+If two sibling test classes (e.g. `FooTest` and `FooForkedTest`) need the same setup, request builder, or assertion helpers, extract them into a shared abstract base — do NOT copy-paste between the two files. Duplicated helper code across a handful of test classes is how bespoke JUnit scaffolding metastasizes across the codebase.
+
+### `ForkedTest` variants must have a concrete isolation reason
+
+The `ForkedTest` suffix runs a test in its own JVM via the `forkedTest` task. Only add a `ForkedTest` variant when the test genuinely needs JVM isolation — e.g. a system property that must be set before class-loading, an agent-level configuration that cannot be reset between tests, or a class-loader state that leaks. Do NOT mechanically add a `ForkedTest` alongside every `Test` class; each fork adds JVM startup cost to CI.
+
+State the isolation reason in a comment on the `ForkedTest` class.
+
+### Do not add default jvmArgs to test tasks
+
+`dd.trace.enabled=true` is the default; adding `jvmArgs '-Ddd.trace.enabled=true'` to a `Test` task in `build.gradle` is noise. Only add jvmArgs that meaningfully diverge from defaults (e.g. enabling a specific integration that's off by default, or a debug flag). If you're tempted to copy a `jvmArgs` block from a sibling module, check whether each flag is actually needed for this module.

@@ -60,3 +60,17 @@ When a boundary type exposes multiple overloads of the subscribe / invoke method
 If the library DOES perform I/O — sends HTTP requests, runs DB queries, makes RPC calls, talks to a broker, reads/writes a cache — write a **span-creating instrumentation** (`InstrumenterModule.Tracing`) instead. Context-tracking is only for libraries that coordinate work; the moment there's actual I/O to observe, you want spans around it.
 
 Hybrid libraries that BOTH coordinate work AND perform I/O usually get one span-creating instrumentation for the I/O path and (optionally) one context-tracking instrumentation for the coordination path. `lettuce-5.0` is an example: there is a span-creating instrumentation for Redis commands and a separate context-tracking instrumentation for the async command queue.
+
+## Preserving cancellation on `CompletableFuture` / `CompletionStage` returns
+
+When advice wraps a `CompletableFuture` returned from an async client via `@Advice.Return(readOnly = false)`, do NOT reassign the return with `future = future.whenComplete(...)`. `whenComplete` produces a **dependent stage**; cancelling that stage does not cancel the original request. The caller's `future.cancel(true)` then only cancels the dependent stage and leaves the underlying I/O running.
+
+```java
+// WRONG — severs cancellation from the caller
+future = future.whenComplete((result, error) -> finishSpan(span, result, error));
+
+// CORRECT — attach the callback without reassigning
+future.whenComplete((result, error) -> finishSpan(span, result, error));
+```
+
+If the wrapper truly needs to return a different `CompletionStage` (rare), forward `cancel(...)` to the original future explicitly. Applies to any async client instrumentation returning a cancellable `CompletionStage`.

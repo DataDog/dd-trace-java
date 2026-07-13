@@ -114,3 +114,19 @@ See the `@AppliesOn Annotation` section of `docs/how_instrumentations_work.md` f
 - **No `inline=false`** in production code (only for debugging; must be removed before committing)
 - **No `java.util.logging.*`, `java.nio.file.*`, or `javax.management.*`** in bootstrap instrumentations
 - **Do not extract advice logic into a helper class just to shorten the advice body.** Advice methods are inlined by ByteBuddy; extracting into `SomethingHelper.doTheThing(...)` adds a static-method hop, an extra file, and misleads reviewers into thinking the helper is shared when it is used by exactly one advice. Keep advice inline unless the same logic is genuinely shared across multiple advice classes. When it IS shared, the helper belongs in `helperClassNames()` and named accordingly (e.g. `TracingUtils`, not `FooBarHelper`). The CallDepth helper-class carveout (see `instrumenter-module.md`) is a separate case for multi-type instrumentations.
+
+### Framework-inside-framework: enrich, do not replace, the outer span
+
+When an inner framework (Spark, Ratpack routes, JAX-RS handlers) runs *inside* an outer HTTP server (Jetty, Netty, Undertow, servlet containers), the outer server's instrumentation already opened the request span (typically `servlet.request` or `jetty-server`). Do NOT create a new `Decorator`, rename the active span, or overwrite its component tag from inside the inner framework's advice. That silently rewrites `servlet.request` → `spark.request` in production traces — a breaking observability change.
+
+Instead, enrich the active span with the matched route only:
+
+```java
+HTTP_RESOURCE_DECORATOR.withRoute(activeSpan(), request.method(), route.matchedPath());
+```
+
+No `AgentScope`, no `startSpan()`, no `decorator.afterStart()`. This applies to any inner routing/dispatch framework that runs inside another instrumented HTTP server. It does NOT apply to standalone HTTP clients, which own their own span identity.
+
+### Advice classes must not declare non-constant static fields
+
+`*Advice.java` classes are inlined at instrumentation sites; non-constant static fields (fields that aren't `static final` primitives or string literals) get pulled into every instrumented callsite and violate muzzle's assumptions. Keep only `static final` constants — no logger references, no cached decorators, no state. If you need shared state, put it on a helper class registered via `helperClassNames()`, not on the advice.
