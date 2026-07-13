@@ -67,7 +67,4 @@ public class ClientInvocationDecorator extends ClientDecorator {
   public void onHazelcastInstance(final AgentSpan span, String instanceName) {
     span.setTag(HAZELCAST_INSTANCE, instanceName);
   }
-
-  /** Annotate the span with the results of the operation. */
-  public void onResult(final AgentSpan span, Object result) {}
 }

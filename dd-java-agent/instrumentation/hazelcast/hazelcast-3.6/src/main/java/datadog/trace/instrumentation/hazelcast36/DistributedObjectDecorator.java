@@ -89,7 +89,4 @@ public class DistributedObjectDecorator extends ClientDecorator {
     span.setTag(HAZELCAST_OPERATION, methodName);
     span.setTag(HAZELCAST_NAME, objectName);
   }
-
-  /** Annotate the span with the results of the operation. */
-  public void onResult(final AgentSpan span, Object result) {}
 }

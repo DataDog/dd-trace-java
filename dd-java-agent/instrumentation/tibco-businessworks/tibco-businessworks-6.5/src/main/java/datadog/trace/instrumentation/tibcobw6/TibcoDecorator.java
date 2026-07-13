@@ -65,10 +65,10 @@ public class TibcoDecorator extends BaseDecorator {
   }
 
   public void onProcessStart(AgentSpan span, String processName) {
-    span.setResourceName(processName);
-    span.setTag(TIBCO_NODE, APPNODE_NAME);
-    span.setTag(TIBCO_VERSION, BW_VERSION);
-    span.setMeasured(true);
+    span.setResourceName(processName)
+        .setTag(TIBCO_NODE, APPNODE_NAME)
+        .setTag(TIBCO_VERSION, BW_VERSION)
+        .setMeasured(true);
   }
 
   public void onActivityStart(final AgentSpan span, String activityName) {

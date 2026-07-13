@@ -149,6 +149,4 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
     }
     span.setTag("ignite.version", ignite.version().toString());
   }
-
-  public void onResult(AgentSpan span, Object result) {}
 }
