@@ -11,6 +11,7 @@ import com.datadog.ddwaf.WafContext;
 import com.datadog.ddwaf.WafHandle;
 import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
@@ -45,7 +46,7 @@ import org.slf4j.LoggerFactory;
 // TODO: different methods to be called by different parts perhaps splitting it would make sense
 // or at least create separate interfaces
 @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
-public class AppSecRequestContext implements DataBundle, Closeable {
+public class AppSecRequestContext implements DataBundle, Closeable, AppSecContext {
   private static final Logger log = LoggerFactory.getLogger(AppSecRequestContext.class);
 
   public static final int DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS = 50;
@@ -168,6 +169,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private volatile boolean wafTruncated;
   private volatile boolean wafRequestBlockFailure;
   private volatile boolean wafRateLimited;
+  private volatile boolean wafRequestExcluded;
 
   private volatile int wafTimeouts;
   private volatile int raspTimeouts;
@@ -285,6 +287,15 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public boolean isWafRateLimited() {
     return wafRateLimited;
+  }
+
+  // placeholder: libddwaf does not yet expose exclusion filter results
+  public void setWafRequestExcluded() {
+    wafRequestExcluded = true;
+  }
+
+  public boolean isWafRequestExcluded() {
+    return wafRequestExcluded;
   }
 
   public void increaseWafTimeouts() {

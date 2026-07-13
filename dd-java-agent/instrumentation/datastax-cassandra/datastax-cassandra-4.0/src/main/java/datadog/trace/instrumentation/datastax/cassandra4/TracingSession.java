@@ -17,7 +17,7 @@ import com.datastax.oss.driver.api.core.session.Request;
 import com.datastax.oss.driver.api.core.session.Session;
 import com.datastax.oss.driver.api.core.type.reflect.GenericType;
 import com.datastax.oss.driver.internal.core.session.SessionWrapper;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.util.AgentThreadFactory;
@@ -62,7 +62,7 @@ public class TracingSession extends SessionWrapper implements CqlSession {
     DECORATE.onStatement(span, getQuery(request));
     span.setTag(InstrumentationTags.CASSANDRA_CONTACT_POINTS, contactPoints);
 
-    try (AgentScope scope = activateSpan(span)) {
+    try (ContextScope scope = activateSpan(span)) {
       ResultSet resultSet = getDelegate().execute(request, Statement.SYNC);
       DECORATE.onResponse(span, resultSet);
       DECORATE.beforeFinish(span);
@@ -86,7 +86,7 @@ public class TracingSession extends SessionWrapper implements CqlSession {
     DECORATE.onStatement(span, getQuery(request));
     span.setTag(InstrumentationTags.CASSANDRA_CONTACT_POINTS, contactPoints);
 
-    try (AgentScope scope = activateSpan(span)) {
+    try (ContextScope scope = activateSpan(span)) {
       CompletionStage<AsyncResultSet> completionStage =
           getDelegate().execute(request, Statement.ASYNC);
 

@@ -7,8 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
-import java.util.List;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
@@ -85,26 +83,26 @@ class ContextProvidersForkedTest {
           }
 
           @Override
-          public ContextScope attach(Context context) {
+          public ContextScope attach(@Nonnull Context context) {
             return new NoopContextScope(root());
           }
 
           @Override
-          public Context swap(Context context) {
+          public Context swap(@Nonnull Context context) {
             return root();
           }
 
           @Override
-          public ContextContinuation capture(Context context) {
+          public ContextContinuation capture(@Nonnull Context context) {
             return new NoopContextContinuation(root());
           }
 
           @Override
-          public void addListener(ContextListener listener) {}
+          public void addListener(@Nonnull ContextListener listener) {}
         });
 
-    List<String> events = new ArrayList<>();
-    ContextManager.register(trackingListener(events));
+    ContextTestBase.TrackingListener listener = trackingListener();
+    ContextManager.register(listener);
 
     // NOOP manager, context will always be root
     try (ContextScope scope = context.attach()) {
@@ -123,6 +121,6 @@ class ContextProvidersForkedTest {
     assertSame(root(), Context.current());
 
     // NOOP manager, no events emitted
-    assertTrue(events.isEmpty());
+    listener.assertNoEvents();
   }
 }

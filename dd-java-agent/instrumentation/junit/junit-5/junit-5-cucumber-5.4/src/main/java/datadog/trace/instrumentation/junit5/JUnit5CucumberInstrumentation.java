@@ -39,6 +39,10 @@ public class JUnit5CucumberInstrumentation extends InstrumenterModule.CiVisibili
     return new String[] {
       packageName + ".TestDataFactory",
       packageName + ".JUnitPlatformUtils",
+      packageName + ".execution.RetryDescriptorFactory",
+      packageName + ".execution.RetryDescriptorFactories",
+      packageName + ".EmptyConfigurationParameters",
+      packageName + ".CucumberRetryDescriptorFactory",
       packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".CucumberTracingListener",

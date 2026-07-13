@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import datadog.trace.api.DDTraceId;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Map;
 
 public interface CoreSpan<T extends CoreSpan<T>> {
@@ -76,6 +77,16 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   boolean isKind(SpanKindFilter filter);
 
+  /**
+   * Returns the {@code span.kind} tag value as a String, or {@code null} if not set. Default
+   * implementation reads the tag map; {@link DDSpan} overrides to use a cached ordinal that
+   * resolves via a small lookup array, skipping the tag-map lookup on the hot path.
+   */
+  default String getSpanKindString() {
+    Object v = unsafeGetTag(Tags.SPAN_KIND);
+    return v == null ? null : v.toString();
+  }
+
   CharSequence getType();
 
   /**
@@ -87,8 +98,17 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   void processTagsAndBaggage(MetadataConsumer consumer);
 
-  void processTagsAndBaggage(
-      MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags);
+  /**
+   * Variant of {@link #processTagsAndBaggage(MetadataConsumer)} for protocols that serialize span
+   * links as first-class structured data rather than tags. Baggage tag injection still follows the
+   * tracer configuration.
+   *
+   * <p>To simplify tests, by default delegating to {@link
+   * #processTagsAndBaggage(MetadataConsumer)}.
+   */
+  default void processTagsAndBaggageWithStructuredLinks(MetadataConsumer consumer) {
+    processTagsAndBaggage(consumer);
+  }
 
   T setSamplingPriority(int samplingPriority, int samplingMechanism);
 

@@ -44,7 +44,6 @@ import datadog.trace.core.DDSpanContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -590,7 +589,9 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       return true;
     }
     try {
-      if (!probeCondition.execute(capture)) {
+      Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
+      TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
+      if (!probeCondition.execute(capture, timeoutChecker)) {
         return false;
       }
     } catch (EvaluationException ex) {
@@ -720,7 +721,9 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     }
     for (CaptureExpression captureExpression : captureExpressions) {
       try {
-        Value<?> result = captureExpression.expr.execute(context);
+        Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
+        TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
+        Value<?> result = captureExpression.expr.execute(context, timeoutChecker);
         if (result.isUndefined()) {
           throw new EvaluationException("UNDEFINED", captureExpression.getExpr().getDsl());
         }
@@ -837,9 +840,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         if (isFullSnapshot()) {
           // freeze context just before commit because line probes have only one context
           Duration timeout =
-              Duration.of(
-                  Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
-          lineContext.freeze(new TimeoutChecker(timeout));
+              Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+          lineContext.freeze(TimeoutChecker.create(Config.get(), timeout));
           snapshot.addLine(lineContext, line);
         }
         commitSnapshot(snapshot, sink);

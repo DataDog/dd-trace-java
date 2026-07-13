@@ -31,12 +31,6 @@ class OpensearchRestClientTest extends InstrumentationSpecification {
   @Shared
   RestClient client
 
-  @Override
-  boolean useStrictTraceWrites() {
-    //FIXME IDM
-    false
-  }
-
   def setupSpec() {
 
     aosWorkingDir = File.createTempDir("test-aos-working-dir-", "")

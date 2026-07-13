@@ -31,10 +31,12 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
+import java.io.File;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -454,6 +456,33 @@ public class MetricProbesInstrumentationTest {
     assertTrue(listener.doubleGauges.containsKey(METRIC_NAME));
     assertTrue(listener.doubleGauges.get(METRIC_NAME).doubleValue() > 0);
     assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
+  }
+
+  @Test
+  public void methodSyntheticDurationKotlinDist() {
+    final String CLASS_NAME = "CapturedSnapshot302";
+    String METRIC_NAME = "syn_dist";
+    MetricProbe metricProbe =
+        createMetricBuilder(METRIC_ID, METRIC_NAME, DISTRIBUTION)
+            .where(CLASS_NAME, "download", null)
+            .valueScript(new ValueScript(DSL.ref("@duration"), "@duration"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    URL resource = CapturedSnapshotTest.class.getResource("/" + CLASS_NAME + ".kt");
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "1").get();
+      assertEquals(1, result);
+      assertTrue(listener.doubleDistributions.containsKey(METRIC_NAME));
+      assertTrue(listener.doubleDistributions.get(METRIC_NAME).doubleValue() > 0);
+      assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
   }
 
   @Test

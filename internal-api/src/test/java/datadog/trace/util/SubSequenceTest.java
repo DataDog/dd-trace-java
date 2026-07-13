@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -107,5 +108,30 @@ public class SubSequenceTest {
     StringBuilder builder1 = new StringBuilder();
     subSeq.appendTo(builder1);
     assertEquals(expectedStr, builder1.toString());
+  }
+
+  @Test
+  public void equalsIgnoreCase() {
+    SubSequence call = SubSequence.of("xx CALL yy", 3, 7); // "CALL"
+    assertTrue(call.equalsIgnoreCase("call"));
+    assertTrue(call.equalsIgnoreCase("CALL"));
+    assertTrue(call.equalsIgnoreCase("CaLl"));
+    assertFalse(call.equalsIgnoreCase("calls")); // length differs
+    assertFalse(call.equalsIgnoreCase("cant")); // same length, content differs
+
+    // case-sensitive equals stays case-sensitive
+    assertFalse(call.equals("call"));
+    assertTrue(call.equals("CALL"));
+  }
+
+  @Test
+  public void startsWith() {
+    SubSequence braceCall = SubSequence.of("xx{call} yy", 2, 7); // "{call"
+    assertTrue(braceCall.startsWith(""));
+    assertTrue(braceCall.startsWith("{"));
+    assertTrue(braceCall.startsWith("{ca"));
+    assertTrue(braceCall.startsWith("{call"));
+    assertFalse(braceCall.startsWith("call")); // not the prefix
+    assertFalse(braceCall.startsWith("{calls and more")); // prefix longer than sequence
   }
 }

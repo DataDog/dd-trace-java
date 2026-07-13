@@ -119,14 +119,22 @@ if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleRep
 }
 
 tasks.named('shadowJar', ShadowJar) {
+  // Keep duplicate detection enabled on the aggregate instrumentation jar.
+  //
+  // The previous source-set fixes and the servlet5 relocated-jar fix keep extra classes in
+  // producer jars without also publishing their raw output through `runtimeElements`. The old
+  // per-path `EXCLUDE` workaround is no longer needed.
+  //
+  // Shadow 9 honors `DuplicatesStrategy.FAIL` for these inputs. If a producer publishes the same
+  // classes from both its jar and a runtime file or directory, this task should fail again.
   duplicatesStrategy = DuplicatesStrategy.FAIL
   dependencies {
     // the tracer is now in a separate shadow jar
     exclude(project(":dd-trace-core"))
     exclude(dependency('com.datadoghq:sketches-java'))
     exclude(dependency('com.google.re2j:re2j'))
+    deps.excludeShared.execute(it)
   }
-  dependencies deps.excludeShared
 }
 
 // temporary config to add slf4j-simple so we get logging from instrumenters while indexing

@@ -781,10 +781,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   }
 
   @Override
-  public void processTagsAndBaggage(
-      final MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
-    context.processTagsAndBaggage(
-        consumer, longRunningVersion, this, injectLinksAsTags, injectBaggageAsTags);
+  public void processTagsAndBaggageWithStructuredLinks(final MetadataConsumer consumer) {
+    context.processTagsAndBaggageWithStructuredLinks(consumer, longRunningVersion, this);
   }
 
   @Override
@@ -964,6 +962,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   @Override
   public boolean isKind(SpanKindFilter filter) {
     return filter.matches(context.getSpanKindOrdinal());
+  }
+
+  @Override
+  public String getSpanKindString() {
+    return context.getSpanKindString();
   }
 
   @Override

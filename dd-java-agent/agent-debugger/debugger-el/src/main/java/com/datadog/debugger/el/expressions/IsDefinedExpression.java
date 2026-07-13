@@ -1,9 +1,11 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
+
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /** Check whether a {@linkplain Value} was resolved correctly or symbol exists.<br> */
 public class IsDefinedExpression implements BooleanExpression {
@@ -14,15 +16,17 @@ public class IsDefinedExpression implements BooleanExpression {
   }
 
   @Override
-  public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
+  public Boolean evaluate(EvalContext evalContext) {
     if (valueExpression == null) {
       return Boolean.FALSE;
     }
     try {
-      Value<?> value = valueExpression.evaluate(valueRefResolver);
+      Value<?> value = valueExpression.evaluate(evalContext);
       return value.isUndefined() ? Boolean.FALSE : Boolean.TRUE;
     } catch (EvaluationException ex) {
       return Boolean.FALSE;
+    } finally {
+      checkTimeout(evalContext.getTimeoutChecker(), this);
     }
   }
 
