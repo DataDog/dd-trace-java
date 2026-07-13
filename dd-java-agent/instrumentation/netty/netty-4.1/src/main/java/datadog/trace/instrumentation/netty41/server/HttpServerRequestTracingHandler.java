@@ -1,22 +1,21 @@
 package datadog.trace.instrumentation.netty41.server;
 
-import static datadog.trace.instrumentation.netty41.AttributeKeys.ANALYZED_RESPONSE_KEY;
-import static datadog.trace.instrumentation.netty41.AttributeKeys.BLOCKED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.PARENT_CONTEXT_ATTRIBUTE_KEY;
-import static datadog.trace.instrumentation.netty41.AttributeKeys.REQUEST_HEADERS_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
+import java.util.Deque;
 
 @ChannelHandler.Sharable
 public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapter {
@@ -49,11 +48,8 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, channel, request, parentContext);
 
-      channel.attr(ANALYZED_RESPONSE_KEY).set(null);
-      channel.attr(BLOCKED_RESPONSE_KEY).set(null);
-
-      channel.attr(CONTEXT_ATTRIBUTE_KEY).set(context);
-      channel.attr(REQUEST_HEADERS_ATTRIBUTE_KEY).set(request.headers());
+      final ServerRequestContext serverContext =
+          ServerRequestContext.add(channel, context, request.headers());
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
@@ -76,7 +72,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(ignored.context());
         span.finish(); // Finish the span manually since finishSpanOnClose was false
-        ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
+        ServerRequestContext.remove(ctx.channel(), serverContext);
         throw throwable;
       }
     }
@@ -88,11 +84,17 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       super.channelInactive(ctx);
     } finally {
       try {
-        final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).getAndRemove();
-        final AgentSpan span = AgentSpan.fromContext(storedContext);
-        if (span != null && span.phasedFinish()) {
-          // at this point we can just publish this span to avoid loosing the rest of the trace
-          span.publish();
+        final Deque<ServerRequestContext> storedContexts =
+            ServerRequestContext.removeAll(ctx.channel());
+        if (storedContexts != null) {
+          ServerRequestContext storedContext;
+          while ((storedContext = storedContexts.pollFirst()) != null) {
+            final AgentSpan span = AgentSpan.fromContext(storedContext.tracingContext());
+            if (span != null && span.phasedFinish()) {
+              // at this point we can just publish this span to avoid losing the rest of the trace
+              span.publish();
+            }
+          }
         }
       } catch (final Throwable ignored) {
       }

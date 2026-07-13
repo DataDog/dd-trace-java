@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.netty41.server;
 
-import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.WEBSOCKET_SENDER_HANDLER_CONTEXT;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 
@@ -8,6 +7,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
+import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
@@ -22,10 +22,16 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
 
   @Override
   public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise prm) {
-    final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
+    if (!(msg instanceof HttpResponse)) {
+      ctx.write(msg, prm);
+      return;
+    }
+
+    final ServerRequestContext serverContext = ServerRequestContext.nextResponse(ctx.channel());
+    final Context storedContext = serverContext == null ? null : serverContext.tracingContext();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
 
-    if (span == null || !(msg instanceof HttpResponse)) {
+    if (span == null) {
       ctx.write(msg, prm);
       return;
     }
@@ -39,7 +45,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         DECORATE.onError(span, throwable);
         span.setHttpStatusCode(500);
         span.finish(); // Finish the span manually since finishSpanOnClose was false
-        ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
+        ServerRequestContext.remove(ctx.channel(), serverContext);
         throw throwable;
       }
       final boolean isWebsocketUpgrade =
@@ -55,7 +61,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         DECORATE.onResponse(span, response);
         DECORATE.beforeFinish(scope.context());
         span.finish(); // Finish the span manually since finishSpanOnClose was false
-        ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
+        ServerRequestContext.remove(ctx.channel(), serverContext);
       }
     }
   }
