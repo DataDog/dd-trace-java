@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import datadog.communication.http.OkHttpUtils;
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
@@ -411,6 +412,39 @@ class AgentlessConfigurationSourceTest {
     assertFalse(service.pollOnce());
 
     verifyNoInteractions(listener);
+  }
+
+  @Test
+  void warnsRateLimitedOnUnauthorizedAndForbidden() throws Exception {
+    final RatelimitedLogger ratelimitedLogger = mock(RatelimitedLogger.class);
+    final FakeClient client = new FakeClient(response(401, null, null), response(403, null, null));
+    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    final AgentlessConfigurationSource service =
+        new AgentlessConfigurationSource(
+            HttpUrl.get("http://localhost" + CONFIG_PATH),
+            config(),
+            30_000,
+            client,
+            executor,
+            delay -> {},
+            () -> 1.0,
+            ratelimitedLogger);
+
+    try {
+      assertFalse(service.pollOnce());
+      assertFalse(service.pollOnce());
+
+      verify(ratelimitedLogger)
+          .warn(
+              "Feature Flagging agentless endpoint returned HTTP {}; verify DD_API_KEY is configured and valid",
+              HttpURLConnection.HTTP_UNAUTHORIZED);
+      verify(ratelimitedLogger)
+          .warn(
+              "Feature Flagging agentless endpoint returned HTTP {}; verify DD_API_KEY is configured and valid",
+              HttpURLConnection.HTTP_FORBIDDEN);
+    } finally {
+      service.close();
+    }
   }
 
   @Test

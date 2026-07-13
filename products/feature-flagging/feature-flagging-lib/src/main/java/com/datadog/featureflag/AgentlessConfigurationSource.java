@@ -4,6 +4,7 @@ import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_CONFIGURATION_POLLER;
 
 import datadog.communication.http.OkHttpUtils;
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
@@ -38,6 +39,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
   private static final String DATADOG_API_SERVER_DISTRIBUTION_PATH =
       "/api/v2/feature-flagging/config/server-distribution";
   private static final int MAX_ATTEMPTS = 3;
+  private static final int MINUTES_BETWEEN_AUTH_WARNINGS = 5;
   private static final long FIRST_RETRY_MIN_MILLIS = 2_000;
   private static final long FIRST_RETRY_MAX_MILLIS = 10_000;
   private static final long SECOND_RETRY_MIN_MILLIS = 5_000;
@@ -51,6 +53,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
   private final ScheduledExecutorService executor;
   private final RetrySleeper retrySleeper;
   private final DoubleSupplier jitter;
+  private final RatelimitedLogger ratelimitedLogger;
   private final Object lifecycleLock = new Object();
   private final AtomicBoolean polling = new AtomicBoolean();
   private volatile boolean closed;
@@ -73,7 +76,8 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         Executors.newSingleThreadScheduledExecutor(
             new AgentThreadFactory(FEATURE_FLAG_CONFIGURATION_POLLER)),
         TimeUnit.MILLISECONDS::sleep,
-        () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER));
+        () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER),
+        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_AUTH_WARNINGS, TimeUnit.MINUTES));
   }
 
   AgentlessConfigurationSource(
@@ -89,7 +93,8 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         client,
         executor,
         TimeUnit.MILLISECONDS::sleep,
-        () -> 1.0);
+        () -> 1.0,
+        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_AUTH_WARNINGS, TimeUnit.MINUTES));
   }
 
   AgentlessConfigurationSource(
@@ -100,6 +105,26 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       final ScheduledExecutorService executor,
       final RetrySleeper retrySleeper,
       final DoubleSupplier jitter) {
+    this(
+        endpoint,
+        config,
+        pollIntervalMillis,
+        client,
+        executor,
+        retrySleeper,
+        jitter,
+        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_AUTH_WARNINGS, TimeUnit.MINUTES));
+  }
+
+  AgentlessConfigurationSource(
+      final HttpUrl endpoint,
+      final Config config,
+      final long pollIntervalMillis,
+      final UfcHttpClient client,
+      final ScheduledExecutorService executor,
+      final RetrySleeper retrySleeper,
+      final DoubleSupplier jitter,
+      final RatelimitedLogger ratelimitedLogger) {
     this.endpoint = endpoint;
     this.config = config;
     this.pollIntervalMillis = pollIntervalMillis;
@@ -107,6 +132,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     this.executor = executor;
     this.retrySleeper = retrySleeper;
     this.jitter = jitter;
+    this.ratelimitedLogger = ratelimitedLogger;
   }
 
   @Override
@@ -207,9 +233,13 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       return true;
     }
     if (response.status == HttpURLConnection.HTTP_UNAUTHORIZED
-        || response.status == HttpURLConnection.HTTP_FORBIDDEN
-        || response.status != HttpURLConnection.HTTP_OK
-        || response.body == null) {
+        || response.status == HttpURLConnection.HTTP_FORBIDDEN) {
+      ratelimitedLogger.warn(
+          "Feature Flagging agentless endpoint returned HTTP {}; verify DD_API_KEY is configured and valid",
+          response.status);
+      return false;
+    }
+    if (response.status != HttpURLConnection.HTTP_OK || response.body == null) {
       return false;
     }
     final ServerConfiguration configuration;
