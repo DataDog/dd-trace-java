@@ -13,29 +13,22 @@ public class Java8BytecodeBridge {
   /**
    * @see Context#root()
    */
-  public static Context getRootContext() {
+  public static Context rootContext() {
     return Context.root();
   }
 
   /**
    * @see Context#current()
    */
-  public static Context getCurrentContext() {
+  public static Context currentContext() {
     return Context.current();
   }
 
   /**
-   * @see Context#from(Object)
+   * @see AgentSpan#current()
    */
-  public static Context getContextFrom(Object carrier) {
-    return Context.from(carrier);
-  }
-
-  /**
-   * @see Context#detachFrom(Object)
-   */
-  public static Context detachContextFrom(Object carrier) {
-    return Context.detachFrom(carrier);
+  public static AgentSpan currentSpan() {
+    return AgentSpan.current();
   }
 
   /**
@@ -44,4 +37,13 @@ public class Java8BytecodeBridge {
   public static AgentSpan spanFromContext(Context context) {
     return AgentSpan.fromContext(context);
   }
+
+  /**
+   * @see Baggage#fromContext(Context)
+   */
+  public static Baggage baggageFromContext(Context context) {
+    return Baggage.fromContext(context);
+  }
+
+  private Java8BytecodeBridge() {}
 }

@@ -1,0 +1,195 @@
+---
+name: apm-integrations
+description: Write a new library instrumentation end-to-end. Use when the user ask to add a new APM integration or a library instrumentation.
+context: fork
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Grep
+---
+
+Write a new APM end-to-end integration for dd-trace-java, based on library instrumentations, following all project conventions.
+
+## Step 1 – Read the authoritative docs and sync this skill (mandatory, always first)
+
+Before writing any code, read all three files in full:
+
+1. [`docs/how_instrumentations_work.md`](docs/how_instrumentations_work.md) — full reference (types, methods, advice, helpers, context stores, decorators)
+2. [`docs/add_new_instrumentation.md`](docs/add_new_instrumentation.md) — step-by-step walkthrough
+3. [`docs/how_to_test.md`](docs/how_to_test.md) — test types and how to run them
+
+These files are the single source of truth. Reference them while implementing.
+
+## Step 2 – Clarify the task
+
+If the user has not already provided all of the following, ask before proceeding:
+
+- **Framework name** and **minimum supported version** (e.g. `okhttp-3.0`)
+- **Target class(es) and method(s)** to instrument (fully qualified class names preferred)
+- **Target system**: one of `Tracing`, `Profiling`, `AppSec`, `Iast`, `CiVisibility`, `Usm`, `ContextTracking`
+- **Whether this is a bootstrap instrumentation** (affects allowed imports)
+
+## Step 3 – Find a reference instrumentation
+
+Search `dd-java-agent/instrumentation/` for a structurally similar integration:
+- Same target system
+- Comparable type-matching strategy (single type, hierarchy, known types)
+
+Read the reference integration's `InstrumenterModule`, Advice, Decorator, and test files to understand the established
+pattern before writing new code. Use it as a template.
+
+## Step 4 – Set up the module
+
+1. Create directory: `dd-java-agent/instrumentation/$framework/$framework-$minVersion/`
+2. Under it, create the standard Maven source layout:
+   - `src/main/java/` — instrumentation code
+   - `src/test/groovy/` — Groovy/Spock instrumentation tests (see Step 9.1)
+3. Create `build.gradle` with:
+   - `compileOnly` dependencies for the target framework
+   - `testImplementation` dependencies for tests
+   - `muzzle { pass { } }` directives (see Step 9.2)
+4. Register the new module in `settings.gradle.kts` in **alphabetical order**
+5. Register all integration names in `metadata/supported-configurations.json` — **read [Supported Configurations](references/supported-configurations.md)** for the exact key shapes and CI checks involved. Declaring several names (`super("a", "b")`) means one entry each.
+
+**See [Naming Conventions](references/naming-conventions.md) — module directory name must end with a version or an allowed suffix (`-common`, `-stubs`, `-iast`). Java filename and `public class` name MUST match character-for-character including acronym casing (CRITICAL — see § "Java naming consistency").**
+
+## Step 4.1 – Span-creating vs context-tracking instrumentation
+
+Read [Context-Tracking Instrumentation](references/context-tracking.md) and decide whether the library needs `InstrumenterModule.Tracing` (I/O operations that create spans) or `InstrumenterModule.ContextTracking` (async-boundary bridging, no spans).
+
+## Step 5 – Write the InstrumenterModule
+
+**Read [InstrumenterModule Guidance](references/instrumenter-module.md).**
+
+## Step 6 – Write the Decorator
+
+- Extend the most specific available base decorator:
+  - `HttpClientDecorator`, `DatabaseClientDecorator`, `ServerDecorator`, `MessagingClientDecorator`, etc.
+- One `public static final DECORATE` instance
+- Define `UTF8BytesString` constants for the component name and operation name
+- Keep all tag/naming/error logic here — not in the Advice class
+- Override `spanType()`, `component()`, `spanKind()` as appropriate
+- Override `instrumentationNames()` to return the primary integration name without a version suffix: `return new String[] {"jedis"};` not `"jedis-3.0"`.
+- `BaseDecorator` uses those names to resolve analytics settings (`DD_TRACE_<NAME>_ANALYTICS_ENABLED`, `DD_TRACE_<NAME>_ANALYTICS_SAMPLE_RATE`). Search `metadata/supported-configurations.json` for each returned name — if analytics keys are absent, add them (see [Supported Configurations](references/supported-configurations.md) for the JSON shape).
+
+## Step 7 – Write the Advice class (highest-risk step)
+
+**Read [Writing the Advice Class](references/advice-class.md) — the highest-risk step.** Pay particular attention to: `@Advice.OnMethodEnter/Exit` annotations; `CallDepthThreadLocalMap` reentrancy guarding; span lifecycle order; and the "Must NOT do" list.
+
+## Step 8 – Add SETTER/GETTER adapters (if applicable)
+
+For context propagation to and from upstream services, like HTTP headers,
+implement `AgentPropagation.Setter` / `AgentPropagation.Getter` adapters that wrap the framework's specific header API.
+Place them in the helpers package, declare them in `helperClassNames()`.
+
+## Step 9 – Write tests
+
+Cover all mandatory test types:
+
+### 1. Instrumentation test (mandatory)
+
+**Read [Writing Tests](references/tests.md).** Instrumentation tests are Groovy/Spock (`src/test/groovy/`) — add the `tag: override groovy enforcement` label to suppress the `Enforce Groovy Migration` CI check (which blocks new `.groovy` files by default — instrumentation tests are intentionally Groovy/Spock). Must cover error/exception scenarios. When adding new integration names, register them per [Supported Configurations](references/supported-configurations.md). When `compileOnly` and `testImplementation` use different versions, comment the specific class that requires the higher version. Include sibling version modules as `testImplementation` dependencies for mutual-exclusion tests.
+
+### 2. Muzzle directives (mandatory)
+
+**Read [Muzzle Directives](references/muzzle.md)** — it covers all three valid patterns and their `assertInverse` rules. Search adjacent module `build.gradle` files for `skipVersions` before declaring a new version-bounded module's muzzle directives.
+
+### 3. Latest dependency test (mandatory)
+
+Use `latestDepTestImplementation` in `build.gradle` to pin the latest available version. Run with:
+```bash
+./gradlew :dd-java-agent:instrumentation:$framework:$framework-$version:latestDepTest
+```
+
+**`latestDepTestImplementation` version range must match the instrumented range.** If your module instruments version `2.x`, use `2.+` as the version constraint, not `3.+`:
+
+```groovy
+// WRONG — latestDep tests against 3.x but the module only instruments 2.x
+latestDepTestImplementation group: 'commons-httpclient', name: 'commons-httpclient', version: '3.+'
+
+// CORRECT — latestDep tests against the highest 2.x release
+latestDepTestImplementation group: 'commons-httpclient', name: 'commons-httpclient', version: '2.+'
+```
+
+Using `3.+` for a `2.x` instrumentation means `latestDepTest` runs against an incompatible API version and will either fail or silently test nothing.
+
+### 4. Smoke test (optional)
+
+Add a smoke test in `dd-smoke-tests/` only if the framework warrants a full end-to-end demo-app test.
+
+## Step 10 – Build and verify
+
+Run these commands in order and fix any failures before proceeding:
+
+```bash
+./gradlew :dd-java-agent:instrumentation:$framework:$framework-$version:muzzle
+./gradlew :dd-java-agent:instrumentation:$framework:$framework-$version:test
+./gradlew :dd-java-agent:instrumentation:$framework:$framework-$version:latestDepTest
+./gradlew checkInstrumenterModuleConfigurations
+./gradlew checkDecoratorAnalyticsConfigurations
+./gradlew spotlessApply
+./gradlew :dd-java-agent:updateAgentJarIntegrationsGoldenFile
+```
+
+After `updateAgentJarIntegrationsGoldenFile` runs, commit the updated `metadata/agent-jar-checks.properties` file alongside your instrumentation changes. The `verifyAgentJarIntegrations` check runs automatically in CI and fails if this file is out of date.
+
+**If muzzle fails:**
+- Missing helper class names in `helperClassNames()` — the most common cause; add any missing inner, anonymous, or enum synthetic classes.
+- Wrong version range — the declared `versions` in `build.gradle` doesn't cover the versions actually used by tests; adjust the bounds.
+- API mismatch — the instrumented class or method doesn't exist in the declared version; check the library's changelog and narrow the `compileOnly` version or the muzzle range.
+
+**If `checkInstrumenterModuleConfigurations` fails:** an integration name from `super(...)` is missing
+(or mismatched) in `metadata/supported-configurations.json` — see [Supported Configurations](references/supported-configurations.md).
+
+**If `checkDecoratorAnalyticsConfigurations` fails:** a name returned by the decorator's `instrumentationNames()` is missing `DD_TRACE_<NAME>_ANALYTICS_ENABLED` / `DD_TRACE_<NAME>_ANALYTICS_SAMPLE_RATE` entries in `metadata/supported-configurations.json` — add them per [Supported Configurations](references/supported-configurations.md).
+
+**If tests fail:** verify span lifecycle order (start → activate → error → close → finish), helper registration,
+and `contextStore()` map entries match actual usage.
+
+## Step 11 – Checklist before finishing
+
+Output this checklist and confirm each item is satisfied:
+
+- [ ] `settings.gradle.kts` entry added in alphabetical order
+- [ ] `metadata/supported-configurations.json` has a `DD_TRACE_<NAME>_ENABLED` entry (+ the two aliases) for every name passed to `super(...)`
+- [ ] `metadata/supported-configurations.json` has `DD_TRACE_<NAME>_ANALYTICS_ENABLED` and `DD_TRACE_<NAME>_ANALYTICS_SAMPLE_RATE` entries for every name returned by the decorator's `instrumentationNames()`
+- [ ] `build.gradle` has `compileOnly` deps and `muzzle` directives
+- [ ] Muzzle pattern is correct (see [Muzzle Directives](references/muzzle.md))
+- [ ] `latestDepTestImplementation` version range matches the instrumented version range (e.g. `2+` not `3+` for a `2.x` module)
+- [ ] `@AutoService(InstrumenterModule.class)` annotation present on the module class
+- [ ] `helperClassNames()` lists ALL referenced helpers (including inner, anonymous, and enum synthetic classes)
+- [ ] Advice methods are `static` with `@Advice.OnMethodEnter` / `@Advice.OnMethodExit` annotations
+- [ ] `@Advice.OnMethodEnter(suppress = Throwable.class)` on enter; `@Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)` on exit (omit `onThrowable` when hooking a constructor)
+- [ ] No static constants holding return values of one-shot instrumenter methods (`triggerClasses()`, `contextStore()`, etc.)
+- [ ] No logger field in the Advice class or InstrumenterModule class
+- [ ] No `inline=false` left in production code
+- [ ] No `java.util.logging.*` / `java.nio.file.*` / `javax.management.*` in bootstrap path
+- [ ] `metadata/agent-jar-checks.properties` updated via `./gradlew :dd-java-agent:updateAgentJarIntegrationsGoldenFile` and committed
+- [ ] Span lifecycle order is correct: startSpan → afterStart → activateSpan (enter); onError → beforeFinish → close → finish (exit)
+- [ ] All Step 10 verification commands passed with no failures
+
+## Step 12 – Retrospective: update this skill with what was learned
+
+After the instrumentation is complete (or abandoned), review the full session and improve this skill for future use.
+
+**Collect lessons from four sources:**
+
+1. **Build/test failures** — did any Gradle task fail with an error that this skill did not anticipate or gave wrong
+   guidance for? (e.g. a muzzle failure that wasn't caused by missing helpers, a test pattern that didn't work)
+2. **Docs vs. skill gaps** — did Step 1's sync miss anything? Did you consult the docs for something not captured here?
+3. **Reference instrumentation insights** — did the reference integration use a pattern, API, or convention not
+   reflected in any step of this skill?
+4. **User corrections** — did the user correct an output, override a decision, or point out a mistake?
+
+**For each lesson identified**, edit this file (`.agents/skills/apm-integrations/SKILL.md`) or its referenced files
+using the `Edit` tool:
+- Wrong rule → fix it in place
+- Missing rule → add it to the most relevant step
+- Wrong failure guidance → update the relevant "If X fails" section in Step 10
+- Misleading or obsolete content → remove it
+
+Keep each change minimal and targeted. Do not rewrite sections that worked correctly.
+After editing, confirm to the user which improvements were made to the skill.

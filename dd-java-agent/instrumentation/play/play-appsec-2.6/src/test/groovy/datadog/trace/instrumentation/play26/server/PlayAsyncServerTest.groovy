@@ -13,6 +13,11 @@ class PlayAsyncServerTest extends AbstractPlayServerTest {
     true
   }
 
+  @Override
+  boolean testBodyFilesContent() {
+    true
+  }
+
   @Shared
   def executor
 

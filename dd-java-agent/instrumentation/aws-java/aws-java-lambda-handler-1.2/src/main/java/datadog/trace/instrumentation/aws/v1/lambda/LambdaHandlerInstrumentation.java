@@ -126,7 +126,9 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         }
         String lambdaRequestId = awsContext.getAwsRequestId();
 
-        AgentTracer.get().notifyAppSecEnd(span);
+        if (throwable == null) {
+          AgentTracer.get().notifyAppSecEnd(span, result);
+        }
         // Force the resource name back to the literal placeholder marker right
         // before finish so that the Datadog Lambda Extension's filter
         // (filter_span_from_lambda_library_or_runtime in
