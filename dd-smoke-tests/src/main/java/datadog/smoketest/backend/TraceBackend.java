@@ -34,6 +34,23 @@ public interface TraceBackend extends AutoCloseable {
   @Override
   void close();
 
+  /**
+   * The session token the launched app must emit (via {@code dd.trace.agent.test.session.token})
+   * for its traces to be attributed to this backend, or {@code null} if the backend does not scope
+   * by session (e.g. the in-process mock, which owns its own server). Overridden by the test agent.
+   */
+  default String sessionToken() {
+    return null;
+  }
+
+  /**
+   * Whether this backend manages its own lifecycle as a separate {@code @RegisterExtension} shared
+   * across apps (S6). When {@code false} (default), the owning {@code SmokeApp} starts/stops it.
+   */
+  default boolean isShared() {
+    return false;
+  }
+
   /** Creates an in-process mock-agent backend wrapping the testing {@code JavaTestHttpServer}. */
   static MockAgentBackend mockAgent() {
     return new MockAgentBackend();

@@ -83,11 +83,13 @@ public final class TestAgentBackend implements TraceBackend {
    * The session token this backend scopes its traces by. The launched app must emit it via {@code
    * -Ddd.trace.agent.test.session.token=<token>} so its traces land in this backend's session.
    */
+  @Override
   public String sessionToken() {
     return sessionToken;
   }
 
   /** Whether this backend is meant to be shared across multiple apps (consumed by S6). */
+  @Override
   public boolean isShared() {
     return shared;
   }
