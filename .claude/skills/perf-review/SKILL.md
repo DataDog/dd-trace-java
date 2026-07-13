@@ -184,6 +184,7 @@ Follow this structure (see `references/example-review.md` for a full worked inst
 PR #11903, Bucket4j). Showing your suppressed lookalikes and what you cleared is not
 filler: it demonstrates the precision that makes the findings trustworthy.
 
+When providing suggestions as code review comments, prefix the comments with "perf: "
 ```markdown
 # Perf Review — <branch / PR>
 
