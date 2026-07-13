@@ -181,7 +181,7 @@ Drop anything that resolves to benign. Then report in the format below.
 ## Output format
 
 Follow this structure (see `references/example-review.md` for a full worked instance —
-PR #11903, Bucket4j). Showing your suppressed lookalikes and what you cleared is not
+). Showing your suppressed lookalikes and what you cleared is not
 filler: it demonstrates the precision that makes the findings trustworthy.
 
 When providing suggestions as code review comments, prefix the comments with "perf: "
