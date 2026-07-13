@@ -123,7 +123,8 @@ final class AggregateEntry extends Hashtable.Entry {
   private int errorCount;
   private int hitCount;
   private int topLevelCount;
-  private long duration;
+  private long okDuration;
+  private long errorDuration;
 
   /**
    * Field-bearing constructor. Package-private so {@link AggregateEntryTestUtils} can build
@@ -173,11 +174,12 @@ final class AggregateEntry extends Hashtable.Entry {
     if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
       tagAndDuration ^= ERROR_TAG;
       errorLatenciesForWrite().accept(tagAndDuration);
+      errorDuration += tagAndDuration;
       ++errorCount;
     } else {
       okLatencies.accept(tagAndDuration);
+      okDuration += tagAndDuration;
     }
-    duration += tagAndDuration;
     return this;
   }
 
@@ -194,7 +196,15 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   long getDuration() {
-    return duration;
+    return okDuration + errorDuration;
+  }
+
+  long getOkDuration() {
+    return okDuration;
+  }
+
+  long getErrorDuration() {
+    return errorDuration;
   }
 
   Histogram getOkLatencies() {
@@ -232,7 +242,8 @@ final class AggregateEntry extends Hashtable.Entry {
     this.errorCount = 0;
     this.hitCount = 0;
     this.topLevelCount = 0;
-    this.duration = 0;
+    this.okDuration = 0;
+    this.errorDuration = 0;
     this.okLatencies.clear();
     // errorLatencies stays null on entries that never errored. Only clear if it was allocated.
     if (this.errorLatencies != null) {

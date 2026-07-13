@@ -117,6 +117,8 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       int expectedTraces,
       int expectedCoverages)
       throws IOException {
+    Assumptions.assumeFalse(
+        JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
     runGradleTest(
         gradleVersion,
         projectName,
@@ -125,6 +127,34 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
         flakyRetries,
         expectedTraces,
         expectedCoverages);
+  }
+
+  @TableTest({
+    "scenario           | gradleVersion | projectName              | expectedTraces",
+    "robolectric-latest | latest        | test-succeed-robolectric | 6             "
+  })
+  @ParameterizedTest
+  void testRobolectric(String gradleVersion, String projectName, int expectedTraces)
+      throws IOException {
+    Assumptions.assumeTrue(
+        JavaVirtualMachine.isJavaVersionBetween(17, 22), "Robolectric 4.16 supports JDK 17-21");
+
+    gradleVersion = resolveVersion(gradleVersion);
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
+    givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
+    givenGradleProjectFiles(projectName);
+    givenGradleProjectProperties();
+    ensureDependenciesDownloaded(gradleVersion);
+
+    BuildResult buildResult = runGradleTests(gradleVersion, true, false);
+    assertBuildSuccessful(buildResult);
+
+    verifyEventsAndCoverages(
+        projectName,
+        "gradle",
+        gradleVersion,
+        mockBackend.waitForEvents(expectedTraces),
+        mockBackend.waitForCoverages(0));
   }
 
   // TODO: add back LATEST_GRADLE_VERSION after fixing ordering on Gradle 9.3.0

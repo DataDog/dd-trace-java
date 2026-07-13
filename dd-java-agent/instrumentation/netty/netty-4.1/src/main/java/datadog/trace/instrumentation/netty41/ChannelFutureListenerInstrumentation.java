@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.netty41;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.NETTY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.NETTY_CONNECT;
@@ -95,7 +94,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
 
       final AgentSpan errorSpan = startSpan("netty", NETTY_CONNECT).setTag(Tags.COMPONENT, "netty");
       errorSpan.spanContext().setIntegrationName(NETTY);
-      try (final ContextScope scope = getCurrentContext().with(errorSpan).attach()) {
+      try (final ContextScope scope = errorSpan.attachWithContext()) {
         NettyHttpServerDecorator.DECORATE.onError(errorSpan, cause);
         NettyHttpServerDecorator.DECORATE.beforeFinish(scope.context());
         errorSpan.finish();

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.netty41.server;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.WEBSOCKET_SENDER_HANDLER_CONTEXT;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
@@ -24,7 +23,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
   @Override
   public void write(final ChannelHandlerContext ctx, final Object msg, final ChannelPromise prm) {
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
-    final AgentSpan span = spanFromContext(storedContext);
+    final AgentSpan span = AgentSpan.fromContext(storedContext);
 
     if (span == null || !(msg instanceof HttpResponse)) {
       ctx.write(msg, prm);

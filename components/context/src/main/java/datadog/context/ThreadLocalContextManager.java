@@ -8,11 +8,11 @@ import javax.annotation.Nullable;
 final class ThreadLocalContextManager implements ContextManager {
   static final ThreadLocalContextManager INSTANCE = new ThreadLocalContextManager();
 
-  private static final NoopContextContinuation ROOT_CONTINUATION =
-      new NoopContextContinuation(Context.root());
-
   private static final ThreadLocal<ContextHolder> CONTEXT_HOLDER =
       ThreadLocal.withInitial(ContextHolder::new);
+
+  private static final NoopContextContinuation ROOT_CONTINUATION =
+      new NoopContextContinuation(Context.root());
 
   private final Object listenersWriteLock = new Object();
   volatile ContextListener[] listeners = {};
@@ -40,16 +40,11 @@ final class ThreadLocalContextManager implements ContextManager {
       return context.asScope(); // convert to scope without attaching
     }
 
-    ContextListener[] ls = listeners;
-    notifyDetach(beforeAttach, ls);
     holder.current = context;
-    notifyAttach(context, ls);
-
-    if (continuation == null) {
-      return new ContextScopeImpl(context, holder, beforeAttach);
-    } else {
-      return new ResumedScopeImpl(context, holder, beforeAttach, continuation);
-    }
+    notifyUpdate(listeners, beforeAttach, context);
+    return continuation == null
+        ? new ContextScopeImpl(context, holder, beforeAttach)
+        : new ResumedScopeImpl(context, holder, beforeAttach, continuation);
   }
 
   @Override
@@ -61,21 +56,14 @@ final class ThreadLocalContextManager implements ContextManager {
       return beforeSwap;
     }
 
-    ContextListener[] ls = listeners;
-    notifyDetach(beforeSwap, ls);
     holder.current = context;
-    notifyAttach(context, ls);
-
+    notifyUpdate(listeners, beforeSwap, context);
     return beforeSwap;
   }
 
   @Override
   public ContextContinuation capture(Context context) {
-    if (context == Context.root()) {
-      return ROOT_CONTINUATION;
-    } else {
-      return new ContextContinuationImpl(context);
-    }
+    return context == Context.root() ? ROOT_CONTINUATION : new ContextContinuationImpl(context);
   }
 
   @Override
@@ -99,31 +87,16 @@ final class ThreadLocalContextManager implements ContextManager {
     }
   }
 
-  static void notifyAttach(Context context, ContextListener[] listeners) {
-    if (context == Context.root()) {
-      return; // don't emit attach events for the default "no context" case
-    }
+  static void notifyUpdate(ContextListener[] listeners, Context before, Context after) {
     for (ContextListener l : listeners) {
       try {
-        l.onAttach(context);
+        l.onUpdate(before, after);
       } catch (Throwable ignore) {
       }
     }
   }
 
-  static void notifyDetach(Context context, ContextListener[] listeners) {
-    if (context == Context.root()) {
-      return; // don't emit detach events for the default "no context" case
-    }
-    for (ContextListener l : listeners) {
-      try {
-        l.onDetach(context);
-      } catch (Throwable ignore) {
-      }
-    }
-  }
-
-  static void notifyCapture(Context context, ContextListener[] listeners) {
+  static void notifyCapture(ContextListener[] listeners, Context context) {
     // only called for non-empty continuations
     for (ContextListener l : listeners) {
       try {
@@ -133,7 +106,7 @@ final class ThreadLocalContextManager implements ContextManager {
     }
   }
 
-  static void notifyRelease(Context context, ContextListener[] listeners) {
+  static void notifyRelease(ContextListener[] listeners, Context context) {
     // only called for non-empty continuations
     for (ContextListener l : listeners) {
       try {
@@ -166,10 +139,8 @@ final class ThreadLocalContextManager implements ContextManager {
     public void close() {
       // check for out-of-order close to avoid corrupting the current state
       if (!closed && context == holder.current) {
-        ContextListener[] ls = INSTANCE.listeners;
-        notifyDetach(context, ls);
         holder.current = beforeAttach;
-        notifyAttach(beforeAttach, ls);
+        notifyUpdate(INSTANCE.listeners, context, beforeAttach);
         closed = true;
       }
     }
@@ -232,7 +203,7 @@ final class ThreadLocalContextManager implements ContextManager {
 
     ContextContinuationImpl(Context context) {
       this.context = context;
-      notifyCapture(context, INSTANCE.listeners);
+      notifyCapture(INSTANCE.listeners, context);
     }
 
     @Override
@@ -270,7 +241,7 @@ final class ThreadLocalContextManager implements ContextManager {
       while (current == 0) {
         // no outstanding resumes and hold has been removed
         if (COUNT.compareAndSet(this, current, RELEASED)) {
-          notifyRelease(context, INSTANCE.listeners);
+          notifyRelease(INSTANCE.listeners, context);
           return;
         }
         current = count;
@@ -280,7 +251,7 @@ final class ThreadLocalContextManager implements ContextManager {
     void releaseOnScopeClose() {
       if (COUNT.compareAndSet(this, 1, RELEASED)) {
         // fast path: only one resume of the continuation (no hold)
-        notifyRelease(context, INSTANCE.listeners);
+        notifyRelease(INSTANCE.listeners, context);
       } else if (COUNT.decrementAndGet(this) == 0) {
         // slow path: multiple resumes, all scopes now closed (no hold)
         release();
