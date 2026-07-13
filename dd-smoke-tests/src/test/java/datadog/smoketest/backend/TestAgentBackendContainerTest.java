@@ -3,7 +3,6 @@ package datadog.smoketest.backend;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
@@ -23,7 +22,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.DockerClientFactory;
 
 /**
  * End-to-end tests for {@link TestAgentBackend} against a real dd-apm-test-agent container. Skipped
@@ -35,6 +33,7 @@ import org.testcontainers.DockerClientFactory;
  * <p>Uses the public {@code ghcr.io} image so it runs without internal-registry access; real smoke
  * tests default to the CI mirror (see {@link TestAgentBackend}).
  */
+@EnabledIfDockerAvailable
 class TestAgentBackendContainerTest {
   private static final String PUBLIC_IMAGE =
       "ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.44.0";
@@ -46,9 +45,6 @@ class TestAgentBackendContainerTest {
 
   @BeforeAll
   static void setUp() throws IOException {
-    assumeTrue(
-        DockerClientFactory.instance().isDockerAvailable(),
-        "Docker is required for the test-agent container backend");
     v04Payload = readResource("/datadog/smoketest/backend/webflux.04.msgpack");
     backend = TraceBackend.testAgent().image(PUBLIC_IMAGE).build();
     backend.start();
