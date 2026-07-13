@@ -110,16 +110,16 @@ public final class DatadogProfiler {
   private final List<String> orderedContextAttributes;
 
   // True for each attribute slot that was configured by the application (e.g. foo, bar).
-  // ddprof wipes all custom slots on setContext; these slots are re-applied via
-  // reapplyAppContext() on span activation.
+  // setTraceContext/clearTraceContext reset all custom slots; these app-owned slots are
+  // re-applied afterwards via reapplyAppContext().
   private final boolean[] isAppOffset;
 
   private final boolean hasAppContext;
 
   /**
    * Per-thread snapshot of application attribute values. Lazily allocated; only threads that call
-   * setContextValue for an app attribute ever allocate. Holds the String value for each slot; the
-   * all-native reapply resolves each value's encoding through the process-wide value cache.
+   * setContextValue for an app attribute ever allocate. Holds the String value for each slot;
+   * reapply resolves each value's encoding through the process-wide value cache.
    */
   private final ThreadLocal<AppContextSnapshot> appContextValues = new ThreadLocal<>();
 
@@ -159,9 +159,9 @@ public final class DatadogProfiler {
 
   // Package-private so DatadogProfilingScope can hold a typed reference for save/restore.
   static final class AppContextSnapshot {
-    // App-managed attribute values, indexed by slot. On the all-native path a value is written via
-    // JavaProfiler.setContextValue (which resolves it through the process-wide value cache), so the
-    // snapshot only needs the String — no cached constant ID / UTF-8 bytes.
+    // App-managed attribute values, indexed by slot. A value is written via
+    // JavaProfiler.setContextValue, which resolves it through the process-wide value cache, so the
+    // snapshot only needs the String value.
     private final String[] strings;
     // Count of slots with a non-null value; allows O(1) isEmpty().
     private int nonZeroCount;
@@ -241,8 +241,7 @@ public final class DatadogProfiler {
     this.orderedContextAttributes = getOrderedContextAttributes(contextAttributes, configProvider);
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
     // ContextSetter deduplicates and truncates to 10 internally; size arrays to its actual size.
-    // size() is a pure-Java count (no DBB read) — kept alongside offsetOf as the only ContextSetter
-    // methods this bridge still uses; all context writes/reads are all-native.
+    // size() and offsetOf are pure-Java; they are the only ContextSetter methods this bridge uses.
     int contextSize = contextSetter.size();
     boolean[] appOffsets = new boolean[contextSize];
     boolean anyApp = false;
@@ -489,9 +488,8 @@ public final class DatadogProfiler {
   /**
    * Combined per-activation write: full trace/span context plus the span-derived operation and
    * resource attributes, in a single native call, followed by a reapply of app-managed attributes
-   * (the native call resets all custom slots). Replaces the previous {@code setContext} + two
-   * {@code setContextValue} calls. A negative attribute offset (or null value) skips that
-   * attribute.
+   * (the native call resets all custom slots). A negative attribute offset (or null value) skips
+   * that attribute.
    */
   public void setTraceContext(
       long rootSpanId,
@@ -614,8 +612,7 @@ public final class DatadogProfiler {
    *
    * <p>Per-slot native {@code setContextValue} calls (each resolved through the process-wide value
    * cache, so no re-encoding on a hit). A single-JNI-call batch is a possible future optimization
-   * (see java-profiler PROF-15361); per-slot preserves the prior shape and is adequate for the
-   * typical small app-attribute count.
+   * (java-profiler PROF-15361); per-slot is adequate for the typical small app-attribute count.
    */
   public void reapplyAppContext() {
     if (!hasAppContext) {
@@ -736,8 +733,8 @@ public final class DatadogProfiler {
       snapshot = new AppContextSnapshot(isAppOffset.length);
       appContextValues.set(snapshot);
     }
-    // The all-native path resolves the value → encoding via the process-wide cache on reapply, so
-    // the snapshot only needs the String (no per-thread snapshotTags read of the encoding).
+    // Reapply resolves the value → encoding via the process-wide cache, so the snapshot only needs
+    // the String value.
     if (!value.equals(snapshot.stringAt(offset))) {
       snapshot.record(offset, value);
     }
@@ -754,8 +751,7 @@ public final class DatadogProfiler {
     if (n == 0) {
       return EMPTY;
     }
-    // Native read of the current thread's sidecar tag encodings — no ThreadContext / DBB (which
-    // would reset the record). Observes encodings written through the all-native path.
+    // Native read of the current thread's sidecar tag encodings; does not reset the record.
     int[] tags = new int[n];
     profiler.copyContextTags(tags);
     return tags;
