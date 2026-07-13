@@ -153,6 +153,26 @@ final class JUnitReport {
     }
   }
 
+  /// Downgrades failing testcases to `test.final_status=skip` for jobs that tolerate failures.
+  ///
+  /// The flaky test jobs (`test_flaky`, `test_flaky_inst`) run with `CONTINUE_ON_FAILURE=true`, so
+  /// Gradle test failures are swallowed and a failing flaky test does not fail the job. Reporting
+  /// those failures to Test Optimization as `fail` produces false-positive failure notifications
+  /// and skews SLIs, so we record them as `skip` instead. Passing and skipped tests keep their 
+  /// natural status, so the tests stay visible in Test Optimization.
+  ///
+  /// **Must run before {@link #tagFinalStatuses()}** so the natural `fail` status is never assigned
+  /// to these testcases. Testcases already tagged by {@link #tagRetriedAttempts()} or
+  /// {@link #tagSyntheticFailures()} are left untouched.
+  void tagFailuresAsSkipped() {
+    for (var testcase : testcases()) {
+      if (hasFinalStatusProperty(testcase) || !isFailed(testcase)) {
+        continue;
+      }
+      addFinalStatusProperty(testcase, "skip", MissingPropertiesPlacement.FIRST_CHILD);
+    }
+  }
+
   void write(Path xmlFile) throws Exception {
     Files.createDirectories(xmlFile.getParent());
     var tmpFile = Files.createTempFile(xmlFile.getParent(), "collect-results-", ".xml");
@@ -239,13 +259,17 @@ final class JUnitReport {
   }
 
   private static String finalStatus(Element testcase) {
-    if (hasChildElement(testcase, "failure") || hasChildElement(testcase, "error")) {
+    if (isFailed(testcase)) {
       return "fail";
     }
     if (hasChildElement(testcase, "skipped")) {
       return "skip";
     }
     return "pass";
+  }
+
+  private static boolean isFailed(Element testcase) {
+    return hasChildElement(testcase, "failure") || hasChildElement(testcase, "error");
   }
 
   private static Element firstChildElement(Element parent, String tagName) {
