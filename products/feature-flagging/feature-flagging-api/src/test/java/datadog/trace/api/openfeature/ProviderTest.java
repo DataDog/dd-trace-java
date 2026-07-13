@@ -7,6 +7,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -92,6 +94,56 @@ public class ProviderTest {
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
     await().atMost(ofSeconds(1)).until(() -> client.getProviderState() == ProviderState.READY);
     provider.get(1, SECONDS);
+  }
+
+  @Test
+  public void testOfflineConfigurationIsDispatchedBeforeEvaluatorInitialization() throws Exception {
+    final byte[] configuration = {1, 2, 3};
+    final FeatureFlaggingGateway.OfflineConfigListener listener =
+        mock(FeatureFlaggingGateway.OfflineConfigListener.class);
+    final Evaluator evaluator = mock(Evaluator.class);
+    when(evaluator.initialize(eq(30L), eq(SECONDS), any())).thenReturn(true);
+    when(evaluator.hasConfiguration()).thenReturn(true);
+    FeatureFlaggingGateway.addOfflineConfigListener(listener);
+
+    try {
+      final Provider provider =
+          new Provider(new Options().offlineConfiguration(configuration), evaluator);
+
+      provider.initialize(null);
+
+      verify(listener).accept(configuration);
+      verify(evaluator).initialize(30, SECONDS, null);
+    } finally {
+      FeatureFlaggingGateway.removeOfflineConfigListener(listener);
+    }
+  }
+
+  @Test
+  public void testOfflineConfigurationRequiresOfflineSource() {
+    final Provider provider =
+        new Provider(
+            new Options().initTimeout(10, MILLISECONDS).offlineConfiguration(new byte[] {1}),
+            mock(Evaluator.class));
+
+    assertThrows(FatalError.class, () -> provider.initialize(null));
+  }
+
+  @Test
+  public void testOfflineConfigurationIsDefensivelyCopied() {
+    final byte[] configuration = {1, 2, 3};
+    final Options options = new Options().offlineConfiguration(configuration);
+
+    configuration[0] = 9;
+    final byte[] firstCopy = options.getOfflineConfiguration();
+    final byte[] secondCopy = options.getOfflineConfiguration();
+
+    assertArrayEquals(new byte[] {1, 2, 3}, firstCopy);
+    assertArrayEquals(firstCopy, secondCopy);
+    assertNotSame(firstCopy, secondCopy);
+    assertThrows(IllegalArgumentException.class, () -> new Options().offlineConfiguration(null));
+    assertThrows(
+        IllegalArgumentException.class, () -> new Options().offlineConfiguration(new byte[0]));
   }
 
   @Test

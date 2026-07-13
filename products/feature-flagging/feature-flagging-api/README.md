@@ -55,6 +55,24 @@ boolean enabled = client.getBooleanValue("my-feature", false,
     new MutableContext("user-123"));
 ```
 
+### Offline startup configuration
+
+Offline mode accepts a complete UFC JSON payload at provider startup and does not subscribe to a
+network configuration source:
+
+```shell
+DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=offline
+```
+
+```java
+byte[] ufc = Files.readAllBytes(Path.of("flags.json"));
+Provider.Options options = new Provider.Options().offlineConfiguration(ufc);
+OpenFeatureAPI.getInstance().setProviderAndWait(new Provider(options));
+```
+
+The provider copies the payload and applies it once. Invalid or missing bytes fail initialization;
+runtime configuration updates are not supported in offline mode.
+
 ## Evaluation metrics
 
 When `DD_METRICS_OTEL_ENABLED=true` and the OpenTelemetry API is on the classpath, the provider
@@ -90,6 +108,5 @@ OTEL_EXPORTER_OTLP_PROTOCOL=grpc
   different HTTP backend while keeping agentless delivery semantics. A bare
   host uses the standard server-distribution path; a URL with a path is used as
   the exact UFC endpoint. `remote_config` uses the existing Agent Remote
-  Configuration path. `offline` is reserved for startup-provided UFC bytes;
-  until those bytes are implemented, no network source starts and evaluations
-  use defaults.
+  Configuration path. `offline` requires startup-provided UFC bytes and starts
+  neither the agentless poller nor the FFE Remote Configuration subscription.
