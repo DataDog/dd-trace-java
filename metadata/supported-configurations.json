@@ -10693,8 +10693,7 @@
       {
         "version": "A",
         "type": "int",
-        "default": "2048",
-        "aliases": ["DD_TRACE_TRACER_METRICS_MAX_AGGREGATES"]
+        "default": "2048"
       }
     ],
     "DD_TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION": [
