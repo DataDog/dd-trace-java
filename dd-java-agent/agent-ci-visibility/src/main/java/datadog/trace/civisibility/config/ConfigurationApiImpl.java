@@ -222,6 +222,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     Map<String, Map<String, List<String>>> aggregateTests = new HashMap<>();
     String pageState = null;
     int pageNumber = 0;
+    long startMs = System.currentTimeMillis();
+    int totalRequestMs = 0;
 
     do {
       pageNumber += 1;
@@ -233,6 +235,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
           new Envelope<>(new Data<>(uuid, "ci_app_libraries_tests_request", requestDto));
       String json = knownTestsRequestAdapter.toJson(request);
       RequestBody requestBody = RequestBody.create(JSON, json);
+      long pageStartMs = System.currentTimeMillis();
       KnownTestsResponse knownTests =
           backendApi.post(
               KNOWN_TESTS_URI,
@@ -243,6 +246,8 @@ public class ConfigurationApiImpl implements ConfigurationApi {
                       .attributes,
               telemetryListener,
               false);
+      long pageEndMs = System.currentTimeMillis();
+      totalRequestMs += (int) (pageEndMs - pageStartMs);
 
       mergeKnownTests(aggregateTests, knownTests.tests);
 
@@ -266,6 +271,12 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             : 0;
     LOGGER.debug("Received {} known tests in total", knownTestsCount);
     metricCollector.add(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_TESTS, knownTestsCount);
+    long totalFetchMs = System.currentTimeMillis() - startMs;
+    metricCollector.add(CiVisibilityDistributionMetric.KNOWN_TESTS_PAGES_FETCHED, pageNumber);
+    metricCollector.add(
+        CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_FETCH_MS, (int) totalFetchMs);
+    metricCollector.add(
+        CiVisibilityDistributionMetric.KNOWN_TESTS_TOTAL_REQUEST_MS, totalRequestMs);
     // returning null disables features that rely on known tests; this is intentional on the very
     // first execution for a repository, when we want to seed the backend with the initial set.
     return testsByModule;
