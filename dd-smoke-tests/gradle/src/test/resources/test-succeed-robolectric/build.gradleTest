@@ -1,0 +1,108 @@
+import java.util.zip.ZipFile
+import org.gradle.api.artifacts.transform.InputArtifact
+import org.gradle.api.artifacts.transform.TransformAction
+import org.gradle.api.artifacts.transform.TransformOutputs
+import org.gradle.api.artifacts.transform.TransformParameters
+import org.gradle.api.attributes.AttributeCompatibilityRule
+import org.gradle.api.attributes.CompatibilityCheckDetails
+import org.gradle.api.attributes.LibraryElements
+
+apply plugin: 'java'
+
+repositories {
+  mavenLocal()
+
+  def proxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
+  if (proxyUrl) {
+    println "Using proxy repository: $proxyUrl"
+    maven {
+      url = proxyUrl
+      allowInsecureProtocol = true
+    }
+  }
+
+  mavenCentral()
+
+  // androidx.test artifacts (Robolectric runtime dependencies) are published only to Google's Maven
+  // repository. Scope it strictly to androidx.* so nothing else resolves from it.
+  maven {
+    url = 'https://maven.google.com'
+    content {
+      includeGroupByRegex 'androidx\\..*'
+    }
+  }
+}
+
+// androidx.test ships as Android archives (.aar), which a plain-JVM build cannot consume directly.
+// Teach Gradle to accept the aar variant and extract its classes.jar — the part the Android Gradle
+// plugin would otherwise do. Safe to apply broadly here: this is a standalone project with no
+// class-directory (project) dependencies.
+abstract class AarToJarCompatibility implements AttributeCompatibilityRule<LibraryElements> {
+  @Override
+  void execute(CompatibilityCheckDetails<LibraryElements> details) {
+    if (details.producerValue != null && details.producerValue.name == 'aar') {
+      details.compatible()
+    }
+  }
+}
+
+abstract class ExtractAarClasses implements TransformAction<TransformParameters.None> {
+  @InputArtifact
+  abstract Provider<FileSystemLocation> getInputArtifact()
+
+  @Override
+  void transform(TransformOutputs outputs) {
+    def aar = inputArtifact.get().asFile
+    if (!aar.name.endsWith('.aar')) {
+      outputs.file(aar)
+      return
+    }
+    new ZipFile(aar).withCloseable { zip ->
+      def entry = zip.getEntry('classes.jar')
+      def out = outputs.file(aar.name - '.aar' + '.jar')
+      if (entry != null) {
+        out.withOutputStream { os -> zip.getInputStream(entry).withCloseable { input -> os << input } }
+      } else {
+        new java.util.jar.JarOutputStream(out.newOutputStream()).close()
+      }
+    }
+  }
+}
+
+def artifactType = Attribute.of('artifactType', String)
+
+dependencies {
+  attributesSchema {
+    attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE) {
+      compatibilityRules.add(AarToJarCompatibility)
+    }
+  }
+  registerTransform(ExtractAarClasses) {
+    from.attribute(artifactType, 'aar')
+    to.attribute(artifactType, 'jar')
+  }
+}
+
+configurations.configureEach {
+  if (canBeResolved) {
+    attributes.attribute(artifactType, 'jar')
+  }
+}
+
+dependencies {
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.robolectric:robolectric:4.16.1'
+  // Pre-built Android SDK jar for the level the fixtures configure.
+  testImplementation 'org.robolectric:android-all:14-robolectric-10818077'
+  // androidx.test:core pulls in androidx.test:monitor (InstrumentationRegistry); ext:junit provides
+  // the AndroidJUnit4 runner, which delegates to RobolectricTestRunner for local (host-JVM) tests.
+  testImplementation 'androidx.test:core:1.6.1'
+  testImplementation 'androidx.test.ext:junit:1.2.1'
+}
+
+test {
+  useJUnit()
+  // Coverage is validated by the other Gradle smoke scenarios; disable it here so this scenario
+  // stays focused on the emulated-SDK (test.android.*) tags.
+  environment "DD_CIVISIBILITY_CODE_COVERAGE_ENABLED", "false"
+}

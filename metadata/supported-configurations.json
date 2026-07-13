@@ -9561,6 +9561,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_RMI_ENABLED", "DD_INTEGRATION_RMI_ENABLED"]
       }
     ],
+    "DD_TRACE_ROBOLECTRIC_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_ROBOLECTRIC_ENABLED", "DD_INTEGRATION_ROBOLECTRIC_ENABLED"]
+      }
+    ],
     "DD_TRACE_RMI_SERVER_ANALYTICS_ENABLED": [
       {
         "version": "A",
