@@ -90,9 +90,7 @@ Before choosing, run `ls dd-java-agent/instrumentation/$framework/` — the dire
 
 Do NOT add version aliases to the decorator's `instrumentationNames()` — that method is for analytics keys only.
 
-_Rationale traceable to reviewer comments: single-name-for-single-module (Valentin Zakharov on PR #11709, comment `3532152120`); version alias when siblings exist (Stuart McCulloch on PR #11760, comment `3552616459`)._
-
-**When regenerating an existing module, preserve every override the master version has.** Not just `super(...)` — also `defaultEnabled()`, `helperClassNames()`, `contextStore()`, `orderPriority()`, `muzzleDirective()`, and any other overridden method. Read the current version of the file (on master) before generating; carry each override forward verbatim unless there's a documented reason to change it. Silent loss of `defaultEnabled() = false` (or similar opt-in flags) ships an integration with a different default than users expected.
+**When rewriting or refactoring an existing module, preserve every override the master version has.** Not just `super(...)` — also `defaultEnabled()`, `helperClassNames()`, `contextStore()`, `orderPriority()`, `muzzleDirective()`, and any other overridden method. Read the current file on master before writing; carry each override forward verbatim unless there's a documented reason to change it. Silent loss of `defaultEnabled() = false` (or similar opt-in flags) ships an integration with a different default than users expected.
 
 ### Do not create a helper class just for CallDepthThreadLocalMap when only one type is instrumented
 
