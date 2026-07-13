@@ -14,6 +14,7 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.Utils;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.HashMap;
@@ -21,6 +22,7 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.jacoco.core.analysis.Analyzer;
@@ -36,16 +38,27 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
 
   private static final Logger log = LoggerFactory.getLogger(LineCoverageStore.class);
 
+  /**
+   * Upper bound on the number of cached class analyses. Coverage stays correct beyond it (analysis
+   * just isn't cached), this only guards memory for pathologically large suites.
+   */
+  private static final int MAX_ANALYSIS_CACHE_ENTRIES = 50_000;
+
   private final CiVisibilityMetricCollector metrics;
   private final SourcePathResolver sourcePathResolver;
+  // Module-wide cache: (class id + probe set) -> covered lines, shared across tests so a class
+  // covered identically by many tests is parsed by Jacoco's Analyzer only once.
+  private final Map<AnalysisCacheKey, BitSet> analysisCache;
 
   private LineCoverageStore(
       Function<Boolean, LineProbes> probesFactory,
       CiVisibilityMetricCollector metrics,
-      SourcePathResolver sourcePathResolver) {
+      SourcePathResolver sourcePathResolver,
+      Map<AnalysisCacheKey, BitSet> analysisCache) {
     super(probesFactory);
     this.metrics = metrics;
     this.sourcePathResolver = sourcePathResolver;
+    this.analysisCache = analysisCache;
   }
 
   @Nullable
@@ -88,24 +101,9 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
       }
       String sourcePath = sourcePaths.iterator().next();
 
-      try (InputStream is = Utils.getClassStream(clazz)) {
-        BitSet coveredLines =
-            coveredLinesBySourcePath.computeIfAbsent(sourcePath, key -> new BitSet());
-        ExecutionDataStore store = new ExecutionDataStore();
-        store.put(executionDataAdapter.toExecutionData());
-
-        // TODO optimize this part to avoid parsing
-        //  the same class multiple times for different test cases
-        Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(coveredLines));
-        analyzer.analyzeClass(is, null);
-
-      } catch (Exception exception) {
-        log.debug(
-            "Skipping coverage reporting for {} ({}) because of error",
-            className,
-            sourcePath,
-            exception);
-        metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1);
+      BitSet coveredLines = analyzeClass(clazz, executionDataAdapter);
+      if (coveredLines != null) {
+        coveredLinesBySourcePath.computeIfAbsent(sourcePath, key -> new BitSet()).or(coveredLines);
       }
     }
 
@@ -137,10 +135,81 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
     return report;
   }
 
+  /**
+   * Resolves the covered lines for a class given a test's probe activations. Parsing the class with
+   * Jacoco's {@link Analyzer} is the dominant cost of reporting, and the result depends only on the
+   * class bytecode and the probe set, so it is memoized: the same class covered identically by
+   * different tests is parsed once.
+   *
+   * @return the covered lines, or {@code null} if the class could not be analyzed
+   */
+  @Nullable
+  private BitSet analyzeClass(Class<?> clazz, ExecutionDataAdapter executionDataAdapter) {
+    AnalysisCacheKey key =
+        new AnalysisCacheKey(
+            executionDataAdapter.getClassId(), executionDataAdapter.getProbeActivations());
+    BitSet cached = analysisCache.get(key);
+    if (cached != null) {
+      return cached;
+    }
+
+    try (InputStream is = Utils.getClassStream(clazz)) {
+      BitSet coveredLines = new BitSet();
+      ExecutionDataStore store = new ExecutionDataStore();
+      store.put(executionDataAdapter.toExecutionData());
+      Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(coveredLines));
+      analyzer.analyzeClass(is, null);
+
+      if (analysisCache.size() < MAX_ANALYSIS_CACHE_ENTRIES) {
+        analysisCache.putIfAbsent(key, coveredLines);
+      }
+      return coveredLines;
+
+    } catch (Exception exception) {
+      log.debug(
+          "Skipping coverage reporting for {} because of error",
+          executionDataAdapter.getClassName(),
+          exception);
+      metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1);
+      return null;
+    }
+  }
+
+  /** Cache key identifying a class (by Jacoco class id) covered by a specific set of probes. */
+  static final class AnalysisCacheKey {
+    private final long classId;
+    private final boolean[] probes;
+    private final int hash;
+
+    AnalysisCacheKey(long classId, boolean[] probes) {
+      this.classId = classId;
+      this.probes = probes;
+      this.hash = 31 * Long.hashCode(classId) + Arrays.hashCode(probes);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof AnalysisCacheKey)) {
+        return false;
+      }
+      AnalysisCacheKey other = (AnalysisCacheKey) o;
+      return classId == other.classId && hash == other.hash && Arrays.equals(probes, other.probes);
+    }
+
+    @Override
+    public int hashCode() {
+      return hash;
+    }
+  }
+
   public static final class Factory implements CoverageStore.Factory {
 
     private final CiVisibilityMetricCollector metrics;
     private final SourcePathResolver sourcePathResolver;
+    private final Map<AnalysisCacheKey, BitSet> analysisCache = new ConcurrentHashMap<>();
 
     public Factory(CiVisibilityMetricCollector metrics, SourcePathResolver sourcePathResolver) {
       this.metrics = metrics;
@@ -149,7 +218,7 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
 
     @Override
     public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
-      return new LineCoverageStore(this::createProbes, metrics, sourcePathResolver);
+      return new LineCoverageStore(this::createProbes, metrics, sourcePathResolver, analysisCache);
     }
 
     private LineProbes createProbes(boolean isTestThread) {

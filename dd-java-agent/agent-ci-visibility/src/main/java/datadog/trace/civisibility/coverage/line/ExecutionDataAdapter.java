@@ -21,6 +21,10 @@ public class ExecutionDataAdapter {
     return className;
   }
 
+  long getClassId() {
+    return classId;
+  }
+
   boolean[] getProbeActivations() {
     return probeActivations;
   }

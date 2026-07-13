@@ -2,7 +2,9 @@ package datadog.trace.civisibility.coverage.line;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -65,5 +67,20 @@ class LineCoverageStoreTest {
     if (report != null) {
       assertTrue(report.getTestReportFileEntries().isEmpty());
     }
+  }
+
+  @Test
+  void analysisCacheKeyDistinguishesClassesAndProbeSets() {
+    boolean[] probes = {true, false, true};
+    boolean[] sameProbes = {true, false, true};
+    boolean[] otherProbes = {true, true, true};
+
+    LineCoverageStore.AnalysisCacheKey key = new LineCoverageStore.AnalysisCacheKey(1L, probes);
+    // identical class id + probe contents must collide so the analysis is reused
+    assertEquals(key, new LineCoverageStore.AnalysisCacheKey(1L, sameProbes));
+    assertEquals(key.hashCode(), new LineCoverageStore.AnalysisCacheKey(1L, sameProbes).hashCode());
+    // a different class or a different probe set must NOT hit the same cache entry
+    assertNotEquals(key, new LineCoverageStore.AnalysisCacheKey(2L, probes));
+    assertNotEquals(key, new LineCoverageStore.AnalysisCacheKey(1L, otherProbes));
   }
 }
