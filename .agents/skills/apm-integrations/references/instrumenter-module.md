@@ -59,13 +59,17 @@ Each name passed to `super(...)` becomes a distinct `DD_TRACE_<NAME>_ENABLED` fl
 **Single module, no version siblings, no imminent sibling planned** — pass ONE name:
 
 ```java
-// CORRECT — single-module framework
-public FeignInstrumentation() {
-    super("feign");
+// CORRECT — single-module framework (freemarker lives in freemarker-2.3.9/
+// and freemarker-2.3.24/ sibling directories yet still passes ONE name because
+// the two directories share the same integration name)
+public DollarVariableInstrumentation() {
+    super("freemarker");
 }
 ```
 
-Adding a version alias here mints a `DD_TRACE_<NAME>_<VER>_ENABLED` flag that has no counterpart to gate against; it doubles the config surface for no operator benefit. Empirically, most single-module frameworks in dd-trace-java (`feign`, `freemarker`, `liberty`, `sparkjava`) use one name — even when they live in a versioned directory.
+Adding a version alias here mints a `DD_TRACE_<NAME>_<VER>_ENABLED` flag that has no counterpart to gate against; it doubles the config surface for no operator benefit. Empirically, single-name-only frameworks in dd-trace-java include `freemarker` (across `freemarker-2.3.9/` and `freemarker-2.3.24/`), `liberty` (across `liberty-20.0/` and `liberty-23.0/`), and most other framework directories with a single integration name.
+
+**Counter-example — `sparkjava`:** the `sparkjava-2.3/` module uses `super("sparkjava", "sparkjava-2.4")` (note the `-2.4`, not `-2.3`) because the module compiles against Spark 2.3 but tests against 2.4 (Spark's `JettyHandler` is available from 2.4). The versioned alias here reflects the version the code EXERCISES, not the compile-time minimum. This is intentional; do NOT invent a `-2.3` alias just because the directory is named `sparkjava-2.3/`. If in doubt, read the master `super(...)` and copy it verbatim.
 
 **Multiple version siblings exist** (`okhttp-2.0/` AND `okhttp-3.0/`, `jedis-1.4/` AND `jedis-3.0/` AND `jedis-4.0/`) — pass a shared group name PLUS a version-qualified alias so each version has an independent toggle sharing one group flag:
 

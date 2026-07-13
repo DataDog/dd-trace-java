@@ -63,14 +63,26 @@ Hybrid libraries that BOTH coordinate work AND perform I/O usually get one span-
 
 ## Preserving cancellation on `CompletableFuture` / `CompletionStage` returns
 
-When advice wraps a `CompletableFuture` returned from an async client via `@Advice.Return(readOnly = false)`, do NOT reassign the return with `future = future.whenComplete(...)`. `whenComplete` produces a **dependent stage**; cancelling that stage does not cancel the original request. The caller's `future.cancel(true)` then only cancels the dependent stage and leaves the underlying I/O running.
+When advice attaches a completion callback to a `CompletableFuture` returned from an async client, do NOT reassign the return with `future = future.whenComplete(...)`. `whenComplete` produces a **dependent stage**; cancelling that stage does not cancel the original request. The caller's `future.cancel(true)` then only cancels the dependent stage and leaves the underlying I/O running.
+
+The correct pattern attaches the callback for side-effects only, without reassigning the return — so `@Advice.Return` does NOT need `readOnly = false`:
 
 ```java
-// WRONG — severs cancellation from the caller
-future = future.whenComplete((result, error) -> finishSpan(span, result, error));
+// WRONG — severs cancellation from the caller; also unnecessarily requires readOnly = false
+@Advice.OnMethodExit(suppress = Throwable.class)
+public static void exit(@Advice.Return(readOnly = false) CompletableFuture<Response> future,
+                        @Advice.Enter AgentSpan span) {
+  future = future.whenComplete((result, error) -> finishSpan(span, result, error));
+}
 
-// CORRECT — attach the callback without reassigning
-future.whenComplete((result, error) -> finishSpan(span, result, error));
+// CORRECT — attach the callback for its side-effect; keep the return read-only
+@Advice.OnMethodExit(suppress = Throwable.class)
+public static void exit(@Advice.Return CompletableFuture<Response> future,
+                        @Advice.Enter AgentSpan span) {
+  future.whenComplete((result, error) -> finishSpan(span, result, error));
+}
 ```
 
-If the wrapper truly needs to return a different `CompletionStage` (rare), forward `cancel(...)` to the original future explicitly. Applies to any async client instrumentation returning a cancellable `CompletionStage`.
+Only add `readOnly = false` if you have a documented reason to substitute the return value. If your goal is just to observe completion, the read-only pattern is both safer (preserves cancellation) and simpler. Applies to any async client instrumentation returning a cancellable `CompletionStage`.
+
+If the wrapper genuinely needs to return a different `CompletionStage` (rare), forward `cancel(...)` to the original future explicitly.

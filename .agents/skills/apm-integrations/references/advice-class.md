@@ -119,10 +119,14 @@ See the `@AppliesOn Annotation` section of `docs/how_instrumentations_work.md` f
 
 When an inner framework (Spark, Ratpack routes, JAX-RS handlers) runs *inside* an outer HTTP server (Jetty, Netty, Undertow, servlet containers), the outer server's instrumentation already opened the request span (typically `servlet.request` or `jetty-server`). Do NOT create a new `Decorator`, rename the active span, or overwrite its component tag from inside the inner framework's advice. That silently rewrites `servlet.request` → `spark.request` in production traces — a breaking observability change.
 
-Instead, enrich the active span with the matched route only:
+Instead, enrich the active span with the matched route only. `HTTP_RESOURCE_DECORATOR.withRoute(...)` does NOT guard against a null span, so you MUST null-check before calling it — otherwise the advice NPEs when there is no active span (rare but possible under certain execution paths):
 
 ```java
-HTTP_RESOURCE_DECORATOR.withRoute(activeSpan(), request.method(), route.matchedPath());
+// CORRECT — matches the pattern in dd-java-agent/instrumentation/spark/sparkjava-2.3/.../RoutesInstrumentation.java
+final AgentSpan span = activeSpan();
+if (span != null && routeMatch != null) {
+  HTTP_RESOURCE_DECORATOR.withRoute(span, method.name(), routeMatch.getMatchUri());
+}
 ```
 
 No `AgentScope`, no `startSpan()`, no `decorator.afterStart()`. This applies to any inner routing/dispatch framework that runs inside another instrumented HTTP server. It does NOT apply to standalone HTTP clients, which own their own span identity.

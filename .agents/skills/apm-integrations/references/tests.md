@@ -90,7 +90,7 @@ This ensures `:test` in each module validates that only the correct module fires
 
 `Thread.sleep(...)` is a recipe for flake. Use a deterministic mechanism instead:
 
-- `TEST_WRITER.waitForTraces(N)` — waits until exactly N traces have been recorded, with a bounded timeout
+- `TEST_WRITER.waitForTraces(N)` — waits until at least N traces have been recorded (`traceCount >= N`), with a bounded timeout of 20s (see `dd-trace-core/src/main/java/datadog/trace/common/writer/ListWriter.java`). Use `TEST_WRITER.size()` afterwards to assert the exact count you expect.
 - `CountDownLatch` / `CompletableFuture.get(timeout, TimeUnit)` — for signalling from async callbacks
 - Spock's `PollingConditions` — for polling an assertion until it holds
 

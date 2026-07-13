@@ -60,7 +60,7 @@ The Gradle checks (`checkInstrumenterModuleConfigurations`, `checkDecoratorAnaly
 When adding a new tracer configuration to `metadata/supported-configurations.json`:
 
 - Every new `super(...)` name needs a corresponding `_ENABLED` entry — omitting entries causes `checkInstrumenterModuleConfigurations` to fail.
-- Use the registry-canonical `type` field: `boolean` for `_ENABLED`, `double` for ratio/rate values (NOT `decimal`), `integer` for counts, `string` for enumerations. Consult `metadata/supported-configurations.json` for existing examples of each type.
-- Every new `_ANALYTICS_SAMPLE_RATE` needs both an `_ANALYTICS_ENABLED` (boolean) and an `_ANALYTICS_SAMPLE_RATE` (double) entry.
+- Use the registry-canonical `type` field: `boolean` for `_ENABLED`, `decimal` for ratio/rate values (NOT `double`), `int` for counts (NOT `integer`), `string` for enumerations, `array` and `map` where applicable. The `dd-gitlab/validate_supported_configurations_v2_local_file` CI job will fail on non-canonical type names. Consult `metadata/supported-configurations.json` for existing examples of each.
+- Every new `_ANALYTICS_SAMPLE_RATE` needs both an `_ANALYTICS_ENABLED` (`boolean`) and an `_ANALYTICS_SAMPLE_RATE` (`decimal`) entry.
 
 Run `./gradlew checkInstrumenterModuleConfigurations` locally before pushing to catch registration mismatches.
