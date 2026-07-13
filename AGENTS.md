@@ -68,7 +68,7 @@ docs/                     Developer documentation (see below)
 
 - Title: imperative verb sentence describing user-visible change (e.g. "Fix span sampling rule parsing")
 - Labels: always add `tag: ai generated` and at least one `comp:` or `inst:` label + one `type:` label
-- Use `tag: no release note` for internal/refactoring changes
+- Use `tag: no release notes` for internal/refactoring changes
 - Open as draft first, convert to ready when reviewable
 
 ## Bootstrap constraints (critical)
