@@ -137,7 +137,7 @@ public class InjectingPipeWriter extends Writer {
         // we have a full match. just write everything
         filter = false;
         drain();
-        int bytesToWrite = idx;
+        int bytesToWrite = idx - off;
         downstream.write(array, off, bytesToWrite);
         bytesWritten += bytesToWrite;
         long injectionStart = System.nanoTime();
@@ -149,8 +149,8 @@ public class InjectingPipeWriter extends Writer {
         if (onContentInjected != null) {
           onContentInjected.run();
         }
-        bytesToWrite = len - idx;
-        downstream.write(array, off + idx, bytesToWrite);
+        bytesToWrite = off + len - idx;
+        downstream.write(array, idx, bytesToWrite);
         bytesWritten += bytesToWrite;
       } else {
         // we don't have a full match. write everything in a bulk except the lookbehind buffer
@@ -168,7 +168,7 @@ public class InjectingPipeWriter extends Writer {
         bytesWritten += bytesToWrite;
         filter = wasFiltering;
 
-        for (int i = len - marker.length + 1; i < len; i++) {
+        for (int i = off + len - marker.length + 1; i < off + len; i++) {
           write(array[i]);
         }
       }
@@ -181,7 +181,7 @@ public class InjectingPipeWriter extends Writer {
   }
 
   private int arrayContains(char[] array, int off, int len, char[] search) {
-    for (int i = off; i < len - search.length; i++) {
+    for (int i = off; i <= off + len - search.length; i++) {
       if (array[i] == search[0]) {
         boolean found = true;
         int k = i;
