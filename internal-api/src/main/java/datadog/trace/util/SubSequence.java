@@ -1,5 +1,7 @@
 package datadog.trace.util;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * A <code>CharSequence</code> that is a view into a sub-sequence of a <code>String</code>. Unlike
  * <code>String.subSequence</code>, this class doesn't allocate an additional <code>String</code>,
@@ -104,7 +106,11 @@ public final class SubSequence implements CharSequence {
    * #contentEquals(CharSequence)}. So {@code this.equals(backingStr.substring(beginIndex,
    * endIndex))} is true, and two views with equal content are equal.
    */
+  // Intentionally asymmetric: a SubSequence equals any String/CharSequence with the same content,
+  // so subSeq.equals(str) can be true while str.equals(subSeq) is false. This view-equality
+  // convenience is by design (see class javadoc); accepted despite the equals() symmetry contract.
   @Override
+  @SuppressFBWarnings("EQ_CHECK_FOR_OPERAND_NOT_COMPATIBLE_WITH_THIS")
   public boolean equals(Object obj) {
     if (obj instanceof String) return this.equals((String) obj);
     if (obj instanceof CharSequence) return this.contentEquals((CharSequence) obj);
@@ -113,20 +119,18 @@ public final class SubSequence implements CharSequence {
   }
 
   /**
-   * Equivalent to {@code toString().equals(other)} -- compares this window against the whole {@code
-   * other} String with no substring materialized. Delegates to {@link String#regionMatches} so it
-   * reuses the JDK's backing-array compare rather than a per-char loop.
+   * Equivalent to {@code toString().equals(other)}. A thin alias for {@link
+   * #contentEquals(String)}, kept for callers working in terms of {@code equals}; prefer {@link
+   * #contentEquals(String)} directly.
    */
   public final boolean equals(String other) {
-    return other != null
-        && other.length() == this.length()
-        && this.str.regionMatches(this.beginIndex, other, 0, other.length());
+    return this.contentEquals(other);
   }
 
   /**
    * Equivalent to {@code toString().contentEquals(that)}: true when {@code that} has the same
    * length and characters as this window. The general char-by-char comparison for any {@code
-   * CharSequence}; prefer {@link #equals(String)} when the argument is known to be a {@code
+   * CharSequence}; prefer {@link #contentEquals(String)} when the argument is known to be a {@code
    * String}.
    */
   public final boolean contentEquals(CharSequence that) {
@@ -139,6 +143,18 @@ public final class SubSequence implements CharSequence {
       if (this.charAt(i) != that.charAt(i)) return false;
     }
     return true;
+  }
+
+  /**
+   * String-specialized {@link #contentEquals(CharSequence)}: true when {@code other} has the same
+   * length and characters as this window, via {@link String#regionMatches} (backing-array compare,
+   * no per-char loop). Prefer this to {@link #equals(Object)} -- it states content-comparison
+   * intent and is free of the {@code equals} contract's cross-type asymmetry.
+   */
+  public final boolean contentEquals(String other) {
+    return other != null
+        && other.length() == this.length()
+        && this.str.regionMatches(this.beginIndex, other, 0, other.length());
   }
 
   /**
