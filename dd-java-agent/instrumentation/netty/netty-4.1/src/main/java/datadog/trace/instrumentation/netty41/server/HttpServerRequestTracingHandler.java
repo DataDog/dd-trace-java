@@ -98,7 +98,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
           ServerRequestContext storedContext;
           while ((storedContext = storedContexts.pollFirst()) != null) {
             if (storedContext.isResponseStarted()) {
-              finishSpanOnIncompleteResponse(storedContext);
+              finishSpanOnChannelClose(storedContext);
             } else {
               publishSpanOnChannelClose(storedContext.tracingContext());
             }
@@ -109,17 +109,23 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     }
   }
 
-  private static void finishSpanOnIncompleteResponse(final ServerRequestContext serverContext) {
+  private static void finishSpanOnChannelClose(final ServerRequestContext serverContext) {
     final Context storedContext = serverContext.tracingContext();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
-    if (span != null) {
-      DECORATE.onError(span, new IllegalStateException(INCOMPLETE_RESPONSE_MESSAGE));
-      if (!serverContext.isBeforeFinishCalled()) {
-        serverContext.markBeforeFinishCalled();
-        DECORATE.beforeFinish(storedContext);
-      }
-      span.finish();
+    if (span == null) {
+      return;
     }
+    if (!serverContext.isResponseCloseDelimited()) {
+      // The response declared a body via Content-Length or chunked encoding, but the channel closed
+      // before that body completed. Close-delimited responses, in contrast, end normally when the
+      // connection closes.
+      DECORATE.onError(span, new IllegalStateException(INCOMPLETE_RESPONSE_MESSAGE));
+    }
+    if (!serverContext.isBeforeFinishCalled()) {
+      serverContext.markBeforeFinishCalled();
+      DECORATE.beforeFinish(storedContext);
+    }
+    span.finish();
   }
 
   private static void publishSpanOnChannelClose(final Context storedContext) {

@@ -50,9 +50,6 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
               future -> finishSpan(serverContext, storedContext, span, future));
         }
         ctx.write(msg, writePromise);
-        if (serverContext.isResponseStarted()) {
-          beforeFinish(serverContext, storedContext);
-        }
       } catch (final Throwable throwable) {
         DECORATE.onError(span, throwable);
         span.setHttpStatusCode(500);
@@ -85,9 +82,18 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       }
       DECORATE.onResponse(span, response);
       serverContext.markResponseStarted();
-      return msg instanceof LastHttpContent
+      if (msg instanceof LastHttpContent
           || isBodylessResponse(serverContext, response)
-          || isWebsocketUpgrade;
+          || isWebsocketUpgrade) {
+        return true;
+      }
+      // A response with neither a Content-Length nor chunked transfer-encoding is delimited by the
+      // connection closing, so a later channel close is the normal end of this response rather than
+      // an incomplete one.
+      if (!hasKnownBodyLength(response)) {
+        serverContext.markResponseCloseDelimited();
+      }
+      return false;
     }
     return serverContext.isResponseStarted() && msg instanceof LastHttpContent;
   }
@@ -112,8 +118,24 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         || statusCode == 205
         || statusCode == 304
         || (serverContext.isConnectRequest() && statusCode >= 200 && statusCode < 300)
-        || (HttpUtil.getContentLength(response, -1) == 0
-            && !HttpUtil.isTransferEncodingChunked(response));
+        || (contentLength(response) == 0 && !HttpUtil.isTransferEncodingChunked(response));
+  }
+
+  private static boolean hasKnownBodyLength(final HttpResponse response) {
+    return contentLength(response) >= 0 || HttpUtil.isTransferEncodingChunked(response);
+  }
+
+  /**
+   * Returns the response {@code Content-Length}, or {@code -1} when it is absent or malformed. A
+   * malformed value is left for Netty's encoder to reject rather than failing the write from the
+   * tracing handler.
+   */
+  private static long contentLength(final HttpResponse response) {
+    try {
+      return HttpUtil.getContentLength(response, -1L);
+    } catch (final NumberFormatException e) {
+      return -1L;
+    }
   }
 
   private static void finishSpan(

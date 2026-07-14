@@ -197,6 +197,7 @@ public final class ServerRequestContext {
   private final HttpHeaders requestHeaders;
   private final HttpMethod requestMethod;
   private boolean responseStarted;
+  private boolean responseCloseDelimited;
   private boolean beforeFinishCalled;
   private boolean responseAnalyzed;
 
@@ -222,6 +223,14 @@ public final class ServerRequestContext {
 
   public void markResponseStarted() {
     responseStarted = true;
+  }
+
+  public boolean isResponseCloseDelimited() {
+    return responseCloseDelimited;
+  }
+
+  public void markResponseCloseDelimited() {
+    responseCloseDelimited = true;
   }
 
   public boolean isBeforeFinishCalled() {

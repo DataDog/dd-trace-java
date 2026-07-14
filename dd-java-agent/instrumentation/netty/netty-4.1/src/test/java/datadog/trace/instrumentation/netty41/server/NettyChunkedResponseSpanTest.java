@@ -52,6 +52,7 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
   private static final String CONTENT_LENGTH_ZERO_PATH = "/bodyless/content-length-zero";
   private static final String HEAD_PATH = "/bodyless/head";
   private static final String NO_RESPONSE_PATH = "/no-response";
+  private static final String CLOSE_DELIMITED_PATH = "/close-delimited";
   private static final String WEBSOCKET_PATH = "/websocket";
   private static final String CONNECT_AUTHORITY = "example.com:443";
   private static final String EARLY_HINTS_PATH = "/chunked/early-hints";
@@ -100,6 +101,27 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
     assertFalse(
         reportedBeforeConnectionDrop, "server span should not be reported before connection drop");
     assertTraces(trace(serverSpan(PATH).error()));
+  }
+
+  @Test
+  void finishesServerSpanWithoutErrorForCloseDelimitedResponse() throws Exception {
+    boolean reportedBeforeConnectionClose;
+    try (Socket socket = connect()) {
+      socket.getOutputStream().write(request(CLOSE_DELIMITED_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      ChannelHandlerContext responseContext = handler.awaitFirstChunkWritten();
+      reportedBeforeConnectionClose = writer.waitForTracesMax(1, 1);
+
+      closeChannel(responseContext);
+    }
+
+    assertFalse(
+        reportedBeforeConnectionClose,
+        "server span should not be reported before the connection closes");
+    // The response has neither Content-Length nor chunked encoding, so closing the connection is
+    // its normal completion and the span must not be flagged as an error.
+    assertTraces(trace(serverSpan(CLOSE_DELIMITED_PATH)));
   }
 
   @Test
@@ -352,6 +374,8 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
         writeHeaderOnlyResponse(ctx, request.uri(), OK);
       } else if (NO_RESPONSE_PATH.equals(request.uri())) {
         requestsWithoutResponse.offer(ctx);
+      } else if (CLOSE_DELIMITED_PATH.equals(request.uri())) {
+        writeCloseDelimitedResponse(ctx);
       } else if (WEBSOCKET_PATH.equals(request.uri())) {
         writeHeaderOnlyWebSocketUpgrade(ctx, request.uri());
       } else {
@@ -362,6 +386,16 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
     private void writeChunkedResponse(ChannelHandlerContext ctx) {
       DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
       response.headers().set(TRANSFER_ENCODING, CHUNKED);
+      ctx.write(response);
+      ctx.writeAndFlush(new DefaultHttpContent(Unpooled.copiedBuffer("first", UTF_8)))
+          .addListener(future -> firstChunkWrites.offer(ctx));
+    }
+
+    private void writeCloseDelimitedResponse(ChannelHandlerContext ctx) {
+      // No Content-Length and no chunked transfer-encoding: the body is delimited by the connection
+      // closing.
+      DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+      response.headers().set(CONNECTION, "close");
       ctx.write(response);
       ctx.writeAndFlush(new DefaultHttpContent(Unpooled.copiedBuffer("first", UTF_8)))
           .addListener(future -> firstChunkWrites.offer(ctx));
