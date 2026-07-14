@@ -63,7 +63,7 @@ public class CommandHandlerInstrumentation extends InstrumenterModule.ContextTra
       return null;
     }
 
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter AgentScope scope) {
       endTaskScope(scope);
     }

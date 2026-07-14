@@ -34,13 +34,12 @@ public class RequestDispatcherDecorator extends BaseDecorator {
   }
 
   @Override
-  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+  public void onError(final AgentSpan span, final Throwable throwable) {
     if (throwable instanceof ServletException && throwable.getCause() != null) {
       super.onError(span, throwable.getCause());
     } else {
       super.onError(span, throwable);
     }
-    return span;
   }
 
   public <C> void injectContext(Context context, final C request, CarrierSetter<C> setter) {

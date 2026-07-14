@@ -1505,6 +1505,14 @@
         "aliases": []
       }
     ],
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED": [
       {
         "version": "B",
@@ -9559,6 +9567,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_RMI_ENABLED", "DD_INTEGRATION_RMI_ENABLED"]
+      }
+    ],
+    "DD_TRACE_ROBOLECTRIC_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_ROBOLECTRIC_ENABLED", "DD_INTEGRATION_ROBOLECTRIC_ENABLED"]
       }
     ],
     "DD_TRACE_RMI_SERVER_ANALYTICS_ENABLED": [

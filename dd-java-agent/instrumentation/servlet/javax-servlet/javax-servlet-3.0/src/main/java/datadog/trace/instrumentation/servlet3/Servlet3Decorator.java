@@ -97,7 +97,7 @@ public class Servlet3Decorator
   }
 
   @Override
-  public AgentSpan onRequest(
+  public void onRequest(
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
@@ -116,17 +116,16 @@ public class Servlet3Decorator
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
-    return super.onRequest(span, connection, request, parentContext);
+    super.onRequest(span, connection, request, parentContext);
   }
 
   @Override
-  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+  public void onError(final AgentSpan span, final Throwable throwable) {
     if (throwable instanceof ServletException && throwable.getCause() != null) {
       super.onError(span, throwable.getCause());
     } else {
       super.onError(span, throwable);
     }
-    return span;
   }
 
   /**
