@@ -8,7 +8,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLongArray;
 import javax.annotation.Nullable;
 
@@ -350,37 +349,6 @@ final class AggregateEntry extends Hashtable.Entry {
     if (this.errorLatencies != null) {
       this.errorLatencies.clear();
     }
-  }
-
-  /**
-   * Equality on the 13 label fields (not on the recording counters). Used only by test mock
-   * matchers; the {@link Hashtable} does its own bucketing via {@link #keyHash} + {@link
-   * Canonical#matches} and never calls {@code equals}.
-   */
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (!(o instanceof AggregateEntry)) return false;
-    AggregateEntry that = (AggregateEntry) o;
-    return httpStatusCode == that.httpStatusCode
-        && synthetic == that.synthetic
-        && traceRoot == that.traceRoot
-        && Objects.equals(resource, that.resource)
-        && Objects.equals(service, that.service)
-        && Objects.equals(operationName, that.operationName)
-        && Objects.equals(serviceSource, that.serviceSource)
-        && Objects.equals(type, that.type)
-        && Objects.equals(spanKind, that.spanKind)
-        && Objects.equals(peerTags, that.peerTags)
-        && Arrays.equals(additionalTags, that.additionalTags)
-        && Objects.equals(httpMethod, that.httpMethod)
-        && Objects.equals(httpEndpoint, that.httpEndpoint)
-        && Objects.equals(grpcStatusCode, that.grpcStatusCode);
-  }
-
-  @Override
-  public int hashCode() {
-    return (int) keyHash;
   }
 
   /**
