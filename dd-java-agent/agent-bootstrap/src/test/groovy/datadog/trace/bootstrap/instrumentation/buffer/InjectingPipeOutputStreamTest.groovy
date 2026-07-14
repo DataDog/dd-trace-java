@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.buffer
 
 import datadog.trace.test.util.DDSpecification
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.LongConsumer
 
 class InjectingPipeOutputStreamTest extends DDSpecification {
@@ -150,6 +151,32 @@ class InjectingPipeOutputStreamTest extends DDSpecification {
     then:
     counter.value == testBytes.length()
     downstream.toByteArray() == testBytes.getBytes("UTF-8")
+  }
+
+  def 'should honor non-zero offsets in bulk writes: #scenario'() {
+    setup:
+    def prefix = "ignored-prefix"
+    def payloadBytes = payload.getBytes("UTF-8")
+    def source = (prefix + payload + "ignored-suffix").getBytes("UTF-8")
+    def downstream = new ByteArrayOutputStream()
+    def counter = new Counter()
+    def injections = new AtomicInteger()
+    def piped = new InjectingPipeOutputStream(downstream, MARKER_BYTES, CONTEXT_BYTES, injections.&incrementAndGet, { long bytes -> counter.incr(bytes) }, null)
+
+    when:
+    piped.write(source, prefix.getBytes("UTF-8").length, payloadBytes.length)
+    piped.close()
+
+    then:
+    downstream.toByteArray() == expected.getBytes("UTF-8")
+    injections.get() == expectedInjections
+    counter.value == payloadBytes.length
+
+    where:
+    scenario                  | payload                                                     | expected                                                                      | expectedInjections
+    "without a marker"        | "<html><body>safe</body></html>"                           | "<html><body>safe</body></html>"                                             | 0
+    "with a marker"           | "<html><head>dynamic</head><body>safe</body></html>"        | "<html><head>dynamic<script></script></head><body>safe</body></html>"          | 1
+    "with a marker at the end" | "<html><head>dynamic-content</head>"                        | "<html><head>dynamic-content<script></script></head>"                          | 1
   }
 
   def 'should be resilient to exceptions when onBytesWritten callback is null'() {
