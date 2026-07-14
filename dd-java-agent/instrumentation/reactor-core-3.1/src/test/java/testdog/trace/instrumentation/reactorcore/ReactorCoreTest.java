@@ -489,9 +489,14 @@ class ReactorCoreTest extends AbstractInstrumentationTest {
   // --- Schedulers ----------------------------------------------------------
 
   static List<Arguments> schedulerArgs() {
+    // Note: Schedulers.elastic() was deprecated in Reactor 3.4 and removed in 3.5+, so
+    // it was omitted here to keep the base test set compilable against both the module's
+    // declared min (3.1) and the latestDep version. See the PR body for the research
+    // observation about how the toolkit could handle latestDep API-drift better —
+    // master splits Reactor version-sensitive tests into a separate `latestDepTest`
+    // source set.
     return Arrays.asList(
         Arguments.of("parallel", Schedulers.parallel()),
-        Arguments.of("elastic", Schedulers.elastic()),
         Arguments.of("single", Schedulers.single()));
   }
 
