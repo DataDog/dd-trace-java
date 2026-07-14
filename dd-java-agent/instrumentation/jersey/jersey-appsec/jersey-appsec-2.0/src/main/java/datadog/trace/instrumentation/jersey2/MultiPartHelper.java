@@ -28,10 +28,14 @@ public final class MultiPartHelper {
       Map<String, List<String>> bodyMap,
       List<String> filenames,
       List<String> filesContent) {
+    String name = bodyPart.getName();
     if (bodyMap != null
-        && MediaTypes.typeEqual(MediaType.TEXT_PLAIN_TYPE, bodyPart.getMediaType())) {
-      // BodyPartEntity allows re-reading the part without consuming the stream
-      bodyMap.computeIfAbsent(bodyPart.getName(), k -> new ArrayList<>()).add(bodyPart.getValue());
+        && MediaTypes.typeEqual(MediaType.TEXT_PLAIN_TYPE, bodyPart.getMediaType())
+        && (bodyMap.containsKey(name) || bodyMap.size() < MAX_FILES_TO_INSPECT)) {
+      // readContent() reads the part through a byte-capped decoder (MAX_CONTENT_BYTES) instead of
+      // the unbounded getValue(); the distinct field-name count is capped by MAX_FILES_TO_INSPECT,
+      // while additional values for an already-seen field name keep accumulating.
+      bodyMap.computeIfAbsent(name, k -> new ArrayList<>()).add(readContent(bodyPart));
     }
     FormDataContentDisposition cd;
     try {
