@@ -17,6 +17,7 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -377,7 +378,11 @@ public final class TraceMapperV0_4 implements TraceMapper {
     return size; // 5MB
   }
 
+  // firstSpanWritten is only touched on the single serializer thread; SpotBugs flags it as a shared
+  // primitive only because the static AtomicLong recalibration counter makes it treat this class as
+  // multithreaded. Safe to suppress (same pattern as TracerHealthMetrics).
   @Override
+  @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
   public void reset() {
     firstSpanWritten = false;
   }
