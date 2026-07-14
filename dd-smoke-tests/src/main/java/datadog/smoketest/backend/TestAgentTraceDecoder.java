@@ -65,6 +65,11 @@ public final class TestAgentTraceDecoder {
     public List<DecodedSpan> getSpans() {
       return spans;
     }
+
+    @Override
+    public String toString() {
+      return "RawTrace[" + spans.toString();
+    }
   }
 
   // Field names follow the standard v0.4 trace shape and are verified end-to-end against a live
@@ -162,6 +167,42 @@ public final class TestAgentTraceDecoder {
     @Override
     public String getType() {
       return type;
+    }
+
+    @Override
+    public String toString() {
+      return "RawSpan{"
+          + "service='"
+          + service
+          + '\''
+          + ", name='"
+          + name
+          + '\''
+          + ", resource='"
+          + resource
+          + '\''
+          + ", type='"
+          + type
+          + '\''
+          + ", traceId="
+          + traceId
+          + ", spanId="
+          + spanId
+          + ", parentId="
+          + parentId
+          + ", start="
+          + start
+          + ", duration="
+          + duration
+          + ", error="
+          + error
+          + ", meta="
+          + meta
+          + ", metaStruct="
+          + metaStruct
+          + ", metrics="
+          + metrics
+          + '}';
     }
   }
 }

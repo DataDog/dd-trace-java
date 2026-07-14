@@ -1,14 +1,20 @@
 package datadog.smoketest.trace;
 
+import static datadog.trace.junit.utils.assertions.Matchers.any;
 import static datadog.trace.junit.utils.assertions.Matchers.assertValue;
 import static datadog.trace.junit.utils.assertions.Matchers.is;
 import static datadog.trace.junit.utils.assertions.Matchers.isFalse;
 import static datadog.trace.junit.utils.assertions.Matchers.isTrue;
+import static datadog.trace.junit.utils.assertions.Matchers.matches;
+import static datadog.trace.junit.utils.assertions.Matchers.validates;
 
 import datadog.trace.junit.utils.assertions.Matcher;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 /**
  * Thin span matcher for smoke tests, operating on the <em>serialized</em> {@link DecodedSpan} model
@@ -20,16 +26,20 @@ import java.util.Map;
  * once serialized is matchable here: name/service/resource/type, error status, {@code meta} (string
  * tags), {@code metrics} (numeric tags), and parent linkage.
  *
- * <p>Use the {@link #span()} factory as a fluent builder. Unset constraints are not checked (thin
- * by design).
+ * <p>Parent linkage can be expressed by {@link #root()}, {@link #childOf(long) explicit id}, or —
+ * for structural assertions within a sorted trace — by position with {@link #childOfIndex(int)} /
+ * {@link #childOfPrevious()} (mirroring the instrumentation DSL). Use the {@link #span()} factory
+ * as a fluent builder; unset constraints are not checked.
  */
 public final class SpanMatcher {
   private Matcher<String> serviceMatcher;
-  private Matcher<String> operationNameMatcher;
-  private Matcher<String> resourceNameMatcher;
+  private Matcher<CharSequence> operationNameMatcher;
+  private Matcher<CharSequence> resourceNameMatcher;
   private Matcher<String> typeMatcher;
   private Matcher<Boolean> errorMatcher;
-  private Long parentId; // null => parent not checked
+  private Long parentId; // explicit expected parent id (childOf/root); null => not checked by id
+  private int parentSpanIndex = -1; // >= 0 => parent is the span at this index in the sorted trace
+  private boolean childOfPrevious; // parent is the preceding span in the sorted trace
   private final Map<String, Matcher<?>> metaMatchers = new HashMap<>();
   private final Map<String, Matcher<?>> metricMatchers = new HashMap<>();
 
@@ -50,8 +60,23 @@ public final class SpanMatcher {
     return this;
   }
 
+  public SpanMatcher operationName(Pattern pattern) {
+    this.operationNameMatcher = matches(pattern);
+    return this;
+  }
+
   public SpanMatcher resourceName(String resourceName) {
     this.resourceNameMatcher = is(resourceName);
+    return this;
+  }
+
+  public SpanMatcher resourceName(Pattern pattern) {
+    this.resourceNameMatcher = matches(pattern);
+    return this;
+  }
+
+  public SpanMatcher resourceName(Predicate<CharSequence> validator) {
+    this.resourceNameMatcher = validates(validator);
     return this;
   }
 
@@ -60,7 +85,7 @@ public final class SpanMatcher {
     return this;
   }
 
-  /** Matches a non-error span. */
+  /** Matches the span error status. */
   public SpanMatcher error(boolean errored) {
     this.errorMatcher = errored ? isTrue() : isFalse();
     return this;
@@ -69,12 +94,32 @@ public final class SpanMatcher {
   /** Matches a root span (no parent). */
   public SpanMatcher root() {
     this.parentId = 0L;
+    this.parentSpanIndex = -1;
+    this.childOfPrevious = false;
     return this;
   }
 
   /** Matches a span whose parent is the given span id. */
   public SpanMatcher childOf(long parentSpanId) {
     this.parentId = parentSpanId;
+    this.parentSpanIndex = -1;
+    this.childOfPrevious = false;
+    return this;
+  }
+
+  /** Matches a span whose parent is the span at {@code parentSpanIndex} in the (sorted) trace. */
+  public SpanMatcher childOfIndex(int parentSpanIndex) {
+    this.parentSpanIndex = parentSpanIndex;
+    this.parentId = null;
+    this.childOfPrevious = false;
+    return this;
+  }
+
+  /** Matches a span whose parent is the immediately preceding span in the (sorted) trace. */
+  public SpanMatcher childOfPrevious() {
+    this.childOfPrevious = true;
+    this.parentId = null;
+    this.parentSpanIndex = -1;
     return this;
   }
 
@@ -96,21 +141,25 @@ public final class SpanMatcher {
     return this;
   }
 
-  // TODO thin first cut — add when a smoke test needs them:
-  //  - operationName/resourceName by Pattern or Predicate,
-  //  - childOf(SpanMatcher) resolving the parent within the trace,
-  //  - exhaustive tag coverage (fail on unexpected meta/metrics), and span-links.
+  // TODO thin: exhaustive tag coverage (fail on unexpected meta/metrics) and span-links.
 
+  /** Positional (count-exact) assertion: the span at {@code spanIndex} matches this matcher. */
+  void assertSpan(List<DecodedSpan> trace, int spanIndex) {
+    assertValue(
+        parentIdMatcher(trace, spanIndex),
+        trace.get(spanIndex).getParentId(),
+        "Unexpected parent id");
+    assertFields(trace.get(spanIndex));
+  }
+
+  /** Asserts a span's own fields (service/operation/resource/type/error/tags), ignoring linkage. */
   @SuppressWarnings("unchecked")
-  void assertSpan(DecodedSpan span) {
+  private void assertFields(DecodedSpan span) {
     assertValue(serviceMatcher, span.getService(), "Unexpected service name");
     assertValue(operationNameMatcher, span.getName(), "Unexpected operation name");
     assertValue(resourceNameMatcher, span.getResource(), "Unexpected resource name");
     assertValue(typeMatcher, span.getType(), "Unexpected span type");
     assertValue(errorMatcher, span.getError() != 0, "Unexpected error status");
-    if (parentId != null) {
-      assertValue(is(parentId), span.getParentId(), "Unexpected parent id");
-    }
     Map<String, String> meta = span.getMeta();
     for (Map.Entry<String, Matcher<?>> entry : metaMatchers.entrySet()) {
       Object value = meta == null ? null : meta.get(entry.getKey());
@@ -125,5 +174,38 @@ public final class SpanMatcher {
       assertValue(
           (Matcher<Object>) entry.getValue(), value, "Unexpected metric '" + entry.getKey() + "'");
     }
+  }
+
+  /**
+   * Whether this matcher's own fields match {@code span}, ignoring parent linkage — the boolean
+   * counterpart of {@link #assertFields} used by subset/chain matching (see {@link
+   * SmokeTraceAssertions#assertContainsChain}), where linkage is verified positionally by the
+   * chain.
+   */
+  boolean matchesFields(DecodedSpan span) {
+    try {
+      assertFields(span);
+      return true;
+    } catch (AssertionError ignored) {
+      return false;
+    }
+  }
+
+  /** Whether this matcher requires its span to be a trace root (via {@link #root()}). */
+  boolean rootRequired() {
+    return parentId != null && parentId == 0L;
+  }
+
+  private Matcher<Long> parentIdMatcher(List<DecodedSpan> trace, int spanIndex) {
+    if (this.parentSpanIndex >= 0) {
+      return is(trace.get(parentSpanIndex).getSpanId());
+    }
+    if (this.childOfPrevious) {
+      if (spanIndex == 0) {
+        throw new IllegalStateException("childOfPrevious() cannot be used on the first span");
+      }
+      return is(trace.get(spanIndex - 1).getSpanId());
+    }
+    return this.parentId == null ? any() : is(this.parentId);
   }
 }

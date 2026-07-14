@@ -25,6 +25,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import org.junit.jupiter.api.extension.AfterAllCallback;
+import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -53,7 +54,11 @@ import org.junit.jupiter.api.extension.ParameterResolver;
  * marked with explicit {@code // TODO}s below so the gaps are discoverable rather than silent.
  */
 public final class SmokeApp
-    implements BeforeAllCallback, AfterAllCallback, BeforeEachCallback, ParameterResolver {
+    implements BeforeAllCallback,
+        AfterAllCallback,
+        BeforeEachCallback,
+        AfterEachCallback,
+        ParameterResolver {
 
   // Defaults mirroring the Groovy ProcessManager base so ported tests behave the same.
   private static final String SERVICE_NAME = "smoke-test-java-app";
@@ -88,6 +93,7 @@ public final class SmokeApp
   private final OutputThreads outputThreads = new OutputThreads();
   private Process process;
   private File logFile;
+  private boolean telemetryChecked;
 
   private SmokeApp(Builder builder) {
     this.name = builder.name;
@@ -230,6 +236,18 @@ public final class SmokeApp
   }
 
   @Override
+  public void afterEach(ExtensionContext context) {
+    // Check telemetry once, here, while the app and backend are still up — afterAll is too late
+    // (the
+    // app is killed, and the per-method session clear may have wiped a once-only app-started). Only
+    // for agent-instrumented apps (a no-agent app emits none).
+    if (checkTelemetry && agentJar != null && !telemetryChecked) {
+      telemetryChecked = true;
+      assertTelemetryReceived();
+    }
+  }
+
+  @Override
   public void afterAll(ExtensionContext context) {
     try {
       stopProcess();
@@ -237,20 +255,12 @@ public final class SmokeApp
       // Join the output threads first so the log file is fully flushed before we scan it.
       outputThreads.close();
       try {
-        // Telemetry flushes on app shutdown; check it while the backend is still up, and only for
-        // agent-instrumented apps (a no-agent app emits none).
-        if (checkTelemetry && agentJar != null) {
-          assertTelemetryReceived();
+        if (ownsBackend) {
+          backend.close();
         }
       } finally {
-        try {
-          if (ownsBackend) {
-            backend.close();
-          }
-        } finally {
-          if (checkErrorLogs) {
-            assertNoErrorLogs();
-          }
+        if (checkErrorLogs) {
+          assertNoErrorLogs();
         }
       }
     }
@@ -270,6 +280,11 @@ public final class SmokeApp
       String sessionToken = backend.sessionToken();
       if (sessionToken != null) {
         command.add("-Ddd.trace.agent.test.session.token=" + sessionToken);
+      }
+      if (checkTelemetry) {
+        // Emit telemetry promptly so app-started is captured before a (long-running server) app is
+        // killed at teardown — mirrors the Groovy base's telemetry tests.
+        command.add("-Ddd.telemetry.heartbeat.interval=1");
       }
     }
     for (String jvmArg : jvmArgs) {
@@ -377,15 +392,15 @@ public final class SmokeApp
   }
 
   /**
-   * Asserts the agent emitted {@code app-started} telemetry for this app. Auto-invoked at teardown
-   * for agent-instrumented apps (unless {@link Builder#skipTelemetryCheck()}); telemetry flushes on
-   * app shutdown, so it runs after the process stops but while the backend is still up.
+   * Asserts the app's telemetry pipeline is active — at least one telemetry message reached the
+   * backend. Auto-invoked once at the first {@link #afterEach} (while the app + backend are still
+   * up) unless {@link Builder#skipTelemetryCheck()}. It intentionally asserts "telemetry is
+   * flowing" rather than a specific event: the once-only {@code app-started} is fragile under the
+   * per-method session clear, whereas heartbeats keep arriving; a test wanting a specific event can
+   * assert it with {@link #traces() backend}.{@code telemetry().waitForFlat(...)}.
    */
   public void assertTelemetryReceived() {
-    backend
-        .telemetry()
-        .waitForFlat(
-            message -> "app-started".equals(message.get("request_type")), startupTimeoutSeconds);
+    backend.telemetry().waitForCount(1, startupTimeoutSeconds);
   }
 
   /**

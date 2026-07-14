@@ -59,6 +59,16 @@ public interface TraceBackend
     return false;
   }
 
+  /**
+   * Whether {@link #beforeEach} clears received traces so each test method sees only its own (the
+   * default). Return {@code false} to <em>accumulate</em> across methods — needed when the
+   * assertions cover traces emitted at app startup (before the first test method), which a
+   * per-method clear would discard. Overridden by the test agent's {@code retainAcrossTests()}.
+   */
+  default boolean clearsBetweenTests() {
+    return true;
+  }
+
   // JUnit lifecycle: a backend declared as its own `@RegisterExtension` field (shared across apps,
   // S6/Q8) drives its own start/clear/close. An inline backend passed to `SmokeApp.backend(...)` is
   // not registered as an extension, so `SmokeApp` drives it instead. start() is idempotent, so a
@@ -71,7 +81,9 @@ public interface TraceBackend
 
   @Override
   default void beforeEach(ExtensionContext context) {
-    clear();
+    if (clearsBetweenTests()) {
+      clear();
+    }
   }
 
   @Override

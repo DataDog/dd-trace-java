@@ -60,6 +60,7 @@ public final class TestAgentBackend implements TraceBackend {
   private final int externalPort;
   private final List<String> enabledChecks;
   private final boolean shared;
+  private final boolean retainAcrossTests;
   private final String sessionToken;
 
   private final OkHttpClient client = new OkHttpClient();
@@ -72,6 +73,7 @@ public final class TestAgentBackend implements TraceBackend {
     this.externalPort = builder.externalPort;
     this.enabledChecks = new ArrayList<>(builder.enabledChecks);
     this.shared = builder.shared;
+    this.retainAcrossTests = builder.retainAcrossTests;
     this.sessionToken =
         builder.sessionToken != null ? builder.sessionToken : "smoke-" + UUID.randomUUID();
   }
@@ -93,6 +95,11 @@ public final class TestAgentBackend implements TraceBackend {
   @Override
   public boolean isShared() {
     return shared;
+  }
+
+  @Override
+  public boolean clearsBetweenTests() {
+    return !retainAcrossTests;
   }
 
   @Override
@@ -255,6 +262,7 @@ public final class TestAgentBackend implements TraceBackend {
     private int externalPort = AGENT_PORT;
     private final List<String> enabledChecks = new ArrayList<>(DEFAULT_ENABLED_CHECKS);
     private boolean shared;
+    private boolean retainAcrossTests;
     private String sessionToken;
 
     private Builder() {}
@@ -284,6 +292,16 @@ public final class TestAgentBackend implements TraceBackend {
     /** Marks this backend as shared across multiple apps (multi-app wiring lands in S6). */
     public Builder shared() {
       this.shared = true;
+      return this;
+    }
+
+    /**
+     * Keeps received traces across test methods instead of clearing them before each (see {@link
+     * TraceBackend#clearsBetweenTests()}). Use when assertions cover app-startup traces, which a
+     * per-method clear would discard.
+     */
+    public Builder retainAcrossTests() {
+      this.retainAcrossTests = true;
       return this;
     }
 
