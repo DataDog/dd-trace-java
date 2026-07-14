@@ -42,11 +42,17 @@ public final class TraceMapperV0_4 implements TraceMapper {
   // rather than per-span preserves their effectiveness without paying recalibrate()'s O(cacheSize)
   // cost on every span. Must be a power of two (see the mask in shouldRecalibrate).
   static final long RECALIBRATE_SPAN_INTERVAL = 512;
-  private static final AtomicLong SPAN_COUNTER = new AtomicLong();
+
+  // Non-null only when a cache exists, so its presence doubles as the "recalibration enabled"
+  // gate: it keeps the call site a plain shouldRecalibrate() check, and (a static-final null when
+  // both caches are off) lets the JIT fold the whole recalibrate block away.
+  private static final AtomicLong SPAN_COUNTER =
+      (TAG_CACHE != null || VALUE_CACHE != null) ? new AtomicLong() : null;
 
   /** True once every {@link #RECALIBRATE_SPAN_INTERVAL} spans; advances the span counter. */
   static boolean shouldRecalibrate() {
-    return (SPAN_COUNTER.incrementAndGet() & (RECALIBRATE_SPAN_INTERVAL - 1)) == 0;
+    return SPAN_COUNTER != null
+        && (SPAN_COUNTER.incrementAndGet() & (RECALIBRATE_SPAN_INTERVAL - 1)) == 0;
   }
 
   private final int size;
@@ -81,7 +87,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     @Override
     public void accept(Metadata metadata) {
-      if ((TAG_CACHE != null || VALUE_CACHE != null) && shouldRecalibrate()) {
+      if (shouldRecalibrate()) {
         if (TAG_CACHE != null) TAG_CACHE.recalibrate();
         if (VALUE_CACHE != null) VALUE_CACHE.recalibrate();
       }
