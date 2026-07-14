@@ -129,6 +129,16 @@ public class InjectingPipeOutputStream extends OutputStream {
     }
 
     if (len > bulkWriteThreshold) {
+      // A match that started in the previous write precedes every match wholly in this array.
+      if (matchingPos > 0 && arrayCompletesPendingMatch(array, off, len)) {
+        int pendingMatchLength = marker.length - matchingPos;
+        for (int i = off; i < off + pendingMatchLength; i++) {
+          write(array[i]);
+        }
+        write(array, off + pendingMatchLength, len - pendingMatchLength);
+        return;
+      }
+
       // if the content is large enough, we can bulk write everything but the N trail and tail.
       // This because the buffer can already contain some byte from a previous single write.
       // Also we need to fill the buffer with the tail since we don't know about the next write.
@@ -177,6 +187,19 @@ public class InjectingPipeOutputStream extends OutputStream {
         write(array[i]);
       }
     }
+  }
+
+  private boolean arrayCompletesPendingMatch(byte[] array, int off, int len) {
+    int pendingMatchLength = marker.length - matchingPos;
+    if (pendingMatchLength > len) {
+      return false;
+    }
+    for (int i = 0; i < pendingMatchLength; i++) {
+      if (array[off + i] != marker[matchingPos + i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private int arrayContains(byte[] array, int off, int len, byte[] search) {

@@ -194,6 +194,23 @@ class InjectingPipeWriterTest extends DDSpecification {
     "with a marker at the end" | "<html><head>dynamic-content</head>"                        | "<html><head>dynamic-content<script></script></head>"                          | 1
   }
 
+  def 'should prioritize a marker spanning a bulk write boundary'() {
+    setup:
+    def prefix = "ignored-prefix"
+    def payload = ">0123456789</head>"
+    def source = (prefix + payload + "ignored-suffix").toCharArray()
+    def downstream = new StringWriter()
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS)
+
+    when:
+    piped.write("abc</head".toCharArray())
+    piped.write(source, prefix.length(), payload.length())
+    piped.close()
+
+    then:
+    downstream.toString() == "abc<script></script></head>0123456789</head>"
+  }
+
   def 'should be resilient to exceptions when onBytesWritten callback is null'() {
     setup:
     def downstream = new StringWriter()
