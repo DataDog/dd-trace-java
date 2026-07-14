@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 
 /** Decodes multipart file content bytes to String using the per-part Content-Type charset. */
 public final class MultipartContentDecoder {
@@ -23,7 +24,7 @@ public final class MultipartContentDecoder {
 
   public static String decodeBytes(byte[] buf, int length, String contentType) {
     Charset charset = extractCharset(contentType);
-    if (charset == null) charset = Charset.defaultCharset();
+    if (charset == null) charset = StandardCharsets.UTF_8;
     try {
       return charset
           .newDecoder()
