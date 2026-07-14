@@ -34,15 +34,15 @@ public class MultipartContentDecoderTest {
   }
 
   @Test
-  void decodeBytesDefaultsToUtf8WhenNoCharset() {
-    String text = "héllo wörld";
+  void decodeBytesDefaultsToMachineDefaultWhenNoCharset() {
+    String text = "hello world";
     byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
     assertEquals(text, MultipartContentDecoder.decodeBytes(bytes, bytes.length, "text/plain"));
   }
 
   @Test
-  void decodeBytesDefaultsToUtf8WhenNullContentType() {
-    String text = "héllo wörld";
+  void decodeBytesDefaultsToMachineDefaultWhenNullContentType() {
+    String text = "hello world";
     byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
     assertEquals(text, MultipartContentDecoder.decodeBytes(bytes, bytes.length, null));
   }
