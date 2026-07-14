@@ -42,10 +42,7 @@ final class AggregateTable {
   }
 
   AggregateTable(int maxAggregates, AdditionalTagsSchema additionalTagsSchema) {
-    this(
-        maxAggregates,
-        additionalTagsSchema,
-        new PropertyHandlers());
+    this(maxAggregates, additionalTagsSchema, new PropertyHandlers());
   }
 
   AggregateTable(

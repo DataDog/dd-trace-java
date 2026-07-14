@@ -51,7 +51,10 @@ final class AggregateEntry extends Hashtable.Entry {
   private int topLevelCount;
   private long duration;
 
-  /** Field-bearing constructor. Package-private so {@link AggregateEntryTestUtils} can build expected entries. */
+  /**
+   * Field-bearing constructor. Package-private so {@link AggregateEntryTestUtils} can build
+   * expected entries.
+   */
   AggregateEntry(
       long keyHash,
       UTF8BytesString resource,
@@ -85,75 +88,6 @@ final class AggregateEntry extends Hashtable.Entry {
     this.additionalTags = additionalTags;
     this.okLatencies = Histogram.newHistogram();
   }
-
-  /**
-   * Test-friendly factory mirroring the prior {@code new MetricKey(...)} positional args. Bypasses
-   * the cardinality handlers so tests don't pollute their state -- {@link UTF8BytesString}s are
-   * created directly. Content-equal entries from {@link Canonical#toEntry} still {@link #equals} an
-   * entry built via {@code of(...)}.
-   */
-  static AggregateEntry of(
-      CharSequence resource,
-      CharSequence service,
-      CharSequence operationName,
-      CharSequence serviceSource,
-      CharSequence type,
-      int httpStatusCode,
-      boolean synthetic,
-      boolean traceRoot,
-      CharSequence spanKind,
-      List<UTF8BytesString> peerTags,
-      CharSequence httpMethod,
-      CharSequence httpEndpoint,
-      CharSequence grpcStatusCode) {
-    UTF8BytesString resourceUtf = createUtf8(resource);
-    UTF8BytesString serviceUtf = createUtf8(service);
-    UTF8BytesString operationNameUtf = createUtf8(operationName);
-    UTF8BytesString serviceSourceUtf = createUtf8(serviceSource);
-    UTF8BytesString typeUtf = createUtf8(type);
-    UTF8BytesString spanKindUtf = createUtf8(spanKind);
-    UTF8BytesString httpMethodUtf = createUtf8(httpMethod);
-    UTF8BytesString httpEndpointUtf = createUtf8(httpEndpoint);
-    UTF8BytesString grpcUtf = createUtf8(grpcStatusCode);
-    List<UTF8BytesString> peerTagsList = peerTags == null ? Collections.emptyList() : peerTags;
-    UTF8BytesString[] peerTagsArr = peerTagsList.toArray(new UTF8BytesString[0]);
-    long keyHash =
-        hashOf(
-            resourceUtf,
-            serviceUtf,
-            operationNameUtf,
-            serviceSourceUtf,
-            typeUtf,
-            spanKindUtf,
-            httpMethodUtf,
-            httpEndpointUtf,
-            grpcUtf,
-            (short) httpStatusCode,
-            synthetic,
-            traceRoot,
-            peerTagsArr,
-            peerTagsArr.length,
-            EMPTY_TAGS,
-            0);
-    return new AggregateEntry(
-        keyHash,
-        resourceUtf,
-        serviceUtf,
-        operationNameUtf,
-        serviceSourceUtf,
-        typeUtf,
-        spanKindUtf,
-        httpMethodUtf,
-        httpEndpointUtf,
-        grpcUtf,
-        (short) httpStatusCode,
-        synthetic,
-        traceRoot,
-        peerTagsList,
-        EMPTY_TAGS);
-  }
-
-
 
   /**
    * 64-bit lookup hash, computed over UTF8-encoded fields so that cardinality-blocked values (which
@@ -527,26 +461,23 @@ final class AggregateEntry extends Hashtable.Entry {
     }
 
     private long computeKeyHash() {
-      long h = 0;
-      h = LongHashingUtils.addToHash(h, resource);
-      h = LongHashingUtils.addToHash(h, service);
-      h = LongHashingUtils.addToHash(h, operationName);
-      h = LongHashingUtils.addToHash(h, serviceSource);
-      h = LongHashingUtils.addToHash(h, type);
-      h = LongHashingUtils.addToHash(h, spanKind);
-      h = LongHashingUtils.addToHash(h, httpMethod);
-      h = LongHashingUtils.addToHash(h, httpEndpoint);
-      h = LongHashingUtils.addToHash(h, grpcStatusCode);
-      for (int i = 0; i < peerTagsSize; i++) {
-        h = LongHashingUtils.addToHash(h, peerTagsBuffer[i]);
-      }
-      for (int i = 0; i < additionalTagsSize; i++) {
-        h = LongHashingUtils.addToHash(h, additionalTagsBuffer[i]);
-      }
-      h = LongHashingUtils.addToHash(h, httpStatusCode);
-      h = LongHashingUtils.addToHash(h, synthetic);
-      h = LongHashingUtils.addToHash(h, traceRoot);
-      return h;
+      return hashOf(
+          resource,
+          service,
+          operationName,
+          serviceSource,
+          type,
+          spanKind,
+          httpMethod,
+          httpEndpoint,
+          grpcStatusCode,
+          httpStatusCode,
+          synthetic,
+          traceRoot,
+          peerTagsBuffer,
+          peerTagsSize,
+          additionalTagsBuffer,
+          additionalTagsSize);
     }
 
     /**

@@ -76,5 +76,13 @@ final class MetricCardinalityLimits {
    * Distinct values per additional-tag key (e.g. distinct values of a span-derived primary tag).
    * Each configured additional tag gets its own {@link TagCardinalityHandler} at this limit.
    */
-  static final int ADDITIONAL_TAG_VALUE = 512;
+  static final int ADDITIONAL_TAG_VALUE = 100;
+
+  /**
+   * Maximum character length for a single additional-tag value. Values longer than this are
+   * replaced with {@code tracer_blocked_value}; the application could accidentally populate a tag
+   * with a stack trace, SQL statement, or JSON blob, which would bloat every MetricKey and msgpack
+   * payload until the bucket flushes.
+   */
+  static final int ADDITIONAL_TAG_MAX_VALUE_LENGTH = 200;
 }

@@ -5237,6 +5237,10 @@ public class Config {
   }
 
   public Set<String> getTraceStatsAdditionalTags() {
+    if (!experimentalFeaturesEnabled.contains(
+        propertyNameToEnvironmentVariableName(TRACE_STATS_ADDITIONAL_TAGS))) {
+      return Collections.emptySet();
+    }
     return tryMakeImmutableSet(configProvider.getList(TRACE_STATS_ADDITIONAL_TAGS));
   }
 

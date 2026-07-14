@@ -45,7 +45,6 @@ final class PeerTagSchema {
 
   private static final Logger log = LoggerFactory.getLogger(PeerTagSchema.class);
 
-
   /**
    * Sentinel {@link #state} for schemas that are never reconciled against feature discovery: the
    * {@link #INTERNAL} singleton and test-built schemas. A {@code null} state always mismatches a
@@ -132,7 +131,6 @@ final class PeerTagSchema {
       }
     }
   }
-
 
   int size() {
     return names.length;

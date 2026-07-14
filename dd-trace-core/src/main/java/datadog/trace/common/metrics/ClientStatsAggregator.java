@@ -102,7 +102,11 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
         AdditionalTagsSchema.from(
-            config.getTraceStatsAdditionalTags(), true, healthMetrics),
+            config.getTraceStatsAdditionalTags(),
+            config.getTraceStatsCardinalityLimit(
+                "additional_tags", MetricCardinalityLimits.ADDITIONAL_TAG_VALUE),
+            true,
+            healthMetrics),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(

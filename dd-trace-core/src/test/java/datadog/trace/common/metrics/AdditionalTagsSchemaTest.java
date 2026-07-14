@@ -28,18 +28,13 @@ class AdditionalTagsSchemaTest {
   @Test
   void schemaDedupesAndCapsAtMaxTagKeys() {
     LinkedHashSet<String> configured = new LinkedHashSet<>();
-    // 12 distinct keys, more than MAX_ADDITIONAL_TAG_KEYS (10). Sort by alphabetical, drop the
-    // last 2.
-    for (int i = 0; i < 12; i++) {
+    // 6 distinct keys, more than MAX_ADDITIONAL_TAG_KEYS (4). Sort alphabetically, drop the last 2.
+    for (int i = 0; i < 6; i++) {
       configured.add(String.format("tag%02d", i));
     }
     AdditionalTagsSchema schema = AdditionalTagsSchema.from(configured);
     assertEquals(AdditionalTagsSchema.MAX_ADDITIONAL_TAG_KEYS, schema.size());
-    assertArrayEquals(
-        new String[] {
-          "tag00", "tag01", "tag02", "tag03", "tag04", "tag05", "tag06", "tag07", "tag08", "tag09"
-        },
-        schema.names);
+    assertArrayEquals(new String[] {"tag00", "tag01", "tag02", "tag03"}, schema.names);
   }
 
   @Test

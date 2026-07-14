@@ -17,8 +17,8 @@ final class AdditionalTagsSchema {
 
   private static final Logger log = LoggerFactory.getLogger(AdditionalTagsSchema.class);
 
-  // Backend pipeline supports ~4 primary tag dimensions by default; drop overflow at startup.
-  static final int MAX_ADDITIONAL_TAG_KEYS = 10;
+  // Backend stats pipeline only supports a few primary tag dimensions; drop overflow at startup.
+  static final int MAX_ADDITIONAL_TAG_KEYS = 4;
 
   /** Singleton empty schema returned when no additional tags are configured. */
   static final AdditionalTagsSchema EMPTY =
@@ -40,11 +40,12 @@ final class AdditionalTagsSchema {
 
   /** Test convenience: uses {@link HealthMetrics#NO_OP} and limits enabled. */
   static AdditionalTagsSchema from(Set<String> configured) {
-    return from(configured, true, HealthMetrics.NO_OP);
+    return from(
+        configured, MetricCardinalityLimits.ADDITIONAL_TAG_VALUE, true, HealthMetrics.NO_OP);
   }
 
   static AdditionalTagsSchema from(
-      Set<String> configured, boolean useBlockedSentinel, HealthMetrics healthMetrics) {
+      Set<String> configured, int limit, boolean useBlockedSentinel, HealthMetrics healthMetrics) {
     if (configured == null || configured.isEmpty()) {
       return EMPTY;
     }
@@ -87,7 +88,10 @@ final class AdditionalTagsSchema {
     for (int i = 0; i < namesArr.length; i++) {
       handlersArr[i] =
           new TagCardinalityHandler(
-              namesArr[i], MetricCardinalityLimits.ADDITIONAL_TAG_VALUE, useBlockedSentinel);
+              namesArr[i],
+              limit,
+              useBlockedSentinel,
+              MetricCardinalityLimits.ADDITIONAL_TAG_MAX_VALUE_LENGTH);
     }
     return new AdditionalTagsSchema(namesArr, handlersArr, healthMetrics);
   }
@@ -109,7 +113,7 @@ final class AdditionalTagsSchema {
       long blocked = handlers[i].reset();
       if (blocked > 0) {
         log.warn(
-            "Cardinality limit reached for additional metric tag '{}'; further values will be reported as blocked_by_tracer",
+            "Cardinality limit reached for additional metric tag '{}'; further values will be reported as tracer_blocked_value",
             names[i]);
         healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), blocked);
       }

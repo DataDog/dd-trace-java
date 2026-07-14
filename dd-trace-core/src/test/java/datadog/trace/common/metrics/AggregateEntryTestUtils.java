@@ -28,8 +28,8 @@ public final class AggregateEntryTestUtils {
   /**
    * Builds an {@link AggregateEntry} from positional args. Bypasses the cardinality handlers so
    * tests can create expected values without mutating shared handler state. Content-equal entries
-   * from {@link AggregateEntry.Canonical#createEntry} still compare equal via
-   * {@link #equals(AggregateEntry, AggregateEntry)}.
+   * from {@link AggregateEntry.Canonical#createEntry} still compare equal via {@link
+   * #equals(AggregateEntry, AggregateEntry)}.
    */
   public static AggregateEntry of(
       CharSequence resource,
