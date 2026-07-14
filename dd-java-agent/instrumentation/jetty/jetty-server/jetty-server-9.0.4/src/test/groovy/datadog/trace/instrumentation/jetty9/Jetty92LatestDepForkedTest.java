@@ -34,6 +34,11 @@ abstract class Jetty92LatestDepForkedTest extends Jetty9Test {
   public boolean testBodyFilenamesCalledOnceCombined() {
     return true;
   }
+
+  @Override
+  public boolean testBodyFilesContent() {
+    return true;
+  }
 }
 
 @EnabledIfSystemProperty(named = "test.dd.jetty92", matches = ".+")

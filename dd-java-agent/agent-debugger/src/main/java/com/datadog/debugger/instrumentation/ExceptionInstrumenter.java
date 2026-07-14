@@ -21,7 +21,8 @@ public class ExceptionInstrumenter extends CapturedContextInstrumenter {
 
   @Override
   public InstrumentationResult.Status instrument() {
-    processInstructions(); // fill returnHandlerLabel
+    Map<AbstractInsnNode, Frame<BasicValue>> frames = computeFrames(classNode.name, methodNode);
+    processInstructions(frames); // fill returnHandlerLabel
     addFinallyHandler(methodEnterLabel, returnHandlerLabel);
     installFinallyBlocks();
     return InstrumentationResult.Status.INSTALLED;

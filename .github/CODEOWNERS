@@ -111,6 +111,7 @@
 /dd-java-agent/instrumentation/jacoco-0.8.9/        @DataDog/ci-app-libraries
 /dd-java-agent/instrumentation/junit                @DataDog/ci-app-libraries
 /dd-java-agent/instrumentation/karate/              @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/robolectric-4.13/    @DataDog/ci-app-libraries
 /dd-java-agent/instrumentation/scalatest-3.0.8/     @DataDog/ci-app-libraries
 /dd-java-agent/instrumentation/selenium-3.13/       @DataDog/ci-app-libraries
 /dd-java-agent/instrumentation/testng/              @DataDog/ci-app-libraries
