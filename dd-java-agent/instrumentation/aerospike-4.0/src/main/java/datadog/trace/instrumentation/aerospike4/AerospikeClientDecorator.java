@@ -65,7 +65,7 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
     return null;
   }
 
-  public AgentSpan onConnection(
+  public void onConnection(
       final AgentSpan span, final Node node, final Cluster cluster, final Partition partition) {
 
     onPeerConnection(span, node.getAddress());
@@ -85,8 +85,6 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
         span.setServiceName(instanceName, DB_CLIENT_SPLIT_BY_INSTANCE);
       }
     }
-
-    return span;
   }
 
   public void withMethod(final AgentSpan span, final String methodName) {

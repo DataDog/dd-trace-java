@@ -1301,7 +1301,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public void notifyAppSecEnd(AgentSpan span) {
+  public void notifyAppSecEnd(AgentSpan span, Object result) {
+    LambdaAppSecHandler.processResponseData(span, result);
     LambdaAppSecHandler.processRequestEnd(span);
   }
 

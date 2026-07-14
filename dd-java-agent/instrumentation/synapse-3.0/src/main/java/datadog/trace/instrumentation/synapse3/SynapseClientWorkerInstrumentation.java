@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.synapse3;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_CONTINUATION_KEY;
@@ -73,7 +72,7 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
       if (null != continuation) {
         AgentScope agentScope = continuation.activate();
         try {
-          return currentContext().with(agentScope.span()).attach();
+          return agentScope.span().attachWithContext();
         } finally {
           agentScope.close();
         }

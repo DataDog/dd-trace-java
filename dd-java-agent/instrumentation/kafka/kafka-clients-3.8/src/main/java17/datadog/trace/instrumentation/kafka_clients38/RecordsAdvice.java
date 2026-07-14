@@ -17,6 +17,7 @@ import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
+import org.apache.kafka.common.errors.WakeupException;
 
 /**
  * this method transfers the consumer group from the KafkaConsumer class key to the ConsumerRecords
@@ -45,11 +46,12 @@ public class RecordsAdvice {
     return null;
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void captureGroup(
       @Advice.Enter final AgentScope scope,
       @Advice.This ConsumerDelegate consumer,
-      @Advice.Return ConsumerRecords records) {
+      @Advice.Return ConsumerRecords records,
+      @Advice.Thrown Throwable throwable) {
     int recordsCount = 0;
     if (records != null) {
       // new - we are getting the KafkaConsumerInfo from the ConsumerDelegate instead of
@@ -70,6 +72,9 @@ public class RecordsAdvice {
     }
     AgentSpan span = scope.span();
     span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
+    if (!(throwable instanceof WakeupException)) {
+      span.addThrowable(throwable);
+    }
     span.finish();
     scope.close();
   }
