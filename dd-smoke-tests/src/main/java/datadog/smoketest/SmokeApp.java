@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -77,6 +79,7 @@ public final class SmokeApp
   private final String classpath;
   private final List<String> jvmArgs;
   private final List<String> programArgs;
+  private final Map<String, Supplier<String>> placeholders;
   private final Map<String, String> extraEnv;
   private final File workingDirectory;
   private final TraceBackend backend;
@@ -103,6 +106,7 @@ public final class SmokeApp
         builder.classpath != null ? builder.classpath : System.getProperty("java.class.path");
     this.jvmArgs = new ArrayList<>(builder.jvmArgs);
     this.programArgs = new ArrayList<>(builder.programArgs);
+    this.placeholders = new LinkedHashMap<>(builder.placeholders);
     this.extraEnv = new HashMap<>(builder.extraEnv);
     this.workingDirectory = builder.workingDirectory;
     this.backend = builder.backend;
@@ -338,7 +342,16 @@ public final class SmokeApp
   }
 
   private String substitute(String value) {
-    return value.replace(HTTP_PORT_PLACEHOLDER, Integer.toString(httpPort));
+    String result = value.replace(HTTP_PORT_PLACEHOLDER, Integer.toString(httpPort));
+    for (Map.Entry<String, Supplier<String>> placeholder : placeholders.entrySet()) {
+      String token = placeholder.getKey();
+      if (result.contains(token)) {
+        // Resolved now (at launch), not when registered — the value's source (e.g. a container's
+        // mapped port) may not exist until test infrastructure has started.
+        result = result.replace(token, placeholder.getValue().get());
+      }
+    }
+    return result;
   }
 
   private File resolveLogFile() {
@@ -460,6 +473,7 @@ public final class SmokeApp
     private String classpath;
     private final List<String> jvmArgs = new ArrayList<>();
     private final List<String> programArgs = new ArrayList<>();
+    private final Map<String, Supplier<String>> placeholders = new LinkedHashMap<>();
     private final Map<String, String> extraEnv = new HashMap<>();
     private File workingDirectory;
     private TraceBackend backend;
@@ -509,6 +523,24 @@ public final class SmokeApp
      */
     public Builder jvmArgs(String... jvmArgs) {
       this.jvmArgs.addAll(Arrays.asList(jvmArgs));
+      return this;
+    }
+
+    /**
+     * Registers a launch-time placeholder: occurrences of <code>${name}</code> in {@link
+     * #jvmArgs(String...) jvmArgs} and {@link #args(String...) args} are replaced with {@code
+     * value.get()} when the app <em>launches</em> (in {@code beforeAll}), not when the builder
+     * runs. Use for values only known once test infrastructure has started — e.g. a Testcontainers
+     * mapped port, which is unavailable when the {@code static @RegisterExtension} fields
+     * initialize:
+     *
+     * <pre>{@code
+     * .placeholder("rabbit.port", () -> String.valueOf(RABBIT.container().getMappedPort(5672)))
+     * .args("--spring.rabbitmq.port=${rabbit.port}")
+     * }</pre>
+     */
+    public Builder placeholder(String name, Supplier<String> value) {
+      this.placeholders.put("${" + name + "}", value);
       return this;
     }
 

@@ -22,7 +22,8 @@ class SmokeAppTest {
   static final SmokeApp app =
       SmokeApp.named("test-server")
           .mainClass("datadog.smoketest.TestServerApp")
-          .args("--server.port=${app.httpPort}")
+          .placeholder("marker", () -> "resolved-at-launch")
+          .args("--server.port=${app.httpPort}", "--marker=${marker}")
           .backend(TraceBackend.mockAgent())
           .noAgent()
           .build();
@@ -40,6 +41,16 @@ class SmokeAppTest {
     assertTrue(
         app.awaitLogLine(line -> line.contains("REQUEST GET /ping")),
         "app stdout is captured during the test");
+  }
+
+  @Test
+  void substitutesCustomPlaceholderAtLaunch() {
+    app.get("/ping");
+    // The app echoes its --marker launch arg; seeing the resolved value proves the custom ${marker}
+    // placeholder was substituted from its Supplier when the app launched.
+    assertTrue(
+        app.awaitLogLine(line -> line.contains("marker=resolved-at-launch")),
+        "custom placeholder was substituted into the launch args");
   }
 
   @Test

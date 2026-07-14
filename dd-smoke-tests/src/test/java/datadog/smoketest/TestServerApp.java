@@ -18,18 +18,23 @@ public final class TestServerApp {
 
   public static void main(String[] args) throws Exception {
     int port = 0;
+    String marker = "";
     for (String arg : args) {
       if (arg.startsWith("--server.port=")) {
         port = Integer.parseInt(arg.substring("--server.port=".length()));
+      } else if (arg.startsWith("--marker=")) {
+        // Echoed on each request so tests can assert launch-arg (placeholder) substitution.
+        marker = arg.substring("--marker=".length());
       }
     }
+    final String markerSuffix = marker.isEmpty() ? "" : " marker=" + marker;
 
     HttpServer server = HttpServer.create(new InetSocketAddress("localhost", port), 0);
     server.createContext(
         "/",
         exchange -> {
           String path = exchange.getRequestURI().getPath();
-          System.out.println("REQUEST " + exchange.getRequestMethod() + " " + path);
+          System.out.println("REQUEST " + exchange.getRequestMethod() + " " + path + markerSuffix);
           if ("/error".equals(path)) {
             // Emit an error line so tests can exercise the no-error-logs check.
             System.out.println("ERROR simulated application error");

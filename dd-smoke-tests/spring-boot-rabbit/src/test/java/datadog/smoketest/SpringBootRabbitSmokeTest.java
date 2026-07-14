@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.testcontainers.containers.RabbitMQContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -67,6 +69,7 @@ import org.testcontainers.utility.DockerImageName;
  * </ul>
  */
 @EnabledIfDockerAvailable
+@Testcontainers
 class SpringBootRabbitSmokeTest {
   private static final int TIMEOUT_SECONDS = 60;
   private static final int RABBIT_AMQP_PORT = 5672;
@@ -77,18 +80,17 @@ class SpringBootRabbitSmokeTest {
     "basic.qos", "basic.consume", "basic.ack", "queue.declare"
   };
 
-  // Started in a static initializer so the app fields below can read its mapped port when built
-  // (before the JUnit lifecycle). Stopped by Testcontainers' JVM-shutdown hook.
+  // @Testcontainers starts/stops this static container in the class lifecycle (no static-block
+  // start()); as a class-level @ExtendWith it runs before the @RegisterExtension fields below, so
+  // RabbitMQ is up before the apps launch. Its mapped port is still read lazily at launch via
+  // placeholders, since the container is not yet started when these static fields initialize.
+  @Container
   private static final RabbitMQContainer RABBIT =
       new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.9.20-alpine"));
 
-  static {
-    RABBIT.start();
-  }
-
-  // @Order pins the lifecycle: the shared agent starts before the apps (so its session is open when
-  // the consumers emit their startup traces) and is torn down after them. retainAcrossTests() keeps
-  // those startup traces for the single verifying method.
+  // @Order pins the @RegisterExtension order: the shared agent starts before the apps (so its
+  // session is open when the consumers emit startup traces) and is torn down after them.
+  // retainAcrossTests() keeps those startup traces for the one verifying method.
   @Order(1)
   @RegisterExtension
   static final TestAgentBackend agent =
@@ -158,10 +160,13 @@ class SpringBootRabbitSmokeTest {
         .backend(agent)
         .jvmArgs(
             "-Ddd.service.name=spring-rabbit-" + index, "-Ddd.rabbit.legacy.tracing.enabled=false")
+        // Resolved at launch, after @Testcontainers has started RABBIT — not at build time.
+        .placeholder("rabbit.host", RABBIT::getHost)
+        .placeholder("rabbit.port", () -> String.valueOf(RABBIT.getMappedPort(RABBIT_AMQP_PORT)))
         .args(
             "--server.port=${app.httpPort}",
-            "--spring.rabbitmq.host=" + RABBIT.getHost(),
-            "--spring.rabbitmq.port=" + RABBIT.getMappedPort(RABBIT_AMQP_PORT))
+            "--spring.rabbitmq.host=${rabbit.host}",
+            "--spring.rabbitmq.port=${rabbit.port}")
         // The broker connection is torn down noisily when the app is killed at teardown.
         .allowedErrorLogs(
             "Failed to check/redeclare auto-delete queue(s)",
