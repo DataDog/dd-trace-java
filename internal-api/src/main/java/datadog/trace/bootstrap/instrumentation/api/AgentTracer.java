@@ -258,6 +258,9 @@ public class AgentTracer {
   }
 
   public static synchronized void forceRegister(TracerAPI tracer) {
+    if (tracer == null) {
+      throw new IllegalArgumentException("tracer must not be null, use NOOP_TRACER instead");
+    }
     provider = tracer;
   }
 
