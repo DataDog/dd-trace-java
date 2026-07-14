@@ -26,45 +26,28 @@ final class PropertyHandlers {
 
   PropertyHandlers() {
     Config config = Config.get();
+    // Configurable limits — tunable via env var.
     this.resource =
         new PropertyCardinalityHandler(
             "resource",
             config.getTraceStatsCardinalityLimit("resource", MetricCardinalityLimits.RESOURCE));
-    this.service =
-        new PropertyCardinalityHandler(
-            "service",
-            config.getTraceStatsCardinalityLimit("service", MetricCardinalityLimits.SERVICE));
-    this.operation =
-        new PropertyCardinalityHandler(
-            "operation",
-            config.getTraceStatsCardinalityLimit("operation", MetricCardinalityLimits.OPERATION));
-    this.serviceSource =
-        new PropertyCardinalityHandler(
-            "service_source",
-            config.getTraceStatsCardinalityLimit(
-                "service_source", MetricCardinalityLimits.SERVICE_SOURCE));
-    this.type =
-        new PropertyCardinalityHandler(
-            "type", config.getTraceStatsCardinalityLimit("type", MetricCardinalityLimits.TYPE));
-    this.spanKind =
-        new PropertyCardinalityHandler(
-            "span_kind",
-            config.getTraceStatsCardinalityLimit("span_kind", MetricCardinalityLimits.SPAN_KIND));
-    this.httpMethod =
-        new PropertyCardinalityHandler(
-            "http_method",
-            config.getTraceStatsCardinalityLimit(
-                "http_method", MetricCardinalityLimits.HTTP_METHOD));
     this.httpEndpoint =
         new PropertyCardinalityHandler(
             "http_endpoint",
             config.getTraceStatsCardinalityLimit(
                 "http_endpoint", MetricCardinalityLimits.HTTP_ENDPOINT));
+    // Fixed limits — hardcoded, not user-configurable.
+    this.service = new PropertyCardinalityHandler("service", MetricCardinalityLimits.SERVICE);
+    this.operation = new PropertyCardinalityHandler("operation", MetricCardinalityLimits.OPERATION);
+    this.serviceSource =
+        new PropertyCardinalityHandler("service_source", MetricCardinalityLimits.SERVICE_SOURCE);
+    this.type = new PropertyCardinalityHandler("type", MetricCardinalityLimits.TYPE);
+    this.spanKind = new PropertyCardinalityHandler("span_kind", MetricCardinalityLimits.SPAN_KIND);
+    this.httpMethod =
+        new PropertyCardinalityHandler("http_method", MetricCardinalityLimits.HTTP_METHOD);
     this.grpcStatusCode =
         new PropertyCardinalityHandler(
-            "grpc_status_code",
-            config.getTraceStatsCardinalityLimit(
-                "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE));
+            "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE);
     this.handlers =
         new PropertyCardinalityHandler[] {
           resource,
@@ -84,7 +67,7 @@ final class PropertyHandlers {
       long blocked = h.reset();
       if (blocked > 0) {
         log.warn(
-            "Cardinality limit reached for stats field '{}'; further values will be reported as blocked_by_tracer",
+            "Cardinality limit reached for stats field '{}'; further values will be reported as tracer_blocked_value",
             h.name);
         healthMetrics.onTagCardinalityBlocked(h.statsDTag(), blocked);
       }

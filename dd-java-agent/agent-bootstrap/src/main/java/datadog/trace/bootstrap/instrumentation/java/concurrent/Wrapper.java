@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContin
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.util.concurrent.RunnableFuture;
 
@@ -43,7 +44,7 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
 
   @Override
   public void run() {
-    try (AgentScope scope = activate()) {
+    try (ContextScope scope = activate()) {
       delegate.run();
     }
   }

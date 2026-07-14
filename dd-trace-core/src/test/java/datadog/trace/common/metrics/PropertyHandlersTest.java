@@ -24,7 +24,7 @@ class PropertyHandlersTest {
     HealthMetrics metrics = mock(HealthMetrics.class);
     handlers.reset(metrics);
 
-    verify(metrics).onTagCardinalityBlocked(new String[] {"tag:span_kind"}, 2L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:span_kind"}, 2L);
     verifyNoMoreInteractions(metrics);
   }
 
@@ -44,15 +44,15 @@ class PropertyHandlersTest {
     HealthMetrics metrics = mock(HealthMetrics.class);
     handlers.reset(metrics);
 
-    verify(metrics).onTagCardinalityBlocked(new String[] {"tag:resource"}, 1L);
-    verify(metrics).onTagCardinalityBlocked(new String[] {"tag:service"}, 1L);
-    verify(metrics).onTagCardinalityBlocked(new String[] {"tag:operation"}, 1L);
-    verify(metrics).onTagCardinalityBlocked(new String[] {"tag:service_source"}, 1L);
-    verify(metrics).onTagCardinalityBlocked(new String[] {"tag:type"}, 1L);
-    verify(metrics).onTagCardinalityBlocked(new String[] {"tag:span_kind"}, 1L);
-    verify(metrics).onTagCardinalityBlocked(new String[] {"tag:http_method"}, 1L);
-    verify(metrics).onTagCardinalityBlocked(new String[] {"tag:http_endpoint"}, 1L);
-    verify(metrics).onTagCardinalityBlocked(new String[] {"tag:grpc_status_code"}, 1L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:resource"}, 1L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:service"}, 1L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:operation"}, 1L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:service_source"}, 1L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:type"}, 1L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:span_kind"}, 1L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:http_method"}, 1L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:http_endpoint"}, 1L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:grpc_status_code"}, 1L);
     verifyNoMoreInteractions(metrics);
   }
 

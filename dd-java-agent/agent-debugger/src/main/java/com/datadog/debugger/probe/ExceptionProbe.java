@@ -12,12 +12,14 @@ import com.datadog.debugger.instrumentation.ExceptionInstrumenter;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.Snapshot;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
+import java.time.Duration;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +49,8 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
         new ProbeCondition(DSL.when(DSL.TRUE), "true"),
         capture,
         sampling,
-        null);
+        null,
+        Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout()));
     this.exceptionProbeManager = exceptionProbeManager;
     this.chainedExceptionIdx = chainedExceptionIdx;
     initSamplers();
@@ -108,7 +111,7 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
           exceptionProbeManager.getStateByThrowable(innerMostThrowable);
       if (state != null) {
         // Already unwinding the exception
-        if (!state.isSampling()) {
+        if (state.getSnapshots().isEmpty()) {
           // skip snapshot because no snapshot from previous stack level
           return;
         }

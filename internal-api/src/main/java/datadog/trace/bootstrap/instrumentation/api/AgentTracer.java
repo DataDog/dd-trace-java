@@ -378,7 +378,7 @@ public class AgentTracer {
 
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId);
 
-    void notifyAppSecEnd(AgentSpan span);
+    void notifyAppSecEnd(AgentSpan span, Object result);
 
     AgentDataStreamsMonitoring getDataStreamsMonitoring();
 
@@ -634,7 +634,7 @@ public class AgentTracer {
         AgentSpan span, Object result, boolean isError, String lambdaRequestId) {}
 
     @Override
-    public void notifyAppSecEnd(AgentSpan span) {}
+    public void notifyAppSecEnd(AgentSpan span, Object result) {}
 
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {

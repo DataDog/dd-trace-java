@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.junit5;
 import datadog.trace.api.Pair;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.instrumentation.junit5.execution.RetryDescriptorFactories;
 import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -25,6 +26,8 @@ public abstract class CucumberUtils {
         CucumberUtils::toTestIdentifier,
         d -> TestSourceData.UNKNOWN,
         null);
+    RetryDescriptorFactories.register(
+        JUnitPlatformUtils.ENGINE_ID_CUCUMBER, new CucumberRetryDescriptorFactory());
   }
 
   public static @Nullable String getCucumberVersion(TestEngine cucumberEngine) {

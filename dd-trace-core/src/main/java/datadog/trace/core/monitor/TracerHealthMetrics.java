@@ -383,7 +383,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   @Override
   public void onTagCardinalityBlocked(String[] statsDTag, long count) {
-    statsd.count("stats.tag_cardinality_blocked", count, statsDTag);
+    statsd.count("datadog.tracer.stats.collapsed_spans", count, statsDTag);
   }
 
   @Override

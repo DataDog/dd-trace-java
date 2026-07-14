@@ -10,9 +10,7 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   String getServiceName();
 
-  default CharSequence getServiceNameSource() {
-    return null;
-  }
+  CharSequence getServiceNameSource();
 
   CharSequence getOperationName();
 
@@ -62,13 +60,9 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   <U> U getTag(CharSequence name);
 
-  default <U> U unsafeGetTag(CharSequence name, U defaultValue) {
-    return getTag(name, defaultValue);
-  }
+  <U> U unsafeGetTag(CharSequence name, U defaultValue);
 
-  default <U> U unsafeGetTag(CharSequence name) {
-    return getTag(name);
-  }
+  <U> U unsafeGetTag(CharSequence name);
 
   boolean hasSamplingPriority();
 
@@ -81,9 +75,7 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   boolean isForceKeep();
 
-  default boolean isKind(SpanKindFilter filter) {
-    return filter.matches(getSpanKindString());
-  }
+  boolean isKind(SpanKindFilter filter);
 
   /**
    * Returns the {@code span.kind} tag value as a String, or {@code null} if not set. Default
@@ -106,8 +98,17 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   void processTagsAndBaggage(MetadataConsumer consumer);
 
-  void processTagsAndBaggage(
-      MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags);
+  /**
+   * Variant of {@link #processTagsAndBaggage(MetadataConsumer)} for protocols that serialize span
+   * links as first-class structured data rather than tags. Baggage tag injection still follows the
+   * tracer configuration.
+   *
+   * <p>To simplify tests, by default delegating to {@link
+   * #processTagsAndBaggage(MetadataConsumer)}.
+   */
+  default void processTagsAndBaggageWithStructuredLinks(MetadataConsumer consumer) {
+    processTagsAndBaggage(consumer);
+  }
 
   T setSamplingPriority(int samplingPriority, int samplingMechanism);
 

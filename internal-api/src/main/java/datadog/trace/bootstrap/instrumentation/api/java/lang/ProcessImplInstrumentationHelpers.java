@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContin
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
@@ -313,7 +314,7 @@ public class ProcessImplInstrumentationHelpers {
       span.finish();
       return;
     }
-    try (final AgentScope scope = parentContinuation.activate()) {
+    try (final ContextScope scope = parentContinuation.activate()) {
       span.finish();
     }
   }

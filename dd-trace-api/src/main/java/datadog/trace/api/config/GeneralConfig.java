@@ -70,6 +70,14 @@ public final class GeneralConfig {
   public static final String TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION =
       "trace.stats.computation.ignore.agent.version";
 
+  public static final String TRACE_STATS_CARDINALITY_LIMIT = "trace.stats.cardinality.limit";
+  public static final String TRACE_STATS_RESOURCE_CARDINALITY_LIMIT =
+      "trace.stats.resource.cardinality.limit";
+  public static final String TRACE_STATS_HTTP_ENDPOINT_CARDINALITY_LIMIT =
+      "trace.stats.http_endpoint.cardinality.limit";
+  public static final String TRACE_STATS_PEER_TAGS_CARDINALITY_LIMIT =
+      "trace.stats.peer_tags.cardinality.limit";
+
   public static final String TRACE_OTEL_SEMANTICS_ENABLED = "trace.otel.semantics.enabled";
 
   public static final String TRACER_METRICS_ENABLED = "trace.tracer.metrics.enabled";

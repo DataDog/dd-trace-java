@@ -62,6 +62,7 @@ final class PropertyCardinalityHandler {
    * Test convenience: limits-enabled mode (blocked sentinel substitution active). Production uses
    * the three-argument constructor with the flag from {@code Config}.
    */
+  @VisibleForTesting
   PropertyCardinalityHandler(String name, int cardinalityLimit) {
     this(name, cardinalityLimit, true);
   }
@@ -159,12 +160,10 @@ final class PropertyCardinalityHandler {
    */
   String[] statsDTag() {
     if (statsDTag == null) {
-      statsDTag = new String[] {"tag:" + name};
+      statsDTag = new String[] {"collapsed:" + name};
     }
     return statsDTag;
   }
-
-
 
   long reset() {
     long count = this.blockedCount;

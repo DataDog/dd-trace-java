@@ -6,7 +6,6 @@ import datadog.communication.util.IOUtils;
 import datadog.smoketest.springboot.TestBean;
 import datadog.smoketest.springboot.controller.mock.JakartaMockTransport;
 import ddtest.client.sources.Hasher;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -186,14 +185,12 @@ public class IastWebController {
     return "Command Injection page";
   }
 
-  @SuppressFBWarnings("PT_ABSOLUTE_PATH_TRAVERSAL")
   @GetMapping("/path_traversal/file")
   public String pathTraversalFile(final HttpServletRequest request) {
     new File(request.getParameter("path"));
     return "Path Traversal page";
   }
 
-  @SuppressFBWarnings("PT_ABSOLUTE_PATH_TRAVERSAL")
   @GetMapping("/path_traversal/paths")
   public String pathTraversalPaths(final HttpServletRequest request) {
     Paths.get(request.getParameter("path"));

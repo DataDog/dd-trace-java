@@ -330,7 +330,7 @@ class AggregateTableTest {
     HealthMetrics metrics = mock(HealthMetrics.class);
     table.resetHandlers(metrics);
 
-    verify(metrics).onTagCardinalityBlocked(new String[] {"tag:service"}, 2L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:service"}, 2L);
     verifyNoMoreInteractions(metrics);
 
     // After reset, a new service name should land in a fresh bucket, not the sentinel.

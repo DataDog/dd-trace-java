@@ -1,5 +1,8 @@
 package com.datadog.appsec.sca;
 
+import static com.datadog.appsec.sca.ScaBytecodeTestUtils.bytecodeOf;
+import static com.datadog.appsec.sca.ScaBytecodeTestUtils.bytecodeWithoutDebugInfo;
+import static com.datadog.appsec.sca.ScaBytecodeTestUtils.loadModified;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -10,8 +13,6 @@ import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.DependencySnapshot;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
 import datadog.trace.bootstrap.appsec.sca.ScaReachabilityCallback;
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.io.StringReader;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -40,6 +41,24 @@ class ScaReachabilityMethodLevelTest {
 
     public String safeMethod() {
       return "safe";
+    }
+  }
+
+  /** Fixture compiled normally, then stripped of line numbers before callback injection. */
+  public static class ClassToBeStrippedOfLineNumber {
+    // Intentionally non-final so javac emits a field read instead of inlining a constant.
+    private static int runtimeFieldValue = 7;
+
+    public static int readField() {
+      return runtimeFieldValue;
+    }
+
+    public static Object returnArgument(Object value) {
+      return value;
+    }
+
+    public static String callToString(Object value) {
+      return value.toString();
     }
   }
 
@@ -169,6 +188,38 @@ class ScaReachabilityMethodLevelTest {
     assertEquals(2, hits.size(), "Each instrumented method produces its own hit");
     assertTrue(hits.stream().anyMatch(h -> h.symbolName().equals("vulnerableMethod")));
     assertTrue(hits.stream().anyMatch(h -> h.symbolName().equals("safeMethod")));
+  }
+
+  @Test
+  void inject_withoutLineNumbersInjectsBeforeFirstInstruction() throws Exception {
+    byte[] original = bytecodeWithoutDebugInfo(ClassToBeStrippedOfLineNumber.class);
+    String className = ClassToBeStrippedOfLineNumber.class.getName();
+    Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks = new HashMap<>();
+    callbacks.put(
+        "readField",
+        Collections.singletonList(
+            spec("GHSA-field", "com.example:lib", "1.0.0", className, "readField")));
+    callbacks.put(
+        "returnArgument",
+        Collections.singletonList(
+            spec("GHSA-var", "com.example:lib", "1.0.0", className, "returnArgument")));
+    callbacks.put(
+        "callToString",
+        Collections.singletonList(
+            spec("GHSA-method", "com.example:lib", "1.0.0", className, "callToString")));
+
+    Class<?> cls = loadModified(ScaMethodCallbackInjector.inject(original, callbacks));
+
+    assertEquals(7, cls.getMethod("readField").invoke(null));
+    assertEquals("value", cls.getMethod("returnArgument", Object.class).invoke(null, "value"));
+    assertEquals("value", cls.getMethod("callToString", Object.class).invoke(null, "value"));
+
+    List<ScaReachabilityHit> hits = drainHits();
+    assertEquals(3, hits.size());
+    assertTrue(hits.stream().allMatch(hit -> hit.line() == 1));
+    assertTrue(hits.stream().anyMatch(hit -> hit.symbolName().equals("readField")));
+    assertTrue(hits.stream().anyMatch(hit -> hit.symbolName().equals("returnArgument")));
+    assertTrue(hits.stream().anyMatch(hit -> hit.symbolName().equals("callToString")));
   }
 
   @Test
@@ -324,25 +375,5 @@ class ScaReachabilityMethodLevelTest {
       String vulnId, String artifact, String version, String dotClass, String method) {
     return new ScaMethodCallbackInjector.MethodCallbackSpec(
         vulnId, artifact, version, dotClass, method);
-  }
-
-  private static byte[] bytecodeOf(Class<?> clazz) throws Exception {
-    String path = clazz.getName().replace('.', '/') + ".class";
-    try (InputStream is = clazz.getClassLoader().getResourceAsStream(path)) {
-      assertNotNull(is, "Cannot load bytecode for " + clazz.getName());
-      ByteArrayOutputStream buf = new ByteArrayOutputStream();
-      byte[] chunk = new byte[4096];
-      int n;
-      while ((n = is.read(chunk)) != -1) buf.write(chunk, 0, n);
-      return buf.toByteArray();
-    }
-  }
-
-  private static Class<?> loadModified(byte[] bytecode) {
-    return new ClassLoader(ScaReachabilityMethodLevelTest.class.getClassLoader()) {
-      Class<?> define() {
-        return defineClass(null, bytecode, 0, bytecode.length);
-      }
-    }.define();
   }
 }

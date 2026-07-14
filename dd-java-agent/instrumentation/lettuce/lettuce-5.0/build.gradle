@@ -12,6 +12,10 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+addTestSuiteForDir('lettuce51Test', 'test')
+addTestSuiteForDir('lettuce60Test', 'test')
+addTestSuiteForDir('lettuce61Test', 'test')
+addTestSuiteForDir('lettuce62Test', 'test')
 
 dependencies {
   compileOnly group: 'io.lettuce', name: 'lettuce-core', version: '5.0.0.RELEASE'
@@ -24,6 +28,10 @@ dependencies {
 
 
   latestDepTestImplementation group: 'io.lettuce', name: 'lettuce-core', version: '+'
+  lettuce51TestImplementation group: 'io.lettuce', name: 'lettuce-core', version: '5.1.0.RELEASE'
+  lettuce60TestImplementation group: 'io.lettuce', name: 'lettuce-core', version: '6.0.0.RELEASE'
+  lettuce61TestImplementation group: 'io.lettuce', name: 'lettuce-core', version: '6.1.0.RELEASE'
+  lettuce62TestImplementation group: 'io.lettuce', name: 'lettuce-core', version: '6.2.0.RELEASE'
 
   tasks.withType(Test).configureEach {
     usesService(testcontainersLimit)

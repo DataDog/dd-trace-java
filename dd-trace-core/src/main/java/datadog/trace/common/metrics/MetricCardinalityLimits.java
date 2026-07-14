@@ -58,7 +58,7 @@ final class MetricCardinalityLimits {
    * Distinct {@code http.endpoint} values per cycle. Path templates -- same shape as {@code
    * RESOURCE} for HTTP-heavy services. Only used when {@code includeEndpointInMetrics} is enabled.
    */
-  static final int HTTP_ENDPOINT = 64;
+  static final int HTTP_ENDPOINT = 512;
 
   /**
    * Distinct gRPC status code values per cycle. gRPC spec defines exactly 17 codes (0-16); 24

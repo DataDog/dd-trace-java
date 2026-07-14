@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.scala210.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import datadog.context.Context;
@@ -8,7 +9,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.instrumentation.scala.PromiseHelper;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.impl.CallbackRunnable;
@@ -43,8 +43,7 @@ public final class PromiseObjectInstrumentation
         ContextStore<Try, Context> contextStore =
             InstrumentationContext.get(Try.class, Context.class);
         final Context existing = contextStore.get(resolved);
-        Try<T> next =
-            PromiseHelper.getTry(resolved, span, Java8BytecodeBridge.spanFromContext(existing));
+        Try<T> next = PromiseHelper.getTry(resolved, span, spanFromContext(existing));
         if (next != resolved) {
           contextStore.put(next, span);
           resolved = next;

@@ -6,12 +6,12 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 
 /**
- * Cardinality-capped UTF8 encoder and cache for one peer-tag name ({@code value} &rarr;
- * {@code UTF8("tag:value")}).
+ * Cardinality-capped UTF8 encoder and cache for one peer-tag name ({@code value} &rarr; {@code
+ * UTF8("tag:value")}).
  *
  * <p>Same per-cycle budget and prior-cycle reuse as {@link PropertyCardinalityHandler}. The
- * difference is that the cached output is the pre-encoded {@code "tag:value"} string, so a
- * parallel raw-value keys table is needed alongside the UTF8 values table.
+ * difference is that the cached output is the pre-encoded {@code "tag:value"} string, so a parallel
+ * raw-value keys table is needed alongside the UTF8 values table.
  */
 final class TagCardinalityHandler {
   // Upper bound prevents int overflow in the (cardinalityLimit * 2 - 1) capacity calculation.
@@ -105,7 +105,7 @@ final class TagCardinalityHandler {
     // collapse this value to "tag:tracer_blocked_value" and record the block.
     if (capExhausted && this.useBlockedSentinel) {
       this.blockedCount++;
-      return this.blockedByTracer();
+      return this.tracerBlockedValue();
     }
     // Try to find the same raw value in the previous-cycle table so the encoded
     // UTF8 object can be reused after a reset.
@@ -134,7 +134,7 @@ final class TagCardinalityHandler {
     return utf8;
   }
 
-  private UTF8BytesString blockedByTracer() {
+  private UTF8BytesString tracerBlockedValue() {
     UTF8BytesString cacheBlocked = this.cacheBlocked;
     if (cacheBlocked != null) return cacheBlocked;
 
@@ -142,17 +142,17 @@ final class TagCardinalityHandler {
     return cacheBlocked;
   }
 
-  /**
-   * Resets the per-cycle working set and returns the accumulated block count for this cycle. The
-   * caller is responsible for reporting the count to health metrics if non-zero.
-   */
   String[] statsDTag() {
     if (statsDTag == null) {
-      statsDTag = new String[] {"tag:" + tag};
+      statsDTag = new String[] {"collapsed:" + tag};
     }
     return statsDTag;
   }
 
+  /**
+   * Resets the per-cycle working set and returns the accumulated block count for this cycle. The
+   * caller is responsible for reporting the count to health metrics if non-zero.
+   */
   long reset() {
     long count = this.blockedCount;
     this.blockedCount = 0;

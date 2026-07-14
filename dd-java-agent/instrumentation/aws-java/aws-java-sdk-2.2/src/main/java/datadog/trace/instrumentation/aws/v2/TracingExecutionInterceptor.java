@@ -11,11 +11,11 @@ import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.COMPONE
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORATE;
 
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstanceStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -69,7 +69,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
     final Context ddContext = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
     final AgentSpan span = fromContext(ddContext);
     if (context != null && span != null) {
-      try (AgentScope ignored = activateSpan(span)) {
+      try (ContextScope ignored = activateSpan(span)) {
         DECORATE.onRequest(span, context.httpRequest());
         DECORATE.onSdkRequest(
             ddContext, context.request(), context.httpRequest(), executionAttributes);

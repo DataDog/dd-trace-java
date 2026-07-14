@@ -1,10 +1,10 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.values.StringValue;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import java.util.function.BiPredicate;
 
 public class StringPredicateExpression implements BooleanExpression {
@@ -25,9 +25,9 @@ public class StringPredicateExpression implements BooleanExpression {
   }
 
   @Override
-  public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
+  public Boolean evaluate(EvalContext evalContext) {
     Value<?> sourceValue =
-        sourceString != null ? sourceString.evaluate(valueRefResolver) : Value.nullValue();
+        sourceString != null ? sourceString.evaluate(evalContext) : Value.nullValue();
     if (sourceValue.isUndefined()) {
       throw new EvaluationException(
           "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
@@ -38,7 +38,9 @@ public class StringPredicateExpression implements BooleanExpression {
     }
     if (sourceValue.getValue() instanceof String) {
       String sourceStr = (String) sourceValue.getValue();
-      return predicate.test(sourceStr, str.getValue());
+      boolean result = predicate.test(sourceStr, str.getValue());
+      ExpressionHelper.checkTimeout(evalContext.getTimeoutChecker(), this);
+      return result;
     }
     return Boolean.FALSE;
   }

@@ -22,6 +22,7 @@ import datadog.trace.api.civisibility.telemetry.tag.GitShaMatch;
 import datadog.trace.api.civisibility.telemetry.tag.HasCodeowner;
 import datadog.trace.api.civisibility.telemetry.tag.HasFailedAllRetries;
 import datadog.trace.api.civisibility.telemetry.tag.ImpactedTestsDetectionEnabled;
+import datadog.trace.api.civisibility.telemetry.tag.IsAndroidEmulated;
 import datadog.trace.api.civisibility.telemetry.tag.IsAttemptToFix;
 import datadog.trace.api.civisibility.telemetry.tag.IsDisabled;
 import datadog.trace.api.civisibility.telemetry.tag.IsHeadless;
@@ -88,7 +89,8 @@ public enum CiVisibilityCountMetric {
       RetryReason.class,
       FailedTestReplayEnabled.TestMetric.class,
       IsRum.class,
-      BrowserDriver.class),
+      BrowserDriver.class,
+      IsAndroidEmulated.class),
   /** The number of successfully collected code coverages that are empty */
   CODE_COVERAGE_IS_EMPTY("code_coverage.is_empty"),
   /** The number of errors while processing code coverage */
