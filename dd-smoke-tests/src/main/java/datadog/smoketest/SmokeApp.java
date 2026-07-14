@@ -3,9 +3,13 @@ package datadog.smoketest;
 import datadog.smoketest.backend.TraceBackend;
 import datadog.smoketest.backend.Traces;
 import datadog.trace.agent.test.utils.PortUtils;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -16,6 +20,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -75,10 +80,14 @@ public final class SmokeApp
   private final boolean server; // wait for the HTTP port to open on start
   private final long startupTimeoutSeconds;
   private final int httpPort;
+  private final Predicate<String> errorLogFilter;
+  private final boolean checkErrorLogs;
+  private final boolean checkTelemetry;
 
   private final OkHttpClient httpClient = new OkHttpClient();
   private final OutputThreads outputThreads = new OutputThreads();
   private Process process;
+  private File logFile;
 
   private SmokeApp(Builder builder) {
     this.name = builder.name;
@@ -96,6 +105,12 @@ public final class SmokeApp
     this.server = builder.server;
     this.startupTimeoutSeconds = builder.startupTimeoutSeconds;
     this.httpPort = PortUtils.randomOpenPort();
+    this.checkErrorLogs = builder.checkErrorLogs;
+    this.checkTelemetry = builder.checkTelemetry;
+    this.errorLogFilter =
+        builder.errorLogFilter != null
+            ? builder.errorLogFilter
+            : defaultErrorLogFilter(builder.allowedErrorLogs);
   }
 
   /** Starts a fluent builder for an app with the given (log/diagnostic) name. */
@@ -219,9 +234,24 @@ public final class SmokeApp
     try {
       stopProcess();
     } finally {
+      // Join the output threads first so the log file is fully flushed before we scan it.
       outputThreads.close();
-      if (ownsBackend) {
-        backend.close();
+      try {
+        // Telemetry flushes on app shutdown; check it while the backend is still up, and only for
+        // agent-instrumented apps (a no-agent app emits none).
+        if (checkTelemetry && agentJar != null) {
+          assertTelemetryReceived();
+        }
+      } finally {
+        try {
+          if (ownsBackend) {
+            backend.close();
+          }
+        } finally {
+          if (checkErrorLogs) {
+            assertNoErrorLogs();
+          }
+        }
       }
     }
   }
@@ -268,8 +298,9 @@ public final class SmokeApp
     env.putAll(extraEnv);
     processBuilder.redirectErrorStream(true);
 
+    logFile = resolveLogFile();
     process = processBuilder.start();
-    outputThreads.captureOutput(process, logFile());
+    outputThreads.captureOutput(process, logFile);
   }
 
   private void stopProcess() {
@@ -295,7 +326,7 @@ public final class SmokeApp
     return value.replace(HTTP_PORT_PLACEHOLDER, Integer.toString(httpPort));
   }
 
-  private File logFile() {
+  private File resolveLogFile() {
     String buildDir = System.getProperty(BUILD_DIR_PROPERTY);
     File dir =
         buildDir != null
@@ -305,6 +336,76 @@ public final class SmokeApp
     // TODO Q6 (deferred): retry-safe timestamped log file names so retries don't clobber prior
     // logs.
     return new File(dir, "smoke-app." + name + ".log");
+  }
+
+  /**
+   * Asserts the app logged no error lines, per the configured filter. Reads the whole captured log
+   * (everything since launch), so it mirrors the Groovy base's universal no-error-logs check.
+   * Auto-invoked at teardown unless {@link Builder#skipErrorLogCheck()} was set; may also be called
+   * explicitly mid-run.
+   */
+  public void assertNoErrorLogs() {
+    if (logFile == null) {
+      return; // never launched / nothing captured
+    }
+    List<String> errors = new ArrayList<>();
+    try (BufferedReader reader =
+        Files.newBufferedReader(logFile.toPath(), StandardCharsets.UTF_8)) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        if (errorLogFilter.test(line)) {
+          errors.add(line);
+        }
+      }
+    } catch (NoSuchFileException e) {
+      return; // no output file was produced
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to read app log " + logFile, e);
+    }
+    if (!errors.isEmpty()) {
+      StringBuilder message =
+          new StringBuilder("App '")
+              .append(name)
+              .append("' logged ")
+              .append(errors.size())
+              .append(" error line(s):");
+      for (String error : errors) {
+        message.append("\n  ").append(error);
+      }
+      throw new AssertionError(message.toString());
+    }
+  }
+
+  /**
+   * Asserts the agent emitted {@code app-started} telemetry for this app. Auto-invoked at teardown
+   * for agent-instrumented apps (unless {@link Builder#skipTelemetryCheck()}); telemetry flushes on
+   * app shutdown, so it runs after the process stops but while the backend is still up.
+   */
+  public void assertTelemetryReceived() {
+    backend
+        .telemetry()
+        .waitForFlat(
+            message -> "app-started".equals(message.get("request_type")), startupTimeoutSeconds);
+  }
+
+  /**
+   * The default error-log predicate: a line is an error if it contains {@code ERROR}, {@code
+   * ASSERTION FAILED}, or {@code Failed to handle exception in instrumentation} — unless it
+   * contains one of the {@code allowed} substrings (the FIXME-allowlist escape hatch).
+   * Package-private for testing.
+   */
+  static Predicate<String> defaultErrorLogFilter(List<String> allowed) {
+    List<String> allowlist = new ArrayList<>(allowed);
+    return line -> {
+      for (String allowedSubstring : allowlist) {
+        if (line.contains(allowedSubstring)) {
+          return false;
+        }
+      }
+      return line.contains("ERROR")
+          || line.contains("ASSERTION FAILED")
+          || line.contains("Failed to handle exception in instrumentation");
+    };
   }
 
   private static String javaExecutable() {
@@ -351,6 +452,10 @@ public final class SmokeApp
     private boolean noAgent;
     private boolean server = true;
     private long startupTimeoutSeconds = 120;
+    private Predicate<String> errorLogFilter;
+    private final List<String> allowedErrorLogs = new ArrayList<>();
+    private boolean checkErrorLogs = true;
+    private boolean checkTelemetry = true;
 
     private Builder(String name) {
       this.name = name;
@@ -439,6 +544,36 @@ public final class SmokeApp
       return this;
     }
 
+    /**
+     * Overrides how a captured log line is judged an error (default: contains {@code ERROR} /
+     * {@code ASSERTION FAILED} / an instrumentation-exception marker). Replaces the allowlist.
+     */
+    public Builder errorLogFilter(Predicate<String> isError) {
+      this.errorLogFilter = isError;
+      return this;
+    }
+
+    /** Allowlists log lines containing any of these substrings from the default error-log check. */
+    public Builder allowedErrorLogs(String... substrings) {
+      this.allowedErrorLogs.addAll(Arrays.asList(substrings));
+      return this;
+    }
+
+    /** Disables the automatic no-error-logs check at teardown (e.g. for error-case tests). */
+    public Builder skipErrorLogCheck() {
+      this.checkErrorLogs = false;
+      return this;
+    }
+
+    /**
+     * Disables the automatic app-started telemetry check at teardown (for agent apps that run with
+     * telemetry disabled, e.g. {@code dd.instrumentation.telemetry.enabled=false}).
+     */
+    public Builder skipTelemetryCheck() {
+      this.checkTelemetry = false;
+      return this;
+    }
+
     private String resolveAgentJar() {
       if (noAgent) {
         return null;
@@ -455,8 +590,8 @@ public final class SmokeApp
       }
       // TODO Q6 (deferred, opt-in mixins / .jvmArgs(...) escape hatch — not baked into the base):
       //  profiling args; crash-tracking args (-XX:OnError=...dd_crash_uploader.sh); memory tuning
-      //  (ForkedTestUtils); error-log assertion helpers (assertNoErrorLogs + FIXME allowlist);
-      //  retry log-file timestamping. Add as explicit opt-ins when a ported test needs them.
+      //  (ForkedTestUtils); retry log-file timestamping. Add as explicit opt-ins when a ported test
+      //  needs them.
       return new SmokeApp(this);
     }
   }

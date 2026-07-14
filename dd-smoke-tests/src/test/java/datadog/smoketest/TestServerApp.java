@@ -28,8 +28,12 @@ public final class TestServerApp {
     server.createContext(
         "/",
         exchange -> {
-          System.out.println(
-              "REQUEST " + exchange.getRequestMethod() + " " + exchange.getRequestURI().getPath());
+          String path = exchange.getRequestURI().getPath();
+          System.out.println("REQUEST " + exchange.getRequestMethod() + " " + path);
+          if ("/error".equals(path)) {
+            // Emit an error line so tests can exercise the no-error-logs check.
+            System.out.println("ERROR simulated application error");
+          }
           byte[] body = "ok".getBytes(StandardCharsets.UTF_8);
           exchange.sendResponseHeaders(200, body.length);
           try (OutputStream os = exchange.getResponseBody()) {

@@ -34,11 +34,8 @@ class OpenTelemetrySmokeTest {
     // 1 @WithSpan-annotated span + 10 manual OpenTelemetry spans, each its own trace.
     app.traces().waitForTraceCount(11, TIMEOUT_SECONDS);
 
-    // Telemetry is captured too and attributed to this test's session (S9): the agent emits at
-    // least an app-started message, carrying the same session token as the traces.
-    app.backend().telemetry().waitForCount(1, TIMEOUT_SECONDS);
-
-    // The app then runs to completion and exits cleanly.
+    // The app then runs to completion and exits cleanly. (app-started telemetry is asserted
+    // automatically at teardown by SmokeApp's default check — the test body needn't check it.)
     app.assertCompletesWithValue(TIMEOUT_SECONDS, SECONDS, 0);
   }
 }

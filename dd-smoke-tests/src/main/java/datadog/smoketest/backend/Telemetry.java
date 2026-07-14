@@ -4,6 +4,7 @@ import datadog.trace.test.util.PollingConditions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -66,6 +67,23 @@ public final class Telemetry {
               if (actual < count) {
                 throw new AssertionError(
                     "Expected at least " + count + " telemetry message(s) but got " + actual);
+              }
+            });
+    return this;
+  }
+
+  /** Waits (default timeout) until a flattened telemetry event matches {@code predicate}. */
+  public Telemetry waitForFlat(Predicate<Map<String, Object>> predicate) {
+    return waitForFlat(predicate, DEFAULT_TIMEOUT_SECONDS);
+  }
+
+  /** As {@link #waitForFlat(Predicate)}, but overriding the timeout for this call. */
+  public Telemetry waitForFlat(Predicate<Map<String, Object>> predicate, double timeoutSeconds) {
+    new PollingConditions(timeoutSeconds)
+        .eventually(
+            () -> {
+              if (getFlatMessages().stream().noneMatch(predicate)) {
+                throw new AssertionError("No telemetry event matched; received: " + getMessages());
               }
             });
     return this;

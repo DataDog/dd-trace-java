@@ -150,6 +150,21 @@ class MockAgentBackendTest {
   }
 
   @Test
+  void waitForFlatMatchesTelemetryEvents() throws IOException {
+    postTelemetry("{\"request_type\":\"app-started\",\"api_version\":\"v2\"}");
+
+    // Matches a received event…
+    backend.telemetry().waitForFlat(message -> "app-started".equals(message.get("request_type")));
+    // …and times out (short timeout) when nothing matches.
+    assertThrows(
+        AssertionError.class,
+        () ->
+            backend
+                .telemetry()
+                .waitForFlat(message -> "never-sent".equals(message.get("request_type")), 0.2));
+  }
+
+  @Test
   void infoAdvertisesTraceEndpoints() throws IOException {
     Request request = new Request.Builder().url(backend.url() + "/info").get().build();
     try (Response response = CLIENT.newCall(request).execute()) {
