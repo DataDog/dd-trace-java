@@ -13,40 +13,39 @@ import java.util.Map;
 @AutoService(InstrumenterModule.class)
 public final class RxJavaModule extends InstrumenterModule.ContextTracking {
   public RxJavaModule() {
-    super("rxjava", "rxjava-3");
+    super("rxjava");
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TracingCompletableObserver",
-      packageName + ".TracingSubscriber",
-      packageName + ".TracingMaybeObserver",
       packageName + ".TracingObserver",
-      packageName + ".RxJavaAsyncResultExtension",
+      packageName + ".TracingSubscriber",
       packageName + ".TracingSingleObserver",
+      packageName + ".TracingMaybeObserver",
+      packageName + ".TracingCompletableObserver",
+      packageName + ".RxJavaAsyncResultExtension",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    String contextClass = Context.class.getName();
     final Map<String, String> store = new HashMap<>();
-    store.put("io.reactivex.rxjava3.core.Flowable", contextClass);
-    store.put("io.reactivex.rxjava3.core.Completable", contextClass);
-    store.put("io.reactivex.rxjava3.core.Maybe", contextClass);
-    store.put("io.reactivex.rxjava3.core.Observable", contextClass);
-    store.put("io.reactivex.rxjava3.core.Single", contextClass);
+    store.put("io.reactivex.rxjava3.core.Observable", Context.class.getName());
+    store.put("io.reactivex.rxjava3.core.Flowable", Context.class.getName());
+    store.put("io.reactivex.rxjava3.core.Single", Context.class.getName());
+    store.put("io.reactivex.rxjava3.core.Maybe", Context.class.getName());
+    store.put("io.reactivex.rxjava3.core.Completable", Context.class.getName());
     return store;
   }
 
   @Override
   public List<Instrumenter> typeInstrumentations() {
     return asList(
-        new CompletableInstrumentation(),
-        new FlowableInstrumentation(),
-        new MaybeInstrumentation(),
         new ObservableInstrumentation(),
-        new SingleInstrumentation());
+        new FlowableInstrumentation(),
+        new SingleInstrumentation(),
+        new MaybeInstrumentation(),
+        new CompletableInstrumentation());
   }
 }

@@ -52,6 +52,7 @@ public final class MaybeInstrumentation
       if (observer != null) {
         Context parentContext = InstrumentationContext.get(Maybe.class, Context.class).get(maybe);
         if (parentContext != null) {
+          // wrap the observer so spans from its events treat the captured span as their parent
           observer = new TracingMaybeObserver<>(observer, parentContext);
           // attach the context here in case additional observers are created during subscribe
           return parentContext.attach();

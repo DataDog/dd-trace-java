@@ -18,7 +18,7 @@ public final class TracingSubscriber<T> implements FlowableSubscriber<T> {
   }
 
   @Override
-  public void onSubscribe(final Subscription subscription) {
+  public void onSubscribe(@Nonnull final Subscription subscription) {
     subscriber.onSubscribe(subscription);
   }
 

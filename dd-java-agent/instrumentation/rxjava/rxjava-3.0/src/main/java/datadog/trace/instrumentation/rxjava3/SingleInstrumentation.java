@@ -18,7 +18,6 @@ import net.bytebuddy.asm.Advice;
 
 public final class SingleInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
   @Override
   public String instrumentedType() {
     return "io.reactivex.rxjava3.core.Single";
@@ -53,6 +52,7 @@ public final class SingleInstrumentation
       if (observer != null) {
         Context parentContext = InstrumentationContext.get(Single.class, Context.class).get(single);
         if (parentContext != null) {
+          // wrap the observer so spans from its events treat the captured span as their parent
           observer = new TracingSingleObserver<>(observer, parentContext);
           // attach the context here in case additional observers are created during subscribe
           return parentContext.attach();
