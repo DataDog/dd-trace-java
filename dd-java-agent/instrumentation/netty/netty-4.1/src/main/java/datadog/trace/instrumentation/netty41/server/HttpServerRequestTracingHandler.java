@@ -15,7 +15,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
-import java.util.Deque;
 
 @ChannelHandler.Sharable
 public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapter {
@@ -37,6 +36,12 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     }
 
     final HttpRequest request = (HttpRequest) msg;
+    if (!ServerRequestContext.canTrackRequest(channel)) {
+      channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).remove();
+      ctx.fireChannelRead(msg);
+      return;
+    }
+
     final HttpHeaders headers = request.headers();
     final Context storedParentContext = channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).getAndRemove();
     final Context parentContext =
@@ -84,18 +89,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       super.channelInactive(ctx);
     } finally {
       try {
-        final Deque<ServerRequestContext> storedContexts =
-            ServerRequestContext.removeAll(ctx.channel());
-        if (storedContexts != null) {
-          ServerRequestContext storedContext;
-          while ((storedContext = storedContexts.pollFirst()) != null) {
-            final AgentSpan span = AgentSpan.fromContext(storedContext.tracingContext());
-            if (span != null && span.phasedFinish()) {
-              // at this point we can just publish this span to avoid losing the rest of the trace
-              span.publish();
-            }
-          }
-        }
+        ServerRequestContext.closeAll(ctx.channel());
       } catch (final Throwable ignored) {
       }
     }
