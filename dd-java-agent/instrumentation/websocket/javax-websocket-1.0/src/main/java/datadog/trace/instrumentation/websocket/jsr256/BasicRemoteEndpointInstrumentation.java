@@ -85,7 +85,7 @@ public class BasicRemoteEndpointInstrumentation
       }
 
       final AgentSpan wsSpan =
-          DECORATE.onSendFrameStart(
+          DECORATE.startOutboundFrameSpan(
               handlerContext,
               CHAR_SEQUENCE_SIZE_CALCULATOR.getFormat(),
               CHAR_SEQUENCE_SIZE_CALCULATOR.getLengthFunction().applyAsInt(text));
@@ -132,7 +132,7 @@ public class BasicRemoteEndpointInstrumentation
       }
 
       final AgentSpan wsSpan =
-          DECORATE.onSendFrameStart(
+          DECORATE.startOutboundFrameSpan(
               handlerContext,
               BYTE_BUFFER_SIZE_CALCULATOR.getFormat(),
               BYTE_BUFFER_SIZE_CALCULATOR.getLengthFunction().applyAsInt(buffer));
@@ -180,7 +180,7 @@ public class BasicRemoteEndpointInstrumentation
       // encoders/decoders.
       // we can anyway instrument also the Encoders but that would add much more complexity.
       // right now this is not in scope
-      final AgentSpan wsSpan = DECORATE.onSendFrameStart(handlerContext, null, 0);
+      final AgentSpan wsSpan = DECORATE.startOutboundFrameSpan(handlerContext, null, 0);
       return activateSpan(wsSpan);
     }
 

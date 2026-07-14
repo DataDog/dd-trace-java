@@ -29,10 +29,12 @@ public class StringTemplateBuilder {
   private final List<LogProbe.Segment> segments;
 
   private final Limits limits;
+  private final Duration timeout;
 
-  public StringTemplateBuilder(List<LogProbe.Segment> segments, Limits limits) {
+  public StringTemplateBuilder(List<LogProbe.Segment> segments, Limits limits, Duration timeout) {
     this.segments = segments;
     this.limits = limits;
+    this.timeout = timeout;
   }
 
   public String evaluate(CapturedContext context, LogProbe.LogStatus status) {
@@ -41,7 +43,6 @@ public class StringTemplateBuilder {
     }
     StringBuilder sb = new StringBuilder();
     // Only one timeout for all expressions
-    Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
     TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
     for (LogProbe.Segment segment : segments) {
       ValueScript parsedExr = segment.getParsedExpr();
