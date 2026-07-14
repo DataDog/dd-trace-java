@@ -197,6 +197,7 @@ public final class ServerRequestContext {
   private final HttpHeaders requestHeaders;
   private final HttpMethod requestMethod;
   private boolean responseStarted;
+  private boolean beforeFinishCalled;
   private boolean responseAnalyzed;
 
   public Context tracingContext() {
@@ -221,6 +222,14 @@ public final class ServerRequestContext {
 
   public void markResponseStarted() {
     responseStarted = true;
+  }
+
+  public boolean isBeforeFinishCalled() {
+    return beforeFinishCalled;
+  }
+
+  public void markBeforeFinishCalled() {
+    beforeFinishCalled = true;
   }
 
   public boolean isResponseAnalyzed() {

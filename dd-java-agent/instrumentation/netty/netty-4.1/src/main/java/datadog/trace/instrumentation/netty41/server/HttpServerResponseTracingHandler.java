@@ -46,16 +46,20 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       try {
         if (terminalResponse) {
           ServerRequestContext.remove(ctx.channel(), serverContext);
-          writePromise.addListener(future -> finishSpan(storedContext, span, future));
+          writePromise.addListener(
+              future -> finishSpan(serverContext, storedContext, span, future));
         }
         ctx.write(msg, writePromise);
+        if (serverContext.isResponseStarted()) {
+          beforeFinish(serverContext, storedContext);
+        }
       } catch (final Throwable throwable) {
         DECORATE.onError(span, throwable);
         span.setHttpStatusCode(500);
         if (!terminalResponse) {
           ServerRequestContext.remove(ctx.channel(), serverContext);
         }
-        finishSpan(storedContext, span);
+        finishSpan(serverContext, storedContext, span);
         throw throwable;
       }
     }
@@ -113,16 +117,28 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
   }
 
   private static void finishSpan(
-      final Context storedContext, final AgentSpan span, final Future<?> future) {
+      final ServerRequestContext serverContext,
+      final Context storedContext,
+      final AgentSpan span,
+      final Future<?> future) {
     if (!future.isSuccess()) {
       DECORATE.onError(span, future.cause());
       span.setHttpStatusCode(500);
     }
-    finishSpan(storedContext, span);
+    finishSpan(serverContext, storedContext, span);
   }
 
-  private static void finishSpan(final Context storedContext, final AgentSpan span) {
-    DECORATE.beforeFinish(storedContext);
+  private static void finishSpan(
+      final ServerRequestContext serverContext, final Context storedContext, final AgentSpan span) {
+    beforeFinish(serverContext, storedContext);
     span.finish(); // Finish the span manually since finishSpanOnClose was false
+  }
+
+  private static void beforeFinish(
+      final ServerRequestContext serverContext, final Context storedContext) {
+    if (!serverContext.isBeforeFinishCalled()) {
+      serverContext.markBeforeFinishCalled();
+      DECORATE.beforeFinish(storedContext);
+    }
   }
 }

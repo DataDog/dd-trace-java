@@ -98,7 +98,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
           ServerRequestContext storedContext;
           while ((storedContext = storedContexts.pollFirst()) != null) {
             if (storedContext.isResponseStarted()) {
-              finishSpanOnIncompleteResponse(storedContext.tracingContext());
+              finishSpanOnIncompleteResponse(storedContext);
             } else {
               publishSpanOnChannelClose(storedContext.tracingContext());
             }
@@ -109,11 +109,15 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     }
   }
 
-  private static void finishSpanOnIncompleteResponse(final Context storedContext) {
+  private static void finishSpanOnIncompleteResponse(final ServerRequestContext serverContext) {
+    final Context storedContext = serverContext.tracingContext();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
     if (span != null) {
       DECORATE.onError(span, new IllegalStateException(INCOMPLETE_RESPONSE_MESSAGE));
-      DECORATE.beforeFinish(storedContext);
+      if (!serverContext.isBeforeFinishCalled()) {
+        serverContext.markBeforeFinishCalled();
+        DECORATE.beforeFinish(storedContext);
+      }
       span.finish();
     }
   }
