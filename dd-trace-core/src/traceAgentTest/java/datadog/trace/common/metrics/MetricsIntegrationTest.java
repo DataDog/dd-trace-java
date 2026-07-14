@@ -116,7 +116,7 @@ class MetricsIntegrationTest {
     // snapshot and creates/looks up the entry). Both entries use one peer tag (grault:quux) and no
     // additional tags -> schema names=["grault"], values=["quux"].
     AggregateTable table = new AggregateTable(8);
-    PeerTagSchema schema = PeerTagSchema.testSchema(new String[] {"grault"});
+    PeerTagSchema schema = new PeerTagSchema(new String[] {"grault"}, PeerTagSchema.NO_STATE);
     SpanSnapshot snap1 =
         new SpanSnapshot(
             "resource1",
