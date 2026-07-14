@@ -22,9 +22,14 @@ dependencies {
   api(project(":utils:queue-utils"))
 
   compileOnly(project(":dd-trace-core")) // shading does not work with this one
+  // Span-enrichment write tier: TraceInterceptor / GlobalTracer / AgentTracer / AgentSpan.
+  compileOnly(project(":internal-api"))
+  // Platform JSON writer for the ffe_* tag values.
+  compileOnly(project(":components:json"))
 
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
+  testImplementation(project(":internal-api"))
   testImplementation(project(":utils:test-utils"))
   testImplementation(project(":dd-java-agent:testing"))
 }
