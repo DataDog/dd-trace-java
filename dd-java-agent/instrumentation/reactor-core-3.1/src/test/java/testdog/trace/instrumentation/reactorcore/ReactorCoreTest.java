@@ -163,9 +163,7 @@ class ReactorCoreTest extends AbstractInstrumentationTest {
             4,
             (Supplier<Object>)
                 () ->
-                    Flux.fromIterable(Arrays.asList(6, 7))
-                        .map(Worker::addOne)
-                        .map(Worker::addOne)),
+                    Flux.fromIterable(Arrays.asList(6, 7)).map(Worker::addOne).map(Worker::addOne)),
         Arguments.of(
             "mono from callable",
             new Object[] {12},
@@ -423,8 +421,7 @@ class ReactorCoreTest extends AbstractInstrumentationTest {
         Arguments.of(
             "basic flux",
             2,
-            (Supplier<Object>)
-                () -> Flux.fromIterable(Arrays.asList(1, 2)).map(Worker::addOne)));
+            (Supplier<Object>) () -> Flux.fromIterable(Arrays.asList(1, 2)).map(Worker::addOne)));
   }
 
   @ParameterizedTest(
@@ -505,8 +502,7 @@ class ReactorCoreTest extends AbstractInstrumentationTest {
         Flux.fromIterable(Arrays.asList(1, 2, 3, 4))
             .parallel()
             .runOn(scheduler)
-            .flatMap(
-                num -> Mono.just(num.toString() + " on " + Thread.currentThread().getName()))
+            .flatMap(num -> Mono.just(num.toString() + " on " + Thread.currentThread().getName()))
             .sequential()
             .collectList()
             .block();

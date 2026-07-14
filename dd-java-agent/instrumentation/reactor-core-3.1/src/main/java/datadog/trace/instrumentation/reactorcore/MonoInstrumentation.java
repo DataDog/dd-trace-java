@@ -50,8 +50,7 @@ public final class MonoInstrumentation
         @Advice.This final Mono<?> mono,
         @Advice.Argument(value = 0, readOnly = false) CoreSubscriber<?> subscriber) {
       if (subscriber != null) {
-        Context parentContext =
-            InstrumentationContext.get(Mono.class, Context.class).get(mono);
+        Context parentContext = InstrumentationContext.get(Mono.class, Context.class).get(mono);
         if (parentContext != null) {
           // wrap the subscriber so spans from its events treat the captured span as their parent
           subscriber = new TracingCoreSubscriber<>(subscriber, parentContext);

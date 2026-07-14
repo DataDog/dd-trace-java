@@ -50,8 +50,7 @@ public final class FluxInstrumentation
         @Advice.This final Flux<?> flux,
         @Advice.Argument(value = 0, readOnly = false) CoreSubscriber<?> subscriber) {
       if (subscriber != null) {
-        Context parentContext =
-            InstrumentationContext.get(Flux.class, Context.class).get(flux);
+        Context parentContext = InstrumentationContext.get(Flux.class, Context.class).get(flux);
         if (parentContext != null) {
           subscriber = new TracingCoreSubscriber<>(subscriber, parentContext);
           return parentContext.attach();

@@ -19,8 +19,7 @@ public final class ReactorCoreModule extends InstrumenterModule.ContextTracking 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TracingCoreSubscriber",
-      packageName + ".ReactorAsyncResultExtension",
+      packageName + ".TracingCoreSubscriber", packageName + ".ReactorAsyncResultExtension",
     };
   }
 
