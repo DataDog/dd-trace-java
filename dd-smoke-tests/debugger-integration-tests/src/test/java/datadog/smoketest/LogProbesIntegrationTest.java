@@ -1,7 +1,9 @@
 package datadog.smoketest;
 
+import static com.datadog.debugger.el.DSL.all;
 import static com.datadog.debugger.el.DSL.and;
 import static com.datadog.debugger.el.DSL.eq;
+import static com.datadog.debugger.el.DSL.filter;
 import static com.datadog.debugger.el.DSL.gt;
 import static com.datadog.debugger.el.DSL.len;
 import static com.datadog.debugger.el.DSL.nullValue;
@@ -9,6 +11,7 @@ import static com.datadog.debugger.el.DSL.ref;
 import static com.datadog.debugger.el.DSL.value;
 import static com.datadog.debugger.el.DSL.when;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -353,7 +356,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     LogProbe probe =
         LogProbe.builder()
             .probeId(LINE_PROBE_ID1)
-            .where("DebuggerTestApplication.java", 88)
+            .where("DebuggerTestApplication.java", 95)
             .captureSnapshot(true)
             .build();
     setCurrentConfiguration(createConfig(probe));
@@ -362,7 +365,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     registerSnapshotListener(
         snapshot -> {
           assertEquals(LINE_PROBE_ID1.getId(), snapshot.getProbe().getId());
-          CapturedContext capturedContext = snapshot.getCaptures().getLines().get(88);
+          CapturedContext capturedContext = snapshot.getCaptures().getLines().get(95);
           assertFullMethodCaptureArgs(capturedContext);
           assertNull(capturedContext.getLocals());
           assertNull(capturedContext.getCapturedThrowable());
@@ -567,6 +570,74 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
               "datadog.smoketest.debugger.Main.exceptionMethod",
               throwable.getStacktrace().get(0).getFunction());
           snapshotReceived.set(true);
+        });
+    processRequests(
+        snapshotReceived::get,
+        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
+  }
+
+  @Test
+  @DisplayName("testConditionTimeout")
+  void testConditionTimeout() throws Exception {
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
+    final String METHOD_NAME = "processLargeCollection";
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(MAIN_CLASS_NAME, METHOD_NAME)
+            .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(true)
+            .when(
+                new ProbeCondition(
+                    when(all(ref("largeList"), gt(len(ref("@it")), value(0)))),
+                    "all(largeList, {len(@it) > 0}"))
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
+    AtomicBoolean snapshotReceived = new AtomicBoolean();
+    registerSnapshotListener(
+        snapshot -> {
+          if (snapshot.getProbe().getProbeId().equals(PROBE_ID)) {
+            assertEquals(1, snapshot.getEvaluationErrors().size());
+            assertEquals("timeout (50ms)", snapshot.getEvaluationErrors().get(0).getMessage());
+            snapshotReceived.set(true);
+          }
+        });
+    processRequests(
+        snapshotReceived::get,
+        () -> String.format("timeout snapshotReceived=%s", snapshotReceived.get()));
+  }
+
+  @Test
+  @DisplayName("testTemplateTimeout")
+  void testTemplateTimeout() throws Exception {
+    final String EXPECTED_UPLOADS = "4"; // 3 statuses + 1 snapshot
+    final String METHOD_NAME = "processLargeCollection";
+    final String LARGE_COLLECTION_TEMPLATE = "{filter(largeList, {len(@it) > 0})}";
+    List<LogProbe.Segment> segments =
+        singletonList(
+            new LogProbe.Segment(
+                new ValueScript(
+                    filter(ref("largeList"), gt(len(ref("@it")), value(0))),
+                    "filter(largeList, {len(@it) > 0})")));
+    LogProbe probe =
+        LogProbe.builder()
+            .probeId(PROBE_ID)
+            .where(MAIN_CLASS_NAME, METHOD_NAME)
+            .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(true)
+            .template(LARGE_COLLECTION_TEMPLATE, segments)
+            .build();
+    setCurrentConfiguration(createConfig(probe));
+    targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
+    AtomicBoolean snapshotReceived = new AtomicBoolean();
+    registerSnapshotListener(
+        snapshot -> {
+          if (snapshot.getProbe().getProbeId().equals(PROBE_ID)) {
+            assertEquals(1, snapshot.getEvaluationErrors().size());
+            assertEquals("timeout (50ms)", snapshot.getEvaluationErrors().get(0).getMessage());
+            snapshotReceived.set(true);
+          }
         });
     processRequests(
         snapshotReceived::get,

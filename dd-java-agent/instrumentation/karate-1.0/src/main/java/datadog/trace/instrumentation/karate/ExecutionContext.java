@@ -19,9 +19,7 @@ public class ExecutionContext {
     this.suppressFailures = suppressFailures;
   }
 
-  public boolean getAndResetSuppressFailures() {
-    boolean suppressFailures = this.suppressFailures;
-    this.suppressFailures = false;
+  public boolean shouldSuppressFailures() {
     return suppressFailures;
   }
 

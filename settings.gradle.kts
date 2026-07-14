@@ -161,6 +161,7 @@ include(
   ":products:feature-flagging:feature-flagging-agent",
   ":products:feature-flagging:feature-flagging-api",
   ":products:feature-flagging:feature-flagging-bootstrap",
+  ":products:feature-flagging:feature-flagging-config",
   ":products:feature-flagging:feature-flagging-lib"
 )
 
@@ -540,6 +541,7 @@ include(
   ":dd-java-agent:instrumentation:reactor-core-3.1",
   ":dd-java-agent:instrumentation:reactor-netty-1.0",
   ":dd-java-agent:instrumentation:rediscala-1.8",
+  ":dd-java-agent:instrumentation:robolectric-4.13",
   ":dd-java-agent:instrumentation:redisson:redisson-2.0.0",
   ":dd-java-agent:instrumentation:redisson:redisson-2.3.0",
   ":dd-java-agent:instrumentation:redisson:redisson-3.10.3",
@@ -559,6 +561,7 @@ include(
   ":dd-java-agent:instrumentation:rs:jax-rs:jax-rs-client:jax-rs-client-2.0",
   ":dd-java-agent:instrumentation:rxjava:rxjava-1.0",
   ":dd-java-agent:instrumentation:rxjava:rxjava-2.0",
+  ":dd-java-agent:instrumentation:rxjava:rxjava-3.0",
   ":dd-java-agent:instrumentation:scala:scala-concurrent-2.8",
   ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10",
   ":dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.13",

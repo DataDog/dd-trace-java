@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.INSTRUMENTATION_NAME;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -65,6 +66,12 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
         actual.handle(routingContext);
       } catch (final Throwable t) {
         DECORATE.onError(span, t);
+        if (t instanceof BlockingException) {
+          // AppSec uses BlockingException as control flow after committing a blocking response
+          // from advice such as WafPublishingBodyHandler and RoutingContextJsonAdvice. Finish
+          // immediately because that abort path may bypass Vert.x response/routing end callbacks.
+          finishHandlerSpan(routingContext);
+        }
         throw t;
       }
     }
