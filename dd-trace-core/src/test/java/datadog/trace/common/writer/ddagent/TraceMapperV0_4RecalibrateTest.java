@@ -1,8 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -12,21 +10,16 @@ class TraceMapperV0_4RecalibrateTest {
   void recalibratesOncePerInterval() {
     final long interval = TraceMapperV0_4.RECALIBRATE_SPAN_INTERVAL;
 
-    // The span counter starts at 1 (incrementAndGet), so no recalibrate until the first boundary.
-    assertFalse(TraceMapperV0_4.shouldRecalibrate(1));
-    assertFalse(TraceMapperV0_4.shouldRecalibrate(interval - 1));
-    assertTrue(TraceMapperV0_4.shouldRecalibrate(interval));
-    assertFalse(TraceMapperV0_4.shouldRecalibrate(interval + 1));
-    assertTrue(TraceMapperV0_4.shouldRecalibrate(2 * interval));
-
-    // Exactly one recalibrate per `interval` spans across a full sweep.
+    // shouldRecalibrate() advances a shared counter, so assert a property that holds regardless of
+    // the starting value: any window of 2*interval consecutive spans crosses exactly two interval
+    // boundaries.
     int recalibrations = 0;
-    for (long count = 1; count <= 4 * interval; count++) {
-      if (TraceMapperV0_4.shouldRecalibrate(count)) {
+    for (long i = 0; i < 2 * interval; i++) {
+      if (TraceMapperV0_4.shouldRecalibrate()) {
         recalibrations++;
       }
     }
-    assertEquals(4, recalibrations);
+    assertEquals(2, recalibrations);
   }
 
   @Test

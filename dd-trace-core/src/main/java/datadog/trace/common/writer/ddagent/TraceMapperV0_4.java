@@ -37,19 +37,16 @@ public final class TraceMapperV0_4 implements TraceMapper {
           ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())
           : null;
 
-  // The UTF8 caches are recalibrated periodically (decay cold entries, retune the promotion
-  // threshold) rather than on every span. recalibrate() is O(cacheSize); driven per-span it was the
-  // single largest consumer of serializer-thread CPU (a PetClinic JFR put
-  // GenerationalUtf8Cache.recalibrate at ~17% of that thread). The cache adapts to shifts in
-  // tag-value cardinality on a timescale far longer than a single span, so recalibrating once every
-  // RECALIBRATE_SPAN_INTERVAL spans preserves its effectiveness while dropping the per-span cost.
-  // Must be a power of two (see the mask in shouldRecalibrate).
+  // Controls how often the UTF8 caches are recalibrated. The caches adapt to shifts in tag-value
+  // cardinality over a timescale much longer than a single span, so recalibrating periodically
+  // rather than per-span preserves their effectiveness without paying recalibrate()'s O(cacheSize)
+  // cost on every span. Must be a power of two (see the mask in shouldRecalibrate).
   static final long RECALIBRATE_SPAN_INTERVAL = 512;
   private static final AtomicLong SPAN_COUNTER = new AtomicLong();
 
-  /** True once every {@link #RECALIBRATE_SPAN_INTERVAL} spans; pure so it can be unit-tested. */
-  static boolean shouldRecalibrate(long spanCount) {
-    return (spanCount & (RECALIBRATE_SPAN_INTERVAL - 1)) == 0;
+  /** True once every {@link #RECALIBRATE_SPAN_INTERVAL} spans; advances the span counter. */
+  static boolean shouldRecalibrate() {
+    return (SPAN_COUNTER.incrementAndGet() & (RECALIBRATE_SPAN_INTERVAL - 1)) == 0;
   }
 
   private final int size;
@@ -84,7 +81,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
     @Override
     public void accept(Metadata metadata) {
-      if (shouldRecalibrate(SPAN_COUNTER.incrementAndGet())) {
+      if ((TAG_CACHE != null || VALUE_CACHE != null) && shouldRecalibrate()) {
         if (TAG_CACHE != null) TAG_CACHE.recalibrate();
         if (VALUE_CACHE != null) VALUE_CACHE.recalibrate();
       }
