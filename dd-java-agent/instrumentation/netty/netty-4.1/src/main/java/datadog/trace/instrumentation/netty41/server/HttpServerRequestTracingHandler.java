@@ -15,10 +15,13 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
+import java.util.Deque;
 
 @ChannelHandler.Sharable
 public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapter {
   public static HttpServerRequestTracingHandler INSTANCE = new HttpServerRequestTracingHandler();
+  private static final String INCOMPLETE_RESPONSE_MESSAGE =
+      "Channel closed before response completed";
 
   @Override
   public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
@@ -54,7 +57,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       DECORATE.onRequest(span, channel, request, parentContext);
 
       final ServerRequestContext serverContext =
-          ServerRequestContext.add(channel, context, headers.get("accept"));
+          ServerRequestContext.add(channel, context, request);
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
@@ -89,9 +92,37 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       super.channelInactive(ctx);
     } finally {
       try {
-        ServerRequestContext.closeAll(ctx.channel());
+        final Deque<ServerRequestContext> storedContexts =
+            ServerRequestContext.removeAll(ctx.channel());
+        if (storedContexts != null) {
+          ServerRequestContext storedContext;
+          while ((storedContext = storedContexts.pollFirst()) != null) {
+            if (storedContext.isResponseStarted()) {
+              finishSpanOnIncompleteResponse(storedContext.tracingContext());
+            } else {
+              publishSpanOnChannelClose(storedContext.tracingContext());
+            }
+          }
+        }
       } catch (final Throwable ignored) {
       }
+    }
+  }
+
+  private static void finishSpanOnIncompleteResponse(final Context storedContext) {
+    final AgentSpan span = AgentSpan.fromContext(storedContext);
+    if (span != null) {
+      DECORATE.onError(span, new IllegalStateException(INCOMPLETE_RESPONSE_MESSAGE));
+      DECORATE.beforeFinish(storedContext);
+      span.finish();
+    }
+  }
+
+  private static void publishSpanOnChannelClose(final Context storedContext) {
+    final AgentSpan span = AgentSpan.fromContext(storedContext);
+    if (span != null && span.phasedFinish()) {
+      // At this point we can just publish this span to avoid losing the rest of the trace.
+      span.publish();
     }
   }
 }

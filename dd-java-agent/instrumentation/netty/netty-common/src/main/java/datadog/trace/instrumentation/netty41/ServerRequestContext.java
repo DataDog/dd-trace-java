@@ -4,6 +4,9 @@ import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIB
 
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.util.AttributeKey;
 import io.netty.util.AttributeMap;
 import java.util.ArrayDeque;
@@ -25,12 +28,27 @@ public final class ServerRequestContext {
 
   /** Adds a request context to the queue tail. */
   public static ServerRequestContext add(
-      final AttributeMap attributes, final Context context, final String acceptHeader) {
+      final AttributeMap attributes, final Context context, final HttpHeaders requestHeaders) {
+    return add(attributes, context, requestHeaders, null);
+  }
+
+  /** Adds a request context to the queue tail. */
+  public static ServerRequestContext add(
+      final AttributeMap attributes, final Context context, final HttpRequest request) {
+    return add(attributes, context, request.headers(), request.method());
+  }
+
+  private static ServerRequestContext add(
+      final AttributeMap attributes,
+      final Context context,
+      final HttpHeaders requestHeaders,
+      final HttpMethod requestMethod) {
     final Deque<ServerRequestContext> contexts = getOrCreate(attributes);
     if (!canAdd(attributes, contexts)) {
       return null;
     }
-    final ServerRequestContext serverContext = new ServerRequestContext(context, acceptHeader);
+    final ServerRequestContext serverContext =
+        new ServerRequestContext(context, requestHeaders, requestMethod);
     contexts.addLast(serverContext);
     // The deque is authoritative for server request/response matching. CONTEXT_ATTRIBUTE_KEY is a
     // legacy mirror of the current inbound request used by generic fire* activation.
@@ -94,10 +112,14 @@ public final class ServerRequestContext {
 
   /** Closes all pending request contexts on channel close. */
   public static void closeAll(final AttributeMap attributes) {
+    close(removeAll(attributes));
+  }
+
+  /** Removes all pending request contexts. */
+  public static Deque<ServerRequestContext> removeAll(final AttributeMap attributes) {
     // The legacy mirror must not outlive the authoritative request queue.
     attributes.attr(CONTEXT_ATTRIBUTE_KEY).remove();
-    attributes.attr(BLOCKED_RESPONSE_ATTRIBUTE_KEY).remove();
-    close(attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).getAndRemove());
+    return attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).getAndRemove();
   }
 
   private static final int PIPELINING_LIMIT = 1000;
@@ -172,7 +194,9 @@ public final class ServerRequestContext {
   }
 
   private final Context tracingContext;
-  private final String acceptHeader;
+  private final HttpHeaders requestHeaders;
+  private final HttpMethod requestMethod;
+  private boolean responseStarted;
   private boolean responseAnalyzed;
 
   public Context tracingContext() {
@@ -183,6 +207,22 @@ public final class ServerRequestContext {
     return acceptHeader;
   }
 
+  public boolean isHeadRequest() {
+    return HttpMethod.HEAD.equals(requestMethod);
+  }
+
+  public boolean isConnectRequest() {
+    return HttpMethod.CONNECT.equals(requestMethod);
+  }
+
+  public boolean isResponseStarted() {
+    return responseStarted;
+  }
+
+  public void markResponseStarted() {
+    responseStarted = true;
+  }
+
   public boolean isResponseAnalyzed() {
     return responseAnalyzed;
   }
@@ -191,8 +231,20 @@ public final class ServerRequestContext {
     responseAnalyzed = true;
   }
 
-  private ServerRequestContext(final Context tracingContext, final String acceptHeader) {
+  public boolean isResponseBlocked() {
+    return responseBlocked;
+  }
+
+  public void markResponseBlocked() {
+    responseBlocked = true;
+  }
+
+  private ServerRequestContext(
+      final Context tracingContext,
+      final HttpHeaders requestHeaders,
+      final HttpMethod requestMethod) {
     this.tracingContext = tracingContext;
-    this.acceptHeader = acceptHeader;
+    this.requestHeaders = requestHeaders;
+    this.requestMethod = requestMethod;
   }
 }

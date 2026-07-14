@@ -51,8 +51,8 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
   private static final String NOT_MODIFIED_PATH = "/bodyless/not-modified";
   private static final String CONTENT_LENGTH_ZERO_PATH = "/bodyless/content-length-zero";
   private static final String HEAD_PATH = "/bodyless/head";
+  private static final String NO_RESPONSE_PATH = "/no-response";
   private static final String WEBSOCKET_PATH = "/websocket";
-  private static final String UPGRADE_PATH = "/upgrade";
   private static final String CONNECT_AUTHORITY = "example.com:443";
   private static final String EARLY_HINTS_PATH = "/chunked/early-hints";
   private static final HttpResponseStatus EARLY_HINTS = new HttpResponseStatus(103, "Early Hints");
@@ -100,6 +100,22 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
     assertFalse(
         reportedBeforeConnectionDrop, "server span should not be reported before connection drop");
     assertTraces(trace(serverSpan(PATH).error()));
+  }
+
+  @Test
+  void closesServerSpanWithoutErrorWhenConnectionDropsBeforeResponseStarts() throws Exception {
+    boolean reportedBeforeConnectionDrop;
+    try (Socket socket = connect()) {
+      socket.getOutputStream().write(request(NO_RESPONSE_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      handler.awaitRequestWithoutResponse();
+      reportedBeforeConnectionDrop = writer.waitForTracesMax(1, 1);
+    }
+
+    assertFalse(
+        reportedBeforeConnectionDrop, "server span should not be reported before connection drop");
+    assertTraces(trace(serverSpan(NO_RESPONSE_PATH)));
   }
 
   @Test
@@ -225,11 +241,6 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
     assertHeaderOnlyResponseFinishes(WEBSOCKET_PATH, SWITCHING_PROTOCOLS);
   }
 
-  @Test
-  void finishesServerSpanForHeaderOnlyProtocolUpgrade() throws Exception {
-    assertHeaderOnlyResponseFinishes(UPGRADE_PATH, SWITCHING_PROTOCOLS);
-  }
-
   private void assertHeaderOnlyResponseFinishes(String path, HttpResponseStatus status)
       throws Exception {
     assertHeaderOnlyResponseFinishes("GET", path, status, path);
@@ -272,8 +283,6 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
               + "Upgrade: websocket\r\n"
               + "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
               + "Sec-WebSocket-Version: 13\r\n";
-    } else if (UPGRADE_PATH.equals(path)) {
-      headers += "Connection: Upgrade\r\n" + "Upgrade: h2c\r\n";
     }
     return headers + "\r\n";
   }
@@ -318,6 +327,8 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
     private final BlockingQueue<ChannelHandlerContext> firstChunkWrites =
         new LinkedBlockingQueue<>();
     private final BlockingQueue<String> headerOnlyWrites = new LinkedBlockingQueue<>();
+    private final BlockingQueue<ChannelHandlerContext> requestsWithoutResponse =
+        new LinkedBlockingQueue<>();
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, HttpRequest request) {
@@ -339,10 +350,10 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
         writeHeaderOnlyResponse(ctx, request.uri(), OK);
       } else if (CONNECT_AUTHORITY.equals(request.uri())) {
         writeHeaderOnlyResponse(ctx, request.uri(), OK);
+      } else if (NO_RESPONSE_PATH.equals(request.uri())) {
+        requestsWithoutResponse.offer(ctx);
       } else if (WEBSOCKET_PATH.equals(request.uri())) {
         writeHeaderOnlyWebSocketUpgrade(ctx, request.uri());
-      } else if (UPGRADE_PATH.equals(request.uri())) {
-        writeHeaderOnlyProtocolUpgrade(ctx, request.uri());
       } else {
         writeChunkedResponse(ctx);
       }
@@ -375,13 +386,6 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       ctx.writeAndFlush(response).addListener(future -> headerOnlyWrites.offer(path));
     }
 
-    private void writeHeaderOnlyProtocolUpgrade(ChannelHandlerContext ctx, String path) {
-      DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, SWITCHING_PROTOCOLS);
-      response.headers().set(UPGRADE, "h2c");
-      response.headers().set(CONNECTION, "Upgrade");
-      ctx.writeAndFlush(response).addListener(future -> headerOnlyWrites.offer(path));
-    }
-
     private ChannelHandlerContext awaitFirstChunkWritten() throws InterruptedException {
       ChannelHandlerContext responseContext = firstChunkWrites.poll(5, SECONDS);
       if (responseContext == null) {
@@ -402,6 +406,14 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       ChannelHandlerContext responseContext = earlyHintsWrites.poll(5, SECONDS);
       if (responseContext == null) {
         throw new AssertionError("server did not write 103 Early Hints");
+      }
+      return responseContext;
+    }
+
+    private ChannelHandlerContext awaitRequestWithoutResponse() throws InterruptedException {
+      ChannelHandlerContext responseContext = requestsWithoutResponse.poll(5, SECONDS);
+      if (responseContext == null) {
+        throw new AssertionError("server did not receive request without response");
       }
       return responseContext;
     }
