@@ -5,6 +5,7 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.SpanEnrichmentEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,14 @@ import org.slf4j.LoggerFactory;
  *
  * <p>All work is wrapped in try/catch — enrichment must NEVER break flag evaluation.
  */
+@SuppressFBWarnings(
+    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
+    justification =
+        "The production path constructs the sole instance through the private no-arg constructor "
+            + "behind INSTANCE/getInstance(); the package-private constructors are deliberate "
+            + "test-only seams for injecting the root-span resolver and interceptor registrar. The "
+            + "singleton itself is required (PR #11658 review) so the single, unremovable trace "
+            + "interceptor is registered exactly once and survives subsystem start/stop.")
 public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEnrichmentListener {
 
   private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentWriter.class);
