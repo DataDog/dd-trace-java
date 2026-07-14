@@ -72,13 +72,21 @@ public final class MultiPartHelper {
       // each call creates a fresh stream from the buffered MIME part data.
       try (InputStream is = bodyPart.getEntityAs(InputStream.class)) {
         if (is == null) return "";
-        String contentType =
-            bodyPart.getMediaType() != null ? bodyPart.getMediaType().toString() : null;
-        return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
+        return MultipartContentDecoder.readInputStream(
+            is, MAX_CONTENT_BYTES, contentTypeWithDefaultUtf8(bodyPart.getMediaType()));
       }
     } catch (IOException ignored) {
       return "";
     }
+  }
+
+  // Jersey's own getValue() decodes undeclared-charset text parts as UTF-8; match that default
+  // here instead of falling through to MultipartContentDecoder's platform-dependent fallback.
+  private static String contentTypeWithDefaultUtf8(MediaType mediaType) {
+    String contentType = mediaType != null ? mediaType.toString() : null;
+    return MultipartContentDecoder.extractCharset(contentType) == null
+        ? (contentType == null ? "charset=UTF-8" : contentType + "; charset=UTF-8")
+        : contentType;
   }
 
   public static BlockingException tryBlock(RequestContext ctx, Flow<Void> flow, String message) {

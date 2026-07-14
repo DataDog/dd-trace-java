@@ -91,6 +91,41 @@ class MultiPartHelperTest extends Specification {
     map['field'][0] == 'a' * MultiPartHelper.MAX_CONTENT_BYTES
   }
 
+  def "text/plain part with no declared charset decodes non-ASCII content as UTF-8"() {
+    given:
+    def cd = Mock(FormDataContentDisposition)
+    cd.getName() >> 'field'
+    def bodyPart = Mock(FormDataBodyPart)
+    bodyPart.getMediaType() >> MediaType.TEXT_PLAIN_TYPE
+    bodyPart.getEntityAs(InputStream) >> new ByteArrayInputStream('héllo wörld'.getBytes('UTF-8'))
+    bodyPart.getFormDataContentDisposition() >> cd
+    def map = [:]
+
+    when:
+    MultiPartHelper.collectBodyPart(bodyPart, map, null, null)
+
+    then:
+    map == [field: ['héllo wörld']]
+  }
+
+  def "text/plain part with explicit non-UTF-8 charset decodes using that charset"() {
+    given:
+    def cd = Mock(FormDataContentDisposition)
+    cd.getName() >> 'field'
+    def mediaType = new MediaType('text', 'plain', [charset: 'ISO-8859-1'])
+    def bodyPart = Mock(FormDataBodyPart)
+    bodyPart.getMediaType() >> mediaType
+    bodyPart.getEntityAs(InputStream) >> new ByteArrayInputStream('café'.getBytes('ISO-8859-1'))
+    bodyPart.getFormDataContentDisposition() >> cd
+    def map = [:]
+
+    when:
+    MultiPartHelper.collectBodyPart(bodyPart, map, null, null)
+
+    then:
+    map == [field: ['café']]
+  }
+
   def "MAX_FILES_TO_INSPECT limits number of distinct body map field names"() {
     given:
     def parts = (1..MultiPartHelper.MAX_FILES_TO_INSPECT + 2).collect { i ->
