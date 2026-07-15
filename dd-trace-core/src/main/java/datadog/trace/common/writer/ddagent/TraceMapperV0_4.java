@@ -17,14 +17,12 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 import okhttp3.RequestBody;
 
 public final class TraceMapperV0_4 implements TraceMapper {
@@ -44,16 +42,18 @@ public final class TraceMapperV0_4 implements TraceMapper {
   // cost on every span. Must be a power of two (see the mask in shouldRecalibrate).
   static final long RECALIBRATE_SPAN_INTERVAL = 512;
 
-  // Non-null only when a cache exists, so its presence doubles as the "recalibration enabled"
-  // gate: it keeps the call site a plain shouldRecalibrate() check, and (a static-final null when
-  // both caches are off) lets the JIT fold the whole recalibrate block away.
-  private static final AtomicLong SPAN_COUNTER =
-      (TAG_CACHE != null || VALUE_CACHE != null) ? new AtomicLong() : null;
+  // True when at least one cache exists. static-final so the JIT can fold the whole recalibrate
+  // block away when both caches are off.
+  private static final boolean RECALIBRATE = (TAG_CACHE != null || VALUE_CACHE != null);
+
+  // Advanced by the single serializer thread. The value is a recalibration cadence, not an exact
+  // count, so a plain counter suffices -- no atomic/volatile needed; a benign race would at most
+  // nudge when recalibrate fires.
+  private static long spanCounter;
 
   /** True once every {@link #RECALIBRATE_SPAN_INTERVAL} spans; advances the span counter. */
   static boolean shouldRecalibrate() {
-    return SPAN_COUNTER != null
-        && (SPAN_COUNTER.incrementAndGet() & (RECALIBRATE_SPAN_INTERVAL - 1)) == 0;
+    return RECALIBRATE && (++spanCounter & (RECALIBRATE_SPAN_INTERVAL - 1)) == 0;
   }
 
   private final int size;
@@ -378,11 +378,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     return size; // 5MB
   }
 
-  // firstSpanWritten is only touched on the single serializer thread; SpotBugs flags it as a shared
-  // primitive only because the static AtomicLong recalibration counter makes it treat this class as
-  // multithreaded. Safe to suppress (same pattern as TracerHealthMetrics).
   @Override
-  @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
   public void reset() {
     firstSpanWritten = false;
   }
