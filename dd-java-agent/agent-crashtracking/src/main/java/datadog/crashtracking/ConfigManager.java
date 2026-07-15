@@ -15,11 +15,14 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -41,6 +44,7 @@ public class ConfigManager {
     final boolean agentless;
     final boolean sendToErrorTracking;
     final boolean extendedInfoEnabled;
+    @Nullable final String wafRulesVersion;
 
     StoredConfig(
         String reportUUID,
@@ -52,7 +56,8 @@ public class ConfigManager {
         String runtimeId,
         boolean agentless,
         boolean sendToErrorTracking,
-        boolean extendedInfoEnabled) {
+        boolean extendedInfoEnabled,
+        @Nullable String wafRulesVersion) {
       this.service = service;
       this.env = env;
       this.version = version;
@@ -63,6 +68,7 @@ public class ConfigManager {
       this.agentless = agentless;
       this.sendToErrorTracking = sendToErrorTracking;
       this.extendedInfoEnabled = extendedInfoEnabled;
+      this.wafRulesVersion = wafRulesVersion;
     }
 
     public CrashUploaderSettings toCrashUploaderSettings() {
@@ -80,6 +86,7 @@ public class ConfigManager {
       boolean agentless;
       boolean sendToErrorTracking;
       boolean extendedInfoEnabled;
+      String wafRulesVersion;
 
       public Builder(Config config) {
         // get sane defaults
@@ -138,6 +145,11 @@ public class ConfigManager {
         return this;
       }
 
+      public Builder wafRulesVersion(String wafRulesVersion) {
+        this.wafRulesVersion = wafRulesVersion;
+        return this;
+      }
+
       @VisibleForTesting
       Builder reportUUID(String reportUUID) {
         this.reportUUID = reportUUID;
@@ -155,12 +167,16 @@ public class ConfigManager {
             runtimeId,
             agentless,
             sendToErrorTracking,
-            extendedInfoEnabled);
+            extendedInfoEnabled,
+            wafRulesVersion);
       }
     }
   }
 
   private ConfigManager() {}
+
+  // Cached: the path can't be recomputed later (HotSpot temp dir vs J9 -Xdump:tool path differ).
+  @Nullable private static volatile File cfgFile;
 
   private static String getBaseName(File file) {
     String filename = file.getName();
@@ -193,7 +209,66 @@ public class ConfigManager {
   public static void writeConfigToPath(File scriptFile, String... additionalEntries) {
     String cfgFileName = getBaseName(scriptFile) + PID_PREFIX + PidHelper.getPid() + ".cfg";
     File cfgFile = new File(scriptFile.getParentFile(), cfgFileName);
+    ConfigManager.cfgFile = cfgFile;
     writeConfigToFile(Config.get(), cfgFile, additionalEntries);
+  }
+
+  /**
+   * Patches a single entry of the already-written {@code .cfg} file in place, preserving every
+   * other entry (including ones {@link #readConfig} does not know about, like {@code agent} or
+   * {@code hs_err}, which the upload script still needs). Unlike {@link #writeConfigToFile}, this
+   * does not take a fresh {@link Config} snapshot and does not register a new shutdown hook - it is
+   * meant to be called repeatedly after the initial write (e.g. once per Remote Config update).
+   *
+   * <p>No-op if the {@code .cfg} file has not been written yet (crash tracking not initialized on
+   * this process/platform) - this is a normal condition, not an error.
+   */
+  public static synchronized void updateCrashConfigEntry(String key, String value) {
+    File cfgFile = ConfigManager.cfgFile;
+    if (cfgFile == null || key == null || value == null) {
+      return;
+    }
+    try {
+      Map<String, String> entries = readRawEntries(cfgFile);
+      entries.put(key, value);
+
+      File tmpFile = File.createTempFile(getBaseName(cfgFile), ".tmp", cfgFile.getParentFile());
+      try (BufferedWriter bw =
+          new BufferedWriter(
+              new OutputStreamWriter(new FileOutputStream(tmpFile), StandardCharsets.UTF_8))) {
+        for (Map.Entry<String, String> entry : entries.entrySet()) {
+          writeEntry(bw, entry.getKey(), entry.getValue());
+        }
+      }
+      if (!tmpFile.renameTo(cfgFile)) {
+        LOGGER.debug("Failed to atomically replace config file: {}", cfgFile);
+        tmpFile.delete(); // best-effort cleanup; failure is acceptable here
+      }
+    } catch (IOException e) {
+      LOGGER.debug("Failed to update config file entry {}: {}", key, cfgFile, e);
+    }
+  }
+
+  private static Map<String, String> readRawEntries(File cfgFile) throws IOException {
+    Map<String, String> entries = new LinkedHashMap<>();
+    if (!cfgFile.exists()) {
+      return entries;
+    }
+    try (BufferedReader reader =
+        new BufferedReader(
+            new InputStreamReader(new FileInputStream(cfgFile), StandardCharsets.UTF_8))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        if (line.isEmpty()) {
+          continue;
+        }
+        String[] parts = EQUALS_SPLITTER.split(line, 2);
+        if (parts.length == 2) {
+          entries.put(parts[0], parts[1]);
+        }
+      }
+    }
+    return entries;
   }
 
   @VisibleForTesting
@@ -236,21 +311,14 @@ public class ConfigManager {
 
   @Nullable
   public static StoredConfig readConfig(Config config, File scriptFile) {
-    try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(new FileInputStream(scriptFile), StandardCharsets.UTF_8))) {
+    try {
+      if (!scriptFile.exists()) {
+        throw new FileNotFoundException(scriptFile.toString());
+      }
       final StoredConfig.Builder cfgBuilder = new StoredConfig.Builder(config);
-      String line;
-      while ((line = reader.readLine()) != null) {
-        if (line.isEmpty()) {
-          continue;
-        }
-        String[] parts = EQUALS_SPLITTER.split(line, 2);
-        if (parts.length != 2) {
-          continue;
-        }
-        final String value = parts[1];
-        switch (parts[0]) {
+      for (Map.Entry<String, String> entry : readRawEntries(scriptFile).entrySet()) {
+        final String value = entry.getValue();
+        switch (entry.getKey()) {
           case "tags":
             cfgBuilder.tags(value);
             break;
@@ -277,6 +345,9 @@ public class ConfigManager {
             break;
           case "extended_info":
             cfgBuilder.extendedInfoEnabled(Boolean.parseBoolean(value));
+            break;
+          case "waf_rules_version":
+            cfgBuilder.wafRulesVersion(value);
             break;
           default:
             // ignore
