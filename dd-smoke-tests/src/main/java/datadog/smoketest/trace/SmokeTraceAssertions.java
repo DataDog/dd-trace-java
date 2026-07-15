@@ -6,6 +6,7 @@ import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.UnaryOperator;
 
@@ -21,10 +22,15 @@ import java.util.function.UnaryOperator;
  * assertTraces(traces, trace(span().operationName("servlet.request").resourceName("GET /greeting")));
  * }</pre>
  *
- * <p>Traces are matched positionally, in the order received by default. For order-independence pass
- * {@link #SORT_BY_START_TIME} / {@link #SORT_BY_ROOT_SPAN_ID}; to assert only a subset of the
- * received traces pass {@link #IGNORE_ADDITIONAL_TRACES}. The traces come from a {@code
- * TraceBackend} (mock or test-agent), both decoded to {@link DecodedTrace}.
+ * <p>By default traces are matched <em>positionally</em> (matcher <i>i</i> ↔ trace <i>i</i>), in
+ * the order received — pass {@link #SORT_BY_START_TIME} / {@link #SORT_BY_ROOT_SPAN_ID} for a
+ * stable order, and the count must match exactly. Pass {@link #IGNORE_ADDITIONAL_TRACES} to switch
+ * to <em>order-independent subset</em> matching instead: each matcher must match a
+ * <em>distinct</em> received trace, and any extra traces are ignored — the right mode when the
+ * collection contains unrelated or non-deterministically-ordered traces (e.g. a distributed test
+ * where connection-setup commands land as their own traces alongside the request traces you care
+ * about). The traces come from a {@code TraceBackend} (mock or test-agent), both decoded to {@link
+ * DecodedTrace}.
  */
 public final class SmokeTraceAssertions {
   /** Sorts traces by the earliest span start time. */
@@ -35,7 +41,10 @@ public final class SmokeTraceAssertions {
   public static final Comparator<List<DecodedSpan>> TRACE_ROOT_SPAN_ID_COMPARATOR =
       Comparator.comparingLong(SmokeTraceAssertions::rootSpanId);
 
-  /** Do not fail when there are more traces than matchers (assert a subset). */
+  /**
+   * Switch to order-independent subset matching: each matcher must match a distinct received trace,
+   * and extra traces are ignored (instead of the default count-exact positional matching).
+   */
   public static final UnaryOperator<Options> IGNORE_ADDITIONAL_TRACES =
       Options::ignoreAdditionalTraces;
 
@@ -58,94 +67,69 @@ public final class SmokeTraceAssertions {
   public static void assertTraces(
       List<DecodedTrace> traces, UnaryOperator<Options> options, TraceMatcher... matchers) {
     Options opts = options.apply(new Options());
-    int expected = matchers.length;
-    int actual = traces.size();
-    if (opts.ignoreAdditionalTraces) {
-      if (actual < expected) {
-        throw new AssertionError("Expected at least " + expected + " traces but got " + actual);
-      }
-    } else if (actual != expected) {
-      throw new AssertionError("Expected " + expected + " traces but got " + actual);
-    }
     // Copy each trace's spans to a mutable list so the matcher can sort/inspect them.
-    List<List<DecodedSpan>> spanLists = new ArrayList<>(actual);
+    List<List<DecodedSpan>> spanLists = new ArrayList<>(traces.size());
     for (DecodedTrace trace : traces) {
       spanLists.add(new ArrayList<>(trace.getSpans()));
+    }
+    if (opts.ignoreAdditionalTraces) {
+      assertContainsEach(spanLists, matchers);
+    } else {
+      assertPositionally(spanLists, opts, matchers);
+    }
+  }
+
+  // Order-independent subset: each matcher must match a distinct received trace; extras are
+  // ignored.
+  private static void assertContainsEach(
+      List<List<DecodedSpan>> spanLists, TraceMatcher[] matchers) {
+    if (matchers.length > spanLists.size()) {
+      throw new AssertionError(
+          "Expected at least "
+              + matchers.length
+              + " traces but got "
+              + spanLists.size()
+              + ": "
+              + spanLists);
+    }
+    // Greedily assign each matcher to a distinct, not-yet-consumed trace. Adequate for smoke tests;
+    // overlapping matchers (one strictly more general than another) could mis-assign — write them
+    // specific enough to be unambiguous.
+    List<List<DecodedSpan>> remaining = new ArrayList<>(spanLists);
+    for (int i = 0; i < matchers.length; i++) {
+      boolean matched = false;
+      for (Iterator<List<DecodedSpan>> it = remaining.iterator(); it.hasNext(); ) {
+        if (matchers[i].matches(it.next(), i)) {
+          it.remove();
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        throw new AssertionError(
+            "No received trace matched trace matcher #"
+                + i
+                + " among "
+                + spanLists.size()
+                + " received trace(s): "
+                + spanLists);
+      }
+    }
+  }
+
+  // Count-exact positional: matcher i ↔ trace i, after the optional trace sort.
+  private static void assertPositionally(
+      List<List<DecodedSpan>> spanLists, Options opts, TraceMatcher[] matchers) {
+    if (spanLists.size() != matchers.length) {
+      throw new AssertionError(
+          "Expected " + matchers.length + " traces but got " + spanLists.size());
     }
     if (opts.sorter != null) {
       spanLists.sort(opts.sorter);
     }
-    for (int i = 0; i < expected; i++) {
+    for (int i = 0; i < matchers.length; i++) {
       matchers[i].assertTrace(spanLists.get(i), i);
     }
-  }
-
-  /**
-   * Asserts that some received trace contains a parent-child <em>chain</em> of spans matching
-   * {@code chain} in order: {@code chain[0]} matches a span (a trace root if it declares {@link
-   * SpanMatcher#root()}), and each {@code chain[i]} matches a direct child of {@code chain[i-1]}'s
-   * span. Unlike {@link #assertTraces}, this is a <em>subset</em> match — extra spans in the trace
-   * are ignored — which suits distributed traces whose full span set is large and timing-dependent
-   * (only span linkage, not exact shape, is asserted). Field constraints are declared per span; the
-   * chain declares the linkage, so the matchers should not also use {@code childOf*}.
-   */
-  public static void assertContainsChain(List<DecodedTrace> traces, SpanMatcher... chain) {
-    long found = countChainMatches(traces, chain);
-    if (found == 0) {
-      throw new AssertionError(
-          "No received trace contains a parent-child chain matching the "
-              + chain.length
-              + " given span matcher(s); traces: "
-              + traces);
-    }
-  }
-
-  /**
-   * Counts how many received traces contain a parent-child chain matching {@code chain} (see {@link
-   * #assertContainsChain(List, SpanMatcher...)} for the chain semantics). Use to verify N
-   * independent operations each produced the expected trace — e.g. one distributed trace per
-   * request — rather than just that a single one did.
-   */
-  public static long countChainMatches(List<DecodedTrace> traces, SpanMatcher... chain) {
-    if (chain.length == 0) {
-      throw new IllegalArgumentException("countChainMatches requires at least one span matcher");
-    }
-    long count = 0;
-    for (DecodedTrace trace : traces) {
-      if (containsChain(trace.getSpans(), chain)) {
-        count++;
-      }
-    }
-    return count;
-  }
-
-  private static boolean containsChain(List<DecodedSpan> spans, SpanMatcher[] chain) {
-    for (DecodedSpan first : spans) {
-      if (chain[0].rootRequired() && first.getParentId() != 0L) {
-        continue;
-      }
-      if (chain[0].matchesFields(first) && matchesChainFrom(spans, chain, 1, first)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // Depth-first, backtracking: extend the chain by a direct child of `parent` matching
-  // chain[index].
-  private static boolean matchesChainFrom(
-      List<DecodedSpan> spans, SpanMatcher[] chain, int index, DecodedSpan parent) {
-    if (index == chain.length) {
-      return true;
-    }
-    for (DecodedSpan child : spans) {
-      if (child.getParentId() == parent.getSpanId()
-          && chain[index].matchesFields(child)
-          && matchesChainFrom(spans, chain, index + 1, child)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   private static long earliestStart(List<DecodedSpan> spans) {

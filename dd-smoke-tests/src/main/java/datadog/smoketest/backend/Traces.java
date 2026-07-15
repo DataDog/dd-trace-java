@@ -1,7 +1,8 @@
 package datadog.smoketest.backend;
 
+import static java.util.function.UnaryOperator.identity;
+
 import datadog.smoketest.trace.SmokeTraceAssertions;
-import datadog.smoketest.trace.SpanMatcher;
 import datadog.smoketest.trace.TraceMatcher;
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import datadog.trace.test.util.PollingConditions;
@@ -56,18 +57,18 @@ public final class Traces {
   }
 
   /**
-   * Asserts the received traces against the thin smoke matcher — one {@link TraceMatcher} per
-   * expected trace (matched positionally). Sugar over {@link SmokeTraceAssertions#assertTraces}:
+   * Polls (up to the default timeout) until the received traces satisfy the thin smoke matcher —
+   * one {@link TraceMatcher} per expected trace (matched positionally, count-exact). Polling
+   * absorbs the async arrival of traces from a separately-launched app. Sugar over {@link
+   * SmokeTraceAssertions#assertTraces}:
    *
    * <pre>{@code
-   * app.traces().waitForTraceCount(1)
-   *    .assertTraces(trace(span().operationName("servlet.request").resourceName("GET /greeting")));
+   * app.traces().assertTraces(
+   *     trace(span().operationName("servlet.request").resourceName("GET /greeting")));
    * }</pre>
    */
   public void assertTraces(TraceMatcher... matchers) {
-    int expectedTraceCount = matchers.length;
-    waitForTraceCount(expectedTraceCount);
-    SmokeTraceAssertions.assertTraces(getTraces(), matchers);
+    assertTraces(identity(), matchers);
   }
 
   /**
@@ -76,52 +77,16 @@ public final class Traces {
    */
   public void assertTraces(
       UnaryOperator<SmokeTraceAssertions.Options> options, TraceMatcher... matchers) {
-    SmokeTraceAssertions.assertTraces(getTraces(), options, matchers);
+    assertTraces(DEFAULT_TIMEOUT_SECONDS, options, matchers);
   }
 
-  /**
-   * Polls (up to the default timeout) until some received trace contains a parent-child chain of
-   * spans matching {@code chain} (see {@link SmokeTraceAssertions#assertContainsChain}). Combines
-   * waiting for async arrival with the structural assertion, so it suits distributed traces whose
-   * full span set arrives piecemeal — assert the linkage you care about, ignore the rest:
-   *
-   * <pre>{@code
-   * app.traces().assertContainsChain(
-   *     span().service("web").operationName("servlet.request").root(),
-   *     span().service("web").operationName("amqp.command").resourceName(startsWith("basic.publish")));
-   * }</pre>
-   */
-  public Traces assertContainsChain(SpanMatcher... chain) {
-    return assertContainsChain(DEFAULT_TIMEOUT_SECONDS, chain);
-  }
-
-  /** As {@link #assertContainsChain(SpanMatcher...)}, but overriding the timeout for this call. */
-  public Traces assertContainsChain(double timeoutSeconds, SpanMatcher... chain) {
+  /** As {@link #assertTraces(UnaryOperator, TraceMatcher...)}, overriding the timeout. */
+  public void assertTraces(
+      double timeoutSeconds,
+      UnaryOperator<SmokeTraceAssertions.Options> options,
+      TraceMatcher... matchers) {
     new PollingConditions(timeoutSeconds)
-        .eventually(() -> SmokeTraceAssertions.assertContainsChain(getTraces(), chain));
-    return this;
-  }
-
-  /**
-   * Polls (up to {@code timeoutSeconds}) until at least {@code minMatches} received traces each
-   * contain a chain matching {@code chain} (see {@link SmokeTraceAssertions#countChainMatches}).
-   * Use to verify that N independent operations each produced the expected trace — e.g. one
-   * distributed trace per request — not merely that one did.
-   */
-  public Traces assertContainsChain(int minMatches, double timeoutSeconds, SpanMatcher... chain) {
-    new PollingConditions(timeoutSeconds)
-        .eventually(
-            () -> {
-              long found = SmokeTraceAssertions.countChainMatches(getTraces(), chain);
-              if (found < minMatches) {
-                throw new AssertionError(
-                    "Expected at least "
-                        + minMatches
-                        + " traces containing the chain but found "
-                        + found);
-              }
-            });
-    return this;
+        .eventually(() -> SmokeTraceAssertions.assertTraces(getTraces(), options, matchers));
   }
 
   // Trace-invariant checks (ENABLED_CHECKS) are a test-agent-specific concern, validated by that

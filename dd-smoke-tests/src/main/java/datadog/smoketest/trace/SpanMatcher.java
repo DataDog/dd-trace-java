@@ -8,8 +8,8 @@ import static datadog.trace.test.junit.utils.assertions.Matchers.isTrue;
 import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
 import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
 
-import datadog.trace.test.junit.utils.assertions.Matcher;
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.junit.utils.assertions.Matcher;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -174,26 +174,6 @@ public final class SpanMatcher {
       assertValue(
           (Matcher<Object>) entry.getValue(), value, "Unexpected metric '" + entry.getKey() + "'");
     }
-  }
-
-  /**
-   * Whether this matcher's own fields match {@code span}, ignoring parent linkage — the boolean
-   * counterpart of {@link #assertFields} used by subset/chain matching (see {@link
-   * SmokeTraceAssertions#assertContainsChain}), where linkage is verified positionally by the
-   * chain.
-   */
-  boolean matchesFields(DecodedSpan span) {
-    try {
-      assertFields(span);
-      return true;
-    } catch (AssertionError ignored) {
-      return false;
-    }
-  }
-
-  /** Whether this matcher requires its span to be a trace root (via {@link #root()}). */
-  boolean rootRequired() {
-    return parentId != null && parentId == 0L;
   }
 
   private Matcher<Long> parentIdMatcher(List<DecodedSpan> trace, int spanIndex) {

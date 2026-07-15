@@ -1,15 +1,22 @@
 package datadog.smoketest;
 
+import static datadog.smoketest.trace.SmokeTraceAssertions.IGNORE_ADDITIONAL_TRACES;
 import static datadog.smoketest.trace.SpanMatcher.span;
+import static datadog.smoketest.trace.TraceMatcher.SORT_BY_PARENT_CHAIN;
+import static datadog.smoketest.trace.TraceMatcher.trace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.smoketest.backend.EnabledIfDockerAvailable;
 import datadog.smoketest.backend.TestAgentBackend;
 import datadog.smoketest.backend.TraceBackend;
 import datadog.smoketest.backend.Traces;
+import datadog.smoketest.trace.SmokeTraceAssertions;
 import datadog.smoketest.trace.SpanMatcher;
+import datadog.smoketest.trace.TraceMatcher;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -48,24 +55,27 @@ import org.testcontainers.utility.DockerImageName;
  *                       spring-rabbit-0 spring.consume Receiver.receiveMessage (sender consumes reply)
  * </pre>
  *
- * <p>Asserting that whole chain in one shot ({@link Traces#assertContainsChain}) is stronger than
- * the Groovy set-membership check: it verifies every AMQP operation (publish/deliver/consume, both
- * directions) <em>and</em> its cross-service linkage. The connection setup commands ({@code
- * basic.qos}/{@code basic.consume}/{@code queue.declare}) and {@code basic.ack} are separate
- * single-span traces, asserted per service.
+ * <p>The whole collection is asserted with the standard {@link Traces#assertTraces} DSL in {@link
+ * SmokeTraceAssertions#IGNORE_ADDITIONAL_TRACES order-independent subset} mode: each matcher
+ * matches a distinct received trace and extras are ignored. This is stronger than the Groovy
+ * set-membership check — each round-trip trace is matched count-exact (all 12 spans, in {@link
+ * TraceMatcher#SORT_BY_PARENT_CHAIN parent-chain order}), verifying every AMQP operation
+ * (publish/deliver/consume, both directions) <em>and</em> its cross-service linkage — while staying
+ * robust to the timing-dependent extras (the broker emits its connection-setup commands and per-ack
+ * traces as their own single-span traces, in non-deterministic count and order).
  *
- * <p>Two things the Groovy base did implicitly that this port makes explicit:
+ * <p>Two design points, informed by inspecting the live trace collection:
  *
  * <ul>
+ *   <li><b>Parent-chain order, not start time</b> — the 12-span round-trip is a strict linear
+ *       chain, but its spans start within the same tick and race, so {@code SORT_BY_START_TIME} is
+ *       unstable across runs. {@code SORT_BY_PARENT_CHAIN} orders spans by parent links
+ *       (timestamp-independent) and asserts the trace is exactly that chain.
  *   <li><b>Accumulate, don't isolate</b> — {@code .retainAcrossTests()} keeps traces from app
  *       startup onward, because {@code basic.qos}/{@code basic.consume}/{@code queue.declare} are
  *       emitted when the consumers start (before any test method), which a per-method session
- *       {@code clear()} would discard. The Groovy base verified once at {@code cleanupSpec} against
- *       everything written since launch; a single accumulating test method mirrors that.
- *   <li><b>Membership, not count-exact</b> — {@code assertContainsChain} asserts the expected
- *       structure is present and ignores the rest (as the Groovy set-membership check did): the
- *       full distributed span set is large and timing-dependent, so a positional match over the
- *       whole collection is the wrong tool.
+ *       {@code clear()} would discard. Mirrors the Groovy base verifying once at {@code
+ *       cleanupSpec} against everything since launch.
  * </ul>
  */
 @EnabledIfDockerAvailable
@@ -113,15 +123,32 @@ class SpringBootRabbitSmokeTest {
       }
     }
 
-    Traces traces = agent.traces();
+    // One order-independent assertion over the whole collection (IGNORE_ADDITIONAL_TRACES): each
+    // matcher must match a distinct received trace; unrelated/duplicate traces (extra acks, etc.)
+    // are ignored. Assert one full round-trip trace per message plus each service's
+    // connection-setup/ack commands.
+    List<TraceMatcher> expected = new ArrayList<>();
+    for (int i = 0; i < MESSAGES.length; i++) {
+      expected.add(roundTrip()); // one full round-trip trace per message => all are verified
+    }
+    for (String service : new String[] {"spring-rabbit-0", "spring-rabbit-1"}) {
+      for (String command : ADMIN_COMMANDS) {
+        expected.add(admin(service, command));
+      }
+    }
+    agent
+        .traces()
+        .assertTraces(
+            TIMEOUT_SECONDS, IGNORE_ADDITIONAL_TRACES, expected.toArray(new TraceMatcher[0]));
+  }
 
-    // Each round-trip is its own full distributed trace: a strict parent->child chain across both
-    // services and the broker, from the sender's HTTP entrypoint to the sender consuming the
-    // forwarded reply. Assert one such chain per message (MESSAGES.length), so all round-trips are
-    // verified, not just one.
-    traces.assertContainsChain(
-        MESSAGES.length,
-        TIMEOUT_SECONDS,
+  // The full distributed round-trip as one strict parent->child chain across both services and the
+  // broker. SORT_BY_PARENT_CHAIN orders the spans root->leaf and asserts the trace IS exactly this
+  // linear chain: HTTP entrypoint -> publish -> receiver consumes+forwards -> sender consumes
+  // reply.
+  private static TraceMatcher roundTrip() {
+    return trace(
+        SORT_BY_PARENT_CHAIN,
         sp("spring-rabbit-0", "servlet.request", "GET /roundtrip/{message}").root(),
         sp("spring-rabbit-0", "spring.handler", "WebController.roundtrip"),
         sp("spring-rabbit-0", "amqp.command", "basic.publish <default> -> otherqueue"),
@@ -134,13 +161,11 @@ class SpringBootRabbitSmokeTest {
         sp("spring-rabbit-0", "amqp.command", "basic.deliver queue"),
         sp("spring-rabbit-0", "amqp.consume", "amqp.consume queue"),
         sp("spring-rabbit-0", "spring.consume", "Receiver.receiveMessage"));
+  }
 
-    // The connection-setup / ack commands each app emits as its own single-span trace.
-    for (String service : new String[] {"spring-rabbit-0", "spring-rabbit-1"}) {
-      for (String command : ADMIN_COMMANDS) {
-        traces.assertContainsChain(TIMEOUT_SECONDS, sp(service, "amqp.command", command).root());
-      }
-    }
+  // A connection-setup / ack command emitted as its own single-span (root) trace.
+  private static TraceMatcher admin(String service, String command) {
+    return trace(sp(service, "amqp.command", command).root());
   }
 
   private static SpanMatcher sp(String service, String operation, String resource) {

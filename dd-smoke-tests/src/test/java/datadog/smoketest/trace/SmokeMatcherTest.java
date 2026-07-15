@@ -3,7 +3,6 @@ package datadog.smoketest.trace;
 import static datadog.smoketest.trace.SmokeTraceAssertions.assertTraces;
 import static datadog.smoketest.trace.SpanMatcher.span;
 import static datadog.smoketest.trace.TraceMatcher.trace;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.smoketest.backend.TestAgentTraceDecoder;
@@ -32,16 +31,14 @@ class SmokeMatcherTest {
   private static final String TWO_TRACES =
       "[[" + spanJson("root-a", 500, 0, 10) + "],[" + spanJson("root-b", 400, 0, 20) + "]]";
 
-  // Two traces with the same root -> child shape (distinct span ids).
-  private static final String TWO_CHAINS =
+  // One trace whose root has two children (not a linear chain).
+  private static final String BRANCHING_TRACE =
       "[["
           + spanJson("root", 100, 0, 10)
           + ","
-          + spanJson("child", 200, 100, 20)
-          + "],["
-          + spanJson("root", 300, 0, 30)
+          + spanJson("a", 200, 100, 20)
           + ","
-          + spanJson("child", 400, 300, 40)
+          + spanJson("b", 300, 100, 30)
           + "]]";
 
   @Test
@@ -106,43 +103,57 @@ class SmokeMatcherTest {
   }
 
   @Test
-  void assertContainsChainMatchesParentChildChain() {
+  void sortsByParentChainRegardlessOfStartTime() {
     List<DecodedTrace> traces = TestAgentTraceDecoder.decode(CHAIN_TRACE);
-    // Full chain from the root.
-    SmokeTraceAssertions.assertContainsChain(
+    // Spans arrive out of start order; parent-chain order recovers root -> child -> grandchild.
+    assertTraces(
         traces,
-        span().operationName("root").root(),
-        span().operationName("child"),
-        span().operationName("grandchild"));
-    // Subset chain that doesn't start at the root still matches (extra spans ignored).
-    SmokeTraceAssertions.assertContainsChain(
-        traces, span().operationName("child"), span().operationName("grandchild"));
+        trace(
+            TraceMatcher.SORT_BY_PARENT_CHAIN,
+            span().operationName("root").root(),
+            span().operationName("child").childOfPrevious(),
+            span().operationName("grandchild").childOfPrevious()));
   }
 
   @Test
-  void assertContainsChainFailsOnBrokenLinkage() {
-    List<DecodedTrace> traces = TestAgentTraceDecoder.decode(CHAIN_TRACE);
-    // grandchild is a child of child, not a direct child of root.
+  void parentChainRejectsNonLinearTrace() {
+    List<DecodedTrace> traces = TestAgentTraceDecoder.decode(BRANCHING_TRACE);
+    // root has two children, so a chain linearization is undefined -> loud failure, not mis-order.
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            assertTraces(
+                traces,
+                trace(
+                    TraceMatcher.SORT_BY_PARENT_CHAIN,
+                    span().operationName("root").root(),
+                    span().operationName("a").childOfPrevious(),
+                    span().operationName("b").childOfPrevious())));
+  }
+
+  @Test
+  void ignoreAdditionalTracesMatchesAnyOrder() {
+    List<DecodedTrace> traces = TestAgentTraceDecoder.decode(TWO_TRACES);
+    // Matchers in the opposite order of receipt still each find their trace (order-independent).
+    assertTraces(
+        traces,
+        SmokeTraceAssertions.IGNORE_ADDITIONAL_TRACES,
+        trace(span().operationName("root-b").root()),
+        trace(span().operationName("root-a").root()));
+  }
+
+  @Test
+  void ignoreAdditionalTracesRequiresDistinctTraces() {
+    List<DecodedTrace> traces = TestAgentTraceDecoder.decode(TWO_TRACES);
+    // Two matchers for the same trace can't both match: only one root-a trace exists.
     assertThrows(
         AssertionError.class,
         () ->
-            SmokeTraceAssertions.assertContainsChain(
-                traces, span().operationName("root").root(), span().operationName("grandchild")));
-  }
-
-  @Test
-  void countsTracesContainingChain() {
-    List<DecodedTrace> traces = TestAgentTraceDecoder.decode(TWO_CHAINS);
-    // Both traces contain the root -> child chain.
-    assertEquals(
-        2,
-        SmokeTraceAssertions.countChainMatches(
-            traces, span().operationName("root").root(), span().operationName("child")));
-    // A chain present in neither trace counts zero.
-    assertEquals(
-        0,
-        SmokeTraceAssertions.countChainMatches(
-            traces, span().operationName("root").root(), span().operationName("missing")));
+            assertTraces(
+                traces,
+                SmokeTraceAssertions.IGNORE_ADDITIONAL_TRACES,
+                trace(span().operationName("root-a").root()),
+                trace(span().operationName("root-a").root())));
   }
 
   private static String spanJson(String name, long id, long parent, long start) {
