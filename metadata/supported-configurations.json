@@ -118,7 +118,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_API_KEY_FILE": [
@@ -206,7 +207,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": ["DD_APP_KEY"]
+        "aliases": ["DD_APP_KEY"],
+        "sensitive": true
       }
     ],
     "DD_APPLICATION_KEY_FILE": [
@@ -998,7 +1000,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_CRASHTRACKING_PROXY_PORT": [
@@ -2334,7 +2337,8 @@
         "version": "A",
         "type": "map",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_OTLP_LOGS_PROTOCOL": [
@@ -2470,7 +2474,8 @@
         "version": "B",
         "type": "map",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_OTLP_METRICS_PROTOCOL": [
@@ -2518,7 +2523,8 @@
         "version": "B",
         "type": "map",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_OTLP_TRACES_PROTOCOL": [
@@ -3278,7 +3284,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_PROFILING_PROXY_PORT": [
@@ -3662,7 +3669,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_RUM_DEFAULT_PRIVACY_LEVEL": [
@@ -11766,7 +11774,8 @@
         "version": "B",
         "type": "map",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_PROTOCOL": [
@@ -11806,7 +11815,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL": [
@@ -11846,7 +11856,8 @@
         "version": "B",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL": [
@@ -11902,7 +11913,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": [

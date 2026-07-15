@@ -4,6 +4,7 @@ import datadog.gradle.plugin.GradleFixture
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -26,6 +27,7 @@ class ParseV2SupportedConfigurationsTest : GradleFixture() {
     assertTrue(content.contains("public static final Map<String, String> ALIAS_MAPPING;"))
     assertTrue(content.contains("public static final Map<String, String> DEPRECATED;"))
     assertTrue(content.contains("public static final Map<String, String> REVERSE_PROPERTY_KEYS_MAP;"))
+    assertTrue(content.contains("public static final Set<String> SENSITIVE_KEYS;"))
 
     assertTrue(content.contains("private static Map<String, List<SupportedConfiguration>> initSupported()"))
     assertTrue(content.contains("private static void initSupported1(Map<String, List<SupportedConfiguration>> supportedMap)"))
@@ -34,6 +36,7 @@ class ParseV2SupportedConfigurationsTest : GradleFixture() {
     assertTrue(content.contains("private static Map<String, String> initAliasMapping()"))
     assertTrue(content.contains("private static Map<String, String> initDeprecated()"))
     assertTrue(content.contains("private static Map<String, String> initReversePropertyKeysMap()"))
+    assertTrue(content.contains("private static Set<String> initSensitiveKeys()"))
 
     assertContainsSupportedConfig(
       content,
@@ -41,7 +44,7 @@ class ParseV2SupportedConfigurationsTest : GradleFixture() {
       version = "A",
       type = "string",
       default = "null",
-      aliases = emptyList(),
+      aliases = listOf("DD_LEGACY_ACTION_EXECUTION_ID"),
       propertyKeys = listOf("property.key")
     )
 
@@ -63,7 +66,7 @@ class ParseV2SupportedConfigurationsTest : GradleFixture() {
       aliases = listOf("DD_ALIAS")
     )
 
-    assertTrue(content.contains("""aliasesMap.put("DD_ACTION_EXECUTION_ID", emptyList())"""))
+    assertTrue(content.contains("""aliasesMap.put("DD_ACTION_EXECUTION_ID", singletonList("DD_LEGACY_ACTION_EXECUTION_ID"))"""))
     assertTrue(content.contains("""aliasesMap.put("DD_AGENTLESS_LOG_SUBMISSION_ENABLED", singletonList("DD_ALIAS"))"""))
 
     assertTrue(content.contains("""aliasMappingMap.put("DD_ALIAS", "DD_AGENTLESS_LOG_SUBMISSION_ENABLED")"""))
@@ -72,6 +75,10 @@ class ParseV2SupportedConfigurationsTest : GradleFixture() {
     assertTrue(content.contains("""deprecatedMap.put("legacy.setting", "No longer supported")"""))
 
     assertTrue(content.contains("""reversePropertyKeysMapping.put("property.key", "DD_ACTION_EXECUTION_ID")"""))
+
+    assertTrue(content.contains("""sensitiveKeys.add("DD_ACTION_EXECUTION_ID")"""))
+    assertTrue(content.contains("""sensitiveKeys.add("DD_LEGACY_ACTION_EXECUTION_ID")"""))
+    assertFalse(content.contains("""sensitiveKeys.add("DD_AGENTLESS_LOG_SUBMISSION_ENABLED")"""))
   }
 
   private fun runGradleTask(): Pair<BuildResult, File> {
@@ -85,8 +92,9 @@ class ParseV2SupportedConfigurationsTest : GradleFixture() {
               "version": "A",
               "type": "string",
               "default": null,
-              "aliases": [],
-              "propertyKeys": ["property.key"]
+              "aliases": ["DD_LEGACY_ACTION_EXECUTION_ID"],
+              "propertyKeys": ["property.key"],
+              "sensitive": true
             }
           ],
           "DD_AGENTLESS_LOG_SUBMISSION_ENABLED": [

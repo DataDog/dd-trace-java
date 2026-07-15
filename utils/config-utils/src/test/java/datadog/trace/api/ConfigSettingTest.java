@@ -44,15 +44,28 @@ public class ConfigSettingTest {
   }
 
   @TableTest({
-    "scenario             | key                  | value     | filteredValue",
-    "DD_API_KEY           | DD_API_KEY           | somevalue | <hidden>     ",
-    "dd.api-key           | dd.api-key           | somevalue | <hidden>     ",
-    "dd.profiling.api-key | dd.profiling.api-key | somevalue | <hidden>     ",
-    "dd.profiling.apikey  | dd.profiling.apikey  | somevalue | <hidden>     ",
-    "some.other.key       | some.other.key       | somevalue | somevalue    "
+    "scenario            | key                      | value     | filteredValue",
+    "api key property    | api-key                  | somevalue | <hidden>     ",
+    "api key system prop | dd.api-key               | somevalue | <hidden>     ",
+    "api key env var     | DD_API_KEY               | somevalue | <hidden>     ",
+    "application key     | application-key          | somevalue | <hidden>     ",
+    "application alias   | DD_APP_KEY               | somevalue | <hidden>     ",
+    "otlp traces headers | otlp.traces.headers      | somevalue | <hidden>     ",
+    "proxy password      | profiling.proxy.password | somevalue | <hidden>     ",
+    "non-sensitive key   | some.other.key           | somevalue | somevalue    "
   })
   void filtersKeyValues(String key, String value, String filteredValue) {
     assertEquals(filteredValue, ConfigSetting.of(key, value, ConfigOrigin.DEFAULT).stringValue());
+  }
+
+  @TableTest({
+    "scenario      | key                  | normalized          ",
+    "property name | api-key              | DD_API_KEY          ",
+    "dd env var    | DD_PROFILING_API_KEY | DD_PROFILING_API_KEY",
+    "otel env var  | OTEL_SERVICE_NAME    | OTEL_SERVICE_NAME   "
+  })
+  void normalizesKeyName(String key, String normalized) {
+    assertEquals(normalized, ConfigSetting.of(key, "v", ConfigOrigin.DEFAULT).normalizedKey());
   }
 
   @TableTest({
