@@ -89,16 +89,17 @@ object AkkaActors {
 
   // The way to terminate an actor system has changed between versions
   val terminate: (ActorSystem) => Unit = { system =>
-    if (isAkka23) {
-      classOf[ActorSystem].getMethod("shutdown").invoke(system)
-      classOf[ActorSystem].getMethod("awaitTermination").invoke(system)
-    } else {
+    try {
       classOf[ActorSystem].getMethod("terminate").invoke(system)
       val whenTerminated = classOf[ActorSystem]
         .getMethod("whenTerminated")
         .invoke(system)
         .asInstanceOf[scala.concurrent.Future[AnyRef]]
       Await.ready(whenTerminated, 30.seconds)
+    } catch {
+      case _: NoSuchMethodException =>
+        classOf[ActorSystem].getMethod("shutdown").invoke(system)
+        classOf[ActorSystem].getMethod("awaitTermination").invoke(system)
     }
   }
 }
