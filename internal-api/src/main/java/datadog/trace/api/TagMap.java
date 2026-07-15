@@ -1150,47 +1150,54 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   @Deprecated
   @Override
-  public Object put(String tag, Object value) {
+  public Object put(@Nonnull String tag, Object value) {
     TagMap.Entry entry = this.getAndSet(Entry.newAnyEntry(tag, value));
     return entry == null ? null : entry.objectValue();
   }
 
-  public void set(TagMap.EntryReader newEntryReader) {
+  /** A null reader is a no-op (see the null-tolerance contract on {@link #getAndSet(Entry)}). */
+  public void set(@Nullable TagMap.EntryReader newEntryReader) {
     if (newEntryReader == null) {
       return;
     }
     this.getAndSet(newEntryReader.entry());
   }
 
-  public void set(String tag, Object value) {
+  public void set(@Nonnull String tag, @Nonnull Object value) {
     this.getAndSet(Entry.newAnyEntry(tag, value));
   }
 
-  public void set(String tag, CharSequence value) {
+  public void set(@Nonnull String tag, @Nonnull CharSequence value) {
     this.getAndSet(Entry.newObjectEntry(tag, value));
   }
 
-  public void set(String tag, boolean value) {
+  public void set(@Nonnull String tag, boolean value) {
     this.getAndSet(Entry.newBooleanEntry(tag, value));
   }
 
-  public void set(String tag, int value) {
+  public void set(@Nonnull String tag, int value) {
     this.getAndSet(Entry.newIntEntry(tag, value));
   }
 
-  public void set(String tag, long value) {
+  public void set(@Nonnull String tag, long value) {
     this.getAndSet(Entry.newLongEntry(tag, value));
   }
 
-  public void set(String tag, float value) {
+  public void set(@Nonnull String tag, float value) {
     this.getAndSet(Entry.newFloatEntry(tag, value));
   }
 
-  public void set(String tag, double value) {
+  public void set(@Nonnull String tag, double value) {
     this.getAndSet(Entry.newDoubleEntry(tag, value));
   }
 
-  public Entry getAndSet(Entry newEntry) {
+  /**
+   * Places an Entry directly into the map, avoiding a new Entry allocation. Null-tolerant: a null
+   * {@code newEntry} is a no-op returning null, so an Entry producer (e.g. {@link
+   * Entry#create(String, Object)} for a null/empty value) can emit "no tag" without the caller
+   * filtering. Contrast the strict {@link Nonnull} {@code set(String, value)} setters.
+   */
+  public Entry getAndSet(@Nullable Entry newEntry) {
     if (newEntry == null) {
       return null;
     }
@@ -1242,31 +1249,31 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return null;
   }
 
-  public Entry getAndSet(String tag, Object value) {
+  public Entry getAndSet(@Nonnull String tag, Object value) {
     return this.getAndSet(Entry.newAnyEntry(tag, value));
   }
 
-  public Entry getAndSet(String tag, CharSequence value) {
+  public Entry getAndSet(@Nonnull String tag, CharSequence value) {
     return this.getAndSet(Entry.newObjectEntry(tag, value));
   }
 
-  public TagMap.Entry getAndSet(String tag, boolean value) {
+  public TagMap.Entry getAndSet(@Nonnull String tag, boolean value) {
     return this.getAndSet(Entry.newBooleanEntry(tag, value));
   }
 
-  public TagMap.Entry getAndSet(String tag, int value) {
+  public TagMap.Entry getAndSet(@Nonnull String tag, int value) {
     return this.getAndSet(Entry.newIntEntry(tag, value));
   }
 
-  public TagMap.Entry getAndSet(String tag, long value) {
+  public TagMap.Entry getAndSet(@Nonnull String tag, long value) {
     return this.getAndSet(Entry.newLongEntry(tag, value));
   }
 
-  public TagMap.Entry getAndSet(String tag, float value) {
+  public TagMap.Entry getAndSet(@Nonnull String tag, float value) {
     return this.getAndSet(Entry.newFloatEntry(tag, value));
   }
 
-  public TagMap.Entry getAndSet(String tag, double value) {
+  public TagMap.Entry getAndSet(@Nonnull String tag, double value) {
     return this.getAndSet(Entry.newDoubleEntry(tag, value));
   }
 
