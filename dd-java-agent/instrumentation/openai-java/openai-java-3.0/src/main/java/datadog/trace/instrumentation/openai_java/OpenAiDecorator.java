@@ -92,7 +92,7 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(AgentSpan span) {
+  public void afterStart(AgentSpan span) {
     if (llmObsEnabled) {
       // set global dd_tags as base layer so UST and span-level tags can override them
       for (Map.Entry<String, String> entry : Config.get().getGlobalTags().entrySet()) {
@@ -126,11 +126,11 @@ public class OpenAiDecorator extends ClientDecorator {
         span.setTag(CommonTags.SESSION_ID, sessionId);
       }
     }
-    return super.afterStart(span);
+    super.afterStart(span);
   }
 
   @Override
-  public AgentSpan beforeFinish(AgentSpan span) {
+  public void beforeFinish(AgentSpan span) {
     if (llmObsEnabled) {
       span.setTag(CommonTags.ERROR, span.isError() ? 1 : 0);
       span.setTag(CommonTags.ERROR_TYPE, span.getTag(DDTags.ERROR_TYPE));
@@ -143,7 +143,7 @@ public class OpenAiDecorator extends ClientDecorator {
             .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError(), false);
       }
     }
-    return super.beforeFinish(span);
+    super.beforeFinish(span);
   }
 
   public void withHttpResponse(AgentSpan span, Headers headers) {
