@@ -2,10 +2,12 @@ package datadog.gradle.plugin.jardiff
 
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.security.MessageDigest
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
@@ -14,7 +16,7 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Optional
-import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
@@ -121,6 +123,17 @@ abstract class JardiffTask @Inject constructor(
   abstract val additionalOptions: ListProperty<String>
 
   /**
+   * When true, hash the candidate and reference jars before running jardiff. Matching hashes mean
+   * the jars are byte-for-byte identical, so the task can skip the more expensive jardiff process.
+   */
+  @get:Input
+  @get:Option(
+    option = "hash-check",
+    description = "Hash the jars before launching jardiff and skip jardiff when hashes match.",
+  )
+  abstract val hashCheck: Property<Boolean>
+
+  /**
    * When true, the `.version` files entries are excluded from the comparison.
    * This is useful in particular as those files can be part of runtimeClasspath normalization
    * which ignores them too. `false` under CI, and true otherwise; overridable on the command line.
@@ -136,13 +149,19 @@ abstract class JardiffTask @Inject constructor(
   @get:Input
   abstract val mainClass: Property<String>
 
-  /** Destination of the captured jardiff report. */
-  @get:OutputFile
+  /** Directory receiving captured jardiff reports. */
+  @get:OutputDirectory
+  abstract val reportDir: DirectoryProperty
+
+  /** Optional exact destination for the captured jardiff report. Prefer [reportDir]. */
+  @get:Internal
   abstract val reportFile: RegularFileProperty
 
   init {
     includes.convention(emptyList())
     excludes.convention(emptyList())
+    reportDir.convention(project.layout.buildDirectory.dir("reports/jardiff"))
+    hashCheck.convention(true)
     // These comparisons are explicit verification gates and must never be skipped as up-to-date.
     outputs.upToDateWhen { false }
   }
@@ -151,6 +170,16 @@ abstract class JardiffTask @Inject constructor(
   fun compare() {
     val reference = resolveReferenceJar()
     val candidate = resolveCandidateJar()
+    val reportDestination = reportDestination(candidate)
+    val hashesMatch = sameHash(reference, candidate)
+
+    if (hashesMatch) {
+      val message =
+        "SHA-256 hashes match for ${candidate.name} and ${reference.name}; jardiff was skipped."
+      writeReport(reportDestination, "$message\n")
+      logger.lifecycle("✓ $message Report: ${reportDestination.absolutePath}")
+      return
+    }
 
     val effectiveExcludes = buildList {
       addAll(excludes.get())
@@ -184,13 +213,32 @@ abstract class JardiffTask @Inject constructor(
     }
 
     val report = captured.toString("UTF-8")
-    val reportDestination = reportFile.get().asFile
-    reportDestination.parentFile?.mkdirs()
-    reportDestination.writeText(report)
+    writeReport(reportDestination, report)
 
     when (JardiffComparison.outcomeOf(execResult.exitValue)) {
-      JardiffComparison.Outcome.IDENTICAL ->
-        logger.lifecycle("✓ ${candidate.name} is identical to the reference jar ${reference.name}")
+      JardiffComparison.Outcome.IDENTICAL -> {
+        if (!hashesMatch) {
+          val message =
+            "SHA-256 hashes differ for ${candidate.name} and ${reference.name}, " +
+              "but jardiff detected no differences."
+          logger.warn(message)
+          if (hashCheck.get()) {
+            throw GradleException(
+              buildString {
+                appendLine(message)
+                appendLine()
+                appendLine("  candidate : ${candidate.absolutePath}")
+                appendLine("  reference : ${reference.absolutePath}")
+                appendLine("  report    : ${reportDestination.absolutePath}")
+              },
+            )
+          }
+        }
+        logger.lifecycle(
+          "✓ ${candidate.name} is identical to the reference jar ${reference.name}. " +
+            "Report: ${reportDestination.absolutePath}",
+        )
+      }
 
       JardiffComparison.Outcome.DIFFERENT ->
         throw GradleException(
@@ -210,7 +258,8 @@ abstract class JardiffTask @Inject constructor(
       JardiffComparison.Outcome.ERROR ->
         throw GradleException(
           "jardiff failed with exit code ${execResult.exitValue} while comparing " +
-            "${candidate.name} against ${reference.name}. Output:\n" +
+            "${candidate.name} against ${reference.name}. Report: ${reportDestination.absolutePath}. " +
+            "Output:\n" +
             report.ifBlank { "(no output captured)" },
         )
     }
@@ -244,5 +293,34 @@ abstract class JardiffTask @Inject constructor(
       throw GradleException("$role does not exist: ${jar.absolutePath}")
     }
     return jar
+  }
+
+  private fun reportDestination(candidate: File): File =
+    when {
+      reportFile.isPresent -> reportFile.get().asFile
+      else -> reportDir.file("${candidate.name}.txt").get().asFile
+    }
+
+  private fun sameHash(left: File, right: File): Boolean =
+    left.length() == right.length() && sha256(left).contentEquals(sha256(right))
+
+  private fun sha256(file: File): ByteArray {
+    val digest = MessageDigest.getInstance("SHA-256")
+    file.inputStream().use { input ->
+      val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+      while (true) {
+        val read = input.read(buffer)
+        if (read < 0) {
+          break
+        }
+        digest.update(buffer, 0, read)
+      }
+    }
+    return digest.digest()
+  }
+
+  private fun writeReport(reportDestination: File, report: String) {
+    reportDestination.parentFile?.mkdirs()
+    reportDestination.writeText(report)
   }
 }

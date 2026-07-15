@@ -24,6 +24,8 @@ class JardiffPlugin : Plugin<Project> {
     extension.mainClass.convention(DEFAULT_MAIN_CLASS)
     extension.mode.convention(DEFAULT_MODE)
     extension.additionalOptions.convention(emptyList())
+    extension.reportDir.convention(project.layout.buildDirectory.dir("reports/jardiff"))
+    extension.hashCheck.convention(true)
 
     // Use a detached configuration (created here, resolved only when the task runs)
     // 
@@ -54,12 +56,13 @@ class JardiffPlugin : Plugin<Project> {
       mainClass.convention(extension.mainClass)
       mode.convention(extension.mode)
       additionalOptions.convention(extension.additionalOptions)
+      reportDir.convention(extension.reportDir)
+      hashCheck.convention(extension.hashCheck)
       // Ignore **/*.version by default, except under CI where the build and deploy
       // jobs share the same commit.
       ignoreVersionFiles.convention(
         project.providers.environmentVariable("CI").map { false }.orElse(true),
       )
-      reportFile.convention(project.layout.buildDirectory.file("reports/jardiff/comparison.txt"))
       referenceJar.convention(
         // Use the same name as the candidate jar
         referenceDirProperty.flatMap { dir ->

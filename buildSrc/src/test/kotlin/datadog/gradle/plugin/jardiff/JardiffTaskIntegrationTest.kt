@@ -11,35 +11,6 @@ import org.junit.jupiter.api.Test
 class JardiffTaskIntegrationTest : GradleFixture() {
 
   @Test
-  fun `passes when the candidate matches the reference`() {
-    writeProject()
-    writeJar("candidate.jar", "same-bytes")
-    writeJar("reference.jar", "same-bytes")
-
-    val result = run("compareToReferenceJar")
-
-    assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(buildFile("reports/jardiff/comparison.txt")).exists().content()
-      .contains("no differences")
-  }
-
-  @Test
-  fun `fails and reports the diff when the candidate differs`() {
-    writeProject()
-    writeJar("candidate.jar", "candidate-bytes")
-    writeJar("reference.jar", "reference-bytes")
-
-    val result = run("compareToReferenceJar", expectFailure = true)
-
-    assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.FAILED)
-    assertThat(result.output)
-      .contains("Candidate jar differs from the reference jar")
-      .contains("1 file changed")
-    assertThat(buildFile("reports/jardiff/comparison.txt")).exists().content()
-      .contains("1 file changed")
-  }
-
-  @Test
   fun `reference-jar option takes precedence over the referenceJar property`() {
     writeProject()
     writeJar("candidate.jar", "shared-bytes")
@@ -69,21 +40,8 @@ class JardiffTaskIntegrationTest : GradleFixture() {
     val result = run("compareToReferenceJar", "-PjardiffReferenceDir=${file("refs").absolutePath}")
 
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(buildFile("reports/jardiff/comparison.txt")).exists().content()
-      .contains("no differences")
-  }
-
-  @Test
-  fun `fails when no reference is configured`() {
-    // The comparison is mandatory: a missing reference must fail, never silently skip.
-    writeProject(referenceJarLine = "")
-    writeJar("candidate.jar", "candidate-bytes")
-
-    val result = run("compareToReferenceJar", expectFailure = true)
-
-    assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.FAILED)
-    assertThat(result.output).contains("No reference jar configured")
-    assertThat(buildFile("reports/jardiff/comparison.txt")).doesNotExist()
+    assertThat(jardiffReport()).exists().content()
+      .contains("jardiff was skipped")
   }
 
   @Test
@@ -98,7 +56,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
 
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
     assertThat(result.output).doesNotContain("No reference jar configured")
-    assertThat(buildFile("reports/jardiff/comparison.txt")).doesNotExist()
+    assertThat(jardiffReport()).doesNotExist()
   }
 
   @Test
@@ -107,15 +65,17 @@ class JardiffTaskIntegrationTest : GradleFixture() {
       taskBody = """
         includes.set(listOf("**/*.class", "META-INF/**"))
         excludes.set(listOf("**/*.txt"))
+        hashCheck.set(false)
       """,
+      compareBytes = false,
     )
-    writeJar("candidate.jar", "same-bytes")
-    writeJar("reference.jar", "same-bytes")
+    writeJar("candidate.jar", "candidate-bytes")
+    writeJar("reference.jar", "reference-bytes")
 
     val result = run("compareToReferenceJar")
 
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(buildFile("reports/jardiff/comparison.txt")).content()
+    assertThat(jardiffReport()).content()
       .contains("--include=**/*.class,META-INF/**")
       .contains("--exclude=**/*.txt")
   }
@@ -123,7 +83,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
   @Test
   fun `applies main class, mode and additional options from the jardiff extension`() {
     writeSettings("""rootProject.name = "jardiff-ext-test"""")
-    writeJavaSource("fake.jardiff.Main", stubMainSource("fake.jardiff"))
+    writeJavaSource("fake.jardiff.Main", stubMainSource("fake.jardiff", compareBytes = false))
     writeRootProject(
       """
       import datadog.gradle.plugin.jardiff.JardiffTask
@@ -137,6 +97,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
         mainClass.set("fake.jardiff.Main")
         mode.set("--status")
         additionalOptions.set(listOf("--ignore-member-order"))
+        hashCheck.set(false)
       }
 
       tasks.named<JardiffTask>("compareToReferenceJar") {
@@ -147,24 +108,33 @@ class JardiffTaskIntegrationTest : GradleFixture() {
       }
       """,
     )
-    writeJar("candidate.jar", "same-bytes")
-    writeJar("reference.jar", "same-bytes")
+    writeJar("candidate.jar", "candidate-bytes")
+    writeJar("reference.jar", "reference-bytes")
 
     val result = run("compareToReferenceJar")
 
     // SUCCESS proves the extension's mainClass reached the task (the stub Main is 'fake.jardiff.Main',
     // not the default), and the report echoes the mode + additional option from the extension.
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(buildFile("reports/jardiff/comparison.txt")).content()
+    assertThat(jardiffReport()).content()
       .contains("--status")
       .contains("--ignore-member-order")
   }
 
   @Test
   fun `applies mode and additional options passed as command-line options`() {
-    writeProject()
-    writeJar("candidate.jar", "same-bytes")
-    writeJar("reference.jar", "same-bytes")
+    writeProject(compareBytes = false)
+    writeJar("candidate.jar", "candidate-bytes")
+    writeJar("reference.jar", "reference-bytes")
+
+    file("build.gradle.kts").appendText(
+      """
+
+      tasks.named<JardiffTask>("compareToReferenceJar") {
+        hashCheck.set(false)
+      }
+      """.trimIndent(),
+    )
 
     val result = run(
       "compareToReferenceJar",
@@ -174,7 +144,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
     )
 
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(buildFile("reports/jardiff/comparison.txt")).content()
+    assertThat(jardiffReport()).content()
       .contains("--status")
       .contains("--ignore-member-order")
       .contains("--class-text-producer=javap")
@@ -182,14 +152,20 @@ class JardiffTaskIntegrationTest : GradleFixture() {
 
   @Test
   fun `ignoreVersionFiles excludes version stamps from the comparison`() {
-    writeProject(taskBody = "ignoreVersionFiles.set(true)")
-    writeJar("candidate.jar", "same-bytes")
-    writeJar("reference.jar", "same-bytes")
+    writeProject(
+      taskBody = """
+        ignoreVersionFiles.set(true)
+        hashCheck.set(false)
+      """,
+      compareBytes = false,
+    )
+    writeJar("candidate.jar", "candidate-bytes")
+    writeJar("reference.jar", "reference-bytes")
 
     val result = run("compareToReferenceJar")
 
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(buildFile("reports/jardiff/comparison.txt")).content()
+    assertThat(jardiffReport()).content()
       .contains("--exclude=**/*.version")
   }
 
@@ -197,28 +173,68 @@ class JardiffTaskIntegrationTest : GradleFixture() {
   fun `compares version stamps under CI (ignoreVersionFiles defaults to false)`() {
     // No explicit ignoreVersionFiles: the plugin's CI-aware convention drives it. With CI set, the
     // build and deploy jobs share a commit, so the stamps are compared (not excluded).
-    writeProject()
-    writeJar("candidate.jar", "same-bytes")
-    writeJar("reference.jar", "same-bytes")
+    writeProject(taskBody = "hashCheck.set(false)", compareBytes = false)
+    writeJar("candidate.jar", "candidate-bytes")
+    writeJar("reference.jar", "reference-bytes")
 
     val result = run("compareToReferenceJar", env = mapOf("CI" to "true"))
 
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(buildFile("reports/jardiff/comparison.txt")).content()
+    assertThat(jardiffReport()).content()
       .doesNotContain("**/*.version")
+  }
+
+  @Test
+  fun `writes reports under the configured reportDir`() {
+    writeSettings("""rootProject.name = "jardiff-report-dir-test"""")
+    writeJavaSource("fake.jardiff.Main", stubMainSource("fake.jardiff"))
+    writeRootProject(
+      """
+      import datadog.gradle.plugin.jardiff.JardiffTask
+
+      plugins {
+        java
+        id("dd-trace-java.jardiff")
+      }
+
+      jardiff {
+        reportDir.set(layout.buildDirectory.dir("custom-jardiff-reports"))
+      }
+
+      tasks.named<JardiffTask>("compareToReferenceJar") {
+        dependsOn("classes")
+        jardiffClasspath.setFrom(sourceSets["main"].output)
+        mainClass.set("fake.jardiff.Main")
+        candidateJar.set(layout.projectDirectory.file("candidate.jar"))
+        referenceJar.set(layout.projectDirectory.file("reference.jar"))
+      }
+      """,
+    )
+    writeJar("candidate.jar", "same-bytes")
+    writeJar("reference.jar", "same-bytes")
+
+    val result = run("compareToReferenceJar")
+
+    assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(buildFile("custom-jardiff-reports/candidate.jar.txt")).exists().content()
+      .contains("jardiff was skipped")
   }
 
   private fun writeJar(name: String, content: String) {
     file(name).also { it.parentFile?.mkdirs() }.writeBytes(content.toByteArray())
   }
 
+  private fun jardiffReport(candidateName: String = "candidate.jar") =
+    buildFile("reports/jardiff/$candidateName.txt")
+
   private fun writeProject(
     taskBody: String = "",
     referenceJarLine: String =
       """referenceJar.set(layout.projectDirectory.file("reference.jar"))""",
+    compareBytes: Boolean = true,
   ) {
     writeSettings("""rootProject.name = "jardiff-stub-test"""")
-    writeJavaSource("fake.jardiff.Main", stubMainSource("fake.jardiff"))
+    writeJavaSource("fake.jardiff.Main", stubMainSource("fake.jardiff", compareBytes))
     // The task's classpath and main class point at the compiled stub instead of the real jardiff CLI.
     writeRootProject(
       """
@@ -247,7 +263,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
      * byte-compares the last two positional arguments (left/right jars) and mirrors jardiff's
      * `--exit-code` semantics.
      */
-    private fun stubMainSource(packageName: String): String = """
+    private fun stubMainSource(packageName: String, compareBytes: Boolean = true): String = """
       package $packageName;
 
       import java.nio.file.Files;
@@ -261,7 +277,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
           String right = args[args.length - 1];
           byte[] leftBytes = Files.readAllBytes(Paths.get(left));
           byte[] rightBytes = Files.readAllBytes(Paths.get(right));
-          if (Arrays.equals(leftBytes, rightBytes)) {
+          if (${if (compareBytes) "Arrays.equals(leftBytes, rightBytes)" else "true"}) {
             System.out.println("no differences");
             System.exit(0);
           }

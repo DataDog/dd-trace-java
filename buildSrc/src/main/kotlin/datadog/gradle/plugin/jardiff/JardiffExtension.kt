@@ -28,4 +28,10 @@ interface JardiffExtension {
    * or `--class-text-producer=javap`). Empty by default.
    */
   val additionalOptions: ListProperty<String>
+
+  /**
+   * When true, compare the candidate and reference jar hashes before launching jardiff. If the
+   * hashes match, the task succeeds without invoking jardiff. Defaults to true.
+   */
+  val hashCheck: Property<Boolean>
 }
