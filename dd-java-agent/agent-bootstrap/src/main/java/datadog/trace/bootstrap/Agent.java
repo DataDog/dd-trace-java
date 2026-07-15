@@ -986,8 +986,6 @@ public class Agent {
     try {
       // Register the JDK's built-in JFR events first, so the holder's <clinit> below sees non-null
       // handlers instead of caching null.
-      // Register the JDK's built-in JFR events first, so the holder's <clinit> below sees non-null
-      // handlers instead of caching null.
       Class.forName("jdk.jfr.FlightRecorder", true, loader)
           .getMethod("getFlightRecorder")
           .invoke(null);
