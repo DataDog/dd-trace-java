@@ -952,42 +952,58 @@ public class Agent {
   }
 
   /**
-   * Force-initializes the JDK's JFR event-holder class before any JFR event is registered, to avoid
-   * an ABBA deadlock between {@code jdk.jfr.internal.Utils}'s monitor and this class's
-   * initialization lock. See <a href="https://bugs.openjdk.org/browse/JDK-8371889">JDK-8371889</a>.
+   * Force-initializes the JDK's JFR event-holder class early to avoid an ABBA deadlock between
+   * {@code jdk.jfr.internal.Utils}'s monitor and the holder class's initialization lock. See <a
+   * href="https://bugs.openjdk.org/browse/JDK-8371889">JDK-8371889</a>.
    *
-   * <p>The holder class eagerly initializes the JDK's built-in event handlers through {@code
-   * jdk.jfr.internal.Utils}. If one thread is running its {@code <clinit>} (holding the class-init
-   * lock, then wanting the {@code Utils} monitor) while another thread holds the {@code Utils}
-   * monitor and tries to trigger that same {@code <clinit>}, the two deadlock. Fully initializing
-   * the class here, on this thread, before any JFR registration runs, ensures it is already
-   * initialized when the {@code Utils} monitor is later taken, so the cycle cannot form.
+   * <p>The holder's {@code <clinit>} looks up the JDK's built-in event handlers through {@code
+   * jdk.jfr.internal.Utils} (taking its monitor). The deadlock forms when one thread holds the
+   * {@code Utils} monitor and wants the holder's class-init lock, while another thread holds the
+   * class-init lock (running {@code <clinit>}) and wants the {@code Utils} monitor. Running the
+   * {@code <clinit>} here, on this thread, before we register our own JFR events (which is what
+   * takes the {@code Utils} monitor), means the holder is already initialized by then, so the cycle
+   * cannot form.
    *
-   * <p>The class has been renamed across JDK versions, so we try each known name in turn:
+   * <p>Ordering matters twice over:
    *
    * <ul>
-   *   <li>JDK 17-18: {@code jdk.jfr.events.Handlers}
-   *   <li>JDK 19-22: {@code jdk.jfr.events.EventConfigurations}
-   *   <li>JDK 23+: the eager-initialization pattern was removed, so the deadlock cannot occur and
-   *       neither class is present.
+   *   <li>We force {@code FlightRecorder} initialization first, which registers the JDK's built-in
+   *       events (via {@code JDKEvents.initialize()}). The holder's fields are {@code static final}
+   *       and are populated from {@code Utils} at {@code <clinit>} time; running {@code <clinit>}
+   *       before the events are registered would cache {@code null} into those fields permanently
+   *       and silently disable the built-in socket/file/exception JFR events (verified on JDK
+   *       17.0.17 and 21.0.9). This mirrors the JDK's own fix, which initializes the holder only
+   *       after {@code JDKEvents.initialize()}. If {@code FlightRecorder} init fails, JFR is
+   *       unavailable and there is nothing to protect against, so we skip the holder init entirely.
+   *   <li>{@link Class#forName(String, boolean, ClassLoader)} with {@code initialize=true} is
+   *       required: {@link ClassLoader#loadClass(String)} would only load the class without running
+   *       {@code <clinit>}, so it would neither take the class-init lock early nor prevent the
+   *       deadlock.
    * </ul>
    *
-   * <p>{@link Class#forName(String, boolean, ClassLoader)} with {@code initialize=true} is required
-   * here: {@link ClassLoader#loadClass(String)} only loads the class and does not run its {@code
-   * <clinit>}, so it would not acquire the initialization lock early and would not prevent the
-   * deadlock.
+   * <p>The holder class was renamed across JDK versions: {@code jdk.jfr.events.Handlers} on JDK
+   * 17-18, {@code jdk.jfr.events.EventConfigurations} on JDK 19-22. JDK 23+ removed the eager-init
+   * pattern (and the JDK-8371889 fix itself was backported to 21.0.11), so on those versions there
+   * is nothing to initialize and the {@code forName} calls simply fail and are ignored.
    */
   private static void initializeJfrEventHolderClass() {
-    for (final String className :
-        new String[] {"jdk.jfr.events.Handlers", "jdk.jfr.events.EventConfigurations"}) {
+    try {
+      // Register the JDK's built-in JFR events first, so the holder's <clinit> below sees non-null
+      // handlers instead of caching null.
+      Class.forName("jdk.jfr.FlightRecorder", true, AGENT_CLASSLOADER)
+          .getMethod("getFlightRecorder")
+          .invoke(null);
+      // Force the holder's <clinit>. The class name depends on the JDK version.
       try {
-        Class.forName(className, true, AGENT_CLASSLOADER);
-        return; // at most one of these exists on any given JDK
-      } catch (final Throwable ignored) {
-        // Not present on this JDK (renamed/removed) or failed to initialize; try the next name.
-        // We catch Throwable rather than Exception because forcing initialization can surface
-        // Errors such as ExceptionInInitializerError, NoClassDefFoundError or LinkageError.
+        Class.forName("jdk.jfr.events.Handlers", true, AGENT_CLASSLOADER); // JDK 17-18
+      } catch (final ClassNotFoundException notJdk17Or18) {
+        Class.forName("jdk.jfr.events.EventConfigurations", true, AGENT_CLASSLOADER); // JDK 19-22
       }
+    } catch (final Throwable ignored) {
+      // JFR unavailable/disabled, holder renamed or removed (JDK 23+), or initialization failed: in
+      // every case there is nothing (left) to do. We catch Throwable rather than Exception because
+      // forcing initialization can surface Errors such as ExceptionInInitializerError,
+      // NoClassDefFoundError or LinkageError.
     }
   }
 
