@@ -1,14 +1,14 @@
 package datadog.smoketest.trace;
 
-import static datadog.trace.junit.utils.assertions.Matchers.any;
-import static datadog.trace.junit.utils.assertions.Matchers.assertValue;
-import static datadog.trace.junit.utils.assertions.Matchers.is;
-import static datadog.trace.junit.utils.assertions.Matchers.isFalse;
-import static datadog.trace.junit.utils.assertions.Matchers.isTrue;
-import static datadog.trace.junit.utils.assertions.Matchers.matches;
-import static datadog.trace.junit.utils.assertions.Matchers.validates;
+import static datadog.trace.test.junit.utils.assertions.Matchers.any;
+import static datadog.trace.test.junit.utils.assertions.Matchers.assertValue;
+import static datadog.trace.test.junit.utils.assertions.Matchers.is;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isFalse;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isTrue;
+import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
+import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
 
-import datadog.trace.junit.utils.assertions.Matcher;
+import datadog.trace.test.junit.utils.assertions.Matcher;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.util.HashMap;
 import java.util.List;
