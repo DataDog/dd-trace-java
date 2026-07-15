@@ -46,17 +46,21 @@ import javax.annotation.Nullable;
  */
 public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryReader> {
   /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
-  public static final TagMap EMPTY = EmptyHolder.EMPTY;
+  // Frozen view over a length-1 array: bucket masking needs a power-of-two array length (size 0
+  // would fail with ArrayIndexOutOfBoundsException, size 1 works), and the private constructor
+  // reads
+  // no statics, so this is safe to build directly during TagMap's <clinit>.
+  public static final TagMap EMPTY = new TagMap(new Object[1], 0);
 
   /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
-  public static TagMap fromMap(Map<String, ?> map) {
+  public static final TagMap fromMap(Map<String, ?> map) {
     TagMap tagMap = TagMap.create(map.size());
     tagMap.putAll(map);
     return tagMap;
   }
 
   /** Creates a new immutable TagMap that contains the contents of <code>map</code> */
-  public static TagMap fromMapImmutable(Map<String, ?> map) {
+  public static final TagMap fromMapImmutable(Map<String, ?> map) {
     if (map.isEmpty()) {
       return TagMap.EMPTY;
     } else {
@@ -64,21 +68,21 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     }
   }
 
-  public static TagMap create() {
+  public static final TagMap create() {
     return new TagMap();
   }
 
-  public static TagMap create(int size) {
+  public static final TagMap create(int size) {
     return new TagMap();
   }
 
   /** Creates a new TagMap.Ledger */
-  public static Ledger ledger() {
+  public static final Ledger ledger() {
     return new Ledger();
   }
 
   /** Creates a new TagMap.Ledger which handles <code>size</code> modifications before expansion */
-  public static Ledger ledger(int size) {
+  public static final Ledger ledger(int size) {
     return new Ledger(size);
   }
 
@@ -987,17 +991,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * However as a precaution if a BucketGroup becomes completely empty, then that BucketGroup will be
    * removed from the collision chain.
    */
-  // Lazy holder for the shared empty map. EMPTY is initialized from EmptyHolder.EMPTY during
-  // TagMap's <clinit>; isolating the instance in a holder means its construction is deferred to
-  // first access and never observes a half-initialized TagMap static (the private constructor
-  // reads no statics, so the empty view is safe to build during class init).
-  static final class EmptyHolder {
-    // Using special constructor that creates a frozen view of an existing array.
-    // Bucket calculation requires that array length is a power of 2; size 0 fails with
-    // ArrayIndexOutOfBoundsException, but size 1 works.
-    static final TagMap EMPTY = new TagMap(new Object[1], 0);
-  }
-
   private final Object[] buckets;
   private int size;
   private boolean frozen;
