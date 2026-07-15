@@ -518,9 +518,6 @@ compare_artifacts_to_master_uploads:
   needs:
     - job: build
       artifacts: true
-  id_tokens:
-    DDOCTOSTS_ID_TOKEN:
-      aud: dd-octo-sts
   variables:
     CACHE_TYPE: "lib"
   rules:
