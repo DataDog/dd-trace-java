@@ -41,12 +41,7 @@
 
 ### Before writing a new module, scan for an existing one
 
-Before creating `dd-java-agent/instrumentation/$framework/$framework-$version/`, list the parent directory `dd-java-agent/instrumentation/$framework/` to see what's already there:
-
-```
-ls dd-java-agent/instrumentation/$framework/
-# e.g. commons-httpclient-2.0/  (already exists)
-```
+Before creating `dd-java-agent/instrumentation/$framework/$framework-$version/`, check whether `dd-java-agent/instrumentation/$framework/` already exists and what's in it.
 
 If an existing module covers the same framework at a compatible version, **modify it in place** — do NOT create a parallel `$framework-2.0-generated/` or nested `$framework/$framework-2.0/` copy. Duplicate modules cause muzzle to match twice, double the CI cost, and create reviewer confusion (see PR #10941's "the more I read about it, the less I understand what was done" — a duplicate module that the reviewer could not disentangle from the original).
 
@@ -82,11 +77,11 @@ public OkHttp3Instrumentation() {
 
 Users can then set `DD_TRACE_OKHTTP_ENABLED=false` (group off) OR `DD_TRACE_OKHTTP_3_ENABLED=false` (this version only).
 
-**New module you expect will imminently sibling** — add the alias upfront and document why in the commit message. If no sibling appears, drop the alias in a follow-up.
+**New module you expect will soon have a sibling** — add the alias upfront and document why in the commit message. If no sibling appears, drop the alias in a follow-up.
 
 **Existing module** (modifying, refactoring, or splitting): read the existing module's `super(...)` and copy it verbatim. Integration names are public config API — renaming one silently breaks customer `DD_TRACE_*_ENABLED` settings.
 
-Before choosing, run `ls dd-java-agent/instrumentation/$framework/` — the directory contents are the ground truth for whether siblings exist.
+Before choosing, list the `dd-java-agent/instrumentation/$framework/` directory — the contents are the ground truth for whether siblings exist.
 
 Do NOT add version aliases to the decorator's `instrumentationNames()` — that method is for analytics keys only.
 
@@ -129,7 +124,7 @@ See `docs/how_instrumentations_work.md` section "Grouping Instrumentations" for 
 
 ## Enrichment helpers must be declared in `helperClassNames()`
 
-If your advice delegates to a helper class (e.g. `SparkJavaRouteEnricher.enrich(...)` from inside `RoutesAdvice`), the helper's fully-qualified class name MUST be listed in `helperClassNames()` on the `InstrumenterModule`:
+If your advice delegates to a helper class (e.g. `SparkJavaRouteEnricher.enrich(...)` from inside `RoutesAdvice`), the helper's fully-qualified class name MUST be listed in `helperClassNames()` on the `InstrumenterModule` — unless the helper is supplied on the boot-class-path (e.g. from `agent-bootstrap`), in which case it is already available without injection:
 
 ```java
 @Override
