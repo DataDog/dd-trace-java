@@ -243,7 +243,8 @@ public class DDSpanContext
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
         true,
-        true);
+        true,
+        null);
   }
 
   public DDSpanContext(
@@ -293,7 +294,64 @@ public class DDSpanContext
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
         injectBaggageAsTags,
-        injectLinksAsTags);
+        injectLinksAsTags,
+        null);
+  }
+
+  /** Back-compat ctor (no read-through parent); delegates with a null parent. */
+  public DDSpanContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final long parentId,
+      final CharSequence parentServiceName,
+      final CharSequence serviceNameSource,
+      final String serviceName,
+      final CharSequence operationName,
+      final CharSequence resourceName,
+      final int samplingPriority,
+      final CharSequence origin,
+      final Map<String, String> baggageItems,
+      final Baggage w3cBaggage,
+      final boolean errorFlag,
+      final CharSequence spanType,
+      final int tagsSize,
+      final TraceCollector traceCollector,
+      final Object requestContextDataAppSec,
+      final Object requestContextDataIast,
+      final Object CiVisibilityContextData,
+      final PathwayContext pathwayContext,
+      final boolean disableSamplingMechanismValidation,
+      final PropagationTags propagationTags,
+      final ProfilingContextIntegration profilingContextIntegration,
+      final boolean injectBaggageAsTags,
+      final boolean injectLinksAsTags) {
+    this(
+        traceId,
+        spanId,
+        parentId,
+        parentServiceName,
+        serviceNameSource,
+        serviceName,
+        operationName,
+        resourceName,
+        samplingPriority,
+        origin,
+        baggageItems,
+        w3cBaggage,
+        errorFlag,
+        spanType,
+        tagsSize,
+        traceCollector,
+        requestContextDataAppSec,
+        requestContextDataIast,
+        CiVisibilityContextData,
+        pathwayContext,
+        disableSamplingMechanismValidation,
+        propagationTags,
+        profilingContextIntegration,
+        injectBaggageAsTags,
+        injectLinksAsTags,
+        null);
   }
 
   public DDSpanContext(
@@ -321,7 +379,8 @@ public class DDSpanContext
       final PropagationTags propagationTags,
       final ProfilingContextIntegration profilingContextIntegration,
       final boolean injectBaggageAsTags,
-      final boolean injectLinksAsTags) {
+      final boolean injectLinksAsTags,
+      final TagMap readThroughParent) {
 
     assert traceCollector != null;
     this.traceCollector = traceCollector;
@@ -350,7 +409,10 @@ public class DDSpanContext
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
-    this.unsafeTags = TagMap.create(capacity);
+    this.unsafeTags =
+        readThroughParent != null
+            ? TagMap.createFromParent(readThroughParent)
+            : TagMap.create(capacity);
 
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
