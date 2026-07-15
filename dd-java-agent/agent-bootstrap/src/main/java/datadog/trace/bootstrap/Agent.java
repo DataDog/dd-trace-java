@@ -942,18 +942,25 @@ public class Agent {
         "JMX thread deadlock detection");
   }
 
+  private static void initializeJfrEventHolderClass() {
+    initializeJfrEventHolderClass(AGENT_CLASSLOADER);
+  }
+
   /**
    * Force-initializes the JDK's JFR event-holder class early to avoid an ABBA deadlock between
    * {@code jdk.jfr.internal.Utils}'s monitor and the holder class's initialization lock. See <a
-   * href="https://bugs.openjdk.org/browse/JDK-8371889">JDK-8371889</a>.
+   * href="https://bugs.openjdk.org/browse/JDK-8371889">JDK-8371889</a> and the SCP-1278 thread
+   * dump.
    *
    * <p>The holder's {@code <clinit>} looks up the JDK's built-in event handlers through {@code
-   * jdk.jfr.internal.Utils} (taking its monitor). The deadlock forms when one thread holds the
-   * {@code Utils} monitor and wants the holder's class-init lock, while another thread holds the
-   * class-init lock (running {@code <clinit>}) and wants the {@code Utils} monitor. Running the
-   * {@code <clinit>} here, on this thread, before we register our own JFR events (which is what
-   * takes the {@code Utils} monitor), means the holder is already initialized by then, so the cycle
-   * cannot form.
+   * jdk.jfr.internal.Utils} (taking its monitor); conversely, JFR event registration initializes
+   * the holder while holding that same monitor. The deadlock forms when one thread holds the {@code
+   * Utils} monitor and wants the holder's class-init lock, while another thread holds the
+   * class-init lock (running {@code <clinit>}) and wants the {@code Utils} monitor. In SCP-1278
+   * this was the profiler's smap-event registration (holding {@code Utils}) against a concurrent
+   * JMXFetch ByteBuddy transform that had triggered the holder {@code <clinit>}. Running the {@code
+   * <clinit>} here, on this thread, before we register our own JFR events, means the holder is
+   * already initialized by then, so the cycle cannot form.
    *
    * <p>Ordering matters twice over:
    *
@@ -964,8 +971,10 @@ public class Agent {
    *       before the events are registered would cache {@code null} into those fields permanently
    *       and silently disable the built-in socket/file/exception JFR events (verified on JDK
    *       17.0.17 and 21.0.9). This mirrors the JDK's own fix, which initializes the holder only
-   *       after {@code JDKEvents.initialize()}. If {@code FlightRecorder} init fails, JFR is
-   *       unavailable and there is nothing to protect against, so we skip the holder init entirely.
+   *       after {@code JDKEvents.initialize()}. The event registration below would trigger the same
+   *       {@code FlightRecorder} initialization anyway; we merely order it ahead of the holder
+   *       {@code <clinit>}. If {@code FlightRecorder} init fails, JFR is unavailable and there is
+   *       nothing to protect against, so we skip the holder init entirely.
    *   <li>{@link Class#forName(String, boolean, ClassLoader)} with {@code initialize=true} is
    *       required: {@link ClassLoader#loadClass(String)} would only load the class without running
    *       {@code <clinit>}, so it would neither take the class-init lock early nor prevent the
@@ -973,15 +982,14 @@ public class Agent {
    * </ul>
    *
    * <p>The holder class was renamed across JDK versions: {@code jdk.jfr.events.Handlers} on JDK
-   * 17-18, {@code jdk.jfr.events.EventConfigurations} on JDK 19-22. JDK 23+ removed the eager-init
-   * pattern (and the JDK-8371889 fix itself was backported to 21.0.11), so on those versions there
-   * is nothing to initialize and the {@code forName} calls simply fail and are ignored.
+   * 15-18, {@code jdk.jfr.events.EventConfigurations} on JDK 19-22. Earlier JDKs (including 11 LTS)
+   * predate the holder, JDK 23+ removed the eager-init pattern, and the JDK-8371889 fix was
+   * backported to 21.0.11 -- on all of those there is nothing to initialize and the {@code forName}
+   * calls simply fail and are ignored.
+   *
+   * @param loader class loader used to resolve the JFR classes (package-private for testing; see
+   *     JfrEventHolderInitForkedTest)
    */
-  private static void initializeJfrEventHolderClass() {
-    initializeJfrEventHolderClass(AGENT_CLASSLOADER);
-  }
-
-  // Visible for testing; see JfrEventHolderInitForkedTest.
   static void initializeJfrEventHolderClass(final ClassLoader loader) {
     try {
       // Register the JDK's built-in JFR events first, so the holder's <clinit> below sees non-null
@@ -991,7 +999,7 @@ public class Agent {
           .invoke(null);
       // Force the holder's <clinit>. The class name depends on the JDK version.
       try {
-        Class.forName("jdk.jfr.events.Handlers", true, loader); // JDK 17-18
+        Class.forName("jdk.jfr.events.Handlers", true, loader); // JDK 15-18
       } catch (final ClassNotFoundException notJdk17Or18) {
         Class.forName("jdk.jfr.events.EventConfigurations", true, loader); // JDK 19-22
       }
@@ -1006,7 +1014,7 @@ public class Agent {
   private static synchronized void registerSmapEntryEvent() {
     log.debug("Initializing smap entry scraping");
     registerJfrEvents(
-        "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory", "smap entry scraping");
+        "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory", "Smap entry scraping");
   }
 
   /**

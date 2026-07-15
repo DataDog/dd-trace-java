@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
  * Regression test for the JFR startup-deadlock workaround in {@link Agent}.
  *
  * <p>{@link Agent#initializeJfrEventHolderClass(ClassLoader)} force-initializes the JDK's JFR
- * event-holder class ({@code jdk.jfr.events.Handlers} on JDK 17-18, {@code
+ * event-holder class ({@code jdk.jfr.events.Handlers} on JDK 15-18, {@code
  * jdk.jfr.events.EventConfigurations} on JDK 19-22) to avoid an ABBA deadlock. Its static-final
  * handler fields are populated from {@code jdk.jfr.internal.Utils} at {@code <clinit>} time and
  * stay {@code null} forever if the class is initialized before the JDK's built-in events are
@@ -24,14 +24,28 @@ import org.junit.jupiter.api.Test;
  * poisoned. It is a {@code ForkedTest} because JFR/class initialization happens once per JVM, so
  * the ordering under test is only exercised in a fresh JVM that has not yet touched JFR.
  *
+ * <p>Scope and limitations:
+ *
+ * <ul>
+ *   <li>It verifies the ordering <em>invariant</em> (non-null handler fields), not end-to-end event
+ *       emission. That keeps it fast and non-flaky; the deadlock itself is timing-dependent and is
+ *       defended structurally (see {@code Agent#registerJfrEvents}) rather than reproduced here.
+ *   <li>It assumes the forked JVM has not initialized JFR before the test runs. If the test JVM is
+ *       ever launched with JFR already started (e.g. {@code -XX:StartFlightRecording} or an
+ *       attached JFR profiler), the holder would already hold valid handlers and the test would
+ *       pass without exercising the ordering. In the standard forked test JVM nothing touches JFR
+ *       first, so the test is meaningful (confirmed: it fails if the FlightRecorder-before-holder
+ *       ordering is reversed).
+ * </ul>
+ *
  * <p>Requires {@code --add-opens jdk.jfr/jdk.jfr.events=ALL-UNNAMED} (configured in build.gradle)
  * to read the holder's fields reflectively. Automatically skipped on JDKs without the holder class
- * (JDK 8, and JDK 23+ where the eager-init pattern was removed).
+ * (JDK 8 and earlier, and JDK 23+ where the eager-init pattern was removed).
  */
 public class JfrEventHolderInitForkedTest {
 
   private static final String[] HOLDER_CLASS_NAMES = {
-    "jdk.jfr.events.Handlers", // JDK 17-18
+    "jdk.jfr.events.Handlers", // JDK 15-18
     "jdk.jfr.events.EventConfigurations" // JDK 19-22
   };
 
