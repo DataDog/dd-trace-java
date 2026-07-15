@@ -149,6 +149,20 @@ class FeatureFlaggingSystemTest {
     verify(exposureWriter).close();
   }
 
+  @Test
+  void initializationFailureClosesConfigurationSourceWhenExposureWriterCloseFails() {
+    ConfigurationSourceService configService = mock(ConfigurationSourceService.class);
+    ExposureWriter exposureWriter = mock(ExposureWriter.class);
+    doThrow(new IllegalStateException("exposure init failed")).when(exposureWriter).init();
+    doThrow(new IllegalArgumentException("exposure close failed")).when(exposureWriter).close();
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> FeatureFlaggingSystem.initialize(configService, exposureWriter));
+
+    verify(configService).close();
+  }
+
   private static SharedCommunicationObjects sharedCommunicationObjects() {
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
     when(discovery.supportsEvpProxy()).thenReturn(true);

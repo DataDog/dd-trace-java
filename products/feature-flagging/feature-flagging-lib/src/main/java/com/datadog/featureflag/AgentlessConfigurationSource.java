@@ -2,6 +2,7 @@ package com.datadog.featureflag;
 
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_CONFIGURATION_POLLER;
+import static datadog.trace.util.Strings.isBlank;
 
 import datadog.communication.http.OkHttpUtils;
 import datadog.logging.RatelimitedLogger;
@@ -11,9 +12,7 @@ import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.URLEncoder;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -277,26 +276,17 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
   }
 
   private void updateEtag(final String nextEtag) {
-    if (nextEtag != null && !nextEtag.trim().isEmpty()) {
-      etag = nextEtag;
-    }
+    etag = isBlank(nextEtag) ? null : nextEtag;
   }
 
   static HttpUrl endpoint(final Config config) {
     final String configuredBaseUrl = config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl();
-    final String endpoint =
-        configuredBaseUrl == null
-            ? datadogApiServerDistributionEndpoint(config)
-            : endpointFromConfiguredBaseUrl(configuredBaseUrl);
-    final HttpUrl parsed = HttpUrl.parse(endpoint);
-    if (parsed == null) {
-      throw new IllegalArgumentException(
-          "Invalid Feature Flagging HTTP configuration source URL: " + endpoint);
-    }
-    return parsed;
+    return configuredBaseUrl == null
+        ? datadogApiServerDistributionEndpoint(config)
+        : endpointFromConfiguredBaseUrl(configuredBaseUrl);
   }
 
-  private static String endpointFromConfiguredBaseUrl(final String configuredBaseUrl) {
+  private static HttpUrl endpointFromConfiguredBaseUrl(final String configuredBaseUrl) {
     final HttpUrl parsed = HttpUrl.parse(configuredBaseUrl.trim());
     if (parsed == null) {
       throw new IllegalArgumentException(
@@ -306,30 +296,22 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       return parsed
           .newBuilder()
           .addPathSegments(DATADOG_API_SERVER_DISTRIBUTION_PATH.substring(1))
-          .build()
-          .toString();
+          .build();
     }
-    return parsed.toString();
+    return parsed;
   }
 
-  private static String datadogApiServerDistributionEndpoint(final Config config) {
-    final StringBuilder endpoint =
-        new StringBuilder("https://api.")
-            .append(config.getSite().toLowerCase(Locale.ROOT))
-            .append(DATADOG_API_SERVER_DISTRIBUTION_PATH);
+  private static HttpUrl datadogApiServerDistributionEndpoint(final Config config) {
+    final HttpUrl.Builder endpoint =
+        new HttpUrl.Builder()
+            .scheme("https")
+            .host("api." + config.getSite())
+            .addPathSegments(DATADOG_API_SERVER_DISTRIBUTION_PATH.substring(1));
     final String env = config.getEnv();
     if (env != null && !env.isEmpty()) {
-      endpoint.append("?dd_env=").append(urlEncode(env));
+      endpoint.addQueryParameter("dd_env", env);
     }
-    return endpoint.toString();
-  }
-
-  private static String urlEncode(final String value) {
-    try {
-      return URLEncoder.encode(value, "UTF-8");
-    } catch (final IOException e) {
-      throw new IllegalArgumentException("Unable to encode Feature Flagging environment", e);
-    }
+    return endpoint.build();
   }
 
   static long millis(final int seconds) {

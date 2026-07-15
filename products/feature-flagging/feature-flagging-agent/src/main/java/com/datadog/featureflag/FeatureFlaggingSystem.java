@@ -47,9 +47,12 @@ public class FeatureFlaggingSystem {
       CONFIG_SERVICE = configService;
       EXPOSURE_WRITER = exposureWriter;
     } catch (final RuntimeException | Error e) {
-      exposureWriter.close();
-      if (configService != null) {
-        configService.close();
+      try {
+        exposureWriter.close();
+      } finally {
+        if (configService != null) {
+          configService.close();
+        }
       }
       throw e;
     }

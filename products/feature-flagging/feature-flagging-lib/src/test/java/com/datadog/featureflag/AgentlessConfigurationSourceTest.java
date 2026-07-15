@@ -66,7 +66,7 @@ class AgentlessConfigurationSourceTest {
     final Config config = config("datad0g.com", "staging env");
 
     assertEquals(
-        "https://api.datad0g.com/api/v2/feature-flagging/config/server-distribution?dd_env=staging+env",
+        "https://api.datad0g.com/api/v2/feature-flagging/config/server-distribution?dd_env=staging%20env",
         AgentlessConfigurationSource.endpoint(config).toString());
   }
 
@@ -383,6 +383,25 @@ class AgentlessConfigurationSourceTest {
 
     assertNull(client.requests.get(1).etag);
     verify(listener).accept(any(ServerConfiguration.class));
+  }
+
+  @Test
+  void successfulResponseWithoutEtagClearsPreviousEtag() throws Exception {
+    final FakeClient client =
+        new FakeClient(
+            response(200, "etag-a", emptyConfig()),
+            response(200, null, emptyConfig()),
+            response(304, null, null));
+    final AgentlessConfigurationSource service = service(client);
+    FeatureFlaggingGateway.addConfigListener(listener);
+
+    assertTrue(service.pollOnce());
+    assertTrue(service.pollOnce());
+    assertTrue(service.pollOnce());
+
+    assertEquals("etag-a", client.requests.get(1).etag);
+    assertNull(client.requests.get(2).etag);
+    verify(listener, times(2)).accept(any(ServerConfiguration.class));
   }
 
   @Test
