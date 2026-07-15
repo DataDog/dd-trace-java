@@ -16,23 +16,22 @@ if [ -z "$REFERENCE_SHA" ]; then
   exit 1
 fi
 
-gitlab_headers=(--header "Accept: application/json")
-if [ -n "${GITLAB_TOKEN:-}" ]; then
-  gitlab_headers+=(--header "PRIVATE-TOKEN: ${GITLAB_TOKEN}")
-elif [ -n "${CI_JOB_TOKEN:-}" ]; then
-  gitlab_headers+=(--header "JOB-TOKEN: ${CI_JOB_TOKEN}")
-else
-  echo "Unable to resolve fork-point master build job: no GitLab API token is available"
+if [ -z "${GITLAB_TOKEN:-}" ]; then
+  echo "Unable to resolve fork-point master build job: GITLAB_TOKEN with read_api access is required."
+  echo "CI_JOB_TOKEN can download artifacts, but it cannot read commit statuses to discover the historical build job."
   exit 1
 fi
+gitlab_headers=(--header "Accept: application/json" --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}")
 
+# Missing piece: this API lookup needs read_api access. CI_JOB_TOKEN can download
+# the resolved job artifacts, but it cannot discover the historical build job.
 if ! reference_statuses="$(
   curl --fail --silent --show-error "${gitlab_headers[@]}" \
     "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/commits/${REFERENCE_SHA}/statuses?per_page=100"
 )"; then
   echo "Unable to read GitLab commit statuses for fork point ${REFERENCE_SHA}"
   echo "This lookup needs GitLab API access to commit statuses."
-  echo "If CI_JOB_TOKEN cannot access this endpoint, provide GITLAB_TOKEN with read_api access or resolve this metadata in a job image that can mint an API token."
+  echo "Provide GITLAB_TOKEN with read_api access or resolve this metadata in a job image that can mint an API token."
   exit 1
 fi
 
