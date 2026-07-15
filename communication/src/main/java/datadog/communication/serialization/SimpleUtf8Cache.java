@@ -1,6 +1,7 @@
 package datadog.communication.serialization;
 
 import java.nio.charset.StandardCharsets;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * A simple UTF8 cache - primarily intended for tag names
@@ -41,6 +42,7 @@ import java.nio.charset.StandardCharsets;
  * If there are no available slots in entries for a newly created CacheEntry,
  * a LFU: least frequently used eviction policy is used to free up a slot.
  */
+@ThreadSafe
 public final class SimpleUtf8Cache implements EncodingCache {
   static final int MAX_CAPACITY = 1024;
 
@@ -177,10 +179,6 @@ public final class SimpleUtf8Cache implements EncodingCache {
       this.adjHash = adjHash;
       this.value = value;
       this.valueUtf8 = utf8(value);
-    }
-
-    boolean matches(CacheEntry thatEntry) {
-      return (this == thatEntry) || this.matches(thatEntry.adjHash, thatEntry.value);
     }
 
     boolean matches(int adjHash, String value) {

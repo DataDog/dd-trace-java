@@ -91,7 +91,7 @@ public final class SerializingMetricWriter implements MetricWriter {
     this.buffer = new GrowableBuffer(initialCapacity);
     this.writer = new MsgPackWriter(buffer);
     this.sink = sink;
-    this.gitInfoProvider = new GitInfoProvider();
+    this.gitInfoProvider = gitInfoProvider;
   }
 
   @Override
@@ -151,11 +151,12 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void add(AggregateEntry entry) {
-    // Calculate dynamic map size based on optional fields
-    final boolean hasHttpMethod = entry.getHttpMethod() != null;
-    final boolean hasHttpEndpoint = entry.getHttpEndpoint() != null;
-    final boolean hasServiceSource = entry.getServiceSource() != null;
-    final boolean hasGrpcStatusCode = entry.getGrpcStatusCode() != null;
+    // Dynamic map size based on optional fields; AggregateEntry encapsulates the EMPTY-as-absent
+    // sentinel via its hasFoo() predicates so the serializer doesn't depend on the storage choice.
+    final boolean hasHttpMethod = entry.hasHttpMethod();
+    final boolean hasHttpEndpoint = entry.hasHttpEndpoint();
+    final boolean hasServiceSource = entry.hasServiceSource();
+    final boolean hasGrpcStatusCode = entry.hasGrpcStatusCode();
     final int mapSize =
         15
             + (hasServiceSource ? 1 : 0)

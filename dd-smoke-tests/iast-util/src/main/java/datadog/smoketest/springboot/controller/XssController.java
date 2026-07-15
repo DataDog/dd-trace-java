@@ -2,7 +2,6 @@ package datadog.smoketest.springboot.controller;
 
 import ddtest.securitycontrols.InputValidator;
 import ddtest.securitycontrols.Sanitizer;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Locale;
 import javax.servlet.http.HttpServletRequest;
@@ -18,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class XssController {
 
   @GetMapping("/write")
-  @SuppressFBWarnings
   public void write(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       response.getWriter().write(request.getParameter("string"));
@@ -28,7 +26,6 @@ public class XssController {
   }
 
   @GetMapping("/write2")
-  @SuppressFBWarnings
   public void write2(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       response.getWriter().write(request.getParameter("string").toCharArray());
@@ -38,7 +35,6 @@ public class XssController {
   }
 
   @GetMapping("/write3")
-  @SuppressFBWarnings
   public void write3(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String insecure = request.getParameter("string");
@@ -49,7 +45,6 @@ public class XssController {
   }
 
   @GetMapping("/write4")
-  @SuppressFBWarnings
   public void write4(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       char[] buf = request.getParameter("string").toCharArray();
@@ -60,7 +55,6 @@ public class XssController {
   }
 
   @GetMapping("/print")
-  @SuppressFBWarnings
   public void print(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       response.getWriter().print(request.getParameter("string"));
@@ -70,7 +64,6 @@ public class XssController {
   }
 
   @GetMapping("/print2")
-  @SuppressFBWarnings
   public void print2(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       response.getWriter().print(request.getParameter("string").toCharArray());
@@ -80,7 +73,6 @@ public class XssController {
   }
 
   @GetMapping("/println")
-  @SuppressFBWarnings
   public void println(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       response.getWriter().println(request.getParameter("string"));
@@ -90,7 +82,6 @@ public class XssController {
   }
 
   @GetMapping("/println2")
-  @SuppressFBWarnings
   public void println2(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       response.getWriter().println(request.getParameter("string").toCharArray());
@@ -100,7 +91,6 @@ public class XssController {
   }
 
   @GetMapping("/printf")
-  @SuppressFBWarnings
   public void printf(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = request.getParameter("string");
@@ -111,7 +101,6 @@ public class XssController {
   }
 
   @GetMapping("/printf2")
-  @SuppressFBWarnings
   public void printf2(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = "Formatted like: %1$s and %2$s.";
@@ -122,7 +111,6 @@ public class XssController {
   }
 
   @GetMapping("/printf3")
-  @SuppressFBWarnings
   public void printf3(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = request.getParameter("string");
@@ -133,7 +121,6 @@ public class XssController {
   }
 
   @GetMapping("/printf4")
-  @SuppressFBWarnings
   public void printf4(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = "Formatted like: %1$s and %2$s.";
@@ -144,7 +131,6 @@ public class XssController {
   }
 
   @GetMapping("/format")
-  @SuppressFBWarnings
   public void format(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = request.getParameter("string");
@@ -155,7 +141,6 @@ public class XssController {
   }
 
   @GetMapping("/format2")
-  @SuppressFBWarnings
   public void format2(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = "Formatted like: %1$s and %2$s.";
@@ -166,7 +151,6 @@ public class XssController {
   }
 
   @GetMapping("/format3")
-  @SuppressFBWarnings
   public void format3(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = request.getParameter("string");
@@ -177,7 +161,6 @@ public class XssController {
   }
 
   @GetMapping("/format4")
-  @SuppressFBWarnings
   public void format4(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String format = "Formatted like: %1$s and %2$s.";
@@ -194,7 +177,6 @@ public class XssController {
   }
 
   @GetMapping("/sanitize")
-  @SuppressFBWarnings
   public void sanitize(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       response.getWriter().write(Sanitizer.sanitize(request.getParameter("string")));
@@ -204,7 +186,6 @@ public class XssController {
   }
 
   @GetMapping("/validateAll")
-  @SuppressFBWarnings
   public void validateAll(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String s = request.getParameter("string");
@@ -216,7 +197,6 @@ public class XssController {
   }
 
   @GetMapping("/validateAll2")
-  @SuppressFBWarnings
   public void validate2(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String string1 = request.getParameter("string");
@@ -229,7 +209,6 @@ public class XssController {
   }
 
   @GetMapping("/validate")
-  @SuppressFBWarnings
   public void validate(final HttpServletRequest request, final HttpServletResponse response) {
     try {
       String string1 = request.getParameter("string");

@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -116,6 +117,62 @@ class HashtableD2Test {
     assertSame(seeded, got);
     assertEquals(1, table.size());
     assertEquals(0, createCount[0]);
+  }
+
+  @Test
+  void entryMatchesTrueWhenBothKeysEqual() {
+    PairEntry entry = new PairEntry("a", 1, 100);
+    assertTrue(entry.matches("a", 1));
+  }
+
+  @Test
+  void entryMatchesFalseWhenKey1Differs() {
+    PairEntry entry = new PairEntry("a", 1, 100);
+    assertFalse(entry.matches("b", 1));
+  }
+
+  @Test
+  void entryMatchesFalseWhenKey2Differs() {
+    PairEntry entry = new PairEntry("a", 1, 100);
+    assertFalse(entry.matches("a", 2));
+  }
+
+  @Test
+  void entryHashIsConsistentForSameKeys() {
+    long h1 = Hashtable.D2.Entry.hash("x", 42);
+    long h2 = Hashtable.D2.Entry.hash("x", 42);
+    assertEquals(h1, h2);
+  }
+
+  @Test
+  void entryHashDiffersForDifferentKeys() {
+    long h1 = Hashtable.D2.Entry.hash("x", 1);
+    long h2 = Hashtable.D2.Entry.hash("x", 2);
+    assertFalse(h1 == h2);
+  }
+
+  @Test
+  void removeReturnsNullForMissingKey() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(8);
+    table.insert(new PairEntry("a", 1, 100));
+
+    assertNull(table.remove("a", 2));
+    assertNull(table.remove("z", 1));
+    assertEquals(1, table.size());
+  }
+
+  @Test
+  void clearEmptiesTable() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(8);
+    table.insert(new PairEntry("a", 1, 100));
+    table.insert(new PairEntry("b", 2, 200));
+    assertEquals(2, table.size());
+
+    table.clear();
+
+    assertEquals(0, table.size());
+    assertNull(table.get("a", 1));
+    assertNull(table.get("b", 2));
   }
 
   private static final class PairEntry extends Hashtable.D2.Entry<String, Integer> {

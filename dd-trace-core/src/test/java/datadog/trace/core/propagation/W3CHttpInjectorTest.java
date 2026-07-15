@@ -132,7 +132,7 @@ class W3CHttpInjectorTest extends AbstractHttpInjectorTest {
     long rootSpanId = rootSpan.getSpanId();
     AgentScope rootScope = this.tracer.activateSpan(rootSpan);
 
-    this.injector.inject((DDSpanContext) rootSpan.context(), carrier, Map::put);
+    this.injector.inject((DDSpanContext) rootSpan.spanContext(), carrier, Map::put);
 
     // trace state has root span id as last parent
     assertEquals(rootSpanId, extractLastParentId(carrier));
@@ -141,7 +141,7 @@ class W3CHttpInjectorTest extends AbstractHttpInjectorTest {
     AgentSpan childSpan = this.tracer.startSpan("test", "child");
     long childSpanId = childSpan.getSpanId();
     carrier.clear();
-    this.injector.inject((DDSpanContext) childSpan.context(), carrier, Map::put);
+    this.injector.inject((DDSpanContext) childSpan.spanContext(), carrier, Map::put);
 
     // trace state has child span id as last parent
     assertEquals(childSpanId, extractLastParentId(carrier));
@@ -149,7 +149,7 @@ class W3CHttpInjectorTest extends AbstractHttpInjectorTest {
     // injecting root span again
     childSpan.finish();
     carrier.clear();
-    this.injector.inject((DDSpanContext) rootSpan.context(), carrier, Map::put);
+    this.injector.inject((DDSpanContext) rootSpan.spanContext(), carrier, Map::put);
 
     // trace state has root span is as last parent again
     assertEquals(rootSpanId, extractLastParentId(carrier));

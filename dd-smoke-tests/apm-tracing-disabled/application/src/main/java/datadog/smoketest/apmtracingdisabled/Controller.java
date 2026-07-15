@@ -1,6 +1,5 @@
 package datadog.smoketest.apmtracingdisabled;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentracing.Span;
 import io.opentracing.util.GlobalTracer;
 import java.io.IOException;
@@ -51,7 +50,6 @@ public class Controller {
   }
 
   @GetMapping("/iast")
-  @SuppressFBWarnings
   public void write(
       @RequestParam(name = "injection", required = false) String injection,
       @RequestParam(name = "url", required = false) String url,

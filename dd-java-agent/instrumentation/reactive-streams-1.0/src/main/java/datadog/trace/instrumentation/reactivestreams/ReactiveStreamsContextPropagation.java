@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.reactivestreams;
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -13,7 +14,7 @@ public final class ReactiveStreamsContextPropagation {
   public static ContextScope captureOnSubscribe(
       final Publisher<?> publisher,
       final Subscriber<?> subscriber,
-      final ContextStore<Publisher, Context> publisherContexts,
+      final ContextStore<Publisher, HandoffContext> publisherContexts,
       final ContextStore<Subscriber, Context> subscriberContexts) {
     // Don't consume the publisher context until we've verified the subscriber is non-null. For
     // subscribe(null), Reactive Streams mandates an NPE after this advice returns. Consuming the
@@ -22,7 +23,8 @@ public final class ReactiveStreamsContextPropagation {
       return null;
     }
 
-    final Context contextFromPublisher = publisherContexts.remove(publisher);
+    final HandoffContext handoff = publisherContexts.remove(publisher);
+    final Context contextFromPublisher = handoff == null ? null : handoff.contextForCurrentThread();
     final Context activeContext = Context.current();
     final Context context = contextFromPublisher != null ? contextFromPublisher : activeContext;
     if (context == Context.root()) {

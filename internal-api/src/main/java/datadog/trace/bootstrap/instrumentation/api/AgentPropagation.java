@@ -34,7 +34,7 @@ public final class AgentPropagation {
       final C carrier, final ContextVisitor<C> getter) {
     Context extracted = Propagators.defaultPropagator().extract(root(), carrier, getter);
     AgentSpan extractedSpan = fromContext(extracted);
-    return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.context();
+    return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.spanContext();
   }
 
   public interface KeyClassifier {

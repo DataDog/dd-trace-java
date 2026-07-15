@@ -102,7 +102,7 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
       InstrumentationExecutionParameters parameters) {
     State state = parameters.getInstrumentationState();
     final AgentSpan parsingSpan =
-        startSpan(GRAPHQL_JAVA.toString(), GRAPHQL_PARSING, state.getRequestSpan().context());
+        startSpan(GRAPHQL_JAVA.toString(), GRAPHQL_PARSING, state.getRequestSpan().spanContext());
     DECORATE.afterStart(parsingSpan);
     return new ParsingInstrumentationContext(parsingSpan, state, parameters.getQuery());
   }
@@ -113,7 +113,8 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
     State state = parameters.getInstrumentationState();
 
     final AgentSpan validationSpan =
-        startSpan(GRAPHQL_JAVA.toString(), GRAPHQL_VALIDATION, state.getRequestSpan().context());
+        startSpan(
+            GRAPHQL_JAVA.toString(), GRAPHQL_VALIDATION, state.getRequestSpan().spanContext());
     DECORATE.afterStart(validationSpan);
     return new ValidationInstrumentationContext(validationSpan);
   }

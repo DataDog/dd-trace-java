@@ -241,7 +241,7 @@ or [`UrlInstrumentation`](https://github.com/DataDog/dd-trace-java/blob/3e81c006
 ### Method Matching
 
 After the type is selected, the type’s target members(e.g., methods) must next be selected using the Instrumentation
-class’s `adviceTransformations()` method.
+class’s `methodAdvice()` method.
 ByteBuddy’s [`ElementMatchers`](https://javadoc.io/doc/net.bytebuddy/byte-buddy/1.4.17/net/bytebuddy/matcher/ElementMatchers.html)
 are used to describe the target members to be instrumented.
 Datadog’s [`DDElementMatchers`](../dd-java-agent/agent-installer/src/main/java/datadog/trace/agent/tooling/bytebuddy/matcher/DDElementMatchers.java)
@@ -262,8 +262,8 @@ Here, any public `execute()` method taking no arguments will have `PreparedState
 
 ```java
 @Override
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
             nameStartsWith("execute")
                     .and(takesArguments(0))
                     .and(isPublic()),
@@ -276,8 +276,8 @@ Here, any matching `connect()` method will have `DriverAdvice` applied:
 
 ```java
 @Override
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvice(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(
             nameStartsWith("connect")
                     .and(takesArgument(0, String.class))
                     .and(takesArgument(1, Properties.class))
@@ -292,8 +292,8 @@ The `applyAdvices` method supports applying multiple advice classes to the same 
 
 ```java
 @Override
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvices(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvices(
             named("service")
                     .and(takesArgument(0, named("org.apache.coyote.Request")))
                     .and(takesArgument(1, named("org.apache.coyote.Response"))),
@@ -391,10 +391,10 @@ Decorator class names should end in _Decorator._
 ## Advice Classes
 
 Byte Buddy injects compiled bytecode at runtime to wrap existing methods, so they communicate with Datadog at entry or exit.
-These modifications are referred to as _advice transformation_ or just _advice_.
+These modifications are referred to as _method advice_ or just _advice_.
 
-Instrumenters register advice transformations by calling `AdviceTransformation.applyAdvice(ElementMatcher, String)` 
-and Methods are matched by the instrumentation's `adviceTransformations()` method.
+Instrumenters register advice transformations by calling `MethodTransformer.applyAdvice(ElementMatcher, String)` 
+and methods are matched by the instrumentation's `methodAdvice()` method.
 
 The Advice is injected into the type so Advice can only refer to those classes on the bootstrap class-path or helpers
 injected into the application class-loader.
@@ -491,8 +491,8 @@ In the Tomcat instrumentation, we apply both context tracking and tracing advice
 
 ```java
 @Override
-public void adviceTransformations(AdviceTransformation transformation) {
-    transformation.applyAdvices(
+public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvices(
             named("service")
                     .and(takesArgument(0, named("org.apache.coyote.Request")))
                     .and(takesArgument(1, named("org.apache.coyote.Response"))),
@@ -525,9 +525,8 @@ The opposite would be either no `suppress` annotation or equivalently `suppress 
 allow exceptions in Advice code to surface and is usually undesirable.
 
 > [!NOTE]
-> Don't use `suppress` on an advice hooking a constructor.
-> For older JVMs that do not support [flexible constructor bodies](https://openjdk.org/jeps/513), you can't decorate the
-> mandatory self or parent constructor call with try/catch, as it must be the first call from the constructor body.
+> Don't use `onThrowable` on exit advice hooking a constructor.
+> If the constructor throws, `@Advice.This` is a partially initialized object, making exit advice unsafe to run.
 
 If
 the [`Advice.OnMethodEnter`](https://javadoc.io/static/net.bytebuddy/byte-buddy/1.10.2/net/bytebuddy/asm/Advice.OnMethodEnter.html)

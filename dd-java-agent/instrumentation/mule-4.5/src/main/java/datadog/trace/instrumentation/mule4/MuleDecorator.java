@@ -51,13 +51,13 @@ public class MuleDecorator extends BaseDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(final AgentSpan span) {
+  public void afterStart(final AgentSpan span) {
     span.setMeasured(true);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-    return super.afterStart(span);
+    super.afterStart(span);
   }
 
-  public AgentSpan onMuleSpan(
+  public AgentSpan startMuleSpan(
       AgentSpan parentSpan, InitialSpanInfo spanInfo, CoreEvent event, Component component) {
     // we stick with the same level of detail of OTEL exporter.
     // if not exportable we're not going to create a real span but we still need to track those
@@ -70,7 +70,7 @@ public class MuleDecorator extends BaseDecorator {
     if (parentSpan == null) {
       span = startSpan("mule", OPERATION_NAME);
     } else {
-      span = startSpan("mule", OPERATION_NAME, parentSpan.context());
+      span = startSpan("mule", OPERATION_NAME, parentSpan.spanContext());
     }
     // here we have to use the forEachAttribute since each specialized InitialSpanInfo class can add
     // different things through this method. Using the map version is not the same.
@@ -89,6 +89,7 @@ public class MuleDecorator extends BaseDecorator {
     } else {
       span.setResourceName(spanInfo.getName());
     }
-    return afterStart(span);
+    afterStart(span);
+    return span;
   }
 }

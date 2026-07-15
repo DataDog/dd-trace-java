@@ -200,6 +200,16 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   }
 
   @Override
+  <U> U unsafeGetTag(CharSequence name, U defaultValue) {
+    return getTag(name, defaultValue)
+  }
+
+  @Override
+  <U> U unsafeGetTag(CharSequence name) {
+    return getTag(name)
+  }
+
+  @Override
   boolean hasSamplingPriority() {
     return false
   }
@@ -234,9 +244,6 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   void processTagsAndBaggage(MetadataConsumer consumer) {}
-
-  @Override
-  void processTagsAndBaggage(MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {}
 
   @Override
   SimpleSpan setSamplingPriority(int samplingPriority, int samplingMechanism) {

@@ -49,7 +49,7 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "9.6.0" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "9.6.1" # must match gradle-wrapper.properties
   MASS_READ_URL: "https://mass-read.us1.ddbuild.io"
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
@@ -81,6 +81,8 @@ workflow:
     - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue\//'
       when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
+      variables:
+        SYSTEM_TESTS_RUN_ALL_VMS: "true"
       auto_cancel:
         on_new_commit: none
     - if: '$CI_COMMIT_BRANCH =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
@@ -95,6 +97,7 @@ workflow:
       - "17"
       - "21"
       - "25"
+      - "27" # JDK 27 TODO: remove after GA (tip will move to 27)
       - "semeru11"
       - "oracle8"
       - "zulu8"
@@ -242,8 +245,9 @@ default:
       EOF
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
-    # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
-    - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    # Apache Maven Wrapper supports MVNW_REPOURL for repository-manager downloads:
+    # https://maven.apache.org/tools/wrapper/#Using_a_Maven_Repository_Manager
+    - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
     # Route Gradle distribution download through MASS pull-through cache
     - |
       mass_read_host="${MASS_READ_URL#https://}"
@@ -382,8 +386,6 @@ populate_dep_cache:
   rules:
     - if: '$POPULATE_CACHE'
       when: on_success
-    - when: manual
-      allow_failure: true
   parallel:
     matrix:
       - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar"
@@ -443,7 +445,9 @@ spotless:
     CACHE_TYPE: "spotless"
   script:
     - ./gradlew --version
-    - ./gradlew spotlessCheck $GRADLE_ARGS
+    # test-published-dependencies's build file needs main version file
+    - ./gradlew spotlessCheck writeMainVersionFile $GRADLE_ARGS
+    - cd test-published-dependencies && ./gradlew spotlessCheck $GRADLE_ARGS
 
 check-instrumentation-naming:
   extends: .gradle_build
@@ -738,8 +742,7 @@ muzzle-dep-report:
   needs: []
   variables:
     <<: *tier_m_variables
-    # arm64 does not include JDK 7 or ibm8 (upstream images not published for arm64).
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|27|tip)$/ # Java 27 TODO: remove 27 after GA (tip will move to 27)
     GRADLE_PARAMS: "-PskipFlakyTests"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
     TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -748,10 +751,27 @@ muzzle-dep-report:
     GIT_SUBMODULE_STRATEGY: normal
     GIT_SUBMODULE_DEPTH: 1
   rules:
-    - if: $testJvm =~ $DEFAULT_TEST_JVMS
-      when: manual
+    # `ibm8`/`oracle8` have no arm64 images published upstream — never run them on arm64.
+    - if: '$testJvm == "ibm8" || $testJvm == "oracle8"'
+      when: never
+    # arm64 tests are newly introduced to the merge queue and master. Keep them
+    # non-blocking (allow_failure) for now so we can collect stability stats and
+    # fix flaky/failing jobs without blocking the whole team. Remove allow_failure
+    # once the arm64 suite is proven stable.
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
       allow_failure: true
-    - if: '$NON_DEFAULT_JVMS == "true" && $testJvm != "ibm8" && $testJvm != "oracle8"'
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+      allow_failure: true
+    # Enable non-default JVMs on demand.
+    - if: '$NON_DEFAULT_JVMS == "true"'
+      when: on_success
+      allow_failure: true
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
+      when: on_success
+      allow_failure: true
+    - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: manual
       allow_failure: true
   cache:
@@ -784,7 +804,14 @@ muzzle-dep-report:
     # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
     - sudo chown -R 1001:1001 .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
-    - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    # Apache Maven Wrapper supports MVNW_REPOURL for repository-manager downloads:
+    # https://maven.apache.org/tools/wrapper/#Using_a_Maven_Repository_Manager
+    - export MVNW_REPOURL=${MAVEN_REPOSITORY_PROXY%/}
+    # Route Gradle distribution download through MASS pull-through cache
+    - |
+      mass_read_host="${MASS_READ_URL#https://}"
+      mass_read_host="${mass_read_host%/}"
+      sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
     - *normalize_node_index
     - *prepare_test_env
     # Disable CDS in forked JVMs to avoid SIGSEGVs on Linux arm64.
@@ -910,6 +937,10 @@ test_base_arm64:
     CACHE_TYPE: "base"
   parallel:
     matrix: *test_matrix_4
+  # run coverage only on JVM 8, mirroring the amd64 test_base job
+  script:
+    - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
+    - !reference [.test_job_arm64, script]
 
 test_inst:
   extends: .test_job_with_test_agent
@@ -947,7 +978,7 @@ test_inst_latest:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "25"] # the latest "tip" version is LTS v25
+      - testJvm: ["8", "17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -960,7 +991,7 @@ test_inst_latest_arm64:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "25"] # the latest "tip" version is LTS v25
+      - testJvm: ["8", "17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -1030,9 +1061,14 @@ test_debugger:
   variables:
     GRADLE_TARGET: ":debuggerTest"
     CACHE_TYPE: "base"
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "tip" version is LTS v25
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|27|tip|semeru8)$/ # Java 27 TODO: remove 27 after GA (tip will move to 27)
   parallel:
     matrix: *test_matrix
+  # avoid running coverage for semeru8, semeru11, semeru17 and ibm8 as some tests are disabled and therefore cannot reach the
+  # exepected coverage
+  script:
+    - if [[ "$testJvm" != "semeru8" && "$testJvm" != "semeru11" && "$testJvm" != "semeru17" && "$testJvm" != "ibm8" ]]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
+    - !reference [.test_job, script]
 
 test_debugger_arm64:
   extends: .test_job_arm64
@@ -1041,6 +1077,11 @@ test_debugger_arm64:
     CACHE_TYPE: "base"
   parallel:
     matrix: *test_matrix
+  # avoid running coverage for semeru8, semeru11 and semeru17 as some tests are disabled and therefore cannot reach the
+  # expected coverage (ibm8/oracle8 never run on arm64)
+  script:
+    - if [[ "$testJvm" != "semeru8" && "$testJvm" != "semeru11" && "$testJvm" != "semeru17" ]]; then export GRADLE_PARAMS="$GRADLE_PARAMS -PcheckCoverage"; fi
+    - !reference [.test_job_arm64, script]
 
 test_smoke:
   extends: .test_job
@@ -1107,6 +1148,7 @@ test_smoke_graalvm:
   needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
@@ -1119,6 +1161,7 @@ test_smoke_graalvm_arm64:
   extends: .test_job_arm64
   tags: [ "arch:arm64" ]
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
@@ -1228,6 +1271,7 @@ deploy_to_maven_central:
     # Do not deploy release candidate versions
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
+      allow_failure: true
     - when: manual
       allow_failure: true
   script:
@@ -1235,7 +1279,7 @@ deploy_to_maven_central:
     - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
-    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
+    - ./gradlew publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'

@@ -53,7 +53,7 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".FormDataMap"};
+    return new String[] {packageName + ".FormDataMap", packageName + ".FormDataContentHelper"};
   }
 
   public void methodAdvice(MethodTransformer transformer) {
@@ -87,7 +87,9 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
           cbp.getCallback(EVENTS.requestBodyProcessed());
       BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
           cbp.getCallback(EVENTS.requestFilesFilenames());
-      if (bodyCallback == null && filenamesCb == null) {
+      BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
+          cbp.getCallback(EVENTS.requestFilesContent());
+      if (bodyCallback == null && filenamesCb == null && contentCb == null) {
         return;
       }
       FormData attachment = exchange.getAttachment(FORM_DATA);
@@ -134,6 +136,25 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
               boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
               if (success) {
                 t = new BlockingException("Blocked request (multipart file upload)");
+              }
+            }
+          }
+        }
+      }
+
+      if (contentCb != null && t == null) {
+        List<String> filesContent = FormDataContentHelper.collectContents(attachment);
+        if (!filesContent.isEmpty()) {
+          Flow<Void> contentFlow = contentCb.apply(reqCtx, filesContent);
+          Flow.Action contentAction = contentFlow.getAction();
+          if (contentAction instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba =
+                (Flow.Action.RequestBlockingAction) contentAction;
+            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+            if (brf != null && t == null) {
+              boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+              if (success) {
+                t = new BlockingException("Blocked request (multipart file upload content)");
               }
             }
           }

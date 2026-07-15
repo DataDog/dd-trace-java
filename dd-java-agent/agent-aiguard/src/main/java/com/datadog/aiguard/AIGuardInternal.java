@@ -11,6 +11,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.http.OkHttpUtils;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
@@ -26,7 +27,6 @@ import datadog.trace.api.aiguard.Evaluator;
 import datadog.trace.api.aiguard.noop.NoOpEvaluator;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.telemetry.WafMetricCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
@@ -269,7 +269,7 @@ public class AIGuardInternal implements Evaluator {
     final AgentTracer.SpanBuilder builder = tracer.buildSpan(SPAN_NAME, SPAN_NAME);
     final AgentSpan parent = AgentTracer.activeSpan();
     if (parent != null) {
-      builder.asChildOf(parent.context());
+      builder.asChildOf(parent.spanContext());
     }
     final AgentSpan span = builder.start();
     final AgentSpan localRootSpan = span.getLocalRootSpan();
@@ -281,7 +281,7 @@ public class AIGuardInternal implements Evaluator {
       // sure client IP tags were populated.
       copyAnomalyDetectionTags(span, localRootSpan);
     }
-    try (final AgentScope scope = tracer.activateSpan(span)) {
+    try (final ContextScope scope = tracer.activateSpan(span)) {
       final Message last = messages.get(messages.size() - 1);
       if (isToolCall(last)) {
         span.setTag(TARGET_TAG, "tool");

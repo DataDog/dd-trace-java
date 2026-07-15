@@ -7,10 +7,13 @@ import com.datadog.debugger.el.RedactedException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.LogProbe;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.util.Redaction;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
+import java.time.Duration;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,10 +29,12 @@ public class StringTemplateBuilder {
   private final List<LogProbe.Segment> segments;
 
   private final Limits limits;
+  private final Duration timeout;
 
-  public StringTemplateBuilder(List<LogProbe.Segment> segments, Limits limits) {
+  public StringTemplateBuilder(List<LogProbe.Segment> segments, Limits limits, Duration timeout) {
     this.segments = segments;
     this.limits = limits;
+    this.timeout = timeout;
   }
 
   public String evaluate(CapturedContext context, LogProbe.LogStatus status) {
@@ -37,6 +42,8 @@ public class StringTemplateBuilder {
       return null;
     }
     StringBuilder sb = new StringBuilder();
+    // Only one timeout for all expressions
+    TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
     for (LogProbe.Segment segment : segments) {
       ValueScript parsedExr = segment.getParsedExpr();
       if (segment.getStr() != null) {
@@ -44,7 +51,7 @@ public class StringTemplateBuilder {
       } else {
         if (parsedExr != null) {
           try {
-            Value<?> result = parsedExr.execute(context);
+            Value<?> result = parsedExr.execute(context, timeoutChecker);
             if (result.isUndefined()) {
               sb.append(result.getValue());
             } else if (result.isNull()) {

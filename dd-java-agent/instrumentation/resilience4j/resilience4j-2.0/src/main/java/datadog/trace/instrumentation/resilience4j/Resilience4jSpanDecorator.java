@@ -27,14 +27,13 @@ public class Resilience4jSpanDecorator<T> extends BaseDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(AgentSpan span) {
+  public void afterStart(AgentSpan span) {
     super.afterStart(span);
     span.setSpanName(RESILIENCE4J);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
     if (Config.get().isResilience4jMeasuredEnabled()) {
       span.setMeasured(true);
     }
-    return span;
   }
 
   public void decorate(AgentSpan span, T data) {}

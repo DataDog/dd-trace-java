@@ -90,7 +90,7 @@ public abstract class BaseDecorator {
     return false;
   }
 
-  public AgentSpan afterStart(final AgentSpan span) {
+  public void afterStart(final AgentSpan span) {
     if (spanType() != null) {
       span.setSpanType(spanType());
     }
@@ -100,68 +100,56 @@ public abstract class BaseDecorator {
     // DQH - Could retrieve the value from componentEntry and cast to avoid the virtual call,
     // unclear which option is better here
     final CharSequence component = component();
-    span.context().setIntegrationName(component);
+    span.spanContext().setIntegrationName(component);
 
     // null handled by setMetric
     span.setMetric(traceAnalyticsEntry);
-
-    return span;
   }
 
-  public ContextScope beforeFinish(final ContextScope scope) {
+  public void beforeFinish(final ContextScope scope) {
     beforeFinish(scope.context());
-    return scope;
   }
 
-  public AgentSpan beforeFinish(final AgentSpan span) {
-    return span;
-  }
+  public void beforeFinish(final AgentSpan span) {}
 
-  public Context beforeFinish(final Context context) {
-    return context;
-  }
+  public void beforeFinish(final Context context) {}
 
-  public AgentScope onError(final AgentScope scope, final Throwable throwable) {
+  public void onError(final AgentScope scope, final Throwable throwable) {
     if (scope != null) {
       onError(scope.span(), throwable);
     }
-    return scope;
   }
 
-  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
-    return onError(span, throwable, ErrorPriorities.DEFAULT);
+  public void onError(final AgentSpan span, final Throwable throwable) {
+    onError(span, throwable, ErrorPriorities.DEFAULT);
   }
 
-  public AgentSpan onError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+  public void onError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
     if (throwable != null && span != null) {
       span.addThrowable(
           throwable instanceof ExecutionException ? throwable.getCause() : throwable,
           errorPriority);
     }
-    return span;
   }
 
-  public ContextScope onError(final ContextScope scope, final Throwable throwable) {
+  public void onError(final ContextScope scope, final Throwable throwable) {
     if (scope != null) {
       onError(AgentSpan.fromContext(scope.context()), throwable);
     }
-    return scope;
   }
 
-  public AgentSpan onPeerConnection(
-      final AgentSpan span, final InetSocketAddress remoteConnection) {
+  public void onPeerConnection(final AgentSpan span, final InetSocketAddress remoteConnection) {
     if (remoteConnection != null) {
       onPeerConnection(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
       setPeerPort(span, remoteConnection.getPort());
     }
-    return span;
   }
 
-  public AgentSpan onPeerConnection(final AgentSpan span, final InetAddress remoteAddress) {
-    return onPeerConnection(span, remoteAddress, true);
+  public void onPeerConnection(final AgentSpan span, final InetAddress remoteAddress) {
+    onPeerConnection(span, remoteAddress, true);
   }
 
-  public AgentSpan onPeerConnection(AgentSpan span, InetAddress remoteAddress, boolean resolved) {
+  public void onPeerConnection(AgentSpan span, InetAddress remoteAddress, boolean resolved) {
     if (remoteAddress != null) {
       String ip = remoteAddress.getHostAddress();
       if (resolved && Config.get().isPeerHostNameEnabled()) {
@@ -173,20 +161,16 @@ public abstract class BaseDecorator {
         span.setTag(Tags.PEER_HOST_IPV6, ip);
       }
     }
-    return span;
   }
 
-  public AgentSpan setPeerPort(AgentSpan span, String port) {
+  public void setPeerPort(AgentSpan span, String port) {
     span.setTag(Tags.PEER_PORT, port);
-
-    return span;
   }
 
-  public AgentSpan setPeerPort(AgentSpan span, int port) {
+  public void setPeerPort(AgentSpan span, int port) {
     if (port > UNSET_PORT) {
       span.setTag(Tags.PEER_PORT, port);
     }
-    return span;
   }
 
   /**

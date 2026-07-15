@@ -80,7 +80,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
             .withResourceName("fakeResource")
             .withSpanType("fakeType")
             .start();
-    DDSpanContext context = (DDSpanContext) span.context();
+    DDSpanContext context = (DDSpanContext) span.spanContext();
 
     context.setTag("some.tag", "asdf");
     context.setTag(name, null);
@@ -125,7 +125,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
             .withResourceName("fakeResource")
             .withSpanType("fakeType")
             .start();
-    DDSpanContext context = (DDSpanContext) span.context();
+    DDSpanContext context = (DDSpanContext) span.spanContext();
 
     context.setTag(name, expected);
     span.finish();
@@ -170,7 +170,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
             .withResourceName("fakeResource")
             .withSpanType("fakeType")
             .start();
-    DDSpanContext context = (DDSpanContext) span.context();
+    DDSpanContext context = (DDSpanContext) span.spanContext();
 
     context.setTag(name, value);
     span.finish();
@@ -206,7 +206,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .start();
-    DDSpanContext context = (DDSpanContext) span.context();
+    DDSpanContext context = (DDSpanContext) span.spanContext();
 
     context.setMetric("test", value);
 
@@ -223,7 +223,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .start();
-    DDSpanContext context = (DDSpanContext) span.context();
+    DDSpanContext context = (DDSpanContext) span.spanContext();
 
     context.setSamplingPriority(SAMPLER_DROP, DEFAULT);
     assertEquals(SAMPLER_DROP, context.getSamplingPriority());
@@ -253,12 +253,12 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
     AgentSpan top =
         tracer.buildSpan("datadog", "top").asChildOf((AgentSpanContext) extracted).start();
-    DDSpanContext topC = (DDSpanContext) top.context();
+    DDSpanContext topC = (DDSpanContext) top.spanContext();
     TraceSegment topTS = top.getRequestContext().getTraceSegment();
 
-    AgentSpan current = tracer.buildSpan("datadog", "current").asChildOf(top.context()).start();
+    AgentSpan current = tracer.buildSpan("datadog", "current").asChildOf(top.spanContext()).start();
     TraceSegment currentTS = current.getRequestContext().getTraceSegment();
-    DDSpanContext currentC = (DDSpanContext) current.context();
+    DDSpanContext currentC = (DDSpanContext) current.spanContext();
 
     currentTS.setDataTop("ctd", "[1]");
     currentTS.setTagTop("ctt", "t1");
@@ -300,7 +300,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .start();
-    DDSpanContext context = (DDSpanContext) span.context();
+    DDSpanContext context = (DDSpanContext) span.spanContext();
     assertEquals(UNSET, context.getSamplingPriority());
 
     context.setSpanSamplingPriority(rate, limit);
@@ -348,20 +348,20 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
     verify(profilingContextIntegration, times(1)).encodeOperationName("fakeOperation");
     verify(profilingContextIntegration, times(1)).encodeResourceName("fakeResource");
-    assertEquals(1, ((DDSpanContext) span.context()).getEncodedOperationName());
-    assertEquals(-1, ((DDSpanContext) span.context()).getEncodedResourceName());
+    assertEquals(1, ((DDSpanContext) span.spanContext()).getEncodedOperationName());
+    assertEquals(-1, ((DDSpanContext) span.spanContext()).getEncodedResourceName());
 
     when(profilingContextIntegration.encodeOperationName("newOperationName")).thenReturn(2);
     span.setOperationName("newOperationName");
 
     verify(profilingContextIntegration, times(1)).encodeOperationName("newOperationName");
-    assertEquals(2, ((DDSpanContext) span.context()).getEncodedOperationName());
+    assertEquals(2, ((DDSpanContext) span.spanContext()).getEncodedOperationName());
 
     when(profilingContextIntegration.encodeResourceName("newResourceName")).thenReturn(-2);
     span.setResourceName("newResourceName");
 
     verify(profilingContextIntegration, times(1)).encodeResourceName("newResourceName");
-    assertEquals(-2, ((DDSpanContext) span.context()).getEncodedResourceName());
+    assertEquals(-2, ((DDSpanContext) span.spanContext()).getEncodedResourceName());
 
     span.finish();
   }
@@ -382,10 +382,10 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .withSpanId(-123456789)
-            .asChildOf(parent.context())
+            .asChildOf(parent.spanContext())
             .start();
 
-    DDSpanContext context = (DDSpanContext) span.context();
+    DDSpanContext context = (DDSpanContext) span.spanContext();
 
     // even though span ID and parent ID are setup as negative numbers, they should be printed as
     // their unsigned value
@@ -402,8 +402,8 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
         tracer.buildSpan("datadog", "parentOperation").withServiceName("fakeService").start();
 
     AgentSpan child =
-        tracer.buildSpan("datadog", "childOperation").asChildOf(parent.context()).start();
-    DDSpanContext childContext = (DDSpanContext) child.context();
+        tracer.buildSpan("datadog", "childOperation").asChildOf(parent.spanContext()).start();
+    DDSpanContext childContext = (DDSpanContext) child.spanContext();
 
     assertEquals(ServiceNameSources.MANUAL, childContext.getServiceNameSource());
 
@@ -441,7 +441,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   void setSpanKindOrdinalRoundTripsWithSpanKindValues(
       String scenario, String kindString, int expectedOrdinal) {
     AgentSpan span = tracer.buildSpan("test", "test").start();
-    DDSpanContext context = (DDSpanContext) span.context();
+    DDSpanContext context = (DDSpanContext) span.spanContext();
     context.setSpanKindOrdinal(kindString);
 
     assertEquals(expectedOrdinal, context.getSpanKindOrdinal());
@@ -462,7 +462,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
             .withTag(SPAN_KIND, Tags.SPAN_KIND_CLIENT)
             .withTag(SPAN_KIND, (Object) null)
             .start();
-    DDSpanContext context = (DDSpanContext) span.context();
+    DDSpanContext context = (DDSpanContext) span.spanContext();
 
     assertNull(context.getTag(SPAN_KIND));
     assertEquals(DDSpanContext.SPAN_KIND_UNSET, context.getSpanKindOrdinal());
@@ -537,7 +537,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
     assertEquals(kindString, span.getTag(SPAN_KIND));
 
-    ((DDSpan) span).context().removeTag(SPAN_KIND);
+    ((DDSpan) span).spanContext().removeTag(SPAN_KIND);
 
     assertNull(span.getTag(SPAN_KIND));
 

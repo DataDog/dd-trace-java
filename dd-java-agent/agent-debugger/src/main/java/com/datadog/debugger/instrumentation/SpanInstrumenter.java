@@ -13,13 +13,17 @@ import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassFileLines;
 import java.util.List;
+import java.util.Map;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.analysis.BasicValue;
+import org.objectweb.asm.tree.analysis.Frame;
 
 public class SpanInstrumenter extends Instrumenter {
   private int spanVar;
@@ -38,7 +42,8 @@ public class SpanInstrumenter extends Instrumenter {
       return addRangeSpan(classFileLines);
     }
     spanVar = newVar(DEBUGGER_SPAN_TYPE);
-    processInstructions();
+    Map<AbstractInsnNode, Frame<BasicValue>> frames = computeFrames(classNode.name, methodNode);
+    processInstructions(frames);
     LabelNode initSpanLabel = new LabelNode();
     InsnList insnList = createSpan(initSpanLabel);
     LabelNode endLabel = new LabelNode();

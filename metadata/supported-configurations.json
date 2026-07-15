@@ -129,6 +129,14 @@
         "aliases": []
       }
     ],
+    "DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "0.5",
+        "aliases": []
+      }
+    ],
     "DD_API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE": [
       {
         "version": "A",
@@ -1217,11 +1225,27 @@
         "aliases": ["DD_JMXFETCH_START_DELAY"]
       }
     ],
-    "DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT": [
+    "DD_INTERNAL_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "WALL",
+        "aliases": []
+      }
+    ],
+    "DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS": [
+      {
+        "version": "B",
+        "type": "int",
+        "default": "100",
+        "aliases": ["DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT"]
+      }
+    ],
+    "DD_DYNAMIC_INSTRUMENTATION_EVALUATION_TIMEOUT_MS": [
       {
         "version": "A",
         "type": "int",
-        "default": "100",
+        "default": "50",
         "aliases": []
       }
     ],
@@ -1474,6 +1498,14 @@
       }
     ],
     "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
@@ -2425,14 +2457,6 @@
         "aliases": []
       }
     ],
-    "DD_OPTIMIZED_MAP_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
-        "aliases": []
-      }
-    ],
     "DD_OTLP_METRICS_ENDPOINT": [
       {
         "version": "A",
@@ -3105,6 +3129,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_EXPERIMENTAL_ASYNC_JMETHODID_OPTIM_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_EXPERIMENTAL_ASYNC_SCHEDULING_EVENT": [
       {
         "version": "A",
@@ -3122,6 +3154,14 @@
       }
     ],
     "DD_PROFILING_EXPERIMENTAL_ASYNC_WALL_JVMTI": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_JMETHODID_OPTIM_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
@@ -8617,6 +8657,22 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_OTEL_SEMANTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACES_SPAN_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TRACE_ORG_GUARD_ENABLED": [
       {
         "version": "A",
@@ -9513,6 +9569,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_RMI_ENABLED", "DD_INTEGRATION_RMI_ENABLED"]
       }
     ],
+    "DD_TRACE_ROBOLECTRIC_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_ROBOLECTRIC_ENABLED", "DD_INTEGRATION_ROBOLECTRIC_ENABLED"]
+      }
+    ],
     "DD_TRACE_RMI_SERVER_ANALYTICS_ENABLED": [
       {
         "version": "A",
@@ -9575,6 +9639,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_RXJAVA_ENABLED", "DD_INTEGRATION_RXJAVA_ENABLED"]
+      }
+    ],
+    "DD_TRACE_RXJAVA_3_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_RXJAVA_3_ENABLED", "DD_INTEGRATION_RXJAVA_3_ENABLED"]
       }
     ],
     "DD_TRACE_S3_ENABLED": [
@@ -10625,11 +10697,43 @@
         "aliases": ["DD_TRACE_TRACER_METRICS_ENABLED"]
       }
     ],
+    "DD_TRACE_STATS_CARDINALITY_LIMIT": [
+      {
+        "version": "B",
+        "type": "int",
+        "default": "2048",
+        "aliases": ["DD_TRACE_TRACER_METRICS_MAX_AGGREGATES"]
+      }
+    ],
     "DD_TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION": [
       {
         "version": "A",
         "type": "boolean",
         "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1024",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_STATS_HTTP_ENDPOINT_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "512",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_STATS_PEER_TAGS_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "512",
         "aliases": []
       }
     ],
@@ -11605,6 +11709,14 @@
       {
         "version": "C",
         "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_TRACES_SPAN_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
         "default": null,
         "aliases": []
       }

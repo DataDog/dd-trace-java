@@ -582,8 +582,8 @@ public class DDSpanContext
   private DDSpanContext getRootSpanContextIfDifferent() {
     if (traceCollector != null) {
       final DDSpan rootSpan = traceCollector.getRootSpan();
-      if (null != rootSpan && rootSpan.context() != this) {
-        return rootSpan.context();
+      if (null != rootSpan && rootSpan.spanContext() != this) {
+        return rootSpan.spanContext();
       }
     }
     return null;
@@ -669,8 +669,8 @@ public class DDSpanContext
     // the priority is just CAS'd against UNSET/UNKNOWN, unless it's forced to USER_KEEP/MANUAL
     // but is maintained for backwards compatibility, and returns false when it used to
     final DDSpan rootSpan = traceCollector.getRootSpan();
-    if (null != rootSpan && rootSpan.context() != this) {
-      return rootSpan.context().lockSamplingPriority();
+    if (null != rootSpan && rootSpan.spanContext() != this) {
+      return rootSpan.spanContext().lockSamplingPriority();
     }
 
     return SAMPLING_PRIORITY_UPDATER.get(this) != PrioritySampling.UNSET;
@@ -1197,6 +1197,20 @@ public class DDSpanContext
       final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
     processTagsAndBaggage(
         consumer, longRunningVersion, restrictedSpan, injectLinksAsTags, injectBaggageAsTags);
+  }
+
+  /**
+   * Serialize span links as first-class structured data rather than tags. While baggage tag
+   * injection keeps following the tracer configuration.
+   */
+  void processTagsAndBaggageWithStructuredLinks(
+      final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
+    processTagsAndBaggage(
+        consumer,
+        longRunningVersion,
+        restrictedSpan,
+        false, // injectLinksAsTags
+        injectBaggageAsTags);
   }
 
   void processTagsAndBaggage(

@@ -54,7 +54,7 @@ public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tr
 
       if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
         InstrumentationContext.get(LogEntry.class, AgentSpanContext.class)
-            .put(event, span.context());
+            .put(event, span.spanContext());
       }
     }
   }
