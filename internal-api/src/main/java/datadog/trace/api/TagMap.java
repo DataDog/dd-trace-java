@@ -149,45 +149,45 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
    * are implemented more efficiently.
    */
   @Deprecated
-  Object put(String tag, Object value);
+  Object put(@Nonnull String tag, Object value);
 
   /** Sets value without returning prior value - more efficient than {@link Map#put} */
-  void set(String tag, @Nonnull Object value);
+  void set(@Nonnull String tag, @Nonnull Object value);
 
   /**
    * Similar to {@link TagMap#set(String, Object)} but more efficient when working with
    * CharSequences and Strings. Depending on this situation, this methods avoids having to do type
    * resolution later on
    */
-  void set(String tag, @Nonnull CharSequence value);
+  void set(@Nonnull String tag, @Nonnull CharSequence value);
 
-  void set(String tag, boolean value);
+  void set(@Nonnull String tag, boolean value);
 
-  void set(String tag, int value);
+  void set(@Nonnull String tag, int value);
 
-  void set(String tag, long value);
+  void set(@Nonnull String tag, long value);
 
-  void set(String tag, float value);
+  void set(@Nonnull String tag, float value);
 
-  void set(String tag, double value);
+  void set(@Nonnull String tag, double value);
 
   /** A null reader is a no-op (see the null-tolerance contract on {@link #getAndSet(Entry)}). */
   void set(@Nullable EntryReader newEntry);
 
   /** sets the value while returning the prior Entry */
-  Entry getAndSet(String tag, Object value);
+  Entry getAndSet(@Nonnull String tag, Object value);
 
-  Entry getAndSet(String tag, CharSequence value);
+  Entry getAndSet(@Nonnull String tag, CharSequence value);
 
-  Entry getAndSet(String tag, boolean value);
+  Entry getAndSet(@Nonnull String tag, boolean value);
 
-  Entry getAndSet(String tag, int value);
+  Entry getAndSet(@Nonnull String tag, int value);
 
-  Entry getAndSet(String tag, long value);
+  Entry getAndSet(@Nonnull String tag, long value);
 
-  Entry getAndSet(String tag, float value);
+  Entry getAndSet(@Nonnull String tag, float value);
 
-  Entry getAndSet(String tag, double value);
+  Entry getAndSet(@Nonnull String tag, double value);
 
   /**
    * Places an Entry directly into the map, avoiding a new Entry allocation. Null-tolerant: a null
@@ -379,7 +379,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
      * the same as via the {@link #create(String, CharSequence)} overload.
      */
     @Nullable
-    public static final Entry create(String tag, Object value) {
+    public static final Entry create(@Nonnull String tag, Object value) {
       if (value == null) return null;
       if (value instanceof CharSequence && ((CharSequence) value).length() == 0) return null;
       return TagMap.Entry.newAnyEntry(tag, value);
@@ -387,7 +387,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
 
     /** If value is non-null, returns a new TagMap.Entry If value is null or empty, returns null */
     @Nullable
-    public static final Entry create(String tag, CharSequence value) {
+    public static final Entry create(@Nonnull String tag, CharSequence value) {
       // NOTE: From the static typing, we know that value is not a primitive box
 
       return (value == null || value.length() == 0)
@@ -395,23 +395,23 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
           : TagMap.Entry.newObjectEntry(tag, value);
     }
 
-    public static final Entry create(String tag, boolean value) {
+    public static final Entry create(@Nonnull String tag, boolean value) {
       return TagMap.Entry.newBooleanEntry(tag, value);
     }
 
-    public static final Entry create(String tag, int value) {
+    public static final Entry create(@Nonnull String tag, int value) {
       return TagMap.Entry.newIntEntry(tag, value);
     }
 
-    public static final Entry create(String tag, long value) {
+    public static final Entry create(@Nonnull String tag, long value) {
       return TagMap.Entry.newLongEntry(tag, value);
     }
 
-    public static final Entry create(String tag, float value) {
+    public static final Entry create(@Nonnull String tag, float value) {
       return TagMap.Entry.newFloatEntry(tag, value);
     }
 
-    public static final Entry create(String tag, double value) {
+    public static final Entry create(@Nonnull String tag, double value) {
       return TagMap.Entry.newDoubleEntry(tag, value);
     }
 
