@@ -11,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
   startSpan
 }
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class AkkaActors extends AutoCloseable {
@@ -87,24 +88,17 @@ object AkkaActors {
     }
 
   // The way to terminate an actor system has changed between versions
-  val terminate: (ActorSystem) => Unit = {
-    val t =
-      try {
-        ActorSystem.getClass.getMethod("terminate")
-      } catch {
-        case _: Throwable =>
-          try {
-            ActorSystem.getClass.getMethod("awaitTermination")
-          } catch {
-            case _: Throwable => null
-          }
-      }
-    if (t ne null) {
-      { system: ActorSystem =>
-        t.invoke(system)
-      }
+  val terminate: (ActorSystem) => Unit = { system =>
+    if (isAkka23) {
+      classOf[ActorSystem].getMethod("shutdown").invoke(system)
+      classOf[ActorSystem].getMethod("awaitTermination").invoke(system)
     } else {
-      { _ => ??? }
+      classOf[ActorSystem].getMethod("terminate").invoke(system)
+      val whenTerminated = classOf[ActorSystem]
+        .getMethod("whenTerminated")
+        .invoke(system)
+        .asInstanceOf[scala.concurrent.Future[AnyRef]]
+      Await.ready(whenTerminated, 30.seconds)
     }
   }
 }

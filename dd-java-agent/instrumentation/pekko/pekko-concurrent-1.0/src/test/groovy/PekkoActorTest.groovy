@@ -1,11 +1,13 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import spock.lang.AutoCleanup
 import spock.lang.Shared
 
 class PekkoActorTest extends InstrumentationSpecification {
 
   @Shared
+  @AutoCleanup
   def pekkoTester = new PekkoActors()
 
   @Override
