@@ -16,6 +16,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * A super simple hash map designed for...
@@ -150,14 +152,14 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
   Object put(String tag, Object value);
 
   /** Sets value without returning prior value - more efficient than {@link Map#put} */
-  void set(String tag, Object value);
+  void set(String tag, @Nonnull Object value);
 
   /**
    * Similar to {@link TagMap#set(String, Object)} but more efficient when working with
    * CharSequences and Strings. Depending on this situation, this methods avoids having to do type
    * resolution later on
    */
-  void set(String tag, CharSequence value);
+  void set(String tag, @Nonnull CharSequence value);
 
   void set(String tag, boolean value);
 
@@ -169,7 +171,8 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
 
   void set(String tag, double value);
 
-  void set(EntryReader newEntry);
+  /** A null reader is a no-op (see the null-tolerance contract on {@link #getAndSet(Entry)}). */
+  void set(@Nullable EntryReader newEntry);
 
   /** sets the value while returning the prior Entry */
   Entry getAndSet(String tag, Object value);
@@ -187,10 +190,12 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
   Entry getAndSet(String tag, double value);
 
   /**
-   * TagMap specific method that places an Entry directly into an optimized TagMap avoiding need to
-   * allocate a new Entry object
+   * Places an Entry directly into the map, avoiding a new Entry allocation. Null-tolerant: a null
+   * {@code newEntry} is a no-op returning null, so an Entry producer (e.g. {@link
+   * Entry#create(String, Object)} for a null/empty value) can emit "no tag" without the caller
+   * filtering. Contrast the strict {@link Nonnull} {@code set(String, value)} setters.
    */
-  Entry getAndSet(Entry newEntry);
+  Entry getAndSet(@Nullable Entry newEntry);
 
   void putAll(Map<? extends String, ? extends Object> map);
 
@@ -368,15 +373,20 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
      */
     static final byte ANY = 0;
 
-    /** If value is non-null, returns a new TagMap.Entry If value is null, returns null */
+    /**
+     * Entry for {@code (tag, value)}, or null when {@code value} is null or an empty {@code
+     * CharSequence} -- checked by runtime type, so an empty String passed as {@code Object} skips
+     * the same as via the {@link #create(String, CharSequence)} overload.
+     */
+    @Nullable
     public static final Entry create(String tag, Object value) {
-      // NOTE: From the static typing, it is possible that value is a primitive box, so need to call
-      // Any variant
-
-      return (value == null) ? null : TagMap.Entry.newAnyEntry(tag, value);
+      if (value == null) return null;
+      if (value instanceof CharSequence && ((CharSequence) value).length() == 0) return null;
+      return TagMap.Entry.newAnyEntry(tag, value);
     }
 
     /** If value is non-null, returns a new TagMap.Entry If value is null or empty, returns null */
+    @Nullable
     public static final Entry create(String tag, CharSequence value) {
       // NOTE: From the static typing, we know that value is not a primitive box
 
@@ -1357,6 +1367,7 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public void set(TagMap.EntryReader newEntryReader) {
+    if (newEntryReader == null) return;
     this.getAndSet(newEntryReader.entry());
   }
 
@@ -1397,6 +1408,8 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public Entry getAndSet(Entry newEntry) {
+    if (newEntry == null) return null;
+
     this.checkWriteAccess();
 
     Object[] thisBuckets = this.buckets;
