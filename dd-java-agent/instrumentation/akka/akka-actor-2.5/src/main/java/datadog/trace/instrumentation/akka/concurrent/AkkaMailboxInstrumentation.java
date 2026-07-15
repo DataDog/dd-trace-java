@@ -4,25 +4,18 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.checkpointActiveForRollback;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackActiveToCheckpoint;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
-import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
-import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
-import java.util.Collection;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class AkkaMailboxInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public AkkaMailboxInstrumentation() {
     super("akka_actor_mailbox", "akka_actor", "akka_concurrent", "java_concurrent");
@@ -37,16 +30,6 @@ public class AkkaMailboxInstrumentation extends InstrumenterModule.ContextTracki
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("run")), getClass().getName() + "$SuppressMailboxRunAdvice");
-  }
-
-  @Override
-  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    List<String> excludedClass = singletonList("akka.dispatch.MailBox");
-    EnumMap<ExcludeFilter.ExcludeType, Collection<String>> excludedTypes =
-        new EnumMap<>(ExcludeFilter.ExcludeType.class);
-    excludedTypes.put(ExcludeFilter.ExcludeType.RUNNABLE, excludedClass);
-    excludedTypes.put(ExcludeFilter.ExcludeType.FORK_JOIN_TASK, excludedClass);
-    return excludedTypes;
   }
 
   /**

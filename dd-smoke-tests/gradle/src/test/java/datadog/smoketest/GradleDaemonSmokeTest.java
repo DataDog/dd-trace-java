@@ -131,7 +131,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   @TableTest({
     "scenario           | gradleVersion | projectName              | expectedTraces",
-    "robolectric-latest | latest        | test-succeed-robolectric | 6             "
+    "robolectric-latest | latest        | test-succeed-robolectric | 7             "
   })
   @ParameterizedTest
   void testRobolectric(String gradleVersion, String projectName, int expectedTraces)
