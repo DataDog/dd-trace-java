@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.DoubleSupplier;
+import javax.annotation.Nullable;
 import okhttp3.Call;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -354,10 +355,10 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
 
   static final class UfcHttpResponse {
     final int status;
-    final String etag;
-    final byte[] body;
+    @Nullable final String etag;
+    @Nullable final byte[] body;
 
-    UfcHttpResponse(final int status, final String etag, final byte[] body) {
+    UfcHttpResponse(final int status, @Nullable final String etag, @Nullable final byte[] body) {
       this.status = status;
       this.etag = etag;
       this.body = body;
@@ -388,9 +389,12 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       if (cancelled.get()) {
         call.cancel();
       }
-      try (Response response = call.execute()) {
-        final ResponseBody responseBody = response.body();
-        return new UfcHttpResponse(response.code(), response.header("ETag"), responseBody.bytes());
+      try {
+        final Response response = call.execute();
+        try (ResponseBody responseBody = response.body()) {
+          final byte[] body = responseBody != null ? responseBody.bytes() : null;
+          return new UfcHttpResponse(response.code(), response.header("ETag"), body);
+        }
       } finally {
         activeCall.compareAndSet(call, null);
       }

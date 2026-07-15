@@ -13,6 +13,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import datadog.communication.http.OkHttpUtils;
 import datadog.logging.RatelimitedLogger;
@@ -35,8 +36,11 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import okhttp3.Call;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
+import okhttp3.Protocol;
+import okhttp3.Response;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -189,6 +193,32 @@ class AgentlessConfigurationSourceTest {
         httpClient.connectionPool().evictAll();
       }
     }
+  }
+
+  @Test
+  void httpClientAdapterPreservesMissingResponseBody() throws Exception {
+    final OkHttpClient httpClient = mock(OkHttpClient.class);
+    final Call call = mock(Call.class);
+    final HttpUrl endpoint = HttpUrl.get("http://localhost");
+    final okhttp3.Request request = new okhttp3.Request.Builder().url(endpoint).build();
+    final Response okHttpResponse =
+        new Response.Builder()
+            .request(request)
+            .protocol(Protocol.HTTP_1_1)
+            .code(HttpURLConnection.HTTP_OK)
+            .message("OK")
+            .build();
+    when(httpClient.newCall(any())).thenReturn(call);
+    when(call.execute()).thenReturn(okHttpResponse);
+    final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
+        new AgentlessConfigurationSource.OkHttpUfcHttpClient(httpClient);
+
+    final AgentlessConfigurationSource.UfcHttpResponse response =
+        client.fetch(endpoint, config(), null);
+
+    assertEquals(HttpURLConnection.HTTP_OK, response.status);
+    assertNull(response.etag);
+    assertNull(response.body);
   }
 
   @Test
