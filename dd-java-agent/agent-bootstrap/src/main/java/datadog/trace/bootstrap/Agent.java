@@ -906,7 +906,8 @@ public class Agent {
       }
     }
     if (profilingEnabled) {
-      initializeJfrEventHolderClass();
+      // Both of these register JFR events through registerJfrEvents(), which force-initializes the
+      // JDK's JFR event-holder class first (see initializeJfrEventHolderClass) to avoid a deadlock.
       registerDeadlockDetectionEvent();
       registerSmapEntryEvent();
       if (PROFILER_INIT_AFTER_JMX != null) {
@@ -936,19 +937,9 @@ public class Agent {
 
   private static synchronized void registerDeadlockDetectionEvent() {
     log.debug("Initializing JMX thread deadlock detector");
-    try {
-      final Class<?> deadlockFactoryClass =
-          AGENT_CLASSLOADER.loadClass(
-              "com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory");
-      final Method registerMethod = deadlockFactoryClass.getMethod("registerEvents");
-      registerMethod.invoke(null);
-    } catch (final NoClassDefFoundError
-        | ClassNotFoundException
-        | UnsupportedClassVersionError ignored) {
-      log.debug("JMX deadlock detection not supported");
-    } catch (final Throwable ex) {
-      log.error("Unable to initialize JMX thread deadlock detector", ex);
-    }
+    registerJfrEvents(
+        "com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory",
+        "JMX thread deadlock detection");
   }
 
   /**
@@ -1016,14 +1007,38 @@ public class Agent {
 
   private static synchronized void registerSmapEntryEvent() {
     log.debug("Initializing smap entry scraping");
+    registerJfrEvents(
+        "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory", "smap entry scraping");
+  }
+
+  /**
+   * Registers a profiling JFR event factory's events, after force-initializing the JDK's JFR
+   * event-holder class (see {@link #initializeJfrEventHolderClass(ClassLoader)}).
+   *
+   * <p><strong>All JFR event registration during agent startup must go through this
+   * method.</strong> Registering a JFR event triggers the holder class's initialization while
+   * holding the {@code jdk.jfr.internal.Utils} monitor; unless the holder has already been fully
+   * initialized, that can deadlock (JDK-8371889). Routing every registration through here
+   * guarantees the holder is initialized first, so future event registrations cannot reintroduce
+   * the deadlock by running before it.
+   *
+   * @param factoryClassName fully-qualified name of the event factory with a static {@code
+   *     registerEvents()} method
+   * @param description human-readable name used in log messages
+   */
+  private static void registerJfrEvents(final String factoryClassName, final String description) {
+    // Enforce the ordering invariant: the holder must be initialized before any JFR event is
+    // registered. Idempotent and cheap once done, so it is safe to call before every registration.
+    initializeJfrEventHolderClass();
     try {
-      final Class<?> smapFactoryClass =
-          AGENT_CLASSLOADER.loadClass(
-              "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory");
-      final Method registerMethod = smapFactoryClass.getMethod("registerEvents");
-      registerMethod.invoke(null);
-    } catch (final Exception ignored) {
-      log.debug("Smap entry scraping not supported");
+      final Class<?> factoryClass = AGENT_CLASSLOADER.loadClass(factoryClassName);
+      factoryClass.getMethod("registerEvents").invoke(null);
+    } catch (final NoClassDefFoundError
+        | ClassNotFoundException
+        | UnsupportedClassVersionError ignored) {
+      log.debug("{} not supported", description);
+    } catch (final Throwable ex) {
+      log.error("Unable to initialize {}", description, ex);
     }
   }
 
