@@ -206,7 +206,7 @@ public class ConfigManager {
     writer.newLine();
   }
 
-  public static void writeConfigToPath(File scriptFile, String... additionalEntries) {
+  public static synchronized void writeConfigToPath(File scriptFile, String... additionalEntries) {
     String cfgFileName = getBaseName(scriptFile) + PID_PREFIX + PidHelper.getPid() + ".cfg";
     File cfgFile = new File(scriptFile.getParentFile(), cfgFileName);
     ConfigManager.cfgFile = cfgFile;
@@ -233,16 +233,21 @@ public class ConfigManager {
       entries.put(key, value);
 
       File tmpFile = File.createTempFile(getBaseName(cfgFile), ".tmp", cfgFile.getParentFile());
-      try (BufferedWriter bw =
-          new BufferedWriter(
-              new OutputStreamWriter(new FileOutputStream(tmpFile), StandardCharsets.UTF_8))) {
-        for (Map.Entry<String, String> entry : entries.entrySet()) {
-          writeEntry(bw, entry.getKey(), entry.getValue());
+      try {
+        try (BufferedWriter bw =
+            new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(tmpFile), StandardCharsets.UTF_8))) {
+          for (Map.Entry<String, String> entry : entries.entrySet()) {
+            writeEntry(bw, entry.getKey(), entry.getValue());
+          }
         }
-      }
-      if (!tmpFile.renameTo(cfgFile)) {
-        LOGGER.debug("Failed to atomically replace config file: {}", cfgFile);
+        if (!tmpFile.renameTo(cfgFile)) {
+          LOGGER.debug("Failed to atomically replace config file: {}", cfgFile);
+          tmpFile.delete(); // best-effort cleanup; failure is acceptable here
+        }
+      } catch (IOException e) {
         tmpFile.delete(); // best-effort cleanup; failure is acceptable here
+        throw e;
       }
     } catch (IOException e) {
       LOGGER.debug("Failed to update config file entry {}: {}", key, cfgFile, e);
