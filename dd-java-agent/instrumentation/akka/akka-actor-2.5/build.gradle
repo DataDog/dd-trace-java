@@ -16,10 +16,14 @@ apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 addTestSuite('akka23Test')
+addTestSuiteExtendingForDir('akka23ForkedTest', 'akka23Test', 'akka23Test')
 addTestSuiteForDir('latestDepTest', 'test')
 
 tasks.named("compileAkka23TestGroovy", GroovyCompile) {
   classpath += files(sourceSets.akka23Test.scala.classesDirectory)
+}
+tasks.named("compileAkka23ForkedTestGroovy", GroovyCompile) {
+  classpath += files(sourceSets.akka23ForkedTest.scala.classesDirectory)
 }
 
 // Run the akka23Test against the normal and latestDep akka version as well

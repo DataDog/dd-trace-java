@@ -84,7 +84,7 @@ class AkkaActorTest extends InstrumentationSpecification {
   }
 }
 
-class AkkaActorContextSwapTest extends AkkaActorTest {
+class AkkaActorContextSwapForkedTest extends AkkaActorTest {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()

@@ -122,7 +122,7 @@ class PekkoActorTest extends InstrumentationSpecification {
   }
 }
 
-class PekkoActorContextSwapTest extends PekkoActorTest {
+class PekkoActorContextSwapForkedTest extends PekkoActorTest {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
