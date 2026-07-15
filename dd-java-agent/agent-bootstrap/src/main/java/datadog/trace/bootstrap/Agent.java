@@ -906,6 +906,7 @@ public class Agent {
       }
     }
     if (profilingEnabled) {
+      initializeJfrEventHolderClass();
       registerDeadlockDetectionEvent();
       registerSmapEntryEvent();
       if (PROFILER_INIT_AFTER_JMX != null) {
@@ -950,23 +951,48 @@ public class Agent {
     }
   }
 
+  /**
+   * Force-initializes the JDK's JFR event-holder class before any JFR event is registered, to avoid
+   * an ABBA deadlock between {@code jdk.jfr.internal.Utils}'s monitor and this class's
+   * initialization lock. See <a href="https://bugs.openjdk.org/browse/JDK-8371889">JDK-8371889</a>.
+   *
+   * <p>The holder class eagerly initializes the JDK's built-in event handlers through {@code
+   * jdk.jfr.internal.Utils}. If one thread is running its {@code <clinit>} (holding the class-init
+   * lock, then wanting the {@code Utils} monitor) while another thread holds the {@code Utils}
+   * monitor and tries to trigger that same {@code <clinit>}, the two deadlock. Fully initializing
+   * the class here, on this thread, before any JFR registration runs, ensures it is already
+   * initialized when the {@code Utils} monitor is later taken, so the cycle cannot form.
+   *
+   * <p>The class has been renamed across JDK versions, so we try each known name in turn:
+   *
+   * <ul>
+   *   <li>JDK 17-18: {@code jdk.jfr.events.Handlers}
+   *   <li>JDK 19-22: {@code jdk.jfr.events.EventConfigurations}
+   *   <li>JDK 23+: the eager-initialization pattern was removed, so the deadlock cannot occur and
+   *       neither class is present.
+   * </ul>
+   *
+   * <p>{@link Class#forName(String, boolean, ClassLoader)} with {@code initialize=true} is required
+   * here: {@link ClassLoader#loadClass(String)} only loads the class and does not run its {@code
+   * <clinit>}, so it would not acquire the initialization lock early and would not prevent the
+   * deadlock.
+   */
+  private static void initializeJfrEventHolderClass() {
+    for (final String className :
+        new String[] {"jdk.jfr.events.Handlers", "jdk.jfr.events.EventConfigurations"}) {
+      try {
+        Class.forName(className, true, AGENT_CLASSLOADER);
+        return; // at most one of these exists on any given JDK
+      } catch (final Throwable ignored) {
+        // Not present on this JDK (renamed/removed) or failed to initialize; try the next name.
+        // We catch Throwable rather than Exception because forcing initialization can surface
+        // Errors such as ExceptionInInitializerError, NoClassDefFoundError or LinkageError.
+      }
+    }
+  }
+
   private static synchronized void registerSmapEntryEvent() {
     log.debug("Initializing smap entry scraping");
-
-    // Initialize the JFR Handlers class early, if present (it has been moved and renamed in
-    // JDK23+). This prevents a deadlock. See https://bugs.openjdk.org/browse/JDK-8371889.
-    // We must fully initialize the class here (not just load it) so that its static initializer
-    // runs on this thread, before the JFR code below acquires the jdk.jfr.internal.Utils monitor.
-    // ClassLoader.loadClass() only loads the class and does not run <clinit>, so it does not
-    // prevent the deadlock. Class.forName(..., true, ...) forces initialization.
-    try {
-      Class.forName("jdk.jfr.events.Handlers", true, AGENT_CLASSLOADER);
-    } catch (Throwable t) {
-      // Ignore when the class is not found or anything else goes wrong. Note that we catch
-      // Throwable rather than Exception, because forcing initialization can surface Errors such
-      // as ExceptionInInitializerError, NoClassDefFoundError or LinkageError.
-    }
-
     try {
       final Class<?> smapFactoryClass =
           AGENT_CLASSLOADER.loadClass(
