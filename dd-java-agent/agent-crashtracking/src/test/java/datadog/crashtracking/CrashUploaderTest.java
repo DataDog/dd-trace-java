@@ -469,6 +469,86 @@ public class CrashUploaderTest {
     assertThat(event.at("/experimental/register_to_memory_mapping").isMissingNode()).isTrue();
   }
 
+  @Test
+  public void testTelemetryIncludesWafRulesVersionWhenSet() throws Exception {
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .runtimeId("1234")
+            .wafRulesVersion("1.2.3")
+            .build();
+    uploader = new CrashUploader(config, crashConfig);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.remoteUpload(readFileAsString("sample-crash-for-telemetry.txt"), true, false);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
+
+    assertEquals("1.2.3", event.get("application").get("waf_rules_version").asText());
+  }
+
+  @Test
+  public void testTelemetryOmitsWafRulesVersionWhenNotSet() throws Exception {
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .runtimeId("1234")
+            .build();
+    uploader = new CrashUploader(config, crashConfig);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.remoteUpload(readFileAsString("sample-crash-for-telemetry.txt"), true, false);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
+
+    assertNull(event.get("application").get("waf_rules_version"));
+  }
+
+  @Test
+  public void testErrorTrackingIncludesWafRulesVersionWhenSet() throws Exception {
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+            .wafRulesVersion("1.2.3")
+            .build();
+    uploader = new CrashUploader(config, crashConfig);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.remoteUpload(readFileAsString("sample-crash-for-telemetry.txt"), false, true);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    final ObjectMapper mapper = new ObjectMapper();
+    final Map<String, ?> extracted =
+        mapper.readValue(recordedRequest.getBody().readUtf8(), Map.class);
+    String ddtags = (String) extracted.get("ddtags");
+
+    assertNotNull(ddtags);
+    assertTrue(ddtags.contains("waf_rules_version:1.2.3"));
+  }
+
+  @Test
+  public void testErrorTrackingOmitsWafRulesVersionWhenNotSet() throws Exception {
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+            .build();
+    uploader = new CrashUploader(config, crashConfig);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.remoteUpload(readFileAsString("sample-crash-for-telemetry.txt"), false, true);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    final ObjectMapper mapper = new ObjectMapper();
+    final Map<String, ?> extracted =
+        mapper.readValue(recordedRequest.getBody().readUtf8(), Map.class);
+    String ddtags = (String) extracted.get("ddtags");
+
+    assertNotNull(ddtags);
+    assertFalse(ddtags.contains("waf_rules_version"));
+  }
+
   private void assertCommonHeader(JsonNode event) {
     assertEquals(TELEMETRY_API_VERSION, event.get("api_version").asText());
     assertEquals("logs", event.get("request_type").asText());

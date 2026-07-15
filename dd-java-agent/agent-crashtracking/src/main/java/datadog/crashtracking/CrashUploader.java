@@ -465,6 +465,9 @@ public final class CrashUploader {
         if (storedConfig.processTags != null) {
           writer.name("process_tags").value(storedConfig.processTags);
         }
+        if (storedConfig.wafRulesVersion != null) {
+          writer.name("waf_rules_version").value(storedConfig.wafRulesVersion);
+        }
         writer.endObject();
         writer.name("host");
         writer.beginObject();
@@ -679,6 +682,11 @@ public final class CrashUploader {
         .append("runtime_name:")
         .append(normalizeTagValue(SystemProperties.getOrDefault("java.runtime.name", "unknown")));
     tags.append(",").append("tracer_version:").append(normalizeTagValue(VersionInfo.VERSION));
+    if (storedConfig.wafRulesVersion != null) {
+      tags.append(",")
+          .append("waf_rules_version:")
+          .append(normalizeTagValue(storedConfig.wafRulesVersion));
+    }
     tags.append(",").append("uuid:").append(uuid);
     return (tags.toString());
   }

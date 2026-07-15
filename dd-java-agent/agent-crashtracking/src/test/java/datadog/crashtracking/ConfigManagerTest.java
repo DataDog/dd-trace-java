@@ -9,8 +9,11 @@ import static org.mockito.Mockito.when;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.util.PidHelper;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.Objects;
 import org.junit.jupiter.api.Assertions;
@@ -42,6 +45,36 @@ public class ConfigManagerTest {
     assertFalse(deserialized.agentless);
     assertTrue(deserialized.sendToErrorTracking);
     assertTrue(deserialized.extendedInfoEnabled);
+  }
+
+  @Test
+  public void testUpdateCrashConfigEntryPreservesUnknownKeysAndPatchesTarget() throws IOException {
+    File tmpDir = Files.createTempDirectory("ConfigManagerTest").toFile();
+    tmpDir.deleteOnExit();
+    File scriptFile = new File(tmpDir, "dd_crash_uploader.sh");
+    File cfgFile = new File(tmpDir, "dd_crash_uploader_pid" + PidHelper.getPid() + ".cfg");
+    cfgFile.deleteOnExit();
+
+    ConfigManager.writeConfigToPath(
+        scriptFile, "agent", "/path/to/agent.jar", "hs_err", "/tmp/hs_err.log");
+
+    ConfigManager.updateCrashConfigEntry("waf_rules_version", "1.2.3");
+
+    ConfigManager.StoredConfig deserialized = ConfigManager.readConfig(Config.get(), cfgFile);
+    Assertions.assertNotNull(deserialized);
+    assertEquals("1.2.3", deserialized.wafRulesVersion);
+
+    String content = new String(Files.readAllBytes(cfgFile.toPath()), StandardCharsets.UTF_8);
+    assertTrue(content.contains("agent=/path/to/agent.jar"));
+    assertTrue(content.contains("hs_err=/tmp/hs_err.log"));
+
+    ConfigManager.updateCrashConfigEntry("waf_rules_version", "4.5.6");
+    ConfigManager.StoredConfig updated = ConfigManager.readConfig(Config.get(), cfgFile);
+    Assertions.assertNotNull(updated);
+    assertEquals("4.5.6", updated.wafRulesVersion);
+    String updatedContent =
+        new String(Files.readAllBytes(cfgFile.toPath()), StandardCharsets.UTF_8);
+    assertTrue(updatedContent.contains("agent=/path/to/agent.jar"));
   }
 
   @Test
