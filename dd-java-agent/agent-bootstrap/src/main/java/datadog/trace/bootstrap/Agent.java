@@ -987,17 +987,24 @@ public class Agent {
    * is nothing to initialize and the {@code forName} calls simply fail and are ignored.
    */
   private static void initializeJfrEventHolderClass() {
+    initializeJfrEventHolderClass(AGENT_CLASSLOADER);
+  }
+
+  // Visible for testing; see JfrEventHolderInitForkedTest.
+  static void initializeJfrEventHolderClass(final ClassLoader loader) {
     try {
       // Register the JDK's built-in JFR events first, so the holder's <clinit> below sees non-null
       // handlers instead of caching null.
-      Class.forName("jdk.jfr.FlightRecorder", true, AGENT_CLASSLOADER)
+      // Register the JDK's built-in JFR events first, so the holder's <clinit> below sees non-null
+      // handlers instead of caching null.
+      Class.forName("jdk.jfr.FlightRecorder", true, loader)
           .getMethod("getFlightRecorder")
           .invoke(null);
       // Force the holder's <clinit>. The class name depends on the JDK version.
       try {
-        Class.forName("jdk.jfr.events.Handlers", true, AGENT_CLASSLOADER); // JDK 17-18
+        Class.forName("jdk.jfr.events.Handlers", true, loader); // JDK 17-18
       } catch (final ClassNotFoundException notJdk17Or18) {
-        Class.forName("jdk.jfr.events.EventConfigurations", true, AGENT_CLASSLOADER); // JDK 19-22
+        Class.forName("jdk.jfr.events.EventConfigurations", true, loader); // JDK 19-22
       }
     } catch (final Throwable ignored) {
       // JFR unavailable/disabled, holder renamed or removed (JDK 23+), or initialization failed: in
