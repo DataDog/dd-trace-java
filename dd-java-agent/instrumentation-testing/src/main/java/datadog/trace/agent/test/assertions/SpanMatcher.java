@@ -1,14 +1,14 @@
 package datadog.trace.agent.test.assertions;
 
 import static datadog.trace.core.DDSpanAccessor.spanLinks;
-import static datadog.trace.junit.utils.assertions.Matchers.assertValue;
-import static datadog.trace.junit.utils.assertions.Matchers.is;
-import static datadog.trace.junit.utils.assertions.Matchers.isFalse;
-import static datadog.trace.junit.utils.assertions.Matchers.isNonNull;
-import static datadog.trace.junit.utils.assertions.Matchers.isNull;
-import static datadog.trace.junit.utils.assertions.Matchers.isTrue;
-import static datadog.trace.junit.utils.assertions.Matchers.matches;
-import static datadog.trace.junit.utils.assertions.Matchers.validates;
+import static datadog.trace.test.junit.utils.assertions.Matchers.assertValue;
+import static datadog.trace.test.junit.utils.assertions.Matchers.is;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isFalse;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isNonNull;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isNull;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isTrue;
+import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
+import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
 import static java.time.Duration.ofNanos;
 import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 
@@ -16,10 +16,10 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.core.DDSpan;
-import datadog.trace.junit.utils.assertions.Any;
-import datadog.trace.junit.utils.assertions.IsNull;
-import datadog.trace.junit.utils.assertions.Matcher;
-import datadog.trace.junit.utils.assertions.Matchers;
+import datadog.trace.test.junit.utils.assertions.Any;
+import datadog.trace.test.junit.utils.assertions.IsNull;
+import datadog.trace.test.junit.utils.assertions.Matcher;
+import datadog.trace.test.junit.utils.assertions.Matchers;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;

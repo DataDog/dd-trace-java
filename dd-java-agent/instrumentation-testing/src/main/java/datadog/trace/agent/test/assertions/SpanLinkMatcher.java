@@ -2,16 +2,16 @@ package datadog.trace.agent.test.assertions;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.DEFAULT_FLAGS;
 import static datadog.trace.bootstrap.instrumentation.api.SpanAttributes.EMPTY;
-import static datadog.trace.junit.utils.assertions.Matchers.assertValue;
-import static datadog.trace.junit.utils.assertions.Matchers.is;
+import static datadog.trace.test.junit.utils.assertions.Matchers.assertValue;
+import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.core.DDSpan;
-import datadog.trace.junit.utils.assertions.Matcher;
-import datadog.trace.junit.utils.assertions.Matchers;
+import datadog.trace.test.junit.utils.assertions.Matcher;
+import datadog.trace.test.junit.utils.assertions.Matchers;
 
 /**
  * Provides matchers for span links based on their properties such as trace and span IDs links refer
