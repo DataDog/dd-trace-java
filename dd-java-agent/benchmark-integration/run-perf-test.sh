@@ -7,7 +7,8 @@ server_type=$1
 server_package=$2
 agent_jars="${@:3}"
 server_pid=""
-agent_pid=$(lsof -i tcp:8126 | awk '$8 == "TCP" { print $2 }')
+agent_pid=""
+agent_state=""
 if [[ "$server_package" = "" ]] || [[ "$server_type" != "play-zip" && "$server_type" != "jar" ]]; then
     echo "usage: ./run-perf-test.sh [play-zip|jar] path-to-server-package path-to-agent1 path-to-agent2..."
     echo ""
@@ -23,25 +24,75 @@ if [[ "$server_package" = "" ]] || [[ "$server_type" != "play-zip" && "$server_t
     exit 1
 fi
 
-if [ "$agent_pid" = "" ]; then
-    echo "discarding traces"
-    writer_type="LoggingWriter"
-else
-    echo "sending traces to local trace agent: $agent_pid"
-    writer_type="DDAgentWriter"
-fi
+# Datadog Agent detection drives the writer, and therefore WHICH REGIME we measure:
+#   agent up   -> DDAgentWriter  -> full pipeline (request-thread work + background serializer)
+#   agent down -> LoggingWriter  -> agent-unreachable regime (foreground only, traces discarded)
+# check_agent refreshes this; it is called before every variant so a mid-run agent death is not silent.
+function check_agent {
+    # Probe the APM receiver rather than lsof: the Datadog Agent runs as user _dd-agent, so lsof (run
+    # as us) can't see its socket. Port is TRACE_AGENT_PORT (default 8126). agent_pid stays empty --
+    # we don't attribute the system agent's CPU here; the JFR is the CPU signal.
+    if nc -z localhost "${TRACE_AGENT_PORT:-8126}" >/dev/null 2>&1; then
+        agent_state="up"; writer_type="DDAgentWriter"
+    else
+        agent_state="down"; writer_type="LoggingWriter"
+    fi
+    agent_pid=""
+}
+function regime_banner {
+    local port="${TRACE_AGENT_PORT:-8126}"
+    if [ "$agent_state" = "up" ]; then
+        echo ">> REGIME: full pipeline -- Datadog Agent reachable on :$port, DDAgentWriter"
+    else
+        echo ">> REGIME: agent-unreachable -- nothing on :$port, LoggingWriter (traces discarded)"
+    fi
+}
+# EXPECT_AGENT=up|down|any (default any). When up/down, abort if reality differs -- guards an
+# unattended sweep from silently measuring the wrong regime.
+function assert_expected_agent {
+    local expect="${EXPECT_AGENT:-any}"
+    if [ "$expect" != "any" ] && [ "$expect" != "$agent_state" ]; then
+        echo "ERROR: EXPECT_AGENT=$expect but the Datadog Agent on :8126 is '$agent_state'." >&2
+        regime_banner >&2
+        echo "Aborting to avoid measuring the wrong regime (set EXPECT_AGENT=any to override)." >&2
+        [ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null
+        exit 3
+    fi
+}
 
-if [ -f perf-test-settings.rc ]; then
-    echo "loading custom settings"
-    cat ./perf-test-settings.rc
-    . ./perf-test-settings.rc
-else
-    echo "loading default settings"
-    cat ./perf-test-default-settings.rc
-    . ./perf-test-default-settings.rc
+check_agent
+regime_banner
+assert_expected_agent
+
+# Settings file precedence: $PERF_SETTINGS env override, then a local perf-test-settings.rc,
+# then the checked-in defaults. (run-petclinic.sh points PERF_SETTINGS at the PetClinic rc.)
+settings_file="${PERF_SETTINGS:-}"
+if [ -z "$settings_file" ]; then
+    if [ -f perf-test-settings.rc ]; then
+        settings_file="perf-test-settings.rc"
+    else
+        settings_file="perf-test-default-settings.rc"
+    fi
 fi
+echo "loading settings from $settings_file"
+cat "$settings_file"
+. "$settings_file"
+
+# Server heap. Fixed (Xms=Xmx) so GC behavior is stable and comparable across a sweep. Override via
+# the settings file (server_heap=...) or the PERF_HEAP env var; defaults to 256m. Sweep the same
+# versions at different heaps to expose the ample-vs-tight-heap regime.
+server_heap="${PERF_HEAP:-${server_heap:-256m}}"
+echo "server heap: -Xms$server_heap -Xmx$server_heap"
 echo ""
 echo ""
+
+# /usr/bin/time differs by platform: macOS (BSD) uses -l and prints RSS in bytes as a leading
+# number; GNU/Linux uses -v and prints "Maximum resident set size (kbytes): N". Detect which.
+if /usr/bin/time -l true >/dev/null 2>&1; then
+    time_flag="-l"
+else
+    time_flag="-v"
+fi
 
 unzipped_server_path=""
 
@@ -49,14 +100,26 @@ unzipped_server_path=""
 # Blocks until server is bound to local port 8080
 function start_server {
     agent_jar="$1"
+    variant_label="${2:-run}"
     javaagent_arg=""
     if [ "$agent_jar" != "" -a -f "$agent_jar" ]; then
-        javaagent_arg="-javaagent:$agent_jar -Ddatadog.slf4j.simpleLogger.defaultLogLevel=off -Ddd.writer.type=$writer_type -Ddd.service.name=perf-test-app"
+        javaagent_arg="-javaagent:$agent_jar -Ddatadog.slf4j.simpleLogger.defaultLogLevel=off -Ddd.writer.type=$writer_type -Ddd.trace.agent.port=${TRACE_AGENT_PORT:-8126} -Ddd.service.name=perf-test-app"
     fi
 
+    # Opt-in JFR (PERF_JFR=1): one recording per variant, named by label so runs don't collide.
+    # settings=profile captures jdk.ExecutionSample + jdk.ObjectAllocationSample for analyze-jfr.sh.
+    jfr_arg=""
+    if [ "${PERF_JFR:-}" = "1" ]; then
+        jfr_file="/tmp/perf_${variant_label}.jfr"
+        rm -f "$jfr_file"
+        jfr_arg="-XX:StartFlightRecording=settings=profile,filename=$jfr_file,dumponexit=true"
+        echo "JFR enabled -> $jfr_file"
+    fi
+    run_java_args="$javaagent_arg $jfr_arg -Xms$server_heap -Xmx$server_heap"
+
     if [ "$server_type" = "jar" ]; then
-      echo "starting server: java $javaagent_arg -jar $server_package"
-      { /usr/bin/time -l java $javaagent_arg -Xms256m -Xmx256m -jar $server_package ; } 2> $server_output  &
+      echo "starting server: java $run_java_args -jar $server_package"
+      { /usr/bin/time $time_flag java $run_java_args -jar $server_package ; } 2> $server_output  &
     else
       # make a temp directory to hold the unzipped server
       unzip_temp=`mktemp -d`
@@ -75,21 +138,21 @@ function start_server {
       # unzipped server location, will be removed when the server is stopped
       unzipped_server_path=${unzip_temp}
 
-      java_opts_env='JAVA_OPTS="'${javaagent_arg}'"'
+      java_opts_env='JAVA_OPTS="'${run_java_args}'"'
       # it appears the binary script will always be named main at the time of writing
       # no matter what the zip file is named.
       play_script=${unzipped_server_path}/${unzipped_dirname}/bin/main
 
       # have to use env to set JAVA_OPTS because of a gradle play plugin bug:
       # https://github.com/gradle/gradle/issues/4471
-      if [ "$agent_jar" != "" -a -f "$agent_jar" ]; then
-        utility_cmd="env JAVA_OPTS=${javaagent_arg} ${play_script}"
+      if [ -n "$(echo $run_java_args | tr -d ' ')" ]; then
+        utility_cmd="env JAVA_OPTS=${run_java_args} ${play_script}"
       else
         utility_cmd="${play_script}"
       fi
 
       echo "starting server: ${utility_cmd}"
-      { /usr/bin/time -l ${utility_cmd} ; } 2> $server_output &
+      { /usr/bin/time $time_flag ${utility_cmd} ; } 2> $server_output &
     fi
 
     # Block until server is up
@@ -139,14 +202,29 @@ header="$header,Agent CPU Burn,Server CPU Burn,Agent RSS Delta,Server Max RSS,Se
 echo $header > $test_csv_file
 
 for agent_jar in $agent_jars; do
+    # Quiet cooldown between variants (skip before the first). Off unless the settings set it.
+    if [ "${_did_first_variant:-}" = "1" ] && [ "${test_cooldown_seconds:-0}" -gt 0 ] 2>/dev/null; then
+        echo "cooldown ${test_cooldown_seconds}s before next variant..."
+        sleep "$test_cooldown_seconds"
+    fi
+    _did_first_variant=1
+    # Re-detect the agent before each variant so a mid-sweep agent death aborts (with EXPECT_AGENT)
+    # rather than silently degrading later runs to LoggingWriter.
+    check_agent
+    assert_expected_agent
     echo "----Testing agent $agent_jar----"
+    regime_banner
     if [ "$agent_jar" == "NoAgent" ]; then
         result_row="NoAgent"
-        start_server ""
+        variant_label="noagent"
+        start_server "" "$variant_label"
     else
         agent_version=$(java -jar $agent_jar 2>/dev/null)
         result_row="$agent_version"
-        start_server $agent_jar
+        # sanitize the version into a filesystem-safe JFR label; fall back to the jar basename.
+        variant_label=$(echo "$agent_version" | tr -c 'A-Za-z0-9._-' '_' | sed 's/_*$//')
+        [ -z "$variant_label" ] && variant_label=$(basename "$agent_jar" .jar)
+        start_server "$agent_jar" "$variant_label"
     fi
 
 
