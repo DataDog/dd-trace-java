@@ -5,6 +5,7 @@ import groovy.lang.Closure
 plugins {
   `java-library`
   id("me.champeau.jmh")
+  id("dd-trace-java.tag-registry-generator")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
@@ -14,6 +15,16 @@ java {
     languageVersion = JavaLanguageVersion.of(8)
   }
 }
+
+// Tag registry code generator: emits the committed KnownTags.java (+ layout reports) under
+// src/generated. Regenerate with `./gradlew :internal-api:generateKnownTags` and commit the output.
+tagRegistry {
+  domainYaml.set(rootProject.file("tag-conventions.yaml"))
+  overlayYaml.set(rootProject.file("tag-conventions.java.yaml"))
+  destinationDirectory.set(layout.projectDirectory.dir("src/generated"))
+}
+
+sourceSets["main"].java.srcDir("src/generated/java")
 
 tasks.withType<JavaCompile>().configureEach {
   configureCompiler(8, JavaVersion.VERSION_1_8, "Need access to sun.misc.SharedSecrets")

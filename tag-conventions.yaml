@@ -1,0 +1,132 @@
+# Tag conventions — LANGUAGE-AGNOSTIC domain spec (structure + semantics only)
+# ---------------------------------------------------------------------------
+# The code generator consumes THIS file (domain) plus a per-language overlay
+# (tag-conventions.<lang>.yaml: impl hints like `intercepted`, and the virtual/
+# special-tag registry) to emit each language's tag-id constants, id<->name
+# resolver, and slot (bitmask-bit) assignment.
+#
+# TRACE-LEVEL is its own thing (its own TagMap "type" on the TraceSegment) — the process/trace
+# constants + product flags that are set once per trace, NOT per span. Declared explicitly in the
+# `trace_level` section below (a distinct tier), never inferred from `source`.
+#
+# SPAN TYPES compose three ways:
+#   extends  — structural is-a inheritance (http.server is-a http is-a base). `base` is implicitly
+#              in every span; abstract layers exist only to be extended.
+#   include  — a span type PULLS in a mixin it intrinsically has (has-a; core-owned).
+#   applies  — a mixin PUSHES itself onto span types, gated by `enabled_by`.
+#   resolved_tags(type) = own + extends-chain (incl base) + included mixins + applied mixins (de-duped).
+#
+# tag fields (DOMAIN only): tag | type (string|int|long|boolean|double)
+#   | required (required|conditional|recommended|optional|opt_in) | aliases.
+# Slot/bit is NOT authored here — the generator assigns it via graph coloring; colorability derives
+# from `required` (required/conditional/recommended packed; else bucketed). See the design doc.
+# ---------------------------------------------------------------------------
+
+# Trace-level tier: its own TagMap on the TraceSegment. Set once per trace, not per span.
+trace_level:
+  tags:
+    - { tag: _dd.base_service,       type: string,  required: required }
+    - { tag: version,                type: string,  required: recommended }
+    - { tag: env,                    type: string,  required: recommended }
+    - { tag: language,               type: string,  required: required }
+    - { tag: runtime-id,             type: string,  required: required }
+    - { tag: _dd.tracer_host,        type: string,  required: recommended }
+    - { tag: _dd.git.commit.sha,     type: string,  required: recommended }
+    - { tag: _dd.git.repository_url, type: string,  required: recommended }
+    # product .enabled flags — process-constant; present on the trace segment regardless of whether
+    # the product is enabled (the flag carries the state), so always-present => recommended.
+    - { tag: _dd.profiling.enabled,  type: boolean, required: recommended }
+    - { tag: _dd.dsm.enabled,        type: boolean, required: recommended }
+    - { tag: _dd.appsec.enabled,     type: boolean, required: recommended }
+    - { tag: _dd.djm.enabled,        type: boolean, required: recommended }
+    - { tag: _dd.civisibility.enabled, type: boolean, required: recommended }
+
+span_types:
+  # root: per-span tags every span has (incl. the per-span core tags parent_id / integration / svc_src
+  # — core-set but per-span, so NOT trace-level).
+  base:
+    abstract: true
+    tags:
+      - { tag: _dd.parent_id,   type: string, required: required }
+      - { tag: component,       type: string, required: required }
+      - { tag: span.kind,       type: string, required: required }
+      - { tag: _dd.integration, type: string, required: recommended }
+      - { tag: _dd.svc_src,     type: string, required: optional }
+      - { tag: error.type,      type: string, required: recommended }
+      - { tag: error.message,   type: string, required: recommended }
+      - { tag: error.stack,     type: string, required: recommended }
+
+  http:
+    abstract: true
+    extends: base
+    tags:
+      - { tag: http.method,              type: string, required: required,    aliases: [http.request.method] }
+      - { tag: http.status_code,         type: int,    required: conditional, aliases: [http.response.status_code] }
+      - { tag: network.protocol.version, type: string, required: recommended }
+
+  http.server:
+    extends: http
+    tags:
+      - { tag: http.url,          type: string, required: required,    aliases: [url.full] }
+      - { tag: http.route,        type: string, required: conditional }
+      - { tag: http.hostname,     type: string, required: required,    aliases: [server.address] }
+      - { tag: http.useragent,    type: string, required: recommended }
+      - { tag: http.query.string, type: string, required: recommended, aliases: [url.query] }
+      - { tag: servlet.path,      type: string, required: optional }
+      - { tag: servlet.context,   type: string, required: optional }
+
+  http.client:
+    extends: http
+    include: [ peer ]
+    tags:
+      - { tag: http.url,          type: string, required: required, aliases: [url.full] }
+      - { tag: http.resend_count, type: int,    required: recommended }
+
+  db.client:
+    extends: base
+    include: [ peer ]
+    tags:
+      - { tag: db.type,      type: string, required: required,    aliases: [db.system] }
+      - { tag: db.instance,  type: string, required: recommended }
+      - { tag: db.operation, type: string, required: recommended, aliases: [db.operation.name] }
+      - { tag: db.user,      type: string, required: recommended }
+      - { tag: db.pool.name, type: string, required: optional }
+      - { tag: db.statement, type: string, required: recommended, aliases: [db.query.text] }
+
+  view.render:
+    extends: base
+    tags:
+      - { tag: view.name, type: string, required: recommended }
+
+mixins:
+  # peer — outbound/remote-peer capability, PULLED via `include` by client span types.
+  peer:
+    tags:
+      - { tag: peer.service,                   type: string, required: recommended }
+      - { tag: _dd.peer.service.source,        type: string, required: recommended }
+      - { tag: _dd.peer.service.remapped_from, type: string, required: recommended }
+      - { tag: peer.hostname,                  type: string, required: recommended }
+      - { tag: peer.ipv4,                      type: string }
+      - { tag: peer.ipv6,                      type: string }
+      - { tag: peer.port,                      type: int }
+
+  # ci_visibility — per-span test tags. Its capability flag (_dd.civisibility.enabled) lives in
+  # trace_level, outside this mixin (general rule: capability flags are trace-level, mixins hold the
+  # per-span tags). Applies to the `test` span type (not modeled here yet).
+  ci_visibility:
+    enabled_by: dd.civisibility.enabled
+    applies: [ test ]
+    tags:
+      - { tag: test.name,      type: string, required: recommended }
+      - { tag: test.suite,     type: string, required: recommended }
+      - { tag: test.status,    type: string, required: recommended }
+      - { tag: test.framework, type: string, required: recommended }
+
+# ---------------------------------------------------------------------------
+# Notes
+# - Product .enabled flags moved to `trace_level` (process-constant) — the old product mixins held
+#   only those flags, so they dissolved. `enabled_by`/attachment gating is a runtime concern.
+# - span.kind enumerates: server | client | producer | consumer | internal | broker.
+# - Virtual/special keys (service, resource.name, error, sampling.priority, ...) route to span
+#   fields/directives, not tag storage — they live in the per-language overlay, not here.
+# ---------------------------------------------------------------------------

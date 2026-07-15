@@ -1,0 +1,93 @@
+# Folded tag set per type (extends + include + applies, de-duped), with slots.
+# slot: s<n>=per-span bit  trace<n>=trace-level layer bit  bkt=bucketed  trace-bkt=trace-level bucketed  I=intercepted
+
+db.client  (21 tags):
+  s1        _dd.parent_id              
+  s2        component                  
+  s6        span.kind                  I
+  s0        _dd.integration            
+  bkt       _dd.svc_src                
+  s5        error.type                 
+  s3        error.message              
+  s4        error.stack                
+  s12       db.type                    
+  s9        db.instance                
+  s10       db.operation               
+  s15       db.user                    
+  bkt       db.pool.name               
+  s11       db.statement               I
+  s14       peer.service               I
+  s8        _dd.peer.service.source    
+  s7        _dd.peer.service.remapped_from 
+  s13       peer.hostname              
+  bkt       peer.ipv4                  
+  bkt       peer.ipv6                  
+  bkt       peer.port                  
+
+http.client  (20 tags):
+  s1        _dd.parent_id              
+  s2        component                  
+  s6        span.kind                  I
+  s0        _dd.integration            
+  bkt       _dd.svc_src                
+  s5        error.type                 
+  s3        error.message              
+  s4        error.stack                
+  s9        http.method                I
+  s10       http.status_code           
+  s12       network.protocol.version   
+  s11       http.url                   I
+  s15       http.resend_count          
+  s14       peer.service               I
+  s8        _dd.peer.service.source    
+  s7        _dd.peer.service.remapped_from 
+  s13       peer.hostname              
+  bkt       peer.ipv4                  
+  bkt       peer.ipv6                  
+  bkt       peer.port                  
+
+http.server  (18 tags):
+  s1        _dd.parent_id              
+  s2        component                  
+  s6        span.kind                  I
+  s0        _dd.integration            
+  bkt       _dd.svc_src                
+  s5        error.type                 
+  s3        error.message              
+  s4        error.stack                
+  s9        http.method                I
+  s10       http.status_code           
+  s12       network.protocol.version   
+  s11       http.url                   I
+  s13       http.route                 
+  s7        http.hostname              
+  s14       http.useragent             
+  s8        http.query.string          
+  bkt       servlet.path               
+  bkt       servlet.context            I
+
+view.render  (9 tags):
+  s1        _dd.parent_id              
+  s2        component                  
+  s6        span.kind                  I
+  s0        _dd.integration            
+  bkt       _dd.svc_src                
+  s5        error.type                 
+  s3        error.message              
+  s4        error.stack                
+  s7        view.name                  
+
+<trace>  (13 tags):
+  trace0    _dd.appsec.enabled         
+  trace1    _dd.base_service           
+  trace2    _dd.civisibility.enabled   
+  trace3    _dd.djm.enabled            
+  trace4    _dd.dsm.enabled            
+  trace5    _dd.git.commit.sha         
+  trace6    _dd.git.repository_url     
+  trace7    _dd.profiling.enabled      
+  trace8    _dd.tracer_host            
+  trace9    env                        
+  trace10   language                   
+  trace11   runtime-id                 
+  trace12   version                    

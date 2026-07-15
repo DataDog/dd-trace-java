@@ -20,8 +20,8 @@ spotless {
       toggleOffOn()
       // set explicit target to workaround https://github.com/diffplug/spotless/issues/1163
       target 'src/**/*.java'
-      // ignore embedded test projects and everything in build dir, e.g. generated sources
-      targetExclude('src/test/resources/**', buildDirectoryFiles)
+      // ignore embedded test projects, committed generated sources, and everything in build dir
+      targetExclude('src/test/resources/**', 'src/generated/**', buildDirectoryFiles)
       tableTestFormatter('1.1.1')
       googleJavaFormat('1.35.0')
     }

@@ -2,123 +2,144 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Parity test for the keyOf substrate (slice 1): the {@link KnownTags} registry + the {@link
- * KnownTagCodec.Resolver} it registers. Verifies name &harr; id resolution without any dense store
- * — {@code keyOf}/{@code nameOf} depend only on globalSerial + name, not on the (dormant)
- * positional layout.
+ * Property test for the generated {@link KnownTags} registry + the {@link KnownTagCodec.Resolver}
+ * it registers. Tests resolver <em>behavior</em> (name &harr; id round-trip, intercepted flag,
+ * reserved/stored tier, unique serials) over the tag names, rather than hard-coded ids — so it
+ * stays valid as the generator reassigns serials/slots across builds.
  */
 class KnownTagsTest {
 
-  /** (name, id) pairs — the full registry. keyOf returns the id verbatim (incl. INTERCEPTED). */
-  static Stream<Arguments> knownTags() {
+  /** Every tag name in the registry (virtual + stored + trace-level). keyOf must resolve each. */
+  static Stream<String> knownNames() {
     return Stream.of(
-        Arguments.of(Tags.ERROR, KnownTags.ERROR_ID),
-        Arguments.of(DDTags.PARENT_ID, KnownTags.PARENT_ID),
-        Arguments.of(DDTags.BASE_SERVICE, KnownTags.BASE_SERVICE_ID),
-        Arguments.of(Tags.VERSION, KnownTags.VERSION_ID),
-        Arguments.of(KnownTags.ENV, KnownTags.ENV_ID),
-        Arguments.of(DDTags.DJM_ENABLED, KnownTags.DJM_ENABLED_ID),
-        Arguments.of(DDTags.DSM_ENABLED, KnownTags.DSM_ENABLED_ID),
-        Arguments.of(DDTags.TRACER_HOST, KnownTags.TRACER_HOST_ID),
-        Arguments.of(DDTags.DD_INTEGRATION, KnownTags.INTEGRATION_ID),
-        Arguments.of(DDTags.DD_SVC_SRC, KnownTags.SVC_SRC_ID),
-        Arguments.of(Tags.PEER_SERVICE, KnownTags.PEER_SERVICE_ID),
-        Arguments.of(DDTags.PEER_SERVICE_REMAPPED_FROM, KnownTags.PEER_SERVICE_REMAPPED_FROM_ID),
-        Arguments.of(Tags.HTTP_METHOD, KnownTags.HTTP_METHOD_ID),
-        Arguments.of(Tags.HTTP_ROUTE, KnownTags.HTTP_ROUTE_ID),
-        Arguments.of(Tags.HTTP_URL, KnownTags.HTTP_URL_ID),
-        Arguments.of(Tags.PEER_HOSTNAME, KnownTags.PEER_HOSTNAME_ID),
-        Arguments.of(Tags.PEER_HOST_IPV4, KnownTags.PEER_HOST_IPV4_ID),
-        Arguments.of(Tags.PEER_HOST_IPV6, KnownTags.PEER_HOST_IPV6_ID),
-        Arguments.of(Tags.PEER_PORT, KnownTags.PEER_PORT_ID),
-        Arguments.of(Tags.COMPONENT, KnownTags.COMPONENT_ID),
-        Arguments.of(Tags.SPAN_KIND, KnownTags.SPAN_KIND_ID),
-        Arguments.of(DDTags.LANGUAGE_TAG_KEY, KnownTags.LANGUAGE_ID),
-        Arguments.of(Tags.DB_TYPE, KnownTags.DB_TYPE_ID),
-        Arguments.of(Tags.DB_INSTANCE, KnownTags.DB_INSTANCE_ID),
-        Arguments.of(Tags.DB_USER, KnownTags.DB_USER_ID),
-        Arguments.of(Tags.DB_OPERATION, KnownTags.DB_OPERATION_ID),
-        Arguments.of(Tags.DB_POOL_NAME, KnownTags.DB_POOL_NAME_ID));
-  }
-
-  /**
-   * The subset flagged INTERCEPTED (sign bit) — must agree with the interceptor's needsIntercept.
-   */
-  static Stream<Arguments> interceptedTags() {
-    return Stream.of(
-        Arguments.of(KnownTags.ERROR_ID),
-        Arguments.of(KnownTags.PEER_SERVICE_ID),
-        Arguments.of(KnownTags.HTTP_METHOD_ID),
-        Arguments.of(KnownTags.HTTP_URL_ID),
-        Arguments.of(KnownTags.SPAN_KIND_ID));
+        // virtual / reserved
+        "error",
+        "service",
+        "resource.name",
+        "span.type",
+        "origin",
+        "sampling.priority",
+        "manual.keep",
+        "manual.drop",
+        "measured",
+        "analytics.sample_rate",
+        // base (per-span)
+        "_dd.parent_id",
+        "component",
+        "span.kind",
+        "_dd.integration",
+        "_dd.svc_src",
+        "error.type",
+        "error.message",
+        "error.stack",
+        // http
+        "http.method",
+        "http.status_code",
+        "network.protocol.version",
+        "http.url",
+        "http.route",
+        "http.hostname",
+        "http.useragent",
+        "http.query.string",
+        "servlet.path",
+        "servlet.context",
+        "http.resend_count",
+        // db
+        "db.type",
+        "db.instance",
+        "db.operation",
+        "db.user",
+        "db.pool.name",
+        "db.statement",
+        // peer
+        "peer.service",
+        "_dd.peer.service.source",
+        "_dd.peer.service.remapped_from",
+        "peer.hostname",
+        "peer.ipv4",
+        "peer.ipv6",
+        "peer.port",
+        // view
+        "view.name",
+        // trace-level
+        "_dd.base_service",
+        "version",
+        "env",
+        "language",
+        "runtime-id",
+        "_dd.tracer_host",
+        "_dd.git.commit.sha",
+        "_dd.git.repository_url",
+        "_dd.profiling.enabled",
+        "_dd.dsm.enabled",
+        "_dd.appsec.enabled",
+        "_dd.djm.enabled",
+        "_dd.civisibility.enabled");
   }
 
   @Test
-  void resolverIsActiveOnceReferenced() {
-    // referencing any constant triggers KnownTags.<clinit> -> KnownTagCodec.register
-    assertTrue(KnownTags.ERROR_ID != 0L);
+  void resolverActiveOnceReferenced() {
+    KnownTags.init(); // triggers <clinit> -> KnownTagCodec.register
     assertTrue(KnownTagCodec.isActive());
     assertEquals(KnownTags.SLOT_COUNT, KnownTagCodec.slotCount());
   }
 
   @ParameterizedTest
-  @MethodSource("knownTags")
-  void keyOfResolvesNameToId(String name, long id) {
-    assertEquals(id, KnownTagCodec.keyOf(name), "keyOf(" + name + ")");
+  @MethodSource("knownNames")
+  void nameIdRoundTrips(String name) {
+    long id = KnownTagCodec.keyOf(name);
+    assertNotEquals(0L, id, "keyOf(" + name + ") should resolve");
+    assertEquals(name, KnownTagCodec.nameOf(id), "nameOf(keyOf(" + name + "))");
   }
 
   @ParameterizedTest
-  @MethodSource("knownTags")
-  void nameOfResolvesIdToName(String name, long id) {
-    assertEquals(name, KnownTagCodec.nameOf(id), "nameOf(" + name + ")");
+  @ValueSource(
+      strings = {
+        "span.kind",
+        "http.method",
+        "http.url",
+        "db.statement",
+        "peer.service",
+        "error",
+        "service"
+      })
+  void interceptedTagsCarryFlag(String name) {
+    assertTrue(KnownTagCodec.isIntercepted(KnownTagCodec.keyOf(name)), "intercepted: " + name);
   }
 
   @ParameterizedTest
-  @MethodSource("knownTags")
-  void nameHashMatchesEntryHash(String name, long id) {
-    assertEquals(
-        (int) TagMap.Entry._hash(name), KnownTagCodec.nameHash(id), "nameHash(" + name + ")");
-  }
-
-  @ParameterizedTest
-  @MethodSource("interceptedTags")
-  void interceptedTagsCarryFlag(long id) {
-    assertTrue(KnownTagCodec.isIntercepted(id), "isIntercepted");
+  @ValueSource(strings = {"component", "db.type", "version", "http.route", "peer.hostname"})
+  void nonInterceptedTagsDoNotCarryFlag(String name) {
+    assertFalse(KnownTagCodec.isIntercepted(KnownTagCodec.keyOf(name)), "not intercepted: " + name);
   }
 
   @Test
-  void nonInterceptedTagsDoNotCarryFlag() {
-    Set<Long> intercepted = new HashSet<>();
-    interceptedTags().forEach(a -> intercepted.add((Long) a.get()[0]));
-    knownTags()
-        .forEach(
-            a -> {
-              long id = (Long) a.get()[1];
-              if (!intercepted.contains(id)) {
-                assertFalse(KnownTagCodec.isIntercepted(id), "not intercepted: " + a.get()[0]);
-              }
-            });
+  void reservedVsStored() {
+    assertTrue(KnownTagCodec.isReserved(KnownTagCodec.keyOf("error")), "error reserved");
+    assertTrue(KnownTagCodec.isReserved(KnownTagCodec.keyOf("service")), "service reserved");
+    assertTrue(KnownTagCodec.isStored(KnownTagCodec.keyOf("component")), "component stored");
+    assertTrue(
+        KnownTagCodec.isStored(KnownTagCodec.keyOf("_dd.base_service")), "base_service stored");
   }
 
   @Test
   void unknownNamesResolveToZero() {
     assertEquals(0L, KnownTagCodec.keyOf("definitely.not.a.known.tag"));
-    assertEquals(0L, KnownTagCodec.keyOf("http.statuscode")); // close-but-not-listed
+    assertEquals(0L, KnownTagCodec.keyOf("http.statuscode")); // close but not listed
     assertEquals(0L, KnownTagCodec.keyOf(""));
   }
 
@@ -129,24 +150,10 @@ class KnownTagsTest {
   }
 
   @Test
-  void errorIsReservedTheRestAreStored() {
-    assertTrue(KnownTagCodec.isReserved(KnownTags.ERROR_ID), "ERROR reserved");
-    assertFalse(KnownTagCodec.isStored(KnownTags.ERROR_ID), "ERROR not stored");
-    knownTags()
-        .forEach(
-            a -> {
-              long id = (Long) a.get()[1];
-              if (id != KnownTags.ERROR_ID) {
-                assertTrue(KnownTagCodec.isStored(id), "stored: " + a.get()[0]);
-                assertFalse(KnownTagCodec.isReserved(id), "not reserved: " + a.get()[0]);
-              }
-            });
-  }
-
-  @Test
   void globalSerialsAreUnique() {
-    List<Long> serials = new ArrayList<>();
-    knownTags().forEach(a -> serials.add((long) KnownTagCodec.globalSerial((Long) a.get()[1])));
-    assertEquals(serials.size(), new HashSet<>(serials).size(), "globalSerials must be unique");
+    List<Integer> serials = new ArrayList<>();
+    knownNames().forEach(n -> serials.add(KnownTagCodec.globalSerial(KnownTagCodec.keyOf(n))));
+    assertEquals(new HashSet<>(serials).size(), serials.size(), "globalSerials must be unique");
+    assertFalse(serials.contains(0), "no known name should resolve to serial 0");
   }
 }

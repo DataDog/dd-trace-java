@@ -73,6 +73,10 @@ gradlePlugin {
       id = "dd-trace-java.sca-enrichments"
       implementationClass = "datadog.gradle.plugin.sca.ScaEnrichmentsPlugin"
     }
+    create("tag-registry-generator") {
+      id = "dd-trace-java.tag-registry-generator"
+      implementationClass = "datadog.gradle.plugin.tags.TagRegistryGeneratorPlugin"
+    }
   }
 }
 
@@ -102,6 +106,7 @@ dependencies {
   implementation("com.fasterxml.jackson.core:jackson-databind")
   implementation("com.fasterxml.jackson.core:jackson-annotations")
   implementation("com.fasterxml.jackson.core:jackson-core")
+  implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
 
   compileOnly(libs.develocity)
 }

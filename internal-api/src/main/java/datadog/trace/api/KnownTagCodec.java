@@ -128,6 +128,20 @@ public final class KnownTagCodec {
     return tagId(globalSerial, NO_SLOT, name);
   }
 
+  /**
+   * Builds a tagId from {@code globalSerial}, the {@code intercepted} flag, and the {@code slot}
+   * ({@code fieldPos}, or {@link #NO_SLOT}). Unlike the name-taking overloads, this leaves the low
+   * 32 bits (nameHash) zero: known-tag ids do not need a name hash — that lives only in the
+   * custom-tag {@link TagMap.Entry} path. This is the encoder the code generator uses; generated
+   * constants emit the resulting literal plus a {@code // tagId(serial=..., intercepted=...,
+   * slot=...)} comment (the literal so javac constant-folds it; the comment so a release branch
+   * stays auditable).
+   */
+  public static long tagId(int globalSerial, boolean intercepted, int slot) {
+    long id = ((long) globalSerial << 48) | ((long) (slot & 0xFFFF) << 32);
+    return intercepted ? (id | INTERCEPTED) : id;
+  }
+
   // Number of positional slots in the global layout = (max stored fieldPos) + 1, declared by the
   // registered provider. Captured once at registration and read as a dynamic constant; TagMap sizes
   // its knownEntries array to exactly this rather than a hardcoded max. 0 when no resolver.

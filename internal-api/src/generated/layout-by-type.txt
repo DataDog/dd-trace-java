@@ -1,0 +1,91 @@
+# Full tag composition per concrete span type (after extends/include/applies).
+# Not de-duped: a tag from >1 source appears >1 time.
+# annotation: [s<n> per-span slot | trace<n> trace layer | bkt bucketed]  <required>  I=intercepted
+
+db.client  (21 contributions, 21 distinct):
+  [base]
+    _dd.parent_id              s1       required     
+    component                  s2       required     
+    span.kind                  s6       required     I
+    _dd.integration            s0       recommended  
+    _dd.svc_src                bkt      optional     
+    error.type                 s5       recommended  
+    error.message              s3       recommended  
+    error.stack                s4       recommended  
+  [db.client]
+    db.type                    s12      required     
+    db.instance                s9       recommended  
+    db.operation               s10      recommended  
+    db.user                    s15      recommended  
+    db.pool.name               bkt      optional     
+    db.statement               s11      recommended  I
+  [incl:peer]
+    peer.service               s14      recommended  I
+    _dd.peer.service.source    s8       recommended  
+    _dd.peer.service.remapped_from s7       recommended  
+    peer.hostname              s13      recommended  
+    peer.ipv4                  bkt      optional     
+    peer.ipv6                  bkt      optional     
+    peer.port                  bkt      optional     
+
+http.client  (20 contributions, 20 distinct):
+  [base]
+    _dd.parent_id              s1       required     
+    component                  s2       required     
+    span.kind                  s6       required     I
+    _dd.integration            s0       recommended  
+    _dd.svc_src                bkt      optional     
+    error.type                 s5       recommended  
+    error.message              s3       recommended  
+    error.stack                s4       recommended  
+  [http]
+    http.method                s9       required     I
+    http.status_code           s10      conditional  
+    network.protocol.version   s12      recommended  
+  [http.client]
+    http.url                   s11      required     I
+    http.resend_count          s15      recommended  
+  [incl:peer]
+    peer.service               s14      recommended  I
+    _dd.peer.service.source    s8       recommended  
+    _dd.peer.service.remapped_from s7       recommended  
+    peer.hostname              s13      recommended  
+    peer.ipv4                  bkt      optional     
+    peer.ipv6                  bkt      optional     
+    peer.port                  bkt      optional     
+
+http.server  (18 contributions, 18 distinct):
+  [base]
+    _dd.parent_id              s1       required     
+    component                  s2       required     
+    span.kind                  s6       required     I
+    _dd.integration            s0       recommended  
+    _dd.svc_src                bkt      optional     
+    error.type                 s5       recommended  
+    error.message              s3       recommended  
+    error.stack                s4       recommended  
+  [http]
+    http.method                s9       required     I
+    http.status_code           s10      conditional  
+    network.protocol.version   s12      recommended  
+  [http.server]
+    http.url                   s11      required     I
+    http.route                 s13      conditional  
+    http.hostname              s7       required     
+    http.useragent             s14      recommended  
+    http.query.string          s8       recommended  
+    servlet.path               bkt      optional     
+    servlet.context            bkt      optional     I
+
+view.render  (9 contributions, 9 distinct):
+  [base]
+    _dd.parent_id              s1       required     
+    component                  s2       required     
+    span.kind                  s6       required     I
+    _dd.integration            s0       recommended  
+    _dd.svc_src                bkt      optional     
+    error.type                 s5       recommended  
+    error.message              s3       recommended  
+    error.stack                s4       recommended  
+  [view.render]
+    view.name                  s7       recommended  

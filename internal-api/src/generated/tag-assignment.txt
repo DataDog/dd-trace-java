@@ -1,0 +1,68 @@
+# Tag id assignment.  slotCount=16  stored=46  virtual=10
+
+# STORED   serial slot int id                 required     name
+     256    0  -  0x0100000000000000 recommended  _dd.appsec.enabled
+     257    1  -  0x0101000100000000 required     _dd.base_service
+     258    2  -  0x0102000200000000 recommended  _dd.civisibility.enabled
+     259    3  -  0x0103000300000000 recommended  _dd.djm.enabled
+     260    4  -  0x0104000400000000 recommended  _dd.dsm.enabled
+     261    5  -  0x0105000500000000 recommended  _dd.git.commit.sha
+     262    6  -  0x0106000600000000 recommended  _dd.git.repository_url
+     263    0  -  0x0107000000000000 recommended  _dd.integration
+     264    1  -  0x0108000100000000 required     _dd.parent_id
+     265    7  -  0x0109000700000000 recommended  _dd.peer.service.remapped_from
+     266    8  -  0x010A000800000000 recommended  _dd.peer.service.source
+     267    7  -  0x010B000700000000 recommended  _dd.profiling.enabled
+     268    -  -  0x010CFFFF00000000 optional     _dd.svc_src
+     269    8  -  0x010D000800000000 recommended  _dd.tracer_host
+     270    2  -  0x010E000200000000 required     component
+     271    9  -  0x010F000900000000 recommended  db.instance
+     272   10  -  0x0110000A00000000 recommended  db.operation
+     273    -  -  0x0111FFFF00000000 optional     db.pool.name
+     274   11  I  0x8112000B00000000 recommended  db.statement
+     275   12  -  0x0113000C00000000 required     db.type
+     276   15  -  0x0114000F00000000 recommended  db.user
+     277    9  -  0x0115000900000000 recommended  env
+     278    3  -  0x0116000300000000 recommended  error.message
+     279    4  -  0x0117000400000000 recommended  error.stack
+     280    5  -  0x0118000500000000 recommended  error.type
+     281    7  -  0x0119000700000000 required     http.hostname
+     282    9  I  0x811A000900000000 required     http.method
+     283    8  -  0x011B000800000000 recommended  http.query.string
+     284   15  -  0x011C000F00000000 recommended  http.resend_count
+     285   13  -  0x011D000D00000000 conditional  http.route
+     286   10  -  0x011E000A00000000 conditional  http.status_code
+     287   11  I  0x811F000B00000000 required     http.url
+     288   14  -  0x0120000E00000000 recommended  http.useragent
+     289   10  -  0x0121000A00000000 required     language
+     290   12  -  0x0122000C00000000 recommended  network.protocol.version
+     291   13  -  0x0123000D00000000 recommended  peer.hostname
+     292    -  -  0x0124FFFF00000000 optional     peer.ipv4
+     293    -  -  0x0125FFFF00000000 optional     peer.ipv6
+     294    -  -  0x0126FFFF00000000 optional     peer.port
+     295   14  I  0x8127000E00000000 recommended  peer.service
+     296   11  -  0x0128000B00000000 required     runtime-id
+     297    -  I  0x8129FFFF00000000 optional     servlet.context
+     298    -  -  0x012AFFFF00000000 optional     servlet.path
+     299    6  I  0x812B000600000000 required     span.kind
+     300   12  -  0x012C000C00000000 recommended  version
+     301    7  -  0x012D000700000000 recommended  view.name
+
+# VIRTUAL  serial       id                 kind         name
+       1      0x8001FFFF00000000 structural   error -> error
+       2      0x8002FFFF00000000 structural   service -> service
+       3      0x8003FFFF00000000 structural   resource.name -> resource
+       4      0x8004FFFF00000000 structural   span.type -> type
+       5      0x8005FFFF00000000 structural   origin -> origin
+       6      0x8006FFFF00000000 directive    sampling.priority
+       7      0x8007FFFF00000000 directive    manual.keep
+       8      0x8008FFFF00000000 directive    manual.drop
+       9      0x8009FFFF00000000 directive    measured
+      10      0x800AFFFF00000000 directive    analytics.sample_rate
+
+# PER-TYPE packed size (= max slot + 1).  <trace> = the trace-level TagMap layer.
+  db.client      size=16  slots=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  http.client    size=16  slots=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  http.server    size=15  slots=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+  view.render    size=8   slots=[0, 1, 2, 3, 4, 5, 6, 7]
+  <trace>        size=13  slots=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]

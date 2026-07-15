@@ -35,8 +35,9 @@ class TagMapDenseForkedTest {
 
   @BeforeAll
   static void registerResolver() {
-    // referencing any KnownTags constant triggers its <clinit> -> KnownTagCodec.register
-    assertTrue(KnownTags.BASE_SERVICE_ID != 0L);
+    // Generated id constants are compile-time literals (javac-folded), so referencing one does NOT
+    // trigger <clinit>; init() forces the resolver registration explicitly.
+    KnownTags.init();
     assertTrue(KnownTagCodec.isActive(), "resolver must be live for the dense store to engage");
     assertTrue(
         KnownTagCodec.isStored(KnownTagCodec.keyOf(BASE_SERVICE)), "base_service routes dense");
