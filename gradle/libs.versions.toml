@@ -42,6 +42,7 @@ jmh = "1.37"
 # Profiling
 jmc = "8.1.0"
 jafar = "0.16.0"
+jol = "0.17"
 
 # Web & Network
 jnr-unixsocket = "0.38.25"
@@ -125,6 +126,7 @@ instrument-java = { module = "com.datadoghq:dd-instrument-java", version.ref = "
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
 jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
+jol-core = { module = "org.openjdk.jol:jol-core", version.ref = "jol" }
 
 # Web & Network
 okio = { module = "com.datadoghq.okio:okio", version.ref = "okio" }
