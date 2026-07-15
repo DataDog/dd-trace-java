@@ -46,6 +46,16 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
 
+  // Evaluation-metadata keys consumed by the span-enrichment capture hook (see
+  // SpanEnrichmentHook). Emitted only when the span-enrichment gate is on.
+  static final String METADATA_SPLIT_SERIAL_ID = "__dd_split_serial_id";
+  static final String METADATA_DO_LOG = "__dd_do_log";
+
+  // Read once: when off, the __dd_* span-enrichment metadata is not attached to evaluations, so an
+  // enabled provider pays nothing extra unless span enrichment is also enabled. The gate does not
+  // change at runtime, and this class is loaded lazily (well after startup) so config is ready.
+  private static final boolean SPAN_ENRICHMENT_ENABLED = SpanEnrichmentGate.isEnabled();
+
   private final Runnable configCallback;
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
@@ -392,6 +402,17 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .addString("flagKey", flag.key)
             .addString("variationType", flag.variationType.name())
             .addString("allocationKey", allocation.key);
+    // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment —
+    // only when span enrichment is on, so a provider without enrichment pays nothing extra.
+    // __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log is always
+    // present (when enrichment is on) so the span-enrichment hook can decide whether to record the
+    // subject.
+    if (SPAN_ENRICHMENT_ENABLED) {
+      if (split.serialId != null) {
+        metadataBuilder.addInteger(METADATA_SPLIT_SERIAL_ID, split.serialId);
+      }
+      metadataBuilder.addBoolean(METADATA_DO_LOG, allocation.doLog != null && allocation.doLog);
+    }
     final ProviderEvaluation<T> result =
         ProviderEvaluation.<T>builder()
             .value(mappedValue)

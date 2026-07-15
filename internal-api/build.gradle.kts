@@ -268,6 +268,7 @@ dependencies {
   api(project(":components:context"))
   api(project(":components:environment"))
   api(project(":components:json"))
+  api(project(":products:feature-flagging:feature-flagging-config"))
   api(project(":utils:config-utils"))
   api(project(":utils:time-utils"))
 

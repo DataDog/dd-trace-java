@@ -109,6 +109,14 @@ public final class SubSequence implements CharSequence {
     return true;
   }
 
+  /**
+   * True if this sub-sequence contains {@code needle} -- the zero-copy equivalent of {@code
+   * toString().contains(needle)}, with no substring materialized.
+   */
+  public final boolean contains(String needle) {
+    return Strings.regionContains(this.str, this.beginIndex, this.endIndex, needle);
+  }
+
   /** Case-insensitive content comparison; mirrors {@link String#equalsIgnoreCase(String)}. */
   public final boolean equalsIgnoreCase(CharSequence that) {
     int len = this.length();

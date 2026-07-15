@@ -11,6 +11,7 @@ public class FeatureFlaggingSystem {
 
   private static volatile ConfigurationSourceService CONFIG_SERVICE;
   private static volatile ExposureWriter EXPOSURE_WRITER;
+  private static volatile SpanEnrichmentWriter SPAN_ENRICHMENT_WRITER;
 
   private FeatureFlaggingSystem() {}
 
@@ -24,6 +25,14 @@ public class FeatureFlaggingSystem {
     final ConfigurationSourceService configService = createConfigurationSourceService(sco, config);
     final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
     initialize(configService, exposureWriter);
+
+    // APM span enrichment: agent-side listener for flag-evaluation seam events. Uses the process-
+    // wide singleton so a subsystem restart reuses the one already-registered trace interceptor
+    // (which the tracer cannot remove) instead of registering a second, rejected one. Cheap: it
+    // only accumulates once the provider's gate-on capture hook dispatches events, and registers
+    // its interceptor lazily on the first such event.
+    SPAN_ENRICHMENT_WRITER = SpanEnrichmentWriter.getInstance();
+    SPAN_ENRICHMENT_WRITER.init();
 
     LOGGER.debug("Feature Flagging system started");
   }
@@ -66,17 +75,25 @@ public class FeatureFlaggingSystem {
   }
 
   public static synchronized void stop() {
+    final SpanEnrichmentWriter spanEnrichmentWriter = SPAN_ENRICHMENT_WRITER;
     final ExposureWriter exposureWriter = EXPOSURE_WRITER;
     final ConfigurationSourceService configService = CONFIG_SERVICE;
+    SPAN_ENRICHMENT_WRITER = null;
     EXPOSURE_WRITER = null;
     CONFIG_SERVICE = null;
     try {
-      if (exposureWriter != null) {
-        exposureWriter.close();
+      if (spanEnrichmentWriter != null) {
+        spanEnrichmentWriter.close();
       }
     } finally {
-      if (configService != null) {
-        configService.close();
+      try {
+        if (exposureWriter != null) {
+          exposureWriter.close();
+        }
+      } finally {
+        if (configService != null) {
+          configService.close();
+        }
       }
     }
     LOGGER.debug("Feature Flagging system stopped");

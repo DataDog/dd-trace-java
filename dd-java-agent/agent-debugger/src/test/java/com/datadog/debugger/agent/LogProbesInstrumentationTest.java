@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import net.bytebuddy.agent.ByteBuddyAgent;
@@ -550,12 +551,16 @@ public class LogProbesInstrumentationTest {
 
   private static LogProbe createMethodProbe(
       ProbeId id, String template, String typeName, String methodName, String signature) {
-    return createProbeBuilder(id, template, typeName, methodName, signature).build();
+    return createProbeBuilder(id, template, typeName, methodName, signature)
+        .evalTimeout(Duration.ofMillis(1000))
+        .build();
   }
 
   private static LogProbe createLineProbe(
       ProbeId id, String template, String sourceFile, int line) {
-    return createProbeBuilder(id, template, sourceFile, line).build();
+    return createProbeBuilder(id, template, sourceFile, line)
+        .evalTimeout(Duration.ofMillis(1000))
+        .build();
   }
 
   private TestSnapshotListener installProbes(Configuration configuration) {
