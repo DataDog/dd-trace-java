@@ -118,6 +118,7 @@ public class InjectingPipeWriter extends Writer {
 
   @Override
   public void write(char[] array, int off, int len) throws IOException {
+    final int end = off + len;
     if (!filter) {
       if (wasDraining) {
         // needs drain
@@ -130,7 +131,7 @@ public class InjectingPipeWriter extends Writer {
 
     if (len > bulkWriteThreshold) {
       // A match that started in the previous write precedes every match wholly in this array.
-      if (matchingPos > 0 && arrayCompletesPendingMatch(array, off, len)) {
+      if (matchingPos > 0 && arrayCompletesPendingMatch(array, off, end)) {
         int pendingMatchLength = marker.length - matchingPos;
         for (int i = off; i < off + pendingMatchLength; i++) {
           write(array[i]);
@@ -142,7 +143,7 @@ public class InjectingPipeWriter extends Writer {
       // if the content is large enough, we can bulk write everything but the N trail and tail.
       // This because the buffer can already contain some byte from a previous single write.
       // Also we need to fill the buffer with the tail since we don't know about the next write.
-      int idx = arrayContains(array, off, len, marker);
+      int idx = arrayContains(array, off, end, marker);
       if (idx >= 0) {
         // we have a full match. just write everything
         filter = false;
@@ -159,7 +160,7 @@ public class InjectingPipeWriter extends Writer {
         if (onContentInjected != null) {
           onContentInjected.run();
         }
-        bytesToWrite = off + len - idx;
+        bytesToWrite = end - idx;
         downstream.write(array, idx, bytesToWrite);
         bytesWritten += bytesToWrite;
       } else {
@@ -178,21 +179,21 @@ public class InjectingPipeWriter extends Writer {
         bytesWritten += bytesToWrite;
         filter = wasFiltering;
 
-        for (int i = off + len - marker.length + 1; i < off + len; i++) {
+        for (int i = end - marker.length + 1; i < end; i++) {
           write(array[i]);
         }
       }
     } else {
       // use slow path because the length to write is small and within the lookbehind buffer size
-      for (int i = off; i < off + len; i++) {
+      for (int i = off; i < end; i++) {
         write(array[i]);
       }
     }
   }
 
-  private boolean arrayCompletesPendingMatch(char[] array, int off, int len) {
+  private boolean arrayCompletesPendingMatch(char[] array, int off, int end) {
     int pendingMatchLength = marker.length - matchingPos;
-    if (pendingMatchLength > len) {
+    if (off + pendingMatchLength > end) {
       return false;
     }
     for (int i = 0; i < pendingMatchLength; i++) {
@@ -203,8 +204,8 @@ public class InjectingPipeWriter extends Writer {
     return true;
   }
 
-  private int arrayContains(char[] array, int off, int len, char[] search) {
-    for (int i = off; i <= off + len - search.length; i++) {
+  private int arrayContains(char[] array, int off, int end, char[] search) {
+    for (int i = off; i <= end - search.length; i++) {
       if (array[i] == search[0]) {
         boolean found = true;
         int k = i;
