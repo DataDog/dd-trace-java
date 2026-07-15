@@ -73,11 +73,11 @@ docs/                     Developer documentation (see below)
 
 ## Review Guidelines
 
-Before marking a PR ready, run the applicable reviews below over the branch changes (the diff since the merge-base with `master`). These are **advisory, precision-first** checks — they surface high-severity issues early and are not merge gates. The linked guidelines are the tool-agnostic source of truth.
+Before marking a PR ready, run these reviews over the branch changes.
+Each skill's `SKILL.md` is the source of truth for scope and method.
 
-### Performance Review
-
-Follow the performance-review guidelines in [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md) — the do-no-harm / assume-hot posture, the hot-path checks (universal + Java J1–J11 + ByteBuddy-Advice idioms), and the confidence/severity model, with the detailed rubric in its `references/`. Scope: hot-path allocation, unbounded memory, repeated work, escaping objects, native-boundary crossings, and JVM-specific pitfalls.
+- **Technical debt** — run [`/techdebt`](.agents/skills/techdebt/SKILL.md) to catch code duplication, unnecessary complexity, and dead code. Refactor-only: it never changes behavior.
+- **Performance** — run [`/perf-review`](.agents/skills/perf-review/SKILL.md) for hot-path overhead, applying the do-no-harm / assume-hot posture and the tracer perf rubric. There are **advisory, precision-first** passes — they surface high-severity issues early and are not merge gates.
 
 ## Bootstrap constraints (critical)
 
