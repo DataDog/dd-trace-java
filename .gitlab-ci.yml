@@ -550,12 +550,40 @@ compare_artifacts_to_master_uploads:
     - export JARDIFF_VERSION_METADATA_EXCLUDE="--exclude=*.version,**/*.version,META-INF/MANIFEST.MF,**/META-INF/MANIFEST.MF,META-INF/maven/**/pom.properties,**/META-INF/maven/**/pom.properties"
     - |
       comparison_status=0
-      ./gradlew :dd-java-agent:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-java-agent.jar" --candidate-jar="$DD_JAVA_AGENT_JAR" --jardiff-option="$JARDIFF_VERSION_METADATA_EXCLUDE" -PskipTests $GRADLE_ARGS > jardiff-logs/dd-java-agent.log 2>&1 || comparison_status=$?
+      {
+        echo "Jardiff comparison summary"
+        echo "Reference artifacts: ${REFERENCE_BUILD_JOB_URL}"
+        echo
+      } > jardiff-logs/summary.txt
+
+      if ./gradlew :dd-java-agent:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-java-agent.jar" --candidate-jar="$DD_JAVA_AGENT_JAR" --jardiff-option="$JARDIFF_VERSION_METADATA_EXCLUDE" -PskipTests $GRADLE_ARGS > jardiff-logs/dd-java-agent.log 2>&1; then
+        echo "PASS dd-java-agent" >> jardiff-logs/summary.txt
+      else
+        dd_java_agent_status=$?
+        if [ "$comparison_status" -eq 0 ]; then comparison_status=$dd_java_agent_status; fi
+        echo "FAIL dd-java-agent (exit ${dd_java_agent_status})" >> jardiff-logs/summary.txt
+      fi
       cat jardiff-logs/dd-java-agent.log
-      ./gradlew :dd-trace-api:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-trace-api.jar" --candidate-jar="$DD_TRACE_API_JAR" --jardiff-option="$JARDIFF_VERSION_METADATA_EXCLUDE" -PskipTests $GRADLE_ARGS > jardiff-logs/dd-trace-api.log 2>&1 || comparison_status=$?
+
+      if ./gradlew :dd-trace-api:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-trace-api.jar" --candidate-jar="$DD_TRACE_API_JAR" --jardiff-option="$JARDIFF_VERSION_METADATA_EXCLUDE" -PskipTests $GRADLE_ARGS > jardiff-logs/dd-trace-api.log 2>&1; then
+        echo "PASS dd-trace-api" >> jardiff-logs/summary.txt
+      else
+        dd_trace_api_status=$?
+        if [ "$comparison_status" -eq 0 ]; then comparison_status=$dd_trace_api_status; fi
+        echo "FAIL dd-trace-api (exit ${dd_trace_api_status})" >> jardiff-logs/summary.txt
+      fi
       cat jardiff-logs/dd-trace-api.log
-      ./gradlew :dd-trace-ot:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-trace-ot.jar" --candidate-jar="$DD_TRACE_OT_JAR" --jardiff-option="$JARDIFF_VERSION_METADATA_EXCLUDE" -PskipTests $GRADLE_ARGS > jardiff-logs/dd-trace-ot.log 2>&1 || comparison_status=$?
+
+      if ./gradlew :dd-trace-ot:compareJarFiles --reference-jar="$CI_PROJECT_DIR/reference-artifacts/dd-trace-ot.jar" --candidate-jar="$DD_TRACE_OT_JAR" --jardiff-option="$JARDIFF_VERSION_METADATA_EXCLUDE" -PskipTests $GRADLE_ARGS > jardiff-logs/dd-trace-ot.log 2>&1; then
+        echo "PASS dd-trace-ot" >> jardiff-logs/summary.txt
+      else
+        dd_trace_ot_status=$?
+        if [ "$comparison_status" -eq 0 ]; then comparison_status=$dd_trace_ot_status; fi
+        echo "FAIL dd-trace-ot (exit ${dd_trace_ot_status})" >> jardiff-logs/summary.txt
+      fi
       cat jardiff-logs/dd-trace-ot.log
+
+      cat jardiff-logs/summary.txt
       exit "$comparison_status"
   artifacts:
     when: always
