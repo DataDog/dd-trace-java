@@ -45,6 +45,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -157,6 +158,41 @@ class AgentlessConfigurationSourceTest {
         assertEquals("etag-a", server.getLastRequest().getHeader("If-None-Match"));
         assertEquals("java", server.getLastRequest().getHeader("Datadog-Meta-Lang"));
       } finally {
+        httpClient.dispatcher().executorService().shutdownNow();
+        httpClient.connectionPool().evictAll();
+      }
+    }
+  }
+
+  @Test
+  void downloadsAndAppliesLargeUfcWithoutPayloadLimit() throws Exception {
+    final int flagCount = 5_000;
+    final String largeConfig = largeConfig(flagCount);
+    assertTrue(largeConfig.getBytes(UTF_8).length > 500_000);
+
+    try (JavaTestHttpServer server =
+        JavaTestHttpServer.httpServer(
+            s -> s.handlers(h -> h.get(CONFIG_PATH, api -> api.getResponse().send(largeConfig))))) {
+      final HttpUrl endpoint = HttpUrl.get(server.getAddress().resolve(CONFIG_PATH));
+      final OkHttpClient httpClient = new OkHttpClient.Builder().build();
+      final AgentlessConfigurationSource service =
+          new AgentlessConfigurationSource(
+              endpoint,
+              config(),
+              30_000,
+              new AgentlessConfigurationSource.OkHttpUfcHttpClient(httpClient),
+              Executors.newSingleThreadScheduledExecutor());
+      final ArgumentCaptor<ServerConfiguration> configuration =
+          ArgumentCaptor.forClass(ServerConfiguration.class);
+      FeatureFlaggingGateway.addConfigListener(listener);
+
+      try {
+        assertTrue(service.pollOnce());
+
+        verify(listener).accept(configuration.capture());
+        assertEquals(flagCount, configuration.getValue().flags.size());
+      } finally {
+        service.close();
         httpClient.dispatcher().executorService().shutdownNow();
         httpClient.connectionPool().evictAll();
       }
@@ -524,33 +560,73 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
-  void givesUpAfterRetryableFailuresAreExhausted() throws Exception {
+  void warnsRateLimitedAfterRetryableFailuresAreExhausted() throws Exception {
+    final RatelimitedLogger ratelimitedLogger = mock(RatelimitedLogger.class);
     final FakeClient client =
         new FakeClient(
             response(503, null, null), response(503, null, null), response(503, null, null));
-    final AgentlessConfigurationSource service = service(client);
+    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    final AgentlessConfigurationSource service =
+        new AgentlessConfigurationSource(
+            HttpUrl.get("http://localhost" + CONFIG_PATH),
+            config(),
+            30_000,
+            client,
+            executor,
+            delay -> {},
+            () -> 1.0,
+            ratelimitedLogger);
     FeatureFlaggingGateway.addConfigListener(listener);
 
-    assertFalse(service.pollOnce());
+    try {
+      assertFalse(service.pollOnce());
 
-    assertEquals(3, client.calls.get());
-    verifyNoInteractions(listener);
+      assertEquals(3, client.calls.get());
+      verify(ratelimitedLogger)
+          .warn(
+              "Feature Flagging agentless endpoint failed after {} attempts with HTTP {}", 3, 503);
+      verifyNoInteractions(listener);
+    } finally {
+      service.close();
+    }
   }
 
   @Test
-  void givesUpAfterIoFailuresAreExhausted() throws Exception {
+  void warnsRateLimitedAfterIoFailuresAreExhausted() throws Exception {
+    final RatelimitedLogger ratelimitedLogger = mock(RatelimitedLogger.class);
+    final SocketTimeoutException finalFailure =
+        new SocketTimeoutException("slow HTTP configuration source");
     final FakeClient client =
         new FakeClient(
             new SocketTimeoutException("slow HTTP configuration source"),
             new SocketTimeoutException("slow HTTP configuration source"),
-            new SocketTimeoutException("slow HTTP configuration source"));
-    final AgentlessConfigurationSource service = service(client);
+            finalFailure);
+    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    final AgentlessConfigurationSource service =
+        new AgentlessConfigurationSource(
+            HttpUrl.get("http://localhost" + CONFIG_PATH),
+            config(),
+            30_000,
+            client,
+            executor,
+            delay -> {},
+            () -> 1.0,
+            ratelimitedLogger);
     FeatureFlaggingGateway.addConfigListener(listener);
 
-    assertFalse(service.pollOnce());
+    try {
+      assertFalse(service.pollOnce());
 
-    assertEquals(3, client.calls.get());
-    verifyNoInteractions(listener);
+      assertEquals(3, client.calls.get());
+      verify(ratelimitedLogger)
+          .warn(
+              "Feature Flagging agentless endpoint request failed after {} attempts",
+              3,
+              finalFailure);
+      verifyNoInteractions(listener);
+    } finally {
+      service.close();
+    }
   }
 
   @Test
@@ -636,6 +712,39 @@ class AgentlessConfigurationSourceTest {
     service.close();
 
     assertEquals(1, client.calls.get());
+  }
+
+  @Test
+  void scheduledPollContinuesAfterListenerRuntimeException() throws Exception {
+    final FakeClient client =
+        new FakeClient(
+            response(200, "etag-a", emptyConfig()), response(200, "etag-b", emptyConfig()));
+    final AgentlessConfigurationSource service =
+        new AgentlessConfigurationSource(
+            HttpUrl.get("http://localhost" + CONFIG_PATH),
+            config(),
+            10,
+            client,
+            Executors.newSingleThreadScheduledExecutor());
+    final AtomicInteger listenerCalls = new AtomicInteger();
+    final FeatureFlaggingGateway.ConfigListener flakyListener =
+        configuration -> {
+          if (listenerCalls.incrementAndGet() == 1) {
+            throw new IllegalStateException("listener rejected first configuration");
+          }
+        };
+    FeatureFlaggingGateway.addConfigListener(flakyListener);
+
+    try {
+      service.init();
+      awaitCalls(client, 2);
+
+      assertEquals(2, listenerCalls.get());
+      assertNull(client.requests.get(1).etag);
+    } finally {
+      service.close();
+      FeatureFlaggingGateway.removeConfigListener(flakyListener);
+    }
   }
 
   @Test
@@ -821,6 +930,30 @@ class AgentlessConfigurationSourceTest {
         + "\"environment\":{\"name\":\"Test\"},"
         + "\"flags\":{}"
         + "}";
+  }
+
+  private static String largeConfig(final int flagCount) {
+    final StringBuilder json =
+        new StringBuilder(
+            "{\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+                + "\"format\":\"SERVER\","
+                + "\"environment\":{\"name\":\"Large Test\"},"
+                + "\"flags\":{");
+    for (int index = 0; index < flagCount; index++) {
+      if (index > 0) {
+        json.append(',');
+      }
+      final String flagKey = "large-flag-" + index;
+      json.append('"')
+          .append(flagKey)
+          .append("\":{\"key\":\"")
+          .append(flagKey)
+          .append(
+              "\",\"enabled\":true,\"variationType\":\"STRING\","
+                  + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"on\"}},"
+                  + "\"allocations\":[]}");
+    }
+    return json.append("}}").toString();
   }
 
   private static void awaitCalls(final FakeClient client, final int count) throws Exception {

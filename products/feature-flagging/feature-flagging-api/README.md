@@ -89,7 +89,12 @@ OTEL_EXPORTER_OTLP_PROTOCOL=grpc
   backend. Set `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` to a
   different HTTP backend while keeping agentless delivery semantics. A bare
   host uses the standard server-distribution path; a URL with a path is used as
-  the exact UFC endpoint. `remote_config` uses the existing Agent Remote
+  the exact UFC endpoint. Configured URLs are opaque: the SDK does not add the
+  Datadog-managed `dd_env` query parameter, so custom backends must include any
+  required tenant or environment scope in the configured URL. The derived
+  Datadog-managed endpoint is intended for supported commercial sites; use an
+  explicit base URL elsewhere. Agentless responses do not have an SDK-imposed
+  payload-size limit. `remote_config` uses the existing Agent Remote
   Configuration path. `offline` is reserved for startup-provided UFC bytes;
   until those bytes are implemented, no network source starts and evaluations
   use defaults.

@@ -40,7 +40,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
   private static final String DATADOG_API_SERVER_DISTRIBUTION_PATH =
       "/api/v2/feature-flagging/config/server-distribution";
   private static final int MAX_ATTEMPTS = 3;
-  private static final int MINUTES_BETWEEN_AUTH_WARNINGS = 5;
+  private static final int MINUTES_BETWEEN_WARNINGS = 5;
   private static final long FIRST_RETRY_MIN_MILLIS = 2_000;
   private static final long FIRST_RETRY_MAX_MILLIS = 10_000;
   private static final long SECOND_RETRY_MIN_MILLIS = 5_000;
@@ -78,7 +78,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
             new AgentThreadFactory(FEATURE_FLAG_CONFIGURATION_POLLER)),
         TimeUnit.MILLISECONDS::sleep,
         () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER),
-        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_AUTH_WARNINGS, TimeUnit.MINUTES));
+        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
   }
 
   AgentlessConfigurationSource(
@@ -95,7 +95,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         executor,
         TimeUnit.MILLISECONDS::sleep,
         () -> 1.0,
-        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_AUTH_WARNINGS, TimeUnit.MINUTES));
+        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
   }
 
   AgentlessConfigurationSource(
@@ -114,7 +114,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         executor,
         retrySleeper,
         jitter,
-        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_AUTH_WARNINGS, TimeUnit.MINUTES));
+        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
   }
 
   AgentlessConfigurationSource(
@@ -192,11 +192,18 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         if (closed) {
           return false;
         }
-        if (isRetryableStatus(response.status) && attempt < MAX_ATTEMPTS) {
-          if (!waitBeforeRetry(attempt)) {
-            return false;
+        if (isRetryableStatus(response.status)) {
+          if (attempt < MAX_ATTEMPTS) {
+            if (!waitBeforeRetry(attempt)) {
+              return false;
+            }
+            continue;
           }
-          continue;
+          ratelimitedLogger.warn(
+              "Feature Flagging agentless endpoint failed after {} attempts with HTTP {}",
+              MAX_ATTEMPTS,
+              response.status);
+          return false;
         }
         synchronized (lifecycleLock) {
           return !closed && apply(response);
@@ -206,7 +213,10 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
           return false;
         }
         if (attempt == MAX_ATTEMPTS) {
-          LOGGER.debug("Feature Flagging HTTP configuration source request failed", e);
+          ratelimitedLogger.warn(
+              "Feature Flagging agentless endpoint request failed after {} attempts",
+              MAX_ATTEMPTS,
+              e);
           return false;
         }
         if (!waitBeforeRetry(attempt)) {
