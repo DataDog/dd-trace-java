@@ -380,8 +380,12 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
      */
     @Nullable
     public static final Entry create(@Nonnull String tag, Object value) {
-      if (value == null) return null;
-      if (value instanceof CharSequence && ((CharSequence) value).length() == 0) return null;
+      if (value == null) {
+        return null;
+      }
+      if (value instanceof CharSequence && ((CharSequence) value).length() == 0) {
+        return null;
+      }
       return TagMap.Entry.newAnyEntry(tag, value);
     }
 
@@ -1367,7 +1371,9 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public void set(TagMap.EntryReader newEntryReader) {
-    if (newEntryReader == null) return;
+    if (newEntryReader == null) {
+      return;
+    }
     this.getAndSet(newEntryReader.entry());
   }
 
@@ -1408,7 +1414,9 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public Entry getAndSet(Entry newEntry) {
-    if (newEntry == null) return null;
+    if (newEntry == null) {
+      return null;
+    }
 
     this.checkWriteAccess();
 
