@@ -54,7 +54,7 @@ public final class MultiPartHelper {
       filenames.add(rawFilename);
     }
     if (filesContent != null && rawFilename != null && filesContent.size() < MAX_FILES_TO_INSPECT) {
-      filesContent.add(readContent(bodyPart));
+      filesContent.add(readFileContent(bodyPart));
     }
   }
 
@@ -66,22 +66,33 @@ public final class MultiPartHelper {
     return total;
   }
 
+  // Used for the body-map/text-field path: Jersey's own getValue() decodes undeclared-charset
+  // text parts as UTF-8, so this matches that default instead of MultipartContentDecoder's
+  // platform-dependent fallback.
   public static String readContent(FormDataBodyPart bodyPart) {
+    return read(bodyPart, contentTypeWithDefaultUtf8(bodyPart.getMediaType()));
+  }
+
+  // Used for the filesContent path: keeps parity with the other multipart helpers, which all
+  // rely on MultipartContentDecoder's own charset fallback for undeclared-charset file content.
+  public static String readFileContent(FormDataBodyPart bodyPart) {
+    MediaType mediaType = bodyPart.getMediaType();
+    return read(bodyPart, mediaType != null ? mediaType.toString() : null);
+  }
+
+  private static String read(FormDataBodyPart bodyPart, String contentType) {
     try {
       // getEntityAs(InputStream.class) is backed by BodyPartEntity which supports re-reading:
       // each call creates a fresh stream from the buffered MIME part data.
       try (InputStream is = bodyPart.getEntityAs(InputStream.class)) {
         if (is == null) return "";
-        return MultipartContentDecoder.readInputStream(
-            is, MAX_CONTENT_BYTES, contentTypeWithDefaultUtf8(bodyPart.getMediaType()));
+        return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
       }
     } catch (IOException ignored) {
       return "";
     }
   }
 
-  // Jersey's own getValue() decodes undeclared-charset text parts as UTF-8; match that default
-  // here instead of falling through to MultipartContentDecoder's platform-dependent fallback.
   private static String contentTypeWithDefaultUtf8(MediaType mediaType) {
     String contentType = mediaType != null ? mediaType.toString() : null;
     return MultipartContentDecoder.extractCharset(contentType) == null
