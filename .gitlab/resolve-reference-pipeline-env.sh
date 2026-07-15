@@ -16,6 +16,19 @@ if [ -z "$REFERENCE_SHA" ]; then
   exit 1
 fi
 
+if [ -z "${GITHUB_TOKEN:-}" ] && [ -n "${DDOCTOSTS_ID_TOKEN:-}" ]; then
+  if ! command -v dd-octo-sts >/dev/null 2>&1; then
+    echo "DDOCTOSTS_ID_TOKEN is set, but dd-octo-sts is not available"
+    exit 1
+  fi
+
+  github_token_file="$(mktemp)"
+  dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read
+  dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read > "$github_token_file"
+  export GITHUB_TOKEN="$(cat "$github_token_file")"
+  trap 'dd-octo-sts revoke -t "$GITHUB_TOKEN" || true; rm -f "$github_token_file"' EXIT
+fi
+
 github_headers=(--header "Accept: application/vnd.github+json")
 if [ -n "${GITHUB_TOKEN:-}" ]; then
   github_headers+=(--header "Authorization: Bearer ${GITHUB_TOKEN}")
