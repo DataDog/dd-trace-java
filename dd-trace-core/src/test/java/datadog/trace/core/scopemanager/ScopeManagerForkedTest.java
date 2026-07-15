@@ -87,6 +87,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
 
   @BeforeAll
   static void installLegacyContextManager() {
+    // this test requires use of legacy context manager
     AgentTracer.installLegacyContextManager();
   }
 

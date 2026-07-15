@@ -10,7 +10,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FO
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 
-
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.util.ContextInitializer
 import com.datadog.debugger.agent.ClassesToRetransformFinder
@@ -43,7 +42,6 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
 import datadog.trace.api.Config
 import datadog.trace.api.IdGenerationStrategy
-import datadog.trace.api.InstrumenterConfig
 import datadog.trace.api.Pair
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
@@ -358,9 +356,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     configurePreAgent()
 
-    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-      AgentTracer.installLegacyContextManager()
-    }
+    AgentTracer.maybeInstallLegacyContextManager()
 
     AgentMeter.registerIfAbsent(
     STATS_D_CLIENT,

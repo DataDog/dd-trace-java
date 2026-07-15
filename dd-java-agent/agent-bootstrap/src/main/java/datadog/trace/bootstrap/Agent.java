@@ -26,7 +26,6 @@ import datadog.instrument.classinject.ClassInjector;
 import datadog.instrument.utils.ClassLoaderValue;
 import datadog.metrics.api.statsd.StatsDClientManager;
 import datadog.trace.api.Config;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Platform;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.appsec.AppSecEventTracker;
@@ -338,9 +337,7 @@ public class Agent {
       StaticEventLogger.end("crashtracking");
     }
 
-    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-      AgentTracer.installLegacyContextManager();
-    }
+    AgentTracer.maybeInstallLegacyContextManager();
 
     startDatadogAgent(initTelemetry, inst);
 

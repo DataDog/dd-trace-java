@@ -13,10 +13,8 @@ import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.api.Config;
 import datadog.trace.api.IdGenerationStrategy;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationErrors;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -25,6 +23,7 @@ import datadog.trace.core.PendingTrace;
 import datadog.trace.core.TraceCollector;
 import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.junit.utils.context.AllowContextTestingExtension;
+import datadog.trace.junit.utils.context.LegacyContextTestingExtension;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.List;
@@ -56,7 +55,11 @@ import org.opentest4j.AssertionFailedError;
  * </ul>
  */
 @WithConfig(key = "detailed.instrumentation.errors", value = "true")
-@ExtendWith({TestClassShadowingExtension.class, AllowContextTestingExtension.class})
+@ExtendWith({
+  TestClassShadowingExtension.class,
+  AllowContextTestingExtension.class,
+  LegacyContextTestingExtension.class
+})
 public abstract class AbstractInstrumentationTest {
   static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
 
@@ -76,10 +79,6 @@ public abstract class AbstractInstrumentationTest {
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath.
     assertNull(Config.class.getClassLoader(), "Config must load on the bootstrap classpath.");
-
-    if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-      AgentTracer.installLegacyContextManager();
-    }
 
     // Create shared test writer and tracer
     writer = new ListWriter();

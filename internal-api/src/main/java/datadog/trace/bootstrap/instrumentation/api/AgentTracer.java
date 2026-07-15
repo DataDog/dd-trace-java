@@ -779,7 +779,20 @@ public class AgentTracer {
     }
   }
 
-  /** Must be called ahead of instrumentation, before any use of the Context API. */
+  /**
+   * Decides whether to install the legacy approach to managing contexts, which requires a tracer.
+   *
+   * <p>Must be called ahead of instrumentation, before any use of the Context API.
+   */
+  public static void maybeInstallLegacyContextManager() {
+    installLegacyContextManager(); // install everywhere to begin with
+  }
+
+  /**
+   * Always install the legacy approach to managing contexts, which requires a tracer.
+   *
+   * <p>Must be called ahead of instrumentation, before any use of the Context API.
+   */
   public static void installLegacyContextManager() {
     ContextManager.register(LegacyContextManager.INSTANCE);
   }
