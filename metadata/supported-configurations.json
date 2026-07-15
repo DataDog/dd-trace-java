@@ -10740,7 +10740,7 @@
     "DD_TRACE_STATS_ADDITIONAL_TAGS": [
       {
         "version": "A",
-        "type": "list",
+        "type": "array",
         "default": null,
         "aliases": []
       }
