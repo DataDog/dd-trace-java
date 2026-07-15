@@ -1,26 +1,61 @@
 #!/usr/bin/env bash
 
 if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
-  git fetch --quiet --unshallow origin master || exit 1
+  git fetch --quiet --no-recurse-submodules --unshallow origin master || exit 1
 else
-  git fetch --quiet origin master || exit 1
+  git fetch --quiet --no-recurse-submodules origin master || exit 1
 fi
 
-if ! REFERENCE_SHA="$(git rev-parse FETCH_HEAD)"; then
-  echo "Unable to resolve master revision"
+if ! REFERENCE_SHA="$(git merge-base FETCH_HEAD "${CI_COMMIT_SHA}")"; then
+  echo "Unable to resolve branch fork point between master and ${CI_COMMIT_SHA}"
   exit 1
 fi
 export REFERENCE_SHA
 if [ -z "$REFERENCE_SHA" ]; then
-  echo "Unable to resolve master revision"
+  echo "Unable to resolve branch fork point between master and ${CI_COMMIT_SHA}"
   exit 1
 fi
 
-REFERENCE_BUILD_JOB_URL="${CI_PROJECT_URL}/-/jobs/artifacts/master/browse?job=build"
-export REFERENCE_BUILD_JOB_URL
-REFERENCE_BUILD_JOB_ID="latest-successful-master-build"
+gitlab_headers=(--header "Accept: application/json")
+if [ -n "${GITLAB_TOKEN:-}" ]; then
+  gitlab_headers+=(--header "PRIVATE-TOKEN: ${GITLAB_TOKEN}")
+elif [ -n "${CI_JOB_TOKEN:-}" ]; then
+  gitlab_headers+=(--header "JOB-TOKEN: ${CI_JOB_TOKEN}")
+else
+  echo "Unable to resolve fork-point master build job: no GitLab API token is available"
+  exit 1
+fi
+
+if ! reference_statuses="$(
+  curl --fail --silent --show-error "${gitlab_headers[@]}" \
+    "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/commits/${REFERENCE_SHA}/statuses?per_page=100"
+)"; then
+  echo "Unable to read GitLab commit statuses for fork point ${REFERENCE_SHA}"
+  echo "This lookup needs GitLab API access to commit statuses."
+  echo "If CI_JOB_TOKEN cannot access this endpoint, provide GITLAB_TOKEN with read_api access or resolve this metadata in a job image that can mint an API token."
+  exit 1
+fi
+
+REFERENCE_BUILD_JOB_ID="$(
+  printf '%s\n' "$reference_statuses" \
+    | jq -r '[.[] | select(.name == "build" and .ref == "master" and .status == "success")] | sort_by(.id) | last | .id // empty'
+)"
 export REFERENCE_BUILD_JOB_ID
-REFERENCE_BUILD_JOB_ARTIFACTS_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/artifacts/master/download?job=build"
+REFERENCE_PIPELINE_ID="$(
+  printf '%s\n' "$reference_statuses" \
+    | jq -r '[.[] | select(.name == "build" and .ref == "master" and .status == "success")] | sort_by(.id) | last | .pipeline_id // empty'
+)"
+export REFERENCE_PIPELINE_ID
+if [ -z "$REFERENCE_BUILD_JOB_ID" ]; then
+  echo "Unable to find a successful master build job for fork point ${REFERENCE_SHA}"
+  exit 1
+fi
+
+REFERENCE_BUILD_JOB_URL="${CI_PROJECT_URL}/-/jobs/${REFERENCE_BUILD_JOB_ID}"
+export REFERENCE_BUILD_JOB_URL
+REFERENCE_PIPELINE_URL="${CI_PROJECT_URL}/-/pipelines/${REFERENCE_PIPELINE_ID}"
+export REFERENCE_PIPELINE_URL
+REFERENCE_BUILD_JOB_ARTIFACTS_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/${REFERENCE_BUILD_JOB_ID}/artifacts"
 export REFERENCE_BUILD_JOB_ARTIFACTS_URL
 
-echo "Using latest successful master build artifacts (${REFERENCE_BUILD_JOB_URL}) for ${REFERENCE_SHA}"
+echo "Using fork-point master build job ${REFERENCE_BUILD_JOB_ID} (${REFERENCE_BUILD_JOB_URL}) from pipeline ${REFERENCE_PIPELINE_ID} for ${REFERENCE_SHA}"

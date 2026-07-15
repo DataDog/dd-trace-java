@@ -534,6 +534,7 @@ compare_artifacts_to_master_uploads:
     - |
       {
         echo "REFERENCE_SHA=${REFERENCE_SHA}"
+        echo "REFERENCE_PIPELINE_ID=${REFERENCE_PIPELINE_ID}"
         echo "REFERENCE_BUILD_JOB_ID=${REFERENCE_BUILD_JOB_ID}"
         echo "REFERENCE_BUILD_JOB_URL=${REFERENCE_BUILD_JOB_URL}"
       } > reference-artifacts/reference-build.env
