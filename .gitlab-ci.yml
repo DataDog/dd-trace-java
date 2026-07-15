@@ -537,7 +537,7 @@ compare_artifacts_to_master_uploads:
         echo "REFERENCE_BUILD_JOB_ID=${REFERENCE_BUILD_JOB_ID}"
         echo "REFERENCE_BUILD_JOB_URL=${REFERENCE_BUILD_JOB_URL}"
       } > reference-artifacts/reference-build.env
-    - curl --location --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --output reference-artifacts/reference-build-artifacts.zip "${REFERENCE_BUILD_JOB_ARTIFACTS_URL}"
+    - 'curl --location --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --output reference-artifacts/reference-build-artifacts.zip "${REFERENCE_BUILD_JOB_ARTIFACTS_URL}"'
     - unzip -j reference-artifacts/reference-build-artifacts.zip 'workspace/dd-java-agent/build/libs/dd-java-agent-*.jar' -d reference-artifacts
     - unzip -j reference-artifacts/reference-build-artifacts.zip 'workspace/dd-trace-api/build/libs/dd-trace-api-*.jar' -d reference-artifacts
     - unzip -j reference-artifacts/reference-build-artifacts.zip 'workspace/dd-trace-ot/build/libs/dd-trace-ot-*.jar' -d reference-artifacts
