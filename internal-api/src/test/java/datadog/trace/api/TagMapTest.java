@@ -1064,9 +1064,7 @@ public class TagMapTest {
   }
 
   static final void assertSize(int size, TagMap map) {
-    if (map instanceof TagMap) {
-      assertEquals(size, ((TagMap) map).computeSize());
-    }
+    assertEquals(size, map.computeSize());
     assertEquals(size, map.size());
 
     assertEquals(size, count(map));
@@ -1094,16 +1092,12 @@ public class TagMapTest {
   }
 
   static void assertNotEmpty(TagMap map) {
-    if (map instanceof TagMap) {
-      assertFalse(((TagMap) map).checkIfEmpty());
-    }
+    assertFalse(map.checkIfEmpty());
     assertFalse(map.isEmpty());
   }
 
   static void assertEmpty(TagMap map) {
-    if (map instanceof TagMap) {
-      assertTrue(((TagMap) map).checkIfEmpty());
-    }
+    assertTrue(map.checkIfEmpty());
     assertTrue(map.isEmpty());
   }
 
@@ -1128,9 +1122,6 @@ public class TagMapTest {
   }
 
   static void checkIntegrity(TagMap map) {
-    if (map instanceof TagMap) {
-      TagMap optMap = (TagMap) map;
-      optMap.checkIntegrity();
-    }
+    map.checkIntegrity();
   }
 }
