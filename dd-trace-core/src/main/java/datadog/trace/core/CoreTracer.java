@@ -2206,18 +2206,31 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               propagationTags,
               tracer.profilingContextIntegration,
               tracer.injectBaggageAsTags,
-              tracer.injectLinksAsTags);
+              tracer.injectLinksAsTags,
+              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
       // set in the builder should come last, so that they override other tags.
-      context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
+      //
+      // mergedTracerTags is trace-level shared state and the precedence floor (everything below
+      // overrides it). When it carries no interceptable tags it is attached as a read-through
+      // PARENT at construction (shared by reference, no per-span copy). When it does need
+      // interception, copy its entries in (the interceptor's per-span side-effects can't be
+      // shared by reference).
+      if (mergedTracerTagsNeedsIntercept) {
+        context.setAllTags(mergedTracerTags, true);
+      }
       context.setAllTags(tagLedger);
       context.setAllTags(coreTags, coreTagsNeedsIntercept);
       context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
       context.setAllTags(contextualTags);
-      // remove version here since will be done later on the postProcessor.
-      // it will allow knowing if it will be set manually or not
+      // Version is added later by the postProcessor (InternalTagsAdder), only if not already set
+      // during the request. Config version is kept out of the trace-level bundle (see
+      // withTracerTags), so this removal now only wipes a version set via the span builder —
+      // keeping
+      // the existing semantics where a builder-set version is replaced by the config version. Under
+      // read-through this is a cheap local removal (version isn't in the parent, so no tombstone).
       context.removeTag(Tags.VERSION);
       return context;
     }
@@ -2448,6 +2461,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       Map<String, ?> userSpanTags, Config config, TraceConfig traceConfig) {
     final TagMap result = TagMap.create(userSpanTags.size() + 5);
     result.putAll(userSpanTags);
+    // Version is conditionally managed by InternalTagsAdder (added only when service == DD_SERVICE
+    // and not set during the request), so keep it OUT of the trace-level bundle. This matters under
+    // read-through: the bundle becomes a shared parent, and a per-span removeTag(VERSION) on a key
+    // that lived in the parent would mint a per-span tombstone. With version excluded here, the
+    // per-span removeTag (retained, to wipe a builder-set version) is a cheap local op, never a
+    // tombstone. Behavior is unchanged: version was applied-then-removed at build today.
+    result.remove(Tags.VERSION);
     if (null != config) { // static
       if (!config.getEnv().isEmpty()) {
         result.set("env", config.getEnv());
