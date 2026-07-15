@@ -44,19 +44,19 @@ import javax.annotation.Nullable;
  *   <li>adaptive collision
  * </ul>
  */
-public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader> {
+public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryReader> {
   /** Immutable empty TagMap - similar to {@link Collections#emptyMap()} */
-  TagMap EMPTY = OptimizedTagMap.EmptyHolder.EMPTY;
+  public static final TagMap EMPTY = EmptyHolder.EMPTY;
 
   /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
-  static TagMap fromMap(Map<String, ?> map) {
+  public static TagMap fromMap(Map<String, ?> map) {
     TagMap tagMap = TagMap.create(map.size());
     tagMap.putAll(map);
     return tagMap;
   }
 
   /** Creates a new immutable TagMap that contains the contents of <code>map</code> */
-  static TagMap fromMapImmutable(Map<String, ?> map) {
+  public static TagMap fromMapImmutable(Map<String, ?> map) {
     if (map.isEmpty()) {
       return TagMap.EMPTY;
     } else {
@@ -64,226 +64,25 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
     }
   }
 
-  static TagMap create() {
-    return new OptimizedTagMap();
+  public static TagMap create() {
+    return new TagMap();
   }
 
-  static TagMap create(int size) {
-    return new OptimizedTagMap();
+  public static TagMap create(int size) {
+    return new TagMap();
   }
 
   /** Creates a new TagMap.Ledger */
-  static Ledger ledger() {
+  public static Ledger ledger() {
     return new Ledger();
   }
 
   /** Creates a new TagMap.Ledger which handles <code>size</code> modifications before expansion */
-  static Ledger ledger(int size) {
+  public static Ledger ledger(int size) {
     return new Ledger(size);
   }
 
-  boolean isOptimized();
-
-  /** Inefficiently implemented for optimized TagMap */
-  @Deprecated
-  Set<String> keySet();
-
-  Iterator<String> tagIterator();
-
-  /** Inefficiently implemented for optimized TagMap - requires boxing primitives */
-  @Deprecated
-  Collection<Object> values();
-
-  Iterator<Object> valueIterator();
-
-  // @Deprecated -- not deprecated until OptimizedTagMap becomes the default
-  Set<java.util.Map.Entry<String, Object>> entrySet();
-
-  /**
-   * Deprecated in favor of typed getters like...
-   *
-   * <ul>
-   *   <li>{@link TagMap#getObject(String)}
-   *   <li>{@link TagMap#getString(String)}
-   *   <li>{@link TagMap#getBoolean(String)}
-   *   <li>...
-   * </ul>
-   */
-  @Deprecated
-  Object get(Object tag);
-
-  /** Provides the corresponding entry value as an Object - boxing if necessary */
-  Object getObject(String tag);
-
-  /** Provides the corresponding entry value as a String - calling toString if necessary */
-  String getString(String tag);
-
-  boolean getBoolean(String tag);
-
-  boolean getBooleanOrDefault(String tag, boolean defaultValue);
-
-  int getInt(String tag);
-
-  int getIntOrDefault(String tag, int defaultValue);
-
-  long getLong(String tag);
-
-  long getLongOrDefault(String tag, long defaultValue);
-
-  float getFloat(String tag);
-
-  float getFloatOrDefault(String tag, float defaultValue);
-
-  double getDouble(String tag);
-
-  double getDoubleOrDefault(String tag, double defaultValue);
-
-  /**
-   * Provides the corresponding Entry object - preferable w/ optimized TagMap if the Entry needs to
-   * have its type checked
-   */
-  Entry getEntry(String tag);
-
-  /**
-   * Deprecated in favor of {@link TagMap#set} methods. set methods don't return the prior value and
-   * are implemented more efficiently.
-   */
-  @Deprecated
-  Object put(@Nonnull String tag, Object value);
-
-  /** Sets value without returning prior value - more efficient than {@link Map#put} */
-  void set(@Nonnull String tag, @Nonnull Object value);
-
-  /**
-   * Similar to {@link TagMap#set(String, Object)} but more efficient when working with
-   * CharSequences and Strings. Depending on this situation, this methods avoids having to do type
-   * resolution later on
-   */
-  void set(@Nonnull String tag, @Nonnull CharSequence value);
-
-  void set(@Nonnull String tag, boolean value);
-
-  void set(@Nonnull String tag, int value);
-
-  void set(@Nonnull String tag, long value);
-
-  void set(@Nonnull String tag, float value);
-
-  void set(@Nonnull String tag, double value);
-
-  /** A null reader is a no-op (see the null-tolerance contract on {@link #getAndSet(Entry)}). */
-  void set(@Nullable EntryReader newEntry);
-
-  /** sets the value while returning the prior Entry */
-  Entry getAndSet(@Nonnull String tag, Object value);
-
-  Entry getAndSet(@Nonnull String tag, CharSequence value);
-
-  Entry getAndSet(@Nonnull String tag, boolean value);
-
-  Entry getAndSet(@Nonnull String tag, int value);
-
-  Entry getAndSet(@Nonnull String tag, long value);
-
-  Entry getAndSet(@Nonnull String tag, float value);
-
-  Entry getAndSet(@Nonnull String tag, double value);
-
-  /**
-   * Places an Entry directly into the map, avoiding a new Entry allocation. Null-tolerant: a null
-   * {@code newEntry} is a no-op returning null, so an Entry producer (e.g. {@link
-   * Entry#create(String, Object)} for a null/empty value) can emit "no tag" without the caller
-   * filtering. Contrast the strict {@link Nonnull} {@code set(String, value)} setters.
-   */
-  Entry getAndSet(@Nullable Entry newEntry);
-
-  void putAll(Map<? extends String, ? extends Object> map);
-
-  /**
-   * Similar to {@link Map#putAll(Map)} but optimized to quickly copy from one TagMap to another
-   *
-   * <p>For optimized TagMaps, this method takes advantage of the consistent TagMap layout to
-   * quickly handle each bucket. And similar to {@link TagMap#getAndSet(Entry)} this method shares
-   * Entry objects from the source TagMap
-   */
-  void putAll(TagMap that);
-
-  void fillMap(Map<? super String, Object> map);
-
-  void fillStringMap(Map<? super String, ? super String> stringMap);
-
-  /**
-   * Deprecated in favor of {@link TagMap#remove(String)} which returns a boolean and is more
-   * efficiently implemented
-   */
-  @Deprecated
-  Object remove(Object tag);
-
-  /**
-   * Similar to {@link Map#remove(Object)} but doesn't return the prior value (orEntry). Preferred
-   * when the prior value isn't needed
-   */
-  boolean remove(String tag);
-
-  /**
-   * Similar to {@link Map#remove(Object)} but returns the prior Entry object rather than the prior
-   * value. For optimized TagMap-s, this method is preferred because it avoids additional boxing.
-   */
-  Entry getAndRemove(String tag);
-
-  /** Returns a mutable copy of this TagMap */
-  TagMap copy();
-
-  /**
-   * Returns an immutable copy of this TagMap This method is more efficient than <code>
-   * map.copy().freeze()</code> when called on an immutable TagMap
-   */
-  TagMap immutableCopy();
-
-  /**
-   * Provides an Iterator over the Entry-s of the TagMap Equivalent to <code>entrySet().iterator()
-   * </code>, but with less allocation
-   */
-  @Override
-  Iterator<EntryReader> iterator();
-
-  Stream<EntryReader> stream();
-
-  /**
-   * Visits each Entry in this TagMap This method is more efficient than {@link TagMap#iterator()}
-   */
-  void forEach(Consumer<? super TagMap.EntryReader> consumer);
-
-  /**
-   * Version of forEach that takes an extra context object that is passed as the first argument to
-   * the consumer
-   *
-   * <p>The intention is to use this method to avoid using a capturing lambda
-   */
-  <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer);
-
-  /**
-   * Version of forEach that takes two extra context objects that are passed as the first two
-   * argument to the consumer
-   *
-   * <p>The intention is to use this method to avoid using a capturing lambda
-   */
-  <T, U> void forEach(
-      T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer);
-
-  /** Clears the TagMap */
-  void clear();
-
-  /** Freeze the TagMap preventing further modification - returns <code>this</code> TagMap */
-  TagMap freeze();
-
-  /** Indicates if this map is frozen */
-  boolean isFrozen();
-
-  /** Checks if the TagMap is writable - if not throws {@link IllegalStateException} */
-  void checkWriteAccess();
-
-  abstract class EntryChange {
+  public abstract static class EntryChange {
     public static final EntryRemoval newRemoval(String tag) {
       return new EntryRemoval(tag);
     }
@@ -305,7 +104,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
     public abstract boolean isRemoval();
   }
 
-  final class EntryRemoval extends EntryChange {
+  public static final class EntryRemoval extends EntryChange {
     EntryRemoval(String tag) {
       super(tag);
     }
@@ -316,7 +115,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
     }
   }
 
-  interface EntryReader {
+  public interface EntryReader {
     public static final byte OBJECT = 1;
 
     /*
@@ -366,7 +165,8 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
     Entry entry();
   }
 
-  final class Entry extends EntryChange implements Map.Entry<String, Object>, EntryReader {
+  public static final class Entry extends EntryChange
+      implements Map.Entry<String, Object>, EntryReader {
     /*
      * Special value used for Objects that haven't been type checked yet.
      * These objects might be primitive box objects.
@@ -982,7 +782,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
    * An in-order ledger of changes to be made to a TagMap.
    * Ledger can also serves as a builder for TagMap-s via build & buildImmutable.
    */
-  final class Ledger implements Iterable<EntryChange> {
+  public static final class Ledger implements Iterable<EntryChange> {
     EntryChange[] entryChanges;
     int nextPos = 0;
     boolean containsRemovals = false;
@@ -1167,45 +967,42 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
       }
     }
   }
-}
 
-/*
- * For memory efficiency, OptimizedTagMap uses a rather complicated bucket system.
- * <p>
- * When there is only a single Entry in a particular bucket, the Entry is stored into the bucket directly.
- * <p>
- * Because the Entry objects can be shared between multiple TagMaps, the Entry objects cannot
- * directly form a linked list to handle collisions.
- * <p>
- * Instead when multiple entries collide in the same bucket, a BucketGroup is formed to hold multiple entries.
- * But a BucketGroup is only formed when a collision occurs to keep allocation low in the common case of no collisions.
- * <p>
- * For efficiency, BucketGroups are a fixed size, so when a BucketGroup fills up another BucketGroup is formed
- * to hold the additional Entry-s.  And the BucketGroup-s are connected via a linked list instead of the Entry-s.
- * <p>
- * This does introduce some inefficiencies when Entry-s are removed.
- * The assumption is that removals are rare, so BucketGroups are never consolidated.
- * However as a precaution if a BucketGroup becomes completely empty, then that BucketGroup will be
- * removed from the collision chain.
- */
-final class OptimizedTagMap implements TagMap {
-  // Lazy holder so the shared empty map is built on first access via the constructor —
-  // never read as a still-null static during the TagMap <-> OptimizedTagMap class-init cycle.
-  // TagMap declares default methods, so initializing OptimizedTagMap forces TagMap init first,
-  // and TagMap's EMPTY constant reads back through the factory into here; deferring the build
-  // to a separate holder keeps that read from observing a half-initialized static.
+  /*
+   * For memory efficiency, TagMap uses a rather complicated bucket system.
+   * <p>
+   * When there is only a single Entry in a particular bucket, the Entry is stored into the bucket directly.
+   * <p>
+   * Because the Entry objects can be shared between multiple TagMaps, the Entry objects cannot
+   * directly form a linked list to handle collisions.
+   * <p>
+   * Instead when multiple entries collide in the same bucket, a BucketGroup is formed to hold multiple entries.
+   * But a BucketGroup is only formed when a collision occurs to keep allocation low in the common case of no collisions.
+   * <p>
+   * For efficiency, BucketGroups are a fixed size, so when a BucketGroup fills up another BucketGroup is formed
+   * to hold the additional Entry-s.  And the BucketGroup-s are connected via a linked list instead of the Entry-s.
+   * <p>
+   * This does introduce some inefficiencies when Entry-s are removed.
+   * The assumption is that removals are rare, so BucketGroups are never consolidated.
+   * However as a precaution if a BucketGroup becomes completely empty, then that BucketGroup will be
+   * removed from the collision chain.
+   */
+  // Lazy holder for the shared empty map. EMPTY is initialized from EmptyHolder.EMPTY during
+  // TagMap's <clinit>; isolating the instance in a holder means its construction is deferred to
+  // first access and never observes a half-initialized TagMap static (the private constructor
+  // reads no statics, so the empty view is safe to build during class init).
   static final class EmptyHolder {
     // Using special constructor that creates a frozen view of an existing array.
     // Bucket calculation requires that array length is a power of 2; size 0 fails with
     // ArrayIndexOutOfBoundsException, but size 1 works.
-    static final OptimizedTagMap EMPTY = new OptimizedTagMap(new Object[1], 0);
+    static final TagMap EMPTY = new TagMap(new Object[1], 0);
   }
 
   private final Object[] buckets;
   private int size;
   private boolean frozen;
 
-  public OptimizedTagMap() {
+  public TagMap() {
     // needs to be a power of 2 for bucket masking calculation to work as intended
     this.buckets = new Object[1 << 4];
     this.size = 0;
@@ -1213,13 +1010,12 @@ final class OptimizedTagMap implements TagMap {
   }
 
   /** Used for inexpensive immutable */
-  private OptimizedTagMap(Object[] buckets, int size) {
+  private TagMap(Object[] buckets, int size) {
     this.buckets = buckets;
     this.size = size;
     this.frozen = true;
   }
 
-  @Override
   public boolean isOptimized() {
     return true;
   }
@@ -1320,7 +1116,6 @@ final class OptimizedTagMap implements TagMap {
     return new Keys(this);
   }
 
-  @Override
   public Iterator<String> tagIterator() {
     return new KeysIterator(this);
   }
@@ -1330,7 +1125,6 @@ final class OptimizedTagMap implements TagMap {
     return new Values(this);
   }
 
-  @Override
   public Iterator<Object> valueIterator() {
     return new ValuesIterator(this);
   }
@@ -1340,7 +1134,6 @@ final class OptimizedTagMap implements TagMap {
     return new Entries(this);
   }
 
-  @Override
   public Entry getEntry(String tag) {
     Object[] thisBuckets = this.buckets;
 
@@ -1369,7 +1162,6 @@ final class OptimizedTagMap implements TagMap {
     return entry == null ? null : entry.objectValue();
   }
 
-  @Override
   public void set(TagMap.EntryReader newEntryReader) {
     if (newEntryReader == null) {
       return;
@@ -1377,42 +1169,34 @@ final class OptimizedTagMap implements TagMap {
     this.getAndSet(newEntryReader.entry());
   }
 
-  @Override
   public void set(String tag, Object value) {
     this.getAndSet(Entry.newAnyEntry(tag, value));
   }
 
-  @Override
   public void set(String tag, CharSequence value) {
     this.getAndSet(Entry.newObjectEntry(tag, value));
   }
 
-  @Override
   public void set(String tag, boolean value) {
     this.getAndSet(Entry.newBooleanEntry(tag, value));
   }
 
-  @Override
   public void set(String tag, int value) {
     this.getAndSet(Entry.newIntEntry(tag, value));
   }
 
-  @Override
   public void set(String tag, long value) {
     this.getAndSet(Entry.newLongEntry(tag, value));
   }
 
-  @Override
   public void set(String tag, float value) {
     this.getAndSet(Entry.newFloatEntry(tag, value));
   }
 
-  @Override
   public void set(String tag, double value) {
     this.getAndSet(Entry.newDoubleEntry(tag, value));
   }
 
-  @Override
   public Entry getAndSet(Entry newEntry) {
     if (newEntry == null) {
       return null;
@@ -1465,37 +1249,30 @@ final class OptimizedTagMap implements TagMap {
     return null;
   }
 
-  @Override
   public Entry getAndSet(String tag, Object value) {
     return this.getAndSet(Entry.newAnyEntry(tag, value));
   }
 
-  @Override
   public Entry getAndSet(String tag, CharSequence value) {
     return this.getAndSet(Entry.newObjectEntry(tag, value));
   }
 
-  @Override
   public TagMap.Entry getAndSet(String tag, boolean value) {
     return this.getAndSet(Entry.newBooleanEntry(tag, value));
   }
 
-  @Override
   public TagMap.Entry getAndSet(String tag, int value) {
     return this.getAndSet(Entry.newIntEntry(tag, value));
   }
 
-  @Override
   public TagMap.Entry getAndSet(String tag, long value) {
     return this.getAndSet(Entry.newLongEntry(tag, value));
   }
 
-  @Override
   public TagMap.Entry getAndSet(String tag, float value) {
     return this.getAndSet(Entry.newFloatEntry(tag, value));
   }
 
-  @Override
   public TagMap.Entry getAndSet(String tag, double value) {
     return this.getAndSet(Entry.newDoubleEntry(tag, value));
   }
@@ -1503,8 +1280,8 @@ final class OptimizedTagMap implements TagMap {
   public void putAll(Map<? extends String, ? extends Object> map) {
     this.checkWriteAccess();
 
-    if (map instanceof OptimizedTagMap) {
-      this.putAllOptimizedMap((OptimizedTagMap) map);
+    if (map instanceof TagMap) {
+      this.putAllOptimizedMap((TagMap) map);
     } else {
       this.putAllUnoptimizedMap(map);
     }
@@ -1518,23 +1295,18 @@ final class OptimizedTagMap implements TagMap {
   }
 
   /**
-   * Similar to {@link Map#putAll(Map)} but optimized to quickly copy from one TagMap to another
+   * Similar to {@link Map#putAll(Map)} but optimized to quickly copy from one TagMap to another.
    *
-   * <p>For optimized TagMaps, this method takes advantage of the consistent TagMap layout to
-   * quickly handle each bucket. And similar to {@link TagMap#getAndSet(Entry)} this method shares
-   * Entry objects from the source TagMap
+   * <p>Takes advantage of the consistent TagMap layout to quickly handle each bucket. And similar
+   * to {@link TagMap#getAndSet(Entry)} this method shares Entry objects from the source TagMap.
    */
   public void putAll(TagMap that) {
     this.checkWriteAccess();
 
-    if (that instanceof OptimizedTagMap) {
-      this.putAllOptimizedMap((OptimizedTagMap) that);
-    } else {
-      this.putAllUnoptimizedMap(that);
-    }
+    this.putAllOptimizedMap(that);
   }
 
-  private void putAllOptimizedMap(OptimizedTagMap that) {
+  private void putAllOptimizedMap(TagMap that) {
     if (this.size == 0) {
       this.putAllIntoEmptyMap(that);
     } else {
@@ -1542,7 +1314,7 @@ final class OptimizedTagMap implements TagMap {
     }
   }
 
-  private void putAllMerge(OptimizedTagMap that) {
+  private void putAllMerge(TagMap that) {
     Object[] thisBuckets = this.buckets;
     Object[] thatBuckets = that.buckets;
 
@@ -1659,7 +1431,7 @@ final class OptimizedTagMap implements TagMap {
   /*
    * Specially optimized version of putAll for the common case of destination map being empty
    */
-  private void putAllIntoEmptyMap(OptimizedTagMap that) {
+  private void putAllIntoEmptyMap(TagMap that) {
     Object[] thisBuckets = this.buckets;
     Object[] thatBuckets = that.buckets;
 
@@ -1731,7 +1503,6 @@ final class OptimizedTagMap implements TagMap {
     return (this.getAndRemove(tag) != null);
   }
 
-  @Override
   public Entry getAndRemove(String tag) {
     this.checkWriteAccess();
 
@@ -1771,9 +1542,8 @@ final class OptimizedTagMap implements TagMap {
     return null;
   }
 
-  @Override
   public TagMap copy() {
-    OptimizedTagMap copy = new OptimizedTagMap();
+    TagMap copy = new TagMap();
     copy.putAllIntoEmptyMap(this);
     return copy;
   }
@@ -1791,7 +1561,6 @@ final class OptimizedTagMap implements TagMap {
     return new EntryReaderIterator(this);
   }
 
-  @Override
   public Stream<EntryReader> stream() {
     return StreamSupport.stream(spliterator(), false);
   }
@@ -1815,7 +1584,6 @@ final class OptimizedTagMap implements TagMap {
     }
   }
 
-  @Override
   public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
     Object[] thisBuckets = this.buckets;
 
@@ -1834,7 +1602,6 @@ final class OptimizedTagMap implements TagMap {
     }
   }
 
-  @Override
   public <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
     Object[] thisBuckets = this.buckets;
@@ -1861,7 +1628,7 @@ final class OptimizedTagMap implements TagMap {
     this.size = 0;
   }
 
-  public OptimizedTagMap freeze() {
+  public TagMap freeze() {
     this.frozen = true;
 
     return this;
@@ -1960,7 +1727,7 @@ final class OptimizedTagMap implements TagMap {
       String key, BiFunction<? super String, ? super Object, ? extends Object> remappingFunction) {
     this.checkWriteAccess();
 
-    return TagMap.super.compute(key, remappingFunction);
+    return Map.super.compute(key, remappingFunction);
   }
 
   @Override
@@ -1968,7 +1735,7 @@ final class OptimizedTagMap implements TagMap {
       String key, Function<? super String, ? extends Object> mappingFunction) {
     this.checkWriteAccess();
 
-    return TagMap.super.computeIfAbsent(key, mappingFunction);
+    return Map.super.computeIfAbsent(key, mappingFunction);
   }
 
   @Override
@@ -1976,7 +1743,7 @@ final class OptimizedTagMap implements TagMap {
       String key, BiFunction<? super String, ? super Object, ? extends Object> remappingFunction) {
     this.checkWriteAccess();
 
-    return TagMap.super.computeIfPresent(key, remappingFunction);
+    return Map.super.computeIfPresent(key, remappingFunction);
   }
 
   @Override
@@ -2043,7 +1810,7 @@ final class OptimizedTagMap implements TagMap {
     private BucketGroup group = null;
     private int groupIndex = 0;
 
-    IteratorBase(OptimizedTagMap map) {
+    IteratorBase(TagMap map) {
       this.buckets = map.buckets;
     }
 
@@ -2117,7 +1884,7 @@ final class OptimizedTagMap implements TagMap {
   }
 
   static final class EntryReaderIterator extends IteratorBase implements Iterator<EntryReader> {
-    EntryReaderIterator(OptimizedTagMap map) {
+    EntryReaderIterator(TagMap map) {
       super(map);
     }
 
@@ -2592,9 +2359,9 @@ final class OptimizedTagMap implements TagMap {
   }
 
   static final class Entries extends AbstractSet<Map.Entry<String, Object>> {
-    private final OptimizedTagMap map;
+    private final TagMap map;
 
-    Entries(OptimizedTagMap map) {
+    Entries(TagMap map) {
       this.map = map;
     }
 
@@ -2617,9 +2384,9 @@ final class OptimizedTagMap implements TagMap {
   }
 
   static final class Keys extends AbstractSet<String> {
-    final OptimizedTagMap map;
+    final TagMap map;
 
-    Keys(OptimizedTagMap map) {
+    Keys(TagMap map) {
       this.map = map;
     }
 
@@ -2645,7 +2412,7 @@ final class OptimizedTagMap implements TagMap {
   }
 
   static final class KeysIterator extends IteratorBase implements Iterator<String> {
-    KeysIterator(OptimizedTagMap map) {
+    KeysIterator(TagMap map) {
       super(map);
     }
 
@@ -2656,9 +2423,9 @@ final class OptimizedTagMap implements TagMap {
   }
 
   static final class Values extends AbstractCollection<Object> {
-    final OptimizedTagMap map;
+    final TagMap map;
 
-    Values(OptimizedTagMap map) {
+    Values(TagMap map) {
       this.map = map;
     }
 
@@ -2684,7 +2451,7 @@ final class OptimizedTagMap implements TagMap {
   }
 
   static final class ValuesIterator extends IteratorBase implements Iterator<Object> {
-    ValuesIterator(OptimizedTagMap map) {
+    ValuesIterator(TagMap map) {
       super(map);
     }
 
