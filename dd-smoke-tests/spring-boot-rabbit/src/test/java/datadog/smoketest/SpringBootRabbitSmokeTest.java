@@ -74,23 +74,15 @@ class SpringBootRabbitSmokeTest {
   private static final int TIMEOUT_SECONDS = 60;
   private static final int RABBIT_AMQP_PORT = 5672;
   private static final OkHttpClient CLIENT = new OkHttpClient();
-  private static final String[] MESSAGES = {"foo", "bar", "baz"};
   // AMQP connection-setup / ack commands each app emits as its own (single-span) trace.
   private static final String[] ADMIN_COMMANDS = {
     "basic.qos", "basic.consume", "basic.ack", "queue.declare"
   };
 
-  // @Testcontainers starts/stops this static container in the class lifecycle (no static-block
-  // start()); as a class-level @ExtendWith it runs before the @RegisterExtension fields below, so
-  // RabbitMQ is up before the apps launch. Its mapped port is still read lazily at launch via
-  // placeholders, since the container is not yet started when these static fields initialize.
   @Container
   private static final RabbitMQContainer RABBIT =
       new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.9.20-alpine"));
 
-  // @Order pins the @RegisterExtension order: the shared agent starts before the apps (so its
-  // session is open when the consumers emit startup traces) and is torn down after them.
-  // retainAcrossTests() keeps those startup traces for the one verifying method.
   @Order(1)
   @RegisterExtension
   static final TestAgentBackend agent =
@@ -109,8 +101,9 @@ class SpringBootRabbitSmokeTest {
 
   @Test
   void roundtripsProduceFullAmqpTraceStructure() throws IOException {
-    // Drive 3 round-trips through the sender (matches the Groovy `where:` foo/bar/baz); each
-    // travels sender -> otherqueue -> receiver -> queue -> sender.
+    // Drive 3 round-trips through the sender;
+    // Each travels sender -> otherqueue -> receiver -> queue -> sender.
+    String[] MESSAGES = {"foo", "bar", "baz"};
     for (String message : MESSAGES) {
       Request request =
           new Request.Builder().url(sender.url() + "/roundtrip/" + message).get().build();
