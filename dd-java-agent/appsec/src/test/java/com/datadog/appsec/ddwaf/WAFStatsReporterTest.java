@@ -19,12 +19,20 @@ import java.nio.file.Files;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class WAFStatsReporterTest {
 
   private final WAFStatsReporter reporter = new WAFStatsReporter();
   private final AppSecRequestContext ctx = mock(AppSecRequestContext.class);
+
+  @AfterEach
+  void resetCachedCfgFile() throws ReflectiveOperationException {
+    Field field = ConfigManager.class.getDeclaredField("cfgFile");
+    field.setAccessible(true);
+    field.set(null, null);
+  }
 
   @Test
   void reporterReportsWafTimingsAndVersion() throws Exception {
