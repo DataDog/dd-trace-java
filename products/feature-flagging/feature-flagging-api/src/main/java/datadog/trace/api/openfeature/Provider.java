@@ -2,6 +2,7 @@ package datadog.trace.api.openfeature;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -111,6 +112,12 @@ public class Provider extends EventProvider implements Metadata {
     initializationState.set(InitializationState.INITIALIZING);
     try {
       evaluator = buildEvaluator();
+      final byte[] offlineConfiguration = options.getOfflineConfiguration();
+      if (offlineConfiguration != null
+          && !FeatureFlaggingGateway.dispatchOfflineConfiguration(offlineConfiguration)) {
+        throw new FatalError(
+            "Offline configuration requires DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=offline");
+      }
       if (!evaluator.initialize(options.getTimeout(), options.getUnit(), context)) {
         if (markInitialConfigReceivedReady()) {
           return;
@@ -289,12 +296,30 @@ public class Provider extends EventProvider implements Metadata {
 
   public static class Options {
 
-    private long timeout;
-    private TimeUnit unit;
+    private long timeout = 30;
+    private TimeUnit unit = SECONDS;
+    private byte[] offlineConfiguration;
 
     public Options initTimeout(final long timeout, final TimeUnit unit) {
       this.timeout = timeout;
       this.unit = unit;
+      return this;
+    }
+
+    /**
+     * Supplies the complete UFC JSON payload used for startup-only offline evaluation.
+     *
+     * <p>This option requires {@code DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=offline}. The payload is
+     * copied and does not receive runtime updates.
+     *
+     * @param configuration complete UFC JSON bytes
+     * @return this options instance
+     */
+    public Options offlineConfiguration(final byte[] configuration) {
+      if (configuration == null || configuration.length == 0) {
+        throw new IllegalArgumentException("Offline configuration must not be empty");
+      }
+      this.offlineConfiguration = configuration.clone();
       return this;
     }
 
@@ -304,6 +329,10 @@ public class Provider extends EventProvider implements Metadata {
 
     public TimeUnit getUnit() {
       return unit;
+    }
+
+    byte[] getOfflineConfiguration() {
+      return offlineConfiguration == null ? null : offlineConfiguration.clone();
     }
   }
 }

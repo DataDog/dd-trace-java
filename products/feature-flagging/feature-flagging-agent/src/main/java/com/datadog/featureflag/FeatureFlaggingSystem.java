@@ -69,9 +69,7 @@ public class FeatureFlaggingSystem {
     if (configurationSource == ConfigurationSource.AGENTLESS) {
       return new AgentlessConfigurationSource(config);
     }
-    LOGGER.debug(
-        "Feature Flagging offline configuration source selected; no config service started");
-    return null;
+    return new OfflineConfigurationSource();
   }
 
   public static synchronized void stop() {

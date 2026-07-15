@@ -11,11 +11,15 @@ public abstract class FeatureFlaggingGateway {
 
   public interface ConfigListener extends Consumer<ServerConfiguration> {}
 
+  public interface OfflineConfigListener extends Consumer<byte[]> {}
+
   public interface ExposureListener extends Consumer<ExposureEvent> {}
 
   public interface SpanEnrichmentListener extends Consumer<SpanEnrichmentEvent> {}
 
   private static final List<ConfigListener> CONFIG_LISTENERS = new CopyOnWriteArrayList<>();
+  private static final List<OfflineConfigListener> OFFLINE_CONFIG_LISTENERS =
+      new CopyOnWriteArrayList<>();
   private static final List<ExposureListener> EXPOSURE_LISTENERS = new CopyOnWriteArrayList<>();
   private static final List<SpanEnrichmentListener> SPAN_ENRICHMENT_LISTENERS =
       new CopyOnWriteArrayList<>();
@@ -40,6 +44,23 @@ public abstract class FeatureFlaggingGateway {
   public static void dispatch(final ServerConfiguration config) {
     CURRENT_CONFIG.set(config);
     CONFIG_LISTENERS.forEach(listener -> listener.accept(config));
+  }
+
+  public static void addOfflineConfigListener(final OfflineConfigListener listener) {
+    OFFLINE_CONFIG_LISTENERS.add(listener);
+  }
+
+  public static void removeOfflineConfigListener(final OfflineConfigListener listener) {
+    OFFLINE_CONFIG_LISTENERS.remove(listener);
+  }
+
+  public static boolean dispatchOfflineConfiguration(final byte[] config) {
+    boolean dispatched = false;
+    for (final OfflineConfigListener listener : OFFLINE_CONFIG_LISTENERS) {
+      listener.accept(config.clone());
+      dispatched = true;
+    }
+    return dispatched;
   }
 
   public static void addExposureListener(final ExposureListener listener) {

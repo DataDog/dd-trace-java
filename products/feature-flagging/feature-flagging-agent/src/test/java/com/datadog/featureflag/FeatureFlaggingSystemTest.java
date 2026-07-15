@@ -4,7 +4,6 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_E
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -107,15 +106,16 @@ class FeatureFlaggingSystemTest {
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
-  void offlineConfigurationSourceDoesNotStartNetworkSource() {
-    assertNull(
+  void offlineConfigurationSourceUsesStartupBytesService() {
+    assertInstanceOf(
+        OfflineConfigurationSource.class,
         FeatureFlaggingSystem.createConfigurationSourceService(
             sharedCommunicationObjects(), Config.get()));
   }
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
-  void startWithOfflineConfigurationSourceSkipsConfigService() {
+  void startWithOfflineConfigurationSourceRegistersConfigService() {
     try {
       assertDoesNotThrow(() -> FeatureFlaggingSystem.start(sharedCommunicationObjects()));
     } finally {
