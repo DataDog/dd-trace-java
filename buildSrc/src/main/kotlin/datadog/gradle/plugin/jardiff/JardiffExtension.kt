@@ -1,5 +1,6 @@
 package datadog.gradle.plugin.jardiff
 
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 
@@ -28,6 +29,11 @@ interface JardiffExtension {
    * or `--class-text-producer=javap`). Empty by default.
    */
   val additionalOptions: ListProperty<String>
+
+  /**
+   * Directory receiving jardiff reports. Defaults to `build/reports/jardiff` in the target project.
+   */
+  val reportDir: DirectoryProperty
 
   /**
    * When true, compare the candidate and reference jar hashes before launching jardiff. If the

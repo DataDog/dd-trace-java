@@ -511,6 +511,16 @@ validate_build:
     - ./gradlew --version
     # This will run the shadowJar task and exercise the build cache, allowing to identify build-cache issues
     - ./gradlew compareToReferenceJar -PjardiffReferenceDir="$CI_PROJECT_DIR/reference-artifacts" -PskipTests $GRADLE_ARGS
+  after_script:
+    - source .gitlab/gitlab-utils.sh
+    - gitlab_section_start "collect-reports" "Collecting reports"
+    - .gitlab/collect_reports.sh --destination ./check_reports
+    - gitlab_section_end "collect-reports"
+  artifacts:
+    when: always
+    paths:
+      - ./check_reports
+      - '.gradle/daemon/*/*.out.log'
 
 .check_job:
   extends: .gradle_build
