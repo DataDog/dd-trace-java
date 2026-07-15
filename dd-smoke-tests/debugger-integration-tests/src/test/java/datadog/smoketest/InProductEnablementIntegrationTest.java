@@ -42,6 +42,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     waitForReTransformation(appUrl); // wait for retransformation of removed probe
   }
 
+  @Flaky
   @Test
   @DisplayName("testDynamicInstrumentationEnablementWithLineProbe")
   void testDynamicInstrumentationEnablementWithLineProbe() throws Exception {

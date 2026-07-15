@@ -54,13 +54,11 @@ public class VertxDecorator
   }
 
   @Override
-  public AgentSpan onRequest(
+  public void onRequest(
       final AgentSpan span,
       final RoutingContext connection,
       final RoutingContext routingContext,
-      final Context parentContext) {
-    return span;
-  }
+      final Context parentContext) {}
 
   @Override
   protected String peerHostIP(final RoutingContext routingContext) {

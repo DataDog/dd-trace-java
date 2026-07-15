@@ -20,7 +20,7 @@ public final class MessageReceiverWrapper implements MessageReceiver {
 
   @Override
   public void receiveMessage(PubsubMessage message, AckReplyConsumer consumer) {
-    final AgentSpan span = CONSUMER_DECORATE.onConsume(message, subscription);
+    final AgentSpan span = CONSUMER_DECORATE.startConsumeSpan(message, subscription);
     try (final ContextScope scope = activateSpan(span)) {
       this.delegate.receiveMessage(message, consumer);
     } finally {
