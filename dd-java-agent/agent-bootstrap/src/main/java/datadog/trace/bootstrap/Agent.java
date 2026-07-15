@@ -953,12 +953,18 @@ public class Agent {
   private static synchronized void registerSmapEntryEvent() {
     log.debug("Initializing smap entry scraping");
 
-    // Load JFR Handlers class early, if present (it has been moved and renamed in JDK23+).
-    // This prevents a deadlock. See https://bugs.openjdk.org/browse/JDK-8371889.
+    // Initialize the JFR Handlers class early, if present (it has been moved and renamed in
+    // JDK23+). This prevents a deadlock. See https://bugs.openjdk.org/browse/JDK-8371889.
+    // We must fully initialize the class here (not just load it) so that its static initializer
+    // runs on this thread, before the JFR code below acquires the jdk.jfr.internal.Utils monitor.
+    // ClassLoader.loadClass() only loads the class and does not run <clinit>, so it does not
+    // prevent the deadlock. Class.forName(..., true, ...) forces initialization.
     try {
-      AGENT_CLASSLOADER.loadClass("jdk.jfr.events.Handlers");
-    } catch (Exception e) {
-      // Ignore when the class is not found or anything else goes wrong.
+      Class.forName("jdk.jfr.events.Handlers", true, AGENT_CLASSLOADER);
+    } catch (Throwable t) {
+      // Ignore when the class is not found or anything else goes wrong. Note that we catch
+      // Throwable rather than Exception, because forcing initialization can surface Errors such
+      // as ExceptionInInitializerError, NoClassDefFoundError or LinkageError.
     }
 
     try {
