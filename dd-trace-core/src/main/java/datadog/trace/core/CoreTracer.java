@@ -37,6 +37,7 @@ import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
@@ -652,6 +653,14 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     // preload this enum to avoid triggering classloading on the hot path
     TraceCollector.PublishState.values();
+
+    // Dense known-tag store (experimental, OFF by default): registering the KnownTagCodec resolver
+    // flips the dense store live so known tags store without a per-tag Entry. Gated by a system
+    // property for A/B benchmarking; when off, keyOf stays a no-op and tag storage is byte-identical
+    // to today. Promote to a Config flag if this becomes a permanent rollout.
+    if (Boolean.getBoolean("dd.trace.dense.tags.enabled")) {
+      KnownTags.init();
+    }
 
     if (reportInTracerFlare) {
       TracerFlare.addReporter(this);
