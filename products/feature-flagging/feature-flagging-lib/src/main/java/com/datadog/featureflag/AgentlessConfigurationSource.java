@@ -35,9 +35,8 @@ import org.slf4j.LoggerFactory;
 final class AgentlessConfigurationSource implements ConfigurationSourceService {
   private static final Logger LOGGER = LoggerFactory.getLogger(AgentlessConfigurationSource.class);
 
-  // TODO before merge: confirm the final backend route with the server-distribution API owners.
-  private static final String DATADOG_API_SERVER_DISTRIBUTION_PATH =
-      "/api/v2/feature-flagging/config/server-distribution";
+  private static final String DATADOG_UFC_RULES_BASED_SERVER_PATH =
+      "/api/v2/feature-flagging/config/rules-based/server";
   private static final int MAX_ATTEMPTS = 3;
   private static final int MINUTES_BETWEEN_WARNINGS = 5;
   private static final long FIRST_RETRY_MIN_MILLIS = 2_000;
@@ -255,8 +254,9 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     final ServerConfiguration configuration;
     try {
       configuration =
-          RemoteConfigServiceImpl.UniversalFlagConfigDeserializer.INSTANCE.deserialize(
-              response.body);
+          RemoteConfigServiceImpl.UniversalFlagConfigDeserializer.INSTANCE.deserializeApiResponse(
+              response.body,
+              config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() != null);
     } catch (final IOException | RuntimeException e) {
       LOGGER.debug("Feature Flagging HTTP configuration source returned malformed UFC payload", e);
       return false;
@@ -295,7 +295,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     if ("/".equals(parsed.encodedPath()) || parsed.encodedPath().isEmpty()) {
       return parsed
           .newBuilder()
-          .addPathSegments(DATADOG_API_SERVER_DISTRIBUTION_PATH.substring(1))
+          .addPathSegments(DATADOG_UFC_RULES_BASED_SERVER_PATH.substring(1))
           .build();
     }
     return parsed;
@@ -305,8 +305,8 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     final HttpUrl.Builder endpoint =
         new HttpUrl.Builder()
             .scheme("https")
-            .host("api." + config.getSite())
-            .addPathSegments(DATADOG_API_SERVER_DISTRIBUTION_PATH.substring(1));
+            .host("ufc-server.ff-cdn." + config.getSite())
+            .addPathSegments(DATADOG_UFC_RULES_BASED_SERVER_PATH.substring(1));
     final String env = config.getEnv();
     if (env != null && !env.isEmpty()) {
       endpoint.addQueryParameter("dd_env", env);

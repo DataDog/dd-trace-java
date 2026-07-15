@@ -66,16 +66,46 @@ public class RemoteConfigServiceImpl
   static class UniversalFlagConfigDeserializer
       implements ConfigurationDeserializer<ServerConfiguration> {
 
+    private static final String UNIVERSAL_FLAG_CONFIGURATION_TYPE = "universal-flag-configuration";
     static final UniversalFlagConfigDeserializer INSTANCE = new UniversalFlagConfigDeserializer();
 
     private static final Moshi MOSHI =
         new Moshi.Builder().add(Date.class, new DateAdapter()).add(FlagMapAdapter.FACTORY).build();
     private static final JsonAdapter<ServerConfiguration> V1_ADAPTER =
         MOSHI.adapter(ServerConfiguration.class);
+    private static final Type API_RESPONSE_TYPE =
+        Types.newParameterizedType(Map.class, String.class, Object.class);
+    private static final JsonAdapter<Map<String, Object>> API_RESPONSE_ADAPTER =
+        MOSHI.adapter(API_RESPONSE_TYPE);
 
     @Override
     public ServerConfiguration deserialize(final byte[] content) throws IOException {
       return V1_ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+    }
+
+    @Nullable
+    ServerConfiguration deserializeApiResponse(
+        final byte[] content, final boolean allowRawConfiguration) throws IOException {
+      final Map<String, Object> response =
+          API_RESPONSE_ADAPTER.fromJson(
+              Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+      if (response != null && response.containsKey("data")) {
+        final Object data = response.get("data");
+        if (!(data instanceof Map)) {
+          return null;
+        }
+        final Map<?, ?> dataAttributes = (Map<?, ?>) data;
+        return UNIVERSAL_FLAG_CONFIGURATION_TYPE.equals(dataAttributes.get("type"))
+            ? validConfiguration(V1_ADAPTER.fromJsonValue(dataAttributes.get("attributes")))
+            : null;
+      }
+      return allowRawConfiguration ? validConfiguration(deserialize(content)) : null;
+    }
+
+    @Nullable
+    private static ServerConfiguration validConfiguration(
+        @Nullable final ServerConfiguration configuration) {
+      return configuration != null && configuration.flags != null ? configuration : null;
     }
   }
 

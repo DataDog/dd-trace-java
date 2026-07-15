@@ -51,7 +51,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class AgentlessConfigurationSourceTest {
-  private static final String CONFIG_PATH = "/api/v2/feature-flagging/config/server-distribution";
+  private static final String CONFIG_PATH = "/api/v2/feature-flagging/config/rules-based/server";
 
   @Mock private FeatureFlaggingGateway.ConfigListener listener;
 
@@ -62,33 +62,33 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
-  void derivesDatadogApiServerDistributionEndpointFromSiteAndEnv() {
+  void derivesDatadogUfcCdnEndpointFromSiteAndEnv() {
     final Config config = config("datad0g.com", "staging env");
 
     assertEquals(
-        "https://api.datad0g.com/api/v2/feature-flagging/config/server-distribution?dd_env=staging%20env",
+        "https://ufc-server.ff-cdn.datad0g.com/api/v2/feature-flagging/config/rules-based/server?dd_env=staging%20env",
         AgentlessConfigurationSource.endpoint(config).toString());
   }
 
   @Test
-  void derivesDatadogApiServerDistributionEndpointWithoutEnv() {
+  void derivesDatadogUfcCdnEndpointWithoutEnv() {
     assertEquals(
-        "https://api.datadoghq.com/api/v2/feature-flagging/config/server-distribution",
+        "https://ufc-server.ff-cdn.datadoghq.com/api/v2/feature-flagging/config/rules-based/server",
         AgentlessConfigurationSource.endpoint(config("datadoghq.com", "")).toString());
     assertEquals(
-        "https://api.datadoghq.com/api/v2/feature-flagging/config/server-distribution",
+        "https://ufc-server.ff-cdn.datadoghq.com/api/v2/feature-flagging/config/rules-based/server",
         AgentlessConfigurationSource.endpoint(config("datadoghq.com", null)).toString());
   }
 
   @Test
-  void appendsServerDistributionPathToConfiguredAgentlessBaseUrl() {
+  void appendsRulesBasedServerPathToConfiguredAgentlessBaseUrl() {
     final Config config = config();
     lenient()
         .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
         .thenReturn("http://mock-backend:8080");
 
     assertEquals(
-        "http://mock-backend:8080/api/v2/feature-flagging/config/server-distribution",
+        "http://mock-backend:8080/api/v2/feature-flagging/config/rules-based/server",
         AgentlessConfigurationSource.endpoint(config).toString());
   }
 
@@ -116,7 +116,7 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
-  void rejectsInvalidDatadogApiServerDistributionEndpoint() {
+  void rejectsInvalidDatadogUfcCdnEndpoint() {
     assertThrows(
         IllegalArgumentException.class,
         () -> AgentlessConfigurationSource.endpoint(config("datadoghq.com:bad", "")));
@@ -359,16 +359,41 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
-  void appliesAcceptedUfcThroughGatewayAndSendsApiKey() throws Exception {
+  void appliesAcceptedJsonApiUfcThroughGatewayAndSendsApiKey() throws Exception {
     final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
     final AgentlessConfigurationSource service = service(client);
+    final ArgumentCaptor<ServerConfiguration> configuration =
+        ArgumentCaptor.forClass(ServerConfiguration.class);
     FeatureFlaggingGateway.addConfigListener(listener);
 
     assertTrue(service.pollOnce());
 
-    verify(listener).accept(any(ServerConfiguration.class));
+    verify(listener).accept(configuration.capture());
+    assertEquals("2026-07-15T19:57:07.219869778Z", configuration.getValue().createdAt);
+    assertNull(configuration.getValue().format);
+    assertEquals("Staging", configuration.getValue().environment.name);
+    assertTrue(configuration.getValue().flags.isEmpty());
     assertEquals("test-api-key", client.requests.get(0).apiKey);
     assertNull(client.requests.get(0).etag);
+  }
+
+  @Test
+  void appliesRawUfcFromConfiguredCompatibilityEndpoint() throws Exception {
+    final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfigAttributes()));
+    final Config config = config();
+    lenient()
+        .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
+        .thenReturn("http://compatibility-backend/custom/ufc");
+    final AgentlessConfigurationSource service = service(client, config);
+    final ArgumentCaptor<ServerConfiguration> configuration =
+        ArgumentCaptor.forClass(ServerConfiguration.class);
+    FeatureFlaggingGateway.addConfigListener(listener);
+
+    assertTrue(service.pollOnce());
+
+    verify(listener).accept(configuration.capture());
+    assertEquals("Staging", configuration.getValue().environment.name);
+    assertTrue(configuration.getValue().flags.isEmpty());
   }
 
   @Test
@@ -486,10 +511,19 @@ class AgentlessConfigurationSourceTest {
             response(404, null, null),
             response(600, null, null),
             response(200, null, null),
-            response(200, null, "null"));
+            response(200, null, "null"),
+            response(200, null, jsonApiResponse("other-configuration", emptyConfigAttributes())),
+            response(200, null, "{\"data\":null}"),
+            response(
+                200, null, "{\"data\":{\"id\":\"1\",\"type\":\"universal-flag-configuration\"}}"),
+            response(200, null, emptyConfigAttributes()));
     final AgentlessConfigurationSource service = service(client);
     FeatureFlaggingGateway.addConfigListener(listener);
 
+    assertFalse(service.pollOnce());
+    assertFalse(service.pollOnce());
+    assertFalse(service.pollOnce());
+    assertFalse(service.pollOnce());
     assertFalse(service.pollOnce());
     assertFalse(service.pollOnce());
     assertFalse(service.pollOnce());
@@ -903,6 +937,16 @@ class AgentlessConfigurationSourceTest {
   }
 
   private static AgentlessConfigurationSource service(
+      final FakeClient client, final Config config) {
+    return new AgentlessConfigurationSource(
+        HttpUrl.get("http://localhost" + CONFIG_PATH),
+        config,
+        30_000,
+        client,
+        Executors.newSingleThreadScheduledExecutor());
+  }
+
+  private static AgentlessConfigurationSource service(
       final FakeClient client,
       final AgentlessConfigurationSource.RetrySleeper retrySleeper,
       final java.util.function.DoubleSupplier jitter) {
@@ -943,19 +987,32 @@ class AgentlessConfigurationSourceTest {
   }
 
   private static String emptyConfig() {
+    return jsonApiResponse("universal-flag-configuration", emptyConfigAttributes());
+  }
+
+  private static String emptyConfigAttributes() {
     return "{"
-        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-        + "\"format\":\"SERVER\","
-        + "\"environment\":{\"name\":\"Test\"},"
+        + "\"createdAt\":\"2026-07-15T19:57:07.219869778Z\","
+        + "\"environment\":{\"name\":\"Staging\"},"
         + "\"flags\":{}"
         + "}";
+  }
+
+  private static String jsonApiResponse(final String type, final String attributes) {
+    return "{\"data\":{"
+        + "\"id\":\"1\","
+        + "\"type\":\""
+        + type
+        + "\","
+        + "\"attributes\":"
+        + attributes
+        + "}}";
   }
 
   private static String largeConfig(final int flagCount) {
     final StringBuilder json =
         new StringBuilder(
-            "{\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-                + "\"format\":\"SERVER\","
+            "{\"createdAt\":\"2026-07-15T19:57:07.219869778Z\","
                 + "\"environment\":{\"name\":\"Large Test\"},"
                 + "\"flags\":{");
     for (int index = 0; index < flagCount; index++) {
@@ -972,7 +1029,7 @@ class AgentlessConfigurationSourceTest {
                   + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"on\"}},"
                   + "\"allocations\":[]}");
     }
-    return json.append("}}").toString();
+    return jsonApiResponse("universal-flag-configuration", json.append("}}").toString());
   }
 
   private static void awaitCalls(final FakeClient client, final int count) throws Exception {
