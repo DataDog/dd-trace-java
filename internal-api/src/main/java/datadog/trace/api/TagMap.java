@@ -1640,6 +1640,23 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /**
+   * Sets a known tag by its resolved id (a {@code KnownTags.*} constant), storing the value
+   * densely. This is the id-keyed insertion path: it skips the {@code keyOf} name resolution the
+   * {@code set(String, ...)} methods pay. The id MUST be a stored known-tag id (see {@link
+   * datadog.trace.api.KnownTagCodec#isStored}); custom/unknown names have no id and must use the
+   * name-keyed setters.
+   */
+  public void set(long id, Object value) {
+    // id-keyed insertion: the id is already resolved, so skip keyOf and store densely. The name is
+    // needed only to clear a read-through tombstone (rare), so resolve it lazily in that case.
+    this.checkWriteAccess();
+    if (this.removedFromParent != null) {
+      this.removedFromParent.remove(KnownTagCodec.nameOf(id));
+    }
+    this.putKnownValue(id, value);
+  }
+
+  /**
    * Places an Entry directly into the map, avoiding a new Entry allocation. Null-tolerant: a null
    * {@code newEntry} is a no-op returning null, so an Entry producer (e.g. {@link
    * Entry#create(String, Object)} for a null/empty value) can emit "no tag" without the caller
