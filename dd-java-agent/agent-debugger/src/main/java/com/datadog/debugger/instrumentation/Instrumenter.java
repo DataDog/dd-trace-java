@@ -159,9 +159,7 @@ public abstract class Instrumenter {
     return lastInvokeSpecial;
   }
 
-  protected void processInstructions() {
-    Map<AbstractInsnNode, Frame<BasicValue>> frames = new IdentityHashMap<>();
-    computeFrames(classNode.name, methodNode, frames);
+  protected void processInstructions(Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     AbstractInsnNode node = methodNode.instructions.getFirst();
     LabelNode sentinelNode = new LabelNode();
     methodNode.instructions.add(sentinelNode);
@@ -195,8 +193,9 @@ public abstract class Instrumenter {
     return result;
   }
 
-  private static void computeFrames(
-      String owner, MethodNode methodNode, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
+  protected static Map<AbstractInsnNode, Frame<BasicValue>> computeFrames(
+      String owner, MethodNode methodNode) {
+    Map<AbstractInsnNode, Frame<BasicValue>> frames = new IdentityHashMap<>();
     try {
       Frame<BasicValue>[] frameArray =
           new Analyzer<>(new BasicInterpreter()).analyze(owner, methodNode);
@@ -207,8 +206,14 @@ public abstract class Instrumenter {
         current = current.getNext();
       }
     } catch (AnalyzerException ex) {
-      LOGGER.debug("Failed to analyze method[{}::{}] instructions", owner, methodNode.name, ex);
+      LOGGER.debug(
+          "Failed to analyze method[{}::{}{}] instructions",
+          owner,
+          methodNode.name,
+          methodNode.desc,
+          ex);
     }
+    return frames;
   }
 
   protected AbstractInsnNode processInstruction(

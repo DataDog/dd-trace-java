@@ -149,7 +149,11 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       }
       BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
       BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
-      t = bodyBlock != null ? bodyBlock : filenamesBlock;
+      BlockingException contentBlock =
+          bodyBlock == null && filenamesBlock == null
+              ? PartHelper.fireFilesContentEvent(parts, reqCtx)
+              : null;
+      t = bodyBlock != null ? bodyBlock : (filenamesBlock != null ? filenamesBlock : contentBlock);
     }
   }
 
@@ -192,7 +196,11 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       }
       BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
       BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
-      t = bodyBlock != null ? bodyBlock : filenamesBlock;
+      BlockingException contentBlock =
+          bodyBlock == null && filenamesBlock == null
+              ? PartHelper.fireFilesContentEvent(parts, reqCtx)
+              : null;
+      t = bodyBlock != null ? bodyBlock : (filenamesBlock != null ? filenamesBlock : contentBlock);
     }
   }
 }

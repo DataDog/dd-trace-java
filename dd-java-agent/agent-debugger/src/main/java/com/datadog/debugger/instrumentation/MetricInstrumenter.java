@@ -111,7 +111,9 @@ public class MetricInstrumenter extends Instrumenter {
         }
       case EXIT:
         {
-          processInstructions();
+          Map<AbstractInsnNode, Frame<BasicValue>> frames =
+              computeFrames(classNode.name, methodNode);
+          processInstructions(frames);
           addFinallyHandler(returnHandlerLabel);
           installFinallyBlocks();
           break;

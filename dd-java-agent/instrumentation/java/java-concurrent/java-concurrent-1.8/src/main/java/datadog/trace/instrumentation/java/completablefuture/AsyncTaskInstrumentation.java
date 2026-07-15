@@ -52,14 +52,14 @@ public final class AsyncTaskInstrumentation
       return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), zis);
     }
 
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter AgentScope scope) {
       endTaskScope(scope);
     }
   }
 
   public static class Cancel {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
       State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
       if (null != state) {

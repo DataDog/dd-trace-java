@@ -1,75 +1,31 @@
 package datadog.trace.common.writer.ddagent;
 
+import static datadog.trace.common.writer.ddagent.Utf8Workload.NUM_LOOKUPS;
+import static datadog.trace.common.writer.ddagent.Utf8Workload.nextTag;
+import static datadog.trace.common.writer.ddagent.Utf8Workload.nextValue;
+
 import datadog.communication.serialization.GenerationalUtf8Cache;
 import datadog.communication.serialization.SimpleUtf8Cache;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ThreadLocalRandom;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * This benchmark isn't really intended to used to measure throughput, but rather to be used with
- * "-prof gc" to check bytes / op.
+ * Single-threaded UTF8 cache benchmark. This reflects how the caches are actually driven today:
+ * trace serialization runs on a single thread, so one thread performs the lookups and drives {@link
+ * GenerationalUtf8Cache#recalibrate()} inline at a natural transaction boundary (here, once per
+ * op). This is the representative allocation/throughput number. See {@link Utf8ConcurrentBenchmark}
+ * for the multi-threaded contract/guardrail variant.
  *
- * <p>Since {@link String#getBytes(java.nio.charset.Charset)} is intrinsified the caches typically
- * perform worse throughput wise, the benefit of the caches is to reduce allocation. Intention of
- * this benchmark is to create data that roughly resembles what might be seen in a trace payload.
- * Tag names are quite static, tag values are mostly low cardinality, but some tag values have
- * infinite cardinality.
+ * <p>This benchmark isn't really intended to measure throughput, but rather to be used with "-prof
+ * gc" to check bytes / op. Since {@link String#getBytes(java.nio.charset.Charset)} is intrinsified
+ * the caches typically perform worse throughput wise; the benefit of the caches is to reduce
+ * allocation.
  */
 @BenchmarkMode(Mode.Throughput)
 public class Utf8Benchmark {
-  static final int NUM_LOOKUPS = 10_000;
-
-  static final String[] TAGS = {
-    "_dd.asm.keep",
-    "ci.provider",
-    "language",
-    "db.statement",
-    "ci.job.url",
-    "ci.pipeline.url",
-    "db.pool",
-    "http.forwarder",
-    "db.warehouse",
-    "custom"
-  };
-
-  static int pos = 0;
-  static int standardVal = 0;
-
-  static final String nextTag() {
-    if (pos == TAGS.length - 1) {
-      pos = 0;
-    } else {
-      pos += 1;
-    }
-    return TAGS[pos];
-  }
-
-  static final String nextValue(String tag) {
-    if (tag.equals("custom")) {
-      return nextCustomValue(tag);
-    } else {
-      return nextStandardValue(tag);
-    }
-  }
-
-  /*
-   * Produces a high cardinality value - > thousands of distinct values per tag - many 1-time values
-   */
-  static final String nextCustomValue(String tag) {
-    return tag + ThreadLocalRandom.current().nextInt();
-  }
-
-  /*
-   * Produces a moderate cardinality value - tens of distinct values per tag
-   */
-  static final String nextStandardValue(String tag) {
-    return tag + ThreadLocalRandom.current().nextInt(20);
-  }
-
   @Benchmark
   public static final String tagUtf8_baseline() {
     return nextTag();
@@ -109,7 +65,7 @@ public class Utf8Benchmark {
   @Benchmark
   public static final void valueUtf8_cache_generational(Blackhole bh) {
     GenerationalUtf8Cache valueCache = VALUE_CACHE;
-    valueCache.recalibrate();
+    valueCache.recalibrate(); // single thread drives recalibrate inline, at a transaction boundary
 
     for (int i = 0; i < NUM_LOOKUPS; ++i) {
       String tag = nextTag();
@@ -125,7 +81,7 @@ public class Utf8Benchmark {
   @Benchmark
   public static final void valueUtf8_cache_simple(Blackhole bh) {
     SimpleUtf8Cache valueCache = SIMPLE_VALUE_CACHE;
-    valueCache.recalibrate();
+    valueCache.recalibrate(); // single thread drives recalibrate inline, at a transaction boundary
 
     for (int i = 0; i < NUM_LOOKUPS; ++i) {
       String tag = nextTag();

@@ -64,14 +64,13 @@ public class TwilioClientDecorator extends ClientDecorator {
   }
 
   /** Decorate trace based on service execution metadata. */
-  public AgentSpan onServiceExecution(
+  public void onServiceExecution(
       final AgentSpan span, final Object serviceExecutor, final String methodName) {
     span.setResourceName(NAMES.getQualifiedName(serviceExecutor.getClass(), methodName));
-    return span;
   }
 
   /** Annotate the span with the results of the operation. */
-  public AgentSpan onResult(final AgentSpan span, Object result) {
+  public void onResult(final AgentSpan span, Object result) {
 
     // Unwrap ListenableFuture (if present)
     if (result instanceof ListenableFuture) {
@@ -84,7 +83,7 @@ public class TwilioClientDecorator extends ClientDecorator {
 
     // Nothing to do here, so return
     if (result == null) {
-      return span;
+      return;
     }
 
     // Provide helpful metadata for some of the more common response types
@@ -114,8 +113,6 @@ public class TwilioClientDecorator extends ClientDecorator {
       setTagIfPresent(span, result, "twilio.account", "getAccountSid");
       setTagIfPresent(span, result, "twilio.status", "getStatus");
     }
-
-    return span;
   }
 
   /**

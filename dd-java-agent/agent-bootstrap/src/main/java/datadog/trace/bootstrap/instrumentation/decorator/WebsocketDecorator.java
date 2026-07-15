@@ -57,12 +57,13 @@ public class WebsocketDecorator extends BaseDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(AgentSpan span) {
-    return super.afterStart(span).setMeasured(true);
+  public void afterStart(AgentSpan span) {
+    super.afterStart(span);
+    span.setMeasured(true);
   }
 
   @Nonnull
-  public AgentSpan onReceiveFrameStart(
+  public AgentSpan startInboundFrameSpan(
       final HandlerContext.Receiver handlerContext, final Object data, boolean partialDelivery) {
     handlerContext.recordChunkData(data, partialDelivery);
     return onFrameStart(
@@ -70,7 +71,7 @@ public class WebsocketDecorator extends BaseDecorator {
   }
 
   @Nonnull
-  public AgentSpan onSessionCloseIssued(
+  public AgentSpan startOutboundCloseSpan(
       final HandlerContext.Sender handlerContext, CharSequence closeReason, int closeCode) {
     return onFrameStart(
             WEBSOCKET_CLOSE, SPAN_KIND_PRODUCER, handlerContext, SPAN_ATTRIBUTES_SEND, false)
@@ -79,7 +80,7 @@ public class WebsocketDecorator extends BaseDecorator {
   }
 
   @Nonnull
-  public AgentSpan onSessionCloseReceived(
+  public AgentSpan startInboundCloseSpan(
       final HandlerContext.Receiver handlerContext, CharSequence closeReason, int closeCode) {
     return onFrameStart(
             WEBSOCKET_CLOSE, SPAN_KIND_CONSUMER, handlerContext, SPAN_ATTRIBUTES_RECEIVE, true)
@@ -88,7 +89,7 @@ public class WebsocketDecorator extends BaseDecorator {
   }
 
   @Nonnull
-  public AgentSpan onSendFrameStart(
+  public AgentSpan startOutboundFrameSpan(
       final HandlerContext.Sender handlerContext, final CharSequence msgType, final int msgSize) {
     handlerContext.recordChunkData(msgType, msgSize);
     return onFrameStart(
@@ -116,7 +117,8 @@ public class WebsocketDecorator extends BaseDecorator {
         wsSpan.setTag(WEBSOCKET_MESSAGE_LENGTH, handlerContext.getMsgSize());
         wsSpan.setTag(WEBSOCKET_MESSAGE_TYPE, handlerContext.getMessageType());
       }
-      (beforeFinish(wsSpan)).finish();
+      beforeFinish(wsSpan);
+      wsSpan.finish();
     } finally {
       handlerContext.reset();
     }
