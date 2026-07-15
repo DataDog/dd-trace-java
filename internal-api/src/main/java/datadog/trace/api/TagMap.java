@@ -1038,6 +1038,15 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   private Object[] knownValues;
   private int knownCount;
 
+  /**
+   * Bloom-style presence filter over the dense store: a set bit means {@code tagId} MAY be present
+   * (scan to confirm), a clear bit means it is DEFINITELY absent (skip the scan, append in O(1) —
+   * the common per-build case). A superset of the present ids' bits: set on every add, never
+   * cleared on remove (a stale bit only costs a scan, never a wrong answer). So correctness never
+   * depends on the position→bit collision rate; only the fast-path hit rate does.
+   */
+  private long knownBloom;
+
   private static final int KNOWN_INIT_CAP =
       12; // generous per-type max stopgap; exact per-type sizing comes with the tag registry
 
@@ -1355,26 +1364,44 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /**
+   * Presence-filter bit for {@code tagId}. Crude position→bit map ({@code fieldPos} mod 64) to
+   * start; a collision-minimizing per-type coloring later only raises the hit rate — correctness
+   * never depends on it, because the scan is authoritative.
+   */
+  private static long knownBloomBit(long tagId) {
+    return 1L << (KnownTagCodec.fieldPos(tagId) & 63);
+  }
+
+  /**
    * Stores a known tag's value densely (no {@link Entry} alloc). Overwrites in place when present
    * (returning the prior value materialized as an Entry, per the {@code Map} contract — usually
-   * discarded by {@code set}); otherwise appends, growing x2 as needed.
+   * discarded by {@code set}); otherwise appends, growing x2 as needed. The bloom filter skips the
+   * {@link #knownIndexOf} scan when the tag is definitely absent (the common per-build case), so an
+   * append is O(1) instead of O(n).
    */
   private Entry putKnownValue(long tagId, Object value) {
-    int i = this.knownIndexOf(tagId);
-    if (i >= 0) {
-      Object prior = this.knownValues[i];
-      this.knownValues[i] = value;
-      return materializeKnown(tagId, prior);
+    long bit = knownBloomBit(tagId);
+    if ((this.knownBloom & bit) != 0) {
+      // maybe present -> scan to overwrite in place
+      int i = this.knownIndexOf(tagId);
+      if (i >= 0) {
+        Object prior = this.knownValues[i];
+        this.knownValues[i] = value;
+        return materializeKnown(tagId, prior);
+      }
+      // bloom false positive (collision) -> fall through to append
     }
     this.ensureKnownCapacity();
     int slot = this.knownCount++;
     this.knownIds[slot] = tagId;
     this.knownValues[slot] = value;
+    this.knownBloom |= bit;
     return null;
   }
 
   /** Raw dense value for {@code tagId}, or {@code null} when absent (no Entry, no boxing). */
   private Object knownRawValue(long tagId) {
+    if ((this.knownBloom & knownBloomBit(tagId)) == 0) return null; // definitely absent, no scan
     int i = this.knownIndexOf(tagId);
     return i < 0 ? null : this.knownValues[i];
   }
@@ -1383,6 +1410,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * Removes a known tag from the dense store (swap-with-last), returning the prior Entry or null.
    */
   private Entry removeKnown(long tagId) {
+    if ((this.knownBloom & knownBloomBit(tagId)) == 0) return null; // definitely absent
     int i = this.knownIndexOf(tagId);
     if (i < 0) return null;
     Object prior = this.knownValues[i];
@@ -1391,6 +1419,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.knownValues[i] = this.knownValues[last];
     this.knownIds[last] = 0L;
     this.knownValues[last] = null;
+    // knownBloom intentionally NOT cleared: a stale-set bit only costs a scan; clearing could drop
+    // a bit still shared (via collision) by a present id -> false negative.
     return materializeKnown(tagId, prior);
   }
 
@@ -1405,7 +1435,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * local bucket entry — known tags never bucket — so no bucket check is needed here.)
    */
   private boolean parentDenseHidden(long tagId) {
-    if (this.knownIndexOf(tagId) >= 0) return true; // shadowed by a local dense entry
+    // shadowed by a local dense entry (bloom prunes the scan when definitely absent)
+    if ((this.knownBloom & knownBloomBit(tagId)) != 0 && this.knownIndexOf(tagId) >= 0) return true;
     return this.removedFromParent != null
         && this.removedFromParent.contains(KnownTagCodec.nameOf(tagId)); // tombstoned
   }
@@ -1801,6 +1832,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.knownIds = Arrays.copyOf(that.knownIds, that.knownIds.length);
       this.knownValues = Arrays.copyOf(that.knownValues, that.knownValues.length);
       this.knownCount = that.knownCount;
+      this.knownBloom = that.knownBloom;
     }
   }
 
@@ -2182,6 +2214,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.knownIds = null;
     this.knownValues = null;
     this.knownCount = 0;
+    this.knownBloom = 0L;
   }
 
   public TagMap freeze() {
