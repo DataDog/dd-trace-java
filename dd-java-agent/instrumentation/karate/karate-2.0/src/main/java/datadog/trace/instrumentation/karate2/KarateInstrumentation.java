@@ -5,6 +5,8 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * Registers a {@code io.karatelabs.core.RunListener} on every {@code
@@ -32,9 +34,16 @@ public class KarateInstrumentation extends InstrumenterModule.CiVisibility
     return new String[] {
       packageName + ".KarateUtils",
       packageName + ".TestEventsHandlerHolder",
+      packageName + ".ExecutionContext",
       packageName + ".KarateTracingListener",
       packageName + ".KarateBuilderAdvice"
     };
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "io.karatelabs.gherkin.Scenario", packageName + ".ExecutionContext");
   }
 
   @Override
