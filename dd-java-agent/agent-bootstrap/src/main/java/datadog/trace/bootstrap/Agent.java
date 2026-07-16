@@ -337,6 +337,8 @@ public class Agent {
       StaticEventLogger.end("crashtracking");
     }
 
+    AgentTracer.maybeInstallLegacyContextManager();
+
     startDatadogAgent(initTelemetry, inst);
 
     final EnumSet<Library> libraries = detectLibraries(log);

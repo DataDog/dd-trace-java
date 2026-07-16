@@ -358,6 +358,7 @@ build:
 build_tests:
   extends: .gradle_build
   variables:
+    <<: *tier_l_variables
     BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: pull
   parallel:
