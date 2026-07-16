@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
   startSpan
 }
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class PekkoActors extends AutoCloseable {
@@ -90,26 +91,9 @@ class PekkoActors extends AutoCloseable {
 
 object PekkoActors {
 
-  // The way to terminate an actor system has changed between versions
-  val terminate: (ActorSystem) => Unit = {
-    val t =
-      try {
-        ActorSystem.getClass.getMethod("terminate")
-      } catch {
-        case _: Throwable =>
-          try {
-            ActorSystem.getClass.getMethod("awaitTermination")
-          } catch {
-            case _: Throwable => null
-          }
-      }
-    if (t ne null) {
-      { system: ActorSystem =>
-        t.invoke(system)
-      }
-    } else {
-      { _ => ??? }
-    }
+  val terminate: (ActorSystem) => Unit = { system =>
+    system.terminate()
+    Await.ready(system.whenTerminated, 30.seconds)
   }
 }
 

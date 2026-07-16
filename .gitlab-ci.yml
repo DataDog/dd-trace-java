@@ -88,9 +88,6 @@ workflow:
     - if: '$CI_COMMIT_BRANCH =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       auto_cancel:
         on_new_commit: none
-    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
-      variables:
-        SYSTEM_TESTS_RUN_ALL_VMS: "true"
     - when: always
 
 .test_matrix: &test_matrix

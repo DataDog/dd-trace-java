@@ -18,25 +18,26 @@ public class HttpResourceDecorator {
 
   private HttpResourceDecorator() {}
 
-  public final AgentSpan withClientPath(AgentSpan span, CharSequence method, CharSequence path) {
-    return HttpResourceNames.setForClient(span, method, path, false);
+  public final void withClientPath(AgentSpan span, CharSequence method, CharSequence path) {
+    HttpResourceNames.setForClient(span, method, path, false);
   }
 
-  public final AgentSpan withServerPath(
+  public final void withServerPath(
       AgentSpan span, CharSequence method, CharSequence path, boolean encoded) {
     if (!shouldSetUrlResourceName) {
-      return span.setResourceName(DEFAULT_RESOURCE_NAME);
+      span.setResourceName(DEFAULT_RESOURCE_NAME);
+      return;
     }
 
-    return HttpResourceNames.setForServer(span, method, path, encoded);
+    HttpResourceNames.setForServer(span, method, path, encoded);
   }
 
-  public final AgentSpan withRoute(
+  public final void withRoute(
       final AgentSpan span, final CharSequence method, final CharSequence route) {
-    return withRoute(span, method, route, false);
+    withRoute(span, method, route, false);
   }
 
-  public final AgentSpan withRoute(
+  public final void withRoute(
       final AgentSpan span, final CharSequence method, final CharSequence route, boolean encoded) {
     CharSequence routeTag = route;
     if (encoded) {
@@ -47,6 +48,5 @@ public class HttpResourceDecorator {
       final CharSequence resourceName = HttpResourceNames.join(method, route);
       span.setResourceName(resourceName, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
     }
-    return span;
   }
 }

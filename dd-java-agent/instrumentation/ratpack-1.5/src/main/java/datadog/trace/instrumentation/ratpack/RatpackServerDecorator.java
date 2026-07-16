@@ -77,7 +77,7 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
     }
   }
 
-  public AgentSpan onContext(final AgentSpan span, final Context ctx) {
+  public void onContext(final AgentSpan span, final Context ctx) {
 
     String description = ctx.getPathBinding().getDescription();
     if (description == null || description.isEmpty()) {
@@ -87,16 +87,15 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
     }
 
     HTTP_RESOURCE_DECORATOR.withRoute(span, ctx.getRequest().getMethod().getName(), description);
-
-    return span;
   }
 
   @Override
-  public AgentSpan onError(final AgentSpan span, Throwable throwable) {
+  public void onError(final AgentSpan span, Throwable throwable) {
     // Attempt to unwrap ratpack.handling.internal.HandlerException without direct reference.
     if (throwable instanceof Error && throwable.getCause() != null) {
-      return super.onError(span, throwable.getCause());
+      super.onError(span, throwable.getCause());
+    } else {
+      super.onError(span, throwable);
     }
-    return super.onError(span, throwable);
   }
 }
