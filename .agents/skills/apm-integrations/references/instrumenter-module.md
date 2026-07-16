@@ -87,6 +87,118 @@ Do NOT add version aliases to the decorator's `instrumentationNames()` — that 
 
 **When rewriting or refactoring an existing module, preserve every override the master version has.** Not just `super(...)` — also `defaultEnabled()`, `helperClassNames()`, `contextStore()`, `orderPriority()`, `muzzleDirective()`, and any other overridden method. Read the current file on master before writing; carry each override forward verbatim unless there's a documented reason to change it. Silent loss of `defaultEnabled() = false` (or similar opt-in flags) ships an integration with a different default than users expected.
 
+**Concrete failure pattern (from dd-trace-java PR #11939, rxjava-3.0 regen):** master has
+
+```java
+public RxJavaModule() {
+  super("rxjava", "rxjava-3");   // ← two args: family name + version alias
+}
+```
+
+An eval regenerated this as
+
+```java
+public RxJavaModule() {
+  super("rxjava");   // ❌ dropped "rxjava-3" version alias
+}
+```
+
+Impact: customers who set `DD_TRACE_RXJAVA_3_ENABLED=false` to opt out silently lose that opt-out — the flag stops being recognized. No CI check catches it; the regression is only visible when a customer tries to disable the integration. **When regenerating a module that already exists, both the number of arguments AND the exact string values of `super(...)` must be preserved verbatim.**
+
+### Package layout must be preserved verbatim on regen
+
+When regenerating an existing module, use the exact same Java package for every production class. Master's package is authoritative; do not rename, consolidate, or shorten.
+
+**Concrete failure pattern (from dd-trace-java PR #11940, reactor-core-3.1 regen):** master's production classes live under `datadog.trace.instrumentation.reactor.core`. An eval regenerated the module under `datadog.trace.instrumentation.reactorcore` (concatenated form, chosen by analogy with `datadog.trace.instrumentation.rxjava3`).
+
+Consequences:
+- Silently breaks fully-qualified class references from other modules. In this case, `dd-java-agent/instrumentation/graal/graal-native-image-20.0/` has a `NativeImageGeneratorRunnerInstrumentation` that lists `datadog.trace.instrumentation.reactor.core.ReactorAsyncResultExtension` in its build-time classlist by name — the rename breaks Graal native-image builds that depend on that classlist entry.
+- Confuses reviewers and merge-conflict resolution when comparing eval output to master.
+- Doesn't reduce the diff size or improve any measurable outcome — it's a purely stylistic choice the model made without prompting.
+
+**Rule:** when regenerating an existing module, the top-level Java package of every production class MUST match master exactly. If master uses dotted style (`datadog.trace.instrumentation.reactor.core`), preserve it; if master uses concatenated style (`datadog.trace.instrumentation.rxjava3`), preserve it. Master is the invariant.
+
+### Enumerate all master `*Instrumentation.java` classes on regen
+
+When regenerating an existing module, list every `*Instrumentation.java`, `*Bridge.java`, and helper class currently in master's `src/main/java/.../` directory. Every one of those classes must be either preserved verbatim in the output OR explicitly replaced with an equivalent class. **Dropping a master class without a documented reason is always a Rule #2 violation.**
+
+**Concrete failure pattern (from PR #11940):** master's `reactor-core-3.1` has 7 production classes:
+
+```
+ReactorCoreModule.java
+ReactorContextBridge.java                 (context-map bridge — see context-tracking.md)
+ReactorAsyncResultExtension.java
+BlockingPublisherInstrumentation.java
+ContextWritingSubscriberInstrumentation.java
+CorePublisherInstrumentation.java
+OptimizableOperatorInstrumentation.java
+```
+
+The eval output kept only 2 (`ReactorCoreModule`, `ReactorAsyncResultExtension`) and added 3 new ones (`FluxInstrumentation`, `MonoInstrumentation`, `TracingCoreSubscriber`). Net effect: 5 master classes silently dropped, including `ReactorContextBridge` — which is what breaks Spring WebFlux, Spring Kafka reactive, and other downstream Reactor-based libraries. No CI check on the target module catches it; the regression only surfaces when sibling-module tests fail.
+
+**How to apply this rule:** before generating, run `ls dd-java-agent/instrumentation/<module>/src/main/java/**/` and record every filename. After generating, diff the list of classes in your output against that record. Any master class not present in the output must be explicitly justified in the PR description.
+
+### Preserve declarative-array ordering (`helperClassNames`, `contextStore` keys)
+
+When regenerating an existing `InstrumenterModule`, preserve the exact order of entries in `helperClassNames()` and the exact order of `store.put(...)` calls in `contextStore()`. Reordering entries with no semantic change produces noisy diffs that reviewers correctly reject as "meaningless reshuffling."
+
+**Concrete failure pattern (from PR #11939, @ygree review):** the eval output re-sorted `helperClassNames()` — same set of entries, different order. This adds review burden (reviewer must verify the set is unchanged) with zero benefit.
+
+```java
+// ❌ Reordered without reason
+return new String[] {
+  packageName + ".TracingObserver",
+  packageName + ".TracingSubscriber",
+  packageName + ".TracingSingleObserver",
+  packageName + ".TracingMaybeObserver",
+  packageName + ".TracingCompletableObserver",   // was first in master
+  packageName + ".RxJavaAsyncResultExtension",
+};
+
+// ✅ Preserve master's ordering
+return new String[] {
+  packageName + ".TracingCompletableObserver",
+  packageName + ".TracingObserver",
+  packageName + ".TracingSubscriber",
+  packageName + ".TracingSingleObserver",
+  packageName + ".TracingMaybeObserver",
+  packageName + ".RxJavaAsyncResultExtension",
+};
+```
+
+Only reorder when adding or removing an entry for a semantic reason (a helper is being introduced or retired).
+
+### Hoist repeated `Class.getName()` calls in `contextStore()`
+
+When multiple `store.put(...)` calls in `contextStore()` use the same value-class FQN, hoist `SomeClass.class.getName()` into a single local variable. This is the idiomatic pattern in existing dd-trace-java modules; inlining the same call five times is treated as a regression by reviewers.
+
+```java
+// ❌ Inlined at every put site
+public Map<String, String> contextStore() {
+  final Map<String, String> store = new HashMap<>();
+  store.put("io.reactivex.rxjava3.core.Observable",  Context.class.getName());
+  store.put("io.reactivex.rxjava3.core.Flowable",    Context.class.getName());
+  store.put("io.reactivex.rxjava3.core.Single",      Context.class.getName());
+  store.put("io.reactivex.rxjava3.core.Maybe",       Context.class.getName());
+  store.put("io.reactivex.rxjava3.core.Completable", Context.class.getName());
+  return store;
+}
+
+// ✅ Hoisted once
+public Map<String, String> contextStore() {
+  String contextClass = Context.class.getName();
+  final Map<String, String> store = new HashMap<>();
+  store.put("io.reactivex.rxjava3.core.Observable",  contextClass);
+  store.put("io.reactivex.rxjava3.core.Flowable",    contextClass);
+  store.put("io.reactivex.rxjava3.core.Single",      contextClass);
+  store.put("io.reactivex.rxjava3.core.Maybe",       contextClass);
+  store.put("io.reactivex.rxjava3.core.Completable", contextClass);
+  return store;
+}
+```
+
+Source: @ygree review on PR #11939.
+
 ### Do not create a helper class just for CallDepthThreadLocalMap when only one type is instrumented
 
 When only one type is being instrumented, use `CallDepthThreadLocalMap` directly in the Advice class. A separate helper class that just wraps `CallDepthThreadLocalMap.incrementCallDepth` / `decrementCallDepth` adds indirection without value:
