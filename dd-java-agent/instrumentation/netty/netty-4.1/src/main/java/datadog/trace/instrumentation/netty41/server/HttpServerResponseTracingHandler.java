@@ -50,17 +50,15 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
               future -> finishSpan(serverContext, storedContext, span, future));
         }
         ctx.write(msg, writePromise);
-        if (terminalResponse) {
-          // Run the request-ended callbacks (AppSec/IAST) here, while the context is attached
-          beforeFinish(serverContext, storedContext);
-        }
       } catch (final Throwable throwable) {
-        DECORATE.onError(span, throwable);
-        span.setHttpStatusCode(500);
-        if (!terminalResponse) {
-          ServerRequestContext.remove(ctx.channel(), serverContext);
+        if (!terminalResponse || !writePromise.isDone()) {
+          DECORATE.onError(span, throwable);
+          span.setHttpStatusCode(500);
+          if (!terminalResponse) {
+            ServerRequestContext.remove(ctx.channel(), serverContext);
+          }
+          finishSpan(serverContext, storedContext, span);
         }
-        finishSpan(serverContext, storedContext, span);
         throw throwable;
       }
     }

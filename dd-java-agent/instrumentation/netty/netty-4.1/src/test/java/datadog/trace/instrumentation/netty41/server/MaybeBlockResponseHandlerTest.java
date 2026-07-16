@@ -9,6 +9,7 @@ import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
 import org.junit.jupiter.api.Test;
 
 class MaybeBlockResponseHandlerTest {
@@ -16,7 +17,8 @@ class MaybeBlockResponseHandlerTest {
   @Test
   void dropsWritesAfterBlockedContextHasBeenRemoved() {
     EmbeddedChannel channel = new EmbeddedChannel(MaybeBlockResponseHandler.INSTANCE);
-    ServerRequestContext serverContext = ServerRequestContext.add(channel, Context.root(), null);
+    ServerRequestContext serverContext =
+        ServerRequestContext.add(channel, Context.root(), new DefaultHttpHeaders());
     ServerRequestContext.markResponseBlocked(channel);
     ServerRequestContext.remove(channel, serverContext);
     ByteBuf lateResponseChunk = Unpooled.buffer().writeByte(1);

@@ -112,6 +112,7 @@ public final class ServerRequestContext {
 
   /** Closes all pending request contexts on channel close. */
   public static void closeAll(final AttributeMap attributes) {
+    attributes.attr(BLOCKED_RESPONSE_ATTRIBUTE_KEY).remove();
     close(removeAll(attributes));
   }
 
@@ -194,12 +195,13 @@ public final class ServerRequestContext {
   }
 
   private final Context tracingContext;
-  private final HttpHeaders requestHeaders;
+  private final String acceptHeader;
   private final HttpMethod requestMethod;
   private boolean responseStarted;
   private boolean responseCloseDelimited;
   private boolean beforeFinishCalled;
   private boolean responseAnalyzed;
+  private boolean responseBlocked;
 
   public Context tracingContext() {
     return tracingContext;
@@ -262,7 +264,7 @@ public final class ServerRequestContext {
       final HttpHeaders requestHeaders,
       final HttpMethod requestMethod) {
     this.tracingContext = tracingContext;
-    this.requestHeaders = requestHeaders;
+    this.acceptHeader = requestHeaders == null ? null : requestHeaders.get("accept");
     this.requestMethod = requestMethod;
   }
 }
