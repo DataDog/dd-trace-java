@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import static datadog.environment.JavaVirtualMachine.isHotspot;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
 import static datadog.trace.api.Config.isExplicitlyDisabled;
@@ -1024,8 +1025,15 @@ public class Agent {
    *   <li>otherwise (JDK 14 and earlier predate the holder; JDK 23+ removed the eager-init
    *       pattern): {@code null}
    * </ul>
+   *
+   * <p>Also returns {@code null} on non-HotSpot VMs: JDK-8371889 is a HotSpot JFR bug, and other
+   * VMs (e.g. Eclipse OpenJ9 / IBM Semeru) ship a different JFR implementation where this holder /
+   * {@code Utils} mechanism does not apply.
    */
   static String jfrEventHolderClassName() {
+    if (!isHotspot()) {
+      return null;
+    }
     if (isJavaVersionAtLeast(15) && !isJavaVersionAtLeast(19)) {
       return "jdk.jfr.events.Handlers";
     }

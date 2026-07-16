@@ -39,8 +39,9 @@ import org.junit.jupiter.api.Test;
  * </ul>
  *
  * <p>Requires {@code --add-opens jdk.jfr/jdk.jfr.events=ALL-UNNAMED} (configured in build.gradle)
- * to read the holder's fields reflectively. Automatically skipped on JDKs without the holder class
- * (JDK 8 and earlier, and JDK 23+ where the eager-init pattern was removed).
+ * to read the holder's fields reflectively. Automatically skipped where there is no holder to
+ * initialize: JDK 14 and earlier, JDK 23+ (eager-init pattern removed), and non-HotSpot VMs such as
+ * Eclipse OpenJ9 / IBM Semeru (different JFR implementation).
  */
 public class JfrEventHolderInitForkedTest {
 
