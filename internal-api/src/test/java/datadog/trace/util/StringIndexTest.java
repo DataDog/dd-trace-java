@@ -168,4 +168,23 @@ class StringIndexTest {
     assertEquals(0, idx.lookup(ids, "missing"));
     assertEquals(42, idx.lookupOrDefault(ids, "missing", 42));
   }
+
+  @Test
+  void instance_longValues_mapAndLookup() {
+    StringIndex idx = StringIndex.of("a", "b", "c");
+    long[] vals = idx.mapLongValues(s -> s.charAt(0) - 'a' + 1L);
+    assertEquals(idx.numSlots(), vals.length); // sized to the table, not the name count
+
+    assertEquals(1L, idx.lookup(vals, "a"));
+    assertEquals(3L, idx.lookup(vals, "c"));
+    assertEquals(0L, idx.lookup(vals, "z")); // miss -> 0
+    assertEquals(2L, idx.lookupOrDefault(vals, "b", -1L)); // hit
+    assertEquals(-1L, idx.lookupOrDefault(vals, "z", -1L)); // miss -> supplied default
+  }
+
+  @Test
+  void support_numSlots_matchesTableSize() {
+    Data d = Support.create("a", "b", "c");
+    assertEquals(d.hashes.length, Support.numSlots(d.hashes));
+  }
 }
