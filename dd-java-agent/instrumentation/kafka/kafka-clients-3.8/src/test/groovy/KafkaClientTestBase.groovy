@@ -402,10 +402,13 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
     }
 
+    // sort a snapshot so the producer trace is deterministically first, regardless of write order
+    def sortedTraces = new ArrayList<>(TEST_WRITER)
+    sortedTraces.sort(SORT_TRACES_BY_ID)
     def headers = received.headers()
     headers.iterator().hasNext()
-    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
-    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
+    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${sortedTraces[0][2].traceId}"
+    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${sortedTraces[0][2].spanId}"
 
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
