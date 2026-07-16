@@ -90,6 +90,8 @@ public class Tags {
   public static final String TEST_ANDROID_CODENAME = "test.android.codename";
   public static final String TEST_ANDROID_ROBOLECTRIC_VERSION = "test.android.robolectric.version";
 
+  public static final String TEST_IS_ANDROID = "test.is_android";
+
   public static final String TEST_SESSION_ID = "test_session_id";
   public static final String TEST_MODULE_ID = "test_module_id";
   public static final String TEST_SUITE_ID = "test_suite_id";
