@@ -44,17 +44,13 @@ import org.junit.jupiter.api.Test;
  */
 public class JfrEventHolderInitForkedTest {
 
-  private static final String[] HOLDER_CLASS_NAMES = {
-    "jdk.jfr.events.Handlers", // JDK 15-18
-    "jdk.jfr.events.EventConfigurations" // JDK 19-22
-  };
-
   @Test
   public void productionInitOrderingDoesNotPoisonHandlers() throws Exception {
     final ClassLoader loader = getClass().getClassLoader();
 
-    // Find the holder class for this JDK without initializing it; skip if none exists (JDK 8, 23+).
-    final String holderName = findHolderClass(loader);
+    // The holder class (if any) is selected by JDK version; skip when this JDK has none (JDK 8,
+    // 23+).
+    final String holderName = Agent.jfrEventHolderClassName();
     assumeTrue(holderName != null, "No JFR event-holder class on this JDK; nothing to test");
 
     // Exercise the exact production path: FlightRecorder init first, then holder <clinit>.
@@ -80,17 +76,5 @@ public class JfrEventHolderInitForkedTest {
         nullFields.isEmpty(),
         "JFR handler fields were poisoned to null (holder initialized before FlightRecorder): "
             + nullFields);
-  }
-
-  private static String findHolderClass(final ClassLoader loader) {
-    for (final String name : HOLDER_CLASS_NAMES) {
-      try {
-        Class.forName(name, false, loader); // load only, do not initialize
-        return name;
-      } catch (final Throwable ignored) {
-        // not present on this JDK; try the next name
-      }
-    }
-    return null;
   }
 }

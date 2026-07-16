@@ -981,34 +981,56 @@ public class Agent {
    *       deadlock.
    * </ul>
    *
-   * <p>The holder class was renamed across JDK versions: {@code jdk.jfr.events.Handlers} on JDK
-   * 15-18, {@code jdk.jfr.events.EventConfigurations} on JDK 19-22. Earlier JDKs (including 11 LTS)
-   * predate the holder, JDK 23+ removed the eager-init pattern, and the JDK-8371889 fix was
-   * backported to 21.0.11 -- on all of those there is nothing to initialize and the {@code forName}
-   * calls simply fail and are ignored.
+   * <p>The holder class was renamed across JDK versions, so it is selected by version (see {@link
+   * #jfrEventHolderClassName()}): {@code jdk.jfr.events.Handlers} on JDK 15-18, {@code
+   * jdk.jfr.events.EventConfigurations} on JDK 19-22. Earlier JDKs (including 11 LTS) predate the
+   * holder and JDK 23+ removed the eager-init pattern; on those this method does nothing. On
+   * patched JDKs (the JDK-8371889 fix was backported to 21.0.11) the JDK already initializes the
+   * holder safely during {@code FlightRecorder} startup, so forcing it here is a harmless no-op.
    *
    * @param loader class loader used to resolve the JFR classes (package-private for testing; see
    *     JfrEventHolderInitForkedTest)
    */
   static void initializeJfrEventHolderClass(final ClassLoader loader) {
+    final String holderClassName = jfrEventHolderClassName();
+    if (holderClassName == null) {
+      return; // no eager-init holder on this JDK, so there is no deadlock to prevent
+    }
     try {
       // Register the JDK's built-in JFR events first, so the holder's <clinit> below sees non-null
       // handlers instead of caching null.
       Class.forName("jdk.jfr.FlightRecorder", true, loader)
           .getMethod("getFlightRecorder")
           .invoke(null);
-      // Force the holder's <clinit>. The class name depends on the JDK version.
-      try {
-        Class.forName("jdk.jfr.events.Handlers", true, loader); // JDK 15-18
-      } catch (final ClassNotFoundException notJdk17Or18) {
-        Class.forName("jdk.jfr.events.EventConfigurations", true, loader); // JDK 19-22
-      }
+      // Force the holder's <clinit>.
+      Class.forName(holderClassName, true, loader);
     } catch (final Throwable ignored) {
-      // JFR unavailable/disabled, holder renamed or removed (JDK 23+), or initialization failed: in
-      // every case there is nothing (left) to do. We catch Throwable rather than Exception because
-      // forcing initialization can surface Errors such as ExceptionInInitializerError,
-      // NoClassDefFoundError or LinkageError.
+      // JFR unavailable/disabled or initialization failed: nothing (left) to do. We catch Throwable
+      // rather than Exception because forcing initialization can surface Errors such as
+      // ExceptionInInitializerError, NoClassDefFoundError or LinkageError.
     }
+  }
+
+  /**
+   * Returns the fully-qualified name of the JDK's JFR event-holder class for the running JVM, or
+   * {@code null} if this JDK has no such class. The class is selected by JDK version rather than by
+   * probing with {@link ClassNotFoundException} so the mapping is explicit:
+   *
+   * <ul>
+   *   <li>JDK 15-18: {@code jdk.jfr.events.Handlers}
+   *   <li>JDK 19-22: {@code jdk.jfr.events.EventConfigurations}
+   *   <li>otherwise (JDK 14 and earlier predate the holder; JDK 23+ removed the eager-init
+   *       pattern): {@code null}
+   * </ul>
+   */
+  static String jfrEventHolderClassName() {
+    if (isJavaVersionAtLeast(15) && !isJavaVersionAtLeast(19)) {
+      return "jdk.jfr.events.Handlers";
+    }
+    if (isJavaVersionAtLeast(19) && !isJavaVersionAtLeast(23)) {
+      return "jdk.jfr.events.EventConfigurations";
+    }
+    return null;
   }
 
   private static synchronized void registerSmapEntryEvent() {
