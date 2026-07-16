@@ -1,6 +1,7 @@
 package datadog.smoketest.trace;
 
 import static java.util.Comparator.comparingLong;
+import static java.util.stream.Collectors.toSet;
 
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.util.ArrayList;
@@ -8,166 +9,136 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.UnaryOperator;
+import org.opentest4j.AssertionFailedError;
 
 /**
- * Thin trace matcher for smoke tests: one {@link SpanMatcher} per expected span in a trace.
- * Companion of {@link SpanMatcher}; see its class doc for the serialized-model rationale.
+ * This class is a helper class to verify a trace structure.
  *
- * <p>Spans are matched positionally. By default they are matched in the order received; sort them
- * first for a deterministic position:
+ * <p>To get a {@link TraceMatcher}, use the static factory methods: {@link #trace(SpanMatcher...)}
+ * with the expected {@link SpanMatcher}s (one per expected span), or {@link #trace(UnaryOperator,
+ * SpanMatcher...)} to configure the checks with a {@link Options} object.
  *
- * <ul>
- *   <li>{@link #SORT_BY_START_TIME} — by span start time. Beware: spans that start within the same
- *       clock tick (e.g. a publish and its broker-side deliver) can race, so this order is <em>not
- *       stable</em> for tightly-coupled concurrent spans.
- *   <li>{@link #SORT_BY_PARENT_CHAIN} — root→leaf following parent links. Stable regardless of
- *       timestamps, but only defined for a <em>single linear chain</em> (each span has at most one
- *       child); it throws otherwise. Ideal for a straight request→...→response distributed trace.
- * </ul>
+ * <p>{@link #SORT_BY_START_TIME} can be used as predefined configuration to sort spans by start
+ * time, and {@link #SORT_BY_ANCESTRY} to sort spans by ancestry, root spans (or which parents are
+ * not present in the trace chunk) first, followed by their children by start time, depth-first.
  *
- * <p>A sorted order also makes {@link SpanMatcher#childOfIndex(int)} / {@link
- * SpanMatcher#childOfPrevious()} deterministic.
+ * @see SmokeTraceAssertions
+ * @see SpanMatcher
  */
 public final class TraceMatcher {
-  /** Sorts a trace's spans by start time. */
+  /*
+   * Span comparators.
+   */
+  /** Span comparator to sort by start time. */
   public static final Comparator<DecodedSpan> START_TIME_COMPARATOR =
-      comparingLong(DecodedSpan::getStart);
+      comparingLong(DecodedSpan::getStart).thenComparingLong(DecodedSpan::getSpanId);
 
-  /** Configures {@link #trace(UnaryOperator, SpanMatcher...)} to sort spans by start time. */
+  /*
+   * Span assertion options.
+   */
+  /** Sorts spans by start time. */
   public static final UnaryOperator<Options> SORT_BY_START_TIME =
       options -> options.sort(START_TIME_COMPARATOR);
 
   /**
-   * Configures {@link #trace(UnaryOperator, SpanMatcher...)} to order spans root→leaf by following
-   * parent links (see {@link Options#linearizeByParentChain()}). Timestamp-independent, so unlike
-   * {@link #SORT_BY_START_TIME} it is stable for concurrent spans — but only valid for a single
-   * linear chain.
+   * Sorts spans by ancestry, root spans (or which parents are absent from the trace chunk) first,
+   * followed by their children by start time, depth-first.
    */
-  public static final UnaryOperator<Options> SORT_BY_PARENT_CHAIN = Options::linearizeByParentChain;
+  public static final UnaryOperator<Options> SORT_BY_ANCESTRY = Options::sortByAncestry;
 
   private final Options options;
-  private final SpanMatcher[] spanMatchers;
+  private final SpanMatcher[] matchers;
 
   private TraceMatcher(Options options, SpanMatcher[] spanMatchers) {
     if (spanMatchers.length == 0) {
       throw new IllegalArgumentException("No span matchers provided");
     }
     this.options = options;
-    this.spanMatchers = spanMatchers;
+    this.matchers = spanMatchers;
   }
 
-  /** Checks a trace structure, one matcher per expected span, in the order received. */
+  /**
+   * Checks a trace structure.
+   *
+   * @param matchers The matchers to verify the trace structure.
+   */
   public static TraceMatcher trace(SpanMatcher... matchers) {
     return new TraceMatcher(new Options(), matchers);
   }
 
-  /** Checks a trace structure with the given options (e.g. {@link #SORT_BY_START_TIME}). */
+  /**
+   * Checks a trace structure.
+   *
+   * @param options The {@link TraceMatcher.Options} to configure the checks.
+   * @param matchers The matchers to verify the trace structure.
+   */
   public static TraceMatcher trace(UnaryOperator<Options> options, SpanMatcher... matchers) {
     return new TraceMatcher(options.apply(new Options()), matchers);
   }
 
   void assertTrace(List<DecodedSpan> spans, int traceIndex) {
-    if (spans.size() != spanMatchers.length) {
-      throw new AssertionError(
-          "Expected "
-              + spanMatchers.length
-              + " spans in trace "
-              + traceIndex
-              + " but got "
-              + spans.size()
-              + ": "
-              + spans);
+    if (spans.size() != this.matchers.length) {
+      throw new AssertionFailedError(
+          "Invalid number of spans for trace " + traceIndex + " : " + spans,
+          this.matchers.length,
+          spans.size());
     }
-    List<DecodedSpan> ordered;
-    if (options.linearizeByParentChain) {
-      ordered = chainOrder(spans);
-    } else {
-      ordered = new ArrayList<>(spans);
-      if (options.comparator != null) {
-        ordered.sort(options.comparator);
-      }
+    if (this.options.sortByAncestry) {
+      spans = sortByAncestry(spans);
+    } else if (this.options.comparator != null) {
+      spans = new ArrayList<>(spans);
+      spans.sort(this.options.comparator);
     }
-    for (int i = 0; i < spanMatchers.length; i++) {
-      spanMatchers[i].assertSpan(ordered, i);
+    for (int i = 0; i < this.matchers.length; i++) {
+      this.matchers[i].assertSpan(spans, i);
     }
   }
 
-  /**
-   * Whether this matcher accepts {@code spans} as a whole trace, without throwing — the boolean
-   * counterpart of {@link #assertTrace} used by order-independent matching (see {@link
-   * SmokeTraceAssertions#assertTraces} with {@link SmokeTraceAssertions#IGNORE_ADDITIONAL_TRACES}),
-   * where each matcher must find some received trace it fits. A non-linear trace under {@link
-   * #SORT_BY_PARENT_CHAIN} counts as "does not match" here (rather than propagating) so probing can
-   * move on.
-   */
-  boolean matches(List<DecodedSpan> spans, int traceIndex) {
-    try {
-      assertTrace(spans, traceIndex);
-      return true;
-    } catch (AssertionError | IllegalStateException ignored) {
-      return false;
-    }
-  }
-
-  /**
-   * Orders spans root→leaf by following parent links. Requires a single linear chain: exactly one
-   * root (parent id 0) and every span at most one child, with all spans reachable from the root.
-   * Throws {@link IllegalStateException} otherwise, so a non-chain trace fails loudly rather than
-   * being silently mis-ordered.
-   */
-  private static List<DecodedSpan> chainOrder(List<DecodedSpan> spans) {
-    DecodedSpan root = null;
-    Map<Long, DecodedSpan> childByParent = new HashMap<>();
+  private static List<DecodedSpan> sortByAncestry(List<DecodedSpan> spans) {
+    Set<Long> spanIds = spans.stream().map(DecodedSpan::getSpanId).collect(toSet());
+    Map<Long, List<DecodedSpan>> spansByParentId = new HashMap<>();
     for (DecodedSpan span : spans) {
-      if (span.getParentId() == 0L) {
-        if (root != null) {
-          throw new IllegalStateException(
-              "SORT_BY_PARENT_CHAIN requires a single root span (parent id 0); found more than one");
-        }
-        root = span;
-      } else if (childByParent.put(span.getParentId(), span) != null) {
-        throw new IllegalStateException(
-            "SORT_BY_PARENT_CHAIN requires a linear chain, but span "
-                + span.getParentId()
-                + " has more than one child");
+      long parentId = span.getParentId();
+      if (parentId != 0 && !spanIds.contains(parentId)) {
+        parentId = 0;
       }
+      spansByParentId.computeIfAbsent(parentId, k -> new ArrayList<>()).add(span);
     }
-    if (root == null) {
-      throw new IllegalStateException("SORT_BY_PARENT_CHAIN requires a root span (parent id 0)");
-    }
+    spansByParentId.forEach((k, v) -> v.sort(START_TIME_COMPARATOR));
+
     List<DecodedSpan> ordered = new ArrayList<>(spans.size());
-    for (DecodedSpan current = root;
-        current != null;
-        current = childByParent.get(current.getSpanId())) {
-      ordered.add(current);
-    }
-    if (ordered.size() != spans.size()) {
-      throw new IllegalStateException(
-          "SORT_BY_PARENT_CHAIN: trace is not a single chain ("
-              + ordered.size()
-              + " of "
-              + spans.size()
-              + " spans reachable from the root)");
-    }
+    appendChildren(ordered, spansByParentId.get(0L), spansByParentId);
     return ordered;
   }
 
+  private static void appendChildren(
+      List<DecodedSpan> orderedSpan,
+      List<DecodedSpan> children,
+      Map<Long, List<DecodedSpan>> spansByParentId) {
+    for (DecodedSpan child : children) {
+      orderedSpan.add(child);
+      List<DecodedSpan> grandChildren = spansByParentId.get(child.getSpanId());
+      if (grandChildren != null) {
+        appendChildren(orderedSpan, grandChildren, spansByParentId);
+      }
+    }
+  }
+
   public static final class Options {
-    Comparator<DecodedSpan> comparator = null; // null => keep received order
-    boolean linearizeByParentChain = false;
+    private Comparator<DecodedSpan> comparator = null;
+    private boolean sortByAncestry = false;
 
     public Options sort(Comparator<DecodedSpan> comparator) {
       this.comparator = comparator;
+      this.sortByAncestry = false;
       return this;
     }
 
-    /**
-     * Order spans root→leaf by parent links instead of by a comparator (see {@link
-     * #SORT_BY_PARENT_CHAIN}).
-     */
-    public Options linearizeByParentChain() {
-      this.linearizeByParentChain = true;
+    Options sortByAncestry() {
+      this.comparator = null;
+      this.sortByAncestry = true;
       return this;
     }
   }

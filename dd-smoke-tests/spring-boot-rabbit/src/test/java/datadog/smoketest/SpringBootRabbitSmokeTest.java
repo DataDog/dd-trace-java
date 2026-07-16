@@ -1,7 +1,7 @@
 package datadog.smoketest;
 
 import static datadog.smoketest.trace.SpanMatcher.span;
-import static datadog.smoketest.trace.TraceMatcher.SORT_BY_PARENT_CHAIN;
+import static datadog.smoketest.trace.TraceMatcher.SORT_BY_ANCESTRY;
 import static datadog.smoketest.trace.TraceMatcher.trace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -58,19 +58,19 @@ import org.testcontainers.utility.DockerImageName;
  * {@linkplain SmokeTraceAssertions order-independent subset} mode ({@code
  * unordered().ignoreAdditionalTraces()}): each matcher matches a distinct received trace and extras
  * are ignored. This is stronger than the Groovy set-membership check — each round-trip trace is
- * matched count-exact (all 12 spans, in {@link TraceMatcher#SORT_BY_PARENT_CHAIN parent-chain
- * order}), verifying every AMQP operation (publish/deliver/consume, both directions) <em>and</em>
- * its cross-service linkage — while staying robust to the timing-dependent extras (the broker emits
- * its connection-setup commands and per-ack traces as their own single-span traces, in
+ * matched count-exact (all 12 spans, in {@link TraceMatcher#SORT_BY_ANCESTRY ancestry order}),
+ * verifying every AMQP operation (publish/deliver/consume, both directions) <em>and</em> its
+ * cross-service linkage — while staying robust to the timing-dependent extras (the broker emits its
+ * connection-setup commands and per-ack traces as their own single-span traces, in
  * non-deterministic count and order).
  *
  * <p>Two design points, informed by inspecting the live trace collection:
  *
  * <ul>
- *   <li><b>Parent-chain order, not start time</b> — the 12-span round-trip is a strict linear
- *       chain, but its spans start within the same tick and race, so {@code SORT_BY_START_TIME} is
- *       unstable across runs. {@code SORT_BY_PARENT_CHAIN} orders spans by parent links
- *       (timestamp-independent) and asserts the trace is exactly that chain.
+ *   <li><b>Ancestry order, not start time</b> — the 12-span round-trip is a strict linear chain,
+ *       but its spans start within the same tick and race, so {@code SORT_BY_START_TIME} is
+ *       unstable across runs. {@code SORT_BY_ANCESTRY} orders each parent before its child
+ *       (timestamp-independent along the chain), giving a stable positional order.
  *   <li><b>Accumulate, don't isolate</b> — {@code .retainAcrossTests()} keeps traces from app
  *       startup onward, because {@code basic.qos}/{@code basic.consume}/{@code queue.declare} are
  *       emitted when the consumers start (before any test method), which a per-method session
@@ -145,12 +145,12 @@ class SpringBootRabbitSmokeTest {
   }
 
   // The full distributed round-trip as one strict parent->child chain across both services and the
-  // broker. SORT_BY_PARENT_CHAIN orders the spans root->leaf and asserts the trace IS exactly this
-  // linear chain: HTTP entrypoint -> publish -> receiver consumes+forwards -> sender consumes
-  // reply.
+  // broker. SORT_BY_ANCESTRY orders the spans parent->child (stable for a linear chain), and the 12
+  // count-exact positional matchers pin the shape: HTTP entrypoint -> publish -> receiver
+  // consumes+forwards -> sender consumes reply.
   private static TraceMatcher roundTrip() {
     return trace(
-        SORT_BY_PARENT_CHAIN,
+        SORT_BY_ANCESTRY,
         sp("spring-rabbit-0", "servlet.request", "GET /roundtrip/{message}").root(),
         sp("spring-rabbit-0", "spring.handler", "WebController.roundtrip"),
         sp("spring-rabbit-0", "amqp.command", "basic.publish <default> -> otherqueue"),

@@ -2,6 +2,7 @@ package datadog.smoketest.trace;
 
 import static datadog.smoketest.trace.SmokeTraceAssertions.assertTraces;
 import static datadog.smoketest.trace.SpanMatcher.span;
+import static datadog.smoketest.trace.TraceMatcher.SORT_BY_ANCESTRY;
 import static datadog.smoketest.trace.TraceMatcher.trace;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -92,32 +93,29 @@ class SmokeMatcherTest {
   }
 
   @Test
-  void sortsByParentChainRegardlessOfStartTime() {
+  void sortsByAncestryRegardlessOfStartTime() {
     List<DecodedTrace> traces = TestAgentTraceDecoder.decode(CHAIN_TRACE);
-    // Spans arrive out of start order; parent-chain order recovers root -> child -> grandchild.
+    // Spans arrive out of start order; ancestry order recovers root -> child -> grandchild.
     assertTraces(
         traces,
         trace(
-            TraceMatcher.SORT_BY_PARENT_CHAIN,
+            SORT_BY_ANCESTRY,
             span().operationName("root").root(),
             span().operationName("child").childOfPrevious(),
             span().operationName("grandchild").childOfPrevious()));
   }
 
   @Test
-  void parentChainRejectsNonLinearTrace() {
+  void ancestryOrdersBranchingTraceParentBeforeChildrenByStart() {
     List<DecodedTrace> traces = TestAgentTraceDecoder.decode(BRANCHING_TRACE);
-    // root has two children, so a chain linearization is undefined -> loud failure, not mis-order.
-    assertThrows(
-        IllegalStateException.class,
-        () ->
-            assertTraces(
-                traces,
-                trace(
-                    TraceMatcher.SORT_BY_PARENT_CHAIN,
-                    span().operationName("root").root(),
-                    span().operationName("a").childOfPrevious(),
-                    span().operationName("b").childOfPrevious())));
+    // root, then its two children in start order (a@20 before b@30); both are children of root.
+    assertTraces(
+        traces,
+        trace(
+            SORT_BY_ANCESTRY,
+            span().operationName("root").root(),
+            span().operationName("a").childOfIndex(0),
+            span().operationName("b").childOfIndex(0)));
   }
 
   @Test

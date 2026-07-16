@@ -28,11 +28,11 @@ import java.util.function.UnaryOperator;
  * <p>A single matching algorithm is tuned by three combinable {@link Options}:
  *
  * <ul>
- *   <li>{@link #SORT_BY_START_TIME} (the {@code sorter}) — sort the received traces before matching,
- *       making positional matching deterministic.
+ *   <li>{@link #SORT_BY_START_TIME} (the {@code sorter}) — sort the received traces before
+ *       matching, making positional matching deterministic.
  *   <li>{@link #UNORDERED} — a matcher may match <em>any</em> distinct (unconsumed) trace rather
- *       than the one at its position; the received order stops mattering (so a {@code sorter} has no
- *       effect in this mode).
+ *       than the one at its position; the received order stops mattering (so a {@code sorter} has
+ *       no effect in this mode).
  *   <li>{@link #IGNORE_ADDITIONAL_TRACES} — don't require every received trace to be matched; extra
  *       traces are ignored (a subset assertion). Without it, the counts must be equal.
  * </ul>
@@ -54,18 +54,24 @@ import java.util.function.UnaryOperator;
  * test-agent), both decoded to {@link DecodedTrace}.
  */
 public final class SmokeTraceAssertions {
-  /** Sorts traces by the earliest span start time. */
+  /*
+   * Trace comparators.
+   */
+  /** Trace comparator to sort by start time. */
   public static final Comparator<DecodedTrace> TRACE_START_TIME_COMPARATOR =
       Comparator.comparingLong(SmokeTraceAssertions::earliestStart);
 
-  /** Don't require every received trace to be matched — ignore the extras (a subset assertion). */
+  /*
+   * Trace assertion options.
+   */
+  /** Ignores additional traces. If there are more traces than expected, do not fail. */
   public static final UnaryOperator<Options> IGNORE_ADDITIONAL_TRACES =
       Options::ignoreAdditionalTraces;
 
-  /** Let each matcher match any distinct trace rather than the one at its position. */
+  /** Allows matchers to match any distinct trace rather than the one at its position. */
   public static final UnaryOperator<Options> UNORDERED = Options::unorder;
 
-  /** Sorts traces by earliest span start time before matching. */
+  /** Sorts traces by start time. */
   public static final UnaryOperator<Options> SORT_BY_START_TIME =
       options -> options.sort(TRACE_START_TIME_COMPARATOR);
 
@@ -129,7 +135,8 @@ public final class SmokeTraceAssertions {
         if (skippedTraces.get(traceIndex)) {
           continue;
         }
-        if (matcher.matches(traces.get(traceIndex).getSpans(), matcherIndex)) {
+        try {
+          matcher.assertTrace(traces.get(traceIndex).getSpans(), matcherIndex);
           matched = true;
           if (opts.unordered) {
             skippedTraces.set(traceIndex);
@@ -137,10 +144,12 @@ public final class SmokeTraceAssertions {
             skippedTraces.set(0, traceIndex);
           }
           break;
+        } catch (AssertionError ignored) {
+          // Swallow assertion errors, keep looking for a match
         }
       }
       if (!matched) {
-        assertionFailure().message("No trace matches matcher # "+ matcherIndex).buildAndThrow();
+        assertionFailure().message("No trace matches matcher # " + matcherIndex).buildAndThrow();
       }
     }
   }
