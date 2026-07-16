@@ -111,7 +111,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
   }
 
   private static boolean isWebsocketUpgrade(final HttpResponse response) {
-    return response.status() == HttpResponseStatus.SWITCHING_PROTOCOLS
+    return response.status().code() == HttpResponseStatus.SWITCHING_PROTOCOLS.code()
         && response
             .headers()
             .containsValue(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET, true);

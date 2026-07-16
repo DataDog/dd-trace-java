@@ -55,9 +55,12 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
   private static final String CLOSE_DELIMITED_PATH = "/close-delimited";
   private static final String CLOSE_DELIMITED_FULL_RESPONSE_PATH = "/close-delimited/full";
   private static final String WEBSOCKET_PATH = "/websocket";
+  private static final String CUSTOM_WEBSOCKET_STATUS_PATH = "/websocket/custom-status";
   private static final String CONNECT_AUTHORITY = "example.com:443";
   private static final String EARLY_HINTS_PATH = "/chunked/early-hints";
   private static final HttpResponseStatus EARLY_HINTS = new HttpResponseStatus(103, "Early Hints");
+  private static final HttpResponseStatus CUSTOM_SWITCHING_PROTOCOLS =
+      new HttpResponseStatus(SWITCHING_PROTOCOLS.code(), "Switching Protocols");
 
   private final ChunkedResponseHandler handler = new ChunkedResponseHandler();
 
@@ -285,6 +288,12 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
     assertHeaderOnlyResponseFinishes(WEBSOCKET_PATH, SWITCHING_PROTOCOLS);
   }
 
+  @Test
+  void finishesServerSpanForHeaderOnlyWebSocketUpgradeWithDistinctStatusInstance()
+      throws Exception {
+    assertHeaderOnlyResponseFinishes(CUSTOM_WEBSOCKET_STATUS_PATH, SWITCHING_PROTOCOLS);
+  }
+
   private void assertHeaderOnlyResponseFinishes(String path, HttpResponseStatus status)
       throws Exception {
     assertHeaderOnlyResponseFinishes("GET", path, status, path);
@@ -321,7 +330,7 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
 
   private static String request(String method, String path) {
     String headers = method + " " + path + " HTTP/1.1\r\nHost: localhost\r\n";
-    if (WEBSOCKET_PATH.equals(path)) {
+    if (isWebSocketPath(path)) {
       headers +=
           "Connection: Upgrade\r\n"
               + "Upgrade: websocket\r\n"
@@ -329,6 +338,10 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
               + "Sec-WebSocket-Version: 13\r\n";
     }
     return headers + "\r\n";
+  }
+
+  private static boolean isWebSocketPath(String path) {
+    return WEBSOCKET_PATH.equals(path) || CUSTOM_WEBSOCKET_STATUS_PATH.equals(path);
   }
 
   private static SpanMatcher serverSpan(String path) {
@@ -403,7 +416,9 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       } else if (CLOSE_DELIMITED_FULL_RESPONSE_PATH.equals(request.uri())) {
         writeCloseDelimitedFullResponse(ctx);
       } else if (WEBSOCKET_PATH.equals(request.uri())) {
-        writeHeaderOnlyWebSocketUpgrade(ctx, request.uri());
+        writeHeaderOnlyWebSocketUpgrade(ctx, request.uri(), SWITCHING_PROTOCOLS);
+      } else if (CUSTOM_WEBSOCKET_STATUS_PATH.equals(request.uri())) {
+        writeHeaderOnlyWebSocketUpgrade(ctx, request.uri(), CUSTOM_SWITCHING_PROTOCOLS);
       } else {
         writeChunkedResponse(ctx);
       }
@@ -449,8 +464,9 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       ctx.writeAndFlush(response).addListener(future -> headerOnlyWrites.offer(path));
     }
 
-    private void writeHeaderOnlyWebSocketUpgrade(ChannelHandlerContext ctx, String path) {
-      DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, SWITCHING_PROTOCOLS);
+    private void writeHeaderOnlyWebSocketUpgrade(
+        ChannelHandlerContext ctx, String path, HttpResponseStatus status) {
+      DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, status);
       response.headers().set(UPGRADE, "WebSocket");
       response.headers().set(CONNECTION, "Upgrade");
       ctx.writeAndFlush(response).addListener(future -> headerOnlyWrites.offer(path));
