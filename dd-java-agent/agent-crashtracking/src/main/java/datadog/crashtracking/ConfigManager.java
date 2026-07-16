@@ -178,6 +178,10 @@ public class ConfigManager {
   // Cached: the path can't be recomputed later (HotSpot temp dir vs J9 -Xdump:tool path differ).
   @Nullable private static volatile File cfgFile;
 
+  // Entries requested before the .cfg file was cached (e.g. the bundled WAF ruleset version
+  // arriving before Java 9+'s deferred crash-tracking init finishes) - applied once it is.
+  private static final Map<String, String> pendingEntries = new LinkedHashMap<>();
+
   private static String getBaseName(File file) {
     String filename = file.getName();
     int dotIndex = filename.lastIndexOf('.');
@@ -207,10 +211,30 @@ public class ConfigManager {
   }
 
   public static synchronized void writeConfigToPath(File scriptFile, String... additionalEntries) {
-    String cfgFileName = getBaseName(scriptFile) + PID_PREFIX + PidHelper.getPid() + ".cfg";
-    File cfgFile = new File(scriptFile.getParentFile(), cfgFileName);
+    File cfgFile = computeCfgFile(scriptFile);
     ConfigManager.cfgFile = cfgFile;
     writeConfigToFile(Config.get(), cfgFile, additionalEntries);
+    if (!pendingEntries.isEmpty()) {
+      Map<String, String> pending = new LinkedHashMap<>(pendingEntries);
+      pendingEntries.clear();
+      for (Map.Entry<String, String> entry : pending.entrySet()) {
+        updateCrashConfigEntry(entry.getKey(), entry.getValue());
+      }
+    }
+  }
+
+  /**
+   * Same as {@link #writeConfigToPath} but does not cache the written file as the target for {@link
+   * #updateCrashConfigEntry}. Used by writers (e.g. the OOME notifier) whose {@code .cfg} is never
+   * patched after the initial write, so it must not clobber the crash-uploader's cached path.
+   */
+  public static void writeConfigToPathWithoutCaching(File scriptFile, String... additionalEntries) {
+    writeConfigToFile(Config.get(), computeCfgFile(scriptFile), additionalEntries);
+  }
+
+  private static File computeCfgFile(File scriptFile) {
+    String cfgFileName = getBaseName(scriptFile) + PID_PREFIX + PidHelper.getPid() + ".cfg";
+    return new File(scriptFile.getParentFile(), cfgFileName);
   }
 
   /**
@@ -220,12 +244,17 @@ public class ConfigManager {
    * does not take a fresh {@link Config} snapshot and does not register a new shutdown hook - it is
    * meant to be called repeatedly after the initial write (e.g. once per Remote Config update).
    *
-   * <p>No-op if the {@code .cfg} file has not been written yet (crash tracking not initialized on
-   * this process/platform) - this is a normal condition, not an error.
+   * <p>Buffered if the {@code .cfg} file has not been written yet (crash tracking not initialized
+   * on this process/platform, or the deferred Java 9+ init hasn't run yet) - applied once {@link
+   * #writeConfigToPath} caches the file. This is a normal condition, not an error.
    */
   public static synchronized void updateCrashConfigEntry(String key, String value) {
+    if (key == null || value == null) {
+      return;
+    }
     File cfgFile = ConfigManager.cfgFile;
-    if (cfgFile == null || key == null || value == null) {
+    if (cfgFile == null) {
+      pendingEntries.put(key, value);
       return;
     }
     try {
@@ -241,8 +270,10 @@ public class ConfigManager {
             writeEntry(bw, entry.getKey(), entry.getValue());
           }
         }
-        if (!tmpFile.renameTo(cfgFile)) {
-          LOGGER.debug("Failed to atomically replace config file: {}", cfgFile);
+        // renameTo does not reliably replace an existing target on Windows (unlike POSIX) -
+        // deleting the stale target first lets the retry succeed there.
+        if (!tmpFile.renameTo(cfgFile) && !(cfgFile.delete() && tmpFile.renameTo(cfgFile))) {
+          LOGGER.debug("Failed to replace config file: {}", cfgFile);
           tmpFile.delete(); // best-effort cleanup; failure is acceptable here
         }
       } catch (IOException e) {
