@@ -55,6 +55,45 @@ When a boundary type exposes multiple overloads of the subscribe / invoke method
 
 **Reference:** dd-trace-java's `rxjava-2.0` module hooks the single-argument `subscribe(...)` method (matcher: `named("subscribe").and(takesArguments(1))`) with the argument typed as the base callback interface (e.g. `Observer` for `Observable`, `Subscriber` for `Flowable`). Read the module source to see the exact matcher — pattern-match on this rather than copying overload names.
 
+## Library-native context maps — the `*ContextBridge` pattern
+
+Some libraries expose their own request-scoped context map that users write to explicitly. Examples:
+
+- **Reactor** — `reactor.util.context.Context` (immutable per-subscription map); users pass a span via `.contextWrite(ctx -> ctx.put("dd.span", span))`.
+- **Kotlin coroutines** — `CoroutineContext` with custom `CoroutineContextElement`.
+- **JAX-RS** — `ContainerRequestContext` for per-request state.
+- **Vert.x** — `Context.putLocal(...)`.
+
+When a library has a first-class context-map concept, the observer/subscriber wrapping pattern documented above is **not sufficient by itself** — it only handles the "capture the currently-active trace context at subscribe time" case. It does NOT handle the case where a user has placed a span in the library's own context map and expects that span to propagate through the operator chain.
+
+**A context-tracking module for such a library MUST include a `*ContextBridge`-style helper** that:
+
+1. Reads a well-known key (Datadog convention: `"dd.span"`) from the library-native context.
+2. Adapts the retrieved object (which implements `WithAgentSpan` or is an `AgentSpan`) into a `datadog.context.Context`.
+3. Stores that context in the toolkit-native `ContextStore` keyed by the library's reactive-streams primitives (`Publisher`, `Subscriber`).
+4. Activates the stored context at the right lifecycle boundaries: on subscribe, on signal delivery, on blocking, and on internal subscriber handoff (e.g. Reactor's fused-operator path).
+
+**Reference:** `dd-java-agent/instrumentation/reactor-core-3.1/` — master has `ReactorContextBridge.java` plus four supporting instrumentations that hook the specific lifecycle points: `BlockingPublisherInstrumentation` (for `.block()` / `.blockFirst()` / `.blockLast()` on the calling thread), `ContextWritingSubscriberInstrumentation` (for `.contextWrite(...)` subscribers at subscribe time), `CorePublisherInstrumentation` (for the base publisher interface handing off to downstream subscribers), and `OptimizableOperatorInstrumentation` (for Reactor's internal fused-operator optimization path). Regenerating this module without preserving these classes silently breaks downstream libraries — Spring WebFlux, Spring Kafka reactive `@KafkaListener suspend fun`, resilience4j-reactor, reactor-netty — that rely on the `dd.span` propagation path.
+
+**How to detect the pattern in an unfamiliar library:** search the library's public API for a `Context` type with `put`/`get`/`hasKey` methods that user code can write to (as opposed to a Datadog-internal context). If such a type exists, the library has a native context map and needs a `*ContextBridge` helper.
+
+**When regenerating an existing reactive module:** enumerate every `*Instrumentation.java` in the master module and account for each one. Dropping any without a documented reason is always a Rule #2 (regen-preservation) violation. Also preserve the master's `*ContextBridge`-style helper verbatim, or produce equivalent semantics — do not drop it in favor of the subscriber-wrapping pattern alone.
+
+## Wrap placement and context-store lifecycle — memory considerations
+
+Context-tracking instrumentations allocate two kinds of long-lived state that add up on hot reactive paths:
+
+- **Wrapper instances** — one `TracingObserver`/`TracingSubscriber`/etc. per subscribe call.
+- **Context-store entries** — one `ContextStore.put(subscriber, context)` per subscribe call, held until the subscription completes/cancels.
+
+Place both at the narrowest scope that preserves correctness:
+
+- **Wrap only at chain boundaries** — subscribe, `.contextWrite(...)`, `.block()` — not at every internal operator. Operator-level wrapping causes N-fold allocations for an N-operator chain and does not add propagation coverage that boundary wrapping doesn't already provide.
+- **Use Subscriber-lifecycle context stores** — the store should drop entries when the subscription completes or cancels. `ContextStore` implementations in dd-trace-java are weakly-keyed; make sure the key is the subscriber (which has a bounded lifetime) rather than the publisher (which may be shared and long-lived).
+- **Avoid double-wrapping** — when a downstream operator already carries the context via the library-native context map (e.g., Reactor's `Context` flows through the whole operator chain by construction), do not add a per-operator wrap on top.
+
+**Why this matters:** a 10-operator Reactor chain with per-operator wrapping allocates 10× the wrappers of a boundary-only implementation, and every allocation must be reclaimed when the subscription completes. In steady-state reactive services, that's the difference between context-tracking being invisible in profiling and being a measurable overhead.
+
 ## When NOT to write a context-tracking instrumentation
 
 If the library DOES perform I/O — sends HTTP requests, runs DB queries, makes RPC calls, talks to a broker, reads/writes a cache — write a **span-creating instrumentation** (`InstrumenterModule.Tracing`) instead. Context-tracking is only for libraries that coordinate work; the moment there's actual I/O to observe, you want spans around it.
