@@ -10945,6 +10945,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_TEST_RETRY_ENABLED", "DD_INTEGRATION_TEST_RETRY_ENABLED"]
       }
     ],
+    "DD_TRACE_THREAD_SLEEP_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_THREAD_SLEEP_ENABLED", "DD_INTEGRATION_THREAD_SLEEP_ENABLED"]
+      }
+    ],
     "DD_TRACE_THREAD_POOL_EXECUTORS_EXCLUDE": [
       {
         "version": "A",

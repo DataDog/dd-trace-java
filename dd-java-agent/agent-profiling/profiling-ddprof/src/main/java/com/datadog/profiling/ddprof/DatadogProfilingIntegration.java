@@ -89,6 +89,16 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     DDPROF.parkExit(blocker, unblockingSpanId);
   }
 
+  @Override
+  public long beginTaskBlock(int state) {
+    return DDPROF.beginTaskBlock(state);
+  }
+
+  @Override
+  public boolean endTaskBlock(long token, long blocker, long unblockingSpanId) {
+    return DDPROF.endTaskBlock(token, blocker, unblockingSpanId);
+  }
+
   public void clearContext() {
     DDPROF.clearSpanContext();
     DDPROF.clearContextValue(SPAN_NAME_INDEX);
