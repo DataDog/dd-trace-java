@@ -70,6 +70,7 @@
 1 java.util.concurrent.ConcurrentHashMap*
 1 java.util.concurrent.atomic.*
 1 java.util.concurrent.locks.*
+0 java.util.concurrent.locks.LockSupport
 0 java.util.logging.*
 # allow capturing JVM shutdown
 0 java.lang.Shutdown
