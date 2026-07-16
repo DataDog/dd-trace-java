@@ -53,14 +53,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   public static final TagMap EMPTY = new TagMap(new Object[1], 0);
 
   /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
-  public static final TagMap fromMap(Map<String, ?> map) {
+  public static final TagMap fromMap(@Nonnull Map<String, ?> map) {
     TagMap tagMap = TagMap.create(map.size());
     tagMap.putAll(map);
     return tagMap;
   }
 
   /** Creates a new immutable TagMap that contains the contents of <code>map</code> */
-  public static final TagMap fromMapImmutable(Map<String, ?> map) {
+  public static final TagMap fromMapImmutable(@Nonnull Map<String, ?> map) {
     if (map.isEmpty()) {
       return TagMap.EMPTY;
     } else {
