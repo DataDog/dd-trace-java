@@ -3,6 +3,7 @@ package datadog.trace.agent.test.assertions;
 import static java.util.Comparator.comparingLong;
 
 import datadog.trace.core.DDSpan;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.UnaryOperator;
@@ -22,10 +23,19 @@ import org.opentest4j.AssertionFailedError;
  * @see SpanMatcher
  */
 public final class TraceMatcher {
+  /*
+   * Span comparators.
+   */
+  /** Span comparator to sort by start time. */
   public static final Comparator<DDSpan> START_TIME_COMPARATOR =
-      comparingLong(DDSpan::getStartTime);
+      comparingLong(DDSpan::getStartTime).thenComparingLong(DDSpan::getSpanId);
+
+  /*
+   * Span assertion options.
+   */
+  /** Sorts spans by start time. */
   public static UnaryOperator<Options> SORT_BY_START_TIME =
-      options -> options.sorter(START_TIME_COMPARATOR);
+      options -> options.sort(START_TIME_COMPARATOR);
 
   private final Options options;
   private final SpanMatcher[] matchers;
@@ -65,8 +75,9 @@ public final class TraceMatcher {
           this.matchers.length,
           spanCount);
     }
-    if (this.options.sorter != null) {
-      trace.sort(this.options.sorter);
+    if (this.options.comparator != null) {
+      trace = new ArrayList<>(trace);
+      trace.sort(this.options.comparator);
     }
     for (int spanIndex = 0; spanIndex < spanCount; spanIndex++) {
       this.matchers[spanIndex].assertSpan(trace, spanIndex);
@@ -74,10 +85,10 @@ public final class TraceMatcher {
   }
 
   public static class Options {
-    Comparator<DDSpan> sorter = null;
+    private Comparator<DDSpan> comparator = null;
 
-    public Options sorter(Comparator<DDSpan> sorter) {
-      this.sorter = sorter;
+    public Options sort(Comparator<DDSpan> comparator) {
+      this.comparator = comparator;
       return this;
     }
   }

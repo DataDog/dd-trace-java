@@ -4,6 +4,7 @@ import static java.util.function.UnaryOperator.identity;
 import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 
 import datadog.trace.core.DDSpan;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.UnaryOperator;
@@ -26,6 +27,9 @@ import java.util.function.UnaryOperator;
  * </ul>
  */
 public final class TraceAssertions {
+  /*
+   * Trace comparators.
+   */
   /** Trace comparator to sort by start time. */
   public static final Comparator<List<DDSpan>> TRACE_START_TIME_COMPARATOR =
       Comparator.comparingLong(
@@ -37,19 +41,19 @@ public final class TraceAssertions {
           trace -> trace.isEmpty() ? 0L : trace.get(0).getLocalRootSpan().getSpanId());
 
   /*
-   * Trace assertions options.
+   * Trace assertion options.
    */
-  /** Ignores addition traces. If there are more traces than expected, do not fail. */
+  /** Ignores additional traces. If there are more traces than expected, do not fail. */
   public static final UnaryOperator<Options> IGNORE_ADDITIONAL_TRACES =
-      Options::ignoredAdditionalTraces;
+      Options::ignoreAdditionalTraces;
 
   /** Sorts traces by start time. */
   public static final UnaryOperator<Options> SORT_BY_START_TIME =
-      options -> options.sorter(TRACE_START_TIME_COMPARATOR);
+      options -> options.sort(TRACE_START_TIME_COMPARATOR);
 
   /** Sorts traces by their root span identifier. */
   public static final UnaryOperator<Options> SORT_BY_ROOT_SPAN_ID =
-      options -> options.sorter(TRACE_ROOT_SPAN_ID_COMPARATOR);
+      options -> options.sort(TRACE_ROOT_SPAN_ID_COMPARATOR);
 
   private TraceAssertions() {}
 
@@ -102,8 +106,9 @@ public final class TraceAssertions {
             .buildAndThrow();
       }
     }
-    if (opts.sorter != null) {
-      traces.sort(opts.sorter);
+    if (opts.comparator != null) {
+      traces = new ArrayList<>(traces);
+      traces.sort(opts.comparator);
     }
     for (int i = 0; i < expectedTraceCount; i++) {
       List<DDSpan> trace = traces.get(i);
@@ -112,16 +117,16 @@ public final class TraceAssertions {
   }
 
   public static class Options {
-    boolean ignoredAdditionalTraces = false;
-    Comparator<List<DDSpan>> sorter = TRACE_START_TIME_COMPARATOR;
+    private boolean ignoredAdditionalTraces = false;
+    private Comparator<List<DDSpan>> comparator = TRACE_START_TIME_COMPARATOR;
 
-    public Options ignoredAdditionalTraces() {
+    public Options ignoreAdditionalTraces() {
       this.ignoredAdditionalTraces = true;
       return this;
     }
 
-    public Options sorter(Comparator<List<DDSpan>> sorter) {
-      this.sorter = sorter;
+    public Options sort(Comparator<List<DDSpan>> comparator) {
+      this.comparator = comparator;
       return this;
     }
   }
