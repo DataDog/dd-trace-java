@@ -252,7 +252,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records.add(record)
         }
       })
@@ -420,7 +419,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records.add(record)
         }
       })
@@ -553,7 +551,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records.add(record)
         }
       })
@@ -889,7 +886,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container.setupMessageListener(new BatchMessageListener<String, String>() {
       @Override
       void onMessage(List<ConsumerRecord<String, String>> consumerRecords) {
-        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
         consumerRecords.each {
           records.add(it)
         }
@@ -1026,7 +1022,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container.setupMessageListener(new MessageListener<String, String>() {
       @Override
       void onMessage(ConsumerRecord<String, String> record) {
-        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
         records.add(record)
         if (isDataStreamsEnabled()) {
           // even if header propagation is disabled, we want data streams to work.
