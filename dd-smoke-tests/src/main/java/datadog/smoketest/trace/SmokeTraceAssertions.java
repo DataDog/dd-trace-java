@@ -1,6 +1,9 @@
 package datadog.smoketest.trace;
 
+import static java.lang.Long.MAX_VALUE;
+import static java.lang.Math.min;
 import static java.util.function.UnaryOperator.identity;
+import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
@@ -44,12 +47,8 @@ import java.util.function.UnaryOperator;
  */
 public final class SmokeTraceAssertions {
   /** Sorts traces by the earliest span start time. */
-  public static final Comparator<List<DecodedSpan>> TRACE_START_TIME_COMPARATOR =
+  public static final Comparator<DecodedTrace> TRACE_START_TIME_COMPARATOR =
       Comparator.comparingLong(SmokeTraceAssertions::earliestStart);
-
-  /** Sorts traces by their root span id (the span with no parent). */
-  public static final Comparator<List<DecodedSpan>> TRACE_ROOT_SPAN_ID_COMPARATOR =
-      Comparator.comparingLong(SmokeTraceAssertions::rootSpanId);
 
   /** Don't require every received trace to be matched — ignore the extras (a subset assertion). */
   public static final UnaryOperator<Options> IGNORE_ADDITIONAL_TRACES =
@@ -62,111 +61,100 @@ public final class SmokeTraceAssertions {
   public static final UnaryOperator<Options> SORT_BY_START_TIME =
       options -> options.sorter(TRACE_START_TIME_COMPARATOR);
 
-  /** Sorts traces by root span id before matching. */
-  public static final UnaryOperator<Options> SORT_BY_ROOT_SPAN_ID =
-      options -> options.sorter(TRACE_ROOT_SPAN_ID_COMPARATOR);
-
   private SmokeTraceAssertions() {}
 
-  /** Asserts the traces against the matchers, one matcher per expected trace, in received order. */
+  /**
+   * Checks the structure of a trace collection.
+   *
+   * @param traces The trace collection to check.
+   * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
+   */
   public static void assertTraces(List<DecodedTrace> traces, TraceMatcher... matchers) {
     assertTraces(traces, identity(), matchers);
   }
 
   /**
-   * As {@link #assertTraces(List, TraceMatcher...)} with the given options. One matching pass,
-   * tuned by {@code sorter} / {@link Options#unordered() unordered} / {@link
-   * Options#ignoreAdditionalTraces() ignoreAdditionalTraces} — see the class doc for the flag
-   * semantics.
+   * Checks the structure of a trace collection.
+   *
+   * @param traces The trace collection to check.
+   * @param options The {@link Options} to configure the checks.
+   * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
    */
   public static void assertTraces(
       List<DecodedTrace> traces, UnaryOperator<Options> options, TraceMatcher... matchers) {
     Options opts = options.apply(new Options());
-    // Copy each trace's spans to a mutable list so the matcher can sort/inspect them.
-    List<List<DecodedSpan>> pool = new ArrayList<>(traces.size());
-    for (DecodedTrace trace : traces) {
-      pool.add(new ArrayList<>(trace.getSpans()));
-    }
-    if (opts.sorter != null) {
-      pool.sort(opts.sorter);
-    }
-    // Walk the matchers, each consuming a distinct trace. `floor` is the lowest pool index a match
-    // may use: it advances past each match to enforce order, except in fully-unordered mode (no
-    // sorter) where it stays 0 so any remaining trace is a candidate. `consumed` keeps matches
-    // distinct when the floor doesn't advance.
-    boolean[] consumed = new boolean[pool.size()];
-    int matched = 0;
-    int floor = 0;
-    for (int i = 0; i < matchers.length; i++) {
-      int idx = findMatch(pool, consumed, floor, opts, matchers[i], i);
-      consumed[idx] = true;
-      matched++;
-      if (!opts.unordered || opts.sorter != null) {
-        floor = idx + 1;
+    // Check trace count first
+    int traceCount = traces.size();
+    if (opts.ignoreAdditionalTraces) {
+      if (traceCount < matchers.length) {
+        assertionFailure()
+            .message("Not enough of traces")
+            .expected(matchers.length)
+            .actual(traceCount)
+            .buildAndThrow();
+      }
+    } else {
+      if (traceCount != matchers.length) {
+        assertionFailure()
+            .message("Invalid number of traces")
+            .expected(matchers.length)
+            .actual(traceCount)
+            .buildAndThrow();
       }
     }
-    if (!opts.ignoreAdditionalTraces && matched != pool.size()) {
-      throw new AssertionError(
-          "Expected " + matchers.length + " traces but got " + pool.size() + ": " + pool);
+    // Apply sorter
+    if (opts.sorter != null) {
+      traces = new ArrayList<>(traces);
+      traces.sort(opts.sorter);
     }
-  }
-
-  // Finds the trace this matcher consumes, or throws. Scans from `floor`, skipping consumed traces
-  // and (unless matching strictly positionally) non-matching ones. A strictly-positional matcher
-  // that fails is re-run with the throwing assertion so the failure names the offending span.
-  private static int findMatch(
-      List<List<DecodedSpan>> pool,
-      boolean[] consumed,
-      int floor,
-      Options opts,
-      TraceMatcher matcher,
-      int i) {
     boolean strictPositional = !opts.unordered && !opts.ignoreAdditionalTraces;
-    for (int j = floor; j < pool.size(); j++) {
-      if (consumed[j]) {
+    // Record matched traces for unordered mode
+    boolean[] traceMatched = new boolean[traceCount];
+    // Record last matching trace index for ignoreAdditionalTraces mode
+    int floor = 0;
+
+    for (int matcherIndex = 0; matcherIndex < matchers.length; matcherIndex++) {
+      TraceMatcher matcher = matchers[matcherIndex];
+      if (strictPositional) {
+        matcher.assertTrace(traces.get(matcherIndex).getSpans(), matcherIndex);
         continue;
       }
-      if (matcher.matches(pool.get(j), i)) {
-        return j;
+
+      boolean matched = false;
+      for (int traceIndex = floor; traceIndex < traceCount; traceIndex++) {
+        // Skipped already matched traces - unordered mode only
+        if (traceMatched[traceIndex]) {
+          continue;
+        }
+        if (matcher.matches(traces.get(traceIndex).getSpans(), matcherIndex)) {
+          matched = true;
+          if (opts.unordered) {
+            traceMatched[traceIndex] = true;
+          } else {
+            floor = traceIndex + 1;
+          }
+          break;
+        }
       }
-      if (strictPositional) {
-        break; // the trace at this position must match; no skipping ahead
+      if (!matched) {
+        assertionFailure().message("No trace matches matcher # "+ matcherIndex).buildAndThrow();
       }
     }
-    if (strictPositional && floor < pool.size() && !consumed[floor]) {
-      matcher.assertTrace(pool.get(floor), i); // throws with the per-span reason
-    }
-    throw new AssertionError(
-        "No received trace matched trace matcher #"
-            + i
-            + " among "
-            + pool.size()
-            + " received trace(s): "
-            + pool);
   }
 
-  private static long earliestStart(List<DecodedSpan> spans) {
-    long earliest = Long.MAX_VALUE;
-    for (DecodedSpan span : spans) {
-      earliest = Math.min(earliest, span.getStart());
+  private static long earliestStart(DecodedTrace trace) {
+    long start = MAX_VALUE;
+    for (DecodedSpan span : trace.getSpans()) {
+      start = min(start, span.getStart());
     }
-    return spans.isEmpty() ? 0L : earliest;
-  }
-
-  private static long rootSpanId(List<DecodedSpan> spans) {
-    for (DecodedSpan span : spans) {
-      if (span.getParentId() == 0L) {
-        return span.getSpanId();
-      }
-    }
-    return spans.isEmpty() ? 0L : spans.get(0).getSpanId();
+    return start == MAX_VALUE ? 0L : start;
   }
 
   /** Trace-collection matching options; see the class doc for how they combine. */
   public static final class Options {
     boolean ignoreAdditionalTraces = false;
     boolean unordered = false;
-    Comparator<List<DecodedSpan>> sorter = null; // null => keep received order
+    Comparator<DecodedTrace> sorter = null; // null => keep received order
 
     /** Ignore received traces beyond those the matchers consume (a subset assertion). */
     public Options ignoreAdditionalTraces() {
@@ -180,7 +168,7 @@ public final class SmokeTraceAssertions {
       return this;
     }
 
-    public Options sorter(Comparator<List<DecodedSpan>> sorter) {
+    public Options sorter(Comparator<DecodedTrace> sorter) {
       this.sorter = sorter;
       return this;
     }
