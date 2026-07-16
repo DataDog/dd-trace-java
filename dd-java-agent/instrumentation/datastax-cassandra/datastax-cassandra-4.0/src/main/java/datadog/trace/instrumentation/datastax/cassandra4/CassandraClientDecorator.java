@@ -82,41 +82,32 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
     return null;
   }
 
-  public AgentSpan onStatement(final AgentSpan span, final CharSequence statement) {
+  public void onStatement(final AgentSpan span, final CharSequence statement) {
     span.setResourceName(normalizedQuery(statement));
-    return span;
   }
 
-  public AgentSpan onResponse(final AgentSpan span, final ResultSet result) {
+  public void onResponse(final AgentSpan span, final ResultSet result) {
     if (result != null) {
-      return onResponse(
-          span, result.getExecutionInfo().getCoordinator(), result.getColumnDefinitions());
+      onResponse(span, result.getExecutionInfo().getCoordinator(), result.getColumnDefinitions());
     }
-
-    return span;
   }
 
-  public AgentSpan onResponse(final AgentSpan span, final AsyncResultSet result) {
+  public void onResponse(final AgentSpan span, final AsyncResultSet result) {
     if (result != null) {
-      return onResponse(
-          span, result.getExecutionInfo().getCoordinator(), result.getColumnDefinitions());
+      onResponse(span, result.getExecutionInfo().getCoordinator(), result.getColumnDefinitions());
     }
-
-    return span;
   }
 
   @Override
-  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+  public void onError(final AgentSpan span, final Throwable throwable) {
     super.onError(span, throwable);
 
     if (throwable instanceof CoordinatorException) {
       onResponse(span, ((CoordinatorException) throwable).getCoordinator(), null);
     }
-
-    return span;
   }
 
-  private AgentSpan onResponse(AgentSpan span, Node coordinator, ColumnDefinitions columns) {
+  private void onResponse(AgentSpan span, Node coordinator, ColumnDefinitions columns) {
     if (coordinator != null) {
       SocketAddress address = coordinator.getEndPoint().resolve();
       if (address instanceof InetSocketAddress) {
@@ -134,6 +125,5 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
       }
     } catch (final Throwable ignored) {
     }
-    return span;
   }
 }

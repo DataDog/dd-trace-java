@@ -15,13 +15,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TracePropagationStyle;
-import datadog.trace.api.datastreams.NoopPathwayContext;
-import datadog.trace.common.writer.ListWriter;
-import datadog.trace.core.CoreTracer;
-import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
 import java.util.HashMap;
@@ -29,24 +24,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
-class HttpInjectorTest extends DDCoreJavaSpecification {
-  private CoreTracer tracer;
-
-  @BeforeEach
-  void setup() {
-    ListWriter writer = new ListWriter();
-    this.tracer = tracerBuilder().writer(writer).build();
-  }
-
-  @AfterEach
-  void tearDown() {
-    this.tracer.close();
-  }
+class HttpInjectorTest extends AbstractHttpInjectorTest {
 
   protected boolean tracePropagationB3Padding() {
     return DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
@@ -246,25 +227,12 @@ class HttpInjectorTest extends DDCoreJavaSpecification {
       int samplingPriority,
       String origin,
       Map<String, String> baggage) {
-    return new DDSpanContext(
+    return mockSpanContext(
         traceId,
         spanId,
-        DDSpanId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
         samplingPriority,
         origin,
         baggage,
-        false,
-        "fakeType",
-        0,
-        this.tracer.createTraceCollector(DDTraceId.ONE),
-        null,
-        null,
-        NoopPathwayContext.INSTANCE,
-        false,
         PropagationTags.factory().fromHeaderValue(DATADOG, "_dd.p.usr=123"));
   }
 

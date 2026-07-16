@@ -52,7 +52,7 @@ public class CiVisibilityTraceInterceptorTest extends DDCoreJavaSpecification {
     tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
 
     DDSpan span = (DDSpan) tracer.buildSpan("datadog", "sample-span").start();
-    span.context().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
+    span.spanContext().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
     span.finish();
 
     // expect:
@@ -72,7 +72,7 @@ public class CiVisibilityTraceInterceptorTest extends DDCoreJavaSpecification {
 
     DDSpan span =
         (DDSpan) tracer.buildSpan("datadog", "sample-span").withSpanType(spanType).start();
-    span.context().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
+    span.spanContext().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
     span.finish();
     writer.waitForTraces(1);
 

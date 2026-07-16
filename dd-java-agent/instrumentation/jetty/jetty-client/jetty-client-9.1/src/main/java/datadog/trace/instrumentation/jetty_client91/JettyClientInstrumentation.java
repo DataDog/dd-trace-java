@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.jetty_client.HeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jetty_client91.JettyClientDecorator.DECORATE;
@@ -114,7 +114,7 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
     public static void methodEnter(@Advice.Argument(0) final Request request) {
       final AgentSpan span =
           InstrumentationContext.get(Request.class, AgentSpan.class).get(request);
-      Context destination = getCurrentContext();
+      Context destination = currentContext();
       if (span != null) {
         destination = destination.with(span);
       }

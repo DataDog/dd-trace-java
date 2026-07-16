@@ -1,7 +1,7 @@
 package datadog.trace.common.metrics;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -10,34 +10,26 @@ import javax.annotation.Nullable;
  * Test-side helpers for {@link AggregateEntry}: a positional-args fixture factory plus a field-wise
  * equality contract for use with Spock mock argument matchers and JUnit assertions. Lives in {@code
  * src/test} so the production class stays free of test-only API; same {@code
- * datadog.trace.common.metrics} package so this helper can reach package-private fields and
- * constructors.
+ * datadog.trace.common.metrics} package so this helper can reach package-private members.
  *
  * <p>Production {@code AggregateEntry} intentionally has no {@code equals}/{@code hashCode}
- * override -- {@link AggregateTable} bucketing goes through {@link AggregateEntry#matches} keyed on
- * {@link AggregateEntry#keyHash}, and no production code path invokes {@link Object#equals}.
+ * override -- {@link AggregateTable} bucketing goes through the {@code Canonical} scratch buffer
+ * keyed on {@link AggregateEntry#keyHash}, and no production code path invokes {@link
+ * Object#equals}.
  *
- * <p>The equality helper compares the raw {@code peerTagNames}/{@code peerTagValues} arrays (not
- * the encoded {@code peerTags} list) so it stays consistent with {@link AggregateEntry#hashOf},
- * which folds in raw arrays via {@link PeerTagSchema#hashCode()} and {@link
- * Arrays#hashCode(Object[])}. Comparing the encoded list would let two entries with different raw
- * layouts (e.g. tag {@code "b"} at index 1 in schema A vs index 0 in schema B, with matching
- * values) collapse to the same encoded form -- a real bug surfaced during PR #11382 review.
+ * <p>Peer tags live as a single pre-encoded {@code List<UTF8BytesString>} on the entry
+ * (canonicalization through {@link PeerTagSchema#register} already collapsed identical values), so
+ * equality compares the list directly. The hash side (computed in {@link AggregateEntry#hashOf})
+ * folds in the encoded list, so the contract stays consistent.
  */
 public final class AggregateEntryTestUtils {
   private AggregateEntryTestUtils() {}
 
   /**
-   * Builds an {@link AggregateEntry} from the same positional shape the prior {@code new
-   * MetricKey(...)} took. Accepts a pre-encoded {@code List<UTF8BytesString>} of {@code
-   * "name:value"} peer tags and recovers the parallel-array {@code (names, values)} form by
-   * splitting on the {@code ':'} delimiter.
-   *
-   * <p><b>Test-only.</b> The split is at the <em>first</em> {@code ':'}, so peer-tag values
-   * containing a colon (URLs, IPv6 addresses, {@code service:env} patterns) will be silently
-   * misparsed and the recovered (name, value) pair will be wrong. Keep test data colon-free in
-   * peer-tag values, or wire a production-style snapshot through {@link #forSnapshot(SpanSnapshot)}
-   * directly instead.
+   * Builds an {@link AggregateEntry} from positional args. Bypasses the cardinality handlers so
+   * tests can create expected values without mutating shared handler state. Content-equal entries
+   * from {@link AggregateEntry.Canonical#createEntry} still compare equal via {@link
+   * #equals(AggregateEntry, AggregateEntry)}.
    */
   public static AggregateEntry of(
       CharSequence resource,
@@ -53,49 +45,48 @@ public final class AggregateEntryTestUtils {
       @Nullable CharSequence httpMethod,
       @Nullable CharSequence httpEndpoint,
       @Nullable CharSequence grpcStatusCode) {
-    PeerTagSchema schema = null;
-    String[] values = null;
-    if (peerTags != null && !peerTags.isEmpty()) {
-      String[] names = new String[peerTags.size()];
-      values = new String[peerTags.size()];
-      int i = 0;
-      for (UTF8BytesString t : peerTags) {
-        String s = t.toString();
-        int colon = s.indexOf(':');
-        names[i] = colon < 0 ? s : s.substring(0, colon);
-        values[i] = colon < 0 ? "" : s.substring(colon + 1);
-        i++;
-      }
-      schema = PeerTagSchema.testSchema(names);
-    }
-    SpanSnapshot syntheticSnapshot =
-        new SpanSnapshot(
-            resource,
-            service == null ? null : service.toString(),
-            operationName,
-            serviceSource,
-            type,
+    UTF8BytesString resourceUtf = AggregateEntry.createUtf8(resource);
+    UTF8BytesString serviceUtf = AggregateEntry.createUtf8(service);
+    UTF8BytesString operationNameUtf = AggregateEntry.createUtf8(operationName);
+    UTF8BytesString serviceSourceUtf = AggregateEntry.createUtf8(serviceSource);
+    UTF8BytesString typeUtf = AggregateEntry.createUtf8(type);
+    UTF8BytesString spanKindUtf = AggregateEntry.createUtf8(spanKind);
+    UTF8BytesString httpMethodUtf = AggregateEntry.createUtf8(httpMethod);
+    UTF8BytesString httpEndpointUtf = AggregateEntry.createUtf8(httpEndpoint);
+    UTF8BytesString grpcUtf = AggregateEntry.createUtf8(grpcStatusCode);
+    List<UTF8BytesString> peerTagsList = peerTags == null ? Collections.emptyList() : peerTags;
+    UTF8BytesString[] peerTagsArr = peerTagsList.toArray(new UTF8BytesString[0]);
+    long keyHash =
+        AggregateEntry.hashOf(
+            resourceUtf,
+            serviceUtf,
+            operationNameUtf,
+            serviceSourceUtf,
+            typeUtf,
+            spanKindUtf,
+            httpMethodUtf,
+            httpEndpointUtf,
+            grpcUtf,
             (short) httpStatusCode,
             synthetic,
             traceRoot,
-            spanKind == null ? null : spanKind.toString(),
-            schema,
-            values,
-            httpMethod == null ? null : httpMethod.toString(),
-            httpEndpoint == null ? null : httpEndpoint.toString(),
-            grpcStatusCode == null ? null : grpcStatusCode.toString(),
-            0L);
-    return forSnapshot(syntheticSnapshot);
-  }
-
-  /**
-   * Builds an {@link AggregateEntry} from {@code s} by computing its lookup hash via {@link
-   * AggregateEntry#hashOf(SpanSnapshot)} and calling the package-private constructor directly.
-   * Production callers route through {@link AggregateTable#findOrInsert} which already has the
-   * {@code keyHash} on hand; tests rarely do, so this helper hides the second argument.
-   */
-  public static AggregateEntry forSnapshot(SpanSnapshot s) {
-    return new AggregateEntry(s, AggregateEntry.hashOf(s));
+            peerTagsArr,
+            peerTagsArr.length);
+    return new AggregateEntry(
+        keyHash,
+        resourceUtf,
+        serviceUtf,
+        operationNameUtf,
+        serviceSourceUtf,
+        typeUtf,
+        spanKindUtf,
+        httpMethodUtf,
+        httpEndpointUtf,
+        grpcUtf,
+        (short) httpStatusCode,
+        synthetic,
+        traceRoot,
+        peerTagsList);
   }
 
   /**
@@ -114,8 +105,7 @@ public final class AggregateEntryTestUtils {
         && Objects.equals(a.getServiceSource(), b.getServiceSource())
         && Objects.equals(a.getType(), b.getType())
         && Objects.equals(a.getSpanKind(), b.getSpanKind())
-        && Arrays.equals(a.peerTagNames, b.peerTagNames)
-        && Arrays.equals(a.peerTagValues, b.peerTagValues)
+        && a.getPeerTags().equals(b.getPeerTags())
         && Objects.equals(a.getHttpMethod(), b.getHttpMethod())
         && Objects.equals(a.getHttpEndpoint(), b.getHttpEndpoint())
         && Objects.equals(a.getGrpcStatusCode(), b.getGrpcStatusCode());
@@ -123,8 +113,8 @@ public final class AggregateEntryTestUtils {
 
   /**
    * Stable hash matching {@link #equals(AggregateEntry, AggregateEntry)} -- derived from {@link
-   * AggregateEntry#keyHash}, which {@link AggregateEntry#hashOf} computes from the same raw fields
-   * the helper's {@code equals} compares.
+   * AggregateEntry#keyHash}, which {@link AggregateEntry#hashOf} computes from the same fields the
+   * helper's {@code equals} compares.
    */
   public static int hashCode(AggregateEntry e) {
     return e == null ? 0 : (int) e.keyHash;

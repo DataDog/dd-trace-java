@@ -1,3 +1,6 @@
+import argparse
+import contextlib
+import io
 import json
 import os
 import re
@@ -6,7 +9,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
+from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = REPO_ROOT / ".github/scripts/dependency_age.py"
@@ -423,6 +428,82 @@ class DependencyAgeScriptTest(unittest.TestCase):
             path_filter=dependency_age.is_instrumentation_path,  # nothing under instrumentation
         )
         self.assertEqual(empty, "")
+
+    def test_summary_groups_outcomes_into_sections(self) -> None:
+        # one of each outcome: unverified, too-new revert, replacement-as-revert, replacement-as-update
+        summary = dependency_age.build_validation_summary(
+            violations_by_file={
+                "core/gradle.lockfile": [
+                    ("com.example:unverified-lib:1.0.0", "unverified", 0),
+                    ("com.example:too-new-lib:2.0.0", "too_new", 5),
+                ],
+            },
+            replacements_by_file={
+                "core/gradle.lockfile": {
+                    # eligible version equals the baseline -> effectively a revert
+                    "com.example:revert-lib:3.0.0": ("com.example:revert-lib:2.9.0", 7),
+                    # eligible version is newer than the baseline -> an update to a previous version
+                    "com.example:update-lib:4.0.0": ("com.example:update-lib:3.9.0", 9),
+                },
+            },
+            baseline_lockfiles={
+                "core/gradle.lockfile": {"com.example:revert-lib:2.9.0"},
+            },
+            min_age_hours=48,
+            path_filter=lambda p: True,
+        )
+
+        # three section headings present, in priority order
+        unverified_idx = summary.index("### :warning: Cannot verify age, reverted")
+        reverted_idx = summary.index("### 48h cooldown, reverted")
+        updated_idx = summary.index("### 48h cooldown, updated to the previous version")
+        self.assertLess(unverified_idx, reverted_idx)
+        self.assertLess(reverted_idx, updated_idx)
+
+        # unverified entry lives under the manual-resolution section
+        self.assertIn("**This needs to be resolved manually.**", summary)
+        self.assertIn("- `com.example:unverified-lib:1.0.0`", summary)
+
+        # both the too-new violation and the revert-style replacement land in the reverted section
+        reverted_block = summary[reverted_idx:updated_idx]
+        self.assertIn("com.example:too-new-lib:2.0.0", reverted_block)
+        self.assertIn("com.example:revert-lib:3.0.0", reverted_block)
+
+        # the update names the older version that was used instead
+        updated_block = summary[updated_idx:]
+        self.assertIn("com.example:update-lib:4.0.0", updated_block)
+        self.assertIn("updated to `3.9.0`", updated_block)
+
+    def test_highest_baseline_version_picks_newest_of_coexisting_pins(self) -> None:
+        # A single lockfile can pin the same artifact at several versions (one per Gradle
+        # configuration). The baseline should be the newest so that only versions higher than
+        # the highest existing version are considered upgrades.
+        baseline_coords = {
+            "ch.qos.logback:logback-core:1.1.11",
+            "ch.qos.logback:logback-core:1.2.13",
+            "ch.qos.logback:logback-core:1.5.34",
+            "com.example:unrelated:9.9.9",
+        }
+        self.assertEqual(
+            dependency_age.highest_baseline_version(baseline_coords, "ch.qos.logback", "logback-core"),
+            "1.5.34",
+        )
+        self.assertIsNone(
+            dependency_age.highest_baseline_version(baseline_coords, "ch.qos.logback", "logback-classic")
+        )
+
+    def test_summary_omits_empty_sections(self) -> None:
+        # only too-new violations -> only the "reverted" section should appear
+        summary = dependency_age.build_validation_summary(
+            violations_by_file={"core/gradle.lockfile": [("com.example:core-lib:2.0.0", "too_new", 5)]},
+            replacements_by_file={},
+            baseline_lockfiles={},
+            min_age_hours=48,
+            path_filter=lambda p: True,
+        )
+        self.assertIn("### 48h cooldown, reverted", summary)
+        self.assertNotIn("Cannot verify age", summary)
+        self.assertNotIn("updated to the previous version", summary)
 
 
 if __name__ == "__main__":

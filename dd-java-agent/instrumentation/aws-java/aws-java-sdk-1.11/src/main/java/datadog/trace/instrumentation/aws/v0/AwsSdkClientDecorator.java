@@ -11,6 +11,7 @@ import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
 import com.amazonaws.http.HttpMethodName;
+import datadog.context.ContextScope;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -18,7 +19,6 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -78,7 +78,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   }
 
   @Override
-  public AgentSpan onRequest(final AgentSpan span, final Request request) {
+  public void onRequest(final AgentSpan span, final Request request) {
     // Call super first because we override the resource name below.
     super.onRequest(span, request);
 
@@ -206,14 +206,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       if (null != streamArn && "AmazonKinesis".equals(awsServiceName)) {
         switch (awsOperation.getSimpleName()) {
           case PUT_RECORD_OPERATION_NAME:
-            try (AgentScope scope = AgentTracer.activateSpan(span)) {
+            try (ContextScope scope = AgentTracer.activateSpan(span)) {
               AgentTracer.get()
                   .getDataStreamsMonitoring()
                   .setProduceCheckpoint("kinesis", streamArn);
             }
             break;
           case PUT_RECORDS_OPERATION_NAME:
-            try (AgentScope scope = AgentTracer.activateSpan(span)) {
+            try (ContextScope scope = AgentTracer.activateSpan(span)) {
               List records = access.getRecords(originalRequest);
               for (Object ignored : records) {
                 AgentTracer.get()
@@ -228,12 +228,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       } else if (null != topicName && "AmazonSNS".equals(awsServiceName)) {
         switch (awsOperation.getSimpleName()) {
           case PUBLISH_OPERATION_NAME:
-            try (AgentScope scope = AgentTracer.activateSpan(span)) {
+            try (ContextScope scope = AgentTracer.activateSpan(span)) {
               AgentTracer.get().getDataStreamsMonitoring().setProduceCheckpoint("sns", topicName);
             }
             break;
           case PUBLISH_BATCH_OPERATION_NAME:
-            try (AgentScope scope = AgentTracer.activateSpan(span)) {
+            try (ContextScope scope = AgentTracer.activateSpan(span)) {
               List entries = access.getEntries(originalRequest);
               for (Object ignored : entries) {
                 AgentTracer.get().getDataStreamsMonitoring().setProduceCheckpoint("sns", topicName);
@@ -245,11 +245,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         }
       }
     }
-
-    return span;
   }
 
-  public AgentSpan onServiceResponse(
+  public void onServiceResponse(
       final AgentSpan span, final String awsService, final Response response) {
     if ("s3".equalsIgnoreCase(simplifyServiceName(awsService))
         && traceConfig().isDataStreamsEnabled()) {
@@ -287,18 +285,16 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         }
       }
     }
-
-    return span;
   }
 
   @Override
-  public AgentSpan onResponse(final AgentSpan span, final Response response) {
+  public void onResponse(final AgentSpan span, final Response response) {
     if (response.getAwsResponse() instanceof AmazonWebServiceResponse) {
       final AmazonWebServiceResponse awsResp = (AmazonWebServiceResponse) response.getAwsResponse();
       span.setTag(InstrumentationTags.AWS_REQUEST_ID, awsResp.getRequestId());
     }
 
-    return super.onResponse(span, response);
+    super.onResponse(span, response);
   }
 
   @Override

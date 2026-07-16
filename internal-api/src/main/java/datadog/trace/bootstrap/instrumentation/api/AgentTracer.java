@@ -258,6 +258,9 @@ public class AgentTracer {
   }
 
   public static synchronized void forceRegister(TracerAPI tracer) {
+    if (tracer == null) {
+      throw new IllegalArgumentException("tracer must not be null, use NOOP_TRACER instead");
+    }
     provider = tracer;
   }
 
@@ -378,7 +381,7 @@ public class AgentTracer {
 
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId);
 
-    void notifyAppSecEnd(AgentSpan span);
+    void notifyAppSecEnd(AgentSpan span, Object result);
 
     AgentDataStreamsMonitoring getDataStreamsMonitoring();
 
@@ -634,7 +637,7 @@ public class AgentTracer {
         AgentSpan span, Object result, boolean isError, String lambdaRequestId) {}
 
     @Override
-    public void notifyAppSecEnd(AgentSpan span) {}
+    public void notifyAppSecEnd(AgentSpan span, Object result) {}
 
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {

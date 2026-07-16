@@ -41,13 +41,15 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
         public void activate(Object context) {
           if (context instanceof ProfilerContext) {
             ProfilerContext profilerContext = (ProfilerContext) context;
+            // setSpanContext() calls reapplyAppContext() internally, so no explicit call is needed.
             DDPROF.setSpanContext(
                 profilerContext.getRootSpanId(),
                 profilerContext.getSpanId(),
                 profilerContext.getTraceIdHigh(),
                 profilerContext.getTraceIdLow());
-            DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getOperationName());
-            DDPROF.setContextValue(RESOURCE_NAME_INDEX, profilerContext.getResourceName());
+            DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getOperationName().toString());
+            DDPROF.setContextValue(
+                RESOURCE_NAME_INDEX, profilerContext.getResourceName().toString());
           }
         }
       };

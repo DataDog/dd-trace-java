@@ -65,6 +65,8 @@ import java.util.function.Supplier
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_JSON
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART_COMBINED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART_REPEATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
@@ -369,12 +371,25 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testBodyFilenamesCalledOnce() {
+    false
+  }
+
+  boolean testBodyFilenamesCalledOnceCombined() {
+    false
+  }
+
   boolean testBodyFilenames() {
     false
   }
 
   boolean testBodyFilesContent() {
     false
+  }
+
+  /** Override to false when the multipart implementation uses a set with non-deterministic ordering (e.g. HashSet). */
+  boolean testBodyFilesContentOrdering() {
+    true
   }
 
   boolean testBodyJson() {
@@ -481,6 +496,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     CREATED_IS("created_input_stream", 201, "created"),
     BODY_URLENCODED("body-urlencoded?ignore=pair", 200, '[a:[x]]'),
     BODY_MULTIPART("body-multipart?ignore=pair", 200, '[a:[x]]'),
+    BODY_MULTIPART_REPEATED("body-multipart-repeated", 200, "ok"),
+    BODY_MULTIPART_COMBINED("body-multipart-combined", 200, "ok"),
     BODY_JSON("body-json", 200, '{"a":"x"}'),
     BODY_XML("body-xml", 200, '<foo attr="attr_value">mytext<bar/></foo>'),
     REDIRECT("redirect", 302, "/redirected"),
@@ -1657,6 +1674,54 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.close()
   }
 
+  def 'test instrumentation gateway file upload filenames called once'() {
+    setup:
+    assumeTrue(testBodyFilenamesCalledOnce())
+    RequestBody fileBody = RequestBody.create(MediaType.parse('application/octet-stream'), 'file content')
+    def body = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'evil.php', fileBody)
+    .build()
+    def httpRequest = request(BODY_MULTIPART_REPEATED, 'POST', body).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.filenames') == "[evil.php]"
+      && it.getTag('_dd.appsec.filenames.cb.calls') == 1
+    }
+
+    cleanup:
+    response.close()
+  }
+
+  def 'test instrumentation gateway file upload filenames called once via parameter map'() {
+    setup:
+    assumeTrue(testBodyFilenamesCalledOnceCombined())
+    RequestBody fileBody = RequestBody.create(MediaType.parse('application/octet-stream'), 'file content')
+    def body = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'evil.php', fileBody)
+    .build()
+    def httpRequest = request(BODY_MULTIPART_COMBINED, 'POST', body).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.filenames') == "[evil.php]"
+      && it.getTag('_dd.appsec.filenames.cb.calls') == 1
+    }
+
+    cleanup:
+    response.close()
+  }
+
   def 'test instrumentation gateway file upload content'() {
     setup:
     assumeTrue(testBodyFilesContent())
@@ -1707,7 +1772,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   def 'test instrumentation gateway file upload content max files limit'() {
     setup:
-    assumeTrue(testBodyFilesContent())
+    assumeTrue(testBodyFilesContent() && testBodyFilesContentOrdering())
     def maxFilesToInspect = Config.get().getAppSecMaxFileContentCount()
     def bodyBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM)
     (1..maxFilesToInspect + 1).each {
@@ -1725,8 +1790,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     TEST_WRITER.get(0).any {
       span ->
       def tag = span.getTag('request.body.files_content') as String
-      tag?.contains("content_of_file_$maxFilesToInspect") &&
-      !tag.contains("content_of_file_${maxFilesToInspect + 1}")
+      // Exactly maxFilesToInspect files inspected; which file is excluded depends on iteration order
+      tag != null && tag.count('content_of_file_') == maxFilesToInspect
     }
 
     cleanup:
@@ -2667,6 +2732,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       Object responseBody
       List<String> uploadedFilenames
       List<String> uploadedFilesContent
+      int uploadedFilenamesCallCount = 0
     }
 
     static final String stringOrEmpty(String string) {
@@ -2840,6 +2906,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       rqCtxt.traceSegment.setTagTop('request.body.filenames', filenames as String)
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       context.uploadedFilenames = filenames
+      context.uploadedFilenamesCallCount++
+      rqCtxt.traceSegment.setTagTop('_dd.appsec.filenames.cb.calls', context.uploadedFilenamesCallCount)
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, List<String>, Flow<Void>>)
 

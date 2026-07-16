@@ -17,37 +17,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.datastreams.NoopPathwayContext;
-import datadog.trace.common.writer.ListWriter;
-import datadog.trace.core.CoreTracer;
-import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
-class DatadogHttpInjectorTest extends DDCoreJavaSpecification {
-  private HttpCodec.Injector injector;
-  private CoreTracer tracer;
+class DatadogHttpInjectorTest extends AbstractHttpInjectorTest {
 
-  @BeforeEach
-  void setup() {
-    this.injector =
-        DatadogHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
-
-    ListWriter writer = new ListWriter();
-    this.tracer = tracerBuilder().writer(writer).build();
-  }
-
-  @AfterEach
-  void tearDown() {
-    this.tracer.close();
+  @Override
+  protected HttpCodec.Injector newInjector() {
+    return DatadogHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
   }
 
   @TableTest({
@@ -196,25 +179,7 @@ class DatadogHttpInjectorTest extends DDCoreJavaSpecification {
         ddPTags == null
             ? PropagationTags.factory().empty()
             : PropagationTags.factory().fromHeaderValue(DATADOG, ddPTags);
-    return new DDSpanContext(
-        traceId,
-        DDSpanId.from(spanId),
-        DDSpanId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        samplingPriority,
-        origin,
-        baggage,
-        false,
-        "fakeType",
-        0,
-        this.tracer.createTraceCollector(DDTraceId.ONE),
-        null,
-        null,
-        NoopPathwayContext.INSTANCE,
-        false,
-        propagationTags);
+    return mockSpanContext(
+        traceId, DDSpanId.from(spanId), samplingPriority, origin, baggage, propagationTags);
   }
 }

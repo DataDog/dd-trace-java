@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.netty41.server;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.ANALYZED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.BLOCKED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
@@ -58,7 +57,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     Channel channel = ctx.channel();
 
     Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
-    AgentSpan span = spanFromContext(storedContext);
+    AgentSpan span = AgentSpan.fromContext(storedContext);
     RequestContext requestContext;
     if (span == null || (requestContext = span.getRequestContext()) == null) {
       super.write(ctx, msg, prm);

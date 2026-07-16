@@ -162,14 +162,14 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       "--configuration",
       "muzzleBootstrap"
     )
-    assertThat(bootstrapDependencies.output).contains("project :dd-java-agent:agent-bootstrap")
+    assertThat(bootstrapDependencies.output).contains(":dd-java-agent:agent-bootstrap")
 
     val toolingDependencies = run(
       ":dd-java-agent:instrumentation:demo:dependencies",
       "--configuration",
       "muzzleTooling"
     )
-    assertThat(toolingDependencies.output).contains("project :dd-java-agent:agent-tooling")
+    assertThat(toolingDependencies.output).contains(":dd-java-agent:agent-tooling")
   }
 
   @Test

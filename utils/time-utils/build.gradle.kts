@@ -4,11 +4,9 @@ plugins {
 
 apply(from = "$rootDir/gradle/java.gradle")
 
-val excludedClassesCoverage by extra(
-  listOf(
-    "datadog.trace.api.time.ControllableTimeSource:",
-    "datadog.trace.api.time.SystemTimeSource"
-  )
+extra["excludedClassesCoverage"] = listOf(
+  "datadog.trace.api.time.ControllableTimeSource:",
+  "datadog.trace.api.time.SystemTimeSource"
 )
 
 dependencies {

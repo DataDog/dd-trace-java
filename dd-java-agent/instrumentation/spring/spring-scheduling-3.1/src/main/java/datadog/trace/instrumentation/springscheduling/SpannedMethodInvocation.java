@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContin
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.DECORATE;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.AccessibleObject;
@@ -42,14 +43,14 @@ public class SpannedMethodInvocation implements MethodInvocation {
   }
 
   private Object invokeWithContinuation(CharSequence spanName) throws Throwable {
-    try (AgentScope scope = continuation.activate()) {
+    try (ContextScope scope = continuation.activate()) {
       return invokeWithSpan(spanName);
     }
   }
 
   private Object invokeWithSpan(CharSequence spanName) throws Throwable {
     AgentSpan span = startSpan("spring-scheduling", spanName);
-    try (AgentScope scope = activateSpan(span)) {
+    try (ContextScope scope = activateSpan(span)) {
       return delegate.proceed();
     } finally {
       span.finish();

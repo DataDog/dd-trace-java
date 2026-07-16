@@ -1,7 +1,11 @@
+import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheLicenseResourceTransformer
+import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheNoticeResourceTransformer
+import org.gradle.api.file.DuplicatesStrategy.INCLUDE
+
 plugins {
   java
   id("com.diffplug.spotless") version "8.4.0"
-  id("com.gradleup.shadow") version "8.3.9"
+  alias(libs.plugins.shadow)
 }
 
 java {
@@ -25,19 +29,19 @@ apply {
 }
 
 dependencies {
-  compileOnly("com.google.code.findbugs", "jsr305", "3.0.2")
+  compileOnly(libs.jsr305)
 
   implementation("org.freemarker", "freemarker", "2.3.30")
   implementation(libs.asm)
   implementation(libs.asm.tree)
   implementation(libs.javaparser.symbol.solver)
 
+  testCompileOnly(libs.jsr305)
   testImplementation(libs.bytebuddy)
   testImplementation(libs.bundles.junit5)
   testRuntimeOnly(libs.junit.platform.launcher)
   testImplementation(libs.bundles.mockito)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
-  testImplementation(libs.spotbugs.annotations)
 }
 
 sourceSets {
@@ -69,7 +73,11 @@ tasks {
   }
 
   shadowJar {
-    mergeServiceFiles()
+    duplicatesStrategy = INCLUDE
+    transform<ApacheLicenseResourceTransformer>()
+    transform<ApacheNoticeResourceTransformer>()
+    failOnDuplicateEntries = true
+
     manifest {
       attributes(mapOf("Main-Class" to "datadog.trace.plugin.csi.PluginApplication"))
     }

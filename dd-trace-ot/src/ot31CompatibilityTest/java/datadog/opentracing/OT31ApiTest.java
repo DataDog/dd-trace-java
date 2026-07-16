@@ -109,8 +109,8 @@ class OT31ApiTest extends DDJavaSpecification {
     ddContext.setSamplingPriority(contextPriority, samplingMechanism);
     tracer.inject(context, Format.Builtin.TEXT_MAP, adapter);
 
-    DDTraceId traceId = ((OTSpan) span).getDelegate().context().getTraceId();
-    long spanId = ((OTSpan) span).getDelegate().context().getSpanId();
+    DDTraceId traceId = ((OTSpan) span).getDelegate().spanContext().getTraceId();
+    long spanId = ((OTSpan) span).getDelegate().spanContext().getSpanId();
     String expectedTraceparent =
         "00-"
             + traceId.toHexStringPadded(32)

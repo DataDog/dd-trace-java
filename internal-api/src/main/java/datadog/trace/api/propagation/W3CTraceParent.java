@@ -37,6 +37,6 @@ public final class W3CTraceParent {
   }
 
   public static String from(AgentSpan span) {
-    return from(span.getTraceId(), span.getSpanId(), span.context().getSamplingPriority() > 0);
+    return from(span.getTraceId(), span.getSpanId(), span.spanContext().getSamplingPriority() > 0);
   }
 }

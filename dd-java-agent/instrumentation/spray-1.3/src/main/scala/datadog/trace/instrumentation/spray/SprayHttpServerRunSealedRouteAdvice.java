@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.spray;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.spray.SprayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.spray.SprayHttpServerDecorator.SPRAY_HTTP_SERVER;
@@ -29,7 +29,7 @@ public class SprayHttpServerRunSealedRouteAdvice {
       context = DECORATE.startSpan(request, parentContext);
       span = spanFromContext(context);
     } else {
-      parentContext = getRootContext();
+      parentContext = rootContext();
       span = startSpan(SPRAY_HTTP_SERVER.toString(), DECORATE.spanName());
       context = span;
     }

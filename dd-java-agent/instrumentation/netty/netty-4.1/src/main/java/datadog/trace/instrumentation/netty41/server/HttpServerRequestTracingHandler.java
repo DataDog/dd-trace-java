@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.netty41.server;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.ANALYZED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.BLOCKED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
@@ -46,7 +45,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     final Context context = DECORATE.startSpan(headers, parentContext);
 
     try (final ContextScope ignored = context.attach()) {
-      final AgentSpan span = spanFromContext(context);
+      final AgentSpan span = AgentSpan.fromContext(context);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, channel, request, parentContext);
 
@@ -90,7 +89,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     } finally {
       try {
         final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).getAndRemove();
-        final AgentSpan span = spanFromContext(storedContext);
+        final AgentSpan span = AgentSpan.fromContext(storedContext);
         if (span != null && span.phasedFinish()) {
           // at this point we can just publish this span to avoid loosing the rest of the trace
           span.publish();
