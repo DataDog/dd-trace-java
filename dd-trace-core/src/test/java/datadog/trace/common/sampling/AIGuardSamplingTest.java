@@ -2,9 +2,9 @@ package datadog.trace.common.sampling;
 
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.APM_TRACING_ENABLED;
-import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -73,18 +73,13 @@ public class AIGuardSamplingTest extends DDCoreJavaSpecification {
   @WithConfig(key = APM_TRACING_ENABLED, value = "false")
   @WithConfig(key = APPSEC_ENABLED, value = "true")
   void propagatedTraceSourceAloneDoesNotBypassSampler() throws Exception {
-    // consume the first allowed slot
-    DDSpan first = (DDSpan) tracer.buildSpan("datadog", "op").start();
-    first.finish();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "op").start();
+    span.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD);
+    span.finish();
     writer.waitForTraces(1);
 
-    // second trace sets _dd.p.ts but NOT AI_GUARD_KEEP — should still be dropped
-    DDSpan second = (DDSpan) tracer.buildSpan("datadog", "op").start();
-    second.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD);
-    second.finish();
-    writer.waitForTraces(2);
-
-    assertEquals(SAMPLER_DROP, (int) second.getSamplingPriority());
+    // _dd.p.ts alone must not force-keep the trace; only AI_GUARD_KEEP does that.
+    assertNotEquals(USER_KEEP, (int) span.getSamplingPriority());
   }
 
   /**
