@@ -129,7 +129,7 @@ class SpringBootRabbitSmokeTest {
     // per message plus each service's connection-setup/ack commands.
     List<TraceMatcher> expected = new ArrayList<>();
     for (int i = 0; i < MESSAGES.length; i++) {
-      expected.add(roundTrip()); // one full round-trip trace per message => all are verified
+      expected.add(roundTrip());
     }
     for (String service : new String[] {"spring-rabbit-0", "spring-rabbit-1"}) {
       for (String command : ADMIN_COMMANDS) {

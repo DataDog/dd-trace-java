@@ -36,7 +36,7 @@ public final class TraceMatcher {
 
   /** Configures {@link #trace(UnaryOperator, SpanMatcher...)} to sort spans by start time. */
   public static final UnaryOperator<Options> SORT_BY_START_TIME =
-      options -> options.sorter(START_TIME_COMPARATOR);
+      options -> options.sort(START_TIME_COMPARATOR);
 
   /**
    * Configures {@link #trace(UnaryOperator, SpanMatcher...)} to order spans root→leaf by following
@@ -84,8 +84,8 @@ public final class TraceMatcher {
       ordered = chainOrder(spans);
     } else {
       ordered = new ArrayList<>(spans);
-      if (options.sorter != null) {
-        ordered.sort(options.sorter);
+      if (options.comparator != null) {
+        ordered.sort(options.comparator);
       }
     }
     for (int i = 0; i < spanMatchers.length; i++) {
@@ -153,13 +153,12 @@ public final class TraceMatcher {
     return ordered;
   }
 
-  /** Per-trace matching options. */
   public static final class Options {
-    Comparator<DecodedSpan> sorter = null; // null => keep received order
+    Comparator<DecodedSpan> comparator = null; // null => keep received order
     boolean linearizeByParentChain = false;
 
-    public Options sorter(Comparator<DecodedSpan> sorter) {
-      this.sorter = sorter;
+    public Options sort(Comparator<DecodedSpan> comparator) {
+      this.comparator = comparator;
       return this;
     }
 
