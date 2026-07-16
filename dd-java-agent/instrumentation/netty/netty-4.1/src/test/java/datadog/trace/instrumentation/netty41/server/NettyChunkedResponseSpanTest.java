@@ -53,6 +53,7 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
   private static final String HEAD_PATH = "/bodyless/head";
   private static final String NO_RESPONSE_PATH = "/no-response";
   private static final String CLOSE_DELIMITED_PATH = "/close-delimited";
+  private static final String CLOSE_DELIMITED_FULL_RESPONSE_PATH = "/close-delimited/full";
   private static final String WEBSOCKET_PATH = "/websocket";
   private static final String CONNECT_AUTHORITY = "example.com:443";
   private static final String EARLY_HINTS_PATH = "/chunked/early-hints";
@@ -122,6 +123,27 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
     // The response has neither Content-Length nor chunked encoding, so closing the connection is
     // its normal completion and the span must not be flagged as an error.
     assertTraces(trace(serverSpan(CLOSE_DELIMITED_PATH)));
+  }
+
+  @Test
+  void waitsForChannelCloseForCloseDelimitedFullResponse() throws Exception {
+    boolean reportedBeforeConnectionClose;
+    try (Socket socket = connect()) {
+      socket
+          .getOutputStream()
+          .write(request(CLOSE_DELIMITED_FULL_RESPONSE_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      ChannelHandlerContext responseContext = handler.awaitCloseDelimitedFullResponseWritten();
+      reportedBeforeConnectionClose = writer.waitForTracesMax(1, 1);
+
+      closeChannel(responseContext);
+    }
+
+    assertFalse(
+        reportedBeforeConnectionClose,
+        "server span should not be reported before the connection closes");
+    assertTraces(trace(serverSpan(CLOSE_DELIMITED_FULL_RESPONSE_PATH)));
   }
 
   @Test
@@ -348,6 +370,8 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
         new LinkedBlockingQueue<>();
     private final BlockingQueue<ChannelHandlerContext> firstChunkWrites =
         new LinkedBlockingQueue<>();
+    private final BlockingQueue<ChannelHandlerContext> closeDelimitedFullResponseWrites =
+        new LinkedBlockingQueue<>();
     private final BlockingQueue<String> headerOnlyWrites = new LinkedBlockingQueue<>();
     private final BlockingQueue<ChannelHandlerContext> requestsWithoutResponse =
         new LinkedBlockingQueue<>();
@@ -376,6 +400,8 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
         requestsWithoutResponse.offer(ctx);
       } else if (CLOSE_DELIMITED_PATH.equals(request.uri())) {
         writeCloseDelimitedResponse(ctx);
+      } else if (CLOSE_DELIMITED_FULL_RESPONSE_PATH.equals(request.uri())) {
+        writeCloseDelimitedFullResponse(ctx);
       } else if (WEBSOCKET_PATH.equals(request.uri())) {
         writeHeaderOnlyWebSocketUpgrade(ctx, request.uri());
       } else {
@@ -399,6 +425,16 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       ctx.write(response);
       ctx.writeAndFlush(new DefaultHttpContent(Unpooled.copiedBuffer("first", UTF_8)))
           .addListener(future -> firstChunkWrites.offer(ctx));
+    }
+
+    private void writeCloseDelimitedFullResponse(ChannelHandlerContext ctx) {
+      // No Content-Length and no chunked transfer-encoding: the full response still has a
+      // close-delimited body on the wire.
+      DefaultFullHttpResponse response =
+          new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.copiedBuffer("first", UTF_8));
+      response.headers().set(CONNECTION, "close");
+      ctx.writeAndFlush(response)
+          .addListener(future -> closeDelimitedFullResponseWrites.offer(ctx));
     }
 
     private void writeHeaderOnlyResponse(
@@ -440,6 +476,15 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       ChannelHandlerContext responseContext = earlyHintsWrites.poll(5, SECONDS);
       if (responseContext == null) {
         throw new AssertionError("server did not write 103 Early Hints");
+      }
+      return responseContext;
+    }
+
+    private ChannelHandlerContext awaitCloseDelimitedFullResponseWritten()
+        throws InterruptedException {
+      ChannelHandlerContext responseContext = closeDelimitedFullResponseWrites.poll(5, SECONDS);
+      if (responseContext == null) {
+        throw new AssertionError("server did not write the full close-delimited response");
       }
       return responseContext;
     }

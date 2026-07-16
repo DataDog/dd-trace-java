@@ -84,9 +84,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       }
       DECORATE.onResponse(span, response);
       serverContext.markResponseStarted();
-      if (msg instanceof LastHttpContent
-          || isBodylessResponse(serverContext, response)
-          || isWebsocketUpgrade) {
+      if (isBodylessResponse(serverContext, response) || isWebsocketUpgrade) {
         return true;
       }
       // A response with neither a Content-Length nor chunked transfer-encoding is delimited by the
@@ -94,10 +92,16 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       // an incomplete one.
       if (!hasKnownBodyLength(response)) {
         serverContext.markResponseCloseDelimited();
+        return false;
+      }
+      if (msg instanceof LastHttpContent) {
+        return true;
       }
       return false;
     }
-    return serverContext.isResponseStarted() && msg instanceof LastHttpContent;
+    return serverContext.isResponseStarted()
+        && !serverContext.isResponseCloseDelimited()
+        && msg instanceof LastHttpContent;
   }
 
   private static boolean isInformationalResponse(final HttpResponse response) {
