@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -33,6 +34,46 @@ class FlatHashtableTest {
   }
 
   private static final EntryHelper HELPER = new EntryHelper();
+
+  /** All keys hash to slot 0, so inserts chain by linear probing — exercises the probe path. */
+  static final class CollidingHelper extends FlatHashtable.Helper<String, Entry> {
+    @Override
+    public int hash(String key) {
+      return 0;
+    }
+
+    @Override
+    public boolean matches(String key, Entry value) {
+      return key.equals(value.key);
+    }
+
+    @Override
+    public Entry create(String key) {
+      return new Entry(key);
+    }
+  }
+
+  private static final CollidingHelper COLLIDING = new CollidingHelper();
+
+  /** All keys hash to the last slot ({@code -1 & mask}), so probing wraps around to index 0. */
+  static final class LastSlotHelper extends FlatHashtable.Helper<String, Entry> {
+    @Override
+    public int hash(String key) {
+      return -1;
+    }
+
+    @Override
+    public boolean matches(String key, Entry value) {
+      return key.equals(value.key);
+    }
+
+    @Override
+    public Entry create(String key) {
+      return new Entry(key);
+    }
+  }
+
+  private static final LastSlotHelper LAST_SLOT = new LastSlotHelper();
 
   @Test
   void capacityFor_roundsToPowerOfTwoAtLeastTwiceLimit() {
@@ -88,5 +129,50 @@ class FlatHashtableTest {
   @Test
   void stringHelper_hashIsStableForEqualKeys() {
     assertEquals(HELPER.hash("route"), HELPER.hash(new String("route")));
+  }
+
+  @Test
+  void collision_probesPastOccupiedSlots_andResolvesEach() {
+    Entry[] table = FlatHashtable.create(Entry.class, 4); // 8 slots; COLLIDING sends all to slot 0
+    Entry a = FlatHashtable.getOrCreate(table, "a", COLLIDING);
+    Entry b = FlatHashtable.getOrCreate(table, "b", COLLIDING); // slot 0 taken -> probes to slot 1
+    Entry c = FlatHashtable.getOrCreate(table, "c", COLLIDING); // -> slot 2
+
+    assertNotSame(a, b);
+    assertNotSame(b, c);
+
+    // each resolves via probe-past-occupied + match-after-probe
+    assertSame(a, FlatHashtable.get(table, "a", COLLIDING));
+    assertSame(b, FlatHashtable.get(table, "b", COLLIDING));
+    assertSame(c, FlatHashtable.get(table, "c", COLLIDING));
+
+    // existing colliding key: found after probing, no new entry minted
+    assertSame(b, FlatHashtable.getOrCreate(table, "b", COLLIDING));
+
+    // absent key: probe past the 3 occupied slots, hit an empty slot -> null
+    assertNull(FlatHashtable.get(table, "absent", COLLIDING));
+  }
+
+  @Test
+  void collision_probeWrapsAroundToFront() {
+    Entry[] table =
+        FlatHashtable.create(Entry.class, 1); // 2 slots (0,1), mask=1; LAST_SLOT starts at 1
+    Entry k0 = FlatHashtable.getOrCreate(table, "k0", LAST_SLOT); // -> slot 1
+    Entry k1 = FlatHashtable.getOrCreate(table, "k1", LAST_SLOT); // slot 1 taken -> wraps to slot 0
+
+    assertNotSame(k0, k1);
+    assertSame(k0, FlatHashtable.get(table, "k0", LAST_SLOT));
+    // start slot 1 is occupied (no match) -> probe wraps to slot 0 -> match
+    assertSame(k1, FlatHashtable.get(table, "k1", LAST_SLOT));
+  }
+
+  @Test
+  void get_returnsNullWhenTableFullAndKeyAbsent() {
+    Entry[] table = FlatHashtable.create(Entry.class, 1); // 2 slots
+    FlatHashtable.getOrCreate(table, "k0", COLLIDING);
+    FlatHashtable.getOrCreate(table, "k1", COLLIDING); // fills slots 0 and 1
+
+    // get() probes both occupied slots, wraps back to start -> null (get's full-wrap branch)
+    assertNull(FlatHashtable.get(table, "absent", COLLIDING));
   }
 }
