@@ -27,6 +27,7 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.SpanKindFilter;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.otlp.metrics.OtlpStatsMetricWriter;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.Collections;
 import java.util.List;
