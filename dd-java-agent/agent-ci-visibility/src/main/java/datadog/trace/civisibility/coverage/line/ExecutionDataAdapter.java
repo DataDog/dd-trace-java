@@ -18,6 +18,14 @@ public class ExecutionDataAdapter {
     return className;
   }
 
+  long getClassId() {
+    return classId;
+  }
+
+  boolean[] getProbeActivations() {
+    return probeActivations;
+  }
+
   void record(int probeId) {
     probeActivations[probeId] = true;
   }
