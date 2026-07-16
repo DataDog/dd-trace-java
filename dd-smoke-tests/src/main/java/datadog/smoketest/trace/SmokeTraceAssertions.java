@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.UnaryOperator;
@@ -24,26 +25,33 @@ import java.util.function.UnaryOperator;
  * assertTraces(traces, trace(span().operationName("servlet.request").resourceName("GET /greeting")));
  * }</pre>
  *
- * <p>A single matching algorithm is tuned by three orthogonal, combinable {@link Options}:
+ * <p>A single matching algorithm is tuned by three combinable {@link Options}:
  *
  * <ul>
- *   <li>{@link #SORT_BY_START_TIME} / {@link #SORT_BY_ROOT_SPAN_ID} (the {@code sorter}) — sort the
- *       received traces before matching.
+ *   <li>{@link #SORT_BY_START_TIME} (the {@code sorter}) — sort the received traces before matching,
+ *       making positional matching deterministic.
  *   <li>{@link #UNORDERED} — a matcher may match <em>any</em> distinct (unconsumed) trace rather
- *       than the one at its position. Without a sorter this is fully order-independent;
- *       <em>with</em> a sorter it is forward-only (once a matcher takes the trace at sorted
- *       position <i>p</i>, the next matcher can only look at positions after <i>p</i>) — i.e. match
- *       as a subsequence in sorted order.
+ *       than the one at its position; the received order stops mattering (so a {@code sorter} has no
+ *       effect in this mode).
  *   <li>{@link #IGNORE_ADDITIONAL_TRACES} — don't require every received trace to be matched; extra
  *       traces are ignored (a subset assertion). Without it, the counts must be equal.
  * </ul>
  *
- * <p>The default (no options) is thus count-exact positional matching (matcher <i>i</i> ↔ trace
- * <i>i</i>, received order). Combine flags with the fluent {@link Options} — e.g. {@code o ->
- * o.unordered().ignoreAdditionalTraces()} — to assert only the traces you care about in a
- * collection that also holds unrelated or non-deterministically-ordered ones (e.g. a distributed
- * test where connection-setup commands land as their own traces). The traces come from a {@code
- * TraceBackend} (mock or test-agent), both decoded to {@link DecodedTrace}.
+ * <p>The useful combinations are:
+ *
+ * <ul>
+ *   <li><b>default</b> (optionally with a {@code sorter}) — count-exact positional: matcher
+ *       <i>i</i> ↔ trace <i>i</i>.
+ *   <li><b>{@code sorter} + {@code ignoreAdditionalTraces}</b> — ordered subsequence: match in
+ *       sorted order, skipping the traces no matcher claims.
+ *   <li><b>{@code unordered} + {@code ignoreAdditionalTraces}</b> — any-order subset: match the
+ *       traces you care about and ignore the rest (e.g. a distributed test where connection-setup
+ *       commands land as their own traces alongside the request traces).
+ * </ul>
+ *
+ * <p>Combine flags with the fluent {@link Options}, e.g. {@code o ->
+ * o.unordered().ignoreAdditionalTraces()}. The traces come from a {@code TraceBackend} (mock or
+ * test-agent), both decoded to {@link DecodedTrace}.
  */
 public final class SmokeTraceAssertions {
   /** Sorts traces by the earliest span start time. */
@@ -55,11 +63,11 @@ public final class SmokeTraceAssertions {
       Options::ignoreAdditionalTraces;
 
   /** Let each matcher match any distinct trace rather than the one at its position. */
-  public static final UnaryOperator<Options> UNORDERED = Options::unordered;
+  public static final UnaryOperator<Options> UNORDERED = Options::unorder;
 
   /** Sorts traces by earliest span start time before matching. */
   public static final UnaryOperator<Options> SORT_BY_START_TIME =
-      options -> options.sorter(TRACE_START_TIME_COMPARATOR);
+      options -> options.sort(TRACE_START_TIME_COMPARATOR);
 
   private SmokeTraceAssertions() {}
 
@@ -107,31 +115,26 @@ public final class SmokeTraceAssertions {
       traces = new ArrayList<>(traces);
       traces.sort(opts.sorter);
     }
+    // Assert traces
     boolean strictPositional = !opts.unordered && !opts.ignoreAdditionalTraces;
-    // Record matched traces for unordered mode
-    boolean[] traceMatched = new boolean[traceCount];
-    // Record last matching trace index for ignoreAdditionalTraces mode
-    int floor = 0;
-
+    BitSet skippedTraces = new BitSet(traceCount);
     for (int matcherIndex = 0; matcherIndex < matchers.length; matcherIndex++) {
       TraceMatcher matcher = matchers[matcherIndex];
       if (strictPositional) {
         matcher.assertTrace(traces.get(matcherIndex).getSpans(), matcherIndex);
         continue;
       }
-
       boolean matched = false;
-      for (int traceIndex = floor; traceIndex < traceCount; traceIndex++) {
-        // Skipped already matched traces - unordered mode only
-        if (traceMatched[traceIndex]) {
+      for (int traceIndex = skippedTraces.nextClearBit(0); traceIndex < traceCount; traceIndex++) {
+        if (skippedTraces.get(traceIndex)) {
           continue;
         }
         if (matcher.matches(traces.get(traceIndex).getSpans(), matcherIndex)) {
           matched = true;
           if (opts.unordered) {
-            traceMatched[traceIndex] = true;
+            skippedTraces.set(traceIndex);
           } else {
-            floor = traceIndex + 1;
+            skippedTraces.set(0, traceIndex);
           }
           break;
         }
@@ -150,25 +153,24 @@ public final class SmokeTraceAssertions {
     return start == MAX_VALUE ? 0L : start;
   }
 
-  /** Trace-collection matching options; see the class doc for how they combine. */
   public static final class Options {
     boolean ignoreAdditionalTraces = false;
     boolean unordered = false;
-    Comparator<DecodedTrace> sorter = null; // null => keep received order
+    Comparator<DecodedTrace> sorter = null;
 
-    /** Ignore received traces beyond those the matchers consume (a subset assertion). */
     public Options ignoreAdditionalTraces() {
       this.ignoreAdditionalTraces = true;
       return this;
     }
 
-    /** Let each matcher match any distinct trace (forward-only when a {@link #sorter} is set). */
-    public Options unordered() {
+    public Options unorder() {
       this.unordered = true;
+      this.sorter = null;
       return this;
     }
 
-    public Options sorter(Comparator<DecodedTrace> sorter) {
+    public Options sort(Comparator<DecodedTrace> sorter) {
+      this.unordered = false;
       this.sorter = sorter;
       return this;
     }

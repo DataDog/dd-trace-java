@@ -140,7 +140,7 @@ class SpringBootRabbitSmokeTest {
         .traces()
         .assertTraces(
             TIMEOUT_SECONDS,
-            o -> o.unordered().ignoreAdditionalTraces(),
+            o -> o.unorder().ignoreAdditionalTraces(),
             expected.toArray(new TraceMatcher[0]));
   }
 

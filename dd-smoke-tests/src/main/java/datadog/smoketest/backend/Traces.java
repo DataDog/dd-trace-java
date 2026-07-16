@@ -73,7 +73,8 @@ public final class Traces {
 
   /**
    * As {@link #assertTraces(TraceMatcher...)} with options (e.g. {@code
-   * SmokeTraceAssertions.IGNORE_ADDITIONAL_TRACES} / {@code SORT_BY_ROOT_SPAN_ID}).
+   * SmokeTraceAssertions.UNORDERED} / {@code IGNORE_ADDITIONAL_TRACES} / {@code
+   * SORT_BY_START_TIME}).
    */
   public void assertTraces(
       UnaryOperator<SmokeTraceAssertions.Options> options, TraceMatcher... matchers) {
