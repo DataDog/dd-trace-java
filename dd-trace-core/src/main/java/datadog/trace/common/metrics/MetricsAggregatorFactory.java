@@ -3,6 +3,7 @@ package datadog.trace.common.metrics;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.otlp.metrics.OtlpStatsMetricWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
