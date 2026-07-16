@@ -172,3 +172,83 @@ muzzle {
 **How to discover these**: when verify fails with a task name that has a doubled module name (e.g., `redis.clients-jedis-jedis-3.6.2`), check the existing production module for the same library at another version. If it has `skipVersions` entries, copy them. This is library-specific tribal knowledge that lives in the existing modules.
 
 When in doubt, **search adjacent module build.gradle files for `skipVersions`** before declaring a new version-bounded module's muzzle directives.
+
+## Namespace-isolation `fail` blocks for major-version siblings
+
+When a library has multiple major versions published under **different** `group:module` coordinates but under the same brand (e.g., `io.reactivex.rxjava2:rxjava` and `io.reactivex.rxjava3:rxjava`), and the two versions cannot share advice (the instrumentation must never resolve against the wrong major), master modules explicitly assert namespace isolation with a `muzzle { fail { ... } }` block.
+
+The block is defense-in-depth: it catches accidental cross-version advice matching that would otherwise pass silently. When regenerating a module that has such a block, preserve it verbatim.
+
+**Concrete failure pattern (from dd-trace-java PR #11939, rxjava-3.0 regen):** master's `rxjava-3.0/build.gradle` has:
+
+```groovy
+muzzle {
+  pass {
+    group = "io.reactivex.rxjava3"
+    module = "rxjava"
+    versions = "[3.0.0,)"
+  }
+  // Assert the rxjava3 advice never resolves against rxjava2 — the two namespaces
+  // must not overlap. rxjava3 references io.reactivex.rxjava3.core.*, absent from
+  // the rxjava2 artifact, so muzzle must fail to match it.
+  fail {
+    name = "rxjava2-must-not-match"
+    group = "io.reactivex.rxjava2"
+    module = "rxjava"
+    versions = "[2.0.0,)"
+  }
+}
+```
+
+An eval regenerated this WITHOUT the `fail` block. Muzzle would still likely fail naturally on rxjava2 (the FQNs don't exist in that artifact), but the explicit assertion is what catches the failure at CI time with a specific error message rather than a generic muzzle mismatch.
+
+**Rule:** for any module whose brand has a prior major version published under different Maven coordinates in the same repo, check master for a `muzzle { fail { name = "..." } }` block. If present, preserve verbatim on regen. When creating a new module for a library that has a prior-major sibling module in the repo, add such a fail block to assert non-overlap.
+
+Common cases where this applies: `rxjava-2.0` ↔ `rxjava-3.0`, `okhttp-2.0` ↔ `okhttp-3.0`, `jedis-1.4` ↔ `jedis-3.0` ↔ `jedis-4.0`, `jetty-server-7.0` ↔ `jetty-server-9.0.4` ↔ `jetty-server-11.0` (etc.).
+
+## Preserve `compileOnly` dependency versions on regen
+
+When regenerating an existing module, preserve the exact version of every `compileOnly` dependency in `build.gradle`. Silently narrowing a compileOnly version reduces the tested API surface without any warning — the module still compiles and tests still pass because the older version is a subset.
+
+**Concrete failure pattern (from dd-trace-java PR #11939, rxjava-3.0 regen):**
+
+```groovy
+// Master
+dependencies {
+  compileOnly group: 'org.reactivestreams', name: 'reactive-streams', version: '1.0.3'
+  compileOnly group: 'io.reactivex.rxjava3', name: 'rxjava', version: '3.0.0'
+}
+
+// Eval regenerated as
+dependencies {
+  compileOnly group: 'org.reactivestreams', name: 'reactive-streams', version: '1.0.0'  // ❌ regressed
+  compileOnly group: 'io.reactivex.rxjava3', name: 'rxjava', version: '3.0.0'
+}
+```
+
+`reactive-streams 1.0.3` adds APIs and behavioral clarifications over `1.0.0` that dd-trace-java's advice may rely on. Downgrading silently removes them from the tested surface.
+
+**Rule:** all `compileOnly` versions must match master verbatim on regen. This complements the existing `testImplementation` version parity rule — the same principle applies at the compile scope.
+
+## Preserve test-scope build.gradle dependencies on regen
+
+When regenerating an existing module, preserve every `testImplementation`, `latestDepTestImplementation`, and `forkedTestImplementation` dependency verbatim unless the corresponding test file is also being removed. Do not drop cross-module test dependencies — they back annotation-driven and cross-tracer interop tests that silently fail to compile or run without them.
+
+**Concrete failure pattern (from dd-trace-java PR #11940, reactor-core-3.1 regen):** the eval dropped these test dependencies:
+
+```groovy
+testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
+testImplementation project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
+testImplementation project(':dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4')
+testImplementation project(':dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.20')
+testImplementation project(':dd-java-agent:instrumentation:opentracing:opentracing-0.32')
+testImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '1.28.0'
+testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+latestDepTestImplementation group: 'io.micrometer', name: 'micrometer-core', version: '1.+'
+```
+
+These deps back annotation-driven tests (`@WithSpan`, `@Traced`), cross-module interop tests (`reactive-streams-1.0`), and version-drift workaround deps (`micrometer-core` required by newer Reactor versions). @mcculls flagged all of these as required.
+
+**Rule:** the set of `testImplementation` and `latestDepTestImplementation` entries in a regenerated `build.gradle` must be a superset of master's. If master has cross-module `project(':dd-java-agent:instrumentation:...')` deps, they must be present in the eval output. If master has `latestDepTestImplementation` workaround deps (e.g. `micrometer-core` for Reactor), they must be present.
+
+Source: @mcculls PR #11940 build.gradle review.
