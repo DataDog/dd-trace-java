@@ -18,7 +18,6 @@ import net.bytebuddy.asm.Advice;
 
 public final class FlowableInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
   @Override
   public String instrumentedType() {
     return "io.reactivex.rxjava3.core.Flowable";
@@ -54,6 +53,7 @@ public final class FlowableInstrumentation
         Context parentContext =
             InstrumentationContext.get(Flowable.class, Context.class).get(flowable);
         if (parentContext != null) {
+          // wrap the subscriber so spans from its events treat the captured span as their parent
           subscriber = new TracingSubscriber<>(subscriber, parentContext);
           // attach the context here in case additional subscribers are created during subscribe
           return parentContext.attach();

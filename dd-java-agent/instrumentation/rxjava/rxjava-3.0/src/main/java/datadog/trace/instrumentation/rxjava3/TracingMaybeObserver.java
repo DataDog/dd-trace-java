@@ -4,15 +4,15 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import io.reactivex.rxjava3.core.MaybeObserver;
 import io.reactivex.rxjava3.disposables.Disposable;
-import javax.annotation.Nonnull;
 
-/** Wrapper that makes sure spans from observer events treat the captured span as their parent. */
+/**
+ * Wrapper that makes sure spans from maybe-observer events treat the captured span as their parent.
+ */
 public final class TracingMaybeObserver<T> implements MaybeObserver<T> {
   private final MaybeObserver<T> observer;
   private final Context parentContext;
 
-  public TracingMaybeObserver(
-      @Nonnull final MaybeObserver<T> observer, @Nonnull final Context parentContext) {
+  public TracingMaybeObserver(final MaybeObserver<T> observer, final Context parentContext) {
     this.observer = observer;
     this.parentContext = parentContext;
   }
