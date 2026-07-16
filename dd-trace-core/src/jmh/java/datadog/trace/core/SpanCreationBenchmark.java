@@ -100,7 +100,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(value = 3)
 public class SpanCreationBenchmark {
   private static final String INSTRUMENTATION_NAME = "bench";
-  private static final String OPERATION_NAME = "servlet.request";
+  private static final String SERVER_OPERATION_NAME = "servlet.request";
   // The DB-shaped span gets its own operation name -- a real jdbc span is never "servlet.request",
   // and keeping the two shapes distinct by operation avoids conflating them.
   private static final String JDBC_OPERATION_NAME = "database.query";
@@ -146,21 +146,21 @@ public class SpanCreationBenchmark {
   /** Baseline: create + finish a bare span via startSpan, no tags. */
   @Benchmark
   public void bareStartSpan() {
-    AgentSpan span = tracer.startSpan(INSTRUMENTATION_NAME, OPERATION_NAME);
+    AgentSpan span = tracer.startSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME);
     span.finish();
   }
 
   /** Baseline: create + finish a bare span via the builder path, no tags. */
   @Benchmark
   public void bareBuildSpan() {
-    AgentSpan span = tracer.buildSpan(INSTRUMENTATION_NAME, OPERATION_NAME).start();
+    AgentSpan span = tracer.buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME).start();
     span.finish();
   }
 
   /** Web-server-shaped span: create -> set the typical known tags -> finish. */
   @Benchmark
   public void webServerSpan() {
-    AgentSpan span = tracer.buildSpan(INSTRUMENTATION_NAME, OPERATION_NAME).start();
+    AgentSpan span = tracer.buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME).start();
     span.setTag(Tags.COMPONENT, COMPONENT_VALUE);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
     span.setTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE);
@@ -183,7 +183,7 @@ public class SpanCreationBenchmark {
   public void webServerSpanViaBuilder() {
     AgentSpan span =
         tracer
-            .buildSpan(INSTRUMENTATION_NAME, OPERATION_NAME)
+            .buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME)
             .withTag(Tags.COMPONENT, COMPONENT_VALUE)
             .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER)
             .withTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE)
