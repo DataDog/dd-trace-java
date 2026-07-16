@@ -202,6 +202,8 @@ public final class ServerRequestContext {
   private boolean beforeFinishCalled;
   private boolean responseAnalyzed;
   private boolean responseBlocked;
+  private long responseContentLength = -1;
+  private long responseBodyBytes;
 
   public Context tracingContext() {
     return tracingContext;
@@ -233,6 +235,23 @@ public final class ServerRequestContext {
 
   public void markResponseCloseDelimited() {
     responseCloseDelimited = true;
+  }
+
+  public void setResponseContentLength(final long contentLength) {
+    responseContentLength = contentLength;
+    responseBodyBytes = 0;
+  }
+
+  public boolean recordResponseBodyBytes(final long bodyBytes) {
+    if (responseContentLength < 0 || bodyBytes <= 0) {
+      return false;
+    }
+    if (Long.MAX_VALUE - responseBodyBytes < bodyBytes) {
+      responseBodyBytes = Long.MAX_VALUE;
+    } else {
+      responseBodyBytes += bodyBytes;
+    }
+    return responseBodyBytes >= responseContentLength;
   }
 
   public boolean isBeforeFinishCalled() {

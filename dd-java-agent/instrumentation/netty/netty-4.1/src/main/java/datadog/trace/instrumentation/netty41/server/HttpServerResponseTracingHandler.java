@@ -9,10 +9,13 @@ import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import datadog.trace.instrumentation.netty41.ServerRequestContext;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufHolder;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.FileRegion;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponse;
@@ -43,19 +46,23 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
 
     try (final ContextScope ignored = storedContext.attach()) {
       final boolean terminalResponse = isTerminalResponse(ctx, span, serverContext, msg);
-      final ChannelPromise writePromise = terminalResponse && prm.isVoid() ? ctx.newPromise() : prm;
+      final boolean knownLengthResponseComplete =
+          !terminalResponse && serverContext.recordResponseBodyBytes(responseBodyBytes(msg));
+      final boolean finishResponseOnWrite = terminalResponse || knownLengthResponseComplete;
+      final ChannelPromise writePromise =
+          finishResponseOnWrite && prm.isVoid() ? ctx.newPromise() : prm;
       try {
-        if (terminalResponse) {
+        if (finishResponseOnWrite) {
           ServerRequestContext.remove(ctx.channel(), serverContext);
           writePromise.addListener(
               future -> finishSpan(serverContext, storedContext, span, future));
         }
         ctx.write(msg, writePromise);
       } catch (final Throwable throwable) {
-        if (!terminalResponse || !writePromise.isDone()) {
+        if (!finishResponseOnWrite || !writePromise.isDone()) {
           DECORATE.onError(span, throwable);
           span.setHttpStatusCode(500);
-          if (!terminalResponse) {
+          if (!finishResponseOnWrite) {
             ServerRequestContext.remove(ctx.channel(), serverContext);
           }
           finishSpan(serverContext, storedContext, span);
@@ -87,6 +94,10 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       serverContext.markResponseStarted();
       if (isBodylessResponse(serverContext, response) || isWebsocketUpgrade) {
         return true;
+      }
+      final long contentLength = contentLength(response);
+      if (contentLength > 0 && !HttpUtil.isTransferEncodingChunked(response)) {
+        serverContext.setResponseContentLength(contentLength);
       }
       // HTTP/1.x responses with neither a Content-Length nor chunked transfer-encoding are
       // delimited by the connection closing. HTTP/2 streams translated through
@@ -136,6 +147,19 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       final ChannelHandlerContext ctx, final HttpResponse response) {
     return !hasKnownBodyLength(response)
         && !Boolean.TRUE.equals(ctx.channel().attr(HTTP2_STREAM_CODEC_ATTRIBUTE_KEY).get());
+  }
+
+  private static long responseBodyBytes(final Object msg) {
+    if (msg instanceof ByteBuf) {
+      return ((ByteBuf) msg).readableBytes();
+    }
+    if (msg instanceof ByteBufHolder) {
+      return ((ByteBufHolder) msg).content().readableBytes();
+    }
+    if (msg instanceof FileRegion) {
+      return ((FileRegion) msg).count();
+    }
+    return 0;
   }
 
   /**

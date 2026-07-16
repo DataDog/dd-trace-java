@@ -26,6 +26,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpContent;
@@ -34,7 +35,12 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.LastHttpContent;
+import java.io.IOException;
 import java.net.Socket;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
@@ -54,6 +60,9 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
   private static final String NO_RESPONSE_PATH = "/no-response";
   private static final String CLOSE_DELIMITED_PATH = "/close-delimited";
   private static final String CLOSE_DELIMITED_FULL_RESPONSE_PATH = "/close-delimited/full";
+  private static final String KNOWN_LENGTH_BYTE_BUF_PATH = "/known-length/bytebuf";
+  private static final String KNOWN_LENGTH_FILE_REGION_PATH = "/known-length/file-region";
+  private static final String INCOMPLETE_KNOWN_LENGTH_PATH = "/known-length/incomplete";
   private static final String WEBSOCKET_PATH = "/websocket";
   private static final String CUSTOM_WEBSOCKET_STATUS_PATH = "/websocket/custom-status";
   private static final String CONNECT_AUTHORITY = "example.com:443";
@@ -147,6 +156,50 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
         reportedBeforeConnectionClose,
         "server span should not be reported before the connection closes");
     assertTraces(trace(serverSpan(CLOSE_DELIMITED_FULL_RESPONSE_PATH)));
+  }
+
+  @Test
+  void finishesServerSpanWithoutErrorForKnownLengthByteBufResponseClosedAfterBody()
+      throws Exception {
+    try (Socket socket = connect()) {
+      socket.getOutputStream().write(request(KNOWN_LENGTH_BYTE_BUF_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      ChannelHandlerContext responseContext = handler.awaitKnownLengthByteBufWritten();
+      closeChannel(responseContext);
+      assertEquals("first", readHttpResponseBody(socket.getInputStream()));
+    }
+
+    assertTraces(trace(serverSpan(KNOWN_LENGTH_BYTE_BUF_PATH)));
+  }
+
+  @Test
+  void finishesServerSpanWithoutErrorForKnownLengthFileRegionResponseClosedAfterBody()
+      throws Exception {
+    try (Socket socket = connect()) {
+      socket.getOutputStream().write(request(KNOWN_LENGTH_FILE_REGION_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      ChannelHandlerContext responseContext = handler.awaitKnownLengthFileRegionWritten();
+      closeChannel(responseContext);
+      assertEquals("first", readHttpResponseBody(socket.getInputStream()));
+    }
+
+    assertTraces(trace(serverSpan(KNOWN_LENGTH_FILE_REGION_PATH)));
+  }
+
+  @Test
+  void marksKnownLengthResponseErrorWhenConnectionClosesBeforeDeclaredBodyComplete()
+      throws Exception {
+    try (Socket socket = connect()) {
+      socket.getOutputStream().write(request(INCOMPLETE_KNOWN_LENGTH_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      ChannelHandlerContext responseContext = handler.awaitIncompleteKnownLengthWritten();
+      closeChannel(responseContext);
+    }
+
+    assertTraces(trace(serverSpan(INCOMPLETE_KNOWN_LENGTH_PATH).error()));
   }
 
   @Test
@@ -385,12 +438,18 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
         new LinkedBlockingQueue<>();
     private final BlockingQueue<ChannelHandlerContext> closeDelimitedFullResponseWrites =
         new LinkedBlockingQueue<>();
+    private final BlockingQueue<ChannelHandlerContext> knownLengthByteBufWrites =
+        new LinkedBlockingQueue<>();
+    private final BlockingQueue<ChannelHandlerContext> knownLengthFileRegionWrites =
+        new LinkedBlockingQueue<>();
+    private final BlockingQueue<ChannelHandlerContext> incompleteKnownLengthWrites =
+        new LinkedBlockingQueue<>();
     private final BlockingQueue<String> headerOnlyWrites = new LinkedBlockingQueue<>();
     private final BlockingQueue<ChannelHandlerContext> requestsWithoutResponse =
         new LinkedBlockingQueue<>();
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, HttpRequest request) {
+    protected void channelRead0(ChannelHandlerContext ctx, HttpRequest request) throws Exception {
       if (CONTINUE_PATH.equals(request.uri())) {
         ctx.writeAndFlush(new DefaultFullHttpResponse(HTTP_1_1, CONTINUE))
             .addListener(future -> continueWrites.offer(ctx));
@@ -415,6 +474,12 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
         writeCloseDelimitedResponse(ctx);
       } else if (CLOSE_DELIMITED_FULL_RESPONSE_PATH.equals(request.uri())) {
         writeCloseDelimitedFullResponse(ctx);
+      } else if (KNOWN_LENGTH_BYTE_BUF_PATH.equals(request.uri())) {
+        writeKnownLengthByteBufResponse(ctx);
+      } else if (KNOWN_LENGTH_FILE_REGION_PATH.equals(request.uri())) {
+        writeKnownLengthFileRegionResponse(ctx);
+      } else if (INCOMPLETE_KNOWN_LENGTH_PATH.equals(request.uri())) {
+        writeIncompleteKnownLengthResponse(ctx);
       } else if (WEBSOCKET_PATH.equals(request.uri())) {
         writeHeaderOnlyWebSocketUpgrade(ctx, request.uri(), SWITCHING_PROTOCOLS);
       } else if (CUSTOM_WEBSOCKET_STATUS_PATH.equals(request.uri())) {
@@ -450,6 +515,45 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       response.headers().set(CONNECTION, "close");
       ctx.writeAndFlush(response)
           .addListener(future -> closeDelimitedFullResponseWrites.offer(ctx));
+    }
+
+    private void writeKnownLengthByteBufResponse(ChannelHandlerContext ctx) {
+      byte[] body = "first".getBytes(UTF_8);
+      DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+      response.headers().set(CONNECTION, "close");
+      response.headers().set(CONTENT_LENGTH, body.length);
+      ctx.write(response);
+      ctx.writeAndFlush(Unpooled.wrappedBuffer(body))
+          .addListener(future -> knownLengthByteBufWrites.offer(ctx));
+    }
+
+    private void writeKnownLengthFileRegionResponse(ChannelHandlerContext ctx) throws IOException {
+      byte[] body = "first".getBytes(UTF_8);
+      Path path = Files.createTempFile("netty-known-length", ".body");
+      Files.write(path, body);
+      FileChannel fileChannel = FileChannel.open(path, StandardOpenOption.READ);
+
+      DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+      response.headers().set(CONNECTION, "close");
+      response.headers().set(CONTENT_LENGTH, body.length);
+      ctx.write(response);
+      ctx.writeAndFlush(new DefaultFileRegion(fileChannel, 0, body.length))
+          .addListener(
+              future -> {
+                close(fileChannel);
+                delete(path);
+                knownLengthFileRegionWrites.offer(ctx);
+              });
+    }
+
+    private void writeIncompleteKnownLengthResponse(ChannelHandlerContext ctx) {
+      byte[] body = "first".getBytes(UTF_8);
+      DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+      response.headers().set(CONNECTION, "close");
+      response.headers().set(CONTENT_LENGTH, body.length + 1);
+      ctx.write(response);
+      ctx.writeAndFlush(Unpooled.wrappedBuffer(body))
+          .addListener(future -> incompleteKnownLengthWrites.offer(ctx));
     }
 
     private void writeHeaderOnlyResponse(
@@ -505,6 +609,30 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       return responseContext;
     }
 
+    private ChannelHandlerContext awaitKnownLengthByteBufWritten() throws InterruptedException {
+      ChannelHandlerContext responseContext = knownLengthByteBufWrites.poll(5, SECONDS);
+      if (responseContext == null) {
+        throw new AssertionError("server did not write the known-length ByteBuf response");
+      }
+      return responseContext;
+    }
+
+    private ChannelHandlerContext awaitKnownLengthFileRegionWritten() throws InterruptedException {
+      ChannelHandlerContext responseContext = knownLengthFileRegionWrites.poll(5, SECONDS);
+      if (responseContext == null) {
+        throw new AssertionError("server did not write the known-length FileRegion response");
+      }
+      return responseContext;
+    }
+
+    private ChannelHandlerContext awaitIncompleteKnownLengthWritten() throws InterruptedException {
+      ChannelHandlerContext responseContext = incompleteKnownLengthWrites.poll(5, SECONDS);
+      if (responseContext == null) {
+        throw new AssertionError("server did not write the incomplete known-length response");
+      }
+      return responseContext;
+    }
+
     private ChannelHandlerContext awaitRequestWithoutResponse() throws InterruptedException {
       ChannelHandlerContext responseContext = requestsWithoutResponse.poll(5, SECONDS);
       if (responseContext == null) {
@@ -519,6 +647,20 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
         throw new AssertionError("server did not write the header-only response");
       }
       assertEquals(path, responsePath, "server wrote header-only response for unexpected path");
+    }
+
+    private static void close(FileChannel fileChannel) {
+      try {
+        fileChannel.close();
+      } catch (IOException ignored) {
+      }
+    }
+
+    private static void delete(Path path) {
+      try {
+        Files.deleteIfExists(path);
+      } catch (IOException ignored) {
+      }
     }
   }
 }
