@@ -20,9 +20,13 @@ import org.opentest4j.AssertionFailedError;
  * with the expected {@link SpanMatcher}s (one per expected span), or {@link #trace(UnaryOperator,
  * SpanMatcher...)} to configure the checks with a {@link Options} object.
  *
- * <p>{@link #SORT_BY_START_TIME} can be used as predefined configuration to sort spans by start
- * time, and {@link #SORT_BY_ANCESTRY} to sort spans by ancestry, root spans (or which parents are
- * not present in the trace chunk) first, followed by their children by start time, depth-first.
+ * <p>The following predefined configurations:
+ *
+ * <ul>
+ *   <li>{@link #SORT_BY_START_TIME} sorts spans by start time,
+ *   <li>{@link #SORT_BY_ANCESTRY} sorts spans by ancestry, root spans (or which parents are not
+ *       present in the trace chunk) first, followed by their children by start time, depth-first
+ * </ul>
  *
  * @see SmokeTraceAssertions
  * @see SpanMatcher
