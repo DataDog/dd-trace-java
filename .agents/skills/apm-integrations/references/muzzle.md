@@ -56,6 +56,43 @@ muzzle {
 }
 ```
 
+## Test dependencies should default to the module's declared minimum version
+
+**Default:** the base `testImplementation` dep version in `build.gradle` should match the module's declared minimum version (from the module directory suffix and the muzzle `versions = "[X.Y,)"` range). Pinning `testImplementation` to a newer version than the module claims to support silently exercises a version the module wasn't declared to work with, and `muzzle` won't catch it because muzzle checks classpath compatibility, not test behavior.
+
+```groovy
+// WRONG — module is jedis-3.0 (min = 3.0.0) but tests run against 4.0 with no justification
+muzzle {
+  pass { group = "redis.clients"; module = "jedis"; versions = "[3.0,)" }
+}
+dependencies {
+  testImplementation("redis.clients:jedis:4.0.0")   // ← breaks the min-version guarantee
+}
+
+// DEFAULT — testImplementation at the declared min; latestDepTestImplementation for the newest
+dependencies {
+  testImplementation("redis.clients:jedis:3.0.0")
+  latestDepTestImplementation("redis.clients:jedis:+")
+}
+```
+
+**Justified deviation:** a module may `compileOnly` against the declared minimum and `testImplementation` against a higher version when the test genuinely requires a class/API that only exists in the higher version. In that case:
+
+- Document the reason with a comment at the top of `build.gradle` (a reviewer must be able to see why immediately)
+- The `super(...)` alias should reflect the version the code exercises, not the compile-time minimum
+
+Example — `dd-java-agent/instrumentation/spark/sparkjava-2.3/build.gradle`:
+
+```groovy
+// building against 2.3 and testing against 2.4 because JettyHandler is available since 2.4 only
+dependencies {
+  compileOnly group: 'com.sparkjava', name: 'spark-core', version: '2.3'
+  testImplementation group: 'com.sparkjava', name: 'spark-core', version: '2.4'
+}
+```
+
+Without a written justification, prefer the default (test-at-min). This is a stricter form of the `latestDep` range rule (see Step 9.3 of the main SKILL.md) — it applies to the *base* test dependency too, not just latestDep.
+
 ## Do NOT use `assertInverse = true` unless the declared min is the actual minimum compatible version
 
 The `assertInverse = true` directive tells muzzle to auto-test versions below the declared minimum and assert they fail. If your instrumentation is actually compatible with versions below the declared minimum (a common case when only ONE of several instrumentation classes requires the new feature), this auto-assertion will fail with:

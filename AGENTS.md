@@ -68,7 +68,7 @@ docs/                     Developer documentation (see below)
 
 - Title: imperative verb sentence describing user-visible change (e.g. "Fix span sampling rule parsing")
 - Labels: always add `tag: ai generated` and at least one `comp:` or `inst:` label + one `type:` label
-- Use `tag: no release note` for internal/refactoring changes
+- Use `tag: no release notes` for internal/refactoring changes
 - Open as draft first, convert to ready when reviewable
 
 ## Review Guidelines
@@ -77,7 +77,7 @@ Before marking a PR ready, run the applicable reviews below over the branch chan
 
 ### Performance Review
 
-Follow the performance-review guidelines in [.claude/skills/perf-review/SKILL.md](.claude/skills/perf-review/SKILL.md) — the do-no-harm / assume-hot posture, the hot-path checks (universal + Java J1–J11 + ByteBuddy-Advice idioms), and the confidence/severity model, with the detailed rubric in its `references/`. Scope: hot-path allocation, unbounded memory, repeated work, escaping objects, native-boundary crossings, and JVM-specific pitfalls.
+Follow the performance-review guidelines in [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md) — the do-no-harm / assume-hot posture, the hot-path checks (universal + Java J1–J11 + ByteBuddy-Advice idioms), and the confidence/severity model, with the detailed rubric in its `references/`. Scope: hot-path allocation, unbounded memory, repeated work, escaping objects, native-boundary crossings, and JVM-specific pitfalls.
 
 ## Bootstrap constraints (critical)
 
