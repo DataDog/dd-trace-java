@@ -155,10 +155,21 @@ function start_server {
       { /usr/bin/time $time_flag ${utility_cmd} ; } 2> $server_output &
     fi
 
-    # Block until server is up
-    until nc -z localhost 8080; do
+    # Block until the server actually SERVES HTTP 200 -- not just binds the TCP port. The java agent
+    # slows startup, so a TCP-only check (nc -z) let wrk start before the app was serving under
+    # load, producing `connect` socket errors and a bogus ~26x throughput collapse on the agent
+    # runs. Poll the home endpoint for a real 200 (curl if present, else python3), with a timeout.
+    ready_deadline=$((SECONDS + 180))
+    until { command -v curl >/dev/null 2>&1 && curl -sf -o /dev/null http://localhost:8080/ ; } \
+        || python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/',timeout=2).getcode()==200 else 1)" >/dev/null 2>&1 ; do
+        if [ "$SECONDS" -ge "$ready_deadline" ]; then
+            echo "ERROR: server did not serve HTTP 200 on / within 180s -- aborting" >&2
+            exit 1
+        fi
         sleep 0.5
     done
+    # Brief settle so first-hit JIT/classloading doesn't skew the wrk warmup.
+    sleep 2
     server_pid=$(lsof -i tcp:8080 | awk '$8 == "TCP" { print $2 }' | uniq)
     echo "server $server_pid started"
 }
@@ -188,6 +199,14 @@ function test_endpoint {
     # run test
     wrk_results=/tmp/wrk_results.`date +%s`
     wrk -c $test_num_connections -t$test_num_threads -d ${test_time_seconds}s $url > $wrk_results
+    # Sanity gate: with the HTTP-200 readiness check above, wrk should never see socket connect
+    # errors. If it does, the app was not healthy under load and the row would be garbage (the
+    # failure mode behind the bogus 26x sweep) -- abort loudly instead of recording it.
+    if grep -qE 'Socket errors:.*connect [1-9]' "$wrk_results"; then
+        echo "ERROR: wrk reported socket connect errors on $url -- server unhealthy under load:" >&2
+        grep -E 'Socket errors|Requests/sec' "$wrk_results" >&2
+        exit 1
+    fi
     echo $wrk_results
 }
 
