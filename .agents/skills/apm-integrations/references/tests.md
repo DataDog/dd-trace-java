@@ -113,3 +113,74 @@ State the isolation reason in a comment on the `ForkedTest` class.
 ### Do not add default jvmArgs to test tasks
 
 `dd.trace.enabled=true` is the default; adding `jvmArgs '-Ddd.trace.enabled=true'` to a `Test` task in `build.gradle` is noise. Only add jvmArgs that meaningfully diverge from defaults (e.g. enabling a specific integration that's off by default, or a debug flag). If you're tempted to copy a `jvmArgs` block from a sibling module, check whether each flag is actually needed for this module.
+
+## Version-sensitive tests belong in a separate `latestDepTest` source set
+
+When regenerating an existing module, check if master has a `src/latestDepTest/` source set (declared via `addTestSuite('latestDepTest')` or `addTestSuiteForDir('latestDepTest', ...)` in `build.gradle`). If so, preserve that split — do NOT collapse latestDep-specific tests into the base `src/test/` directory.
+
+**Why this matters:** for libraries whose API surface changes across minor versions (Reactor deprecates and removes APIs; Netty changes signatures; gRPC evolves generated code), the base test directory compiles against `testImplementation` (pinned to the module's declared min version) AND against `latestDepTestImplementation` (which resolves to the latest published version). If a test uses an API that was removed after the declared min, putting it in the base directory causes a compile failure in `latestDepTest` even though the test itself is intended to run against the older version.
+
+Master's solution: put version-sensitive tests in `src/latestDepTest/` where they only compile against `latestDepTestImplementation` and can freely use the current API. When the latest version removes an API, only the `latestDepTest` copy needs updating.
+
+**Concrete failure pattern (from dd-trace-java PR #11940, reactor-core-3.1 regen):** master has `src/latestDepTest/groovy/ReactorCoreTest.groovy` that uses `Schedulers.boundedElastic()` (the current API). The eval collapsed all tests into `src/test/java/` and used `Schedulers.elastic()` (removed in Reactor 3.4+). Result: `:latestDepTest` compilation failure blocking `:check` on every JVM shard.
+
+**Rule:**
+- Before generating tests, `ls src/latestDepTest/` in master's module. If it exists, the regen must include the equivalent source set.
+- If master's `build.gradle` has `addTestSuiteForDir('latestDepTest', ...)` or `addTestSuite('latestDepTest')`, preserve that declaration verbatim.
+- When generating tests for a library that has deprecated or removed APIs across recent minor versions, use `latestDepTest/` for tests that exercise those APIs and `test/` for tests that exercise stable APIs.
+- Common libraries where this split matters: Reactor (`Schedulers.elastic()` removed in 3.4+), Netty (channel handler API changes across 4.x), gRPC (generated-code shape evolves), Kafka clients (consumer API changed 3.0), Cassandra driver (3.x vs 4.x are largely incompatible).
+
+Source: master's `dd-java-agent/instrumentation/reactor-core-3.1/src/latestDepTest/groovy/ReactorCoreTest.groovy`; failure pattern documented in `docs/eval-research/cycles/2026-07-14-async-cycle-report.md` RI-7.
+
+## No banner/separator comments in test files
+
+Do NOT insert banner-style separator comments (e.g. `// --------- Successful completion ---------`) inside test files to group related test methods. Banner comments have unclear scope, don't render usefully in IDEs, and add review burden without a benefit that justifies the noise.
+
+**If a group of related tests warrants its own heading**, extract them into a separate test class with a focused class-level Javadoc:
+
+```java
+// ❌ Banner comments
+class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
+  // ---------------------------------------------------------------------------
+  // Successful async completion: span finishes when reactive type completes
+  // ---------------------------------------------------------------------------
+  @ParameterizedTest
+  void successfulCompletion(...) { ... }
+
+  // ---------------------------------------------------------------------------
+  // Error paths: span records error and finishes
+  // ---------------------------------------------------------------------------
+  @ParameterizedTest
+  void errorPath(...) { ... }
+}
+
+// ✅ Either omit the banner
+class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
+  @ParameterizedTest
+  void successfulCompletion(...) { ... }
+
+  @ParameterizedTest
+  void errorPath(...) { ... }
+}
+
+// OR extract into focused classes with class Javadoc
+/**
+ * Successful async completion — verifies the extension finishes the span
+ * when the reactive type emits a terminal signal.
+ */
+class RxJava3ResultExtensionSuccessTest extends AbstractInstrumentationTest {
+  @ParameterizedTest
+  void successfulCompletion(...) { ... }
+}
+
+/**
+ * Error paths — verifies the extension records the error and finishes the span
+ * when the reactive type emits an onError signal.
+ */
+class RxJava3ResultExtensionErrorTest extends AbstractInstrumentationTest {
+  @ParameterizedTest
+  void errorPath(...) { ... }
+}
+```
+
+Source: @ygree review on PR #11939.
