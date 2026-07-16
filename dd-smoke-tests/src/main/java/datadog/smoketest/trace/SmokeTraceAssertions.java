@@ -14,44 +14,22 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
- * Entry point for the thin smoke trace DSL. Assert a captured trace collection against one {@link
- * TraceMatcher} per expected trace:
+ * This class is a helper class to verify trace structure.
  *
- * <pre>{@code
- * import static datadog.smoketest.trace.SmokeTraceAssertions.assertTraces;
- * import static datadog.smoketest.trace.TraceMatcher.trace;
- * import static datadog.smoketest.trace.SpanMatcher.span;
+ * <p>To check for trace structure, use the static factory methods: {@link #assertTraces(List,
+ * TraceMatcher...)} with the expected {@link TraceMatcher}s (one per trace), or {@link
+ * #assertTraces(List, UnaryOperator, TraceMatcher...)} to configure the checks with a {@link
+ * Options} object.
  *
- * assertTraces(traces, trace(span().operationName("servlet.request").resourceName("GET /greeting")));
- * }</pre>
- *
- * <p>A single matching algorithm is tuned by three combinable {@link Options}:
+ * <p>The following predefined configurations:
  *
  * <ul>
- *   <li>{@link #SORT_BY_START_TIME} (the {@code sorter}) — sort the received traces before
- *       matching, making positional matching deterministic.
- *   <li>{@link #UNORDERED} — a matcher may match <em>any</em> distinct (unconsumed) trace rather
- *       than the one at its position; the received order stops mattering (so a {@code sorter} has
- *       no effect in this mode).
- *   <li>{@link #IGNORE_ADDITIONAL_TRACES} — don't require every received trace to be matched; extra
- *       traces are ignored (a subset assertion). Without it, the counts must be equal.
+ *   <li>{@link #IGNORE_ADDITIONAL_TRACES} ignores additional traces if there are more than
+ *       expected,
+ *   <li>{@link #SORT_BY_START_TIME} sorts traces by their start time,
+ *   <li>{@link #UNORDERED} allows matchers to match any distinct trace rather than the one at its
+ *       position.
  * </ul>
- *
- * <p>The useful combinations are:
- *
- * <ul>
- *   <li><b>default</b> (optionally with a {@code sorter}) — count-exact positional: matcher
- *       <i>i</i> ↔ trace <i>i</i>.
- *   <li><b>{@code sorter} + {@code ignoreAdditionalTraces}</b> — ordered subsequence: match in
- *       sorted order, skipping the traces no matcher claims.
- *   <li><b>{@code unordered} + {@code ignoreAdditionalTraces}</b> — any-order subset: match the
- *       traces you care about and ignore the rest (e.g. a distributed test where connection-setup
- *       commands land as their own traces alongside the request traces).
- * </ul>
- *
- * <p>Combine flags with the fluent {@link Options}, e.g. {@code o ->
- * o.unordered().ignoreAdditionalTraces()}. The traces come from a {@code TraceBackend} (mock or
- * test-agent), both decoded to {@link DecodedTrace}.
  */
 public final class SmokeTraceAssertions {
   /*
