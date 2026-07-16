@@ -4,7 +4,6 @@ import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIB
 
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.util.AttributeKey;
 import io.netty.util.AttributeMap;
 import java.util.ArrayDeque;
@@ -14,7 +13,10 @@ import org.slf4j.LoggerFactory;
 
 /** Per-request server state stored on the channel until the matching response is written. */
 public final class ServerRequestContext {
-  /** Returns whether a new server request can be tracked on this channel. */
+  /**
+   * Returns whether a new server request can be tracked on this channel (and may disable server
+   * tracing for the channel if the pending-context limit is exceeded).
+   */
   public static boolean canTrackRequest(final AttributeMap attributes) {
     final Deque<ServerRequestContext> contexts =
         attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).get();
@@ -23,12 +25,12 @@ public final class ServerRequestContext {
 
   /** Adds a request context to the queue tail. */
   public static ServerRequestContext add(
-      final AttributeMap attributes, final Context context, final HttpHeaders requestHeaders) {
+      final AttributeMap attributes, final Context context, final String acceptHeader) {
     final Deque<ServerRequestContext> contexts = getOrCreate(attributes);
     if (!canAdd(attributes, contexts)) {
       return null;
     }
-    final ServerRequestContext serverContext = new ServerRequestContext(context, requestHeaders);
+    final ServerRequestContext serverContext = new ServerRequestContext(context, acceptHeader);
     contexts.addLast(serverContext);
     // The deque is authoritative for server request/response matching. CONTEXT_ATTRIBUTE_KEY is a
     // legacy mirror of the current inbound request used by generic fire* activation.
@@ -43,6 +45,16 @@ public final class ServerRequestContext {
     // HTTP/1.1 responses are written in request order, including when requests are pipelined on one
     // connection.
     return contexts == null || isPoisoned(contexts) ? null : contexts.peekFirst();
+  }
+
+  /** Returns whether the channel is closing after an AppSec response block. */
+  public static boolean isResponseBlocked(final AttributeMap attributes) {
+    return attributes.attr(BLOCKED_RESPONSE_ATTRIBUTE_KEY).get() != null;
+  }
+
+  /** Marks the channel as closing after an AppSec response block. */
+  public static void markResponseBlocked(final AttributeMap attributes) {
+    attributes.attr(BLOCKED_RESPONSE_ATTRIBUTE_KEY).set(Boolean.TRUE);
   }
 
   /** Removes a completed or failed request context. */
@@ -68,6 +80,10 @@ public final class ServerRequestContext {
       final ServerRequestContext currentContext = contexts.peekLast();
       if (currentContext == null) {
         attributes.attr(CONTEXT_ATTRIBUTE_KEY).remove();
+        // No request-matching state remains. Drop the empty per-channel queue so idle
+        // keep-alive or upgraded channels do not retain it after the last HTTP request;
+        // getOrCreate will recreate it lazily if another request arrives.
+        attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).remove();
       } else {
         // Keep the legacy mirror pointed at the current inbound request after removing an older
         // response context.
@@ -80,6 +96,7 @@ public final class ServerRequestContext {
   public static void closeAll(final AttributeMap attributes) {
     // The legacy mirror must not outlive the authoritative request queue.
     attributes.attr(CONTEXT_ATTRIBUTE_KEY).remove();
+    attributes.attr(BLOCKED_RESPONSE_ATTRIBUTE_KEY).remove();
     close(attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).getAndRemove());
   }
 
@@ -91,6 +108,9 @@ public final class ServerRequestContext {
   private static final AttributeKey<Deque<ServerRequestContext>>
       SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY =
           AttributeKeys.attributeKey("datadog.server.request.contexts");
+
+  private static final AttributeKey<Boolean> BLOCKED_RESPONSE_ATTRIBUTE_KEY =
+      AttributeKeys.attributeKey("datadog.server.blocked_response");
 
   private static final Deque<ServerRequestContext> POISONED_CONTEXTS = new ArrayDeque<>(0);
 
@@ -152,16 +172,15 @@ public final class ServerRequestContext {
   }
 
   private final Context tracingContext;
-  private final HttpHeaders requestHeaders;
+  private final String acceptHeader;
   private boolean responseAnalyzed;
-  private boolean responseBlocked;
 
   public Context tracingContext() {
     return tracingContext;
   }
 
-  public HttpHeaders requestHeaders() {
-    return requestHeaders;
+  public String acceptHeader() {
+    return acceptHeader;
   }
 
   public boolean isResponseAnalyzed() {
@@ -172,16 +191,8 @@ public final class ServerRequestContext {
     responseAnalyzed = true;
   }
 
-  public boolean isResponseBlocked() {
-    return responseBlocked;
-  }
-
-  public void markResponseBlocked() {
-    responseBlocked = true;
-  }
-
-  private ServerRequestContext(final Context tracingContext, final HttpHeaders requestHeaders) {
+  private ServerRequestContext(final Context tracingContext, final String acceptHeader) {
     this.tracingContext = tracingContext;
-    this.requestHeaders = requestHeaders;
+    this.acceptHeader = acceptHeader;
   }
 }

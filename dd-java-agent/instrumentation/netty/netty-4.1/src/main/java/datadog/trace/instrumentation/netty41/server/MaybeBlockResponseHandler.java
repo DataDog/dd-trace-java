@@ -37,6 +37,13 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
   public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise prm) throws Exception {
     Channel channel = ctx.channel();
 
+    if (ServerRequestContext.isResponseBlocked(channel)) {
+      // block further writes while the blocking response close is still asynchronous
+      log.debug("Write suppressed, msg {} dropped", msg);
+      ReferenceCountUtil.release(msg);
+      return;
+    }
+
     ServerRequestContext serverContext = ServerRequestContext.nextResponse(channel);
     Context storedContext = serverContext == null ? null : serverContext.tracingContext();
     AgentSpan span = AgentSpan.fromContext(storedContext);
@@ -47,13 +54,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     }
 
     if (serverContext.isResponseAnalyzed()) {
-      if (serverContext.isResponseBlocked()) {
-        // block further writes
-        log.debug("Write suppressed, msg {} dropped", msg);
-        ReferenceCountUtil.release(msg);
-      } else {
-        super.write(ctx, msg, prm);
-      }
+      super.write(ctx, msg, prm);
       return;
     }
 
@@ -77,7 +78,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       return;
     }
 
-    serverContext.markResponseBlocked();
+    ServerRequestContext.markResponseBlocked(channel);
     Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
     int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
     HttpResponseStatus httpResponseStatus = HttpResponseStatus.valueOf(httpCode);
@@ -94,10 +95,8 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
 
     BlockingContentType bct = rba.getBlockingContentType();
     if (bct != BlockingContentType.NONE) {
-      HttpHeaders reqHeaders = serverContext.requestHeaders();
-      String acceptHeader = reqHeaders != null ? reqHeaders.get("accept") : null;
       BlockingActionHelper.TemplateType type =
-          BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+          BlockingActionHelper.determineTemplateType(bct, serverContext.acceptHeader());
       headers.set("Content-type", BlockingActionHelper.getContentType(type));
       byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
       setContentLength(response, template.length);
