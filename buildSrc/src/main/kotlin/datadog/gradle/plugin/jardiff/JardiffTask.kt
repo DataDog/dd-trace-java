@@ -174,10 +174,9 @@ abstract class JardiffTask @Inject constructor(
     val hashesMatch = sameHash(reference, candidate)
 
     if (hashesMatch) {
-      val message =
-        "SHA-256 hashes match for ${candidate.name} and ${reference.name}; jardiff was skipped."
+      val message = "SHA-256 hashes match for ${candidate.name} and ${reference.name}."
       writeReport(reportDestination, "$message\n")
-      logger.lifecycle("✓ $message Report: ${reportDestination.absolutePath}")
+      logger.info("Skipping jardiff for ${candidate.name} because SHA-256 hashes match.")
       return
     }
 
@@ -235,8 +234,7 @@ abstract class JardiffTask @Inject constructor(
           }
         }
         logger.lifecycle(
-          "✓ ${candidate.name} is identical to the reference jar ${reference.name}. " +
-            "Report: ${reportDestination.absolutePath}",
+          "Jardiff comparison passed for ${candidate.name} against ${reference.name}.",
         )
       }
 

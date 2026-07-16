@@ -17,9 +17,8 @@ class JardiffTaskTest : GradleFixture() {
     val result = run("jardiffTask")
 
     assertThat(result.task(":jardiffTask")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(result.output).contains("Report:").contains("candidate.jar.txt")
     assertThat(jardiffReport()).exists().content()
-      .contains("jardiff was skipped")
+      .contains("SHA-256 hashes match for candidate.jar and reference.jar")
   }
 
   @Test

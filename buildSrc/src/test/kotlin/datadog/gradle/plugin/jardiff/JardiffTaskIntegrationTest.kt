@@ -41,7 +41,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
 
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(jardiffReport()).exists().content()
-      .contains("jardiff was skipped")
+      .contains("SHA-256 hashes match for candidate.jar and candidate.jar")
   }
 
   @Test
@@ -217,7 +217,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
 
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(buildFile("custom-jardiff-reports/candidate.jar.txt")).exists().content()
-      .contains("jardiff was skipped")
+      .contains("SHA-256 hashes match for candidate.jar and reference.jar")
   }
 
   private fun writeJar(name: String, content: String) {
