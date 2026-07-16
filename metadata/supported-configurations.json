@@ -2849,6 +2849,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_ASYNC_WALL_PRECHECK": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_AUXILIARY": [
       {
         "version": "A",
@@ -3061,7 +3069,7 @@
       {
         "version": "A",
         "type": "boolean",
-        "default": "true",
+        "default": "false",
         "aliases": []
       }
     ],
@@ -3070,6 +3078,14 @@
         "version": "A",
         "type": "boolean",
         "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_DDPROF_WALL_PRECHECK": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
         "aliases": []
       }
     ],

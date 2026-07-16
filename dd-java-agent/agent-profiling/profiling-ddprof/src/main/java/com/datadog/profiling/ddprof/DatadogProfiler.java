@@ -1,3 +1,4 @@
+// Copyright 2026 Datadog, Inc.
 package com.datadog.profiling.ddprof;
 
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.enableJMethodIDOptim;
@@ -42,6 +43,7 @@ import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
 import com.datadoghq.profiler.JavaProfiler;
+import com.datadoghq.profiler.TaskBlockBridge;
 import datadog.environment.JavaVirtualMachine;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.config.ProfilingConfig;
@@ -106,9 +108,12 @@ public final class DatadogProfiler {
     return new DatadogProfiler(configProvider);
   }
 
-  private final AtomicBoolean recordingFlag = new AtomicBoolean(false);
+  // JavaProfiler owns one process-wide native recording; all wrapper instances must observe the
+  // same lifecycle so early-created integrations can dispatch hooks while the controller records.
+  private static final AtomicBoolean RECORDING = new AtomicBoolean(false);
   private final ConfigProvider configProvider;
   private final JavaProfiler profiler;
+  private final TaskBlockBridge taskBlockBridge;
   private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
 
   private final ContextSetter contextSetter;
@@ -220,6 +225,7 @@ public final class DatadogProfiler {
   private DatadogProfiler(ConfigProvider configProvider) {
     this.configProvider = configProvider;
     this.profiler = DdprofLibraryLoader.javaProfiler().getComponent();
+    this.taskBlockBridge = new TaskBlockBridge(profiler);
     this.detailedDebugLogging =
         configProvider.getBoolean(
             PROFILING_DETAILED_DEBUG_LOGGING, PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT);
@@ -338,7 +344,7 @@ public final class DatadogProfiler {
 
   /** A call-back from {@linkplain DatadogProfilerRecording#stop()} */
   void stopProfiler() {
-    if (recordingFlag.compareAndSet(true, false)) {
+    if (RECORDING.compareAndSet(true, false)) {
       profiler.stop();
       if (isActive()) {
         log.debug("Profiling is still active. Waiting to stop.");
@@ -368,7 +374,7 @@ public final class DatadogProfiler {
   }
 
   Path newRecording() throws IOException, IllegalStateException {
-    if (recordingFlag.compareAndSet(false, true)) {
+    if (RECORDING.compareAndSet(false, true)) {
       Path recFile = Files.createTempFile(recordingsPath, "dd-profiler-", ".jfr");
       String cmd = cmdStartProfiling(recFile);
       try {
@@ -380,7 +386,7 @@ public final class DatadogProfiler {
         } else {
           log.warn("Unable to start Datadog profiler recording: {}", e.getMessage());
         }
-        recordingFlag.set(false);
+        RECORDING.set(false);
         throw e;
       }
       return recFile;
@@ -404,7 +410,6 @@ public final class DatadogProfiler {
     }
     StringBuilder cmd = new StringBuilder("start,jfr");
     cmd.append(",file=").append(file.toAbsolutePath());
-    cmd.append(",loglevel=").append(getLogLevel(configProvider));
     cmd.append(",jstackdepth=").append(getStackDepth(configProvider));
     cmd.append(",cstack=").append(getCStack(configProvider));
     cmd.append(",safemode=").append(getSafeMode(configProvider));
@@ -447,15 +452,13 @@ public final class DatadogProfiler {
         cmd.append('~');
       }
       cmd.append(getWallInterval(configProvider)).append('m');
-      // ddprof quirk: if filter parameter is omitted, it defaults to "0" (enabled),
-      // not empty string (disabled). When enabled without tracing, no threads are added
-      // to the filter, resulting in zero samples. We must explicitly pass filter= (empty)
-      // to disable filtering and sample all threads.
-      if (getWallContextFilter(configProvider)) {
-        cmd.append(",filter=0");
-      } else {
-        cmd.append(",filter=");
-      }
+      boolean contextScope = getWallContextFilter(configProvider);
+      // Emit both protocols during the compatibility window. Older ddprof versions ignore the
+      // unknown wallscope option and use filter; newer versions use wallscope while continuing to
+      // accept filter. This cannot be feature-probed because unknown options are warnings, not
+      // execution errors.
+      cmd.append(contextScope ? ",filter=0,wallscope=context" : ",filter=,wallscope=all");
+      cmd.append(",wallprecheck=true");
     }
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
     if (profilingModes.contains(ALLOCATION) || profilingModes.contains(MEMLEAK)) {
@@ -572,6 +575,34 @@ public final class DatadogProfiler {
 
   public void clearSpanContext() {
     clearTraceContext();
+  }
+
+  boolean hasParkTaskBlockSupport() {
+    return taskBlockBridge.hasParkSupport();
+  }
+
+  boolean parkEnter() {
+    if (!RECORDING.get()) {
+      return false;
+    }
+    taskBlockBridge.parkEnter();
+    return true;
+  }
+
+  void parkExit(long blocker, long unblockingSpanId) {
+    taskBlockBridge.parkExit(blocker, unblockingSpanId);
+  }
+
+  boolean hasSynchronousTaskBlockSupport() {
+    return taskBlockBridge.hasSynchronousTaskBlockSupport();
+  }
+
+  long beginTaskBlock(int state) {
+    return RECORDING.get() ? taskBlockBridge.beginTaskBlock(state) : 0L;
+  }
+
+  boolean endTaskBlock(long token, long blocker, long unblockingSpanId) {
+    return token != 0L && taskBlockBridge.endTaskBlock(token, blocker, unblockingSpanId);
   }
 
   public boolean setContextValue(int offset, String value) {
