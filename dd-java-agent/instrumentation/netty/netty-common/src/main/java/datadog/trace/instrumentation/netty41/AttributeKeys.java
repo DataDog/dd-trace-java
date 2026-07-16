@@ -29,6 +29,9 @@ public final class AttributeKeys {
   public static final AttributeKey<Boolean> HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY =
       attributeKey("datadog.http2.connection.codec");
 
+  public static final AttributeKey<Boolean> HTTP2_STREAM_CODEC_ATTRIBUTE_KEY =
+      attributeKey("datadog.http2.stream.codec");
+
   public static final AttributeKey<Context> PARENT_CONTEXT_ATTRIBUTE_KEY =
       attributeKey("datadog.server.parent-context");
 

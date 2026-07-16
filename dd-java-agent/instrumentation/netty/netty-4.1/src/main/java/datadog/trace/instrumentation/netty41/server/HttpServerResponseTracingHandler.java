@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.netty41.server;
 
+import static datadog.trace.instrumentation.netty41.AttributeKeys.HTTP2_STREAM_CODEC_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.WEBSOCKET_SENDER_HANDLER_CONTEXT;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 
@@ -87,10 +88,10 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       if (isBodylessResponse(serverContext, response) || isWebsocketUpgrade) {
         return true;
       }
-      // A response with neither a Content-Length nor chunked transfer-encoding is delimited by the
-      // connection closing, so a later channel close is the normal end of this response rather than
-      // an incomplete one.
-      if (!hasKnownBodyLength(response)) {
+      // HTTP/1.x responses with neither a Content-Length nor chunked transfer-encoding are
+      // delimited by the connection closing. HTTP/2 streams translated through
+      // Http2StreamFrameToHttpObjectCodec are delimited by END_STREAM/LastHttpContent instead.
+      if (isCloseDelimitedHttp1Response(ctx, response)) {
         serverContext.markResponseCloseDelimited();
         return false;
       }
@@ -129,6 +130,12 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
 
   private static boolean hasKnownBodyLength(final HttpResponse response) {
     return contentLength(response) >= 0 || HttpUtil.isTransferEncodingChunked(response);
+  }
+
+  private static boolean isCloseDelimitedHttp1Response(
+      final ChannelHandlerContext ctx, final HttpResponse response) {
+    return !hasKnownBodyLength(response)
+        && !Boolean.TRUE.equals(ctx.channel().attr(HTTP2_STREAM_CODEC_ATTRIBUTE_KEY).get());
   }
 
   /**
