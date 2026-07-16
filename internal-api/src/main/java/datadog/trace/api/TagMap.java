@@ -50,7 +50,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
 
   /** Creates a new mutable TagMap that contains the contents of <code>map</code> */
   static TagMap fromMap(Map<String, ?> map) {
-    TagMap tagMap = TagMap.create(map.size());
+    TagMap tagMap = TagMap.create();
     tagMap.putAll(map);
     return tagMap;
   }
@@ -68,6 +68,12 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
     return new OptimizedTagMap();
   }
 
+  /**
+   * @deprecated {@code size} is ignored -- TagMap's storage can't honor a size hint without
+   *     compromising its other optimizations, so this behaves identically to {@link #create()};
+   *     prefer that. A dedicated sizing mechanism may be introduced separately.
+   */
+  @Deprecated
   static TagMap create(int size) {
     return new OptimizedTagMap();
   }
@@ -1114,7 +1120,7 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
     }
 
     public TagMap build() {
-      TagMap map = TagMap.create(this.estimateSize());
+      TagMap map = TagMap.create();
       fill(map);
       return map;
     }
