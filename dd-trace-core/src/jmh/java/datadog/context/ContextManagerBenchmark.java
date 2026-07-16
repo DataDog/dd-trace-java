@@ -112,7 +112,7 @@ public class ContextManagerBenchmark {
       return new ContextManager() {
         @Override
         public Context current() {
-          return csm.current();
+          return csm.currentContext();
         }
 
         @Override

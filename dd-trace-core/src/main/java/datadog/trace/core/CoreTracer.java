@@ -2471,7 +2471,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public Context currentContext() {
-    return scopeManager.current();
+    return scopeManager.currentContext();
   }
 
   @Override

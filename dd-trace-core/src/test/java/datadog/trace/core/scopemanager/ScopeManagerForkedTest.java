@@ -898,28 +898,28 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     ContextScope contextScope = scopeManager.attach(context);
 
     assertSame(contextScope, scopeManager.active());
-    assertEquals(context, scopeManager.current());
+    assertEquals(context, scopeManager.currentContext());
     assertNull(scopeManager.activeSpan());
-    assertEquals("test-value", scopeManager.current().get(testKey));
+    assertEquals("test-value", scopeManager.currentContext().get(testKey));
 
     AgentScope scope = tracer.activateSpan(span);
 
     assertSame(scope, scopeManager.active());
-    assertNotEquals(context, scopeManager.current());
+    assertNotEquals(context, scopeManager.currentContext());
     assertSame(span, scopeManager.activeSpan());
-    assertEquals("test-value", scopeManager.current().get(testKey));
+    assertEquals("test-value", scopeManager.currentContext().get(testKey));
 
     scope.close();
 
     assertSame(contextScope, scopeManager.active());
-    assertEquals(context, scopeManager.current());
+    assertEquals(context, scopeManager.currentContext());
     assertNull(scopeManager.activeSpan());
-    assertEquals("test-value", scopeManager.current().get(testKey));
+    assertEquals("test-value", scopeManager.currentContext().get(testKey));
 
     contextScope.close();
 
     assertNull(scopeManager.active());
-    assertEquals(Context.root(), scopeManager.current());
+    assertEquals(Context.root(), scopeManager.currentContext());
     assertNull(scopeManager.activeSpan());
   }
 
@@ -931,28 +931,28 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     ContextScope contextScope = scopeManager.attach(context);
 
     assertSame(contextScope, scopeManager.active());
-    assertEquals(context, scopeManager.current());
+    assertEquals(context, scopeManager.currentContext());
     assertNull(scopeManager.activeSpan());
-    assertEquals("test-value", scopeManager.current().get(testKey));
+    assertEquals("test-value", scopeManager.currentContext().get(testKey));
 
     AgentScope scope = tracer.captureSpan(span).activate();
 
     assertSame(scope, scopeManager.active());
-    assertNotEquals(context, scopeManager.current());
+    assertNotEquals(context, scopeManager.currentContext());
     assertSame(span, scopeManager.activeSpan());
-    assertEquals("test-value", scopeManager.current().get(testKey));
+    assertEquals("test-value", scopeManager.currentContext().get(testKey));
 
     scope.close();
 
     assertSame(contextScope, scopeManager.active());
-    assertEquals(context, scopeManager.current());
+    assertEquals(context, scopeManager.currentContext());
     assertNull(scopeManager.activeSpan());
-    assertEquals("test-value", scopeManager.current().get(testKey));
+    assertEquals("test-value", scopeManager.currentContext().get(testKey));
 
     contextScope.close();
 
     assertNull(scopeManager.active());
-    assertEquals(Context.root(), scopeManager.current());
+    assertEquals(Context.root(), scopeManager.currentContext());
     assertNull(scopeManager.activeSpan());
   }
 
@@ -964,30 +964,30 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     ContextScope contextScope = scopeManager.attach(context);
 
     assertSame(contextScope, scopeManager.active());
-    assertEquals(context, scopeManager.current());
+    assertEquals(context, scopeManager.currentContext());
     assertNull(scopeManager.activeSpan());
-    assertEquals("test-value", scopeManager.current().get(testKey));
+    assertEquals("test-value", scopeManager.currentContext().get(testKey));
 
     AgentScope innerScope = tracer.activateSpan(span);
     AgentScope scope = tracer.captureActiveSpan().activate();
     innerScope.close();
 
     assertSame(scope, scopeManager.active());
-    assertNotEquals(context, scopeManager.current());
+    assertNotEquals(context, scopeManager.currentContext());
     assertSame(span, scopeManager.activeSpan());
-    assertEquals("test-value", scopeManager.current().get(testKey));
+    assertEquals("test-value", scopeManager.currentContext().get(testKey));
 
     scope.close();
 
     assertSame(contextScope, scopeManager.active());
-    assertEquals(context, scopeManager.current());
+    assertEquals(context, scopeManager.currentContext());
     assertNull(scopeManager.activeSpan());
-    assertEquals("test-value", scopeManager.current().get(testKey));
+    assertEquals("test-value", scopeManager.currentContext().get(testKey));
 
     contextScope.close();
 
     assertNull(scopeManager.active());
-    assertEquals(Context.root(), scopeManager.current());
+    assertEquals(Context.root(), scopeManager.currentContext());
     assertNull(scopeManager.activeSpan());
   }
 
@@ -1044,28 +1044,28 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     Context swappedOut = scopeManager.swap(Context.root());
 
     assertNull(scopeManager.active());
-    assertEquals(Context.root(), scopeManager.current());
+    assertEquals(Context.root(), scopeManager.currentContext());
 
     scopeManager.swap(context1);
 
     assertNotNull(scopeManager.active());
-    assertEquals(context1, scopeManager.current());
+    assertEquals(context1, scopeManager.currentContext());
 
     scopeManager.swap(swappedOut);
 
     assertNull(scopeManager.active());
-    assertEquals(Context.root(), scopeManager.current());
+    assertEquals(Context.root(), scopeManager.currentContext());
 
     ContextScope contextScope = scopeManager.attach(context1);
 
     assertSame(contextScope, scopeManager.active());
-    assertEquals(context1, scopeManager.current());
+    assertEquals(context1, scopeManager.currentContext());
 
     swappedOut = scopeManager.swap(context2);
 
     assertNotNull(scopeManager.active());
     assertNotSame(contextScope, scopeManager.active());
-    assertEquals(context2, scopeManager.current());
+    assertEquals(context2, scopeManager.currentContext());
     assertEquals("first-value", swappedOut.get(testKey));
 
     Context context3 = swappedOut.with(testKey, "third-value");
@@ -1073,17 +1073,17 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
 
     assertNotNull(scopeManager.active());
     assertNotSame(contextScope, scopeManager.active());
-    assertEquals(context3, scopeManager.current());
+    assertEquals(context3, scopeManager.currentContext());
 
     scopeManager.swap(swappedOut);
 
     assertSame(contextScope, scopeManager.active());
-    assertEquals(context1, scopeManager.current());
+    assertEquals(context1, scopeManager.currentContext());
 
     contextScope.close();
 
     assertNull(scopeManager.active());
-    assertEquals(Context.root(), scopeManager.current());
+    assertEquals(Context.root(), scopeManager.currentContext());
   }
 
   @Test

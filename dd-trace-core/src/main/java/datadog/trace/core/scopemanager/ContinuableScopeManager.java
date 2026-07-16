@@ -366,7 +366,7 @@ public final class ContinuableScopeManager {
     return this.tlsScopeStack.get();
   }
 
-  public Context current() {
+  public Context currentContext() {
     final ContinuableScope active = scopeStack().active();
     return active == null ? Context.root() : active.context;
   }
