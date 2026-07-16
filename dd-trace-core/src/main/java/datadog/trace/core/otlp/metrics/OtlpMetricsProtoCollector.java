@@ -52,7 +52,7 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
 
   private final boolean forceHistogramDelta;
 
-  // resource chunk prepended to every payload; lets callers select the plain vendor-neutral resource
+  // resource chunk prepended to every payload; lets callers pick the plain vendor-neutral resource
   // or the datadog-attrs variant (datadog.runtime_id / process tags)
   private final byte[] resourceMessage;
 
