@@ -1,3 +1,4 @@
+// Copyright 2026 Datadog, Inc.
 package com.datadog.profiling.ddprof;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -71,5 +72,13 @@ class DatadogProfilerRecordingTest {
     InputStream inputStream = data.getStream();
     assertNotNull(inputStream);
     assertTrue(inputStream.available() > 0);
+  }
+
+  @Test
+  void recordingLifecycleIsVisibleAcrossProfilerWrappers() {
+    DatadogProfiler integrationProfiler = DatadogProfiler.newInstance();
+
+    assertTrue(integrationProfiler.parkEnter());
+    integrationProfiler.parkExit(0L, 0L);
   }
 }

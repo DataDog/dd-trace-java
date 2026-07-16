@@ -7,12 +7,25 @@ plugins {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+// These classes are native-library loading and compatibility glue. Their meaningful coverage comes
+// from profiler smoke tests; per-class Jacoco verification is not stable across CI JVM/OS splits.
+excludedClassesCoverage += ['datadog.libs.ddprof.DdprofLibraryLoader*', 'com.datadoghq.profiler.TaskBlockBridge',]
+
+def ddprofVersion = project.findProperty('ddprof.version')
+
 dependencies {
   // This module provides the ddprof library as an api dependency
   // so that other modules can easily depend on it.
-  implementation project.hasProperty('ddprof.jar') ? files(project.findProperty('ddprof.jar')) : libs.ddprof
+  implementation project.hasProperty('ddprof.jar') ? files(project.findProperty('ddprof.jar')) :
+    ddprofVersion != null ? "com.datadoghq:ddprof:${ddprofVersion}" : libs.ddprof
   api project(':internal-api')
   api project(':dd-trace-api')
+}
+
+if (ddprofVersion?.endsWith('-SNAPSHOT')) {
+  configurations.configureEach {
+    resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+  }
 }
 
 tasks.named("shadowJar", ShadowJar) {
