@@ -54,3 +54,13 @@ For each new integration name `<NAME>` (uppercase, dashes/dots replaced with und
 The Gradle checks (`checkInstrumenterModuleConfigurations`, `checkDecoratorAnalyticsConfigurations`) validate the JSON automatically — they will fail with a parse error if the file is malformed.
 
 **How to discover whether entries are missing**: after writing the instrumentation, search `metadata/supported-configurations.json` for each name used in `super(...)` and decorator `instrumentationNames()`. If any is absent, add it. Do not assume master already has it — version-specific integration names (e.g. `sparkjava-2.3` vs `sparkjava-2.4`) are not interchangeable.
+
+## Populating new entries — common mistakes
+
+When adding a new tracer configuration to `metadata/supported-configurations.json`:
+
+- Every new `super(...)` name needs a corresponding `_ENABLED` entry — omitting entries causes `checkInstrumenterModuleConfigurations` to fail.
+- Use the registry-canonical `type` field: `boolean` for `_ENABLED`, `decimal` for ratio/rate values (NOT `double`), `int` for counts (NOT `integer`), `string` for enumerations, `array` and `map` where applicable. The `dd-gitlab/validate_supported_configurations_v2_local_file` CI job will fail on non-canonical type names. Consult `metadata/supported-configurations.json` for existing examples of each.
+- Every new `_ANALYTICS_SAMPLE_RATE` needs both an `_ANALYTICS_ENABLED` (`boolean`) and an `_ANALYTICS_SAMPLE_RATE` (`decimal`) entry.
+
+Run `./gradlew checkInstrumenterModuleConfigurations` locally before pushing to catch registration mismatches.
