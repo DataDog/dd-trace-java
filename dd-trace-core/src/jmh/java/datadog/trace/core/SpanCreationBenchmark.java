@@ -101,6 +101,9 @@ import org.openjdk.jmh.annotations.Warmup;
 public class SpanCreationBenchmark {
   private static final String INSTRUMENTATION_NAME = "bench";
   private static final String OPERATION_NAME = "servlet.request";
+  // The DB-shaped span gets its own operation name -- a real jdbc span is never "servlet.request",
+  // and keeping the two shapes distinct by operation avoids conflating them.
+  private static final String JDBC_OPERATION_NAME = "database.query";
 
   // int tag values are deliberately kept inside Integer's built-in cache (-128..127) so valueOf
   // returns a shared box and boxing does not allocate — the bench then measures tag storage / path
@@ -195,7 +198,7 @@ public class SpanCreationBenchmark {
   /** JDBC/DB-client-shaped span: create -> set the typical DB known tags (9) -> finish. */
   @Benchmark
   public void jdbcClientSpan() {
-    AgentSpan span = tracer.buildSpan(INSTRUMENTATION_NAME, OPERATION_NAME).start();
+    AgentSpan span = tracer.buildSpan(INSTRUMENTATION_NAME, JDBC_OPERATION_NAME).start();
     span.setTag(Tags.COMPONENT, DB_COMPONENT_VALUE);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
     span.setTag(Tags.DB_TYPE, DB_TYPE_VALUE);
