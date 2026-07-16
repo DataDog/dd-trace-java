@@ -1,6 +1,6 @@
 package datadog.crashtracking;
 
-import static datadog.crashtracking.ConfigManager.writeConfigToPath;
+import static datadog.crashtracking.ConfigManager.writeConfigToPathWithoutCaching;
 import static datadog.crashtracking.Initializer.LOG;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getOomeNotifierTemplate;
@@ -48,7 +48,7 @@ public final class OOMENotifierScriptInitializer {
     if (!copyOOMEscript(scriptFile)) {
       return false;
     }
-    writeConfigToPath(scriptFile, "agent", agentJar);
+    writeConfigToPathWithoutCaching(scriptFile, "agent", agentJar);
     return true;
   }
 

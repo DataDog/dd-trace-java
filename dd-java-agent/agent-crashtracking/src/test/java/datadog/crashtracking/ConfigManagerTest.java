@@ -16,6 +16,7 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -26,12 +27,19 @@ public class ConfigManagerTest {
   @AfterEach
   public void resetCachedCfgFile() throws ReflectiveOperationException {
     setCachedCfgFile(null);
+    clearPendingEntries();
   }
 
   private static void setCachedCfgFile(File cfgFile) throws ReflectiveOperationException {
     Field field = ConfigManager.class.getDeclaredField("cfgFile");
     field.setAccessible(true);
     field.set(null, cfgFile);
+  }
+
+  private static void clearPendingEntries() throws ReflectiveOperationException {
+    Field field = ConfigManager.class.getDeclaredField("pendingEntries");
+    field.setAccessible(true);
+    ((Map<?, ?>) field.get(null)).clear();
   }
 
   @Test
@@ -92,11 +100,56 @@ public class ConfigManagerTest {
   }
 
   @Test
-  public void testUpdateCrashConfigEntryNoOpWhenNoCfgFileCached()
+  public void testUpdateCrashConfigEntryDoesNotThrowWhenNoCfgFileCached()
       throws ReflectiveOperationException {
     setCachedCfgFile(null);
     Assertions.assertDoesNotThrow(
         () -> ConfigManager.updateCrashConfigEntry("waf_rules_version", "1.2.3"));
+  }
+
+  @Test
+  public void testUpdateCrashConfigEntryIsAppliedOncePendingCfgFileIsWritten() throws IOException {
+    ConfigManager.updateCrashConfigEntry("waf_rules_version", "1.2.3");
+
+    File tmpDir = Files.createTempDirectory("ConfigManagerTest").toFile();
+    tmpDir.deleteOnExit();
+    File scriptFile = new File(tmpDir, "dd_crash_uploader.sh");
+    File cfgFile = new File(tmpDir, "dd_crash_uploader_pid" + PidHelper.getPid() + ".cfg");
+    cfgFile.deleteOnExit();
+
+    ConfigManager.writeConfigToPath(scriptFile);
+
+    ConfigManager.StoredConfig deserialized = ConfigManager.readConfig(Config.get(), cfgFile);
+    Assertions.assertNotNull(deserialized);
+    assertEquals("1.2.3", deserialized.wafRulesVersion);
+  }
+
+  @Test
+  public void testWriteConfigToPathWithoutCachingDoesNotAffectUpdateCrashConfigEntryTarget()
+      throws IOException {
+    File tmpDir = Files.createTempDirectory("ConfigManagerTest").toFile();
+    tmpDir.deleteOnExit();
+    File crashUploaderScriptFile = new File(tmpDir, "dd_crash_uploader.sh");
+    File crashUploaderCfgFile =
+        new File(tmpDir, "dd_crash_uploader_pid" + PidHelper.getPid() + ".cfg");
+    crashUploaderCfgFile.deleteOnExit();
+    File oomeScriptFile = new File(tmpDir, "dd_oome_notifier.sh");
+    File oomeCfgFile = new File(tmpDir, "dd_oome_notifier_pid" + PidHelper.getPid() + ".cfg");
+    oomeCfgFile.deleteOnExit();
+
+    ConfigManager.writeConfigToPath(crashUploaderScriptFile);
+    ConfigManager.writeConfigToPathWithoutCaching(oomeScriptFile, "agent", "/path/to/agent.jar");
+
+    ConfigManager.updateCrashConfigEntry("waf_rules_version", "1.2.3");
+
+    ConfigManager.StoredConfig crashUploaderConfig =
+        ConfigManager.readConfig(Config.get(), crashUploaderCfgFile);
+    Assertions.assertNotNull(crashUploaderConfig);
+    assertEquals("1.2.3", crashUploaderConfig.wafRulesVersion);
+
+    ConfigManager.StoredConfig oomeConfig = ConfigManager.readConfig(Config.get(), oomeCfgFile);
+    Assertions.assertNotNull(oomeConfig);
+    Assertions.assertNull(oomeConfig.wafRulesVersion);
   }
 
   @Test

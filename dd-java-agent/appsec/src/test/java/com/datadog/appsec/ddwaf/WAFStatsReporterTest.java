@@ -17,6 +17,7 @@ import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.AfterEach;
@@ -29,9 +30,13 @@ class WAFStatsReporterTest {
 
   @AfterEach
   void resetCachedCfgFile() throws ReflectiveOperationException {
-    Field field = ConfigManager.class.getDeclaredField("cfgFile");
-    field.setAccessible(true);
-    field.set(null, null);
+    Field cfgFileField = ConfigManager.class.getDeclaredField("cfgFile");
+    cfgFileField.setAccessible(true);
+    cfgFileField.set(null, null);
+
+    Field pendingEntriesField = ConfigManager.class.getDeclaredField("pendingEntries");
+    pendingEntriesField.setAccessible(true);
+    ((Map<?, ?>) pendingEntriesField.get(null)).clear();
   }
 
   @Test
