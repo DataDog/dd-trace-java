@@ -153,8 +153,9 @@ TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, S
       it.from(project.configurations.named("runtimeClasspath"))
       it.from(project.configurations.named('slf4j-simple'))
     }
-    it.inputs.files(it.classpath)
     it.outputs.dir(destinationDir)
+      .withPropertyName("indexDirectory")
+    it.outputs.cacheIf { true }
     it.argumentProviders.add(new CommandLineArgumentProvider() {
         @Override
         Iterable<String> asArguments() {
