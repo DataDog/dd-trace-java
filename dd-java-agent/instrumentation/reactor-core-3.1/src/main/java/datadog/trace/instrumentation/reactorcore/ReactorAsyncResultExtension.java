@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.reactor.core;
+package datadog.trace.instrumentation.reactorcore;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.EagerHelper;
@@ -23,22 +23,27 @@ public class ReactorAsyncResultExtension implements AsyncResultExtension, EagerH
 
   @Override
   public boolean supports(Class<?> result) {
-    return Flux.class.isAssignableFrom(result) || Mono.class.isAssignableFrom(result);
+    return Mono.class.isAssignableFrom(result) || Flux.class.isAssignableFrom(result);
   }
 
   @Override
   public Object apply(Object result, AgentSpan span) {
-    if (result instanceof Flux) {
-      return ((Flux<?>) result)
-          .doOnError(span::addThrowable)
-          .doOnTerminate(span::finish)
-          .doOnCancel(span::finish);
-    } else if (result instanceof Mono) {
+    if (result instanceof Mono) {
       return ((Mono<?>) result)
-          .doOnError(span::addThrowable)
-          .doOnTerminate(span::finish)
+          .doOnError(throwable -> onError(span, throwable))
+          .doOnCancel(span::finish)
+          .doOnSuccess(ignored -> span.finish());
+    } else if (result instanceof Flux) {
+      return ((Flux<?>) result)
+          .doOnComplete(span::finish)
+          .doOnError(throwable -> onError(span, throwable))
           .doOnCancel(span::finish);
     }
     return null;
+  }
+
+  private static void onError(AgentSpan span, Throwable throwable) {
+    span.addThrowable(throwable);
+    span.finish();
   }
 }
