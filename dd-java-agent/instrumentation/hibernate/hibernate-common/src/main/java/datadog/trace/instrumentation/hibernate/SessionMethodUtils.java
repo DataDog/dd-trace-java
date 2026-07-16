@@ -62,14 +62,15 @@ public class SessionMethodUtils {
       final Object entity,
       final boolean closeSpan) {
 
-    if (sessionState == null || sessionState.getMethodScope() == null) {
+    final AgentScope scope = sessionState == null ? null : sessionState.getMethodScope();
+    if (scope == null) {
       // This method call was re-entrant. Do nothing, since it is being traced by the parent/first
       // call.
       return;
     }
 
     CallDepthThreadLocalMap.reset(SessionMethodUtils.class);
-    final AgentScope scope = sessionState.getMethodScope();
+    sessionState.setMethodScope(null);
     final AgentSpan span = scope.span();
     if (span != null && (sessionState.hasChildSpan() || closeSpan)) {
       DECORATOR.onError(span, throwable);
@@ -82,7 +83,6 @@ public class SessionMethodUtils {
     } else {
       scope.close();
     }
-    sessionState.setMethodScope(null);
   }
 
   /**
