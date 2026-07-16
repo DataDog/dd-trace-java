@@ -1,3 +1,4 @@
+// Copyright 2026 Datadog, Inc.
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.EndpointCheckpointer;
@@ -33,6 +34,19 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
   default int encodeResourceName(CharSequence constant) {
     return 0;
   }
+
+  /**
+   * Called before the current thread enters {@code LockSupport.park*}.
+   *
+   * @return {@code true} when the integration accepted the entry dispatch and therefore requires a
+   *     matching {@link #parkExit(long, long)}, even if profiling stops before the park returns
+   */
+  default boolean parkEnter() {
+    return false;
+  }
+
+  /** Completes a {@code LockSupport.park*} dispatch accepted by {@link #parkEnter()}. */
+  default void parkExit(long blocker, long unblockingSpanId) {}
 
   String name();
 

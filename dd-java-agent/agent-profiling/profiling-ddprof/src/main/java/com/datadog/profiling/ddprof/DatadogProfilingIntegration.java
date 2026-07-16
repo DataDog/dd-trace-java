@@ -1,3 +1,4 @@
+// Copyright 2026 Datadog, Inc.
 package com.datadog.profiling.ddprof;
 
 import datadog.trace.api.EndpointTracker;
@@ -76,6 +77,16 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   @Override
   public String name() {
     return "ddprof";
+  }
+
+  @Override
+  public boolean parkEnter() {
+    return DDPROF.parkEnter();
+  }
+
+  @Override
+  public void parkExit(long blocker, long unblockingSpanId) {
+    DDPROF.parkExit(blocker, unblockingSpanId);
   }
 
   public void clearContext() {
