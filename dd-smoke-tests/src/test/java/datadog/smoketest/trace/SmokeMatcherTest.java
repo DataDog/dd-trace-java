@@ -132,18 +132,19 @@ class SmokeMatcherTest {
   }
 
   @Test
-  void ignoreAdditionalTracesMatchesAnyOrder() {
+  void unorderedMatchesAnyOrder() {
     List<DecodedTrace> traces = TestAgentTraceDecoder.decode(TWO_TRACES);
-    // Matchers in the opposite order of receipt still each find their trace (order-independent).
+    // Matchers in the opposite order of receipt still each find their trace (no sorter => any
+    // order).
     assertTraces(
         traces,
-        SmokeTraceAssertions.IGNORE_ADDITIONAL_TRACES,
+        options -> options.unordered().ignoreAdditionalTraces(),
         trace(span().operationName("root-b").root()),
         trace(span().operationName("root-a").root()));
   }
 
   @Test
-  void ignoreAdditionalTracesRequiresDistinctTraces() {
+  void unorderedRequiresDistinctTraces() {
     List<DecodedTrace> traces = TestAgentTraceDecoder.decode(TWO_TRACES);
     // Two matchers for the same trace can't both match: only one root-a trace exists.
     assertThrows(
@@ -151,9 +152,31 @@ class SmokeMatcherTest {
         () ->
             assertTraces(
                 traces,
-                SmokeTraceAssertions.IGNORE_ADDITIONAL_TRACES,
+                options -> options.unordered().ignoreAdditionalTraces(),
                 trace(span().operationName("root-a").root()),
                 trace(span().operationName("root-a").root())));
+  }
+
+  @Test
+  void unorderedWithSorterIsForwardOnly() {
+    List<DecodedTrace> traces = TestAgentTraceDecoder.decode(TWO_TRACES);
+    // Sorted by root span id => [root-b (400), root-a (500)]. With a sorter, an unordered match is
+    // forward-only: matchers in sorted order match...
+    assertTraces(
+        traces,
+        options -> options.unordered().sorter(SmokeTraceAssertions.TRACE_ROOT_SPAN_ID_COMPARATOR),
+        trace(span().operationName("root-b").root()),
+        trace(span().operationName("root-a").root()));
+    // ...but reversed they don't (root-a is matched at position 1, leaving nothing after it).
+    assertThrows(
+        AssertionError.class,
+        () ->
+            assertTraces(
+                traces,
+                options ->
+                    options.unordered().sorter(SmokeTraceAssertions.TRACE_ROOT_SPAN_ID_COMPARATOR),
+                trace(span().operationName("root-a").root()),
+                trace(span().operationName("root-b").root())));
   }
 
   private static String spanJson(String name, long id, long parent, long start) {

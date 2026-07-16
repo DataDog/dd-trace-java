@@ -1,6 +1,5 @@
 package datadog.smoketest;
 
-import static datadog.smoketest.trace.SmokeTraceAssertions.IGNORE_ADDITIONAL_TRACES;
 import static datadog.smoketest.trace.SpanMatcher.span;
 import static datadog.smoketest.trace.TraceMatcher.SORT_BY_PARENT_CHAIN;
 import static datadog.smoketest.trace.TraceMatcher.trace;
@@ -55,14 +54,15 @@ import org.testcontainers.utility.DockerImageName;
  *                       spring-rabbit-0 spring.consume Receiver.receiveMessage (sender consumes reply)
  * </pre>
  *
- * <p>The whole collection is asserted with the standard {@link Traces#assertTraces} DSL in {@link
- * SmokeTraceAssertions#IGNORE_ADDITIONAL_TRACES order-independent subset} mode: each matcher
- * matches a distinct received trace and extras are ignored. This is stronger than the Groovy
- * set-membership check — each round-trip trace is matched count-exact (all 12 spans, in {@link
- * TraceMatcher#SORT_BY_PARENT_CHAIN parent-chain order}), verifying every AMQP operation
- * (publish/deliver/consume, both directions) <em>and</em> its cross-service linkage — while staying
- * robust to the timing-dependent extras (the broker emits its connection-setup commands and per-ack
- * traces as their own single-span traces, in non-deterministic count and order).
+ * <p>The whole collection is asserted with the standard {@link Traces#assertTraces} DSL in
+ * {@linkplain SmokeTraceAssertions order-independent subset} mode ({@code
+ * unordered().ignoreAdditionalTraces()}): each matcher matches a distinct received trace and extras
+ * are ignored. This is stronger than the Groovy set-membership check — each round-trip trace is
+ * matched count-exact (all 12 spans, in {@link TraceMatcher#SORT_BY_PARENT_CHAIN parent-chain
+ * order}), verifying every AMQP operation (publish/deliver/consume, both directions) <em>and</em>
+ * its cross-service linkage — while staying robust to the timing-dependent extras (the broker emits
+ * its connection-setup commands and per-ack traces as their own single-span traces, in
+ * non-deterministic count and order).
  *
  * <p>Two design points, informed by inspecting the live trace collection:
  *
@@ -123,10 +123,10 @@ class SpringBootRabbitSmokeTest {
       }
     }
 
-    // One order-independent assertion over the whole collection (IGNORE_ADDITIONAL_TRACES): each
-    // matcher must match a distinct received trace; unrelated/duplicate traces (extra acks, etc.)
-    // are ignored. Assert one full round-trip trace per message plus each service's
-    // connection-setup/ack commands.
+    // One order-independent subset assertion over the whole collection (unordered +
+    // ignoreAdditionalTraces): each matcher must match a distinct received trace, and
+    // unrelated/duplicate traces (extra acks, etc.) are ignored. Assert one full round-trip trace
+    // per message plus each service's connection-setup/ack commands.
     List<TraceMatcher> expected = new ArrayList<>();
     for (int i = 0; i < MESSAGES.length; i++) {
       expected.add(roundTrip()); // one full round-trip trace per message => all are verified
@@ -139,7 +139,9 @@ class SpringBootRabbitSmokeTest {
     agent
         .traces()
         .assertTraces(
-            TIMEOUT_SECONDS, IGNORE_ADDITIONAL_TRACES, expected.toArray(new TraceMatcher[0]));
+            TIMEOUT_SECONDS,
+            o -> o.unordered().ignoreAdditionalTraces(),
+            expected.toArray(new TraceMatcher[0]));
   }
 
   // The full distributed round-trip as one strict parent->child chain across both services and the
