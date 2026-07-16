@@ -51,7 +51,7 @@ class JardiffTaskTest : GradleFixture() {
   }
 
   @Test
-  fun `fails when hashes differ but jardiff reports no differences and hashCheck is enabled`() {
+  fun `fails when hashes differ but jardiff reports no differences and ignoreHashCheck is false`() {
     writeProject(compareBytes = false)
     writeJar("candidate.jar", "candidate-bytes")
     writeJar("reference.jar", "reference-bytes")
@@ -60,16 +60,16 @@ class JardiffTaskTest : GradleFixture() {
 
     assertThat(result.task(":jardiffTask")?.outcome).isEqualTo(TaskOutcome.FAILED)
     assertThat(result.output)
-      .contains("SHA-256 hashes differ for candidate.jar and reference.jar")
+      .contains("SHA-256 hashes differ for candidate.jar (candidate) and reference.jar (reference)")
       .contains("but jardiff detected no differences")
     assertThat(jardiffReport()).exists().content()
       .contains("no differences")
   }
 
   @Test
-  fun `warns when hashes differ but jardiff reports no differences and hashCheck is disabled`() {
+  fun `warns when hashes differ but jardiff reports no differences and ignoreHashCheck is true`() {
     writeProject(
-      taskBody = "hashCheck.set(false)",
+      taskBody = "ignoreHashCheck.set(true)",
       compareBytes = false,
     )
     writeJar("candidate.jar", "candidate-bytes")
@@ -79,7 +79,7 @@ class JardiffTaskTest : GradleFixture() {
 
     assertThat(result.task(":jardiffTask")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(result.output)
-      .contains("SHA-256 hashes differ for candidate.jar and reference.jar")
+      .contains("SHA-256 hashes differ for candidate.jar (candidate) and reference.jar (reference)")
       .contains("but jardiff detected no differences")
     assertThat(jardiffReport()).exists().content()
       .contains("no differences")

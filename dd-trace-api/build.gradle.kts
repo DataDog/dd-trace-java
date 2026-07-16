@@ -7,7 +7,7 @@ apply(from = "$rootDir/gradle/publish.gradle")
 
 configure<datadog.gradle.plugin.jardiff.JardiffExtension> {
   // jar is not cacheable, and may differ
-  hashCheck = false
+  ignoreHashCheck = true
 }
 
 extra["minimumBranchCoverage"] = 0.8

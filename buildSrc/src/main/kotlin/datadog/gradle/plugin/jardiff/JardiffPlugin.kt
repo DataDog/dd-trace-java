@@ -25,7 +25,7 @@ class JardiffPlugin : Plugin<Project> {
     extension.mode.convention(DEFAULT_MODE)
     extension.additionalOptions.convention(emptyList())
     extension.reportDir.convention(project.layout.buildDirectory.dir("reports/jardiff"))
-    extension.hashCheck.convention(true)
+    extension.ignoreHashCheck.convention(false)
 
     // Use a detached configuration (created here, resolved only when the task runs)
     // 
@@ -57,7 +57,7 @@ class JardiffPlugin : Plugin<Project> {
       mode.convention(extension.mode)
       additionalOptions.convention(extension.additionalOptions)
       reportDir.convention(extension.reportDir)
-      hashCheck.convention(extension.hashCheck)
+      ignoreHashCheck.convention(extension.ignoreHashCheck)
       // Ignore **/*.version by default, except under CI where the build and deploy
       // jobs share the same commit.
       ignoreVersionFiles.convention(

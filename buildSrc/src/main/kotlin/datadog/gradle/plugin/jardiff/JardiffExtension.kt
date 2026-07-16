@@ -36,8 +36,8 @@ interface JardiffExtension {
   val reportDir: DirectoryProperty
 
   /**
-   * When true, compare the candidate and reference jar hashes before launching jardiff. If the
-   * hashes match, the task succeeds without invoking jardiff. Defaults to true.
+   * When true, tolerate mismatching candidate and reference jar hashes if jardiff reports no
+   * differences. Defaults to false.
    */
-  val hashCheck: Property<Boolean>
+  val ignoreHashCheck: Property<Boolean>
 }

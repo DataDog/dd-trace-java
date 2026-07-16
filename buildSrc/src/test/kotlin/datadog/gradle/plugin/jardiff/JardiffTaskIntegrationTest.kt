@@ -65,7 +65,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
       taskBody = """
         includes.set(listOf("**/*.class", "META-INF/**"))
         excludes.set(listOf("**/*.txt"))
-        hashCheck.set(false)
+        ignoreHashCheck.set(true)
       """,
       compareBytes = false,
     )
@@ -97,7 +97,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
         mainClass.set("fake.jardiff.Main")
         mode.set("--status")
         additionalOptions.set(listOf("--ignore-member-order"))
-        hashCheck.set(false)
+        ignoreHashCheck.set(true)
       }
 
       tasks.named<JardiffTask>("compareToReferenceJar") {
@@ -122,25 +122,17 @@ class JardiffTaskIntegrationTest : GradleFixture() {
   }
 
   @Test
-  fun `applies mode and additional options passed as command-line options`() {
+  fun `applies mode additional options and ignoreHashCheck passed as command-line options`() {
     writeProject(compareBytes = false)
     writeJar("candidate.jar", "candidate-bytes")
     writeJar("reference.jar", "reference-bytes")
-
-    file("build.gradle.kts").appendText(
-      """
-
-      tasks.named<JardiffTask>("compareToReferenceJar") {
-        hashCheck.set(false)
-      }
-      """.trimIndent(),
-    )
 
     val result = run(
       "compareToReferenceJar",
       "--mode=--status",
       "--jardiff-option=--ignore-member-order",
       "--jardiff-option=--class-text-producer=javap",
+      "--ignore-hash-check",
     )
 
     assertThat(result.task(":compareToReferenceJar")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
@@ -155,7 +147,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
     writeProject(
       taskBody = """
         ignoreVersionFiles.set(true)
-        hashCheck.set(false)
+        ignoreHashCheck.set(true)
       """,
       compareBytes = false,
     )
@@ -173,7 +165,7 @@ class JardiffTaskIntegrationTest : GradleFixture() {
   fun `compares version stamps under CI (ignoreVersionFiles defaults to false)`() {
     // No explicit ignoreVersionFiles: the plugin's CI-aware convention drives it. With CI set, the
     // build and deploy jobs share a commit, so the stamps are compared (not excluded).
-    writeProject(taskBody = "hashCheck.set(false)", compareBytes = false)
+    writeProject(taskBody = "ignoreHashCheck.set(true)", compareBytes = false)
     writeJar("candidate.jar", "candidate-bytes")
     writeJar("reference.jar", "reference-bytes")
 

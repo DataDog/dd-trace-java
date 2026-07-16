@@ -123,15 +123,15 @@ abstract class JardiffTask @Inject constructor(
   abstract val additionalOptions: ListProperty<String>
 
   /**
-   * When true, hash the candidate and reference jars before running jardiff. Matching hashes mean
-   * the jars are byte-for-byte identical, so the task can skip the more expensive jardiff process.
+   * When true, tolerate mismatching candidate and reference jar hashes if jardiff reports no
+   * differences. Matching hashes still skip the more expensive jardiff process.
    */
   @get:Input
   @get:Option(
-    option = "hash-check",
-    description = "Hash the jars before launching jardiff and skip jardiff when hashes match.",
+    option = "ignore-hash-check",
+    description = "Do not fail when jar hashes differ but jardiff detects no differences.",
   )
-  abstract val hashCheck: Property<Boolean>
+  abstract val ignoreHashCheck: Property<Boolean>
 
   /**
    * When true, the `.version` files entries are excluded from the comparison.
@@ -161,7 +161,7 @@ abstract class JardiffTask @Inject constructor(
     includes.convention(emptyList())
     excludes.convention(emptyList())
     reportDir.convention(project.layout.buildDirectory.dir("reports/jardiff"))
-    hashCheck.convention(true)
+    ignoreHashCheck.convention(false)
     // These comparisons are explicit verification gates and must never be skipped as up-to-date.
     outputs.upToDateWhen { false }
   }
@@ -218,10 +218,10 @@ abstract class JardiffTask @Inject constructor(
       JardiffComparison.Outcome.IDENTICAL -> {
         if (!hashesMatch) {
           val message =
-            "SHA-256 hashes differ for ${candidate.name} and ${reference.name}, " +
+            "SHA-256 hashes differ for ${candidate.name} (candidate) and ${reference.name} (reference), " +
               "but jardiff detected no differences."
           logger.warn(message)
-          if (hashCheck.get()) {
+          if (!ignoreHashCheck.get()) {
             throw GradleException(
               buildString {
                 appendLine(message)
@@ -234,7 +234,7 @@ abstract class JardiffTask @Inject constructor(
           }
         }
         logger.lifecycle(
-          "Jardiff comparison passed for ${candidate.name} against ${reference.name}.",
+          "Jardiff comparison passed for ${candidate.name} (candidate) against ${reference.name} (reference).",
         )
       }
 
@@ -242,7 +242,7 @@ abstract class JardiffTask @Inject constructor(
         throw GradleException(
           buildString {
             appendLine("Candidate jar differs from the reference jar.")
-            appendLine("TODO: inspect build")
+            appendLine("TODO: inspect gradle build scripts")
             appendLine()
             appendLine("  candidate : ${candidate.absolutePath}")
             appendLine("  reference : ${reference.absolutePath}")
@@ -256,7 +256,7 @@ abstract class JardiffTask @Inject constructor(
       JardiffComparison.Outcome.ERROR ->
         throw GradleException(
           "jardiff failed with exit code ${execResult.exitValue} while comparing " +
-            "${candidate.name} against ${reference.name}. Report: ${reportDestination.absolutePath}. " +
+            "${candidate.name} (candidate) against ${reference.name} (reference)." +
             "Output:\n" +
             report.ifBlank { "(no output captured)" },
         )
