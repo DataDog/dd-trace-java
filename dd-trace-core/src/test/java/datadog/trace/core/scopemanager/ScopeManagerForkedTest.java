@@ -39,7 +39,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.common.writer.ListWriter;
-import datadog.trace.context.TraceScope;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
@@ -709,7 +708,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     AgentSpan span = tracer.buildSpan("test", "test").start();
     long start = System.nanoTime();
     AgentScope scope = tracer.activateSpan(span);
-    AtomicReference<TraceScope.Continuation> continuation =
+    AtomicReference<ContextContinuation> continuation =
         new AtomicReference<>(tracer.captureActiveSpan());
     scope.close();
     span.finish();
@@ -725,7 +724,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
           if ((iter & 1) != 0) {
             Thread.sleep(1);
           }
-          TraceScope s = continuation.get().activate();
+          ContextScope s = continuation.get().resume();
           assertSame(s, scopeManager.active());
           if ((iter & 2) != 0) {
             Thread.sleep(1);
@@ -741,7 +740,7 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
       assertTrue(writer.isEmpty());
     }
 
-    continuation.get().cancel();
+    continuation.get().release();
 
     assertEquals(1, writer.size());
     assertSame(span, writer.get(0).get(0));
@@ -968,8 +967,8 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     assertNull(scopeManager.activeSpan());
     assertEquals("test-value", scopeManager.currentContext().get(testKey));
 
-    AgentScope innerScope = tracer.activateSpan(span);
-    AgentScope scope = tracer.captureActiveSpan().activate();
+    ContextScope innerScope = tracer.activateSpan(span);
+    ContextScope scope = tracer.captureActiveSpan().resume();
     innerScope.close();
 
     assertSame(scope, scopeManager.active());
