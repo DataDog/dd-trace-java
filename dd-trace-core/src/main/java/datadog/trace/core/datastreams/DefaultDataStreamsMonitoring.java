@@ -306,6 +306,26 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public void reportKafkaConsumerGroupMember(
+      String kafkaClusterId,
+      String consumerGroup,
+      String memberId,
+      int generationId,
+      String memberProtocol) {
+    inbox.offer(
+        new KafkaConfigReport(
+            "kafka_consumer",
+            kafkaClusterId,
+            consumerGroup,
+            memberId,
+            generationId,
+            memberProtocol,
+            Collections.<String, String>emptyMap(),
+            timeSource.getCurrentTimeNanos(),
+            getThreadServiceName()));
+  }
+
+  @Override
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
     PathwayContext pathwayContext = span.spanContext().getPathwayContext();
     if (pathwayContext != null) {

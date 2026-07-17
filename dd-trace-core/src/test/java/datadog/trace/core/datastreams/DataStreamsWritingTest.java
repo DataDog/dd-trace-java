@@ -325,6 +325,57 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void writeKafkaConsumerGroupMemberToMockServer() throws InterruptedException, IOException {
+    WellKnownTags wellKnownTags =
+        new WellKnownTags(
+            "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
+    Config fakeConfig = mock(Config.class);
+    when(fakeConfig.getAgentUrl()).thenReturn(serverAddress.toString());
+    when(fakeConfig.getWellKnownTags()).thenReturn(wellKnownTags);
+    when(fakeConfig.getPrimaryTag()).thenReturn("region-1");
+
+    OkHttpClient testOkhttpClient = OkHttpUtils.buildHttpClient(serverAddress, 5000L);
+    DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
+    when(features.supportsDataStreams()).thenReturn(true);
+    SharedCommunicationObjects sharedCommObjects = new SharedCommunicationObjects();
+    sharedCommObjects.setFeaturesDiscovery(features);
+    sharedCommObjects.agentHttpClient = testOkhttpClient;
+    sharedCommObjects.createRemaining(fakeConfig);
+
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    TraceConfig traceConfig = mock(TraceConfig.class);
+    when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
+
+    DefaultDataStreamsMonitoring dataStreams =
+        new DefaultDataStreamsMonitoring(
+            fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
+    dataStreams.start();
+
+    // Report consumer group membership (as emitted on join)
+    dataStreams.reportKafkaConsumerGroupMember(
+        "cluster-1", "test-group", "consumer-1-abc123", 7, "range");
+
+    // Also add a stats point so the bucket has content
+    dataStreams.add(
+        new StatsPoint(
+            DataStreamsTags.create(null, null),
+            9,
+            0,
+            10,
+            timeSource.getCurrentTimeNanos(),
+            0,
+            0,
+            0,
+            null));
+
+    timeSource.advance(defaultBucketDurationNanos);
+    dataStreams.close();
+
+    awaitOneRequestBody();
+    validateKafkaConsumerGroupMemberMessage(requestBodies.get(0));
+  }
+
+  @Test
   void duplicateKafkaConfigsAreEachSerializedInPayload() throws InterruptedException, IOException {
     WellKnownTags wellKnownTags =
         new WellKnownTags(
@@ -407,13 +458,19 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
             // Collect configs in a map keyed by type
             Map<String, Map<String, String>> configsByType = new HashMap<>();
             for (int n = 0; n < numConfigs; n++) {
-              assertEquals(4, unpacker.unpackMapHeader());
+              assertEquals(7, unpacker.unpackMapHeader());
               assertEquals("Type", unpacker.unpackString());
               String type = unpacker.unpackString();
               assertEquals("KafkaClusterId", unpacker.unpackString());
               unpacker.unpackString(); // skip cluster id value
               assertEquals("ConsumerGroup", unpacker.unpackString());
               unpacker.unpackString(); // skip consumer group value
+              assertEquals("MemberId", unpacker.unpackString());
+              unpacker.unpackString(); // skip member id value
+              assertEquals("GenerationId", unpacker.unpackString());
+              unpacker.unpackLong(); // skip generation id value
+              assertEquals("MemberProtocol", unpacker.unpackString());
+              unpacker.unpackString(); // skip member protocol value
               assertEquals("Config", unpacker.unpackString());
               int configSize = unpacker.unpackMapHeader();
               Map<String, String> configEntries = new HashMap<>();
@@ -455,6 +512,61 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     assertTrue(foundStats, "Stats field not found in payload");
   }
 
+  private void validateKafkaConsumerGroupMemberMessage(byte[] message) throws IOException {
+    GzipSource gzipSource = new GzipSource(Okio.source(new ByteArrayInputStream(message)));
+    BufferedSource bufferedSource = Okio.buffer(gzipSource);
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream());
+
+    int outerMapSize = unpacker.unpackMapHeader();
+    boolean foundStats = false;
+    for (int i = 0; i < outerMapSize; i++) {
+      String key = unpacker.unpackString();
+      if ("Stats".equals(key)) {
+        foundStats = true;
+        int numBuckets = unpacker.unpackArrayHeader();
+        assertTrue(numBuckets >= 1);
+
+        int bucketMapSize = unpacker.unpackMapHeader();
+        boolean foundConfigs = false;
+        for (int j = 0; j < bucketMapSize; j++) {
+          String bucketKey = unpacker.unpackString();
+          if ("Configs".equals(bucketKey)) {
+            foundConfigs = true;
+            int numConfigs = unpacker.unpackArrayHeader();
+            assertEquals(1, numConfigs);
+
+            assertEquals(7, unpacker.unpackMapHeader());
+            assertEquals("Type", unpacker.unpackString());
+            assertEquals("kafka_consumer", unpacker.unpackString());
+            assertEquals("KafkaClusterId", unpacker.unpackString());
+            assertEquals("cluster-1", unpacker.unpackString());
+            assertEquals("ConsumerGroup", unpacker.unpackString());
+            assertEquals("test-group", unpacker.unpackString());
+            assertEquals("MemberId", unpacker.unpackString());
+            assertEquals("consumer-1-abc123", unpacker.unpackString());
+            assertEquals("GenerationId", unpacker.unpackString());
+            assertEquals(7, unpacker.unpackLong());
+            assertEquals("MemberProtocol", unpacker.unpackString());
+            assertEquals("range", unpacker.unpackString());
+            assertEquals("Config", unpacker.unpackString());
+            // Membership reports carry no config entries
+            assertEquals(0, unpacker.unpackMapHeader());
+          } else {
+            unpacker.skipValue();
+          }
+        }
+        assertTrue(foundConfigs, "Configs field not found in bucket");
+
+        for (int b = 1; b < numBuckets; b++) {
+          unpacker.skipValue();
+        }
+      } else {
+        unpacker.skipValue();
+      }
+    }
+    assertTrue(foundStats, "Stats field not found in payload");
+  }
+
   private void validateDuplicateKafkaConfigMessage(byte[] message) throws IOException {
     GzipSource gzipSource = new GzipSource(Okio.source(new ByteArrayInputStream(message)));
     BufferedSource bufferedSource = Okio.buffer(gzipSource);
@@ -481,13 +593,19 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
             assertEquals(2, numConfigs);
 
             for (int n = 0; n < numConfigs; n++) {
-              assertEquals(4, unpacker.unpackMapHeader());
+              assertEquals(7, unpacker.unpackMapHeader());
               assertEquals("Type", unpacker.unpackString());
               assertEquals("kafka_producer", unpacker.unpackString());
               assertEquals("KafkaClusterId", unpacker.unpackString());
               unpacker.unpackString(); // skip cluster id value
               assertEquals("ConsumerGroup", unpacker.unpackString());
               unpacker.unpackString(); // skip consumer group value
+              assertEquals("MemberId", unpacker.unpackString());
+              unpacker.unpackString(); // skip member id value
+              assertEquals("GenerationId", unpacker.unpackString());
+              unpacker.unpackLong(); // skip generation id value
+              assertEquals("MemberProtocol", unpacker.unpackString());
+              unpacker.unpackString(); // skip member protocol value
               assertEquals("Config", unpacker.unpackString());
               int configSize = unpacker.unpackMapHeader();
               Map<String, String> configEntries = new HashMap<>();
