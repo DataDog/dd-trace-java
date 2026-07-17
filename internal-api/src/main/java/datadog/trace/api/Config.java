@@ -300,6 +300,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_ORDE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CODE_COVERAGE_FLAGS;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_COMMIT_HEAD_SHA;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH_SHA;
@@ -822,6 +823,7 @@ import org.slf4j.LoggerFactory;
 public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
+  private static final int MAX_CODE_COVERAGE_FLAGS = 32;
 
   private static final Pattern COLON = Pattern.compile(":");
 
@@ -1148,6 +1150,7 @@ public class Config {
   private final boolean ciVisibilityCodeCoverageEnabled;
   private final Boolean ciVisibilityCoverageLinesEnabled;
   private final String ciVisibilityCodeCoverageReportDumpDir;
+  private final List<String> codeCoverageFlags;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
   private final boolean ciVisibilityJacocoPluginVersionProvided;
@@ -2700,6 +2703,7 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED);
     ciVisibilityCodeCoverageReportDumpDir =
         configProvider.getString(CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR);
+    codeCoverageFlags = parseCodeCoverageFlags(configProvider.getList(CODE_COVERAGE_FLAGS));
     ciVisibilityCompilerPluginVersion =
         configProvider.getString(
             CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
@@ -4399,6 +4403,10 @@ public class Config {
     return ciVisibilityCodeCoverageReportDumpDir;
   }
 
+  public List<String> getCodeCoverageFlags() {
+    return codeCoverageFlags;
+  }
+
   public String getCiVisibilityCompilerPluginVersion() {
     return ciVisibilityCompilerPluginVersion;
   }
@@ -6081,6 +6089,30 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
+  private static List<String> parseCodeCoverageFlags(List<String> configuredFlags) {
+    if (configuredFlags.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    List<String> flags = new ArrayList<>(configuredFlags.size());
+    for (String configuredFlag : configuredFlags) {
+      String flag = configuredFlag.trim();
+      if (!flag.isEmpty()) {
+        flags.add(flag);
+      }
+    }
+
+    if (flags.size() > MAX_CODE_COVERAGE_FLAGS) {
+      log.warn(
+          "Cannot apply {} code coverage report flags: the maximum supported number is {}. The report will be uploaded without flags.",
+          flags.size(),
+          MAX_CODE_COVERAGE_FLAGS);
+      return Collections.emptyList();
+    }
+
+    return Collections.unmodifiableList(flags);
+  }
+
   private static <T> Set<T> convertStringSetToSet(
       String setting, final Set<String> input, Function<String, T> mapper) {
     if (input.isEmpty()) {
@@ -6269,6 +6301,8 @@ public class Config {
         + experimentalFeaturesEnabled
         + ", integrationSynapseLegacyOperationName="
         + integrationSynapseLegacyOperationName
+        + ", codeCoverageFlags="
+        + codeCoverageFlags
         + ", writerType='"
         + writerType
         + '\''
