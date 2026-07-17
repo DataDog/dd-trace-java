@@ -115,17 +115,19 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     if (span == null) {
       return;
     }
-    if (!serverContext.isResponseCloseDelimited()) {
-      // The response declared a body via Content-Length or chunked encoding, but the channel closed
-      // before that body completed. Close-delimited responses, in contrast, end normally when the
-      // connection closes.
-      DECORATE.onError(span, new IllegalStateException(INCOMPLETE_RESPONSE_MESSAGE));
+    try (final ContextScope ignored = storedContext.attach()) {
+      if (!serverContext.isResponseCloseDelimited()) {
+        // The response declared a body via Content-Length or chunked encoding, but the channel
+        // closed before that body completed. Close-delimited responses, in contrast, end normally
+        // when the connection closes.
+        DECORATE.onError(span, new IllegalStateException(INCOMPLETE_RESPONSE_MESSAGE));
+      }
+      if (!serverContext.isBeforeFinishCalled()) {
+        serverContext.markBeforeFinishCalled();
+        DECORATE.beforeFinish(storedContext);
+      }
+      span.finish();
     }
-    if (!serverContext.isBeforeFinishCalled()) {
-      serverContext.markBeforeFinishCalled();
-      DECORATE.beforeFinish(storedContext);
-    }
-    span.finish();
   }
 
   private static void publishSpanOnChannelClose(final Context storedContext) {

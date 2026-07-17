@@ -22,19 +22,35 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.assertions.SpanMatcher;
+import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.gateway.Events;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.IGSpanInfo;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.gateway.Subscription;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpContent;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.channels.FileChannel;
@@ -43,6 +59,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -60,6 +80,7 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
   private static final String NO_RESPONSE_PATH = "/no-response";
   private static final String CLOSE_DELIMITED_PATH = "/close-delimited";
   private static final String CLOSE_DELIMITED_FULL_RESPONSE_PATH = "/close-delimited/full";
+  private static final String KNOWN_LENGTH_FULL_RESPONSE_PATH = "/known-length/full";
   private static final String KNOWN_LENGTH_BYTE_BUF_PATH = "/known-length/bytebuf";
   private static final String KNOWN_LENGTH_FILE_REGION_PATH = "/known-length/file-region";
   private static final String INCOMPLETE_KNOWN_LENGTH_PATH = "/known-length/incomplete";
@@ -171,6 +192,132 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
     }
 
     assertTraces(trace(serverSpan(KNOWN_LENGTH_BYTE_BUF_PATH)));
+  }
+
+  @Test
+  void callsIastRequestEndedForKnownLengthFullResponse() throws Exception {
+    Object iastRequestData = new Object();
+    AtomicReference<String> authorization = new AtomicReference<>();
+    AtomicBoolean requestEnded = new AtomicBoolean();
+    AtomicBoolean requestSpanActive = new AtomicBoolean();
+
+    Events<Object> events = Events.get();
+    Subscription requestStarted =
+        AgentTracer.get()
+            .getSubscriptionService(RequestContextSlot.IAST)
+            .registerCallback(
+                events.requestStarted(),
+                new Supplier<Flow<Object>>() {
+                  @Override
+                  public Flow<Object> get() {
+                    return new Flow.ResultFlow<>(iastRequestData);
+                  }
+                });
+    Subscription requestHeader =
+        AgentTracer.get()
+            .getSubscriptionService(RequestContextSlot.IAST)
+            .registerCallback(
+                events.requestHeader(),
+                new TriConsumer<RequestContext, String, String>() {
+                  @Override
+                  public void accept(RequestContext context, String key, String value) {
+                    if (iastRequestData == context.getData(RequestContextSlot.IAST)
+                        && "authorization".equalsIgnoreCase(key)) {
+                      authorization.set(value);
+                    }
+                  }
+                });
+    Subscription requestEnd =
+        AgentTracer.get()
+            .getSubscriptionService(RequestContextSlot.IAST)
+            .registerCallback(
+                events.requestEnded(),
+                new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
+                  @Override
+                  public Flow<Void> apply(RequestContext context, IGSpanInfo span) {
+                    if (iastRequestData == context.getData(RequestContextSlot.IAST)) {
+                      requestEnded.set(true);
+                      AgentSpan activeSpan = AgentTracer.activeSpan();
+                      requestSpanActive.set(
+                          activeSpan != null && activeSpan.getRequestContext() == context);
+                    }
+                    return Flow.ResultFlow.empty();
+                  }
+                });
+
+    try {
+      try (Socket socket = connect()) {
+        socket
+            .getOutputStream()
+            .write(
+                requestWithAuthorization(KNOWN_LENGTH_FULL_RESPONSE_PATH, "Basic dXNlcjpwYXNz")
+                    .getBytes(US_ASCII));
+        socket.getOutputStream().flush();
+
+        assertEquals("ok", readHttpResponseBody(socket.getInputStream()));
+      }
+
+      assertTraces(trace(serverSpan(KNOWN_LENGTH_FULL_RESPONSE_PATH)));
+      assertEquals("Basic dXNlcjpwYXNz", authorization.get());
+      assertTrue(requestEnded.get(), "IAST requestEnded callback was not called");
+      assertTrue(requestSpanActive.get(), "request span was not active during requestEnded");
+    } finally {
+      requestEnd.cancel();
+      requestHeader.cancel();
+      requestStarted.cancel();
+    }
+  }
+
+  @Test
+  void activatesRequestSpanWhenWritePromiseCompletesAfterWriteReturns() {
+    Object iastRequestData = new Object();
+    AtomicBoolean requestSpanActive = new AtomicBoolean();
+
+    Events<Object> events = Events.get();
+    Subscription requestEnd =
+        AgentTracer.get()
+            .getSubscriptionService(RequestContextSlot.IAST)
+            .registerCallback(
+                events.requestEnded(),
+                new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
+                  @Override
+                  public Flow<Void> apply(RequestContext context, IGSpanInfo span) {
+                    if (iastRequestData == context.getData(RequestContextSlot.IAST)) {
+                      AgentSpan activeSpan = AgentTracer.activeSpan();
+                      requestSpanActive.set(
+                          activeSpan != null && activeSpan.getRequestContext() == context);
+                    }
+                    return Flow.ResultFlow.empty();
+                  }
+                });
+
+    HoldingOutboundHandler holdingHandler = new HoldingOutboundHandler();
+    EmbeddedChannel channel =
+        new EmbeddedChannel(holdingHandler, HttpServerResponseTracingHandler.INSTANCE);
+    AgentSpan span =
+        AgentTracer.get()
+            .startSpan(
+                "netty",
+                "netty.request",
+                new TagContext().withRequestContextDataIast(iastRequestData));
+    ServerRequestContext.add(channel, span, new DefaultHttpHeaders());
+
+    try {
+      DefaultFullHttpResponse response =
+          new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.copiedBuffer("ok", UTF_8));
+      response.headers().set(CONTENT_LENGTH, response.content().readableBytes());
+
+      channel.writeOutbound(response);
+      assertFalse(requestSpanActive.get(), "write promise completed synchronously");
+
+      holdingHandler.completeWrite();
+
+      assertTrue(requestSpanActive.get(), "request span was not active during requestEnded");
+    } finally {
+      holdingHandler.completeWrite();
+      requestEnd.cancel();
+      channel.finishAndReleaseAll();
+    }
   }
 
   @Test
@@ -381,6 +528,14 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
     return request("GET", path);
   }
 
+  private static String requestWithAuthorization(String path, String authorization) {
+    return "GET "
+        + path
+        + " HTTP/1.1\r\nHost: localhost\r\nAuthorization: "
+        + authorization
+        + "\r\n\r\n";
+  }
+
   private static String request(String method, String path) {
     String headers = method + " " + path + " HTTP/1.1\r\nHost: localhost\r\n";
     if (isWebSocketPath(path)) {
@@ -474,6 +629,8 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
         writeCloseDelimitedResponse(ctx);
       } else if (CLOSE_DELIMITED_FULL_RESPONSE_PATH.equals(request.uri())) {
         writeCloseDelimitedFullResponse(ctx);
+      } else if (KNOWN_LENGTH_FULL_RESPONSE_PATH.equals(request.uri())) {
+        writeKnownLengthFullResponse(ctx);
       } else if (KNOWN_LENGTH_BYTE_BUF_PATH.equals(request.uri())) {
         writeKnownLengthByteBufResponse(ctx);
       } else if (KNOWN_LENGTH_FILE_REGION_PATH.equals(request.uri())) {
@@ -515,6 +672,13 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       response.headers().set(CONNECTION, "close");
       ctx.writeAndFlush(response)
           .addListener(future -> closeDelimitedFullResponseWrites.offer(ctx));
+    }
+
+    private void writeKnownLengthFullResponse(ChannelHandlerContext ctx) {
+      DefaultFullHttpResponse response =
+          new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.copiedBuffer("ok", UTF_8));
+      response.headers().set(CONTENT_LENGTH, response.content().readableBytes());
+      ctx.writeAndFlush(response);
     }
 
     private void writeKnownLengthByteBufResponse(ChannelHandlerContext ctx) {
@@ -660,6 +824,29 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       try {
         Files.deleteIfExists(path);
       } catch (IOException ignored) {
+      }
+    }
+  }
+
+  private static final class HoldingOutboundHandler extends ChannelOutboundHandlerAdapter {
+    private Object msg;
+    private ChannelPromise promise;
+
+    @Override
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+      this.msg = msg;
+      this.promise = promise;
+    }
+
+    private void completeWrite() {
+      if (promise == null || promise.isDone()) {
+        return;
+      }
+      try {
+        promise.setSuccess();
+      } finally {
+        ReferenceCountUtil.release(msg);
+        msg = null;
       }
     }
   }

@@ -189,8 +189,10 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
 
   private static void finishSpan(
       final ServerRequestContext serverContext, final Context storedContext, final AgentSpan span) {
-    beforeFinish(serverContext, storedContext);
-    span.finish(); // Finish the span manually since finishSpanOnClose was false
+    try (final ContextScope ignored = storedContext.attach()) {
+      beforeFinish(serverContext, storedContext);
+      span.finish(); // Finish the span manually since finishSpanOnClose was false
+    }
   }
 
   private static void beforeFinish(
