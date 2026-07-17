@@ -212,6 +212,59 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
             span().childOfPrevious().operationName("child")));
   }
 
+  @DisplayName("test context preserved across carrier migration")
+  @Test
+  void testContextPreservedAcrossCarrierMigration() {
+    // Constrain the carrier pool so parked VTs resume on different carriers.
+    String previousParallelism = System.getProperty("jdk.virtualThreadScheduler.parallelism");
+    System.setProperty("jdk.virtualThreadScheduler.parallelism", "2");
+    try {
+      int threadCount = 32;
+      String[] parentSpanId = new String[1];
+      String[] childParentSpanIds = new String[threadCount];
+
+      new Runnable() {
+        @Override
+        @Trace(operationName = "parent")
+        public void run() {
+          parentSpanId[0] = GlobalTracer.get().getSpanId();
+          List<Thread> threads = new ArrayList<>();
+          for (int i = 0; i < threadCount; i++) {
+            int index = i;
+            threads.add(
+                Thread.startVirtualThread(
+                    () -> {
+                      // Multiple park/unpark cycles to provoke carrier migration.
+                      tryUnmount();
+                      childParentSpanIds[index] = GlobalTracer.get().getSpanId();
+                    }));
+          }
+          for (Thread thread : threads) {
+            try {
+              thread.join(TIMEOUT);
+            } catch (InterruptedException e) {
+              throw new RuntimeException(e);
+            }
+          }
+        }
+      }.run();
+
+      for (int i = 0; i < threadCount; i++) {
+        assertEquals(
+            parentSpanId[0],
+            childParentSpanIds[i],
+            "context must survive park/unpark and carrier migration for VT #" + i);
+      }
+      assertTraces(trace(span().root().operationName("parent")));
+    } finally {
+      if (previousParallelism == null) {
+        System.clearProperty("jdk.virtualThreadScheduler.parallelism");
+      } else {
+        System.setProperty("jdk.virtualThreadScheduler.parallelism", previousParallelism);
+      }
+    }
+  }
+
   @Trace(operationName = "child")
   private static void childWork(String[] beforeUnmount, String[] afterRemount) {
     beforeUnmount[0] = GlobalTracer.get().getSpanId();
