@@ -3,8 +3,7 @@
   - if: '$POPULATE_CACHE'
     when: never
   - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
-    when: manual
-    allow_failure: true
+    when: never
   - if: '$CI_COMMIT_BRANCH == "master"'
     when: on_success
     interruptible: false
@@ -23,8 +22,7 @@
   - if: '$POPULATE_CACHE'
     when: never
   - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
-    when: manual
-    allow_failure: true
+    when: never
   - if: '$CI_COMMIT_BRANCH == "master"'
     when: on_success
     interruptible: false
@@ -38,9 +36,18 @@
     interruptible: true
     allow_failure: true
 
-# Ensure the tracer artifact publish finishes before the benchmark jobs start.
 linux-java-spring-petclinic-parallel:
   needs: ["publish-artifacts-to-s3"]
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+      interruptible: false
+    - when: manual
+      allow_failure: true
 
 linux-java-insecure-bank-load-parallel:
   needs: ["publish-artifacts-to-s3"]
