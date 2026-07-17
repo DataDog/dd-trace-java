@@ -13,8 +13,8 @@ import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import io.reactivex.rxjava3.core.Flowable;
-import io.reactivex.rxjava3.core.FlowableSubscriber;
 import net.bytebuddy.asm.Advice;
+import org.reactivestreams.Subscriber;
 
 public final class FlowableInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
@@ -31,7 +31,7 @@ public final class FlowableInstrumentation
         isMethod()
             .and(named("subscribe"))
             .and(takesArguments(1))
-            .and(takesArgument(0, named("io.reactivex.rxjava3.core.FlowableSubscriber"))),
+            .and(takesArgument(0, named("org.reactivestreams.Subscriber"))),
         getClass().getName() + "$PropagateParentSpanAdvice");
   }
 
@@ -49,11 +49,12 @@ public final class FlowableInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onSubscribe(
         @Advice.This final Flowable<?> flowable,
-        @Advice.Argument(value = 0, readOnly = false) FlowableSubscriber<?> subscriber) {
+        @Advice.Argument(value = 0, readOnly = false) Subscriber<?> subscriber) {
       if (subscriber != null) {
         Context parentContext =
             InstrumentationContext.get(Flowable.class, Context.class).get(flowable);
         if (parentContext != null) {
+          // wrap the subscriber so spans from its events treat the captured span as their parent
           subscriber = new TracingSubscriber<>(subscriber, parentContext);
           // attach the context here in case additional subscribers are created during subscribe
           return parentContext.attach();

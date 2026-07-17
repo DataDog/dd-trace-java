@@ -30,13 +30,12 @@ public final class RxJavaModule extends InstrumenterModule.ContextTracking {
 
   @Override
   public Map<String, String> contextStore() {
-    String contextClass = Context.class.getName();
     final Map<String, String> store = new HashMap<>();
-    store.put("io.reactivex.rxjava3.core.Flowable", contextClass);
-    store.put("io.reactivex.rxjava3.core.Completable", contextClass);
-    store.put("io.reactivex.rxjava3.core.Maybe", contextClass);
-    store.put("io.reactivex.rxjava3.core.Observable", contextClass);
-    store.put("io.reactivex.rxjava3.core.Single", contextClass);
+    store.put("io.reactivex.rxjava3.core.Flowable", Context.class.getName());
+    store.put("io.reactivex.rxjava3.core.Completable", Context.class.getName());
+    store.put("io.reactivex.rxjava3.core.Maybe", Context.class.getName());
+    store.put("io.reactivex.rxjava3.core.Observable", Context.class.getName());
+    store.put("io.reactivex.rxjava3.core.Single", Context.class.getName());
     return store;
   }
 

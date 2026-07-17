@@ -2,17 +2,17 @@ package datadog.trace.instrumentation.rxjava3;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
-import io.reactivex.rxjava3.core.FlowableSubscriber;
 import javax.annotation.Nonnull;
+import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
 /** Wrapper that makes sure spans from subscriber events treat the captured span as their parent. */
-public final class TracingSubscriber<T> implements FlowableSubscriber<T> {
-  private final FlowableSubscriber<T> subscriber;
+public final class TracingSubscriber<T> implements Subscriber<T> {
+  private final Subscriber<T> subscriber;
   private final Context parentContext;
 
   public TracingSubscriber(
-      @Nonnull final FlowableSubscriber<T> subscriber, @Nonnull final Context parentContext) {
+      @Nonnull final Subscriber<T> subscriber, @Nonnull final Context parentContext) {
     this.subscriber = subscriber;
     this.parentContext = parentContext;
   }

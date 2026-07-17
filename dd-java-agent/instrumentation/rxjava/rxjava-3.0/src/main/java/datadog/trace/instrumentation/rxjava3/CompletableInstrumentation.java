@@ -55,6 +55,7 @@ public final class CompletableInstrumentation
         Context parentContext =
             InstrumentationContext.get(Completable.class, Context.class).get(completable);
         if (parentContext != null) {
+          // wrap the observer so spans from its events treat the captured span as their parent
           observer = new TracingCompletableObserver(observer, parentContext);
           // attach the context here in case additional observers are created during subscribe
           return parentContext.attach();
