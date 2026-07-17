@@ -21,6 +21,8 @@ import org.openjdk.jmh.annotations.Warmup;
  *   <li>ConcurrentMap - only when there are simultaneously readers & writers in multiple threads
  *   <li>HashMap via volatile - preferred for background thread updates
  *   <li>synchronized HashMap - when simultaneous readers & writers are uncommon (e.g. tags)
+ *   <li>FlatHashtable - lock-free reads (no lock, no volatile; benign-race) of a fixed, once-built
+ *       keyed set; a find-or-create table, not a general concurrent Map (no arbitrary put/remove)
  * </ul>
  *
  * <p>
@@ -104,6 +106,46 @@ public class ThreadSafeMapBenchmark {
     }
   }
 
+  // FlatHashtable's contribution here is the lock-free concurrent read: get() is a plain array
+  // probe
+  // with no lock and no volatile — safe under concurrency because the table is published once (a
+  // final static field) and each entry's identity fields are final. (Fixture mirrors the one in
+  // SingleThreadedMapBenchmark; the benchmarks are self-contained.)
+  static final class IntEntry {
+    final String key;
+    final int value;
+
+    IntEntry(String key, int value) {
+      this.key = key;
+      this.value = value;
+    }
+  }
+
+  static final class IntEntryKeyStrategy extends FlatHashtable.StringKeyStrategy<IntEntry> {
+    static final IntEntryKeyStrategy INSTANCE = new IntEntryKeyStrategy();
+
+    private IntEntryKeyStrategy() {}
+
+    @Override
+    public boolean matches(String key, IntEntry entry) {
+      return key.equals(entry.key);
+    }
+
+    @Override
+    public long hashOf(IntEntry entry) {
+      return hash(entry.key);
+    }
+  }
+
+  static IntEntry[] _create_flat() {
+    // Sized to the key count (FlatHashtable is fixed-capacity, no resize): load factor <= 0.5.
+    IntEntry[] table = FlatHashtable.create(IntEntry.class, INSERTION_KEYS.length);
+    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
+      FlatHashtable.insert(table, new IntEntry(INSERTION_KEYS[i], i), IntEntryKeyStrategy.INSTANCE);
+    }
+    return table;
+  }
+
   static final HashMap<String, Integer> _create_hashMap() {
     HashMap<String, Integer> map = new HashMap<>();
     fill(map);
@@ -176,5 +218,18 @@ public class ThreadSafeMapBenchmark {
   @Benchmark
   public Integer get_concSkipListMap() {
     return CONC_SKIP_LIST_MAP.get(nextLookupKey());
+  }
+
+  @Benchmark
+  public IntEntry[] create_flatHashtable() {
+    return _create_flat();
+  }
+
+  static final IntEntry[] FLAT_TABLE = _create_flat();
+
+  @Benchmark
+  public IntEntry get_flatHashtable() {
+    // Lock-free concurrent read of the shared, once-published table.
+    return FlatHashtable.get(FLAT_TABLE, nextLookupKey(), IntEntryKeyStrategy.INSTANCE);
   }
 }
