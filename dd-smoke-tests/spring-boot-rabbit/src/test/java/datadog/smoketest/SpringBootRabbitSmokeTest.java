@@ -145,24 +145,26 @@ class SpringBootRabbitSmokeTest {
   }
 
   // The full distributed round-trip as one strict parent->child chain across both services and the
-  // broker. SORT_BY_ANCESTRY orders the spans parent->child (stable for a linear chain), and the 12
-  // count-exact positional matchers pin the shape: HTTP entrypoint -> publish -> receiver
-  // consumes+forwards -> sender consumes reply.
+  // broker. SORT_BY_ANCESTRY orders the spans parent->child (stable for a linear chain), and each
+  // matcher after the root pins its parent to the preceding span with childOfPrevious() — so the 12
+  // count-exact positional matchers assert both the shape and the explicit parent linkage: HTTP
+  // entrypoint -> publish -> receiver consumes+forwards -> sender consumes reply.
   private static TraceMatcher roundTrip() {
     return trace(
         SORT_BY_ANCESTRY,
         sp("spring-rabbit-0", "servlet.request", "GET /roundtrip/{message}").root(),
-        sp("spring-rabbit-0", "spring.handler", "WebController.roundtrip"),
-        sp("spring-rabbit-0", "amqp.command", "basic.publish <default> -> otherqueue"),
-        sp("rabbitmq", "amqp.deliver", "amqp.deliver otherqueue"),
-        sp("spring-rabbit-1", "amqp.command", "basic.deliver otherqueue"),
-        sp("spring-rabbit-1", "amqp.consume", "amqp.consume otherqueue"),
-        sp("spring-rabbit-1", "spring.consume", "Receiver.receiveMessage"),
-        sp("spring-rabbit-1", "amqp.command", "basic.publish <default> -> queue"),
-        sp("rabbitmq", "amqp.deliver", "amqp.deliver queue"),
-        sp("spring-rabbit-0", "amqp.command", "basic.deliver queue"),
-        sp("spring-rabbit-0", "amqp.consume", "amqp.consume queue"),
-        sp("spring-rabbit-0", "spring.consume", "Receiver.receiveMessage"));
+        sp("spring-rabbit-0", "spring.handler", "WebController.roundtrip").childOfPrevious(),
+        sp("spring-rabbit-0", "amqp.command", "basic.publish <default> -> otherqueue")
+            .childOfPrevious(),
+        sp("rabbitmq", "amqp.deliver", "amqp.deliver otherqueue").childOfPrevious(),
+        sp("spring-rabbit-1", "amqp.command", "basic.deliver otherqueue").childOfPrevious(),
+        sp("spring-rabbit-1", "amqp.consume", "amqp.consume otherqueue").childOfPrevious(),
+        sp("spring-rabbit-1", "spring.consume", "Receiver.receiveMessage").childOfPrevious(),
+        sp("spring-rabbit-1", "amqp.command", "basic.publish <default> -> queue").childOfPrevious(),
+        sp("rabbitmq", "amqp.deliver", "amqp.deliver queue").childOfPrevious(),
+        sp("spring-rabbit-0", "amqp.command", "basic.deliver queue").childOfPrevious(),
+        sp("spring-rabbit-0", "amqp.consume", "amqp.consume queue").childOfPrevious(),
+        sp("spring-rabbit-0", "spring.consume", "Receiver.receiveMessage").childOfPrevious());
   }
 
   // A connection-setup / ack command emitted as its own single-span (root) trace.
