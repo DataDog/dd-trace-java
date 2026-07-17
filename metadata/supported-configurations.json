@@ -8657,7 +8657,7 @@
         "aliases": []
       }
     ],
-    "DD_TRACES_SPAN_METRICS_ENABLED": [
+    "DD_OTEL_TRACES_SPAN_METRICS_ENABLED": [
       {
         "version": "A",
         "type": "boolean",

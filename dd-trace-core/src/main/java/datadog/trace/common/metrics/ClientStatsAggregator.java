@@ -4,6 +4,7 @@ import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS
 import static datadog.trace.api.DDSpanTypes.RPC;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static datadog.trace.common.metrics.AggregateEntry.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateEntry.TOP_LEVEL_TAG;
 import static datadog.trace.common.metrics.SignalItem.ClearSignal.CLEAR;
@@ -12,6 +13,7 @@ import static datadog.trace.common.metrics.SignalItem.StopSignal.STOP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.common.queue.Queues;
@@ -26,6 +28,7 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.SpanKindFilter;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.otlp.metrics.OtlpStatsMetricWriter;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.Collections;
 import java.util.List;
@@ -62,6 +65,15 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private static final SpanKindFilter INTERNAL_KIND =
       SpanKindFilter.builder().includeInternal().build();
 
+  // gRPC status-code source tags, probed in priority order on the OTLP export path
+  private static final String[] GRPC_STATUS_CODE_KEYS = {
+    InstrumentationTags.GRPC_STATUS_CODE, // "rpc.grpc.status_code"
+    "grpc.code",
+    "rpc.grpc.status.code",
+    "grpc.status.code",
+    "rpc.response.status_code",
+  };
+
   private final Set<String> ignoredResources;
   private final Thread thread;
   private final MessagePassingQueue<InboxItem> inbox;
@@ -72,6 +84,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
   private final boolean includeEndpointInMetrics;
+  private final boolean otlpStatsExportEnabled;
 
   /**
    * Cached peer-aggregation schema read by producer threads.
@@ -112,6 +125,30 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         config.getTracerMetricsMaxAggregates(),
         config.getTracerMetricsMaxPending(),
         config.isTraceResourceRenamingEnabled());
+  }
+
+  /**
+   * OTLP span-metrics export variant. Reuses the same span selection + DDSketch aggregation as the
+   * native path, but emits via the injected {@link OtlpStatsMetricWriter} instead of msgpack. No
+   * agent {@link Sink} is needed, so a {@link NoOpSink} satisfies the register()/backpressure
+   * contract, and the reporting interval comes from {@code trace.stats.interval} (milliseconds).
+   */
+  public ClientStatsAggregator(
+      Config config,
+      SharedCommunicationObjects sharedCommunicationObjects,
+      HealthMetrics healthMetrics,
+      OtlpStatsMetricWriter metricWriter) {
+    this(
+        config.getMetricsIgnoredResources(),
+        sharedCommunicationObjects.featuresDiscovery(config),
+        healthMetrics,
+        NoOpSink.INSTANCE,
+        metricWriter,
+        config.getTracerMetricsMaxAggregates(),
+        config.getTracerMetricsMaxPending(),
+        config.getTraceStatsInterval(),
+        MILLISECONDS,
+        true);
   }
 
   ClientStatsAggregator(
@@ -173,6 +210,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
     this.includeEndpointInMetrics = includeEndpointInMetrics;
+    this.otlpStatsExportEnabled = metricWriter instanceof OtlpStatsMetricWriter;
     this.inbox = Queues.mpscArrayQueue(queueSize);
     this.features = features;
     this.healthMetrics = healthMetric;
@@ -191,6 +229,22 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this.reportingIntervalTimeUnit = timeUnit;
   }
 
+  // ── visible for testing ─────────────────────────────────────────────────────
+  // Expose the writer-selection outcome and reporting cadence so tests can assert
+  // the native-vs-OTLP XOR choice without reflecting into private fields.
+
+  boolean isOtlpStatsExportEnabled() {
+    return otlpStatsExportEnabled;
+  }
+
+  long reportingInterval() {
+    return reportingInterval;
+  }
+
+  TimeUnit reportingIntervalTimeUnit() {
+    return reportingIntervalTimeUnit;
+  }
+
   @Override
   public void start() {
     sink.register(this);
@@ -206,11 +260,16 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     log.debug("started metrics aggregator");
   }
 
+  private boolean statsExportEnabled() {
+    return otlpStatsExportEnabled || features.supportsMetrics();
+  }
+
   private boolean isMetricsEnabled() {
-    if (features.getMetricsEndpoint() == null) {
+    // The discovery refresh only helps the native path.
+    if (!otlpStatsExportEnabled && features.getMetricsEndpoint() == null) {
       features.discoverIfOutdated();
     }
-    return features.supportsMetrics();
+    return statsExportEnabled();
   }
 
   @Override
@@ -266,7 +325,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   public boolean publish(List<? extends CoreSpan<?>> trace) {
     boolean forceKeep = false;
     int counted = 0;
-    if (features.supportsMetrics()) {
+    if (statsExportEnabled()) {
       // Producer-side fast path: one volatile read and use whatever schema is currently cached.
       // The aggregator thread keeps this schema in sync with feature discovery in
       // resetCardinalityHandlers(). The only producer-side rebuild is the one-time bootstrap on
@@ -315,12 +374,21 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       Object httpMethodObj = span.unsafeGetTag(HTTP_METHOD);
       httpMethod = httpMethodObj != null ? httpMethodObj.toString() : null;
       Object httpEndpointObj = span.unsafeGetTag(HTTP_ENDPOINT);
+      // OTLP path falls back to http.route (mirrors libdatadog). The native v0.6 path keeps its
+      // http.endpoint-only lookup so this doesn't change its aggregation key / wire output.
+      if (otlpStatsExportEnabled && httpEndpointObj == null) {
+        httpEndpointObj = span.unsafeGetTag(HTTP_ROUTE);
+      }
       httpEndpoint = httpEndpointObj != null ? httpEndpointObj.toString() : null;
     }
 
     CharSequence spanType = span.getType();
     String grpcStatusCode = null;
-    if (spanType != null && RPC.contentEquals(spanType)) {
+    if (otlpStatsExportEnabled) {
+      // OTLP path: probe every known gRPC status-code convention, no span-type gate, so a span
+      // typed "grpc" (or carrying an OTel-style key) still surfaces rpc.response.status_code.
+      grpcStatusCode = firstTag(span, GRPC_STATUS_CODE_KEYS);
+    } else if (spanType != null && RPC.contentEquals(spanType)) {
       Object grpcStatusObj = span.unsafeGetTag(InstrumentationTags.GRPC_STATUS_CODE);
       grpcStatusCode = grpcStatusObj != null ? grpcStatusObj.toString() : null;
     }
@@ -365,6 +433,17 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     }
     // force keep keys if there are errors
     return error;
+  }
+
+  /** Returns the first non-null span tag among {@code keys}, in order, or {@code null} if none. */
+  private static String firstTag(CoreSpan<?> span, String[] keys) {
+    for (String key : keys) {
+      Object value = span.unsafeGetTag(key);
+      if (value != null) {
+        return value.toString();
+      }
+    }
+    return null;
   }
 
   /**

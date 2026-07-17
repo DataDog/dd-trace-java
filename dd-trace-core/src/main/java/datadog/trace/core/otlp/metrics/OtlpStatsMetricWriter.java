@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_AT
 import datadog.metrics.api.Histogram;
 import datadog.trace.api.Config;
 import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
@@ -40,6 +41,7 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private static final OtelInstrumentationScope SCOPE =
       new OtelInstrumentationScope("datadog.trace.metrics", null, null);
 
+  private static final String SERVICE_NAME = "service.name";
   private static final String SPAN_NAME = "span.name";
   private static final String SPAN_KIND = "span.kind";
   private static final String HTTP_REQUEST_METHOD = "http.request.method";
@@ -57,8 +59,9 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   @Nullable private final OtlpSender sender;
   private final boolean otelSemanticsMode;
 
+  @Nullable private final String defaultService;
+
   // own single-thread collector; forced to DELTA since trace-stats buckets are per-interval deltas.
-  // Initialized in the constructor so the resource chunk can be chosen per semantics mode.
   private final OtlpMetricsProtoCollector collector;
 
   // data points snapshotted during add(), replayed through the visitor in finishBucket()
@@ -84,7 +87,10 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
 
   public OtlpStatsMetricWriter(Config config) {
     // shared protocol-based sender selection so both OTLP metrics export paths agree
-    this(OtlpMetricsSenderFactory.create(config), config.isTraceOtelSemanticsEnabled());
+    this(
+        OtlpMetricsSenderFactory.create(config),
+        config.isTraceOtelSemanticsEnabled(),
+        config.getServiceName());
     if (this.sender == null) {
       // HTTP_JSON has no protobuf-free encoder yet; JSON transport is deferred per the plan.
       log.warn(
@@ -95,10 +101,12 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   }
 
   // visible for testing: lets tests inject a capturing sender to decode the emitted protobuf and
-  // control the semantics mode
-  OtlpStatsMetricWriter(@Nullable OtlpSender sender, boolean otelSemanticsMode) {
+  // control the semantics mode and default service
+  OtlpStatsMetricWriter(
+      @Nullable OtlpSender sender, boolean otelSemanticsMode, @Nullable String defaultService) {
     this.sender = sender;
     this.otelSemanticsMode = otelSemanticsMode;
+    this.defaultService = defaultService;
     // Default mode carries datadog.runtime_id / process tags on the Resource; OTel-semantics mode
     // uses the plain vendor-neutral resource (no datadog.*).
     byte[] resourceMessage =
@@ -185,6 +193,11 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     // OTel semconv attrs are emitted in both modes
     emitStringAttribute(metric, SPAN_NAME, entry.getResource());
     emitStringAttribute(metric, SPAN_KIND, entry.getSpanKind());
+    // service.name on the point only when the span's service differs from the resource's default
+    UTF8BytesString service = entry.getService();
+    if (service != null && service.length() > 0 && !service.toString().equals(defaultService)) {
+      emitStringAttribute(metric, SERVICE_NAME, service);
+    }
     if (entry.hasHttpMethod()) {
       emitStringAttribute(metric, HTTP_REQUEST_METHOD, entry.getHttpMethod());
     }

@@ -11,9 +11,12 @@ import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /** Provides a canned message for OpenTelemetry's "resource.proto" wire protocol. */
@@ -36,8 +39,15 @@ public final class OtlpResourceProto {
   /** Prefix applied to {@code datadog.runtime_id} and process-tag resource attributes. */
   private static final String DATADOG_PREFIX = "datadog.";
 
-  /** Vendor-neutral resource (no {@code datadog.*}). Used by the OTLP trace/metric export. */
-  public static final byte[] RESOURCE_MESSAGE = buildResourceMessage(Config.get());
+  /**
+   * Resource attribute added to OTLP trace metrics to ensure calculations are not re-computed in
+   * the Agent
+   */
+  private static final String STATS_COMPUTED_KEY = "_dd.stats_computed";
+
+  /** Vendor-neutral resource (no {@code datadog.*}). Used by the OTLP metric export. */
+  public static final byte[] RESOURCE_MESSAGE =
+      buildResourceMessage(Config.get(), Collections.emptyMap());
 
   /**
    * Resource that additionally carries {@code datadog.runtime_id} and process tags (each prefixed
@@ -45,13 +55,17 @@ public final class OtlpResourceProto {
    * mode.
    */
   public static final byte[] RESOURCE_MESSAGE_WITH_DATADOG_ATTRS =
-      buildResourceMessage(Config.get(), true);
+      buildResourceMessage(Config.get(), datadogResourceAttributes(Config.get()));
 
-  static byte[] buildResourceMessage(Config config) {
-    return buildResourceMessage(config, false);
-  }
+  /**
+   * Resource used by the OTLP trace export. Identical to {@link #RESOURCE_MESSAGE} but adds the
+   * {@code _dd.stats_computed} marker when the SDK is computing OTLP span metrics, so a downstream
+   * Agent does not recompute them from the exported spans.
+   */
+  public static final byte[] TRACE_RESOURCE_MESSAGE =
+      buildResourceMessage(Config.get(), traceResourceAttributes(Config.get()));
 
-  static byte[] buildResourceMessage(Config config, boolean includeDatadogResourceAttributes) {
+  static byte[] buildResourceMessage(Config config, Map<String, String> extraAttributes) {
     GrowableBuffer buf = new GrowableBuffer(512);
 
     String serviceName = config.getServiceName();
@@ -85,8 +99,8 @@ public final class OtlpResourceProto {
               }
             });
 
-    if (includeDatadogResourceAttributes) {
-      writeDatadogResourceAttributes(buf, config);
+    for (Map.Entry<String, String> attribute : extraAttributes.entrySet()) {
+      writeResourceAttribute(buf, attribute.getKey(), attribute.getValue());
     }
 
     OtlpProtoBuffer protobuf = new OtlpProtoBuffer(buf.capacity());
@@ -97,10 +111,24 @@ public final class OtlpResourceProto {
     return resourceMessage;
   }
 
-  private static void writeDatadogResourceAttributes(StreamingBuffer buf, Config config) {
+  /**
+   * Builds the extra resource attributes for the OTLP trace export: the {@code _dd.stats_computed}
+   * marker when the SDK is computing OTLP span metrics, so a downstream Agent does not recompute
+   * them from the exported spans.
+   */
+  static Map<String, String> traceResourceAttributes(Config config) {
+    Map<String, String> attributes = new LinkedHashMap<>();
+    if (config.isOtelTracesSpanMetricsEnabled()) {
+      attributes.put(STATS_COMPUTED_KEY, "true");
+    }
+    return attributes;
+  }
+
+  static Map<String, String> datadogResourceAttributes(Config config) {
+    Map<String, String> attributes = new LinkedHashMap<>();
     String runtimeId = config.getRuntimeId();
     if (runtimeId != null && !runtimeId.isEmpty()) {
-      writeResourceAttribute(buf, DATADOG_PREFIX + "runtime_id", runtimeId);
+      attributes.put(DATADOG_PREFIX + "runtime_id", runtimeId);
     }
     // Process tags arrive as "key:value" pairs; emit each as datadog.<key> = value.
     List<String> processTags = ProcessTags.getTagsAsStringList();
@@ -108,11 +136,11 @@ public final class OtlpResourceProto {
       for (String tag : processTags) {
         int colon = tag.indexOf(':');
         if (colon > 0) {
-          writeResourceAttribute(
-              buf, DATADOG_PREFIX + tag.substring(0, colon), tag.substring(colon + 1));
+          attributes.put(DATADOG_PREFIX + tag.substring(0, colon), tag.substring(colon + 1));
         }
       }
     }
+    return attributes;
   }
 
   private static void writeResourceAttribute(StreamingBuffer buf, String key, String value) {
