@@ -73,15 +73,32 @@ class FlatHashtableTest {
     }
   }
 
-  /** All keys hash to the last slot ({@code -1 & mask}), so probing wraps around to index 0. */
+  /**
+   * Smallest hash {@code >= 1} that the table places on {@code slot} of a {@code mask + 1} table.
+   */
+  private static long hashLandingOn(int slot, int mask) {
+    for (long h = 1; h < 1_000_000L; ++h) {
+      if (FlatHashtable.home(h, mask) == slot) {
+        return h;
+      }
+    }
+    throw new AssertionError("no hash found landing on slot " + slot);
+  }
+
+  /**
+   * All keys hash to the last slot of a 2-slot table (so probing wraps around to index 0). The
+   * table owns the spread now, so we compute a hash that lands there rather than assuming {@code -1
+   * & mask}.
+   */
   static final class TestLastSlotKeyStrategy extends FlatHashtable.KeyStrategy<String, TestEntry> {
     static final TestLastSlotKeyStrategy INSTANCE = new TestLastSlotKeyStrategy();
+    private static final long LAST_SLOT_HASH = hashLandingOn(1, 1); // slot 1 of a 2-slot table
 
     private TestLastSlotKeyStrategy() {}
 
     @Override
     public long hash(String key) {
-      return -1;
+      return LAST_SLOT_HASH;
     }
 
     @Override
@@ -123,6 +140,26 @@ class FlatHashtableTest {
     @Override
     public boolean matches(String key, TestHashedEntry entry) {
       return key.equals(entry.key);
+    }
+  }
+
+  /**
+   * Case-insensitive key strategy: {@code hash} sealed by the CI base, {@code matches} folds case.
+   */
+  static final class TestCaseInsensitiveKeyStrategy
+      extends FlatHashtable.CaseInsensitiveStringKeyStrategy<TestEntry> {
+    static final TestCaseInsensitiveKeyStrategy INSTANCE = new TestCaseInsensitiveKeyStrategy();
+
+    private TestCaseInsensitiveKeyStrategy() {}
+
+    @Override
+    public boolean matches(String key, TestEntry entry) {
+      return key.equalsIgnoreCase(entry.key);
+    }
+
+    @Override
+    public long hashOf(TestEntry entry) {
+      return hash(entry.key);
     }
   }
 
@@ -309,8 +346,10 @@ class FlatHashtableTest {
     FlatHashtable.getOrCreate(table, "a", TestCollidingKeyStrategy.INSTANCE, CREATE);
     FlatHashtable.getOrCreate(table, "b", TestCollidingKeyStrategy.INSTANCE, CREATE);
 
-    // hash 8 shares the home slot (8 & 7 == 0) but no stored entry has hashOf == 8
-    Iterator<TestEntry> it = FlatHashtable.iterator(table, 8, TestCollidingKeyStrategy.INSTANCE);
+    // a hash that shares the entries' home slot (0) but that no stored entry has as its hashOf
+    long sameHomeOtherHash = hashLandingOn(0, table.length - 1);
+    Iterator<TestEntry> it =
+        FlatHashtable.iterator(table, sameHomeOtherHash, TestCollidingKeyStrategy.INSTANCE);
     assertFalse(it.hasNext());
   }
 
@@ -320,5 +359,100 @@ class FlatHashtableTest {
     Iterator<TestEntry> it = FlatHashtable.iterator(table, 0, TestCollidingKeyStrategy.INSTANCE);
     assertFalse(it.hasNext());
     assertThrows(NoSuchElementException.class, it::next);
+  }
+
+  @Test
+  void capacityFor_honorsLoadFactor() {
+    // default 0.5 -> >= 2x; LOW 0.25 -> >= 4x.
+    assertEquals(8, FlatHashtable.capacityFor(4, FlatHashtable.DEFAULT_LOAD_FACTOR));
+    assertEquals(16, FlatHashtable.capacityFor(4, FlatHashtable.LOW_LOAD_FACTOR));
+    // capacityFor(cardinalityLimit) delegates to the default.
+    assertEquals(FlatHashtable.capacityFor(6), FlatHashtable.capacityFor(6, 0.5f));
+  }
+
+  @Test
+  void capacityFor_rejectsLoadFactorOutOfRange() {
+    assertThrows(IllegalArgumentException.class, () -> FlatHashtable.capacityFor(4, 0f));
+    assertThrows(IllegalArgumentException.class, () -> FlatHashtable.capacityFor(4, 1f));
+    assertThrows(IllegalArgumentException.class, () -> FlatHashtable.capacityFor(4, -0.1f));
+  }
+
+  @Test
+  void create_honorsLoadFactor() {
+    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4, FlatHashtable.LOW_LOAD_FACTOR);
+    assertEquals(16, table.length);
+  }
+
+  @Test
+  void resize_generalFlavor_growsAndKeepsEveryEntryFindable() {
+    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1); // 2 slots
+    FlatHashtable.insert(table, new TestEntry("a"), TestEntryKeyStrategy.INSTANCE);
+    FlatHashtable.insert(table, new TestEntry("b"), TestEntryKeyStrategy.INSTANCE);
+
+    TestEntry[] grown = FlatHashtable.resize(table, TestEntryKeyStrategy.INSTANCE);
+    assertEquals(4, grown.length);
+    assertNotSame(table, grown);
+    assertEquals("a", FlatHashtable.get(grown, "a", TestEntryKeyStrategy.INSTANCE).key);
+    assertEquals("b", FlatHashtable.get(grown, "b", TestEntryKeyStrategy.INSTANCE).key);
+  }
+
+  @Test
+  void resize_entryFlavor_growsAndKeepsEveryEntryFindable() {
+    TestHashedEntry[] table = FlatHashtable.create(TestHashedEntry.class, 1); // 2 slots
+    FlatHashtable.insert(table, new TestHashedEntry("a"));
+    FlatHashtable.insert(table, new TestHashedEntry("b"));
+
+    TestHashedEntry[] grown = FlatHashtable.resize(table);
+    assertEquals(4, grown.length);
+    assertEquals("a", FlatHashtable.get(grown, "a", TestHashedKeyStrategy.INSTANCE).key);
+    assertEquals("b", FlatHashtable.get(grown, "b", TestHashedKeyStrategy.INSTANCE).key);
+  }
+
+  @Test
+  void resizingInsert_generalFlavor_growsPastCapacityAndReturnsTheTable() {
+    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1); // 2 slots
+    for (int i = 0; i < 10; ++i) {
+      table =
+          FlatHashtable.resizingInsert(
+              table, new TestEntry("k" + i), TestEntryKeyStrategy.INSTANCE);
+    }
+    assertTrue(table.length >= 16); // grew from 2 to hold 10 at load factor <= 0.5
+    for (int i = 0; i < 10; ++i) {
+      assertEquals("k" + i, FlatHashtable.get(table, "k" + i, TestEntryKeyStrategy.INSTANCE).key);
+    }
+  }
+
+  @Test
+  void resizingInsert_entryFlavor_growsPastCapacityAndReturnsTheTable() {
+    TestHashedEntry[] table = FlatHashtable.create(TestHashedEntry.class, 1); // 2 slots
+    for (int i = 0; i < 10; ++i) {
+      table = FlatHashtable.resizingInsert(table, new TestHashedEntry("k" + i));
+    }
+    assertTrue(table.length >= 16);
+    for (int i = 0; i < 10; ++i) {
+      assertEquals("k" + i, FlatHashtable.get(table, "k" + i, TestHashedKeyStrategy.INSTANCE).key);
+    }
+  }
+
+  @Test
+  void caseInsensitiveStrategy_matchesRegardlessOfCase() {
+    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4);
+    TestEntry stored =
+        FlatHashtable.getOrCreate(
+            table, "Content-Type", TestCaseInsensitiveKeyStrategy.INSTANCE, CREATE);
+
+    // Look-ups in any case resolve to the same stored entry, allocation-free.
+    assertSame(
+        stored, FlatHashtable.get(table, "content-type", TestCaseInsensitiveKeyStrategy.INSTANCE));
+    assertSame(
+        stored, FlatHashtable.get(table, "CONTENT-TYPE", TestCaseInsensitiveKeyStrategy.INSTANCE));
+    assertSame(
+        stored, FlatHashtable.get(table, "cOnTeNt-TyPe", TestCaseInsensitiveKeyStrategy.INSTANCE));
+    // getOrCreate with a differently-cased key does not mint a second entry.
+    assertSame(
+        stored,
+        FlatHashtable.getOrCreate(
+            table, "CONTENT-TYPE", TestCaseInsensitiveKeyStrategy.INSTANCE, CREATE));
+    assertNull(FlatHashtable.get(table, "content-length", TestCaseInsensitiveKeyStrategy.INSTANCE));
   }
 }
