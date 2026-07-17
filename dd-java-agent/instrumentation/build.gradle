@@ -87,8 +87,9 @@ subprojects { Project subProj ->
       }
     }
 
-    if (subProj.path != ':dd-java-agent:instrumentation:vertx:vertx-redis-client:vertx-redis-client-stubs') {
-      // don't include the redis RequestImpl stubs
+    if (subProj.path != ':dd-java-agent:instrumentation:vertx:vertx-redis-client:vertx-redis-client-stubs'
+      && subProj.path != ':dd-java-agent:instrumentation:tibco-businessworks:tibco-businessworks-stubs') {
+      // don't include the redis or tibco stubs
       parent_project.dependencies {
         addProvider("implementation", providers.provider { project(subProj.path) })
       }
