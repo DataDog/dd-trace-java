@@ -52,6 +52,10 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
 
   private final boolean forceHistogramDelta;
 
+  // resource chunk prepended to every payload; lets callers pick the plain vendor-neutral resource
+  // or the datadog-attrs variant (datadog.runtime_id / process tags)
+  private final byte[] resourceMessage;
+
   private long startNanos;
   private long endNanos;
 
@@ -68,9 +72,15 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
   }
 
   OtlpMetricsProtoCollector(TimeSource timeSource, boolean forceHistogramDelta) {
+    this(timeSource, forceHistogramDelta, RESOURCE_MESSAGE);
+  }
+
+  OtlpMetricsProtoCollector(
+      TimeSource timeSource, boolean forceHistogramDelta, byte[] resourceMessage) {
     this.timeSource = timeSource;
     this.endNanos = timeSource.getCurrentTimeNanos();
     this.forceHistogramDelta = forceHistogramDelta;
+    this.resourceMessage = resourceMessage;
   }
 
   /**
@@ -190,7 +200,7 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
     }
 
     // prepend the canned resource chunk
-    payloadBytes += protobuf.recordMessage(RESOURCE_MESSAGE);
+    payloadBytes += protobuf.recordMessage(resourceMessage);
 
     // finally prepend the total length of all collected chunks
     protobuf.recordMessage(buf, 1, payloadBytes);

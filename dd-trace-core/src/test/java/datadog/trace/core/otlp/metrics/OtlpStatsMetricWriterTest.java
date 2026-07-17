@@ -154,6 +154,35 @@ class OtlpStatsMetricWriterTest {
     return metric;
   }
 
+  /**
+   * Decodes the {@code Resource.attributes} ({@code ResourceMetrics.resource = 1} → {@code
+   * Resource.attributes = 1}) into a key→value map, for asserting the {@code datadog.*} resource
+   * attributes emitted in default mode.
+   */
+  private static Map<String, Object> decodeResourceAttributes(byte[] payload) throws IOException {
+    CodedInputStream metricsData = CodedInputStream.newInstance(payload);
+    metricsData.readTag(); // MetricsData.resource_metrics = 1
+    CodedInputStream resourceMetrics = metricsData.readBytes().newCodedInput();
+    Map<String, Object> attrs = new HashMap<>();
+    while (!resourceMetrics.isAtEnd()) {
+      int tag = resourceMetrics.readTag();
+      if (WireFormat.getTagFieldNumber(tag) == 1) { // Resource
+        CodedInputStream resource = resourceMetrics.readBytes().newCodedInput();
+        while (!resource.isAtEnd()) {
+          int rtag = resource.readTag();
+          if (WireFormat.getTagFieldNumber(rtag) == 1) { // KeyValue attributes
+            readKeyValue(resource.readBytes().newCodedInput(), attrs);
+          } else {
+            resource.skipField(rtag);
+          }
+        }
+      } else {
+        resourceMetrics.skipField(tag);
+      }
+    }
+    return attrs;
+  }
+
   private static DecodedMetric parseScopeMetrics(CodedInputStream scopeMetrics) throws IOException {
     DecodedMetric metric = null;
     while (!scopeMetrics.isAtEnd()) {
@@ -503,5 +532,45 @@ class OtlpStatsMetricWriterTest {
     assertEquals(3L, dp.count, "count must reflect the pre-clear snapshot, not the cleared entry");
     assertEquals(
         1L, dp.attributes.get("datadog.span.top_level"), "all pre-clear hits were top-level");
+  }
+
+  // ── resource attributes (datadog.runtime_id / process tags) ────────────────
+
+  @Test
+  void defaultModeResourceCarriesRuntimeId() throws IOException {
+    // runtime-id is enabled by default, so default-mode payloads carry datadog.runtime_id on the
+    // Resource.
+    CapturingSender sender = new CapturingSender();
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
+    writer.startBucket(1, SECONDS.toNanos(1_700_000_000L), SECONDS.toNanos(10));
+    writer.add(okEntry(SECONDS.toNanos(1), 1));
+    writer.finishBucket();
+
+    Map<String, Object> resourceAttrs = decodeResourceAttributes(sender.lastPayload);
+    assertTrue(
+        resourceAttrs.containsKey("datadog.runtime_id"),
+        "default mode resource carries datadog.runtime_id");
+    Object runtimeId = resourceAttrs.get("datadog.runtime_id");
+    assertNotNull(runtimeId, "runtime id value present");
+    assertFalse(runtimeId.toString().isEmpty(), "runtime id value non-empty");
+  }
+
+  @Test
+  void otelSemanticsModeResourceOmitsDatadogAttributes() throws IOException {
+    CapturingSender sender = new CapturingSender();
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, true);
+    writer.startBucket(1, SECONDS.toNanos(1_700_000_000L), SECONDS.toNanos(10));
+    writer.add(okEntry(SECONDS.toNanos(1), 1));
+    writer.finishBucket();
+
+    Map<String, Object> resourceAttrs = decodeResourceAttributes(sender.lastPayload);
+    assertFalse(
+        resourceAttrs.containsKey("datadog.runtime_id"),
+        "otel-semantics mode resource omits datadog.runtime_id");
+    for (String key : resourceAttrs.keySet()) {
+      assertFalse(
+          key.startsWith("datadog."),
+          "otel-semantics mode resource has no datadog.* attrs: " + key);
+    }
   }
 }

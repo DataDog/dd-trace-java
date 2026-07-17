@@ -9,8 +9,10 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -31,9 +33,25 @@ public final class OtlpResourceProto {
               "telemetry.sdk.version",
               "telemetry.sdk.language"));
 
+  /** Prefix applied to {@code datadog.runtime_id} and process-tag resource attributes. */
+  private static final String DATADOG_PREFIX = "datadog.";
+
+  /** Vendor-neutral resource (no {@code datadog.*}). Used by the OTLP trace/metric export. */
   public static final byte[] RESOURCE_MESSAGE = buildResourceMessage(Config.get());
 
+  /**
+   * Resource that additionally carries {@code datadog.runtime_id} and process tags (each prefixed
+   * {@code datadog.}). Used by the default-mode SDK trace-metrics export; omitted in OTel-semantics
+   * mode.
+   */
+  public static final byte[] RESOURCE_MESSAGE_WITH_DATADOG_ATTRS =
+      buildResourceMessage(Config.get(), true);
+
   static byte[] buildResourceMessage(Config config) {
+    return buildResourceMessage(config, false);
+  }
+
+  static byte[] buildResourceMessage(Config config, boolean includeDatadogResourceAttributes) {
     GrowableBuffer buf = new GrowableBuffer(512);
 
     String serviceName = config.getServiceName();
@@ -46,6 +64,12 @@ public final class OtlpResourceProto {
     }
     if (!version.isEmpty()) {
       writeResourceAttribute(buf, "service.version", version);
+    }
+    if (config.isReportHostName()) {
+      String hostName = config.getHostName();
+      if (hostName != null && !hostName.isEmpty()) {
+        writeResourceAttribute(buf, "host.name", hostName);
+      }
     }
     writeResourceAttribute(buf, "telemetry.sdk.name", "datadog");
     writeResourceAttribute(buf, "telemetry.sdk.version", TRACER_VERSION);
@@ -61,12 +85,34 @@ public final class OtlpResourceProto {
               }
             });
 
+    if (includeDatadogResourceAttributes) {
+      writeDatadogResourceAttributes(buf, config);
+    }
+
     OtlpProtoBuffer protobuf = new OtlpProtoBuffer(buf.capacity());
     int numBytes = protobuf.recordMessage(buf, 1);
     byte[] resourceMessage = new byte[numBytes];
     protobuf.flip().get(resourceMessage);
 
     return resourceMessage;
+  }
+
+  private static void writeDatadogResourceAttributes(StreamingBuffer buf, Config config) {
+    String runtimeId = config.getRuntimeId();
+    if (runtimeId != null && !runtimeId.isEmpty()) {
+      writeResourceAttribute(buf, DATADOG_PREFIX + "runtime_id", runtimeId);
+    }
+    // Process tags arrive as "key:value" pairs; emit each as datadog.<key> = value.
+    List<String> processTags = ProcessTags.getTagsAsStringList();
+    if (processTags != null) {
+      for (String tag : processTags) {
+        int colon = tag.indexOf(':');
+        if (colon > 0) {
+          writeResourceAttribute(
+              buf, DATADOG_PREFIX + tag.substring(0, colon), tag.substring(colon + 1));
+        }
+      }
+    }
   }
 
   private static void writeResourceAttribute(StreamingBuffer buf, String key, String value) {
