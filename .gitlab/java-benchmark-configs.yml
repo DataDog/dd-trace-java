@@ -42,9 +42,9 @@ linux-java-spring-petclinic-parallel:
     - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
       when: never
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: always
+      when: on_success
     - if: '$CI_COMMIT_BRANCH == "master"'
-      when: always
+      when: on_success
       interruptible: false
     - when: manual
       allow_failure: true
