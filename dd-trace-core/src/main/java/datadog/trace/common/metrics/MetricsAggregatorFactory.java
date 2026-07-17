@@ -17,7 +17,7 @@ public class MetricsAggregatorFactory {
     // OTLP span-metrics export and native msgpack stats are mutually exclusive (XOR): both hang off
     // the same ClientStatsAggregator span selection + DDSketch aggregation, differing only in
     // the injected MetricWriter.
-    if (config.isTracesSpanMetricsEnabled()) {
+    if (config.isOtelTracesSpanMetricsEnabled()) {
       if (config.isTracerMetricsEnabled()) {
         log.warn(
             "Both OTLP trace span metrics and native tracer metrics are enabled; "
@@ -29,7 +29,7 @@ public class MetricsAggregatorFactory {
             "OTLP trace span metrics are enabled but the OTLP metrics exporter is not "
                 + "(metrics.otel.exporter is not 'otlp'); span metrics will still be exported over "
                 + "OTLP using the otlp.metrics.* transport settings. Set metrics.otel.exporter=otlp "
-                + "to make this explicit, or disable traces.span.metrics.enabled to suppress them.");
+                + "to make this explicit, or disable otel.traces.span.metrics.enabled to suppress them.");
       }
       log.debug("OTLP trace span metrics enabled");
       return new ClientStatsAggregator(

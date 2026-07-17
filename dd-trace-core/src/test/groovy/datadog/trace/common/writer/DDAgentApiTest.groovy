@@ -457,7 +457,7 @@ class DDAgentApiTest extends DDCoreSpecification {
 
   def "Datadog-Client-Computed-Stats header set when either stats pipeline is enabled (otlpSpanMetrics=#otlpSpanMetrics, nativeMetrics=#nativeMetrics)"() {
     setup:
-    injectSysConfig(OtlpConfig.TRACES_SPAN_METRICS_ENABLED, "$otlpSpanMetrics")
+    injectSysConfig(OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED, "$otlpSpanMetrics")
 
     def agent = httpServer {
       handlers {

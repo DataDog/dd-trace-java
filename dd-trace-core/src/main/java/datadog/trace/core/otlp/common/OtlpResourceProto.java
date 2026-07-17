@@ -59,7 +59,7 @@ public final class OtlpResourceProto {
    * Agent does not recompute them from the exported spans.
    */
   public static final byte[] TRACE_RESOURCE_MESSAGE =
-      buildResourceMessage(Config.get(), false, Config.get().isTracesSpanMetricsEnabled());
+      buildResourceMessage(Config.get(), false, Config.get().isOtelTracesSpanMetricsEnabled());
 
   static byte[] buildResourceMessage(
       Config config, boolean includeDatadogResourceAttributes, boolean includeStatsComputed) {

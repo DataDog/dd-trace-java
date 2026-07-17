@@ -119,7 +119,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
   /**
    * OTLP span-metrics export variant. Reuses the same span selection + DDSketch aggregation as the
-   * native path, but emits via the injected {@link OtlpStatsMetricWriter} instead of msgpack to. No
+   * native path, but emits via the injected {@link OtlpStatsMetricWriter} instead of msgpack. No
    * agent {@link Sink} is needed, so a {@link NoOpSink} satisfies the register()/backpressure
    * contract, and the reporting interval comes from {@code trace.stats.interval} (milliseconds).
    */

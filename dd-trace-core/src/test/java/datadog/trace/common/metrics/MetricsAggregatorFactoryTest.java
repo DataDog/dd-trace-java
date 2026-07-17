@@ -1,8 +1,8 @@
 package datadog.trace.common.metrics;
 
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
-import static datadog.trace.api.config.OtlpConfig.TRACES_SPAN_METRICS_ENABLED;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -73,7 +73,8 @@ class MetricsAggregatorFactoryTest {
   @Test
   void whenOtlpTraceMetricsEnabledOtlpStatsMetricWriterSelected() {
     Config config =
-        Config.get(props(TRACES_SPAN_METRICS_ENABLED, "true", OTLP_METRICS_PROTOCOL, "http/json"));
+        Config.get(
+            props(OTEL_TRACES_SPAN_METRICS_ENABLED, "true", OTLP_METRICS_PROTOCOL, "http/json"));
 
     MetricsAggregator aggregator =
         MetricsAggregatorFactory.createMetricsAggregator(
