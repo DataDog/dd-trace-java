@@ -86,7 +86,7 @@ public final class AxisEngineInstrumentation
     public static AgentScope beginResumingMessage(
         @Advice.Argument(0) final MessageContext message) {
       Object continuation = message.getSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY);
-      if (null != continuation) {
+      if (continuation instanceof ContextContinuation) {
         message.removeSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY);
         // resuming is a distinct operation, so create a new span under the original request
         try (ContextScope parentScope = ((ContextContinuation) continuation).resume()) {

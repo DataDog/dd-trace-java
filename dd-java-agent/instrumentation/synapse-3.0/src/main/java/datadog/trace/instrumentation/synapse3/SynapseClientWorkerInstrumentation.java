@@ -66,10 +66,11 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginResponse(
         @Advice.FieldValue("response") final TargetResponse response) {
-      ContextContinuation continuation =
-          (ContextContinuation)
-              response.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
-      return null != continuation ? continuation.resume() : null;
+      Object continuation =
+          response.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
+      return continuation instanceof ContextContinuation
+          ? ((ContextContinuation) continuation).resume()
+          : null;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
