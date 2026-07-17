@@ -3802,7 +3802,21 @@ public class Config {
       return DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
     }
     final String normalized = source.trim().toLowerCase(Locale.ROOT);
-    return normalized.isEmpty() ? DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE : normalized;
+    if (normalized.isEmpty()) {
+      return DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
+    }
+    switch (normalized) {
+      case "agentless":
+      case "remote_config":
+      case "offline":
+        return normalized;
+      default:
+        log.warn(
+            "Unsupported Feature Flagging configuration source: {}. Defaulting to {}",
+            source,
+            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE);
+        return DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
+    }
   }
 
   public boolean isBaggageExtract() {

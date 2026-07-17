@@ -20,6 +20,7 @@ dependencies {
 
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
+  testImplementation(project(":products:feature-flagging:feature-flagging-config"))
   testImplementation(project(":utils:test-utils"))
   testRuntimeOnly(project(":dd-trace-core"))
 }

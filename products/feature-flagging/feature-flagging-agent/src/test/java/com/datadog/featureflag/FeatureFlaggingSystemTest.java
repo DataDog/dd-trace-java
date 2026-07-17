@@ -97,12 +97,23 @@ class FeatureFlaggingSystemTest {
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "invalid")
-  void invalidConfigurationSourceFailsBeforeStartingNetworkSource() {
+  void invalidConfigurationSourceUsesAgentlessDefault() {
+    assertInstanceOf(
+        AgentlessConfigurationSource.class,
+        FeatureFlaggingSystem.createConfigurationSourceService(
+            sharedCommunicationObjects(), Config.get()));
+  }
+
+  @Test
+  void rejectsUnsupportedNormalizedConfigurationSource() {
+    Config config = mock(Config.class);
+    when(config.getFeatureFlaggingConfigurationSource()).thenReturn("invalid");
+
     assertThrows(
         IllegalArgumentException.class,
         () ->
             FeatureFlaggingSystem.createConfigurationSourceService(
-                sharedCommunicationObjects(), Config.get()));
+                sharedCommunicationObjects(), config));
   }
 
   @Test

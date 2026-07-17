@@ -3517,6 +3517,7 @@ class ConfigTest extends DDSpecification {
     ""                  | "agentless"
     "   "               | "agentless"
     " ReMoTe_ConFiG "   | "remote_config"
+    "not-a-real-source" | "agentless"
   }
 
   def "agentless feature flag timing falls back for non-positive values"() {
