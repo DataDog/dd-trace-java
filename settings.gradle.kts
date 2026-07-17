@@ -420,6 +420,7 @@ include(
   ":dd-java-agent:instrumentation:jdbc",
   ":dd-java-agent:instrumentation:jedis:jedis-1.4",
   ":dd-java-agent:instrumentation:jedis:jedis-3.0",
+  ":dd-java-agent:instrumentation:jedis:jedis-3.0-gen",
   ":dd-java-agent:instrumentation:jedis:jedis-4.0",
   ":dd-java-agent:instrumentation:jersey:jersey-2.0",
   ":dd-java-agent:instrumentation:jersey:jersey-appsec:jersey-appsec-2.0",
