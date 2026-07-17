@@ -21,10 +21,12 @@ import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -36,6 +38,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.GZIPOutputStream;
 import okhttp3.Call;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -157,7 +160,61 @@ class AgentlessConfigurationSourceTest {
         assertEquals("test-api-key", server.getLastRequest().getHeader("DD-API-KEY"));
         assertEquals("etag-a", server.getLastRequest().getHeader("If-None-Match"));
         assertEquals("java", server.getLastRequest().getHeader("Datadog-Meta-Lang"));
+        assertEquals("gzip", server.getLastRequest().getHeader("Accept-Encoding"));
       } finally {
+        httpClient.dispatcher().executorService().shutdownNow();
+        httpClient.connectionPool().evictAll();
+      }
+    }
+  }
+
+  @Test
+  void handlesGzipAndKeepsLastKnownGoodWhenNextResponseIsTruncated() throws Exception {
+    final byte[] compressedConfig = gzip(emptyConfig());
+    final byte[] truncatedConfig = Arrays.copyOf(compressedConfig, compressedConfig.length - 8);
+    final AtomicInteger responses = new AtomicInteger();
+    try (JavaTestHttpServer server =
+        JavaTestHttpServer.httpServer(
+            s ->
+                s.handlers(
+                    h ->
+                        h.get(
+                            CONFIG_PATH,
+                            api -> {
+                              final boolean firstResponse = responses.getAndIncrement() == 0;
+                              final byte[] body =
+                                  firstResponse ? compressedConfig : truncatedConfig;
+                              api.getResponse()
+                                  .addHeader("Content-Encoding", "gzip")
+                                  .addHeader("ETag", firstResponse ? "etag-good" : "etag-bad")
+                                  .sendWithType("application/json", body);
+                            })))) {
+      final HttpUrl endpoint = HttpUrl.get(server.getAddress().resolve(CONFIG_PATH));
+      final OkHttpClient httpClient = new OkHttpClient.Builder().build();
+      final AgentlessConfigurationSource service =
+          new AgentlessConfigurationSource(
+              endpoint,
+              config(),
+              30_000,
+              new AgentlessConfigurationSource.OkHttpUfcHttpClient(httpClient),
+              Executors.newSingleThreadScheduledExecutor(),
+              delay -> {},
+              () -> 1.0);
+      final ArgumentCaptor<ServerConfiguration> configuration =
+          ArgumentCaptor.forClass(ServerConfiguration.class);
+      FeatureFlaggingGateway.addConfigListener(listener);
+
+      try {
+        assertTrue(service.pollOnce());
+        assertFalse(service.pollOnce());
+
+        verify(listener).accept(configuration.capture());
+        assertEquals("Staging", configuration.getValue().environment.name);
+        assertEquals(4, responses.get());
+        assertEquals("gzip", server.getLastRequest().getHeader("Accept-Encoding"));
+        assertEquals("etag-good", server.getLastRequest().getHeader("If-None-Match"));
+      } finally {
+        service.close();
         httpClient.dispatcher().executorService().shutdownNow();
         httpClient.connectionPool().evictAll();
       }
@@ -378,22 +435,27 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
-  void appliesRawUfcFromConfiguredCompatibilityEndpoint() throws Exception {
-    final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfigAttributes()));
+  void customEndpointRequiresJsonApiAndKeepsLastKnownGoodOnRawUfc() throws Exception {
+    final FakeClient client =
+        new FakeClient(
+            response(200, "etag-good", emptyConfig()),
+            response(200, "etag-raw", emptyConfigAttributes()));
     final Config config = config();
     lenient()
         .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
-        .thenReturn("http://compatibility-backend/custom/ufc");
+        .thenReturn("http://custom-backend/custom/ufc");
     final AgentlessConfigurationSource service = service(client, config);
     final ArgumentCaptor<ServerConfiguration> configuration =
         ArgumentCaptor.forClass(ServerConfiguration.class);
     FeatureFlaggingGateway.addConfigListener(listener);
 
     assertTrue(service.pollOnce());
+    assertFalse(service.pollOnce());
 
     verify(listener).accept(configuration.capture());
     assertEquals("Staging", configuration.getValue().environment.name);
-    assertTrue(configuration.getValue().flags.isEmpty());
+    assertNull(client.requests.get(0).etag);
+    assertEquals("etag-good", client.requests.get(1).etag);
   }
 
   @Test
@@ -1030,6 +1092,14 @@ class AgentlessConfigurationSourceTest {
                   + "\"allocations\":[]}");
     }
     return jsonApiResponse("universal-flag-configuration", json.append("}}").toString());
+  }
+
+  private static byte[] gzip(final String value) throws IOException {
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
+    try (GZIPOutputStream gzip = new GZIPOutputStream(output)) {
+      gzip.write(value.getBytes(UTF_8));
+    }
+    return output.toByteArray();
   }
 
   private static void awaitCalls(final FakeClient client, final int count) throws Exception {

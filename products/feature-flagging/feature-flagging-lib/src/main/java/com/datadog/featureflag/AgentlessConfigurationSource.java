@@ -255,8 +255,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     try {
       configuration =
           RemoteConfigServiceImpl.UniversalFlagConfigDeserializer.INSTANCE.deserializeApiResponse(
-              response.body,
-              config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() != null);
+              response.body);
     } catch (final IOException | RuntimeException e) {
       LOGGER.debug("Feature Flagging HTTP configuration source returned malformed UFC payload", e);
       return false;
@@ -373,6 +372,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       if (etag != null) {
         headers.put("If-None-Match", etag);
       }
+      // Leave Accept-Encoding unset so OkHttp negotiates gzip and transparently decompresses it.
       final Request request = prepareRequest(endpoint, headers, config, true).get().build();
       final Call call = httpClient.newCall(request);
       if (!activeCall.compareAndSet(null, call)) {

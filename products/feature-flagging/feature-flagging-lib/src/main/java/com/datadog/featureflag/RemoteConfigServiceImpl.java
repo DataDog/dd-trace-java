@@ -84,8 +84,7 @@ public class RemoteConfigServiceImpl
     }
 
     @Nullable
-    ServerConfiguration deserializeApiResponse(
-        final byte[] content, final boolean allowRawConfiguration) throws IOException {
+    ServerConfiguration deserializeApiResponse(final byte[] content) throws IOException {
       final Map<String, Object> response =
           API_RESPONSE_ADAPTER.fromJson(
               Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
@@ -99,7 +98,7 @@ public class RemoteConfigServiceImpl
             ? validConfiguration(V1_ADAPTER.fromJsonValue(dataAttributes.get("attributes")))
             : null;
       }
-      return allowRawConfiguration ? validConfiguration(deserialize(content)) : null;
+      return null;
     }
 
     @Nullable
