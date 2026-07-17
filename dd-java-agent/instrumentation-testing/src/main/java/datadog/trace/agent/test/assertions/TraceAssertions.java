@@ -116,7 +116,7 @@ public final class TraceAssertions {
     }
   }
 
-  public static class Options {
+  public static final class Options {
     private boolean ignoredAdditionalTraces = false;
     private Comparator<List<DDSpan>> comparator = TRACE_START_TIME_COMPARATOR;
 
