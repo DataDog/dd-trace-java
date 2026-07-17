@@ -4,6 +4,7 @@ import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS
 import static datadog.trace.api.DDSpanTypes.RPC;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static datadog.trace.common.metrics.AggregateEntry.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateEntry.TOP_LEVEL_TAG;
 import static datadog.trace.common.metrics.SignalItem.ClearSignal.CLEAR;
@@ -63,6 +64,15 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
   private static final SpanKindFilter INTERNAL_KIND =
       SpanKindFilter.builder().includeInternal().build();
+
+  // gRPC status-code source tags, probed in priority order on the OTLP export path
+  private static final String[] GRPC_STATUS_CODE_KEYS = {
+    InstrumentationTags.GRPC_STATUS_CODE, // "rpc.grpc.status_code"
+    "grpc.code",
+    "rpc.grpc.status.code",
+    "grpc.status.code",
+    "rpc.response.status_code",
+  };
 
   private final Set<String> ignoredResources;
   private final Thread thread;
@@ -364,12 +374,21 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       Object httpMethodObj = span.unsafeGetTag(HTTP_METHOD);
       httpMethod = httpMethodObj != null ? httpMethodObj.toString() : null;
       Object httpEndpointObj = span.unsafeGetTag(HTTP_ENDPOINT);
+      // OTLP path falls back to http.route (mirrors libdatadog). The native v0.6 path keeps its
+      // http.endpoint-only lookup so this doesn't change its aggregation key / wire output.
+      if (otlpStatsExportEnabled && httpEndpointObj == null) {
+        httpEndpointObj = span.unsafeGetTag(HTTP_ROUTE);
+      }
       httpEndpoint = httpEndpointObj != null ? httpEndpointObj.toString() : null;
     }
 
     CharSequence spanType = span.getType();
     String grpcStatusCode = null;
-    if (spanType != null && RPC.contentEquals(spanType)) {
+    if (otlpStatsExportEnabled) {
+      // OTLP path: probe every known gRPC status-code convention, no span-type gate, so a span
+      // typed "grpc" (or carrying an OTel-style key) still surfaces rpc.response.status_code.
+      grpcStatusCode = firstTag(span, GRPC_STATUS_CODE_KEYS);
+    } else if (spanType != null && RPC.contentEquals(spanType)) {
       Object grpcStatusObj = span.unsafeGetTag(InstrumentationTags.GRPC_STATUS_CODE);
       grpcStatusCode = grpcStatusObj != null ? grpcStatusObj.toString() : null;
     }
@@ -414,6 +433,17 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     }
     // force keep keys if there are errors
     return error;
+  }
+
+  /** Returns the first non-null span tag among {@code keys}, in order, or {@code null} if none. */
+  private static String firstTag(CoreSpan<?> span, String[] keys) {
+    for (String key : keys) {
+      Object value = span.unsafeGetTag(key);
+      if (value != null) {
+        return value.toString();
+      }
+    }
+    return null;
   }
 
   /**
