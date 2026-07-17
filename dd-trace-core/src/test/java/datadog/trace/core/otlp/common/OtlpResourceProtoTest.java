@@ -5,6 +5,7 @@ import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,6 +15,7 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.trace.api.Config;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -149,25 +151,28 @@ class OtlpResourceProtoTest {
       String caseName, Properties properties, Map<String, String> expectedAttributes)
       throws IOException {
     Config config = Config.get(properties);
-    byte[] bytes = OtlpResourceProto.buildResourceMessage(config, false, false);
+    byte[] bytes = OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap());
 
     Map<String, String> actualAttributes = parseResourceAttributes(bytes);
     assertEquals(expectedAttributes, actualAttributes, "For case: " + caseName);
   }
 
   /**
-   * The datadog-attrs variant ({@code buildResourceMessage(config, true, false)}) carries {@code
-   * datadog.runtime_id}; the plain variant omits it. (Process tags are emitted only when the
-   * experimental process-tag propagation is enabled, so they aren't asserted here.)
+   * The datadog-attrs variant ({@code buildResourceMessage(config, datadogResourceAttributes)})
+   * carries {@code datadog.runtime_id}; the plain variant omits it. (Process tags are emitted only
+   * when the experimental process-tag propagation is enabled, so they aren't asserted here.)
    */
   @Test
   void datadogResourceAttributesVariantCarriesRuntimeId() throws IOException {
     Config config = Config.get(props(SERVICE_NAME, "my-service"));
 
     Map<String, String> withDatadog =
-        parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, true, false));
+        parseResourceAttributes(
+            OtlpResourceProto.buildResourceMessage(
+                config, OtlpResourceProto.datadogResourceAttributes(config)));
     Map<String, String> plain =
-        parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, false, false));
+        parseResourceAttributes(
+            OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap()));
 
     assertTrue(
         withDatadog.containsKey("datadog.runtime_id"),
@@ -181,12 +186,18 @@ class OtlpResourceProtoTest {
 
   @Test
   void statsComputedVariantCarriesMarker() throws IOException {
-    Config config = Config.get(props(SERVICE_NAME, "my-service"));
+    Config withMetrics =
+        Config.get(props(SERVICE_NAME, "my-service", OTEL_TRACES_SPAN_METRICS_ENABLED, "true"));
+    Config withoutMetrics = Config.get(props(SERVICE_NAME, "my-service"));
 
     Map<String, String> withMarker =
-        parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, false, true));
+        parseResourceAttributes(
+            OtlpResourceProto.buildResourceMessage(
+                withMetrics, OtlpResourceProto.traceResourceAttributes(withMetrics)));
     Map<String, String> without =
-        parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, false, false));
+        parseResourceAttributes(
+            OtlpResourceProto.buildResourceMessage(
+                withoutMetrics, OtlpResourceProto.traceResourceAttributes(withoutMetrics)));
 
     assertEquals(
         "true", withMarker.get("_dd.stats_computed"), "marker present when stats computed");
