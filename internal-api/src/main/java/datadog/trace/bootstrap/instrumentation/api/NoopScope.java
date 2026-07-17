@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.context.TraceScope;
 
-@SuppressWarnings("deprecation")
 final class NoopScope implements AgentScope {
   static final NoopScope INSTANCE = new NoopScope();
 
@@ -14,6 +13,7 @@ final class NoopScope implements AgentScope {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public TraceScope.Continuation capture() {
     return NoopContinuation.INSTANCE;
   }

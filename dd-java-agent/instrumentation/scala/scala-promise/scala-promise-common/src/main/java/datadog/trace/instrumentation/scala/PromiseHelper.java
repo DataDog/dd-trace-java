@@ -65,11 +65,11 @@ public class PromiseHelper {
   }
 
   /**
-   * Activate the {@code AgentScope} stored in the {@code State} for the active task, if any, and
-   * mark migration accordingly.
+   * Activate the {@code Context} stored in the {@code State} for the active task, if any, and mark
+   * migration accordingly.
    *
    * @param state the State related to the task becoming active.
-   * @return tha active ContextScope
+   * @return the active ContextScope
    */
   public static ContextScope runActivateSpan(State state) {
     if (state == null) {
