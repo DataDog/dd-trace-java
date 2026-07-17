@@ -1,6 +1,5 @@
 package testdog.trace.instrumentation.rxjava3;
 
-import static datadog.trace.agent.test.assertions.Matchers.validates;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
 import static datadog.trace.agent.test.assertions.TagsMatcher.error;
@@ -10,6 +9,7 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
