@@ -14,7 +14,7 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.ScopeManagerTestBridge;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import org.junit.jupiter.api.Test;
 
 class ScopeManagerDepthTest extends DDCoreJavaSpecification {

@@ -21,7 +21,7 @@ import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDTraceCoreInfo;
-import datadog.trace.junit.utils.config.WithConfigExtension;
+import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.HashMap;
