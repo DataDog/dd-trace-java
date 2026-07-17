@@ -88,35 +88,40 @@ public final class TestAgentBackend implements TraceBackend {
    */
   @Override
   public String sessionToken() {
-    return sessionToken;
+    return this.sessionToken;
   }
 
   /** Whether this backend is meant to be shared across multiple apps (consumed by S6). */
   @Override
   public boolean isShared() {
-    return shared;
+    return this.shared;
   }
 
   @Override
   public boolean clearsBetweenTests() {
-    return !retainAcrossTests;
+    return !this.retainAcrossTests;
   }
 
   @Override
   public void start() {
-    if (baseUrl != null) {
+    if (this.baseUrl != null) {
       return;
     }
-    if (externalHost != null) {
-      baseUrl = new HttpUrl.Builder().scheme("http").host(externalHost).port(externalPort).build();
+    if (this.externalHost != null) {
+      this.baseUrl =
+          new HttpUrl.Builder()
+              .scheme("http")
+              .host(this.externalHost)
+              .port(this.externalPort)
+              .build();
     } else {
-      GenericContainer<?> started = new GenericContainer<>(DockerImageName.parse(image));
+      GenericContainer<?> started = new GenericContainer<>(DockerImageName.parse(this.image));
       started.withExposedPorts(AGENT_PORT);
-      started.withEnv("ENABLED_CHECKS", String.join(",", enabledChecks));
+      started.withEnv("ENABLED_CHECKS", String.join(",", this.enabledChecks));
       started.setWaitStrategy(Wait.forHttp("/test/traces"));
       started.start();
-      container = started;
-      baseUrl =
+      this.container = started;
+      this.baseUrl =
           new HttpUrl.Builder()
               .scheme("http")
               .host(started.getHost())
@@ -157,7 +162,7 @@ public final class TestAgentBackend implements TraceBackend {
         requireStarted()
             .newBuilder()
             .addPathSegments("test/session/start")
-            .addQueryParameter("test_session_token", sessionToken)
+            .addQueryParameter("test_session_token", this.sessionToken)
             .build();
     Request request = new Request.Builder().url(url).get().build();
     execute(request, "start test-agent session");
@@ -165,7 +170,7 @@ public final class TestAgentBackend implements TraceBackend {
 
   @Override
   public void close() {
-    GenericContainer<?> running = container;
+    GenericContainer<?> running = this.container;
     try {
       // Container backends auto-validate their trace-invariant checks at teardown (Q5). External CI
       // agents are validated by the job-final .gitlab/check_test_agent_results.sh instead, so we
@@ -175,10 +180,10 @@ public final class TestAgentBackend implements TraceBackend {
       }
     } finally {
       if (running != null) {
-        container = null;
+        this.container = null;
         running.stop();
       }
-      baseUrl = null;
+      this.baseUrl = null;
     }
   }
 
@@ -192,10 +197,10 @@ public final class TestAgentBackend implements TraceBackend {
         requireStarted()
             .newBuilder()
             .addPathSegments("test/trace_check/failures")
-            .addQueryParameter("test_session_token", sessionToken)
+            .addQueryParameter("test_session_token", this.sessionToken)
             .build();
     Request request = new Request.Builder().url(url).get().build();
-    try (Response response = client.newCall(request).execute()) {
+    try (Response response = this.client.newCall(request).execute()) {
       int code = response.code();
       // 200 => all checks passed; 404 => a real agent is running (no checks). Anything else is a
       // recorded failure, whose body describes the failing check(s) (see check_test_agent_results).
@@ -215,7 +220,7 @@ public final class TestAgentBackend implements TraceBackend {
         requireStarted()
             .newBuilder()
             .addPathSegments("test/session/traces")
-            .addQueryParameter("test_session_token", sessionToken)
+            .addQueryParameter("test_session_token", this.sessionToken)
             .build();
     Request request = new Request.Builder().url(url).get().build();
     return TestAgentTraceDecoder.decode(execute(request, "read test-agent session traces"));
@@ -229,14 +234,14 @@ public final class TestAgentBackend implements TraceBackend {
         requireStarted()
             .newBuilder()
             .addPathSegments("test/session/apmtelemetry")
-            .addQueryParameter("test_session_token", sessionToken)
+            .addQueryParameter("test_session_token", this.sessionToken)
             .build();
     Request request = new Request.Builder().url(url).get().build();
     return TelemetryDecoder.decodeMessages(execute(request, "read test-agent session telemetry"));
   }
 
   private String execute(Request request, String action) {
-    try (Response response = client.newCall(request).execute()) {
+    try (Response response = this.client.newCall(request).execute()) {
       if (!response.isSuccessful()) {
         throw new IllegalStateException(
             "Failed to " + action + ": HTTP " + response.code() + " from " + request.url());
@@ -248,7 +253,7 @@ public final class TestAgentBackend implements TraceBackend {
   }
 
   private HttpUrl requireStarted() {
-    HttpUrl url = baseUrl;
+    HttpUrl url = this.baseUrl;
     if (url == null) {
       throw new IllegalStateException("TestAgentBackend not started — call start() first");
     }

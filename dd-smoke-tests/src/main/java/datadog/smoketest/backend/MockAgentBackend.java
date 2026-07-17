@@ -46,15 +46,15 @@ public final class MockAgentBackend implements TraceBackend {
 
   @Override
   public boolean isShared() {
-    return shared;
+    return this.shared;
   }
 
   @Override
   public void start() {
-    if (server != null) {
+    if (this.server != null) {
       return;
     }
-    server =
+    this.server =
         JavaTestHttpServer.httpServer(
             s ->
                 s.handlers(
@@ -77,14 +77,14 @@ public final class MockAgentBackend implements TraceBackend {
 
   private void collect(HandlerApi api, TraceFormat format) {
     DecodedMessage message = format.decode(api.getRequest().getBody());
-    traces.addAll(message.getTraces());
+    this.traces.addAll(message.getTraces());
     api.getResponse().status(200).sendWithType(JSON, "{}");
   }
 
   private void collectTelemetry(HandlerApi api) {
     byte[] body = api.getRequest().getBody();
     if (body != null && body.length > 0) {
-      telemetry.add(TelemetryDecoder.decodeMessage(body));
+      this.telemetry.add(TelemetryDecoder.decodeMessage(body));
     }
     api.getResponse().status(202).send();
   }
@@ -96,7 +96,7 @@ public final class MockAgentBackend implements TraceBackend {
 
   @Override
   public URI url() {
-    JavaTestHttpServer running = server;
+    JavaTestHttpServer running = this.server;
     if (running == null) {
       throw new IllegalStateException("MockAgentBackend not started — call start() first");
     }
@@ -105,25 +105,25 @@ public final class MockAgentBackend implements TraceBackend {
 
   @Override
   public Traces traces() {
-    return new Traces(() -> new ArrayList<>(traces));
+    return new Traces(() -> new ArrayList<>(this.traces));
   }
 
   @Override
   public Telemetry telemetry() {
-    return new Telemetry(() -> new ArrayList<>(telemetry));
+    return new Telemetry(() -> new ArrayList<>(this.telemetry));
   }
 
   @Override
   public void clear() {
-    traces.clear();
-    telemetry.clear();
+    this.traces.clear();
+    this.telemetry.clear();
   }
 
   @Override
   public void close() {
-    JavaTestHttpServer running = server;
+    JavaTestHttpServer running = this.server;
     if (running != null) {
-      server = null;
+      this.server = null;
       running.close();
     }
   }

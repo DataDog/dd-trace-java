@@ -63,12 +63,12 @@ public final class TestAgentTraceDecoder {
 
     @Override
     public List<DecodedSpan> getSpans() {
-      return spans;
+      return this.spans;
     }
 
     @Override
     public String toString() {
-      return "RawTrace[" + spans.toString();
+      return "RawTrace[" + this.spans.toString();
     }
   }
 
@@ -105,103 +105,103 @@ public final class TestAgentTraceDecoder {
 
     @Override
     public String getService() {
-      return service;
+      return this.service;
     }
 
     @Override
     public String getName() {
-      return name;
+      return this.name;
     }
 
     @Override
     public String getResource() {
-      return resource;
+      return this.resource;
     }
 
     @Override
     public long getTraceId() {
-      return traceId;
+      return this.traceId;
     }
 
     @Override
     public long getSpanId() {
-      return spanId;
+      return this.spanId;
     }
 
     @Override
     public long getParentId() {
-      return parentId;
+      return this.parentId;
     }
 
     @Override
     public long getStart() {
-      return start;
+      return this.start;
     }
 
     @Override
     public long getDuration() {
-      return duration;
+      return this.duration;
     }
 
     @Override
     public int getError() {
-      return error;
+      return this.error;
     }
 
     @Override
     public Map<String, String> getMeta() {
-      return meta;
+      return this.meta;
     }
 
     @Override
     public Map<String, Object> getMetaStruct() {
-      return metaStruct;
+      return this.metaStruct;
     }
 
     @Override
     public Map<String, Number> getMetrics() {
       // The decoder model exposes Number; Moshi deserializes JSON numbers as Double.
-      return metrics == null ? null : new HashMap<>(metrics);
+      return this.metrics == null ? null : new HashMap<>(this.metrics);
     }
 
     @Override
     public String getType() {
-      return type;
+      return this.type;
     }
 
     @Override
     public String toString() {
       return "RawSpan{"
           + "service='"
-          + service
+          + this.service
           + '\''
           + ", name='"
-          + name
+          + this.name
           + '\''
           + ", resource='"
-          + resource
+          + this.resource
           + '\''
           + ", type='"
-          + type
+          + this.type
           + '\''
           + ", traceId="
-          + traceId
+          + this.traceId
           + ", spanId="
-          + spanId
+          + this.spanId
           + ", parentId="
-          + parentId
+          + this.parentId
           + ", start="
-          + start
+          + this.start
           + ", duration="
-          + duration
+          + this.duration
           + ", error="
-          + error
+          + this.error
           + ", meta="
-          + meta
+          + this.meta
           + ", metaStruct="
-          + metaStruct
+          + this.metaStruct
           + ", metrics="
-          + metrics
+          + this.metrics
           + '}';
     }
   }

@@ -155,13 +155,13 @@ public final class SpanMatcher {
   /** Asserts a span's own fields (service/operation/resource/type/error/tags), ignoring linkage. */
   @SuppressWarnings("unchecked")
   private void assertFields(DecodedSpan span) {
-    assertValue(serviceMatcher, span.getService(), "Unexpected service name");
-    assertValue(operationNameMatcher, span.getName(), "Unexpected operation name");
-    assertValue(resourceNameMatcher, span.getResource(), "Unexpected resource name");
-    assertValue(typeMatcher, span.getType(), "Unexpected span type");
-    assertValue(errorMatcher, span.getError() != 0, "Unexpected error status");
+    assertValue(this.serviceMatcher, span.getService(), "Unexpected service name");
+    assertValue(this.operationNameMatcher, span.getName(), "Unexpected operation name");
+    assertValue(this.resourceNameMatcher, span.getResource(), "Unexpected resource name");
+    assertValue(this.typeMatcher, span.getType(), "Unexpected span type");
+    assertValue(this.errorMatcher, span.getError() != 0, "Unexpected error status");
     Map<String, String> meta = span.getMeta();
-    for (Map.Entry<String, Matcher<?>> entry : metaMatchers.entrySet()) {
+    for (Map.Entry<String, Matcher<?>> entry : this.metaMatchers.entrySet()) {
       Object value = meta == null ? null : meta.get(entry.getKey());
       assertValue(
           (Matcher<Object>) entry.getValue(),
@@ -169,7 +169,7 @@ public final class SpanMatcher {
           "Unexpected meta tag '" + entry.getKey() + "'");
     }
     Map<String, Number> metrics = span.getMetrics();
-    for (Map.Entry<String, Matcher<?>> entry : metricMatchers.entrySet()) {
+    for (Map.Entry<String, Matcher<?>> entry : this.metricMatchers.entrySet()) {
       Object value = metrics == null ? null : metrics.get(entry.getKey());
       assertValue(
           (Matcher<Object>) entry.getValue(), value, "Unexpected metric '" + entry.getKey() + "'");

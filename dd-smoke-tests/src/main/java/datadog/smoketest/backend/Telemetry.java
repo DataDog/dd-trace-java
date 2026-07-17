@@ -27,7 +27,7 @@ public final class Telemetry {
 
   /** The raw telemetry messages received — one map per intake request. */
   public List<Map<String, Object>> getMessages() {
-    return source.get();
+    return this.source.get();
   }
 
   /**

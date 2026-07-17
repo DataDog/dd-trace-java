@@ -30,7 +30,7 @@ public final class Traces {
 
   /** A snapshot of the traces received so far. */
   public List<DecodedTrace> getTraces() {
-    return source.get();
+    return this.source.get();
   }
 
   /**

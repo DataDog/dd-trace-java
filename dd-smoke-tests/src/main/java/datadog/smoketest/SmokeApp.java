@@ -1,8 +1,11 @@
 package datadog.smoketest;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 import datadog.smoketest.backend.TraceBackend;
 import datadog.smoketest.backend.Traces;
 import datadog.trace.agent.test.utils.PortUtils;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -135,21 +138,22 @@ public final class SmokeApp
    * #HTTP_PORT_PLACEHOLDER}).
    */
   public int httpPort() {
-    return httpPort;
+    return this.httpPort;
   }
 
   /** Base URL of the app's HTTP server. */
   public URI url() {
-    return URI.create("http://localhost:" + httpPort);
+    return URI.create("http://localhost:" + this.httpPort);
   }
 
   /**
    * Issues a GET to the app and returns the HTTP status code (the response is drained and closed).
    */
-  public int get(String path) {
+  @VisibleForTesting
+  int get(String path) {
     String full = url() + (path.startsWith("/") ? path : "/" + path);
     Request request = new Request.Builder().url(full).get().build();
-    try (Response response = httpClient.newCall(request).execute()) {
+    try (Response response = this.httpClient.newCall(request).execute()) {
       return response.code();
     } catch (IOException e) {
       throw new IllegalStateException("GET " + full + " failed", e);
@@ -158,12 +162,12 @@ public final class SmokeApp
 
   /** The trace query/assert facade of this app's backend. */
   public Traces traces() {
-    return backend.traces();
+    return this.backend.traces();
   }
 
   /** The backend this app sends traces to. */
   public TraceBackend backend() {
-    return backend;
+    return this.backend;
   }
 
   /**
@@ -172,7 +176,7 @@ public final class SmokeApp
    */
   public boolean awaitLogLine(Function<String, Boolean> predicate) {
     try {
-      return outputThreads.processTestLogLines(predicate);
+      return this.outputThreads.processTestLogLines(predicate);
     } catch (TimeoutException e) {
       return false;
     }
@@ -187,19 +191,20 @@ public final class SmokeApp
   public void assertCompletesWithValue(long timeout, TimeUnit unit, int expectedExitValue) {
     boolean exited;
     try {
-      exited = process.waitFor(timeout, unit);
+      exited = this.process.waitFor(timeout, unit);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new AssertionError("Interrupted while waiting for app '" + name + "' to complete", e);
+      throw new AssertionError(
+          "Interrupted while waiting for app '" + this.name + "' to complete", e);
     }
     if (!exited) {
       throw new AssertionError(
-          "App '" + name + "' did not complete within " + timeout + " " + unit);
+          "App '" + this.name + "' did not complete within " + timeout + " " + unit);
     }
-    int actual = process.exitValue();
+    int actual = this.process.exitValue();
     if (actual != expectedExitValue) {
       throw new AssertionError(
-          "App '" + name + "' exited with " + actual + " but expected " + expectedExitValue);
+          "App '" + this.name + "' exited with " + actual + " but expected " + expectedExitValue);
     }
   }
 
@@ -207,17 +212,17 @@ public final class SmokeApp
 
   @Override
   public void beforeAll(ExtensionContext context) throws Exception {
-    // Always start the backend before launching (start() is idempotent). This makes the app robust
-    // to @RegisterExtension callback ordering: a shared backend also self-starts via its own
-    // beforeAll, and an inline (owned) backend is started only here. Ownership governs
-    // clear()/close.
-    backend.start();
+    this.backend.start();
     launch();
-    if (server) {
-      PortUtils.waitForPortToOpen(httpPort, startupTimeoutSeconds, TimeUnit.SECONDS, process);
-    } else if (!process.isAlive() && process.exitValue() != 0) {
+    if (this.server) {
+      PortUtils.waitForPortToOpen(this.httpPort, this.startupTimeoutSeconds, SECONDS, this.process);
+    } else if (!this.process.isAlive() && this.process.exitValue() != 0) {
       throw new IllegalStateException(
-          "App '" + name + "' exited abnormally on start (exit " + process.exitValue() + ")");
+          "App '"
+              + this.name
+              + "' exited abnormally on start (exit "
+              + this.process.exitValue()
+              + ")");
     }
   }
 
@@ -228,15 +233,16 @@ public final class SmokeApp
     // (notAServer) may have already run to completion and produced its traces at start-up, so
     // neither applies: requiring it alive would spuriously fail, and clearing would wipe its
     // traces.
-    if (server) {
-      if (process == null || !process.isAlive()) {
-        throw new IllegalStateException("App '" + name + "' is not alive at the start of a test");
+    if (this.server) {
+      if (this.process == null || !this.process.isAlive()) {
+        throw new IllegalStateException(
+            "App '" + this.name + "' is not alive at the start of a test");
       }
-      if (ownsBackend) {
-        backend.clear();
+      if (this.ownsBackend) {
+        this.backend.clear();
       }
     }
-    outputThreads.clearMessages();
+    this.outputThreads.clearMessages();
   }
 
   @Override
@@ -245,8 +251,8 @@ public final class SmokeApp
     // (the
     // app is killed, and the per-method session clear may have wiped a once-only app-started). Only
     // for agent-instrumented apps (a no-agent app emits none).
-    if (checkTelemetry && agentJar != null && !telemetryChecked) {
-      telemetryChecked = true;
+    if (this.checkTelemetry && this.agentJar != null && !this.telemetryChecked) {
+      this.telemetryChecked = true;
       assertTelemetryReceived();
     }
   }
@@ -257,13 +263,13 @@ public final class SmokeApp
       stopProcess();
     } finally {
       // Join the output threads first so the log file is fully flushed before we scan it.
-      outputThreads.close();
+      this.outputThreads.close();
       try {
-        if (ownsBackend) {
-          backend.close();
+        if (this.ownsBackend) {
+          this.backend.close();
         }
       } finally {
-        if (checkErrorLogs) {
+        if (this.checkErrorLogs) {
           assertNoErrorLogs();
         }
       }
@@ -274,76 +280,76 @@ public final class SmokeApp
     List<String> command = new ArrayList<>();
     command.add(javaExecutable());
 
-    if (agentJar != null) {
-      command.add("-javaagent:" + agentJar);
-      command.add("-Ddd.trace.agent.host=" + backend.url().getHost());
-      command.add("-Ddd.trace.agent.port=" + backend.port());
+    if (this.agentJar != null) {
+      command.add("-javaagent:" + this.agentJar);
+      command.add("-Ddd.trace.agent.host=" + this.backend.url().getHost());
+      command.add("-Ddd.trace.agent.port=" + this.backend.port());
       command.add("-Ddd.service.name=" + SERVICE_NAME);
       command.add("-Ddd.env=" + ENV);
       command.add("-Ddd.version=" + VERSION);
-      String sessionToken = backend.sessionToken();
+      String sessionToken = this.backend.sessionToken();
       if (sessionToken != null) {
         command.add("-Ddd.trace.agent.test.session.token=" + sessionToken);
       }
-      if (checkTelemetry) {
+      if (this.checkTelemetry) {
         // Emit telemetry promptly so app-started is captured before a (long-running server) app is
         // killed at teardown — mirrors the Groovy base's telemetry tests.
         command.add("-Ddd.telemetry.heartbeat.interval=1");
       }
     }
-    for (String jvmArg : jvmArgs) {
+    for (String jvmArg : this.jvmArgs) {
       command.add(substitute(jvmArg));
     }
-    if (jar != null) {
+    if (this.jar != null) {
       command.add("-jar");
-      command.add(jar);
+      command.add(this.jar);
     } else {
       command.add("-cp");
-      command.add(classpath);
-      command.add(mainClass);
+      command.add(this.classpath);
+      command.add(this.mainClass);
     }
-    for (String programArg : programArgs) {
+    for (String programArg : this.programArgs) {
       command.add(substitute(programArg));
     }
 
     ProcessBuilder processBuilder = new ProcessBuilder(command);
-    if (workingDirectory != null) {
-      processBuilder.directory(workingDirectory);
+    if (this.workingDirectory != null) {
+      processBuilder.directory(this.workingDirectory);
     }
     Map<String, String> env = processBuilder.environment();
     env.put("JAVA_HOME", System.getProperty("java.home"));
     env.put("DD_API_KEY", API_KEY);
     env.keySet().removeAll(NOISY_ENVIRONMENT_VARIABLES);
-    env.putAll(extraEnv);
+    env.putAll(this.extraEnv);
     processBuilder.redirectErrorStream(true);
 
-    logFile = resolveLogFile();
-    process = processBuilder.start();
-    outputThreads.captureOutput(process, logFile);
+    this.logFile = resolveLogFile();
+    this.process = processBuilder.start();
+    this.outputThreads.captureOutput(this.process, this.logFile);
   }
 
   private void stopProcess() {
-    if (process == null) {
+    if (this.process == null) {
       return;
     }
-    if (!process.isAlive()) {
+    if (!this.process.isAlive()) {
       return;
     }
-    process.destroy();
+    this.process.destroy();
     try {
-      if (!process.waitFor(5, TimeUnit.SECONDS)) {
-        process.destroyForcibly();
-        process.waitFor(10, TimeUnit.SECONDS);
+      if (!this.process.waitFor(5, SECONDS)) {
+        this.process.destroyForcibly();
+        this.process.waitFor(10, SECONDS);
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      process.destroyForcibly();
+      this.process.destroyForcibly();
     }
   }
 
   private String substitute(String value) {
-    String result = value.replace(HTTP_PORT_PLACEHOLDER, Integer.toString(httpPort));
-    for (Map.Entry<String, Supplier<String>> placeholder : placeholders.entrySet()) {
+    String result = value.replace(HTTP_PORT_PLACEHOLDER, Integer.toString(this.httpPort));
+    for (Map.Entry<String, Supplier<String>> placeholder : this.placeholders.entrySet()) {
       String token = placeholder.getKey();
       if (result.contains(token)) {
         // Resolved now (at launch), not when registered — the value's source (e.g. a container's
@@ -363,7 +369,7 @@ public final class SmokeApp
     dir.mkdirs();
     // TODO Q6 (deferred): retry-safe timestamped log file names so retries don't clobber prior
     // logs.
-    return new File(dir, "smoke-app." + name + ".log");
+    return new File(dir, "smoke-app." + this.name + ".log");
   }
 
   /**
@@ -373,27 +379,27 @@ public final class SmokeApp
    * explicitly mid-run.
    */
   public void assertNoErrorLogs() {
-    if (logFile == null) {
+    if (this.logFile == null) {
       return; // never launched / nothing captured
     }
     List<String> errors = new ArrayList<>();
     try (BufferedReader reader =
-        Files.newBufferedReader(logFile.toPath(), StandardCharsets.UTF_8)) {
+        Files.newBufferedReader(this.logFile.toPath(), StandardCharsets.UTF_8)) {
       String line;
       while ((line = reader.readLine()) != null) {
-        if (errorLogFilter.test(line)) {
+        if (this.errorLogFilter.test(line)) {
           errors.add(line);
         }
       }
     } catch (NoSuchFileException e) {
       return; // no output file was produced
     } catch (IOException e) {
-      throw new IllegalStateException("Failed to read app log " + logFile, e);
+      throw new IllegalStateException("Failed to read app log " + this.logFile, e);
     }
     if (!errors.isEmpty()) {
       StringBuilder message =
           new StringBuilder("App '")
-              .append(name)
+              .append(this.name)
               .append("' logged ")
               .append(errors.size())
               .append(" error line(s):");
@@ -413,7 +419,7 @@ public final class SmokeApp
    * assert it with {@link #traces() backend}.{@code telemetry().waitForFlat(...)}.
    */
   public void assertTelemetryReceived() {
-    backend.telemetry().waitForCount(1, startupTimeoutSeconds);
+    this.backend.telemetry().waitForCount(1, this.startupTimeoutSeconds);
   }
 
   /**
@@ -458,7 +464,7 @@ public final class SmokeApp
       return traces();
     }
     if (type == TraceBackend.class) {
-      return backend;
+      return this.backend;
     }
     throw new ParameterResolutionException("Cannot resolve parameter of type " + type);
     // TODO Q7: with multiple same-type apps/backends injection is ambiguous — add a qualifier
@@ -622,17 +628,19 @@ public final class SmokeApp
     }
 
     private String resolveAgentJar() {
-      if (noAgent) {
+      if (this.noAgent) {
         return null;
       }
-      return explicitAgentJar != null ? explicitAgentJar : System.getProperty(AGENT_JAR_PROPERTY);
+      return this.explicitAgentJar != null
+          ? this.explicitAgentJar
+          : System.getProperty(AGENT_JAR_PROPERTY);
     }
 
     public SmokeApp build() {
-      if (backend == null) {
+      if (this.backend == null) {
         throw new IllegalStateException("A TraceBackend is required — call backend(...)");
       }
-      if ((jar == null) == (mainClass == null)) {
+      if ((this.jar == null) == (this.mainClass == null)) {
         throw new IllegalStateException("Exactly one of jar(...) or mainClass(...) must be set");
       }
       // TODO Q6 (deferred, opt-in mixins / .jvmArgs(...) escape hatch — not baked into the base):
