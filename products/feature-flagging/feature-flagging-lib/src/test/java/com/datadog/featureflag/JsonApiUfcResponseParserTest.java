@@ -43,6 +43,11 @@ class JsonApiUfcResponseParserTest {
   }
 
   @Test
+  void rejectsNonStringJsonApiType() throws Exception {
+    assertNull(parse("{\"data\":{\"type\":null,\"attributes\":" + emptyConfig() + "}}"));
+  }
+
+  @Test
   void rejectsConfigurationWithoutFlags() throws Exception {
     assertNull(
         parse(

@@ -1,6 +1,5 @@
 package com.datadog.featureflag;
 
-import com.squareup.moshi.JsonDataException;
 import com.squareup.moshi.JsonReader;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.ByteArrayInputStream;
@@ -87,8 +86,7 @@ final class JsonApiUfcResponseParser {
   }
 
   private static void requireEndOfDocument(final JsonReader reader) throws IOException {
-    if (reader.peek() != JsonReader.Token.END_DOCUMENT) {
-      throw new JsonDataException("JSON document was not fully consumed");
-    }
+    // A strict JsonReader throws if another top-level value follows the parsed document.
+    reader.peek();
   }
 }
