@@ -36,6 +36,10 @@ import org.openjdk.jmh.infra.Blackhole;
  *   <li>TreeMap — when a custom Comparator is needed (see CaseInsensitiveMapBenchmark)
  *   <li>LinkedHashMap — only when insertion-order iteration is required; cost is paid at
  *       construction and in per-entry memory
+ *   <li>FlatHashtable — a find-or-create table over self-contained entries (not a general Map: no
+ *       arbitrary put/remove). Compared here on the ops it does support — build, get, iterate —
+ *       where its self-contained entry stores the value <i>unboxed</i> (one object per key, no
+ *       {@code Integer}). Fixed-capacity, so it must be sized to the working set up front.
  * </ul>
  *
  * <p><b>Uncontended synchronization tax.</b> A {@link Collections#synchronizedMap} case is included
@@ -81,12 +85,54 @@ public class SingleThreadedMapBenchmark {
     return map;
   }
 
+  // FlatHashtable is a find-or-create table over self-contained entries — no arbitrary put/remove,
+  // so only the comparable ops appear here: build (via the comparison-free insert of distinct
+  // keys),
+  // get, and iterate. Its entry carries the value UNBOXED (no Integer), one object per key.
+  static final class IntEntry {
+    final String key;
+    final int value;
+
+    IntEntry(String key, int value) {
+      this.key = key;
+      this.value = value;
+    }
+  }
+
+  static final class IntEntryKeyStrategy extends FlatHashtable.StringKeyStrategy<IntEntry> {
+    // Canonical exact-typed singleton: one instance, private ctor => the static-poly discipline is
+    // enforced by the class, not left to each caller to declare correctly.
+    static final IntEntryKeyStrategy INSTANCE = new IntEntryKeyStrategy();
+
+    private IntEntryKeyStrategy() {}
+
+    @Override
+    public boolean matches(String key, IntEntry entry) {
+      return key.equals(entry.key);
+    }
+
+    @Override
+    public long hashOf(IntEntry entry) {
+      return hash(entry.key);
+    }
+  }
+
+  static IntEntry[] newFilledFlat() {
+    // Sized to the key count (FlatHashtable is fixed-capacity, no resize): load factor <= 0.5.
+    IntEntry[] table = FlatHashtable.create(IntEntry.class, INSERTION_KEYS.length);
+    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
+      FlatHashtable.insert(table, new IntEntry(INSERTION_KEYS[i], i), IntEntryKeyStrategy.INSTANCE);
+    }
+    return table;
+  }
+
   // Per-thread prebuilt maps for the read + clone benchmarks (built once per trial, per thread).
   HashMap<String, Integer> hashMap;
   Map<String, Integer> synchronizedHashMap;
   TreeMap<String, Integer> treeMap;
   LinkedHashMap<String, Integer> linkedHashMap;
   TagMap tagMap;
+  IntEntry[] flatTable;
   int index = 0;
 
   @Setup(Level.Trial)
@@ -99,6 +145,7 @@ public class SingleThreadedMapBenchmark {
     linkedHashMap = new LinkedHashMap<>();
     fill(linkedHashMap);
     tagMap = fillTagMap(TagMap.create());
+    flatTable = newFilledFlat();
   }
 
   String nextLookupKey() {
@@ -159,6 +206,11 @@ public class SingleThreadedMapBenchmark {
     return ledger.build();
   }
 
+  @Benchmark
+  public IntEntry[] create_flatHashtable() {
+    return newFilledFlat();
+  }
+
   // ---- copy ----
 
   @Benchmark
@@ -201,6 +253,11 @@ public class SingleThreadedMapBenchmark {
   }
 
   @Benchmark
+  public IntEntry get_flatHashtable() {
+    return FlatHashtable.get(flatTable, nextLookupKey(), IntEntryKeyStrategy.INSTANCE);
+  }
+
+  @Benchmark
   public void iterate_hashMap(Blackhole blackhole) {
     for (Map.Entry<String, Integer> entry : hashMap.entrySet()) {
       blackhole.consume(entry.getKey());
@@ -218,5 +275,17 @@ public class SingleThreadedMapBenchmark {
         blackhole.consume(entry.getValue());
       }
     }
+  }
+
+  @Benchmark
+  public void iterate_flatHashtable(Blackhole blackhole) {
+    // Context-passing forEach: blackhole rides through as context, so the lambda doesn't capture.
+    FlatHashtable.forEach(
+        flatTable,
+        blackhole,
+        (bh, e) -> {
+          bh.consume(e.key);
+          bh.consume(e.value);
+        });
   }
 }
