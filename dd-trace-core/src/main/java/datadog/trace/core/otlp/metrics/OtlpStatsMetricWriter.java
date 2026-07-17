@@ -172,51 +172,51 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     OtlpMetricVisitor metric = visitor.visitScopedMetrics(SCOPE).visitMetric(METRIC_DESCRIPTOR);
     for (PendingPoint p : pending) {
       // attributes must precede the data point (OtlpMetricVisitor contract)
-      writeDataPointAttributes(metric, p.entry, p.error, p.allTopLevel);
+      emitDataPointAttributes(metric, p.entry, p.error, p.allTopLevel);
       metric.visitDataPoint(p.point);
     }
   }
 
-  private void writeDataPointAttributes(
+  private void emitDataPointAttributes(
       OtlpMetricVisitor metric, AggregateEntry entry, boolean error, boolean allTopLevel) {
     if (error) {
-      writeStringAttribute(metric, STATUS_CODE, STATUS_CODE_ERROR);
+      emitStringAttribute(metric, STATUS_CODE, STATUS_CODE_ERROR);
     }
     // OTel semconv attrs are emitted in both modes
-    writeStringAttribute(metric, SPAN_NAME, entry.getResource());
-    writeStringAttribute(metric, SPAN_KIND, entry.getSpanKind());
+    emitStringAttribute(metric, SPAN_NAME, entry.getResource());
+    emitStringAttribute(metric, SPAN_KIND, entry.getSpanKind());
     if (entry.hasHttpMethod()) {
-      writeStringAttribute(metric, HTTP_REQUEST_METHOD, entry.getHttpMethod());
+      emitStringAttribute(metric, HTTP_REQUEST_METHOD, entry.getHttpMethod());
     }
     if (entry.getHttpStatusCode() != 0) {
-      writeLongAttribute(metric, HTTP_RESPONSE_STATUS_CODE, entry.getHttpStatusCode());
+      emitLongAttribute(metric, HTTP_RESPONSE_STATUS_CODE, entry.getHttpStatusCode());
     }
     if (entry.hasHttpEndpoint()) {
-      writeStringAttribute(metric, HTTP_ROUTE, entry.getHttpEndpoint());
+      emitStringAttribute(metric, HTTP_ROUTE, entry.getHttpEndpoint());
     }
     if (entry.hasGrpcStatusCode()) {
-      writeStringAttribute(metric, RPC_RESPONSE_STATUS_CODE, entry.getGrpcStatusCode());
+      emitStringAttribute(metric, RPC_RESPONSE_STATUS_CODE, entry.getGrpcStatusCode());
     }
     // Default (Datadog) mode: emit datadog.* per-point attributes
     if (!otelSemanticsMode) {
-      writeStringAttribute(metric, DATADOG_OPERATION_NAME, entry.getOperationName());
-      writeStringAttribute(metric, DATADOG_SPAN_TYPE, entry.getType());
-      writeLongAttribute(metric, DATADOG_SPAN_TOP_LEVEL, allTopLevel ? 1L : 0L);
+      emitStringAttribute(metric, DATADOG_OPERATION_NAME, entry.getOperationName());
+      emitStringAttribute(metric, DATADOG_SPAN_TYPE, entry.getType());
+      emitLongAttribute(metric, DATADOG_SPAN_TOP_LEVEL, allTopLevel ? 1L : 0L);
       if (entry.isSynthetics()) {
-        writeStringAttribute(metric, DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
+        emitStringAttribute(metric, DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
       }
     }
   }
 
   // accepts both String literals and UTF8BytesString (both CharSequence); skips null values
-  private static void writeStringAttribute(
+  private static void emitStringAttribute(
       OtlpMetricVisitor metric, String key, @Nullable CharSequence value) {
     if (value != null) {
       metric.visitAttribute(STRING_ATTRIBUTE, key, value.toString());
     }
   }
 
-  private static void writeLongAttribute(OtlpMetricVisitor metric, String key, long value) {
+  private static void emitLongAttribute(OtlpMetricVisitor metric, String key, long value) {
     metric.visitAttribute(LONG_ATTRIBUTE, key, value);
   }
 }
