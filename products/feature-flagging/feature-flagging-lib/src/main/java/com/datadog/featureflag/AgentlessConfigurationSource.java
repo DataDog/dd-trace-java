@@ -253,9 +253,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     }
     final ServerConfiguration configuration;
     try {
-      configuration =
-          RemoteConfigServiceImpl.UniversalFlagConfigDeserializer.INSTANCE.deserializeApiResponse(
-              response.body);
+      configuration = JsonApiUfcResponseParser.INSTANCE.parse(response.body);
     } catch (final IOException | RuntimeException e) {
       LOGGER.debug("Feature Flagging HTTP configuration source returned malformed UFC payload", e);
       return false;
