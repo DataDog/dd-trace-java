@@ -126,14 +126,8 @@ final class AggregateEntry extends Hashtable.Entry {
     h = LongHashingUtils.addToHash(h, httpMethod);
     h = LongHashingUtils.addToHash(h, httpEndpoint);
     h = LongHashingUtils.addToHash(h, grpcStatusCode);
-    for (int i = 0; i < peerTagCount; i++) {
-      h = LongHashingUtils.addToHash(h, peerTags[i]);
-    }
-    // Additional tags are packed compactly in schema order (alphabetical by key); each carries its
-    // "key:" prefix so the packed form is unambiguous without positional null slots.
-    for (int i = 0; i < additionalTagCount; i++) {
-      h = LongHashingUtils.addToHash(h, additionalTags[i]);
-    }
+    h = LongHashingUtils.addToHash(h, peerTags, peerTagCount);
+    h = LongHashingUtils.addToHash(h, additionalTags, additionalTagCount);
     h = LongHashingUtils.addToHash(h, httpStatusCode);
     h = LongHashingUtils.addToHash(h, synthetic);
     h = LongHashingUtils.addToHash(h, traceRoot);
