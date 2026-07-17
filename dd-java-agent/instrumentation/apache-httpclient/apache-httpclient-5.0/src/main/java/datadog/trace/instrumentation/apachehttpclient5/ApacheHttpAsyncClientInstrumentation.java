@@ -142,15 +142,17 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
       if (scope == null) {
         return;
       }
+      final AgentSpan span = scope.span();
       try {
         if (throwable != null) {
-          final AgentSpan span = scope.span();
           DECORATE.onError(span, throwable);
           DECORATE.beforeFinish(span);
-          span.finish();
         }
       } finally {
         scope.close();
+        if (throwable != null) {
+          span.finish();
+        }
       }
     }
   }

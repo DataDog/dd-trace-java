@@ -87,8 +87,9 @@ subprojects { Project subProj ->
       }
     }
 
-    if (subProj.path != ':dd-java-agent:instrumentation:vertx:vertx-redis-client:vertx-redis-client-stubs') {
-      // don't include the redis RequestImpl stubs
+    if (subProj.path != ':dd-java-agent:instrumentation:vertx:vertx-redis-client:vertx-redis-client-stubs'
+      && subProj.path != ':dd-java-agent:instrumentation:tibco-businessworks:tibco-businessworks-stubs') {
+      // don't include the redis or tibco stubs
       parent_project.dependencies {
         addProvider("implementation", providers.provider { project(subProj.path) })
       }
@@ -153,8 +154,9 @@ TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, S
       it.from(project.configurations.named("runtimeClasspath"))
       it.from(project.configurations.named('slf4j-simple'))
     }
-    it.inputs.files(it.classpath)
     it.outputs.dir(destinationDir)
+      .withPropertyName("indexDirectory")
+    it.outputs.cacheIf { true }
     it.argumentProviders.add(new CommandLineArgumentProvider() {
         @Override
         Iterable<String> asArguments() {

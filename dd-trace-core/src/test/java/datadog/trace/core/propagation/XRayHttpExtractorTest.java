@@ -13,7 +13,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
+import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;

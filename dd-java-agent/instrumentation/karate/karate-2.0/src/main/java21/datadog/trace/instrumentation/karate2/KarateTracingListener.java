@@ -6,8 +6,10 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -33,6 +35,12 @@ public class KarateTracingListener implements RunListener {
   private static final String FRAMEWORK_NAME = "karate";
   public static final String FRAMEWORK_VERSION = KarateUtils.getKarateVersion();
   public static final String KARATE_STEP_SPAN_NAME = "karate.step";
+
+  private final ContextStore<Scenario, ExecutionContext> scenarioContext;
+
+  public KarateTracingListener(ContextStore<Scenario, ExecutionContext> scenarioContext) {
+    this.scenarioContext = scenarioContext;
+  }
 
   @Override
   public boolean onEvent(RunEvent event) {
@@ -101,6 +109,9 @@ public class KarateTracingListener implements RunListener {
     String parameters = KarateUtils.getParameters(scenario);
     Collection<String> categories = KarateUtils.getCategories(scenario.getTagsEffective());
 
+    ExecutionContext context = scenarioContext.get(scenario);
+    TestExecutionTracker executionTracker = context != null ? context.getExecutionPolicy() : null;
+
     if (Config.get().isCiVisibilityTestSkippingEnabled()
         || Config.get().isCiVisibilityTestManagementEnabled()) {
       TestIdentifier skippableTest = KarateUtils.toTestIdentifier(scenario);
@@ -119,7 +130,7 @@ public class KarateTracingListener implements RunListener {
             categories,
             TestSourceData.UNKNOWN,
             skipReason.getDescription(),
-            null);
+            executionTracker);
         return false;
       }
     }
@@ -134,7 +145,7 @@ public class KarateTracingListener implements RunListener {
         categories,
         TestSourceData.UNKNOWN,
         null,
-        null);
+        executionTracker);
     return true;
   }
 
@@ -143,17 +154,23 @@ public class KarateTracingListener implements RunListener {
     if (skipTracking(sr)) {
       return;
     }
+    Scenario scenario = sr.getScenario();
     ScenarioResult result = event.result();
     TestDescriptor testDescriptor = KarateUtils.toTestDescriptor(sr);
 
-    Throwable failedReason = getFailedReason(result);
+    ExecutionContext context = scenarioContext.get(scenario);
+    Throwable suppressedError = context != null ? context.getAndClearSuppressedError() : null;
+    Throwable failedReason = getFailedReason(result, suppressedError);
+
     if ((result != null && result.isFailed()) || failedReason != null) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, failedReason);
     } else if (result == null || result.getStepResults().isEmpty()) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);
     }
 
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null, null);
+    TestExecutionTracker executionTracker = context != null ? context.getExecutionPolicy() : null;
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
+        testDescriptor, null, executionTracker);
   }
 
   private void beforeStep(StepRunEvent event) {
@@ -187,20 +204,21 @@ public class KarateTracingListener implements RunListener {
     span.finish();
   }
 
-  private static Throwable getFailedReason(ScenarioResult result) {
-    if (result == null) {
-      return null;
-    }
-    Throwable error = result.getError();
-    if (error != null) {
-      return error;
-    }
-    for (StepResult stepResult : result.getStepResults()) {
-      if (stepResult.getError() != null) {
-        return stepResult.getError();
+  private static Throwable getFailedReason(ScenarioResult result, Throwable suppressedError) {
+    if (result != null) {
+      Throwable error = result.getError();
+      if (error != null) {
+        return error;
+      }
+      for (StepResult stepResult : result.getStepResults()) {
+        if (stepResult.getError() != null) {
+          return stepResult.getError();
+        }
       }
     }
-    return null;
+    // a failure that was suppressed by the retry logic (the failing step was replaced with a
+    // skipped one) is carried out-of-band on the ExecutionContext
+    return suppressedError;
   }
 
   private static Throwable suiteThrowable(FeatureResult result) {
