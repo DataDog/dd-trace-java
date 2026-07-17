@@ -179,7 +179,7 @@ public class DDAgentWriter extends RemoteWriter {
               traceBufferSize,
               healthMetrics,
               dispatcher,
-              // allow custom dropping policy for OTLP but backup to feature discovery
+              // allow custom dropping policy for OTLP; otherwise fall back to feature discovery
               droppingPolicy != null ? droppingPolicy : featureDiscovery,
               null == prioritization ? FAST_LANE : prioritization,
               flushIntervalMilliseconds,

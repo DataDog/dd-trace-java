@@ -1,5 +1,8 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
+
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -27,9 +30,15 @@ public class MetricsAggregatorFactory {
       if (!config.isMetricsOtlpExporterEnabled()) {
         log.warn(
             "OTLP trace span metrics are enabled but the OTLP metrics exporter is not "
-                + "(metrics.otel.exporter is not 'otlp'); span metrics will still be exported over "
-                + "OTLP using the otlp.metrics.* transport settings. Set metrics.otel.exporter=otlp "
-                + "to make this explicit, or disable otel.traces.span.metrics.enabled to suppress them.");
+                + "("
+                + METRICS_OTEL_EXPORTER
+                + " is not 'otlp'); span metrics will still be exported over "
+                + "OTLP using the otlp.metrics.* transport settings. Set "
+                + METRICS_OTEL_EXPORTER
+                + "=otlp "
+                + "to make this explicit, or disable "
+                + OTEL_TRACES_SPAN_METRICS_ENABLED
+                + " to suppress them.");
       }
       log.debug("OTLP trace span metrics enabled");
       return new ClientStatsAggregator(
