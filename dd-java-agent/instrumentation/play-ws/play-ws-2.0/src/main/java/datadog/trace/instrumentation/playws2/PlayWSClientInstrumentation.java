@@ -49,9 +49,11 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
         final AgentSpan span = spanFromContext(scope.context());
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
+        scope.close();
         span.finish();
+      } else {
+        scope.close();
       }
-      scope.close();
     }
   }
 }

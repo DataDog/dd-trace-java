@@ -100,8 +100,8 @@ public final class SynapseServerWorkerInstrumentation extends InstrumenterModule
         scope.close();
         span.finish();
       } else {
-        // otherwise will be finished by a separate server response event
         scope.close();
+        // otherwise will be finished by a separate server response event
       }
     }
   }
