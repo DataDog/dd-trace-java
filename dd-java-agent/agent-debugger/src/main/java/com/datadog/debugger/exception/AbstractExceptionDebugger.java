@@ -198,7 +198,8 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
     String className = snapshot.getProbe().getLocation().getType();
     String methodName = snapshot.getProbe().getLocation().getMethod();
     if (innerTrace.length == 0) {
-      return true;
+      LOGGER.debug("innerTrace is empty");
+      return false;
     }
     if (currentIdx < 0 || currentIdx >= innerTrace.length) {
       LOGGER.warn(
