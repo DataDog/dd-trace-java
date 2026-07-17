@@ -95,8 +95,8 @@ class RxJava3Test extends AbstractInstrumentationTest {
         }
         throw new RuntimeException("Unknown publisher: " + publisher);
       } finally {
-        span.finish();
         scope.close();
+        span.finish();
       }
     }
 
@@ -509,8 +509,8 @@ class RxJava3Test extends AbstractInstrumentationTest {
             }
             throw new IllegalStateException("Unknown publisher type");
           } finally {
-            intermediate.finish();
             scope.close();
+            intermediate.finish();
           }
         });
 

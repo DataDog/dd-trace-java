@@ -90,12 +90,12 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
         }
       } finally {
         if (span != null) {
-          span.finish();
           if (scope != null) {
             scope.close();
           } else {
             // span was already active, scope will be closed by HandlerInstrumentation
           }
+          span.finish();
         }
       }
     }
