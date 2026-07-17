@@ -6096,9 +6096,8 @@ public class Config {
 
     List<String> flags = new ArrayList<>(configuredFlags.size());
     for (String configuredFlag : configuredFlags) {
-      String flag = configuredFlag.trim();
-      if (!flag.isEmpty()) {
-        flags.add(flag);
+      if (!configuredFlag.isEmpty()) {
+        flags.add(configuredFlag);
       }
     }
 
