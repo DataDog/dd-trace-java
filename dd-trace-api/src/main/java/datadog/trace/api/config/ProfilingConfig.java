@@ -124,7 +124,7 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER =
       "profiling.ddprof.wall.context.filter";
-  public static final boolean PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT = false;
+  public static final boolean PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT = true;
 
   public static final String PROFILING_DATADOG_PROFILER_WALL_PRECHECK =
       "profiling.ddprof.wall.precheck";

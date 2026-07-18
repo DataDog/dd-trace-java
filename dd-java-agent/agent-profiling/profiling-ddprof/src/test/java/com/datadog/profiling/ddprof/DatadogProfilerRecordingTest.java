@@ -78,6 +78,9 @@ class DatadogProfilerRecordingTest {
   void recordingLifecycleIsVisibleAcrossProfilerWrappers() {
     DatadogProfiler integrationProfiler = DatadogProfiler.newInstance();
 
+    // parkEnter() returns true whenever a recording is active, regardless of native hook support;
+    // assert the actual native park-hook capability resolved against the pinned ddprof artifact.
+    assertTrue(integrationProfiler.hasParkTaskBlockSupport());
     assertTrue(integrationProfiler.parkEnter());
     integrationProfiler.parkExit(0L, 0L);
   }

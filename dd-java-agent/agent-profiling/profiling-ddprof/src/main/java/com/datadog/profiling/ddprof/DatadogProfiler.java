@@ -15,6 +15,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getStackDepth;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallCollapsing;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextFilter;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallPrecheck;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
@@ -475,7 +476,7 @@ public final class DatadogProfiler {
       // accept filter. This cannot be feature-probed because unknown options are warnings, not
       // execution errors.
       cmd.append(contextScope ? ",filter=0,wallscope=context" : ",filter=,wallscope=all");
-      cmd.append(",wallprecheck=true");
+      cmd.append(",wallprecheck=").append(getWallPrecheck(configProvider));
     }
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
     if (profilingModes.contains(ALLOCATION) || profilingModes.contains(MEMLEAK)) {
@@ -551,10 +552,6 @@ public final class DatadogProfiler {
 
   void parkExit(long blocker, long unblockingSpanId) {
     taskBlockBridge.parkExit(blocker, unblockingSpanId);
-  }
-
-  boolean hasSynchronousTaskBlockSupport() {
-    return taskBlockBridge.hasSynchronousTaskBlockSupport();
   }
 
   long beginTaskBlock(int state) {
