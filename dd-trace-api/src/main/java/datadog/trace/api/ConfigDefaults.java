@@ -302,6 +302,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = true;
   static final boolean DEFAULT_SECURE_RANDOM = false;
 
+  static final boolean DEFAULT_TRACE_KAFKA_CREATE_CONSUMER_SCOPE_ENABLED = false;
+
   public static final int DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH = 512;
 
   static final boolean DEFAULT_TRACE_HTTP_RESOURCE_REMOVE_TRAILING_SLASH = false;

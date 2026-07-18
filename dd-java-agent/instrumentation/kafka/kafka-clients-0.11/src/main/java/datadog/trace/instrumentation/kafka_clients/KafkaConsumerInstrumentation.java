@@ -123,7 +123,13 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
             KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
         iterable =
             new TracingIterable(
-                iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId, bootstrapServers);
+                iterable,
+                KAFKA_CONSUME,
+                CONSUMER_DECORATE,
+                group,
+                clusterId,
+                bootstrapServers,
+                kafkaConsumerInfo);
       }
     }
   }
@@ -145,7 +151,13 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
             KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
         iterable =
             new TracingList(
-                iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId, bootstrapServers);
+                iterable,
+                KAFKA_CONSUME,
+                CONSUMER_DECORATE,
+                group,
+                clusterId,
+                bootstrapServers,
+                kafkaConsumerInfo);
       }
     }
   }
@@ -167,7 +179,13 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
             KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
         iterator =
             new TracingIterator(
-                iterator, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId, bootstrapServers);
+                iterator,
+                KAFKA_CONSUME,
+                CONSUMER_DECORATE,
+                group,
+                clusterId,
+                bootstrapServers,
+                kafkaConsumerInfo);
       }
     }
   }

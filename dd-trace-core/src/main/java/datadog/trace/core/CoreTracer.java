@@ -1192,6 +1192,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
+  public void closeLingeringIterationScope() {
+    scopeManager.closeLingeringIterationScope();
+  }
+
+  @Override
   public AgentScope activateNext(AgentSpan span) {
     if (!InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
       throw new IllegalStateException(

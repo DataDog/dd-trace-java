@@ -30,7 +30,8 @@ public class IteratorAdvice {
               KafkaDecorator.CONSUMER_DECORATE,
               group,
               clusterId,
-              bootstrapServers);
+              bootstrapServers,
+              kafkaConsumerInfo);
     }
   }
 }

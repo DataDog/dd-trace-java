@@ -100,5 +100,12 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
             .and(takesArguments(1))
             .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecords"))),
         packageName + ".RecordsAdvice");
+    // close()/unsubscribe() end the poll loop for good, so a consume span deferred past the last
+    // poll must be finished here rather than left dangling.
+    transformer.applyAdvice(
+        isMethod().and(isPublic()).and(named("close")), packageName + ".ConsumerCloseAdvice");
+    transformer.applyAdvice(
+        isMethod().and(isPublic()).and(named("unsubscribe")).and(takesArguments(0)),
+        packageName + ".ConsumerCloseAdvice");
   }
 }

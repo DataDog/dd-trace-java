@@ -153,6 +153,14 @@ public class AgentTracer {
   }
 
   /**
+   * Silently closes a lingering iteration scope, if one is at the top of the stack. Safe to call
+   * speculatively (e.g. on every poll) since it is a quiet no-op when there is nothing to close.
+   */
+  public static void closeLingeringIterationScope() {
+    get().closeLingeringIterationScope();
+  }
+
+  /**
    * Activates a new iteration scope; closes automatically after a fixed period.
    *
    * @see datadog.trace.api.config.TracerConfig#SCOPE_ITERATION_KEEP_ALIVE
@@ -345,6 +353,8 @@ public class AgentTracer {
 
     void closePrevious(boolean finishSpan);
 
+    void closeLingeringIterationScope();
+
     AgentScope activateNext(AgentSpan span);
 
     AgentSpan activeSpan();
@@ -529,6 +539,9 @@ public class AgentTracer {
 
     @Override
     public void closePrevious(final boolean finishSpan) {}
+
+    @Override
+    public void closeLingeringIterationScope() {}
 
     @Override
     public AgentScope activateNext(final AgentSpan span) {

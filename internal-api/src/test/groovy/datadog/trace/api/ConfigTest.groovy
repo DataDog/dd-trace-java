@@ -94,6 +94,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
+import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CREATE_CONSUMER_SCOPE_ENABLED
 import static datadog.trace.api.config.TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST
@@ -3477,5 +3478,18 @@ class ConfigTest extends DDSpecification {
     "false" | false
     "1"     | true
     "0"     | false
+  }
+
+  def "kafka create consumer scope enabled defaults to false"() {
+    expect:
+    !Config.get().isKafkaCreateConsumerScopeEnabled()
+  }
+
+  def "kafka create consumer scope enabled can be enabled via system property"() {
+    setup:
+    injectSysConfig(KAFKA_CREATE_CONSUMER_SCOPE_ENABLED, "true")
+
+    expect:
+    Config.get().isKafkaCreateConsumerScopeEnabled()
   }
 }

@@ -42,6 +42,7 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import java.util.concurrent.ExecutionException
@@ -163,6 +164,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
 
   String operationForConsumer() {
     "kafka.consume"
+  }
+
+  // when true, the consumer-scope-deferring flag is enabled for this variant, so same-thread
+  // post-loop work is expected to nest under the last record's consume span
+  boolean deferConsumerScope() {
+    false
   }
 
   String serviceForTimeInQueue() {
@@ -594,6 +601,10 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container?.stop()
   }
 
+  // when the scope is deferred, the single (and therefore last) record's consume span is left
+  // active past the loop instead of flushing immediately, so this test's immediate-flush
+  // assumption does not hold; the dedicated deferred-close cases cover the ON behavior
+  @IgnoreIf({ instance.deferConsumerScope() })
   def "test records(TopicPartition) kafka consume"() {
     setup:
     // set up the Kafka consumer properties
@@ -648,6 +659,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     producer.close()
   }
 
+  // see the deferred-scope note on "test records(TopicPartition) kafka consume" above
+  @IgnoreIf({ instance.deferConsumerScope() })
   def "test records(TopicPartition).subList kafka consume"() {
     setup:
     // set up the Kafka consumer properties
@@ -703,6 +716,8 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     producer.close()
   }
 
+  // see the deferred-scope note on "test records(TopicPartition) kafka consume" above
+  @IgnoreIf({ instance.deferConsumerScope() })
   def "test records(TopicPartition).forEach kafka consume"() {
     setup:
     // set up the Kafka consumer properties
@@ -758,6 +773,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     producer.close()
   }
 
+  // the final forward and final backward record are each "last" for their direction, so both leave
+  // a deferred, still-active consume span behind when the flag is on
+  @IgnoreIf({ instance.deferConsumerScope() })
   def "test iteration backwards over ConsumerRecords"() {
     setup:
     def kafkaPartition = 0
@@ -864,6 +882,346 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     consumer.close()
     producer.close()
+  }
+
+  // when a consumer buffers records and writes to the database *after* the per-record iterator
+  // loop, the write span is disconnected from the consume span unless the scope is deferred
+  def "test work done after the consume loop is disconnected from the consume span"() {
+    setup:
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(senderProps)
+
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    when:
+    def greeting = "Hello from MockConsumer!"
+    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, greeting))
+    TEST_WRITER.waitForTraces(1)
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+
+    // No DB work inside the iterator loop -- payloads are only buffered here.
+    def buffer = []
+    for (record in pollResult) {
+      buffer.add(record.value())
+    }
+    // "db.write" stands in for the application's database write, run after the consume loop.
+    buffer.each {
+      runUnderTrace("db.write") {}
+    }
+
+    then:
+    // the produced record was actually consumed (fail clearly here instead of timing out below)
+    buffer.size() == 1
+    // producer trace + consume trace (+ queue span, same trace) + the db.write trace -- when
+    // deferConsumerScope() is enabled, the db.write merges into the still-open consume span's
+    // trace instead of flushing as its own.
+    TEST_WRITER.waitForTraces(deferConsumerScope() ? 2 : 3)
+    List<DDSpan> spans = TEST_WRITER.flatten()
+    def consumeSpan = spans.find {
+      it.operationName.toString() == operationForConsumer()
+    }
+    def dbWriteSpan = spans.find {
+      it.operationName.toString() == "db.write"
+    }
+
+    consumeSpan != null
+    dbWriteSpan != null
+
+    if (!deferConsumerScope()) {
+      // bug: the DB write is its own root trace, not a child of the consume span, and the consume
+      // span is left childless
+      assert dbWriteSpan.parentId == 0
+      assert dbWriteSpan.traceId != consumeSpan.traceId
+      assert spans.every {
+        it.parentId != consumeSpan.spanId
+      }
+    } else {
+      // fixed: the post-loop DB write nests under the deferred consume span
+      assert dbWriteSpan.traceId == consumeSpan.traceId
+      assert dbWriteSpan.parentId == consumeSpan.spanId
+    }
+
+    cleanup:
+    consumer.close()
+    producer.close()
+  }
+
+  // with N buffered records and a single post-loop flush, only the LAST record's consume span
+  // should stay open long enough to parent the flush; records 1..N-1 still get independent spans
+  @IgnoreIf({ !instance.deferConsumerScope() })
+  def "test single post-loop write nests under the last record's consume span when consumer scope is deferred"() {
+    setup:
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(senderProps)
+
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    when:
+    def recordCount = 3
+    (0..<recordCount).each {
+      producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, "greeting-$it".toString())).get()
+    }
+    TEST_WRITER.waitForTraces(recordCount)
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+
+    def buffer = []
+    for (record in pollResult) {
+      buffer.add(record.value())
+    }
+    // Single flush after the whole batch, standing in for a buffered DB write.
+    runUnderTrace("db.write") {}
+
+    then:
+    buffer.size() == recordCount
+    // recordCount producer traces + (recordCount - 1) independent early-record consume traces +
+    // one merged trace for the last record's consume span and the db.write it now parents.
+    TEST_WRITER.waitForTraces(2 * recordCount)
+    List<DDSpan> spans = TEST_WRITER.flatten()
+    def consumeSpans = spans.findAll {
+      it.operationName.toString() == operationForConsumer()
+    }.sort { it.getTag(InstrumentationTags.OFFSET) as int }
+    def dbWriteSpan = spans.find {
+      it.operationName.toString() == "db.write"
+    }
+
+    consumeSpans.size() == recordCount
+    dbWriteSpan != null
+    def lastConsumeSpan = consumeSpans.last()
+    def earlierConsumeSpans = consumeSpans[0..-2]
+
+    dbWriteSpan.traceId == lastConsumeSpan.traceId
+    dbWriteSpan.parentId == lastConsumeSpan.spanId
+    earlierConsumeSpans.every {
+      it.traceId != lastConsumeSpan.traceId
+    }
+
+    cleanup:
+    consumer?.close()
+    producer?.close()
+  }
+
+  // close trigger #1: a second poll() must finish the previous batch's lingering consume span
+  // (its trace flushes) without the new poll cycle's work nesting under it
+  @IgnoreIf({ !instance.deferConsumerScope() })
+  def "test a second poll() finishes the previous lingering consume span without nesting under it"() {
+    setup:
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(senderProps)
+
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    when:
+    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, "first")).get()
+    TEST_WRITER.waitForTraces(1)
+    def firstBatch = KafkaTestUtils.getRecords(consumer)
+    for (record in firstBatch) {
+      // no-op: iterating to the end is what arms the deferred close for this batch's last record
+    }
+    DDSpan lingering = (DDSpan) activeSpan()
+
+    // Send from a separate thread: the first record's consume span is deliberately still active
+    // (lingering) on this thread, and we don't want it to become the ambient parent of the
+    // "second" message's own producer span (which would then propagate into its consume span via
+    // the Kafka header trace context and defeat this test's own assertions below).
+    Thread.start {
+      producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, "second")).get()
+    }.join()
+    TEST_WRITER.waitForTraces(2)
+    def secondBatch = KafkaTestUtils.getRecords(consumer)
+    def secondValues = []
+    for (record in secondBatch) {
+      secondValues.add(record.value())
+    }
+    // the second batch's only record is itself now the last record of its loop, so it is left
+    // lingering too (armed for its own deferred close) -- grab it directly instead of relying on
+    // TEST_WRITER, which won't have flushed it yet.
+    DDSpan secondLingering = (DDSpan) activeSpan()
+
+    then:
+    firstBatch.count() == 1
+    secondValues == ["second"]
+    lingering != null
+    lingering.operationName.toString() == operationForConsumer()
+    // the second poll() closes the first batch's lingering span, flushing its trace, without the
+    // second batch's own (still-lingering) consume span nesting under it
+    TEST_WRITER.waitUntilReported(lingering, 10, TimeUnit.SECONDS)
+    lingering.isFinished()
+    secondLingering != null
+    secondLingering.operationName.toString() == operationForConsumer()
+    secondLingering.traceId != lingering.traceId
+    secondLingering.parentId != lingering.spanId
+
+    cleanup:
+    consumer?.close()
+    producer?.close()
+  }
+
+  // close trigger #2: with no further poll(), consumer.close() must finish a lingering consume span
+  @IgnoreIf({ !instance.deferConsumerScope() })
+  def "test consumer close() finishes a lingering consume span"() {
+    setup:
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(senderProps)
+
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    when:
+    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, "greeting")).get()
+    TEST_WRITER.waitForTraces(1)
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+    for (record in pollResult) {
+      // no-op: iterating to the end is what arms the deferred close for the last record
+    }
+    DDSpan lingering = (DDSpan) activeSpan()
+    consumer.close()
+
+    then:
+    pollResult.count() == 1
+    lingering != null
+    lingering.operationName.toString() == operationForConsumer()
+    TEST_WRITER.waitUntilReported(lingering, 10, TimeUnit.SECONDS)
+    lingering.isFinished()
+
+    cleanup:
+    producer?.close()
+  }
+
+  // owner-aware cleanup: a consume span deferred while iterating on one thread must still be
+  // finished by a close() that runs on a different thread, where it is not top-of-stack
+  @IgnoreIf({ !instance.deferConsumerScope() })
+  def "test a consume span deferred on a worker thread is finished by a close on another thread"() {
+    setup:
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(senderProps)
+
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    when:
+    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, "greeting")).get()
+    TEST_WRITER.waitForTraces(1)
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+
+    // iterate on a worker thread so the deferred consume span is left active there, never
+    // top-of-stack on the main thread that closes the consumer
+    DDSpan lingering = null
+    Thread.start {
+      for (record in pollResult) {
+        // no-op: iterating to the end arms the deferred close for the last record
+      }
+      lingering = (DDSpan) activeSpan()
+    }.join()
+
+    consumer.close()
+
+    then:
+    pollResult.count() == 1
+    lingering != null
+    lingering.operationName.toString() == operationForConsumer()
+    // only the per-consumer owner-aware handle can reach this span from the closing thread
+    TEST_WRITER.waitUntilReported(lingering, 10, TimeUnit.SECONDS)
+    lingering.isFinished()
+
+    cleanup:
+    producer?.close()
+  }
+
+  // leak safety: with no further poll(), close(), or unsubscribe(), the native
+  // RootIterationScopeCleaner (scope-iteration keep-alive) must still eventually finish a lingering
+  // consume span within a bounded window
+  @IgnoreIf({ !instance.deferConsumerScope() })
+  def "test a lingering consume span is eventually finished with no further trigger"() {
+    setup:
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(senderProps)
+
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    when:
+    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, "greeting")).get()
+    TEST_WRITER.waitForTraces(1)
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+    for (record in pollResult) {
+      // no-op: iterating to the end is what defers the last record's consume scope
+    }
+    DDSpan lingering = (DDSpan) activeSpan()
+
+    then:
+    pollResult.count() == 1
+    lingering != null
+    !lingering.isFinished()
+    // no further poll()/close()/unsubscribe() ever arrives -- the native iteration-scope cleaner
+    // (keep-alive) is what finishes this
+    TEST_WRITER.waitUntilReported(lingering, 10, TimeUnit.SECONDS)
+    lingering.isFinished()
+
+    cleanup:
+    consumer?.close()
+    producer?.close()
+  }
+
+  // committing offsets must NOT be treated as a close trigger -- the lingering consume span must
+  // still be open immediately after a commitSync() call
+  @IgnoreIf({ !instance.deferConsumerScope() })
+  def "test committing offsets does not finish a lingering consume span"() {
+    setup:
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(senderProps)
+
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    when:
+    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, "greeting")).get()
+    TEST_WRITER.waitForTraces(1)
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+    for (record in pollResult) {
+      // no-op: iterating to the end is what arms the deferred close for the last record
+    }
+    DDSpan lingering = (DDSpan) activeSpan()
+    consumer.commitSync()
+
+    then:
+    pollResult.count() == 1
+    lingering != null
+    !lingering.isFinished()
+
+    cleanup:
+    consumer?.close()
+    producer?.close()
   }
 
   def "test spring kafka template produce and batch consume"() {
@@ -1547,6 +1905,39 @@ class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
+  }
+}
+
+// exercises DD_TRACE_KAFKA_CREATE_CONSUMER_SCOPE_ENABLED=true in LEGACY context-manager mode (the
+// only mode the flag defers in). A short scope-iteration keep-alive is injected so the native
+// RootIterationScopeCleaner reaps a lingering consume span quickly when no further trigger arrives.
+class KafkaClientCreateConsumerScopeForkedTest extends KafkaClientV0ForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.KAFKA_CREATE_CONSUMER_SCOPE_ENABLED, "true")
+    injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1")
+  }
+
+  @Override
+  boolean deferConsumerScope() {
+    true
+  }
+}
+
+// with the flag on but the NEW context-swap manager active, the deferred consumer scope is
+// intentionally NOT engaged -- that manager has no native cross-thread-safe cleanup for a lingering
+// scope -- so behavior matches flag-off. deferConsumerScope() stays false to assert that.
+class KafkaClientCreateConsumerScopeContextSwapForkedTest extends KafkaClientCreateConsumerScopeForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
+  }
+
+  @Override
+  boolean deferConsumerScope() {
+    false
   }
 }
 
