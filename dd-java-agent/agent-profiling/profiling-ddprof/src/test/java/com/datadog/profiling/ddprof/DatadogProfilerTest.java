@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.openjdk.jmc.common.item.IItemCollection;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 import org.slf4j.Logger;
@@ -158,11 +159,13 @@ class DatadogProfilerTest {
     assertTrue(cmd.contains("wall="), "Command should contain wall profiling: " + cmd);
     assertTrue(cmd.contains(",filter=" + expectedFilter + ",wallscope="), cmd);
     assertTrue(cmd.contains(",wallscope=" + expectedWallScope), cmd);
-    assertTrue(cmd.contains(",wallprecheck=true"), cmd);
+    // Wall precheck is not enabled in this test, so it must reflect the disabled default.
+    assertTrue(cmd.contains(",wallprecheck=false"), cmd);
   }
 
-  @Test
-  void testWallPrecheckIsAlwaysEnabled() throws Exception {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void testWallPrecheckTracksConfig(boolean precheckEnabled) throws Exception {
     try {
       Throwable reason = DdprofLibraryLoader.jvmAccess().getReasonNotLoaded();
       if (reason != null) {
@@ -174,7 +177,9 @@ class DatadogProfilerTest {
 
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED, "true");
-    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_PRECHECK, "false");
+    props.put(
+        ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_PRECHECK,
+        Boolean.toString(precheckEnabled));
 
     DatadogProfiler profiler =
         DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
@@ -183,7 +188,7 @@ class DatadogProfilerTest {
     String cmd = profiler.cmdStartProfiling(targetFile);
 
     assertTrue(cmd.contains("wall="), cmd);
-    assertTrue(cmd.contains(",wallprecheck=true"), cmd);
+    assertTrue(cmd.contains(",wallprecheck=" + precheckEnabled), cmd);
   }
 
   private static Stream<Arguments> wallContextFilterModes() {

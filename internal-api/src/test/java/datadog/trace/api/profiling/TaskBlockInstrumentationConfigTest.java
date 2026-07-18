@@ -72,7 +72,9 @@ class TaskBlockInstrumentationConfigTest {
     assertFalse(
         TaskBlockInstrumentationConfig.isEnabled(
             config(true), ConfigProvider.withPropertiesOverride(new Properties())));
-    assertTrue(
+    // The wall-clock context filter defaults to true (context-filtered sampling), so the default
+    // scope is not all-threads.
+    assertFalse(
         TaskBlockInstrumentationConfig.isAllThreadWallScope(
             ConfigProvider.withPropertiesOverride(new Properties())));
   }
