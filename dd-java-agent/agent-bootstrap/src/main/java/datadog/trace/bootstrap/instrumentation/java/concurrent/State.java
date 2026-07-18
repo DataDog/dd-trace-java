@@ -3,9 +3,9 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
 
+import datadog.context.ContextContinuation;
 import datadog.trace.api.profiling.Timing;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
@@ -13,11 +13,11 @@ public final class State {
 
   public static ContextStore.Factory<State> FACTORY = State::new;
 
-  private static final AtomicReferenceFieldUpdater<State, AgentScope.Continuation> CONTINUATION =
+  private static final AtomicReferenceFieldUpdater<State, ContextContinuation> CONTINUATION =
       AtomicReferenceFieldUpdater.newUpdater(
-          State.class, AgentScope.Continuation.class, "continuation");
+          State.class, ContextContinuation.class, "continuation");
 
-  private volatile AgentScope.Continuation continuation = null;
+  private volatile ContextContinuation continuation = null;
 
   private static final AtomicReferenceFieldUpdater<State, Timing> TIMING =
       AtomicReferenceFieldUpdater.newUpdater(State.class, Timing.class, "timing");
@@ -40,34 +40,34 @@ public final class State {
     return false;
   }
 
-  public boolean setOrCancelContinuation(final AgentScope.Continuation continuation) {
+  public boolean setOrCancelContinuation(final ContextContinuation continuation) {
     if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
       // lazy write is guaranteed to be seen by getAndSet
       CONTINUATION.lazySet(this, continuation);
       return true;
     } else {
-      continuation.cancel();
+      continuation.release();
       return false;
     }
   }
 
   public void closeContinuation() {
-    AgentScope.Continuation continuation = getAndResetContinuation();
+    ContextContinuation continuation = getAndResetContinuation();
     if (null != continuation) {
-      continuation.cancel();
+      continuation.release();
     }
   }
 
   public AgentSpan getSpan() {
-    AgentScope.Continuation continuation = CONTINUATION.get(this);
-    if (null != continuation) {
-      return continuation.span();
+    ContextContinuation continuation = CONTINUATION.get(this);
+    if (null == continuation || CLAIMED == continuation) {
+      return null;
     }
-    return null;
+    return AgentSpan.fromContext(continuation.context());
   }
 
-  public AgentScope.Continuation getAndResetContinuation() {
-    AgentScope.Continuation continuation = CONTINUATION.get(this);
+  public ContextContinuation getAndResetContinuation() {
+    ContextContinuation continuation = CONTINUATION.get(this);
     if (null == continuation || CLAIMED == continuation) {
       return null;
     }

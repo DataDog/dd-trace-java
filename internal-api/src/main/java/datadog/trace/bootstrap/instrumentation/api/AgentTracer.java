@@ -92,7 +92,7 @@ public class AgentTracer {
    *     asynchronous propagation is disabled.
    */
   @Nonnull
-  public static AgentScope.Continuation captureActiveSpan() {
+  public static ContextContinuation captureActiveSpan() {
     return get().captureActiveSpan();
   }
 
@@ -105,7 +105,7 @@ public class AgentTracer {
    * @return Continuation of the given span.
    */
   @Nonnull
-  public static AgentScope.Continuation captureSpan(final AgentSpan span) {
+  public static ContextContinuation captureSpan(final AgentSpan span) {
     return get().captureSpan(span);
   }
 
@@ -244,6 +244,7 @@ public class AgentTracer {
    *
    * @return the noop continuation instance.
    */
+  @SuppressWarnings("deprecation")
   public static AgentScope.Continuation noopContinuation() {
     return NoopContinuation.INSTANCE;
   }
@@ -333,9 +334,10 @@ public class AgentTracer {
     void activateSpanWithoutScope(AgentSpan span);
 
     @Override
+    @SuppressWarnings("deprecation")
     AgentScope.Continuation captureActiveSpan();
 
-    AgentScope.Continuation captureSpan(AgentSpan span);
+    ContextContinuation captureSpan(AgentSpan span);
 
     void checkpointActiveForRollback();
 
@@ -501,12 +503,13 @@ public class AgentTracer {
     public void activateSpanWithoutScope(final AgentSpan span) {}
 
     @Override
+    @SuppressWarnings("deprecation")
     public AgentScope.Continuation captureActiveSpan() {
       return NoopContinuation.INSTANCE;
     }
 
     @Override
-    public AgentScope.Continuation captureSpan(final AgentSpan span) {
+    public ContextContinuation captureSpan(final AgentSpan span) {
       return NoopContinuation.INSTANCE;
     }
 
@@ -698,10 +701,10 @@ public class AgentTracer {
     public static final NoopAgentTraceCollector INSTANCE = new NoopAgentTraceCollector();
 
     @Override
-    public void registerContinuation(final AgentScope.Continuation continuation) {}
+    public void registerContinuation(final ContextContinuation continuation) {}
 
     @Override
-    public void removeContinuation(final AgentScope.Continuation continuation) {}
+    public void removeContinuation(final ContextContinuation continuation) {}
   }
 
   /** TraceConfig when there is no tracer; this is not the same as a default config. */

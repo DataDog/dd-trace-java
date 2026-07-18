@@ -5,9 +5,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpa
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -64,13 +65,13 @@ public class PromiseHelper {
   }
 
   /**
-   * Activate the {@code AgentScope} stored in the {@code State} for the active task, if any, and
-   * mark migration accordingly.
+   * Activate the {@code Context} stored in the {@code State} for the active task, if any, and mark
+   * migration accordingly.
    *
    * @param state the State related to the task becoming active.
-   * @return tha active AgentScope
+   * @return the active ContextScope
    */
-  public static AgentScope runActivateSpan(State state) {
+  public static ContextScope runActivateSpan(State state) {
     if (state == null) {
       return null;
     }
@@ -109,8 +110,8 @@ public class PromiseHelper {
       if (null != state && state.getSpan() == span) {
         return state;
       }
-      AgentScope.Continuation continuation = captureSpan(span);
-      AgentScope.Continuation existing = null;
+      ContextContinuation continuation = captureSpan(span);
+      ContextContinuation existing = null;
       if (null != state) {
         existing = state.getAndResetContinuation();
       } else {
@@ -119,7 +120,7 @@ public class PromiseHelper {
       }
       state.setOrCancelContinuation(continuation);
       if (null != existing) {
-        existing.cancel();
+        existing.release();
       }
     }
     return state;
