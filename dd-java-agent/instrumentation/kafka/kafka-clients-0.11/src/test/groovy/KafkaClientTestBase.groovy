@@ -45,7 +45,9 @@ import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 
+import java.util.concurrent.Callable
 import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -170,6 +172,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   // post-loop work is expected to nest under the last record's consume span
   boolean deferConsumerScope() {
     false
+  }
+
+  // whether this variant runs under the legacy context manager (which has the iteration-keep-alive
+  // timer backstop); false for the context-swap manager, which has no such backstop
+  boolean legacyContextManager() {
+    true
   }
 
   String serviceForTimeInQueue() {
@@ -913,6 +921,10 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     buffer.each {
       runUnderTrace("db.write") {}
     }
+    // close() is a deferred-scope trigger: it finishes the lingering consume span so the (possibly
+    // merged) trace flushes deterministically, without relying on the iteration-keep-alive timer
+    // (which the context-swap manager does not have).
+    consumer.close()
 
     then:
     // the produced record was actually consumed (fail clearly here instead of timing out below)
@@ -980,6 +992,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     }
     // Single flush after the whole batch, standing in for a buffered DB write.
     runUnderTrace("db.write") {}
+    // close() finishes the lingering last-record consume span so its merged trace flushes
+    // deterministically (the context-swap manager has no iteration-keep-alive timer backstop).
+    consumer.close()
 
     then:
     buffer.size() == recordCount
@@ -1150,10 +1165,53 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     producer?.close()
   }
 
-  // leak safety: with no further poll(), close(), or unsubscribe(), the native
-  // RootIterationScopeCleaner (scope-iteration keep-alive) must still eventually finish a lingering
-  // consume span within a bounded window
+  // owner-aware cleanup across a *reused* worker thread: even when records are iterated on a pooled
+  // executor thread, a later close() finishes the exact deferred span via the per-consumer handle.
+  // (The executor thread's own context is not restored cross-thread -- a documented context-swap
+  // limitation -- so only the finish guarantee is asserted.)
   @IgnoreIf({ !instance.deferConsumerScope() })
+  def "test a consume span deferred on a reused executor thread is finished by a later close"() {
+    setup:
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer(senderProps)
+
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+    def executor = Executors.newSingleThreadExecutor()
+
+    when:
+    producer.send(new ProducerRecord<Integer, String>(SHARED_TOPIC, kafkaPartition, null, "greeting")).get()
+    TEST_WRITER.waitForTraces(1)
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+
+    DDSpan lingering = executor.submit({
+      ->
+      for (record in pollResult) {
+      }
+      (DDSpan) activeSpan()
+    } as Callable).get()
+
+    consumer.close()
+
+    then:
+    pollResult.count() == 1
+    lingering != null
+    lingering.operationName.toString() == operationForConsumer()
+    TEST_WRITER.waitUntilReported(lingering, 10, TimeUnit.SECONDS)
+    lingering.isFinished()
+
+    cleanup:
+    executor?.shutdownNow()
+    producer?.close()
+  }
+
+  // legacy-manager only -- the context-swap manager has no iteration-keep-alive backstop (the
+  // deferred span is finished on the next poll/close/unsubscribe instead)
+  @IgnoreIf({ !instance.deferConsumerScope() || !instance.legacyContextManager() })
   def "test a lingering consume span is eventually finished with no further trigger"() {
     setup:
     def kafkaPartition = 0
@@ -1550,6 +1608,10 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     recs.next().value() == "test-dsm-consume-transaction"
     !recs.hasNext()
 
+    // finish the (possibly deferred) consume span so its trace flushes deterministically, without
+    // relying on the iteration-keep-alive timer (absent under the context-swap manager)
+    consumer.close()
+
     // The consume span is created by TracingIterator when iterating over records
     // Find the consumer span with the DSM transaction tags
     TEST_WRITER.waitForTraces(2)
@@ -1906,6 +1968,11 @@ class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
     super.configurePreAgent()
     injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
+
+  @Override
+  boolean legacyContextManager() {
+    false
+  }
 }
 
 // exercises DD_TRACE_KAFKA_CREATE_CONSUMER_SCOPE_ENABLED=true in LEGACY context-manager mode (the
@@ -1925,9 +1992,9 @@ class KafkaClientCreateConsumerScopeForkedTest extends KafkaClientV0ForkedTest {
   }
 }
 
-// with the flag on but the NEW context-swap manager active, the deferred consumer scope is
-// intentionally NOT engaged -- that manager has no native cross-thread-safe cleanup for a lingering
-// scope -- so behavior matches flag-off. deferConsumerScope() stays false to assert that.
+// the flag on under the NEW context-swap manager: the consumer scope is deferred here too (via the
+// owner-aware handle + a context swap-back on the next poll/close/unsubscribe), so deferConsumerScope()
+// stays true. legacyContextManager() is false because this manager has no iteration-keep-alive backstop.
 class KafkaClientCreateConsumerScopeContextSwapForkedTest extends KafkaClientCreateConsumerScopeForkedTest {
   @Override
   void configurePreAgent() {
@@ -1936,7 +2003,7 @@ class KafkaClientCreateConsumerScopeContextSwapForkedTest extends KafkaClientCre
   }
 
   @Override
-  boolean deferConsumerScope() {
+  boolean legacyContextManager() {
     false
   }
 }

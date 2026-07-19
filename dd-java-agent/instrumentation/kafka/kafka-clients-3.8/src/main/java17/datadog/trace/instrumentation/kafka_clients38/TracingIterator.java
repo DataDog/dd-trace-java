@@ -117,7 +117,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           // handle so a later poll()/close()/unsubscribe() finishes it
           captureDeferredConsumeSpan();
         }
-      } else if (val == null) { // previous message span was the last (new mode never defers)
+      } else if (val == null) { // previous message span was the last
         final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
         if (previousSpan != null) {
           previousSpan.finishWithEndToEnd();

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
+import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
@@ -10,10 +11,9 @@ import org.apache.kafka.clients.Metadata;
 
 public class KafkaConsumerInstrumentationHelper {
 
-  /** Deferring the consumer scope is only supported under the legacy context manager. */
+  /** Whether the last record's consume span should be kept active past the poll loop. */
   public static boolean shouldDeferConsumerScope() {
-    return Config.get().isKafkaCreateConsumerScopeEnabled()
-        && InstrumenterConfig.get().isLegacyContextManagerEnabled();
+    return Config.get().isKafkaCreateConsumerScopeEnabled();
   }
 
   public static String extractGroup(KafkaConsumerInfo kafkaConsumerInfo) {
@@ -42,19 +42,26 @@ public class KafkaConsumerInstrumentationHelper {
 
   /**
    * Finishes the {@code kafka.consume} span deliberately left active past the poll loop when
-   * consumer-scope deferral is enabled. Safe to call from any consumer entry point (poll, close,
-   * unsubscribe).
+   * consumer-scope deferral is enabled, restoring the caller's context. Safe to call from any
+   * consumer entry point (poll, close, unsubscribe).
    */
   public static void closeLingeringConsumeScope(KafkaConsumerInfo info) {
     if (!shouldDeferConsumerScope()) {
       return;
     }
-    // clean same-thread pop when the lingering scope is still top-of-stack (restores context)
+    // restore the caller's context when the lingering consume span is still active on this thread
     AgentSpan active = AgentTracer.activeSpan();
     if (active != null && KafkaDecorator.KAFKA_CONSUME.equals(active.getOperationName())) {
-      AgentTracer.closeLingeringIterationScope();
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        AgentTracer.closeLingeringIterationScope();
+      } else {
+        AgentSpan swappedOut = AgentSpan.fromContext(Context.root().swap());
+        if (swappedOut != null) {
+          swappedOut.finishWithEndToEnd();
+        }
+      }
     }
-    // owner-aware: finish the exact deferred span regardless of thread/stack (CAS-safe if already
+    // owner-aware: finish the exact deferred span regardless of thread/context (CAS-safe if already
     // finished)
     if (info != null) {
       AgentSpan deferred = info.getAndClearDeferredConsumeSpan();
