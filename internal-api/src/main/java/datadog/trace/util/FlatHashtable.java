@@ -17,31 +17,37 @@ import java.util.function.Consumer;
  * key/hash/value arrays would create — no {@code volatile}, no atomics — as long as the payload is
  * one where a stale/lost read is benign (miss → recreate; clobber → one wins).
  *
- * <p><b>Two strategies, split by concern.</b> The per-use policy is two {@link Strategy strategy}
- * objects rather than one:
+ * <p><b>Strategy roles, split by concern.</b> The per-use policy is a small set of {@link Strategy
+ * strategy} objects rather than one, so a caller supplies only what an operation needs:
  *
  * <ul>
- *   <li>a {@link KeyStrategy} — how to {@link KeyStrategy#hash hash} a lookup key and {@link
- *       KeyStrategy#matches match} it against a stored entry. Key-identity is intrinsic to the key
- *       <i>type</i>, so this is shared and reused (one {@link StringKeyStrategy} serves every
- *       String-keyed table); it is on the hot path (every probe), so it is an abstract class held
- *       as a concrete-typed {@code static final} constant to specialize (see {@link Strategy}).
- *   <li>a {@link CreateStrategy} — how to mint an entry for a key. Creation varies per use case and
- *       is on the cold path (once per key, at warmup), so it is a {@link FunctionalInterface} you
- *       can supply as a <i>non-capturing</i> lambda.
+ *   <li>a {@link MatchingStrategy} — the <i>key side</i>: {@link MatchingStrategy#hashKey hash a
+ *       lookup key} (defaults to {@code hashCode}) and {@link MatchingStrategy#matches match} it
+ *       against a stored entry. Used by {@link #get} / {@link #getOrCreate}.
+ *   <li>a {@link HashStrategy} — the <i>entry side</i>: {@link HashStrategy#hashOf hash a stored
+ *       entry}. Used by {@link #insert} / {@link #iterator} / {@link #resize} (which have an entry,
+ *       not a key). For {@link Entry}-based tables this is just the cached {@link Entry#hash}, so
+ *       those get dedicated overloads that need no strategy at all.
+ *   <li>an {@link EntryStrategy} — both of the above, for a user that does lookups <i>and</i>
+ *       inserts; extend this one abstract class and you have the whole policy.
+ *   <li>a {@link CreateStrategy} — how to mint an entry for a key. Cold (once per key, at warmup),
+ *       so it is a {@link FunctionalInterface} you can supply as a <i>non-capturing</i> lambda.
  * </ul>
  *
  * <pre>{@code
- * private static final MyKeyStrategy KEYS = new MyKeyStrategy();   // concrete type => exact type pinned
+ * private static final MyStrategy S = new MyStrategy();          // concrete type => exact type pinned
  * ...
- * E e = FlatHashtable.getOrCreate(table, key, KEYS, MyEntry::new); // non-capturing create
+ * E e = FlatHashtable.getOrCreate(table, key, S, MyEntry::new);  // non-capturing create
  * }</pre>
  *
- * <p><b>Contract:</b> {@code table.length} must be a power of two ({@link #capacityFor}). {@code
- * KeyStrategy.hash} may return a plain {@code hashCode} — the table owns the spread ({@link
- * #home}). Cardinality cap / overflow / a live-size counter are <b>caller policy</b> (this class is
- * pure mechanism): a capped caller does {@link #get} first, and only on a miss checks its budget
- * before {@link #getOrCreate} (so hits stay a single probe and the create path is warmup-rare).
+ * <p><b>Contract:</b> {@code table.length} must be a power of two ({@link #capacityFor}). Both
+ * {@link MatchingStrategy#hashKey} and {@link HashStrategy#hashOf} may return a plain {@code
+ * hashCode} — the table owns the spread ({@link #home}) — but they must be <b>consistent</b>:
+ * {@code hashKey(key)} must equal {@code hashOf(entry)} for that key's entry, so a lookup lands
+ * where the entry was placed (trivially true when both default to {@code hashCode}). Cardinality
+ * cap / overflow / a live-size counter are <b>caller policy</b> (this class is pure mechanism): a
+ * capped caller does {@link #get} first, and only on a miss checks its budget before {@link
+ * #getOrCreate} (so hits stay a single probe and the create path is warmup-rare).
  */
 public final class FlatHashtable {
   private FlatHashtable() {}
@@ -49,8 +55,8 @@ public final class FlatHashtable {
   /**
    * Optional structure-free entry base carrying only a cached {@code hash} — an
    * <i>optimization</i>, not plumbing (open addressing needs no {@code next}), so extending it is
-   * never required: bring any entry type and supply {@link KeyStrategy#hashOf} yourself instead.
-   * Caller contract: {@code hash} must equal the table's {@link KeyStrategy#hash} for this entry's
+   * never required: bring any entry type and supply a {@link HashStrategy} yourself instead. Caller
+   * contract: {@code hash} must equal the table's {@link MatchingStrategy#hashKey} for this entry's
    * key (the <i>raw</i> hash — the table applies its own spread), so the entry lands where {@link
    * #get} looks.
    */
@@ -63,88 +69,77 @@ public final class FlatHashtable {
   }
 
   /**
-   * Key-identity strategy: how to {@link #hash} a lookup key and {@link #matches} it against a
-   * stored entry. Extend as a <b>stateless</b> final class and hold a {@code static final}
-   * singleton of the concrete type so the JIT can specialize each call site (see {@link Strategy}).
+   * Entry-side strategy: the hash of a stored {@code entry} — its home is {@link #home}{@code
+   * (hashOf(entry))}. Used by {@link #insert} / {@link #iterator} / {@link #resize}, which have an
+   * entry rather than a lookup key. Must be consistent with {@link MatchingStrategy#hashKey} (see
+   * the class contract). Supply a {@code static final} constant or a non-capturing lambda so it
+   * stays a single monomorphic instance (see {@link Strategy}); for {@link Entry}-based tables use
+   * the strategy-free overloads, which read {@link Entry#hash} directly.
    *
-   * <p>An abstract <b>class</b> (not an interface) on purpose: it forces a named strategy type (no
-   * lambdas, which can blur the receiver the inliner needs), and if specialization ever misses the
-   * fallback dispatches via {@code invokevirtual} rather than the costlier megamorphic {@code
-   * invokeinterface}. Key-identity is the <i>hot</i> strategy (every probe), so it takes the
-   * abstract-class rigor; creation is the cold one, hence {@link CreateStrategy} is a lambda-able
-   * interface.
-   *
-   * @param <K> lookup key
-   * @param <E> stored entry — self-contained (carries its own key)
+   * @param <E> stored entry
    */
   @Strategy
-  public abstract static class KeyStrategy<K, E> {
-    /**
-     * Hash of {@code key} ({@code long} for family-wide consistency with Hashtable /
-     * ConcurrentHashtable and to leave room for composite keys). Return a plain {@code hashCode} —
-     * the table {@linkplain #home spreads} it before masking, so there is no need to pre-mix.
-     */
-    public abstract long hash(K key);
-
-    /** Whether the stored {@code entry} is the one for {@code key}. */
-    public abstract boolean matches(K key, E entry);
-
-    /**
-     * Hash of a stored {@code entry} — must equal {@link #hash}{@code (key)} for that entry's key,
-     * so the entry lands where {@link #get} would look for it. Used by the entry-taking {@link
-     * #insert(Object[], Object, KeyStrategy)} and {@link #iterator} (which have an entry, not a
-     * key); {@link #get} lookups never call it. When the entry can surface its key this is
-     * typically {@code hash(entry.key)}; when it caches its own hash (see {@link Entry}), {@link
-     * EntryKeyStrategy} seals it to that field.
-     */
-    public abstract long hashOf(E entry);
+  @FunctionalInterface
+  public interface HashStrategy<E> {
+    long hashOf(E entry);
   }
 
   /**
-   * {@link KeyStrategy} specialized for {@code String} keys: seals {@link #hash} to {@link
-   * String#hashCode} so String-key callers write only {@link #matches}. Extend as a stateless final
-   * class held in a concrete-typed {@code static final} singleton, exactly like {@link KeyStrategy}
-   * — the {@code final} hash resolves directly and the concrete subclass still specializes the same
-   * at each call site, so there's no cost to the extra layer. (No spread here — the table
-   * {@linkplain #home spreads} the raw hashCode itself.)
+   * Key-side strategy: whether a stored {@code entry} is the one for a lookup {@code key} ({@link
+   * #matches}), and how to hash that key ({@link #hashKey}). {@code hashKey} <b>defaults to {@code
+   * key.hashCode()}</b> — override it only when the key's identity needs different hashing (e.g.
+   * case-insensitive), and then keep it consistent with the table's {@link HashStrategy#hashOf}.
+   * Used by {@link #get} / {@link #getOrCreate}.
    *
-   * @param <E> stored entry — self-contained (carries its own key)
-   */
-  public abstract static class StringKeyStrategy<E> extends KeyStrategy<String, E> {
-    @Override
-    public final long hash(String key) {
-      return key.hashCode(); // raw; the table spreads before masking
-    }
-  }
-
-  /**
-   * {@link KeyStrategy} for {@code String} keys compared case-insensitively — the case-insensitive
-   * sibling of {@link StringKeyStrategy}. Seals {@link #hash} to {@link
-   * Strings#caseInsensitiveHashCode}, which is consistent with {@link String#equalsIgnoreCase}
-   * (callers implement {@link #matches} with {@code equalsIgnoreCase}). Extend as a stateless final
-   * class held in a concrete-typed {@code static final} singleton.
+   * <p>A {@link FunctionalInterface} ({@code matches} is the sole abstract method), so the common
+   * case can be a non-capturing lambda; a strategy that also customizes hashing is a named class
+   * that overrides {@code hashKey}.
    *
-   * @param <E> stored entry — self-contained (carries its own key)
-   */
-  public abstract static class CaseInsensitiveStringKeyStrategy<E> extends KeyStrategy<String, E> {
-    @Override
-    public final long hash(String key) {
-      return Strings.caseInsensitiveHashCode(key); // raw; the table spreads before masking
-    }
-  }
-
-  /**
-   * {@link KeyStrategy} for entries that extend {@link Entry}: seals {@link #hashOf} to the entry's
-   * cached {@code hash}. Callers still supply {@link #hash} and {@link #matches} (or start from
-   * {@link StringKeyStrategy} for the {@code hash} seal too).
-   *
+   * @param <E> stored entry
    * @param <K> lookup key
-   * @param <E> stored entry — must extend {@link Entry}
    */
-  public abstract static class EntryKeyStrategy<K, E extends Entry> extends KeyStrategy<K, E> {
+  @Strategy
+  @FunctionalInterface
+  public interface MatchingStrategy<E, K> {
+    /** Whether the stored {@code entry} is the one for {@code key}. */
+    boolean matches(E entry, K key);
+
+    /**
+     * Hash of {@code key}; defaults to {@code key.hashCode()} (the table applies its own spread).
+     */
+    default long hashKey(K key) {
+      return key.hashCode();
+    }
+  }
+
+  /**
+   * The whole policy for a table you both look up in and insert into: a {@link MatchingStrategy}
+   * (key side) and a {@link HashStrategy} (entry side) in one. Extend as a <b>stateless</b> final
+   * class held in a concrete-typed {@code static final} singleton so the JIT specializes each call
+   * site (see {@link Strategy}); an abstract <b>class</b> (not an interface) so a specialization
+   * miss falls back to {@code invokevirtual} rather than the costlier megamorphic {@code
+   * invokeinterface}.
+   *
+   * @param <E> stored entry
+   * @param <K> lookup key
+   */
+  @Strategy
+  public abstract static class EntryStrategy<E, K>
+      implements HashStrategy<E>, MatchingStrategy<E, K> {}
+
+  /**
+   * {@link EntryStrategy} for {@code String} keys compared case-insensitively: seals {@link
+   * #hashKey} to {@link Strings#caseInsensitiveHashCode} (consistent with {@link
+   * String#equalsIgnoreCase}, which callers use in {@link #matches}). Callers still supply {@link
+   * #matches} (typically {@code key.equalsIgnoreCase(entry.key)}) and {@link #hashOf} (the same
+   * case-insensitive hash of the entry's key, or the cached {@link Entry#hash}).
+   *
+   * @param <E> stored entry — self-contained (carries its own key)
+   */
+  public abstract static class CaseInsensitiveStringStrategy<E> extends EntryStrategy<E, String> {
     @Override
-    public final long hashOf(E entry) {
-      return entry.hash;
+    public final long hashKey(String key) {
+      return Strings.caseInsensitiveHashCode(key); // raw; the table spreads before masking
     }
   }
 
@@ -156,12 +151,12 @@ public final class FlatHashtable {
    * Strategy}). Bespoke rather than {@link java.util.function.Function} so it carries the {@link
    * Strategy} contract and reads as {@code create} at the call site.
    *
-   * @param <K> lookup key
    * @param <E> stored entry to create
+   * @param <K> lookup key
    */
   @Strategy
   @FunctionalInterface
-  public interface CreateStrategy<K, E> {
+  public interface CreateStrategy<E, K> {
     E create(K key);
   }
 
@@ -230,16 +225,16 @@ public final class FlatHashtable {
    * hit; walks to the first empty slot (or all the way around) on a miss.
    */
   @StrategyConsumer
-  public static <K, E> E get(E[] table, K key, KeyStrategy<K, E> keyStrat) {
+  public static <E, K> E get(E[] table, K key, MatchingStrategy<E, K> matchStrat) {
     final int mask = table.length - 1;
-    final int start = home(keyStrat.hash(key), mask);
+    final int start = home(matchStrat.hashKey(key), mask);
     int i = start;
     for (; ; ) {
       final E e = table[i];
       if (e == null) {
         return null; // empty slot terminates the probe (no tombstones)
       }
-      if (keyStrat.matches(key, e)) {
+      if (matchStrat.matches(e, key)) {
         return e;
       }
       i = (i + 1) & mask;
@@ -256,10 +251,10 @@ public final class FlatHashtable {
    * double-create is acceptable only when the payload makes it benign (see class doc).
    */
   @StrategyConsumer
-  public static <K, E> E getOrCreate(
-      E[] table, K key, KeyStrategy<K, E> keyStrat, CreateStrategy<K, E> createStrat) {
+  public static <E, K> E getOrCreate(
+      E[] table, K key, MatchingStrategy<E, K> matchStrat, CreateStrategy<E, K> createStrat) {
     final int mask = table.length - 1;
-    final int start = home(keyStrat.hash(key), mask);
+    final int start = home(matchStrat.hashKey(key), mask);
     int i = start;
     for (; ; ) {
       final E e = table[i];
@@ -268,7 +263,7 @@ public final class FlatHashtable {
         table[i] = created; // single-reference publish; benign clobber (see class doc)
         return created;
       }
-      if (keyStrat.matches(key, e)) {
+      if (matchStrat.matches(e, key)) {
         return e;
       }
       i = (i + 1) & mask;
@@ -280,7 +275,7 @@ public final class FlatHashtable {
 
   /**
    * Unconditionally adds {@code entry} at the first empty slot from its {@link Entry#hash home};
-   * {@code false} if the table is full. Convenience over the {@link KeyStrategy}-taking overload
+   * {@code false} if the table is full. Convenience over the {@link HashStrategy}-taking overload
    * for {@link Entry}-based entries (the home comes from the entry, so no strategy is needed).
    *
    * <p><b>Comparison-free and caller-responsible.</b> It does not check for an existing key, so the
@@ -295,12 +290,11 @@ public final class FlatHashtable {
 
   /**
    * {@link #insert(Entry[], Entry)} for any entry type: the home comes from {@link
-   * KeyStrategy#hashOf}. Same comparison-free, caller-ensures-absence contract (the key type is
-   * irrelevant here — insert never hashes or matches a key).
+   * HashStrategy#hashOf}. Same comparison-free, caller-ensures-absence contract.
    */
   @StrategyConsumer
-  public static <E> boolean insert(E[] table, E entry, KeyStrategy<?, E> keyStrat) {
-    return placeAt(table, entry, keyStrat.hashOf(entry));
+  public static <E> boolean insert(E[] table, E entry, HashStrategy<E> hashStrat) {
+    return placeAt(table, entry, hashStrat.hashOf(entry));
   }
 
   /**
@@ -326,8 +320,8 @@ public final class FlatHashtable {
    * Placement slot for {@code hash} in a table of {@code mask + 1} slots. The table owns the
    * spread: a golden-ratio (Fibonacci) multiply diffuses the hash across all bits — robust to weak
    * or {@code int}-derived {@code hashCode}s and to full 64-bit composite hashes alike — then the
-   * low index bits are taken. So a {@link KeyStrategy} may return a plain {@code hashCode} without
-   * pre-mixing. Package-private so tests can predict slots.
+   * low index bits are taken. So a strategy may return a plain {@code hashCode} without pre-mixing.
+   * Package-private so tests can predict slots.
    */
   static int home(long hash, int mask) {
     long z = hash * 0x9E3779B97F4A7C15L; // 2^64 / golden ratio; odd ⇒ a bijection (loses no bits)
@@ -338,8 +332,8 @@ public final class FlatHashtable {
   /**
    * Doubles capacity and rehashes every entry into a new table — call when {@link #insert} returns
    * {@code false} and you want to grow rather than reject; the caller stores the returned array
-   * back. Convenience over the {@link KeyStrategy}-taking overload for {@link Entry}-based entries
-   * (the home comes from {@link Entry#hash}). See {@link #resizingInsert(Object[], Object)} to do
+   * back. Convenience over the {@link HashStrategy}-taking overload for {@link Entry}-based entries
+   * (the home comes from {@link Entry#hash}). See {@link #resizingInsert(Entry[], Entry)} to do
    * both in one call, and its note on growing over unbounded key domains.
    */
   public static <E extends Entry> E[] resize(E[] table) {
@@ -354,14 +348,14 @@ public final class FlatHashtable {
 
   /**
    * {@link #resize(Entry[])} for any entry type: each entry's home comes from {@link
-   * KeyStrategy#hashOf}. Not a {@link StrategyConsumer} — the rehash is a cold, one-off traversal,
+   * HashStrategy#hashOf}. Not a {@link StrategyConsumer} — the rehash is a cold, one-off traversal,
    * not a hot specialization site.
    */
-  public static <E> E[] resize(E[] table, KeyStrategy<?, E> keyStrat) {
+  public static <E> E[] resize(E[] table, HashStrategy<E> hashStrat) {
     E[] grown = allocateGrown(table);
     for (final E e : table) {
       if (e != null) {
-        placeAt(grown, e, keyStrat.hashOf(e));
+        placeAt(grown, e, hashStrat.hashOf(e));
       }
     }
     return grown;
@@ -400,13 +394,13 @@ public final class FlatHashtable {
 
   /**
    * {@link #resizingInsert(Entry[], Entry)} for any entry type (home via {@link
-   * KeyStrategy#hashOf}). Same grows-unboundedly caution.
+   * HashStrategy#hashOf}). Same grows-unboundedly caution.
    */
   @StrategyConsumer
-  public static <E> E[] resizingInsert(E[] table, E entry, KeyStrategy<?, E> keyStrat) {
+  public static <E> E[] resizingInsert(E[] table, E entry, HashStrategy<E> hashStrat) {
     E[] t = table;
-    while (!insert(t, entry, keyStrat)) {
-      t = resize(t, keyStrat);
+    while (!insert(t, entry, hashStrat)) {
+      t = resize(t, hashStrat);
     }
     return t;
   }
@@ -435,38 +429,62 @@ public final class FlatHashtable {
 
   /**
    * Read-only iterator over the entries sharing {@code hash} — walks the probe run from {@code
-   * hash}'s home and yields each entry whose {@link KeyStrategy#hashOf} equals {@code hash},
-   * stopping at the first empty slot (the FlatHashtable analogue of walking a chained bucket). The
-   * key type is irrelevant, so any {@link KeyStrategy} for {@code E} works.
+   * hash}'s home and yields each entry whose {@link HashStrategy#hashOf} equals {@code hash},
+   * stopping at the first empty slot (the FlatHashtable analogue of walking a chained bucket).
    *
-   * <p>Deliberately <b>not</b> a {@link StrategyConsumer}: iteration goes through the {@link
-   * Iterator} interface and calls {@code hashOf} virtually, so the strategy does not inline here —
-   * this is a cold traversal, not a hot specialization site. (Still pass a {@code static final}
+   * <p>This general overload holds the strategy in a field, so {@code hashOf} is called virtually
+   * (not inlined). For {@link Entry}-based tables prefer {@link #iterator(Entry[], long)}, which
+   * specializes the traversal so {@code hashOf} inlines. (Still pass a {@code static final}
    * strategy to avoid a per-call allocation.)
    */
-  public static <E> Iterator<E> iterator(E[] table, long hash, KeyStrategy<?, E> keyStrat) {
-    return new HashIterator<>(table, hash, keyStrat);
+  public static <E> Iterator<E> iterator(E[] table, long hash, HashStrategy<E> hashStrat) {
+    return new StrategyHashIterator<>(table, hash, hashStrat);
   }
 
-  private static final class HashIterator<E> implements Iterator<E> {
-    private final E[] table;
-    private final long hash;
-    private final KeyStrategy<?, E> keyStrat;
-    private final int start;
-    private int i;
-    private boolean done;
-    private E lookahead;
+  /**
+   * {@link #iterator(Object[], long, HashStrategy)} for {@link Entry}-based tables: the filter hash
+   * comes from {@link Entry#hash}, so no strategy is needed. Returns a specialized iterator that
+   * feeds the {@link Entry}-hash strategy singleton into the shared traversal template as a <i>
+   * constant</i>, so {@code hashOf} devirtualizes to {@code entry.hash} and inlines — a monomorphic
+   * call site thus gets a devirtualized pull-based traversal while keeping the plain {@link
+   * Iterator} API and reusing the same core (see the {@link HashIterator} base). Same {@code
+   * Iterator<E>} return type as the general overload; the call site specializes by its own
+   * monomorphism.
+   */
+  public static <E extends Entry> Iterator<E> iterator(E[] table, long hash) {
+    return new EntryHashIterator<>(table, hash);
+  }
 
-    HashIterator(E[] table, long hash, KeyStrategy<?, E> keyStrat) {
+  /**
+   * Shared iterator core. The traversal lives in {@code final} template methods parameterized by
+   * the strategy ({@code advanceWith}/{@code nextWith}); each concrete subclass implements {@link
+   * #next} by handing in its strategy source — a field (general) or a {@code static final} constant
+   * (Entry). Feeding a constant into the {@code final} template is what lets the specialized
+   * subclass inline {@code hashOf} (the CacheHelper static-polymorphism move), so the two share all
+   * the mechanism yet differ only in whether the strategy call devirtualizes.
+   */
+  private abstract static class HashIterator<E> implements Iterator<E> {
+    final E[] table;
+    final long hash;
+    final int start;
+    int i;
+    boolean done;
+    E lookahead;
+
+    HashIterator(E[] table, long hash) {
       this.table = table;
       this.hash = hash;
-      this.keyStrat = keyStrat;
       this.start = home(hash, table.length - 1);
       this.i = this.start;
-      advance();
+      // Priming advance() is left to the concrete ctor: it needs the subclass's strategy source,
+      // which isn't set until after super().
     }
 
-    private void advance() {
+    /**
+     * Template traversal core, parameterized by the strategy. {@code final} so that a subclass
+     * passing a constant strategy inlines this and devirtualizes {@code hashOf}.
+     */
+    final void advanceWith(HashStrategy<E> hashStrat) {
       lookahead = null;
       if (done) {
         return;
@@ -478,7 +496,7 @@ public final class FlatHashtable {
           done = true; // probe run ends at the first empty slot
           return;
         }
-        final boolean match = keyStrat.hashOf(e) == hash;
+        final boolean match = hashStrat.hashOf(e) == hash;
         i = (i + 1) & mask;
         final boolean wrapped = (i == start);
         if (match) {
@@ -493,19 +511,66 @@ public final class FlatHashtable {
       }
     }
 
-    @Override
-    public boolean hasNext() {
-      return lookahead != null;
-    }
-
-    @Override
-    public E next() {
+    final E nextWith(HashStrategy<E> hashStrat) {
       final E e = lookahead;
       if (e == null) {
         throw new NoSuchElementException();
       }
-      advance();
+      advanceWith(hashStrat);
       return e;
     }
+
+    @Override
+    public final boolean hasNext() {
+      return lookahead != null;
+    }
+
+    // Abstract so each subclass injects its own strategy source into nextWith(); that binding is
+    // what lets the Entry variant inline hashOf while the general one stays virtual.
+    @Override
+    public abstract E next();
+  }
+
+  /** General iterator: strategy held in a field, so {@code hashOf} stays a virtual call. */
+  private static final class StrategyHashIterator<E> extends HashIterator<E> {
+    private final HashStrategy<E> hashStrat;
+
+    StrategyHashIterator(E[] table, long hash, HashStrategy<E> hashStrat) {
+      super(table, hash);
+      this.hashStrat = hashStrat;
+      advanceWith(hashStrat); // prime
+    }
+
+    @Override
+    public E next() {
+      return nextWith(hashStrat);
+    }
+  }
+
+  /**
+   * Entry iterator: feeds the constant {@link #ENTRY_HASH} singleton, so {@code hashOf} inlines to
+   * {@code entry.hash}.
+   */
+  private static final class EntryHashIterator<E extends Entry> extends HashIterator<E> {
+    EntryHashIterator(E[] table, long hash) {
+      super(table, hash);
+      advanceWith(entryHash()); // prime with the constant
+    }
+
+    @Override
+    public E next() {
+      return nextWith(entryHash());
+    }
+  }
+
+  /**
+   * Stateless {@link HashStrategy} that reads the cached {@link Entry#hash} — the constant fed into
+   * the Entry iterator template so {@code hashOf} devirtualizes.
+   */
+  private static final HashStrategy<Entry> ENTRY_HASH = entry -> entry.hash;
+
+  @SuppressWarnings("unchecked")
+  private static <E> HashStrategy<E> entryHash() {
+    return (HashStrategy<E>) ENTRY_HASH; // safe: hashOf only reads Entry.hash, present on all E
   }
 }

@@ -99,7 +99,7 @@ public class SingleThreadedMapBenchmark {
     }
   }
 
-  static final class IntEntryKeyStrategy extends FlatHashtable.StringKeyStrategy<IntEntry> {
+  static final class IntEntryKeyStrategy extends FlatHashtable.EntryStrategy<IntEntry, String> {
     // Canonical exact-typed singleton: one instance, private ctor => the static-poly discipline is
     // enforced by the class, not left to each caller to declare correctly.
     static final IntEntryKeyStrategy INSTANCE = new IntEntryKeyStrategy();
@@ -107,53 +107,54 @@ public class SingleThreadedMapBenchmark {
     private IntEntryKeyStrategy() {}
 
     @Override
-    public boolean matches(String key, IntEntry entry) {
+    public boolean matches(IntEntry entry, String key) {
       return key.equals(entry.key);
     }
 
     @Override
     public long hashOf(IntEntry entry) {
-      return hash(entry.key);
+      return entry.key.hashCode(); // consistent with the default hashKey
     }
   }
 
   // --- CHA-defeat decoys ---------------------------------------------------------------------
-  // Never used to build a table; loaded (in setUp) only so KeyStrategy.hash and KeyStrategy.matches
+  // Never used to build a table; loaded (in setUp) only so MatchingStrategy.matches and .hashKey
   // each have >=2 concrete implementors. That denies C2 the single-implementor CHA devirtualization
-  // of keyStrat.hash/matches inside get(). If the strategy calls still inline afterward, the win is
-  // structural (the constant INSTANCE's exact type propagated through the inlined get), not a CHA
-  // bet that would deopt when a second subclass loads.
+  // of matchStrat.hashKey/matches inside get(). If the strategy calls still inline afterward, the
+  // win is structural (the constant INSTANCE's exact type propagated through the inlined get), not
+  // a
+  // CHA bet that would deopt when a second subclass loads.
 
-  // Second StringKeyStrategy impl -> KeyStrategy.matches is now polymorphic.
-  static final class DecoyStringKeyStrategy extends FlatHashtable.StringKeyStrategy<IntEntry> {
-    static final DecoyStringKeyStrategy INSTANCE = new DecoyStringKeyStrategy();
+  // Second matches impl -> MatchingStrategy.matches is polymorphic.
+  static final class DecoyMatchStrategy extends FlatHashtable.EntryStrategy<IntEntry, String> {
+    static final DecoyMatchStrategy INSTANCE = new DecoyMatchStrategy();
 
-    private DecoyStringKeyStrategy() {}
+    private DecoyMatchStrategy() {}
 
     @Override
-    public boolean matches(String key, IntEntry entry) {
+    public boolean matches(IntEntry entry, String key) {
       return key == entry.key; // deliberately different body from IntEntryKeyStrategy
     }
 
     @Override
     public long hashOf(IntEntry entry) {
-      return hash(entry.key);
+      return entry.key.hashCode();
     }
   }
 
-  // Direct KeyStrategy impl with its own hash -> KeyStrategy.hash is now polymorphic too.
-  static final class DecoyKeyStrategy extends FlatHashtable.KeyStrategy<String, IntEntry> {
-    static final DecoyKeyStrategy INSTANCE = new DecoyKeyStrategy();
+  // Overrides hashKey -> MatchingStrategy.hashKey is polymorphic too (default + this override).
+  static final class DecoyHashKeyStrategy extends FlatHashtable.EntryStrategy<IntEntry, String> {
+    static final DecoyHashKeyStrategy INSTANCE = new DecoyHashKeyStrategy();
 
-    private DecoyKeyStrategy() {}
+    private DecoyHashKeyStrategy() {}
 
     @Override
-    public long hash(String key) {
+    public long hashKey(String key) {
       return key.length();
     }
 
     @Override
-    public boolean matches(String key, IntEntry entry) {
+    public boolean matches(IntEntry entry, String key) {
       return key.equals(entry.key);
     }
 
@@ -163,11 +164,11 @@ public class SingleThreadedMapBenchmark {
     }
   }
 
-  // Referenced only so these three concrete KeyStrategy implementors load at benchmark class-init,
-  // before the hot method compiles — see the CHA-defeat note above.
+  // Referenced only so these three concrete implementors load at benchmark class-init, before the
+  // hot method compiles — see the CHA-defeat note above.
   @SuppressWarnings("unused")
   static final Object[] CHA_DEFEAT = {
-    IntEntryKeyStrategy.INSTANCE, DecoyStringKeyStrategy.INSTANCE, DecoyKeyStrategy.INSTANCE
+    IntEntryKeyStrategy.INSTANCE, DecoyMatchStrategy.INSTANCE, DecoyHashKeyStrategy.INSTANCE
   };
 
   static IntEntry[] newFilledFlat() {

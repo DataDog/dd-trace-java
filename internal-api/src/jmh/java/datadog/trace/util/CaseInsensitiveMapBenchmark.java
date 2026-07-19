@@ -208,15 +208,15 @@ public class CaseInsensitiveMapBenchmark {
   }
 
   // Dogfoods the shared toolbox pieces: the CI hash is Strings.caseInsensitiveHashCode (sealed by
-  // CaseInsensitiveStringKeyStrategy), the table owns the spread. Only matches/hashOf are bespoke.
+  // CaseInsensitiveStringStrategy), the table owns the spread. Only matches/hashOf are bespoke.
   static final class CaseInsensitiveKeyStrategy
-      extends FlatHashtable.CaseInsensitiveStringKeyStrategy<CIEntry> {
+      extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
     static final CaseInsensitiveKeyStrategy INSTANCE = new CaseInsensitiveKeyStrategy();
 
     private CaseInsensitiveKeyStrategy() {}
 
     @Override
-    public boolean matches(String key, CIEntry entry) {
+    public boolean matches(CIEntry entry, String key) {
       return key.equalsIgnoreCase(entry.key); // case-folded, allocation-free
     }
 
@@ -233,7 +233,7 @@ public class CaseInsensitiveMapBenchmark {
     for (int suffix = 0; suffix < NUM_SUFFIXES; ++suffix) {
       for (String prefix : PREFIXES) {
         String key = prefix + "-" + suffix;
-        long hash = CaseInsensitiveKeyStrategy.INSTANCE.hash(key);
+        long hash = CaseInsensitiveKeyStrategy.INSTANCE.hashKey(key);
         FlatHashtable.insert(
             table, new CIEntry(key, hash, suffix), CaseInsensitiveKeyStrategy.INSTANCE);
       }
