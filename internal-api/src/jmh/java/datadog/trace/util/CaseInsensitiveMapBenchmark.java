@@ -37,22 +37,22 @@ import org.openjdk.jmh.infra.Blackhole;
  * 1 thread
  *
  * Benchmark                                     Mode  Cnt          Score        Error  Units
- * create_flatHashtable                         thrpt   15     3723141.4 ±    63717.9  ops/s
- * create_hashMap                               thrpt   15      905452.5 ±    16561.3  ops/s
- * create_treeMap                               thrpt   15     1208339.4 ±    84364.2  ops/s
+ * create_flatHashtable                         thrpt   15     3794154.9 ±    52254.3  ops/s
+ * create_hashMap                               thrpt   15      954573.2 ±    34051.9  ops/s
+ * create_treeMap                               thrpt   15     1233590.4 ±     9950.1  ops/s
  *
- * lookup_flatHashtable                         thrpt   15    75874505.0 ±  3722582.3  ops/s
- * lookup_flatHashtable_lowLoad                 thrpt   15    75686682.1 ±  1879579.4  ops/s
- * lookup_hashMap                               thrpt   15    80319813.9 ±  7410634.9  ops/s
- * lookup_treeMap                               thrpt   15    45926358.7 ±  1917349.2  ops/s
+ * lookup_flatHashtable                         thrpt   15    75350287.4 ±  4128577.5  ops/s
+ * lookup_flatHashtable_lowLoad                 thrpt   15    77127204.7 ±  2546322.0  ops/s
+ * lookup_hashMap                               thrpt   15    76615721.1 ±  4615488.0  ops/s
+ * lookup_treeMap                               thrpt   15    45777645.5 ±  4551223.1  ops/s
  * </code> <code>
  * 8 threads (with -prof gc; alloc = gc.alloc.rate.norm)
  *
  * Benchmark                          Mode  Cnt          Score         Error  Units      alloc
- * lookup_flatHashtable              thrpt   15  558144937.2 ±  22797680.7  ops/s     ~0 B/op
- * lookup_flatHashtable_lowLoad      thrpt   15  564984154.1 ±  25899687.5  ops/s     ~0 B/op
- * lookup_hashMap                    thrpt   15  529773720.8 ±  82928000.6  ops/s   24.0 B/op (151 GCs)
- * lookup_treeMap                    thrpt   15  262110611.8 ±  30486484.7  ops/s     ~0 B/op
+ * lookup_flatHashtable              thrpt   15  537007985.7 ±  21864181.3  ops/s     ~0 B/op
+ * lookup_flatHashtable_lowLoad      thrpt   15  540434673.5 ±  20451984.4  ops/s     ~0 B/op
+ * lookup_hashMap                    thrpt   15  441875038.1 ± 110408182.2  ops/s   24.0 B/op (129 GCs)
+ * lookup_treeMap                    thrpt   15  251195415.1 ±  14662568.3  ops/s     ~0 B/op
  * </code>
  */
 @Fork(2)
