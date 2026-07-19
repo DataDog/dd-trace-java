@@ -55,9 +55,10 @@ public class FlatHashtableIteratorBenchmark {
   // hashOf profile to megamorphic, so type-profile can't cleanly devirtualize it for the general
   // path — the case the Entry-specialized iterator is immune to.
   //
-  // Measured (MacBook M1, Zulu 21, poisoned profile): iterate_general ~18.0M vs iterate_specialized
-  // ~37.8M ops/s (2.1x). Unpoisoned, the two tie (~37.8M) — type-profile does the general path's
-  // devirt then; the poisoning is what type-profile can't survive and the constant can.
+  // Measured (MacBook M1, Zulu 21, F5, poisoned profile): iterate_general 18.06M ±0.18 vs
+  // iterate_specialized 37.88M ±0.16 ops/s (2.10x, tight non-overlapping CIs). Unpoisoned, the two
+  // tie (~37.8M) — type-profile does the general path's devirt then; the poisoning is what
+  // type-profile can't survive and the constant can.
   static final class ItHashStrategyA implements FlatHashtable.HashStrategy<ItEntry> {
     static final ItHashStrategyA INSTANCE = new ItHashStrategyA();
 
