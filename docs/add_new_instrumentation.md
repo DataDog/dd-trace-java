@@ -306,16 +306,16 @@ public static class GoogleHttpClientAdvice {
             @Advice.Local("inherited") boolean inheritedScope,
             @Advice.Return final HttpResponse response,
             @Advice.Thrown final Throwable throwable) {
+        AgentSpan span = scope.span();
         try {
-            AgentSpan span = scope.span();
             DECORATE.onError(span, throwable);
             DECORATE.onResponse(span, response);
             DECORATE.beforeFinish(span);
-            span.finish();
         } finally {
             if (!inheritedScope) {
                 scope.close();
             }
+            span.finish();
         }
     }
 }

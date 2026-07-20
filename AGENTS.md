@@ -63,6 +63,7 @@ docs/                     Developer documentation (see below)
 - **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
 - **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
 - **Instrumentation one-shot methods**: Never extract the return values of `triggerClasses()`, `contextStore()`, `classLoaderMatcher()`, or `methodAdvice()` into static constants. These are called once by the framework — extracting to a constant adds constant-pool bloat with no benefit.
+- **Scope lifecycle order**: Keep the scope open until all work that needs the current active span is done — decorator calls, async callback registration, etc. Required order: decorator calls and callback registration, then `scope.close()`, then `span.finish()`.
 
 ## PR conventions
 
@@ -87,3 +88,9 @@ Code running in the agent's `premain` phase must **not** use:
 - `javax.management.*` — causes class loading issues
 
 See [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) for details and alternatives.
+
+## Advice constraints (critical)
+
+Advice methods (OnMethodEnter/OnMethodExit) are inlined into the instrumented class's bytecode.
+Calling a static interface method there, such as Context.root() or Context.current(), can cause
+a VerifyError at runtime — use Java8BytecodeBridge (rootContext, currentContext, etc.) instead.

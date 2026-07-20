@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.codeowners;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -10,6 +11,7 @@ import datadog.trace.civisibility.codeowners.matcher.CharacterMatcher;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -184,5 +186,92 @@ class EntryBuilderTest {
         arguments("^[section header]"),
         arguments("^[section header with] @default/owner"),
         arguments(" ^[section header with a leading space]"));
+  }
+
+  @ParameterizedTest(name = "section header \"{0}\" declares default owners {1}")
+  @MethodSource("testSectionHeaderParsingArguments")
+  void testSectionHeaderParsing(String line, List<String> expectedDefaultOwners) {
+    CharacterMatcher.Factory matcherFactory = new CharacterMatcher.Factory();
+    SectionHeader header = new EntryBuilder(matcherFactory, line).parseSectionHeader();
+    assertEquals(expectedDefaultOwners, header.getDefaultOwners());
+  }
+
+  static Stream<Arguments> testSectionHeaderParsingArguments() {
+    return Stream.of(
+        // section headers without default owners
+        arguments("[Documentation]", emptyList()),
+        arguments("^[Optional]", emptyList()),
+        arguments("[Section name with spaces]", emptyList()),
+        arguments("  [Indented section]", emptyList()),
+        arguments("[Requires approvals][2]", emptyList()),
+        arguments("^[Optional with approvals][3]", emptyList()),
+        arguments("[Documentation] # only a comment", emptyList()),
+        arguments("[Generated]# comment with no leading space", emptyList()),
+        // section headers with default owners
+        arguments("[Documentation] @docs-team", singletonList("@docs-team")),
+        arguments("[Database] @database-team @dba-lead", asList("@database-team", "@dba-lead")),
+        arguments("^[Optional] @go-team", singletonList("@go-team")),
+        arguments("[Requires approvals][2] @team @lead", asList("@team", "@lead")),
+        arguments("^[Optional with approvals][2] @team", singletonList("@team")),
+        arguments("[Docs] docs@example.com", singletonList("docs@example.com")),
+        arguments("[Docs] @org/team", singletonList("@org/team")),
+        arguments("[Docs] @docs-team # trailing comment", singletonList("@docs-team")),
+        arguments("[Section] @a   @b", asList("@a", "@b")));
+  }
+
+  @ParameterizedTest(name = "section header \"{0}\" has name \"{1}\"")
+  @MethodSource("testSectionHeaderNameArguments")
+  void testSectionHeaderName(String line, String expectedName) {
+    CharacterMatcher.Factory matcherFactory = new CharacterMatcher.Factory();
+    SectionHeader header = new EntryBuilder(matcherFactory, line).parseSectionHeader();
+    assertEquals(expectedName, header.getName());
+  }
+
+  static Stream<Arguments> testSectionHeaderNameArguments() {
+    return Stream.of(
+        arguments("[Documentation]", "Documentation"),
+        arguments("[Documentation] @docs-team", "Documentation"),
+        arguments("^[Optional Frontend] @team", "Optional Frontend"),
+        arguments("[Requires approvals][2] @team", "Requires approvals"),
+        arguments("[Generated]# comment", "Generated"),
+        arguments("  [Indented]", "Indented"));
+  }
+
+  @ParameterizedTest(name = "\"{0}\" is not a section header")
+  @MethodSource("testNonSectionHeaderArguments")
+  void testNonSectionHeaderReturnsNull(String line) {
+    CharacterMatcher.Factory matcherFactory = new CharacterMatcher.Factory();
+    assertNull(new EntryBuilder(matcherFactory, line).parseSectionHeader());
+  }
+
+  static Stream<Arguments> testNonSectionHeaderArguments() {
+    return Stream.of(
+        arguments("*.js @owner"),
+        arguments("/path/to/file @owner"),
+        arguments("# comment"),
+        arguments(""),
+        arguments("   "),
+        arguments("[a-z]*.txt @owner"), // character-class range, not a section header
+        arguments("[Bb]uild/ @owner"), // character-class set, not a section header
+        arguments("^caret-file @owner")); // '^' not followed by '['
+  }
+
+  @Test
+  void testEntryInheritsSectionDefaultOwners() {
+    CharacterMatcher.Factory matcherFactory = new CharacterMatcher.Factory();
+    List<String> sectionDefaultOwners = singletonList("@docs-team");
+
+    // an entry without its own owners inherits the section's default owners
+    Entry inherited = new EntryBuilder(matcherFactory, "docs/").parse(sectionDefaultOwners);
+    assertEquals(sectionDefaultOwners, inherited.getOwners());
+
+    // an entry with its own owners overrides the section's default owners
+    Entry overridden =
+        new EntryBuilder(matcherFactory, "docs/setup.md @override").parse(sectionDefaultOwners);
+    assertEquals(singletonList("@override"), overridden.getOwners());
+
+    // with no section defaults, owners stay empty (GitHub "unset ownership" semantics)
+    Entry noOwners = new EntryBuilder(matcherFactory, "generated/").parse(emptyList());
+    assertEquals(emptyList(), noOwners.getOwners());
   }
 }
