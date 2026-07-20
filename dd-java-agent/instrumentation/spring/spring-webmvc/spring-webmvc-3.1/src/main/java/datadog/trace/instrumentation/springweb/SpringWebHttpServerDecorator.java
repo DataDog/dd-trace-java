@@ -98,7 +98,7 @@ public class SpringWebHttpServerDecorator
   }
 
   @Override
-  public AgentSpan onRequest(
+  public void onRequest(
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
@@ -111,7 +111,6 @@ public class SpringWebHttpServerDecorator
         HTTP_RESOURCE_DECORATOR.withRoute(span, method, bestMatchingPattern.toString());
       }
     }
-    return span;
   }
 
   public void onHandle(final AgentSpan span, final Object handler) {
@@ -139,7 +138,7 @@ public class SpringWebHttpServerDecorator
     }
   }
 
-  public AgentSpan onRender(final AgentSpan span, final ModelAndView mv) {
+  public void onRender(final AgentSpan span, final ModelAndView mv) {
     final String viewName = mv.getViewName();
     if (viewName != null) {
       span.setTag("view.name", viewName);
@@ -148,6 +147,5 @@ public class SpringWebHttpServerDecorator
     if (mv.getView() != null) {
       span.setTag("view.type", className(mv.getView().getClass()));
     }
-    return span;
   }
 }

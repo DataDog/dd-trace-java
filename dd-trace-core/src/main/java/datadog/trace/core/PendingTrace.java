@@ -1,10 +1,10 @@
 package datadog.trace.core;
 
+import datadog.context.ContextContinuation;
 import datadog.metrics.api.Recording;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
@@ -210,6 +210,7 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   }
 
   Integer evaluateSamplingPriority() {
+    @SuppressWarnings("resource")
     DDSpan span = spans.peek();
     if (span == null) {
       return null;
@@ -304,12 +305,12 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
    * completed, so we need to wait till continuations are de-referenced before reporting.
    */
   @Override
-  public void registerContinuation(final AgentScope.Continuation continuation) {
+  public void registerContinuation(final ContextContinuation continuation) {
     PENDING_REFERENCE_COUNT.incrementAndGet(this);
   }
 
   @Override
-  public void removeContinuation(final AgentScope.Continuation continuation) {
+  public void removeContinuation(final ContextContinuation continuation) {
     decrementRefAndMaybeWrite(false, false);
   }
 

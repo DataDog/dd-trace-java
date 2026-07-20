@@ -1,6 +1,7 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
+import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
@@ -309,6 +310,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     PathwayContext pathwayContext = span.spanContext().getPathwayContext();
     if (pathwayContext != null) {
       pathwayContext.setCheckpoint(context, this::add);
+      long pathwayHash = pathwayContext.getHash();
+      if (pathwayHash != 0) {
+        span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayHash));
+      }
     }
   }
 

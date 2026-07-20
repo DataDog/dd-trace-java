@@ -13,7 +13,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.context.Context;
-import datadog.context.ContextManager;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
@@ -28,6 +28,7 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +45,7 @@ import org.slf4j.LoggerFactory;
  * from being reported even if all related spans are finished. It also delegates to other
  * ScopeInterceptors to provide additional functionality.
  */
-public final class ContinuableScopeManager implements ContextManager {
+public final class ContinuableScopeManager {
 
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
   static final RatelimitedLogger ratelimitedLog = new RatelimitedLogger(log, 1, MINUTES);
@@ -92,8 +93,6 @@ public final class ContinuableScopeManager implements ContextManager {
     this.profilingContextIntegration = profilingContextIntegration;
     this.profilingEnabled =
         !(profilingContextIntegration instanceof ProfilingContextIntegration.NoOp);
-
-    ContextManager.register(this);
   }
 
   public AgentScope activateSpan(final AgentSpan span) {
@@ -104,6 +103,7 @@ public final class ContinuableScopeManager implements ContextManager {
     return activate(span, MANUAL, false, /* ignored */ false);
   }
 
+  @SuppressWarnings("deprecation")
   public AgentScope.Continuation captureActiveSpan() {
     ContinuableScope activeScope = scopeStack().active();
     if (null != activeScope && activeScope.isAsyncPropagating()) {
@@ -115,12 +115,13 @@ public final class ContinuableScopeManager implements ContextManager {
     return AgentTracer.noopContinuation();
   }
 
-  public AgentScope.Continuation captureSpan(final AgentSpan span) {
+  public ContextContinuation captureSpan(final AgentSpan span) {
     ContinuableScope top = scopeStack().top;
     Context context = top != null ? top.context.with(span) : span;
     return captureSpan(context, INSTRUMENTATION, span);
   }
 
+  @SuppressWarnings("deprecation")
   private AgentScope.Continuation captureSpan(Context context, byte source, AgentSpan span) {
     AgentTraceCollector traceCollector = span.spanContext().getTraceCollector();
     return new ScopeContinuation(this, context, source, traceCollector).register();
@@ -367,19 +368,16 @@ public final class ContinuableScopeManager implements ContextManager {
     return this.tlsScopeStack.get();
   }
 
-  @Override
-  public Context current() {
+  public Context currentContext() {
     final ContinuableScope active = scopeStack().active();
     return active == null ? Context.root() : active.context;
   }
 
-  @Override
-  public ContextScope attach(Context context) {
+  public ContextScope attach(@NonNull Context context) {
     return activate(context);
   }
 
-  @Override
-  public Context swap(Context context) {
+  public Context swap(@NonNull Context context) {
     ScopeStack oldStack = tlsScopeStack.get();
     ContinuableScope oldScope = oldStack.top;
 
@@ -407,6 +405,24 @@ public final class ContinuableScopeManager implements ContextManager {
     }
 
     return new ScopeContext(oldStack);
+  }
+
+  public ContextContinuation capture(@NonNull Context context) {
+    // respect async propagation flag for Context.current().capture()
+    ContinuableScope activeScope = scopeStack().active();
+    if (activeScope != null
+        && activeScope.context == context
+        && !activeScope.isAsyncPropagating()) {
+      return AgentTracer.noopContinuation();
+    }
+    AgentSpan span = AgentSpan.fromContext(context);
+    AgentTraceCollector traceCollector;
+    if (span != null) {
+      traceCollector = span.spanContext().getTraceCollector();
+    } else {
+      traceCollector = AgentTracer.NoopAgentTraceCollector.INSTANCE;
+    }
+    return new ScopeContinuation(this, context, CONTEXT, traceCollector).register();
   }
 
   static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {

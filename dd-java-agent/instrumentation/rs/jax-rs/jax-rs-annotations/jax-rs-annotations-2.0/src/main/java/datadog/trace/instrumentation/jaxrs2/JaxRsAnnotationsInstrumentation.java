@@ -151,8 +151,8 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
       if (throwable != null) {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
-        span.finish();
         scope.close();
+        span.finish();
         return;
       }
 
@@ -162,10 +162,12 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
       }
       if (asyncResponse == null || !asyncResponse.isSuspended()) {
         DECORATE.beforeFinish(span);
+        scope.close();
         span.finish();
+      } else {
+        scope.close();
       }
       // else span finished by AsyncResponseAdvice
-      scope.close();
     }
   }
 }

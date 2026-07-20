@@ -121,15 +121,13 @@ public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
         return;
       }
       // If we have a scope (i.e. we were the top-level Twilio SDK invocation),
+      final AgentSpan span = scope.span();
       try {
-        final AgentSpan span = scope.span();
-
         if (throwable != null) {
-          // There was an synchronous error,
+          // There was a synchronous error,
           // which means we shouldn't wait for a callback to close the span.
           DECORATE.onError(span, throwable);
           DECORATE.beforeFinish(span);
-          span.finish();
         } else {
           // We're calling an async operation, we still need to finish the span when it's
           // complete and report the results; set an appropriate callback
@@ -138,7 +136,9 @@ public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
         }
       } finally {
         scope.close();
-        // span finished in SpanFinishingCallback
+        if (throwable != null) {
+          span.finish();
+        } // else span finished in SpanFinishingCallback
         CallDepthThreadLocalMap.reset(Twilio.class); // reset call depth count
       }
     }

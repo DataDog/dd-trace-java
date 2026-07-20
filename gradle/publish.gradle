@@ -1,6 +1,7 @@
 apply plugin: 'maven-publish'
 apply plugin: 'signing'
 apply plugin: 'dd-trace-java.version-file'
+apply plugin: 'dd-trace-java.jardiff'
 
 /**
  * Proper publishing requires the following environment variables:

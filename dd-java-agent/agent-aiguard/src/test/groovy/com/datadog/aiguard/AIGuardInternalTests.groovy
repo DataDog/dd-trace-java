@@ -861,6 +861,28 @@ class AIGuardInternalTests extends DDSpecification {
     }
   }
 
+  void 'test adapter serializes content parts'() {
+    given:
+    final adapter = new Moshi.Builder().add(new AIGuardInternal.AIGuardFactory()).build()
+    .adapter(AIGuard.Message)
+
+    expect:
+    // STRICT enforces array element ordering (object key order is always ignored), so a regression
+    // that serialized the content parts out of sequence would be caught here
+    JSONAssert.assertEquals(expected, adapter.toJson(message), JSONCompareMode.STRICT)
+
+    where:
+    message                                                                            | expected
+    AIGuard.Message.message('user', [] as List<AIGuard.ContentPart>)                    | '{"role": "user", "content": []}'
+    AIGuard.Message.message('user', [AIGuard.ContentPart.text('Hello world')])         | '{"role": "user", "content": [{"type": "text", "text": "Hello world"}]}'
+    AIGuard.Message.message('user', [AIGuard.ContentPart.imageUrl('https://example.com/image.jpg')]) | '{"role": "user", "content": [{"type": "image_url", "image_url": {"url": "https://example.com/image.jpg"}}]}'
+    AIGuard.Message.message('user', [
+      AIGuard.ContentPart.text('Describe this image:'),
+      AIGuard.ContentPart.imageUrl('https://example.com/image.jpg'),
+      AIGuard.ContentPart.text('What do you see?')
+    ]) | '{"role": "user", "content": [{"type": "text", "text": "Describe this image:"}, {"type": "image_url", "image_url": {"url": "https://example.com/image.jpg"}}, {"type": "text", "text": "What do you see?"}]}'
+  }
+
   void 'test backward compatibility with string content'() {
     given:
     final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'Good']]])

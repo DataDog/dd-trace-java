@@ -116,6 +116,54 @@ class ScaReachabilityDependencyRegistryTest {
   }
 
   @Test
+  void recordHit_snapshotContainsFullHitMetadata() {
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "com.example:lib", "2.0.0", "GHSA-0001", "com.myapp.Ctrl", "handle", 42);
+
+    List<ScaReachabilityDependencyRegistry.DependencySnapshot> snapshots =
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+
+    assertEquals(1, snapshots.size());
+    ScaReachabilityDependencyRegistry.DependencySnapshot dep = snapshots.get(0);
+    assertEquals("com.example:lib", dep.artifact);
+    assertEquals("2.0.0", dep.version);
+    assertEquals(1, dep.cves.size());
+
+    ScaReachabilityDependencyRegistry.CveSnapshot cve = dep.cves.get(0);
+    assertEquals("GHSA-0001", cve.vulnId);
+    assertNotNull(cve.hit);
+    assertEquals("GHSA-0001", cve.hit.vulnId());
+    assertEquals("com.example:lib", cve.hit.artifact());
+    assertEquals("2.0.0", cve.hit.version());
+    assertEquals("com.myapp.Ctrl", cve.hit.className());
+    assertEquals("handle", cve.hit.symbolName());
+    assertEquals(42, cve.hit.line());
+  }
+
+  @Test
+  void peekSnapshot_returnsCurrentStateWithoutClearingPendingFlag() {
+    assertNull(ScaReachabilityDependencyRegistry.INSTANCE.peekSnapshot("missing", "1.0.0"));
+
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("com.example:lib", "2.0.0", "GHSA-0001");
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "com.example:lib", "2.0.0", "GHSA-0001", "com.myapp.Ctrl", "handle", 42);
+
+    ScaReachabilityDependencyRegistry.DependencySnapshot peeked =
+        ScaReachabilityDependencyRegistry.INSTANCE.peekSnapshot("com.example:lib", "2.0.0");
+
+    assertNotNull(peeked);
+    assertEquals("com.example:lib", peeked.artifact);
+    assertEquals("2.0.0", peeked.version);
+    assertEquals(1, peeked.cves.size());
+    assertEquals("GHSA-0001", peeked.cves.get(0).vulnId);
+    assertNotNull(peeked.cves.get(0).hit);
+
+    List<ScaReachabilityDependencyRegistry.DependencySnapshot> snapshots =
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+    assertEquals(1, snapshots.size(), "peek must not clear pending state");
+  }
+
+  @Test
   void drainPendingDependencies_secondDrainEmpty_untilNewHit() {
     ScaReachabilityDependencyRegistry.INSTANCE.registerCve("com.example:lib", "2.0.0", "GHSA-0001");
 
@@ -136,6 +184,26 @@ class ScaReachabilityDependencyRegistryTest {
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
     assertEquals(1, third.size(), "dep must be pending again after a hit");
     assertNotNull(third.get(0).cves.get(0).hit, "hit callsite must be recorded");
+  }
+
+  @Test
+  void recordHit_firstHitWinsAndDuplicateDoesNotMarkPendingAgain() {
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "com.example:lib", "2.0.0", "GHSA-0001", "com.myapp.First", "first", 1);
+    ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "com.example:lib", "2.0.0", "GHSA-0001", "com.myapp.Second", "second", 2);
+
+    assertTrue(
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies().isEmpty(),
+        "duplicate hit for the same CVE must not mark the dependency pending");
+
+    ScaReachabilityDependencyRegistry.DependencySnapshot snapshot =
+        ScaReachabilityDependencyRegistry.INSTANCE.peekSnapshot("com.example:lib", "2.0.0");
+    assertNotNull(snapshot);
+    assertEquals("com.myapp.First", snapshot.cves.get(0).hit.className());
+    assertEquals("first", snapshot.cves.get(0).hit.symbolName());
   }
 
   @Test
@@ -175,6 +243,30 @@ class ScaReachabilityDependencyRegistryTest {
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
     assertEquals(1, snapshots.size(), "only the updated dep must be pending");
     assertEquals(2, snapshots.get(0).cves.size(), "both CVEs must be present");
+  }
+
+  @Test
+  void recordHit_atCap_newKeysRejectedButExistingKeyStillUpdated() {
+    int cap = Config.get().getAppSecScaMaxTrackedDependencies();
+
+    for (int i = 0; i < cap; i++) {
+      ScaReachabilityDependencyRegistry.INSTANCE.registerCve("art" + i, "1.0", "GHSA-" + i);
+    }
+    ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "art-over-cap", "1.0", "GHSA-over", "com.myapp.Ctrl", "handle", 42);
+    assertTrue(
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies().isEmpty(),
+        "over-cap hit for a new dependency must be rejected");
+
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "art0", "1.0", "GHSA-0", "com.myapp.Ctrl", "handle", 42);
+    List<ScaReachabilityDependencyRegistry.DependencySnapshot> snapshots =
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+    assertEquals(1, snapshots.size(), "existing dependency can still be updated at cap");
+    assertEquals("art0", snapshots.get(0).artifact);
+    assertNotNull(snapshots.get(0).cves.get(0).hit);
   }
 
   @Test

@@ -72,10 +72,12 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_C
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT;
@@ -212,6 +214,7 @@ import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_ENABLED;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_CONTENT_SIZE;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_TIMEOUT;
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
@@ -325,9 +328,11 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_EXCEPTION_PER
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SOURCE_FILE_TRACKING_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT;
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT_MS;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_INCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD;
@@ -340,6 +345,7 @@ import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_RE
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTED_TYPES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL;
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS;
@@ -420,6 +426,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
@@ -1231,7 +1238,9 @@ public class Config {
   private final String dynamicInstrumentationInstrumentTheWorld;
   private final String dynamicInstrumentationExcludeFiles;
   private final String dynamicInstrumentationIncludeFiles;
+  private final String dynamicInstrumentationTimeoutCheckerMode;
   private final int dynamicInstrumentationCaptureTimeout;
+  private final int dynamicInstrumentationEvaluationTimeout;
   private final String dynamicInstrumentationRedactedIdentifiers;
   private final Set<String> dynamicInstrumentationRedactionExcludedIdentifiers;
   private final String dynamicInstrumentationRedactedTypes;
@@ -1512,7 +1521,9 @@ public class Config {
     traceBuilderTagsPrecedenceEnabled =
         configProvider.getBoolean(TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED, false);
     String lambdaInitType = getEnv("AWS_LAMBDA_INITIALIZATION_TYPE");
-    if (lambdaInitType != null && lambdaInitType.equals("snap-start")) {
+    String lambdaMicrovmImageArn = ConfigHelper.env("AWS_LAMBDA_MICROVM_IMAGE_ARN");
+    if ((lambdaInitType != null && lambdaInitType.equals("snap-start"))
+        || (lambdaMicrovmImageArn != null && !lambdaMicrovmImageArn.isEmpty())) {
       secureRandom = true;
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
@@ -2254,7 +2265,8 @@ public class Config {
     final int defaultMaxPending = tightHeap ? 64 : 128;
 
     tracerMetricsMaxAggregates =
-        configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, defaultMaxAggregates);
+        configProvider.getInteger(
+            TRACE_STATS_CARDINALITY_LIMIT, defaultMaxAggregates, TRACER_METRICS_MAX_AGGREGATES);
     /*
      * TRACER_METRICS_MAX_PENDING historically counted conflating Batch slots (~64 spans per batch
      * via Batch.MAX_BATCH_SIZE). The inbox now holds 1 SpanSnapshot per metrics-eligible span, so
@@ -2271,7 +2283,6 @@ public class Config {
         (long) configProvider.getInteger(TRACER_METRICS_MAX_PENDING, defaultMaxPending)
             * LEGACY_BATCH_SIZE;
     tracerMetricsMaxPending = (int) Math.min(requestedMaxPending, MAX_SAFE_ARRAY_SIZE);
-
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
@@ -2554,9 +2565,10 @@ public class Config {
             DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS);
     apiSecurityDownstreamRequestBodyAnalysisSampleRate =
         configProvider.getDouble(
-            API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
+            API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE,
             DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
-            API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE);
+            API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE,
+            API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE);
 
     // Trace Resource Renaming (Endpoint Inference) configuration
     // Default: enabled if AppSec is enabled, otherwise disabled
@@ -2891,10 +2903,18 @@ public class Config {
         configProvider.getString(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES);
     dynamicInstrumentationIncludeFiles =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_INCLUDE_FILES);
+    dynamicInstrumentationTimeoutCheckerMode =
+        configProvider.getString(
+            DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE);
     dynamicInstrumentationCaptureTimeout =
         configProvider.getInteger(
             DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT);
+            DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
+            DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS);
+    dynamicInstrumentationEvaluationTimeout =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT_MS, DEFAULT_DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT);
     dynamicInstrumentationRedactedIdentifiers =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, null);
     dynamicInstrumentationRedactionExcludedIdentifiers =
@@ -3872,6 +3892,16 @@ public class Config {
     return traceStatsInterval;
   }
 
+  /**
+   * Returns the per-cycle cardinality limit for the named stats field, following the RFC naming
+   * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
+   * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
+   * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
+   */
+  public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
+    return configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+  }
+
   public boolean isLogsInjectionEnabled() {
     return logsInjectionEnabled;
   }
@@ -4698,8 +4728,16 @@ public class Config {
     return dynamicInstrumentationIncludeFiles;
   }
 
+  public String getDynamicInstrumentationTimeoutCheckerMode() {
+    return dynamicInstrumentationTimeoutCheckerMode;
+  }
+
   public int getDynamicInstrumentationCaptureTimeout() {
     return dynamicInstrumentationCaptureTimeout;
+  }
+
+  public int getDynamicInstrumentationEvalTimeout() {
+    return dynamicInstrumentationEvaluationTimeout;
   }
 
   public boolean isSymbolDatabaseEnabled() {
@@ -5665,9 +5703,9 @@ public class Config {
   }
 
   /**
-   * @param integrationNames
-   * @param defaultEnabled
-   * @return
+   * @param integrationNames the integration names to check
+   * @param defaultEnabled the value to return when no integration name is configured
+   * @return {@code true} if the JMX fetch integration is enabled
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
    *     #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
    */
@@ -5834,9 +5872,9 @@ public class Config {
   }
 
   /**
-   * @param integrationNames
-   * @param defaultEnabled
-   * @return
+   * @param integrationNames the integration names to check
+   * @param defaultEnabled the value to return when no integration name is configured
+   * @return {@code true} if the trace analytics integration is enabled
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
    *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    */

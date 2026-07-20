@@ -59,24 +59,38 @@ docs/                     Developer documentation (see below)
 - **Static imports**: Prefer static imports over class-qualified calls for call-style helpers — JUnit `Assertions`, Mockito (`mock`, `when`, `verify`, `anyString`, `RETURNS_DEFAULTS`, ...), Hamcrest/AssertJ matchers, internal test DSLs, and similar. Same goes for production code: `Collections.emptyList()` is fine, but if you find yourself repeatedly writing `Foo.bar(...)` where `Foo` adds no information at the call site, static-import `bar`. Wildcard `import static x.*` is disallowed (enforced by IDE config in CONTRIBUTING.md).
 - **Instrumentation layout**: `dd-java-agent/instrumentation/{framework}/{framework}-{minVersion}/`
 - **Instrumentation pattern**: Type matching → Method matching → Advice class (bytecode advice, not AOP)
-- **Test frameworks**: Always use JUnit 5. **Do not write new Groovy / Spock tests** and migrate the existing one to JUnit 5 if it is written in Groovy.
+- **Test frameworks**: Always use JUnit 5 for unit tests. Only use Groovy / Spock tests for instrumentation and smoke tests.
 - **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
 - **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
 - **Instrumentation one-shot methods**: Never extract the return values of `triggerClasses()`, `contextStore()`, `classLoaderMatcher()`, or `methodAdvice()` into static constants. These are called once by the framework — extracting to a constant adds constant-pool bloat with no benefit.
+- **Scope lifecycle order**: Keep the scope open until all work that needs the current active span is done — decorator calls, async callback registration, etc. Required order: decorator calls and callback registration, then `scope.close()`, then `span.finish()`.
 
 ## PR conventions
 
 - Title: imperative verb sentence describing user-visible change (e.g. "Fix span sampling rule parsing")
-- Labels: at least one `comp:` or `inst:` label + one `type:` label
-- Use `tag: no release note` for internal/refactoring changes
-- Use `tag: ai generated` for AI generated code
+- Labels: always add `tag: ai generated` and at least one `comp:` or `inst:` label + one `type:` label
+- Use `tag: no release notes` for internal/refactoring changes
 - Open as draft first, convert to ready when reviewable
+
+## Review Guidelines
+
+Before marking a PR ready, run the applicable reviews below over the branch changes (the diff since the merge-base with `master`). These are **advisory, precision-first** checks — they surface high-severity issues early and are not merge gates. The linked guidelines are the tool-agnostic source of truth.
+
+### Performance Review
+
+Follow the performance-review guidelines in [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md) — the do-no-harm / assume-hot posture, the hot-path checks (universal + Java J1–J11 + ByteBuddy-Advice idioms), and the confidence/severity model, with the detailed rubric in its `references/`. Scope: hot-path allocation, unbounded memory, repeated work, escaping objects, native-boundary crossings, and JVM-specific pitfalls.
 
 ## Bootstrap constraints (critical)
 
 Code running in the agent's `premain` phase must **not** use:
 - `java.util.logging.*` — locks in log manager before app configures it
-- `java.nio.*` — triggers premature provider initialization
+- `java.nio.file.*` — triggers premature provider initialization
 - `javax.management.*` — causes class loading issues
 
 See [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) for details and alternatives.
+
+## Advice constraints (critical)
+
+Advice methods (OnMethodEnter/OnMethodExit) are inlined into the instrumented class's bytecode.
+Calling a static interface method there, such as Context.root() or Context.current(), can cause
+a VerifyError at runtime — use Java8BytecodeBridge (rootContext, currentContext, etc.) instead.

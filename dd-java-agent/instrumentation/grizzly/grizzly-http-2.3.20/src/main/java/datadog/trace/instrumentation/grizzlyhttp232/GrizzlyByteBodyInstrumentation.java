@@ -207,7 +207,7 @@ public class GrizzlyByteBodyInstrumentation
   }
 
   static class NIOInputStreamRecycleAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(@Advice.This final NIOInputStream thiz) {
       InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class).put(thiz, null);
     }

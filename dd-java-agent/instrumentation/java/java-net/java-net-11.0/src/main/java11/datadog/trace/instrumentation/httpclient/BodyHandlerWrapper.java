@@ -2,7 +2,8 @@ package datadog.trace.instrumentation.httpclient;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodySubscriber;
@@ -33,9 +34,9 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
 
   static class BodySubscriberWrapper<T> implements BodySubscriber<T> {
     private final BodySubscriber<T> delegate;
-    private final AgentScope.Continuation continuation;
+    private final ContextContinuation continuation;
 
-    public BodySubscriberWrapper(BodySubscriber<T> delegate, AgentScope.Continuation continuation) {
+    public BodySubscriberWrapper(BodySubscriber<T> delegate, ContextContinuation continuation) {
       this.delegate = delegate;
       this.continuation = continuation;
     }
@@ -56,21 +57,21 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
 
     @Override
     public void onNext(List<ByteBuffer> item) {
-      try (AgentScope ignore = continuation.activate()) {
+      try (ContextScope ignore = continuation.resume()) {
         delegate.onNext(item);
       }
     }
 
     @Override
     public void onError(Throwable throwable) {
-      try (AgentScope ignore = continuation.activate()) {
+      try (ContextScope ignore = continuation.resume()) {
         delegate.onError(throwable);
       }
     }
 
     @Override
     public void onComplete() {
-      try (AgentScope ignore = continuation.activate()) {
+      try (ContextScope ignore = continuation.resume()) {
         delegate.onComplete();
       }
     }

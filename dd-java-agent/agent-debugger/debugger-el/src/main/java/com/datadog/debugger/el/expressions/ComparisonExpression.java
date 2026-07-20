@@ -1,10 +1,12 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
+
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /**
  * Takes two {@linkplain ValueExpression} instances and compares them using the given {@link
@@ -23,17 +25,19 @@ public class ComparisonExpression implements BooleanExpression {
   }
 
   @Override
-  public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
-    Value<?> leftValue = left.evaluate(valueRefResolver);
+  public Boolean evaluate(EvalContext evalContext) {
+    Value<?> leftValue = left.evaluate(evalContext);
     if (leftValue.isUndefined()) {
       return Boolean.FALSE;
     }
-    Value<?> rightValue = right.evaluate(valueRefResolver);
+    Value<?> rightValue = right.evaluate(evalContext);
     if (rightValue.isUndefined()) {
       return Boolean.FALSE;
     }
     try {
-      return operator.apply(leftValue, rightValue);
+      boolean result = operator.apply(leftValue, rightValue);
+      checkTimeout(evalContext.getTimeoutChecker(), this);
+      return result;
     } catch (EvaluationException e) {
       throw new EvaluationException(e.getMessage(), PrettyPrintVisitor.print(this));
     }

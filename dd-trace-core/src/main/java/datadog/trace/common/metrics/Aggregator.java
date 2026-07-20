@@ -30,10 +30,10 @@ final class Aggregator implements Runnable {
 
   /**
    * Per-cycle hook run on the aggregator thread at the start of each report cycle, before the
-   * flush. Used by {@link ConflatingMetricsAggregator} to reconcile its cached peer-tag schema
-   * against {@link datadog.communication.ddagent.DDAgentFeaturesDiscovery}; running before the
-   * flush guarantees that any test awaiting {@code writer.finishBucket()} observes the schema in
-   * its post-reconcile state. May be {@code null}.
+   * flush. Used by {@link ClientStatsAggregator} to reconcile its cached peer-tag schema against
+   * {@link datadog.communication.ddagent.DDAgentFeaturesDiscovery}; running before the flush
+   * guarantees that any test awaiting {@code writer.finishBucket()} observes the schema in its
+   * post-reconcile state. May be {@code null}.
    */
   private final Runnable onReportCycle;
 
