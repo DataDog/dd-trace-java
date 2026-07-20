@@ -33,10 +33,5 @@ final class NoopContinuation implements AgentScope.Continuation {
   }
 
   @Override
-  public AgentSpan span() {
-    return NoopSpan.INSTANCE;
-  }
-
-  @Override
   public void cancel() {}
 }
