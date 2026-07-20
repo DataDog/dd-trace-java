@@ -19,6 +19,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nonnull;
 
 public class OpenAiDecorator extends ClientDecorator {
   public static final OpenAiDecorator DECORATE = new OpenAiDecorator();
@@ -133,7 +134,7 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   @Override
-  protected void doBeforeFinish(Context context) {
+  protected void doBeforeFinish(@Nonnull Context context) {
     AgentSpan span = fromContext(context);
     if (llmObsEnabled && span != null) {
       span.setTag(CommonTags.ERROR, span.isError() ? 1 : 0);
