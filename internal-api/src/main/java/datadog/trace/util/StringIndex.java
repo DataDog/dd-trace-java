@@ -11,11 +11,13 @@ import java.util.function.ToLongFunction;
  * <p>Two ways to use it, trading convenience for indirection:
  *
  * <ul>
- *   <li>{@link Support} — static algorithm over <b>raw arrays</b>. Keep the arrays in your own
- *       (ideally {@code static final}) fields and the JIT folds the refs to constants. The fastest
- *       path; nothing to dereference.
+ *   <li>{@link EmbeddingSupport} — static algorithm over <b>raw arrays</b> you <b>embed</b> in your
+ *       own (ideally {@code static final}) fields; the JIT folds the refs to constants. The fastest
+ *       path, nothing to dereference. (Named for the same role as {@code
+ *       LightMap.EmbeddingSupport}: the static ops you reach for when you own the backing arrays
+ *       directly.)
  *   <li>The {@code StringIndex} <b>instance</b> ({@link #of}) — a convenience wrapper holding the
- *       arrays; {@link #indexOf}/{@link #contains} delegate to {@link Support}. Costs an
+ *       arrays; {@link #indexOf}/{@link #contains} delegate to {@link EmbeddingSupport}. Costs an
  *       instance-field load per call (the indirection the static path removes) — fine off the hot
  *       path.
  * </ul>
@@ -25,18 +27,19 @@ import java.util.function.ToLongFunction;
  * mapIntValues}/{@code mapLongValues} build such an array at construction; {@code lookup}/{@code
  * lookupOrDefault} read one back in a single call (slot resolve + array read).
  *
- * <p>Slot 0-value is the empty sentinel: {@link Support#hash} never returns 0, so {@code hashes[i]
- * == 0} unambiguously means an empty slot.
+ * <p>Slot 0-value is the empty sentinel: {@link EmbeddingSupport#hash} never returns 0, so {@code
+ * hashes[i] == 0} unambiguously means an empty slot.
  *
- * <p>Trades memory for simplicity (and, incidentally, speed). The table is 2x-oversized (load
- * factor &le; 0.5) so build-time placement always finds a free slot and never has to rehash or
- * resize — short probe chains are a welcome side effect, not the design goal. The cached {@code
- * int[]} hashes gate {@code equals()}. Both cost memory, so a tightly-packed set is more compact:
- * prefer {@link java.util.Set#copyOf} (the JDK's {@code SetN}) when you only need membership, and
- * reach for {@code StringIndex} for the {@code indexOf}-&gt;parallel-array (name&rarr;id)
- * capability or the hot, allocation-free static {@link Support} path. (If footprint ever matters
- * more than build simplicity, a higher load factor with construction-time rehashing would close the
- * gap.)
+ * <p>Trades memory for simplicity (and, incidentally, speed). The table is 2x-oversized ({@link
+ * EmbeddingSupport#DEFAULT_LOAD_FACTOR} &le; 0.5) so build-time placement always finds a free slot
+ * and never has to rehash or resize — short probe chains are a welcome side effect, not the design
+ * goal. The cached {@code int[]} hashes gate {@code equals()}. Both cost memory, so a
+ * tightly-packed set is more compact: prefer {@link java.util.Set#copyOf} (the JDK's {@code SetN})
+ * when you only need membership, and reach for {@code StringIndex} for the {@code
+ * indexOf}-&gt;parallel-array (name&rarr;id) capability or the hot, allocation-free static {@link
+ * EmbeddingSupport} path. (If footprint matters more than build simplicity, build via {@link
+ * EmbeddingSupport#capacityFor(int, float)} at a higher load factor — placement still finds a slot
+ * at any factor &lt; 1, so no rehash is needed.)
  */
 public final class StringIndex {
   private final int[] hashes;
@@ -48,16 +51,19 @@ public final class StringIndex {
   }
 
   /**
-   * Convenience instance — wraps the placed arrays. For the hot path prefer raw {@link Support}.
+   * Convenience instance — wraps the placed arrays. For the hot path prefer raw {@link
+   * EmbeddingSupport}.
    */
   public static StringIndex of(String... names) {
-    Data data = Support.create(names);
+    Data data = EmbeddingSupport.create(names);
     return new StringIndex(data.hashes, data.names);
   }
 
-  /** Slot of {@code name}, or -1. Delegates to {@link Support} on the instance's arrays. */
+  /**
+   * Slot of {@code name}, or -1. Delegates to {@link EmbeddingSupport} on the instance's arrays.
+   */
   public int indexOf(String name) {
-    return Support.indexOf(this.hashes, this.names, name);
+    return EmbeddingSupport.indexOf(this.hashes, this.names, name);
   }
 
   public boolean contains(String name) {
@@ -77,49 +83,49 @@ public final class StringIndex {
    * can't allocate a generic array without it). Pair with {@link #lookup(Object[], String)}.
    */
   public <T> T[] mapValues(Class<T> type, Function<String, T> fn) {
-    return Support.mapValues(this.names, type, fn);
+    return EmbeddingSupport.mapValues(this.names, type, fn);
   }
 
   /** Slot-aligned {@code int[]} of values; absent slots stay 0. See {@link #mapValues}. */
   public int[] mapIntValues(ToIntFunction<String> fn) {
-    return Support.mapIntValues(this.names, fn);
+    return EmbeddingSupport.mapIntValues(this.names, fn);
   }
 
   /** Slot-aligned {@code long[]} of values; absent slots stay 0. See {@link #mapValues}. */
   public long[] mapLongValues(ToLongFunction<String> fn) {
-    return Support.mapLongValues(this.names, fn);
+    return EmbeddingSupport.mapLongValues(this.names, fn);
   }
 
   // --- lookup: resolve a key and read its parallel value in one call ---
 
   /** {@code data[indexOf(key)]}, or {@code null} when {@code key} is absent. */
   public <T> T lookup(T[] data, String key) {
-    return Support.lookup(this.hashes, this.names, data, key);
+    return EmbeddingSupport.lookup(this.hashes, this.names, data, key);
   }
 
   /** {@code data[indexOf(key)]}, or {@code defaultValue} when {@code key} is absent. */
   public <T> T lookupOrDefault(T[] data, String key, T defaultValue) {
-    return Support.lookupOrDefault(this.hashes, this.names, data, key, defaultValue);
+    return EmbeddingSupport.lookupOrDefault(this.hashes, this.names, data, key, defaultValue);
   }
 
   /** {@code data[indexOf(key)]}, or 0 when {@code key} is absent. */
   public int lookup(int[] data, String key) {
-    return Support.lookup(this.hashes, this.names, data, key);
+    return EmbeddingSupport.lookup(this.hashes, this.names, data, key);
   }
 
   /** {@code data[indexOf(key)]}, or {@code defaultValue} when {@code key} is absent. */
   public int lookupOrDefault(int[] data, String key, int defaultValue) {
-    return Support.lookupOrDefault(this.hashes, this.names, data, key, defaultValue);
+    return EmbeddingSupport.lookupOrDefault(this.hashes, this.names, data, key, defaultValue);
   }
 
   /** {@code data[indexOf(key)]}, or 0 when {@code key} is absent. */
   public long lookup(long[] data, String key) {
-    return Support.lookup(this.hashes, this.names, data, key);
+    return EmbeddingSupport.lookup(this.hashes, this.names, data, key);
   }
 
   /** {@code data[indexOf(key)]}, or {@code defaultValue} when {@code key} is absent. */
   public long lookupOrDefault(long[] data, String key, long defaultValue) {
-    return Support.lookupOrDefault(this.hashes, this.names, data, key, defaultValue);
+    return EmbeddingSupport.lookupOrDefault(this.hashes, this.names, data, key, defaultValue);
   }
 
   /** Build-time carrier. Pull the fields into your own (static final) fields; don't keep this. */
@@ -136,8 +142,8 @@ public final class StringIndex {
   /**
    * Static algorithm over raw arrays. Query helpers take raw arrays, never a Data or a StringIndex.
    */
-  public static final class Support {
-    private Support() {}
+  public static final class EmbeddingSupport {
+    private EmbeddingSupport() {}
 
     /** Spread of String.hashCode; 0 reserved as the empty sentinel. */
     public static int hash(String name) {
@@ -145,18 +151,43 @@ public final class StringIndex {
       return h == 0 ? 0xDD06 : h ^ (h >>> 16);
     }
 
-    /** Power-of-two size, 2x-oversized so load factor stays &lt;= 0.5. */
-    public static int tableSizeFor(int n) {
-      int size = 1;
-      while (size <= n) {
-        size <<= 1;
+    /**
+     * Balanced default load factor — target fill {@code <= 0.5} ({@code >= 2x} capacity). (Mirrors
+     * {@code FlatHashtable.DEFAULT_LOAD_FACTOR}; duplicated while the two are separate PRs, to be
+     * unified when the flat-collection family converges.)
+     */
+    public static final float DEFAULT_LOAD_FACTOR = 0.5f;
+
+    /** Sparse load factor — target fill {@code <= 0.25} ({@code >= 4x} capacity). */
+    public static final float LOW_LOAD_FACTOR = 0.25f;
+
+    /** Power-of-two capacity for {@code n} names at the {@link #DEFAULT_LOAD_FACTOR}. */
+    public static int capacityFor(int n) {
+      return capacityFor(n, DEFAULT_LOAD_FACTOR);
+    }
+
+    /**
+     * Power-of-two capacity for {@code n} names at {@code loadFactor}: the smallest power of two
+     * {@code >= ceil(n / loadFactor)} (so the achieved fill is {@code <= loadFactor}). {@code n ==
+     * 0} yields a minimal 2-slot table (StringIndex allows the empty set, unlike FlatHashtable).
+     */
+    public static int capacityFor(int n, float loadFactor) {
+      if (n < 0) {
+        throw new IllegalArgumentException("n must be non-negative: " + n);
       }
-      return size << 1;
+      if (!(loadFactor > 0f && loadFactor < 1f)) {
+        throw new IllegalArgumentException("loadFactor must be in (0, 1): " + loadFactor);
+      }
+      if (n == 0) {
+        return 2; // empty set -> minimal table (one always-empty slot suffices, 2 keeps it pow2)
+      }
+      int min = (int) Math.ceil(n / (double) loadFactor);
+      return Integer.highestOneBit(min - 1) << 1;
     }
 
     /** Build the placed table. Returns a Data carrier; pull its arrays into your own fields. */
     public static Data create(String... names) {
-      int size = tableSizeFor(names.length);
+      int size = capacityFor(names.length);
       int[] hashes = new int[size];
       String[] placed = new String[size];
       for (String name : names) {

@@ -19,8 +19,8 @@ import org.openjdk.jmh.annotations.Warmup;
  * <ul>
  *   <li>{@code switch} — a hand-written {@code switch(key)} over the literals ({@code hashCode}
  *       switch + {@code equals}), {@code default} returns 0.
- *   <li>{@code stringIndex} — {@code IDS[Support.indexOf(HASHES, NAMES, key)]} over {@code static
- *       final} arrays (a miss returns 0), the folded-constant hot path.
+ *   <li>{@code stringIndex} — {@code IDS[EmbeddingSupport.indexOf(HASHES, NAMES, key)]} over {@code
+ *       static final} arrays (a miss returns 0), the folded-constant hot path.
  * </ul>
  *
  * <p><b>What this measures: two axes.</b> A prior investigation found the {@code TagInterceptor}
@@ -30,8 +30,8 @@ import org.openjdk.jmh.annotations.Warmup;
  * varied key. The results (below) land the teaching point: the dominant axis is
  * <i>key-constancy</i>, not inlining. At steady state the inline-vs-not gap is small for both
  * forms; what sinks the switch is a runtime, varied key (it can't specialize), while the
- * StringIndex {@code Support} path stays flat across both axes — so the win is largest exactly
- * where {@code TagInterceptor} lives.
+ * StringIndex {@code EmbeddingSupport} path stays flat across both axes — so the win is largest
+ * exactly where {@code TagInterceptor} lives.
  *
  * <p>The {@code _inlined} and {@code _noinline} helpers carry duplicate bodies on purpose: that's
  * the only way to pin each form's inlining decision independently.
@@ -107,12 +107,13 @@ public class StringIndexSwitchBenchmark {
   static final int[] IDS;
 
   static {
-    StringIndex.Data data = StringIndex.Support.create(KEYS);
+    StringIndex.Data data = StringIndex.EmbeddingSupport.create(KEYS);
     HASHES = data.hashes;
     NAMES = data.names;
     IDS = new int[HASHES.length];
     for (int i = 0; i < KEYS.length; ++i) {
-      IDS[StringIndex.Support.indexOf(HASHES, NAMES, KEYS[i])] = i + 1; // 1-based; 0 = not found
+      IDS[StringIndex.EmbeddingSupport.indexOf(HASHES, NAMES, KEYS[i])] =
+          i + 1; // 1-based; 0 = not found
     }
   }
 
@@ -224,13 +225,13 @@ public class StringIndexSwitchBenchmark {
 
   @CompilerControl(CompilerControl.Mode.INLINE)
   static int indexInline(String key) {
-    int slot = StringIndex.Support.indexOf(HASHES, NAMES, key);
+    int slot = StringIndex.EmbeddingSupport.indexOf(HASHES, NAMES, key);
     return slot >= 0 ? IDS[slot] : 0;
   }
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
   static int indexNoInline(String key) {
-    int slot = StringIndex.Support.indexOf(HASHES, NAMES, key);
+    int slot = StringIndex.EmbeddingSupport.indexOf(HASHES, NAMES, key);
     return slot >= 0 ? IDS[slot] : 0;
   }
 
