@@ -115,7 +115,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                     "aws", attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME), s));
   }
 
-  public Context onSdkRequest(
+  public void onSdkRequest(
       final Context context,
       final SdkRequest request,
       final SdkHttpRequest httpRequest,
@@ -226,11 +226,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       span.setTag(Tags.PEER_SERVICE, hostname);
       span.setTag(DDTags.PEER_SERVICE_SOURCE, "peer.service");
     }
-
-    return context;
   }
 
-  private static AgentSpan onOperation(
+  private static void onOperation(
       final AgentSpan span, final String awsServiceName, final String awsOperationName) {
     String awsRequestName = awsServiceName + "." + awsOperationName;
     span.setResourceName(awsRequestName, RESOURCE_NAME_PRIORITY);
@@ -261,8 +259,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     span.setTag(InstrumentationTags.AWS_SERVICE, awsServiceName);
     span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, awsServiceName);
     span.setTag(InstrumentationTags.AWS_OPERATION, awsOperationName);
-
-    return span;
   }
 
   private static void setPeerService(
@@ -307,7 +303,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     setPeerService(span, InstrumentationTags.AWS_TABLE_NAME, name);
   }
 
-  public Context onSdkResponse(
+  public void onSdkResponse(
       final Context context,
       final SdkResponse response,
       final SdkHttpResponse httpResponse,
@@ -405,7 +401,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         }
       }
     }
-    return span;
   }
 
   @Override

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.synapse3;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_CONTINUATION_KEY;
@@ -13,10 +12,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.http.HttpResponse;
@@ -56,7 +55,7 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
   public static final class NewClientWorkerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void createWorker(@Advice.Argument(2) final TargetResponse response) {
-      AgentScope.Continuation continuation = captureActiveSpan();
+      ContextContinuation continuation = captureActiveSpan();
       if (continuation != noopContinuation()) {
         response.getConnection().getContext().setAttribute(SYNAPSE_CONTINUATION_KEY, continuation);
       }
@@ -67,18 +66,11 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginResponse(
         @Advice.FieldValue("response") final TargetResponse response) {
-      AgentScope.Continuation continuation =
-          (AgentScope.Continuation)
-              response.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
-      if (null != continuation) {
-        AgentScope agentScope = continuation.activate();
-        try {
-          return currentContext().with(agentScope.span()).attach();
-        } finally {
-          agentScope.close();
-        }
-      }
-      return null;
+      Object continuation =
+          response.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
+      return continuation instanceof ContextContinuation
+          ? ((ContextContinuation) continuation).resume()
+          : null;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

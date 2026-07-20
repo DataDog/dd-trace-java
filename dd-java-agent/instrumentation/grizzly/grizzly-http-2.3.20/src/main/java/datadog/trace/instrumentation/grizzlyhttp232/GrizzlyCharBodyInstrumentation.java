@@ -221,7 +221,7 @@ public class GrizzlyCharBodyInstrumentation
   }
 
   static class NIOReaderRecycleAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(@Advice.This final NIOReader thiz) {
       InstrumentationContext.get(NIOReader.class, StoredCharBody.class).put(thiz, null);
     }

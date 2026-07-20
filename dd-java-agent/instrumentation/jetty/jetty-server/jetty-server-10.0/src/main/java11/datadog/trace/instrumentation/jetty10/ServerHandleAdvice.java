@@ -68,9 +68,11 @@ class ServerHandleAdvice {
       // finish will be handled by the async listener
       // Use the full context from the scope for beforeFinish
       DECORATE.beforeFinish(scope.context());
+      scope.close();
       span.finish();
+    } else {
+      scope.close();
     }
-    scope.close();
 
     synchronized (req) {
       req.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);

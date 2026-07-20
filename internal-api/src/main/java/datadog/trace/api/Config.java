@@ -300,6 +300,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_ORDE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CODE_COVERAGE_FLAGS;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_COMMIT_HEAD_SHA;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH_SHA;
@@ -426,6 +427,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
@@ -821,6 +823,7 @@ import org.slf4j.LoggerFactory;
 public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
+  private static final int MAX_CODE_COVERAGE_FLAGS = 32;
 
   private static final Pattern COLON = Pattern.compile(":");
 
@@ -1147,6 +1150,7 @@ public class Config {
   private final boolean ciVisibilityCodeCoverageEnabled;
   private final Boolean ciVisibilityCoverageLinesEnabled;
   private final String ciVisibilityCodeCoverageReportDumpDir;
+  private final List<String> codeCoverageFlags;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
   private final boolean ciVisibilityJacocoPluginVersionProvided;
@@ -2260,7 +2264,8 @@ public class Config {
     final int defaultMaxPending = tightHeap ? 64 : 128;
 
     tracerMetricsMaxAggregates =
-        configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, defaultMaxAggregates);
+        configProvider.getInteger(
+            TRACE_STATS_CARDINALITY_LIMIT, defaultMaxAggregates, TRACER_METRICS_MAX_AGGREGATES);
     /*
      * TRACER_METRICS_MAX_PENDING historically counted conflating Batch slots (~64 spans per batch
      * via Batch.MAX_BATCH_SIZE). The inbox now holds 1 SpanSnapshot per metrics-eligible span, so
@@ -2698,6 +2703,7 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED);
     ciVisibilityCodeCoverageReportDumpDir =
         configProvider.getString(CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR);
+    codeCoverageFlags = parseCodeCoverageFlags(configProvider.getList(CODE_COVERAGE_FLAGS));
     ciVisibilityCompilerPluginVersion =
         configProvider.getString(
             CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
@@ -3882,6 +3888,16 @@ public class Config {
     return traceStatsInterval;
   }
 
+  /**
+   * Returns the per-cycle cardinality limit for the named stats field, following the RFC naming
+   * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
+   * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
+   * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
+   */
+  public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
+    return configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+  }
+
   public boolean isLogsInjectionEnabled() {
     return logsInjectionEnabled;
   }
@@ -4385,6 +4401,10 @@ public class Config {
 
   public String getCiVisibilityCodeCoverageReportDumpDir() {
     return ciVisibilityCodeCoverageReportDumpDir;
+  }
+
+  public List<String> getCodeCoverageFlags() {
+    return codeCoverageFlags;
   }
 
   public String getCiVisibilityCompilerPluginVersion() {
@@ -6069,6 +6089,29 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
+  private static List<String> parseCodeCoverageFlags(List<String> configuredFlags) {
+    if (configuredFlags.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    List<String> flags = new ArrayList<>(configuredFlags.size());
+    for (String configuredFlag : configuredFlags) {
+      if (!configuredFlag.isEmpty()) {
+        flags.add(configuredFlag);
+      }
+    }
+
+    if (flags.size() > MAX_CODE_COVERAGE_FLAGS) {
+      log.warn(
+          "Cannot apply {} code coverage report flags: the maximum supported number is {}. The report will be uploaded without flags.",
+          flags.size(),
+          MAX_CODE_COVERAGE_FLAGS);
+      return Collections.emptyList();
+    }
+
+    return Collections.unmodifiableList(flags);
+  }
+
   private static <T> Set<T> convertStringSetToSet(
       String setting, final Set<String> input, Function<String, T> mapper) {
     if (input.isEmpty()) {
@@ -6257,6 +6300,8 @@ public class Config {
         + experimentalFeaturesEnabled
         + ", integrationSynapseLegacyOperationName="
         + integrationSynapseLegacyOperationName
+        + ", codeCoverageFlags="
+        + codeCoverageFlags
         + ", writerType='"
         + writerType
         + '\''

@@ -91,9 +91,6 @@ workflow:
     - if: '$CI_COMMIT_BRANCH =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       auto_cancel:
         on_new_commit: none
-    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
-      variables:
-        SYSTEM_TESTS_RUN_ALL_VMS: "true"
     - when: always
 
 .test_matrix: &test_matrix
@@ -372,6 +369,7 @@ build:
 build_tests:
   extends: .gradle_build
   variables:
+    <<: *tier_l_variables
     BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: pull
   parallel:
@@ -508,6 +506,33 @@ test_published_artifacts:
     when: always
     paths:
       - ./check_reports
+
+validate_build:
+  extends: .gradle_build
+  stage: tests
+  needs: [ build ]
+  variables:
+    CACHE_TYPE: "lib"
+  script:
+    # Preserve the `build` job artifacts before Gradle rebuilds and overwrites them under
+    # workspace/**/build/libs, so jardiff can compare the rebuilt jars against them.
+    - mkdir -p reference-artifacts
+    - cp workspace/dd-java-agent/build/libs/*.jar reference-artifacts/
+    - cp workspace/dd-trace-api/build/libs/*.jar reference-artifacts/
+    - cp workspace/dd-trace-ot/build/libs/*.jar reference-artifacts/
+    - ./gradlew --version
+    # This will run the shadowJar task and exercise the build cache, allowing to identify build-cache issues
+    - ./gradlew compareToReferenceJar -PjardiffReferenceDir="$CI_PROJECT_DIR/reference-artifacts" -PskipTests $GRADLE_ARGS
+  after_script:
+    - source .gitlab/gitlab-utils.sh
+    - gitlab_section_start "collect-reports" "Collecting reports"
+    - .gitlab/collect_reports.sh --destination ./check_reports
+    - gitlab_section_end "collect-reports"
+  artifacts:
+    when: always
+    paths:
+      - ./check_reports
+      - '.gradle/daemon/*/*.out.log'
 
 .check_job:
   extends: .gradle_build

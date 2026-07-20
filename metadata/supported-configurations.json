@@ -747,9 +747,9 @@
     ],
     "DD_CIVISIBILITY_JACOCO_PLUGIN_VERSION": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
-        "default": "0.8.14",
+        "default": "0.8.15",
         "aliases": []
       }
     ],
@@ -910,6 +910,14 @@
         "version": "A",
         "type": "boolean",
         "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_CODE_COVERAGE_FLAGS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
         "aliases": []
       }
     ],
@@ -1498,6 +1506,14 @@
       }
     ],
     "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
@@ -9577,6 +9593,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_RMI_ENABLED", "DD_INTEGRATION_RMI_ENABLED"]
       }
     ],
+    "DD_TRACE_ROBOLECTRIC_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_ROBOLECTRIC_ENABLED", "DD_INTEGRATION_ROBOLECTRIC_ENABLED"]
+      }
+    ],
     "DD_TRACE_RMI_SERVER_ANALYTICS_ENABLED": [
       {
         "version": "A",
@@ -10697,11 +10721,43 @@
         "aliases": ["DD_TRACE_TRACER_METRICS_ENABLED"]
       }
     ],
+    "DD_TRACE_STATS_CARDINALITY_LIMIT": [
+      {
+        "version": "B",
+        "type": "int",
+        "default": "2048",
+        "aliases": ["DD_TRACE_TRACER_METRICS_MAX_AGGREGATES"]
+      }
+    ],
     "DD_TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION": [
       {
         "version": "A",
         "type": "boolean",
         "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1024",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_STATS_HTTP_ENDPOINT_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "512",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_STATS_PEER_TAGS_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "512",
         "aliases": []
       }
     ],

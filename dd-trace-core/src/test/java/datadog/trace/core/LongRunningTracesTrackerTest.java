@@ -21,7 +21,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.PropagationTags;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.Arrays;
 import java.util.Collections;

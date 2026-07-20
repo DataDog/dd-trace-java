@@ -41,7 +41,7 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
           TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
 
           final AgentSpan span =
-              DECORATE.onReceiveFrameStart(
+              DECORATE.startInboundFrameSpan(
                   receiverContext, textFrame.text(), textFrame.isFinalFragment());
           try (final ContextScope scope = activateSpan(span)) {
             ctx.fireChannelRead(textFrame);
@@ -59,7 +59,7 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
           // WebSocket Read Binary Start
           BinaryWebSocketFrame binaryFrame = (BinaryWebSocketFrame) frame;
           final AgentSpan span =
-              DECORATE.onReceiveFrameStart(
+              DECORATE.startInboundFrameSpan(
                   receiverContext,
                   binaryFrame.content().nioBuffer(),
                   binaryFrame.isFinalFragment());
@@ -80,7 +80,7 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
           ContinuationWebSocketFrame continuationWebSocketFrame =
               (ContinuationWebSocketFrame) frame;
           final AgentSpan span =
-              DECORATE.onReceiveFrameStart(
+              DECORATE.startInboundFrameSpan(
                   receiverContext,
                   MESSAGE_TYPE_TEXT.equals(receiverContext.getMessageType())
                       ? continuationWebSocketFrame.text()
@@ -105,7 +105,7 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
           channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).remove();
           channel.attr(WEBSOCKET_RECEIVER_HANDLER_CONTEXT).remove();
           final AgentSpan span =
-              DECORATE.onSessionCloseReceived(receiverContext, reasonText, statusCode);
+              DECORATE.startInboundCloseSpan(receiverContext, reasonText, statusCode);
           try (final ContextScope scope = activateSpan(span)) {
             ctx.fireChannelRead(closeFrame);
             if (closeFrame.isFinalFragment()) {

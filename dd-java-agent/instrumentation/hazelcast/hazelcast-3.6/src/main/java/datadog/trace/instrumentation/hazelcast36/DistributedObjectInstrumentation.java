@@ -278,16 +278,18 @@ public final class DistributedObjectInstrumentation
       final AgentSpan span = scope.span();
       try {
         if (throwable != null) {
-          // There was an synchronous error,
+          // There was a synchronous error,
           // which means we shouldn't wait for a callback to close the span.
           DECORATE.onError(span, throwable);
           DECORATE.beforeFinish(span);
-          span.finish();
         } else {
           future.andThen(new SpanFinishingExecutionCallback(span));
         }
       } finally {
         scope.close();
+        if (throwable != null) {
+          span.finish();
+        }
         CallDepthThreadLocalMap.reset(DistributedObject.class); // reset call depth count
       }
     }

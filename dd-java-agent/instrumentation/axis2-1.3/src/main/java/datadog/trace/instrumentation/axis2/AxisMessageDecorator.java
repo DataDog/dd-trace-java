@@ -95,8 +95,9 @@ public class AxisMessageDecorator extends BaseDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(AgentSpan span) {
-    return super.afterStart(span).setMeasured(true);
+  public void afterStart(AgentSpan span) {
+    super.afterStart(span);
+    span.setMeasured(true);
   }
 
   public void onTransport(AgentSpan span, MessageContext message) {

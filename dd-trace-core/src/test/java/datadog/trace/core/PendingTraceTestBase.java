@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import datadog.trace.common.writer.ListWriter;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
