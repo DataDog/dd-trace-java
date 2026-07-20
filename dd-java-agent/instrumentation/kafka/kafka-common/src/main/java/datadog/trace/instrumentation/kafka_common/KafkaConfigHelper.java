@@ -118,11 +118,15 @@ public class KafkaConfigHelper {
     if (memberId == null || memberId.isEmpty()) {
       return;
     }
+    // Skip until the cluster id is known: the report can't be attributed downstream without it.
+    if (clusterId == null || clusterId.isEmpty()) {
+      return;
+    }
     if (Config.get().isDataStreamsEnabled()) {
       AgentTracer.get()
           .getDataStreamsMonitoring()
           .reportKafkaConsumerGroupMember(
-              clusterId != null ? clusterId : "",
+              clusterId,
               consumerGroup != null ? consumerGroup : "",
               memberId,
               generationId,
