@@ -754,8 +754,11 @@ The basic span lifecycle in an Advice class looks like:
 2. Decorate the span
 3. Activate the span and get the AgentScope
 4. Run the instrumented target method
-5. Close the Agent Scope
-6. Finish the span
+5. While the scope is still active: call final decorator methods (`DECORATE.beforeFinish`, etc.) and register any async callbacks
+6. Close the Agent Scope
+7. Finish the span
+
+Step 5 must complete before step 6: `beforeFinish` fires IAST/AppSec request-end callbacks that resolve the current span via `AgentTracer.activeSpan()`, and async callback frameworks (e.g. `CompletableFuture`) capture the active span at registration time — both break if the scope is closed first.
 
 ```java
 @Advice.OnMethodEnter(suppress = Throwable.class)

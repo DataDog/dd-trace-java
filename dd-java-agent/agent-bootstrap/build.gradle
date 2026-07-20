@@ -72,4 +72,9 @@ tasks.withType(Test).configureEach {
     JavaVersion.VERSION_16,
     ['--add-opens', 'java.base/java.net=ALL-UNNAMED'] // for HostNameResolverForkedTest
     )
+  conditionalJvmArgs(
+    it,
+    JavaVersion.VERSION_11,
+    ['--add-opens', 'jdk.jfr/jdk.jfr.events=ALL-UNNAMED'] // for JfrEventHolderInitForkedTest
+    )
 }

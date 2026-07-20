@@ -10,11 +10,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -66,7 +66,7 @@ public class NettyChannelInstrumentation extends InstrumenterModule.Tracing
   public static class ChannelConnectAdvice extends AbstractNettyAdvice {
     @Advice.OnMethodEnter
     public static void addConnectContinuation(@Advice.This final Channel channel) {
-      AgentScope.Continuation continuation = captureActiveSpan();
+      ContextContinuation continuation = captureActiveSpan();
       if (continuation != noopContinuation()) {
         final ContextStore<Channel, ChannelTraceContext> contextStore =
             InstrumentationContext.get(Channel.class, ChannelTraceContext.class);
@@ -75,7 +75,7 @@ public class NettyChannelInstrumentation extends InstrumenterModule.Tracing
                 .putIfAbsent(channel, ChannelTraceContext.Factory.INSTANCE)
                 .getConnectionContinuation()
             != null) {
-          continuation.cancel();
+          continuation.release();
         } else {
           contextStore.get(channel).setConnectionContinuation(continuation);
         }

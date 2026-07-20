@@ -24,8 +24,8 @@ public class Listener implements FutureEventListener<Response> {
     }
 
     DECORATE.beforeFinish(scope.context());
-    span.finish();
     scope.close();
+    span.finish();
   }
 
   @Override
@@ -33,7 +33,7 @@ public class Listener implements FutureEventListener<Response> {
     final AgentSpan span = AgentSpan.fromContext(scope.context());
     DECORATE.onError(span, cause);
     DECORATE.beforeFinish(scope.context());
-    span.finish();
     scope.close();
+    span.finish();
   }
 }

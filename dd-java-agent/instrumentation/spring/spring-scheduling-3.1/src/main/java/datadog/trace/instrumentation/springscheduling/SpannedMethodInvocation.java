@@ -5,8 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContin
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.DECORATE;
 
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Method;
@@ -14,10 +14,10 @@ import org.aopalliance.intercept.MethodInvocation;
 
 public class SpannedMethodInvocation implements MethodInvocation {
 
-  private final AgentScope.Continuation continuation;
+  private final ContextContinuation continuation;
   private final MethodInvocation delegate;
 
-  public SpannedMethodInvocation(AgentScope.Continuation continuation, MethodInvocation delegate) {
+  public SpannedMethodInvocation(ContextContinuation continuation, MethodInvocation delegate) {
     this.continuation = continuation;
     this.delegate = delegate;
   }
@@ -43,7 +43,7 @@ public class SpannedMethodInvocation implements MethodInvocation {
   }
 
   private Object invokeWithContinuation(CharSequence spanName) throws Throwable {
-    try (ContextScope scope = continuation.activate()) {
+    try (ContextScope scope = continuation.resume()) {
       return invokeWithSpan(spanName);
     }
   }

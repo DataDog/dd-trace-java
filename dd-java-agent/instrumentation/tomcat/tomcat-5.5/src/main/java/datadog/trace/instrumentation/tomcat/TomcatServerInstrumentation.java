@@ -151,7 +151,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       }
       final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
       final Context parentContext =
-          (parentContextObj instanceof Context) ? (Context) parentContextObj : null;
+          (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
 
       final Context context = DECORATE.startSpan(req, parentContext);
       serverScope = context.attach();

@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace;
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
