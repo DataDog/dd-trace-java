@@ -417,7 +417,7 @@ include(
   ":dd-java-agent:instrumentation:javax-xml-1.4",
   ":dd-java-agent:instrumentation:jboss:jboss-logmanager-1.1",
   ":dd-java-agent:instrumentation:jboss:jboss-modules-1.3",
-  ":dd-java-agent:instrumentation:jdbc:scalikejdbc-3.5",
+  // ":dd-java-agent:instrumentation:jdbc:scalikejdbc-3.5",  // Commented out - directory doesn't exist
   ":dd-java-agent:instrumentation:jdbc",
   ":dd-java-agent:instrumentation:jedis:jedis-1.4",
   ":dd-java-agent:instrumentation:jedis:jedis-3.0",
@@ -535,6 +535,7 @@ include(
   ":dd-java-agent:instrumentation:play:play-appsec-2.6",
   ":dd-java-agent:instrumentation:play:play-appsec-2.7",
   ":dd-java-agent:instrumentation:play:play-appsec-common",
+  ":dd-java-agent:instrumentation:postgresql:postgresql-42.0",
   ":dd-java-agent:instrumentation:protobuf-3.0",
   ":dd-java-agent:instrumentation:quartz-2.0",
   ":dd-java-agent:instrumentation:rabbitmq-amqp-2.7",
