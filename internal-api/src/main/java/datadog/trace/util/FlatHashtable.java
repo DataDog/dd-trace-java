@@ -17,6 +17,19 @@ import java.util.function.Consumer;
  * key/hash/value arrays would create — no {@code volatile}, no atomics — as long as the payload is
  * one where a stale/lost read is benign (miss → recreate; clobber → one wins).
  *
+ * <p><b>Bounded by construction</b> — and that is a feature, not just a limit. {@link #create}
+ * takes a cardinality budget, so you cannot build one without deciding <i>how big it may get</i> —
+ * the question whose unasked version becomes an unbounded-growth leak in a long-lived agent living
+ * in someone else's process. A regular {@code Map}'s auto-resize lets you forget that (fine when
+ * you own the heap; the wrong default when you are a guest in one). This table never grows on its
+ * own: {@link #get} / {@link #getOrCreate} / {@link #insert} <i>cap</i> rather than churn — a full
+ * table degrades to recompute-on-miss with bounded memory and no reallocation — and growth is an
+ * explicit, deliberate {@link #resize} / {@link #resizingInsert}. So it defaults to the
+ * bounded-footprint posture the agent needs, with unbounded growth an opt-in you have to reach for
+ * (and one that, over externally-controlled keys, is the leak this structure otherwise prevents —
+ * see {@link #resizingInsert}). The trade only pays when a miss is benign (a cache / interner), not
+ * for a must-hold-everything map.
+ *
  * <p><b>Strategy roles, split by concern.</b> The per-use policy is a small set of {@link Strategy
  * strategy} objects rather than one, so a caller supplies only what an operation needs:
  *
