@@ -7,6 +7,7 @@ import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.property
@@ -27,11 +28,15 @@ abstract class WriteVersionFile @Inject constructor(
     .convention(
       providerFactory.of(GitCommandValueSource::class.java) {
         parameters {
-          gitCommand.addAll("git", "rev-parse", "--short", "HEAD")
+          gitCommand.addAll("git", "rev-parse", "HEAD")
           workingDirectory.set(layout.projectDirectory)
         }
       }
     )
+
+  @get:Internal
+  val projectName: Property<String> = objects.property<String>()
+    .convention(project.name)
 
   @get:OutputDirectory
   val outputDirectory: DirectoryProperty = objects.directoryProperty()
@@ -39,7 +44,7 @@ abstract class WriteVersionFile @Inject constructor(
 
   @TaskAction
   fun writeVersionFile() {
-    val versionFile = outputDirectory.file("${project.name}.version").get().asFile
+    val versionFile = outputDirectory.file("${projectName.get()}.version").get().asFile
     versionFile.parentFile.mkdirs()
     versionFile.writeText("${version.get()}~${gitHash.get()}")
   }
