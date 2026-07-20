@@ -71,8 +71,8 @@ public final class QuartzSchedulingInstrumentation extends InstrumenterModule.Tr
         DECORATE.onError(span, throwable);
       }
       DECORATE.beforeFinish(span);
-      span.finish();
       scope.close();
+      span.finish();
     }
   }
 }

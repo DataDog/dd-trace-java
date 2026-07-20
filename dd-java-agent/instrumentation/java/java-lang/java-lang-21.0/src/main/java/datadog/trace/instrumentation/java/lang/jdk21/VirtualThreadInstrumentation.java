@@ -15,13 +15,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState;
 import java.util.Collection;
@@ -32,14 +32,14 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
 
 /**
  * Instruments {@code VirtualThread} to propagate the context across mount/unmount cycles using
- * {@link Context#swap()}, and {@link Continuation} to prevent context scope to complete before the
- * thread finishes.
+ * {@link Context#swap()}, and {@link ContextContinuation} to prevent context scope to complete
+ * before the thread finishes.
  *
  * <p>The lifecycle is as follows:
  *
  * <ol>
- *   <li>{@code init()}: captures the current {@link Context} and an {@link Continuation} to prevent
- *       the enclosing context scope from completing early.
+ *   <li>{@code init()}: captures the current {@link Context} and an {@link ContextContinuation} to
+ *       prevent the enclosing context scope from completing early.
  *   <li>{@code mount()}: swaps the virtual thread's saved context into the carrier thread, saving
  *       the carrier thread's context.
  *   <li>{@code unmount()}: swaps the carrier thread's original context back, saving the virtual

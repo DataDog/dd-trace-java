@@ -90,6 +90,7 @@ public final class CiVisibilityConfig {
   public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head.sha";
 
   /* COVERAGE SETTINGS */
+  public static final String CODE_COVERAGE_FLAGS = "code.coverage.flags";
   public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =
       "civisibility.code.coverage.enabled";
   public static final String CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED =
