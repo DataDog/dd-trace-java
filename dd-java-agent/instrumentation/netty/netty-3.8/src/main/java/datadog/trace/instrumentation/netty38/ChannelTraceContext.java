@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.netty38;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
@@ -17,7 +17,7 @@ public class ChannelTraceContext {
     }
   }
 
-  AgentScope.Continuation connectionContinuation;
+  ContextContinuation connectionContinuation;
   Context serverContext;
   AgentSpan clientSpan;
   AgentSpan clientParentSpan;
@@ -62,7 +62,7 @@ public class ChannelTraceContext {
     this.blockedResponse = blockedResponse;
   }
 
-  public AgentScope.Continuation getConnectionContinuation() {
+  public ContextContinuation getConnectionContinuation() {
     return connectionContinuation;
   }
 
@@ -82,7 +82,7 @@ public class ChannelTraceContext {
     return clientParentSpan;
   }
 
-  public void setConnectionContinuation(AgentScope.Continuation connectionContinuation) {
+  public void setConnectionContinuation(ContextContinuation connectionContinuation) {
     this.connectionContinuation = connectionContinuation;
   }
 

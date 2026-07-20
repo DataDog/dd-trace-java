@@ -67,7 +67,7 @@ public class MessageHandlerInstrumentation
       }
 
       final AgentSpan wsSpan =
-          DECORATE.onReceiveFrameStart(handlerContext, data, last != null && last);
+          DECORATE.startInboundFrameSpan(handlerContext, data, last != null && last);
       return activateSpan(wsSpan);
     }
 

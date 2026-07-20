@@ -12,8 +12,8 @@ import datadog.trace.civisibility.codeowners.matcher.QuestionMarkMatcher;
 import datadog.trace.civisibility.codeowners.matcher.RangeMatcher;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -46,26 +46,116 @@ public class EntryBuilder {
   }
 
   public @Nullable Entry parse() {
+    return parse(Collections.emptyList());
+  }
+
+  /**
+   * Parses the line as a CODEOWNERS entry: a path pattern optionally followed by one or more
+   * owners.
+   *
+   * @param sectionDefaultOwners default owners declared on the enclosing GitLab section header,
+   *     used when the entry declares no owners of its own. Pass an empty collection for entries
+   *     that do not belong to a section (e.g. GitHub CODEOWNERS files).
+   * @return the parsed entry, or {@code null} for blank lines, comments, section headers, or lines
+   *     that cannot be parsed.
+   */
+  public @Nullable Entry parse(Collection<String> sectionDefaultOwners) {
     try {
-      // skip trailing whitespace
-      while (offset < c.length && Character.isWhitespace(c[offset])) {
-        offset++;
-      }
+      skipWhitespace();
 
       if (offset == c.length // empty line
           || c[offset] == '#' // comment
-          || c[offset] == '[') { // section header
+          || isSectionHeader()) { // GitLab section header (including optional '^[')
         return null;
       }
 
       Matcher matcher = parseMatcher();
       Collection<String> owners = parseOwners();
+      if (owners.isEmpty()) {
+        owners = sectionDefaultOwners;
+      }
       return new Entry(matcher, owners);
 
     } catch (Exception e) {
-      log.error("error parsing CODEOWNERS pattern: {}", Arrays.toString(c), e);
+      log.warn("Skipping malformed CODEOWNERS entry: {}", new String(c), e);
       return null;
     }
+  }
+
+  /**
+   * If the line is a GitLab section header, consumes it and returns the parsed {@link
+   * SectionHeader} (its name and default owners). Returns {@code null} when the line is not a
+   * section header, leaving the cursor at the start of the pattern so the line can be parsed with
+   * {@link #parse(Collection)}.
+   *
+   * <p>Supports the GitLab header syntax {@code ^[Section name][N] @owner}: an optional leading
+   * {@code ^} (optional section), a bracketed name that may contain spaces, an optional {@code [N]}
+   * required-approvals count, and trailing default owners.
+   *
+   * @see <a href="https://docs.gitlab.com/user/project/codeowners/reference/">GitLab Code Owners
+   *     reference</a>
+   */
+  public @Nullable SectionHeader parseSectionHeader() {
+    skipWhitespace();
+    if (!isSectionHeader()) {
+      return null;
+    }
+    if (c[offset] == '^') {
+      offset++; // consume the optional-section marker
+    }
+    offset++; // consume the opening '['
+    int nameStart = offset;
+    while (offset < c.length && c[offset] != ']') {
+      offset++; // consume the section name (which may contain spaces)
+    }
+    String name = new String(c, nameStart, offset - nameStart);
+    if (offset < c.length) {
+      offset++; // consume the closing ']'
+    }
+    // skip the optional [N] required-approvals count that may immediately follow the name
+    if (offset < c.length && c[offset] == '[') {
+      while (offset < c.length && c[offset] != ']') {
+        offset++;
+      }
+      if (offset < c.length) {
+        offset++; // consume the closing ']'
+      }
+    }
+    return new SectionHeader(name, parseOwners());
+  }
+
+  private void skipWhitespace() {
+    while (offset < c.length && Character.isWhitespace(c[offset])) {
+      offset++;
+    }
+  }
+
+  /**
+   * Determines whether the line, starting at the current cursor (with leading whitespace already
+   * skipped), is a section header. Does not move the cursor.
+   *
+   * <p>A section header begins with {@code [} — or the GitLab optional-section marker {@code ^[} —
+   * and the section name's closing {@code ]} is followed by end-of-line, whitespace, a comment
+   * ({@code #}), or the optional {@code [N]} approvals count. Requiring that trailing context
+   * distinguishes a section header from a path pattern that merely begins with a character class
+   * such as {@code [a-z]*.txt}.
+   */
+  private boolean isSectionHeader() {
+    int i = offset;
+    if (i < c.length && c[i] == '^') {
+      i++; // optional-section marker
+    }
+    if (i >= c.length || c[i] != '[') {
+      return false;
+    }
+    while (i < c.length && c[i] != ']') {
+      i++; // scan to the section name's closing ']'
+    }
+    if (i >= c.length) {
+      return false; // unterminated brackets: not a well-formed section header
+    }
+    i++; // move past ']'
+    return i >= c.length || Character.isWhitespace(c[i]) || c[i] == '[' || c[i] == '#';
   }
 
   private Matcher parseMatcher() {

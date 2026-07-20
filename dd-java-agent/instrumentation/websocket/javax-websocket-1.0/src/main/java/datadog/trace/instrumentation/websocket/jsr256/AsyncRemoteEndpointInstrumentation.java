@@ -96,7 +96,7 @@ public class AsyncRemoteEndpointInstrumentation
       }
 
       final AgentSpan wsSpan =
-          DECORATE.onSendFrameStart(
+          DECORATE.startOutboundFrameSpan(
               handlerContext,
               CHAR_SEQUENCE_SIZE_CALCULATOR.getFormat(),
               CHAR_SEQUENCE_SIZE_CALCULATOR.getLengthFunction().applyAsInt(text));
@@ -153,7 +153,7 @@ public class AsyncRemoteEndpointInstrumentation
       }
 
       final AgentSpan wsSpan =
-          DECORATE.onSendFrameStart(
+          DECORATE.startOutboundFrameSpan(
               handlerContext,
               BYTE_BUFFER_SIZE_CALCULATOR.getFormat(),
               BYTE_BUFFER_SIZE_CALCULATOR.getLengthFunction().applyAsInt(buffer));
@@ -209,7 +209,8 @@ public class AsyncRemoteEndpointInstrumentation
       }
 
       final AgentSpan wsSpan =
-          DECORATE.onSendFrameStart(handlerContext, BYTE_BUFFER_SIZE_CALCULATOR.getFormat(), 0);
+          DECORATE.startOutboundFrameSpan(
+              handlerContext, BYTE_BUFFER_SIZE_CALCULATOR.getFormat(), 0);
       if (sendHandler != null) {
         sendHandler = new TracingSendHandler(sendHandler, handlerContext);
       }
