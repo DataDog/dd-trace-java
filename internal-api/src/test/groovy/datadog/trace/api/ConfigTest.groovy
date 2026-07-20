@@ -57,9 +57,11 @@ import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.VERSION
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS
@@ -3517,7 +3519,39 @@ class ConfigTest extends DDSpecification {
     ""                  | "agentless"
     "   "               | "agentless"
     " ReMoTe_ConFiG "   | "remote_config"
-    "not-a-real-source" | "agentless"
+    "not-a-real-source" | "offline"
+  }
+
+  def "feature flag configuration applies migration precedence"() {
+    setup:
+    Properties properties = new Properties()
+    if (providerEnabled != null) {
+      properties.setProperty(FEATURE_FLAGS_ENABLED, providerEnabled.toString())
+    }
+    if (source != null) {
+      properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE, source)
+    }
+    if (legacyProviderEnabled != null) {
+      properties.setProperty(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED, legacyProviderEnabled.toString())
+    }
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.featureFlaggingProviderEnabled == expectedEnabled
+    config.featureFlaggingConfigurationSource == expectedSource
+
+    where:
+    providerEnabled | source          | legacyProviderEnabled | expectedEnabled | expectedSource
+    null            | null            | null                  | true            | "agentless"
+    null            | null            | true                  | true            | "remote_config"
+    null            | null            | false                 | false           | "offline"
+    null            | "agentless"     | true                  | true            | "agentless"
+    null            | "remote_config" | false                 | true            | "remote_config"
+    false           | "agentless"     | true                  | false           | "offline"
+    true            | null            | false                 | false           | "offline"
+    null            | "offline"       | null                  | false           | "offline"
   }
 
   def "agentless feature flag timing falls back for non-positive values"() {

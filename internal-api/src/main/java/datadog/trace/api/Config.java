@@ -86,7 +86,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_AND_PA
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
@@ -726,10 +725,15 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_OFFLINE;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.isSupportedConfigurationSource;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfigurationSource;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
@@ -1221,6 +1225,7 @@ public class Config {
 
   private final int remoteConfigMaxExtraServices;
 
+  private final boolean featureFlaggingProviderEnabled;
   private final String featureFlaggingConfigurationSource;
   private final String featureFlaggingConfigurationSourceAgentlessBaseUrl;
   private final int featureFlaggingConfigurationSourcePollIntervalSeconds;
@@ -2851,10 +2856,34 @@ public class Config {
         configProvider.getInteger(
             REMOTE_CONFIG_MAX_EXTRA_SERVICES, DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES);
 
-    featureFlaggingConfigurationSource =
-        normalizeFeatureFlaggingConfigurationSource(
-            configProvider.getString(
-                FEATURE_FLAGS_CONFIGURATION_SOURCE, DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE));
+    final boolean configuredFeatureFlaggingProviderEnabled =
+        configProvider.getBoolean(FEATURE_FLAGS_ENABLED, true);
+    final Boolean legacyFeatureFlaggingProviderEnabled =
+        configProvider.getBoolean(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED);
+    final String configuredFeatureFlaggingConfigurationSource =
+        configProvider.isSet(FEATURE_FLAGS_CONFIGURATION_SOURCE)
+            ? configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE)
+            : null;
+    final String resolvedFeatureFlaggingConfigurationSource =
+        resolveConfigurationSource(
+            configuredFeatureFlaggingProviderEnabled,
+            configuredFeatureFlaggingConfigurationSource,
+            legacyFeatureFlaggingProviderEnabled);
+    if (legacyFeatureFlaggingProviderEnabled != null) {
+      log.warn(
+          "Setting {} is deprecated. Use {} and {} instead.",
+          EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED,
+          FEATURE_FLAGS_ENABLED,
+          FEATURE_FLAGS_CONFIGURATION_SOURCE);
+    }
+    if (!isSupportedConfigurationSource(configuredFeatureFlaggingConfigurationSource)) {
+      log.warn(
+          "Unsupported Feature Flagging configuration source: {}. Disabling Feature Flagging",
+          configuredFeatureFlaggingConfigurationSource);
+    }
+    featureFlaggingProviderEnabled =
+        !CONFIGURATION_SOURCE_OFFLINE.equals(resolvedFeatureFlaggingConfigurationSource);
+    featureFlaggingConfigurationSource = resolvedFeatureFlaggingConfigurationSource;
     featureFlaggingConfigurationSourceAgentlessBaseUrl =
         configProvider.getStringNotEmpty(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
@@ -3797,28 +3826,6 @@ public class Config {
     return traceInferredProxyEnabled;
   }
 
-  private static String normalizeFeatureFlaggingConfigurationSource(final String source) {
-    if (source == null) {
-      return DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
-    }
-    final String normalized = source.trim().toLowerCase(Locale.ROOT);
-    if (normalized.isEmpty()) {
-      return DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
-    }
-    switch (normalized) {
-      case "agentless":
-      case "remote_config":
-      case "offline":
-        return normalized;
-      default:
-        log.warn(
-            "Unsupported Feature Flagging configuration source: {}. Defaulting to {}",
-            source,
-            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE);
-        return DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
-    }
-  }
-
   public boolean isBaggageExtract() {
     return tracePropagationStylesToExtract.contains(TracePropagationStyle.BAGGAGE);
   }
@@ -4734,6 +4741,10 @@ public class Config {
 
   public int getRemoteConfigMaxExtraServices() {
     return remoteConfigMaxExtraServices;
+  }
+
+  public boolean isFeatureFlaggingProviderEnabled() {
+    return featureFlaggingProviderEnabled;
   }
 
   public String getFeatureFlaggingConfigurationSource() {
@@ -6584,6 +6595,8 @@ public class Config {
         + remoteConfigMaxPayloadSize
         + ", remoteConfigIntegrityCheckEnabled="
         + remoteConfigIntegrityCheckEnabled
+        + ", featureFlaggingProviderEnabled="
+        + featureFlaggingProviderEnabled
         + ", featureFlaggingConfigurationSource="
         + featureFlaggingConfigurationSource
         + ", featureFlaggingConfigurationSourceAgentlessBaseUrl="
