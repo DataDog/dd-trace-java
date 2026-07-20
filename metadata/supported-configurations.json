@@ -916,7 +916,7 @@
     "DD_CODE_COVERAGE_FLAGS": [
       {
         "version": "A",
-        "type": "array",
+        "type": "string",
         "default": null,
         "aliases": []
       }
