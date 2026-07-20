@@ -8,9 +8,21 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a <b>static-polymorphism strategy</b> — a stateless, concrete-typed policy object the JIT
- * can devirtualize and inline, so one shared algorithm specializes to straight-line code per caller
- * (see the "static polymorphism" note on {@code FlatHashtable}).
+ * Marks a <b>static-polymorphism strategy</b>: a stateless, concrete-typed policy object that lets
+ * one shared algorithm specialize to straight-line code per caller, without runtime virtual
+ * dispatch.
+ *
+ * <p><b>What "static polymorphism" means here.</b> Ordinary (dynamic) polymorphism resolves the
+ * implementation at run time — an {@code invokevirtual}/{@code invokeinterface} that can go
+ * megamorphic on a shared call site. Static polymorphism instead makes the implementation known to
+ * the JIT: hold the strategy in a {@code static final} field of its <i>concrete</i> type (a stable
+ * constant of exact type), keep its methods small, and let the consuming method inline. The call
+ * site then sees the exact type, so the JIT devirtualizes the strategy's calls and inlines them,
+ * and the one generic algorithm compiles to specialized, monomorphic, allocation-free code per
+ * caller — C++-template-like specialization, driven by the JIT rather than a code generator. The
+ * win is <b>structural</b> (it follows from the exact-typed constant), not a speculative bet on
+ * class-hierarchy analysis or type profiling that a second implementation or a polluted profile
+ * could quietly undo.
  *
  * <p>This is a documentation-and-tooling marker; it changes no behavior. It exists to telegraph the
  * pattern to readers and to give a future checker something to verify. The discipline it names is
