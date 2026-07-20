@@ -136,7 +136,7 @@ OptimizableOperatorInstrumentation.java
 
 The eval output kept only 2 (`ReactorCoreModule`, `ReactorAsyncResultExtension`) and added 3 new ones (`FluxInstrumentation`, `MonoInstrumentation`, `TracingCoreSubscriber`). Net effect: 5 master classes silently dropped, including `ReactorContextBridge` — which is what breaks Spring WebFlux, Spring Kafka reactive, and other downstream Reactor-based libraries. No CI check on the target module catches it; the regression only surfaces when sibling-module tests fail.
 
-**How to apply this rule:** before generating, run `ls dd-java-agent/instrumentation/<module>/src/main/java/**/` and record every filename. After generating, diff the list of classes in your output against that record. Any master class not present in the output must be explicitly justified in the PR description.
+**How to apply this rule:** before generating, enumerate every `.java` file in the existing module — `find dd-java-agent/instrumentation/<module>/src/main/java -name "*.java"` — and record each filename. After generating, diff that list against the classes in your output. Any master class not present in the output must be explicitly justified in the PR description.
 
 ### Preserve declarative-array ordering (`helperClassNames`, `contextStore` keys)
 

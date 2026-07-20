@@ -118,7 +118,7 @@ State the isolation reason in a comment on the `ForkedTest` class.
 
 When regenerating an existing module, check if master has a `src/latestDepTest/` source set (declared via `addTestSuite('latestDepTest')` or `addTestSuiteForDir('latestDepTest', ...)` in `build.gradle`). If so, preserve that split — do NOT collapse latestDep-specific tests into the base `src/test/` directory.
 
-**Why this matters:** for libraries whose API surface changes across minor versions (Reactor deprecates and removes APIs; Netty changes signatures; gRPC evolves generated code), the base test directory compiles against `testImplementation` (pinned to the module's declared min version) AND against `latestDepTestImplementation` (which resolves to the latest published version). If a test uses an API that was removed after the declared min, putting it in the base directory causes a compile failure in `latestDepTest` even though the test itself is intended to run against the older version.
+**Why this matters:** for libraries whose API surface changes across minor versions (Reactor deprecates and removes APIs; Netty changes signatures; gRPC evolves generated code), tests in `src/test/` compile against both `testImplementation` (pinned to min) and `latestDepTestImplementation` (latest) when the module uses `addTestSuiteForDir('latestDepTest', 'test')` — the common pattern that reuses `src/test/` sources for both suites. For modules that use `addTestSuite('latestDepTest')` instead, the `latestDepTest` suite has its own sources at `src/latestDepTest/` and `src/test/` is not compiled against `latestDepTestImplementation`. In both cases: if a test uses an API removed in a later version, it will cause a `latestDepTest` compile failure.
 
 Master's solution: put version-sensitive tests in `src/latestDepTest/` where they only compile against `latestDepTestImplementation` and can freely use the current API. When the latest version removes an API, only the `latestDepTest` copy needs updating.
 
@@ -130,7 +130,7 @@ Master's solution: put version-sensitive tests in `src/latestDepTest/` where the
 - When generating tests for a library that has deprecated or removed APIs across recent minor versions, use `latestDepTest/` for tests that exercise those APIs and `test/` for tests that exercise stable APIs.
 - Common libraries where this split matters: Reactor (`Schedulers.elastic()` removed in 3.4+), Netty (channel handler API changes across 4.x), gRPC (generated-code shape evolves), Kafka clients (consumer API changed 3.0), Cassandra driver (3.x vs 4.x are largely incompatible).
 
-Source: master's `dd-java-agent/instrumentation/reactor-core-3.1/src/latestDepTest/groovy/ReactorCoreTest.groovy`; failure pattern documented in `docs/eval-research/cycles/2026-07-14-async-cycle-report.md` RI-7.
+Source: master's `dd-java-agent/instrumentation/reactor-core-3.1/src/latestDepTest/groovy/ReactorCoreTest.groovy`.
 
 ## No banner/separator comments in test files
 

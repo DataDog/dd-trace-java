@@ -175,7 +175,7 @@ When in doubt, **search adjacent module build.gradle files for `skipVersions`** 
 
 ## Namespace-isolation `fail` blocks for major-version siblings
 
-When a library has multiple major versions published under **different** `group:module` coordinates but under the same brand (e.g., `io.reactivex.rxjava2:rxjava` and `io.reactivex.rxjava3:rxjava`), and the two versions cannot share advice (the instrumentation must never resolve against the wrong major), master modules explicitly assert namespace isolation with a `muzzle { fail { ... } }` block.
+When a library has multiple major versions that must never be instrumented by the same advice — whether published under different `group:module` coordinates (e.g., `io.reactivex.rxjava2:rxjava` vs `io.reactivex.rxjava3:rxjava`) or under the same coordinates at incompatible major versions (e.g., `org.springframework:spring-webflux` at major 5 vs 6) — master modules explicitly assert namespace isolation with a `muzzle { fail { ... } }` block.
 
 The block is defense-in-depth: it catches accidental cross-version advice matching that would otherwise pass silently. When regenerating a module that has such a block, preserve it verbatim.
 
