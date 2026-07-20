@@ -2,10 +2,10 @@ package datadog.trace.bootstrap.instrumentation.api.java.lang;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
@@ -310,7 +310,7 @@ public class ProcessImplInstrumentationHelpers {
 
   private static void finishSpan(
       final ContextContinuation parentContinuation, final AgentSpan span) {
-    if (parentContinuation == noopContinuation()) {
+    if (parentContinuation.context() == Context.root()) {
       span.finish();
       return;
     }
