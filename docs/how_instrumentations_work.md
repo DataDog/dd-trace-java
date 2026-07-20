@@ -388,6 +388,18 @@ instrumentation.
 
 Decorator class names should end in _Decorator._
 
+### Decorators must not throw
+
+Decorator lifecycle hooks (`onError`, `beforeFinish`, …) are called from advice around
+`scope.close()` / `span.finish()`, so a decorator that throws would leak scopes and spans — and
+force every call site into defensive `try/finally` blocks. To prevent this, decorators make
+these public methods `final` and routes them through an exception barrier that logs and swallows any
+`Throwable`. `BlockingException` is deliberately re-thrown so AppSec/RASP blocking keeps working.
+
+Subclasses customize behavior by overriding the protected `doOnError` / `doBeforeFinish` hooks
+(**not** the public `onError` / `beforeFinish` methods). Those hooks should still avoid throwing
+(other than `BlockingException`); the barrier is a safety net, not a license to throw.
+
 ## Advice Classes
 
 Byte Buddy injects compiled bytecode at runtime to wrap existing methods, so they communicate with Datadog at entry or exit.
