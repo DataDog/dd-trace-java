@@ -121,13 +121,13 @@ final class PeerTagSchema {
    */
   void resetHandlers(HealthMetrics healthMetrics) {
     for (int i = 0; i < handlers.length; i++) {
-      long blocked = handlers[i].reset();
-      if (blocked > 0) {
+      long numBlocked = handlers[i].reset();
+      if (numBlocked > 0) {
         log.warn(
             "Cardinality limit reached for peer tag '{}'; further values are reported as"
                 + " 'tracer_blocked_value' until the next reporting cycle",
             names[i]);
-        healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), blocked);
+        healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), numBlocked);
       }
     }
   }
