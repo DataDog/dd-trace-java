@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.netty4.promise;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 
+import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import io.netty.util.concurrent.Future;
@@ -17,7 +17,7 @@ public final class ListenerWrapper {
       return listener;
     }
     ContextContinuation continuation = captureActiveSpan();
-    if (continuation == noopContinuation()) {
+    if (continuation.context() == Context.root()) {
       return listener;
     }
     if (listener instanceof GenericProgressiveFutureListener) {

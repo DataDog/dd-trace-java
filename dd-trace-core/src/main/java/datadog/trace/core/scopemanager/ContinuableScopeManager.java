@@ -24,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.NoopContinuation;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -49,6 +50,9 @@ public final class ContinuableScopeManager {
 
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
   static final RatelimitedLogger ratelimitedLog = new RatelimitedLogger(log, 1, MINUTES);
+
+  private static final NoopContinuation ROOT_CONTINUATION = NoopContinuation.INSTANCE;
+
   static final long iterationKeepAlive =
       SECONDS.toMillis(Config.get().getScopeIterationKeepAlive());
   volatile ConcurrentMap<ScopeStack, ContinuableScope> rootIterationScopes;
@@ -112,7 +116,7 @@ public final class ContinuableScopeManager {
         return captureSpan(activeScope.context, activeScope.source(), span);
       }
     }
-    return AgentTracer.noopContinuation();
+    return ROOT_CONTINUATION;
   }
 
   public ContextContinuation captureSpan(final AgentSpan span) {
@@ -408,12 +412,16 @@ public final class ContinuableScopeManager {
   }
 
   public ContextContinuation capture(@NonNull Context context) {
+    if (context == Context.root()) {
+      return ROOT_CONTINUATION;
+    }
+
     // respect async propagation flag for Context.current().capture()
     ContinuableScope activeScope = scopeStack().active();
     if (activeScope != null
-        && activeScope.context == context
-        && !activeScope.isAsyncPropagating()) {
-      return AgentTracer.noopContinuation();
+        && !activeScope.isAsyncPropagating()
+        && activeScope.context == context) {
+      return ROOT_CONTINUATION;
     }
     AgentSpan span = AgentSpan.fromContext(context);
     AgentTraceCollector traceCollector;

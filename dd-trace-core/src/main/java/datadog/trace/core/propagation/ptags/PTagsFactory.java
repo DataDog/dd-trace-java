@@ -421,14 +421,6 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public void updateLastParentId(CharSequence lastParentId) {
-      if (!Objects.equals(this.lastParentId, lastParentId)) {
-        clearCachedHeader(W3C);
-        this.lastParentId = TagValue.from(lastParentId);
-      }
-    }
-
-    @Override
     @SuppressWarnings("StringEquality")
     @SuppressFBWarnings("ES_COMPARING_STRINGS_WITH_EQ")
     public String headerValue(HeaderType headerType) {
@@ -446,6 +438,18 @@ public class PTagsFactory implements PropagationTags.Factory {
         return null;
       }
       return header;
+    }
+
+    @Override
+    public String headerValue(HeaderType headerType, CharSequence lastParentIdOverride) {
+      if (lastParentIdOverride == null) {
+        return headerValue(headerType);
+      }
+      // Inject-time path: encode fresh with the override; do NOT cache — the W3C `p:` is
+      // per-injecting-span and these tags may be shared across sibling spans.
+      String header =
+          PTagsCodec.headerValue(factory.getDecoderEncoder(headerType), this, lastParentIdOverride);
+      return (header == null || header.isEmpty()) ? null : header;
     }
 
     @Override
