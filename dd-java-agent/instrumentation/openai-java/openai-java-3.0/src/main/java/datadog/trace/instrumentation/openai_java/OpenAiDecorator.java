@@ -148,7 +148,7 @@ public class OpenAiDecorator extends ClientDecorator {
             .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError(), false);
       }
     }
-    super.doBeforeFinish(span);
+    super.doBeforeFinish(context);
   }
 
   public void withHttpResponse(AgentSpan span, Headers headers) {
