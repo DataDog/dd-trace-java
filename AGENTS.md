@@ -88,3 +88,9 @@ Code running in the agent's `premain` phase must **not** use:
 - `javax.management.*` — causes class loading issues
 
 See [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) for details and alternatives.
+
+## Advice constraints (critical)
+
+Advice methods (OnMethodEnter/OnMethodExit) are inlined into the instrumented class's bytecode.
+Calling a static interface method there, such as Context.root() or Context.current(), can cause
+a VerifyError at runtime — use Java8BytecodeBridge (rootContext, currentContext, etc.) instead.
