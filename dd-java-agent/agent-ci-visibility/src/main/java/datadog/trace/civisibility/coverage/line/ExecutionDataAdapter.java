@@ -1,7 +1,5 @@
 package datadog.trace.civisibility.coverage.line;
 
-import org.jacoco.core.data.ExecutionData;
-
 public class ExecutionDataAdapter {
   private final long classId;
   private final String className;
@@ -35,9 +33,5 @@ public class ExecutionDataAdapter {
       probeActivations[i] |= other.probeActivations[i];
     }
     return this;
-  }
-
-  ExecutionData toExecutionData() {
-    return new ExecutionData(classId, className, probeActivations);
   }
 }
