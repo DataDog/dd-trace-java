@@ -2,10 +2,12 @@ package com.datadog.featureflag;
 
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -20,12 +22,32 @@ import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.junit.utils.config.WithConfig;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.Test;
 
 class FeatureFlaggingSystemTest {
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  @WithConfig(
+      key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
+      value = "http://127.0.0.1:1")
+  void agentlessStartWaitsForApplicationProviderActivation() {
+    try {
+      FeatureFlaggingSystem.start(sharedCommunicationObjects());
+
+      assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+      FeatureFlaggingGateway.activate();
+      assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+    } finally {
+      FeatureFlaggingSystem.stop();
+    }
+
+    assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+  }
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
@@ -97,11 +119,17 @@ class FeatureFlaggingSystemTest {
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "invalid")
-  void invalidConfigurationSourceUsesAgentlessDefault() {
-    assertInstanceOf(
-        AgentlessConfigurationSource.class,
-        FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects(), Config.get()));
+  void invalidConfigurationSourceFailsClosed() {
+    final Config config = Config.get();
+    assertFalse(config.isFeatureFlaggingProviderEnabled());
+    assertNull(config.getFeatureFlaggingConfigurationSource());
+
+    try {
+      FeatureFlaggingSystem.start(sharedCommunicationObjects());
+      assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+    } finally {
+      FeatureFlaggingSystem.stop();
+    }
   }
 
   @Test
@@ -114,24 +142,6 @@ class FeatureFlaggingSystemTest {
         () ->
             FeatureFlaggingSystem.createConfigurationSourceService(
                 sharedCommunicationObjects(), config));
-  }
-
-  @Test
-  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
-  void offlineConfigurationSourceDoesNotStartNetworkSource() {
-    assertNull(
-        FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects(), Config.get()));
-  }
-
-  @Test
-  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
-  void startWithOfflineConfigurationSourceSkipsConfigService() {
-    try {
-      assertDoesNotThrow(() -> FeatureFlaggingSystem.start(sharedCommunicationObjects()));
-    } finally {
-      FeatureFlaggingSystem.stop();
-    }
   }
 
   @Test

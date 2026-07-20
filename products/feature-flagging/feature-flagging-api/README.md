@@ -97,7 +97,4 @@ OTEL_EXPORTER_OTLP_PROTOCOL=grpc
   and expects UFC under the JSON:API `data.attributes` response member. It is
   intended for supported commercial sites; use an explicit base URL elsewhere.
   Agentless responses do not have an SDK-imposed payload-size limit.
-  `remote_config` uses the existing Agent Remote
-  Configuration path. `offline` is reserved for startup-provided UFC bytes;
-  until those bytes are implemented, no network source starts and evaluations
-  use defaults.
+  `remote_config` uses the existing Agent Remote Configuration path.
