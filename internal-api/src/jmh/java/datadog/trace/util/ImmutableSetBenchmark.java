@@ -37,10 +37,10 @@ import org.openjdk.jmh.annotations.Warmup;
  *       flat/immutable set comparison.
  *   <li>{@code stringIndex} — {@link StringIndex#contains} on the instance wrapper (one field load
  *       to reach the placed arrays, then an open-addressed probe).
- *   <li>{@code support} — the same probe via {@link StringIndex.Support#indexOf} over {@code static
- *       final} arrays, so the JIT folds the refs to constants and there is nothing to dereference
- *       (the hot path StringIndex recommends). The {@code stringIndex}/{@code support} pair shows
- *       the indirection cost of the wrapper.
+ *   <li>{@code support} — the same probe via {@link StringIndex.EmbeddingSupport#indexOf} over
+ *       {@code static final} arrays, so the JIT folds the refs to constants and there is nothing to
+ *       dereference (the hot path StringIndex recommends). The {@code stringIndex}/{@code support}
+ *       pair shows the indirection cost of the wrapper.
  * </ul>
  *
  * <p>Lookups are interned (the {@code ==} fast path where a structure has one); misses are short
@@ -115,7 +115,7 @@ public class ImmutableSetBenchmark {
   static final String[] SI_NAMES;
 
   static {
-    StringIndex.Data data = StringIndex.Support.create(STRINGS);
+    StringIndex.Data data = StringIndex.EmbeddingSupport.create(STRINGS);
     SI_HASHES = data.hashes;
     SI_NAMES = data.names;
   }
@@ -235,11 +235,11 @@ public class ImmutableSetBenchmark {
 
   @Benchmark
   public boolean support_hit(Cursor cursor) {
-    return StringIndex.Support.indexOf(SI_HASHES, SI_NAMES, cursor.nextHit()) >= 0;
+    return StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextHit()) >= 0;
   }
 
   @Benchmark
   public boolean support_miss(Cursor cursor) {
-    return StringIndex.Support.indexOf(SI_HASHES, SI_NAMES, cursor.nextMiss()) >= 0;
+    return StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextMiss()) >= 0;
   }
 }
