@@ -34,11 +34,11 @@ public class RequestDispatcherDecorator extends BaseDecorator {
   }
 
   @Override
-  public void onError(final AgentSpan span, final Throwable throwable) {
+  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
     if (throwable instanceof ServletException && throwable.getCause() != null) {
-      super.onError(span, throwable.getCause());
+      super.doOnError(span, throwable.getCause(), errorPriority);
     } else {
-      super.onError(span, throwable);
+      super.doOnError(span, throwable, errorPriority);
     }
   }
 

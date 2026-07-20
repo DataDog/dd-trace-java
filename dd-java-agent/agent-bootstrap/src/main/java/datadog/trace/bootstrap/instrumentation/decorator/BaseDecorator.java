@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
@@ -20,8 +21,25 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * Base class for span decorators.
+ *
+ * <p>Decorator lifecycle hooks such as {@link #onError(AgentSpan, Throwable)} and {@link
+ * #beforeFinish(AgentSpan)} are invoked from instrumentation advice, often after the active scope
+ * has been closed and around {@code span.finish()}. To keep that advice free of defensive {@code
+ * try/finally} blocks, these hooks <strong>must not throw</strong>: the public methods are {@code
+ * final} and route through an exception barrier that logs and swallows any {@link Throwable} raised
+ * by the overridable {@code doOnError}/{@code doBeforeFinish} hooks. {@link BlockingException} is
+ * deliberately re-thrown so AppSec/RASP blocking keeps working. Subclasses customize behavior by
+ * overriding the protected {@code doXxx} hooks, which should themselves avoid throwing (other than
+ * {@link BlockingException}).
+ */
 public abstract class BaseDecorator {
+  private static final Logger log = LoggerFactory.getLogger(BaseDecorator.class);
+
   protected static final int UNSET_PORT = 0;
 
   private static final QualifiedClassNameCache CLASS_NAMES =
@@ -106,35 +124,67 @@ public abstract class BaseDecorator {
     span.setMetric(traceAnalyticsEntry);
   }
 
-  public void beforeFinish(final ContextScope scope) {
+  public final void beforeFinish(final ContextScope scope) {
     beforeFinish(scope.context());
   }
 
-  public void beforeFinish(final AgentSpan span) {}
+  public final void beforeFinish(final AgentSpan span) {
+    beforeFinish((Context) span);
+  }
 
-  public void beforeFinish(final Context context) {}
+  public final void beforeFinish(final Context context) {
+    try {
+      doBeforeFinish(context);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span before finish", t);
+    }
+  }
 
-  public void onError(final AgentScope scope, final Throwable throwable) {
+  /**
+   * Hook invoked by {@link #beforeFinish(Context)} behind an exception barrier. Override to add
+   * decoration before the span is finished. Implementations must not throw (other than {@link
+   * BlockingException}).
+   */
+  protected void doBeforeFinish(final Context context) {}
+
+  public final void onError(final AgentScope scope, final Throwable throwable) {
     if (scope != null) {
       onError(scope.span(), throwable);
     }
   }
 
-  public void onError(final AgentSpan span, final Throwable throwable) {
+  public final void onError(final AgentSpan span, final Throwable throwable) {
     onError(span, throwable, ErrorPriorities.DEFAULT);
   }
 
-  public void onError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+  public final void onError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+    try {
+      doOnError(span, throwable, errorPriority);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on error", t);
+    }
+  }
+
+  public final void onError(final ContextScope scope, final Throwable throwable) {
+    if (scope != null) {
+      onError(AgentSpan.fromContext(scope.context()), throwable);
+    }
+  }
+
+  /**
+   * Hook invoked by {@link #onError(AgentSpan, Throwable, byte)} behind an exception barrier.
+   * Override to customize error decoration. Implementations must not throw (other than {@link
+   * BlockingException}).
+   */
+  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
     if (throwable != null && span != null) {
       span.addThrowable(
           throwable instanceof ExecutionException ? throwable.getCause() : throwable,
           errorPriority);
-    }
-  }
-
-  public void onError(final ContextScope scope, final Throwable throwable) {
-    if (scope != null) {
-      onError(AgentSpan.fromContext(scope.context()), throwable);
     }
   }
 

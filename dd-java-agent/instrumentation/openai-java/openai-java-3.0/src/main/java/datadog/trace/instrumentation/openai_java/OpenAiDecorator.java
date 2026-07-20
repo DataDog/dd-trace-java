@@ -1,7 +1,10 @@
 package datadog.trace.instrumentation.openai_java;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+
 import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
+import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceApiInfo;
@@ -130,8 +133,9 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   @Override
-  public void beforeFinish(AgentSpan span) {
-    if (llmObsEnabled) {
+  protected void doBeforeFinish(Context context) {
+    AgentSpan span = fromContext(context);
+    if (llmObsEnabled && span != null) {
       span.setTag(CommonTags.ERROR, span.isError() ? 1 : 0);
       span.setTag(CommonTags.ERROR_TYPE, span.getTag(DDTags.ERROR_TYPE));
 
@@ -143,7 +147,7 @@ public class OpenAiDecorator extends ClientDecorator {
             .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError(), false);
       }
     }
-    super.beforeFinish(span);
+    super.doBeforeFinish(span);
   }
 
   public void withHttpResponse(AgentSpan span, Headers headers) {

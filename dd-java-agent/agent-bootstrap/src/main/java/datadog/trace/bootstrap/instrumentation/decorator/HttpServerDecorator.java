@@ -533,7 +533,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  public void onError(final AgentSpan span, final Throwable throwable) {
+  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
     if (throwable != null) {
       span.addThrowable(
           throwable instanceof ExecutionException ? throwable.getCause() : throwable,
@@ -635,7 +635,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  public void beforeFinish(Context context) {
+  protected void doBeforeFinish(Context context) {
     AgentSpan span = AgentSpan.fromContext(context);
     if (span != null) {
       onRequestEndForInstrumentationGateway(span);
@@ -644,7 +644,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     // Close Serverless Gateway Inferred Span if any
     finishInferredProxySpan(context);
 
-    super.beforeFinish(context);
+    super.doBeforeFinish(context);
   }
 
   protected void finishInferredProxySpan(Context context) {

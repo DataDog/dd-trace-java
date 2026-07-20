@@ -213,7 +213,7 @@ public class PlayHttpServerDecorator
   }
 
   @Override
-  public void onError(final AgentSpan span, Throwable throwable) {
+  protected void doOnError(final AgentSpan span, Throwable throwable, byte errorPriority) {
     if (REPORT_HTTP_STATUS) {
       span.setHttpStatusCode(500);
     }
@@ -225,7 +225,7 @@ public class PlayHttpServerDecorator
         && throwable.getCause() != null) {
       throwable = throwable.getCause();
     }
-    super.onError(span, throwable);
+    super.doOnError(span, throwable, errorPriority);
   }
 
   public void updateOn404Only(final AgentSpan span, final Result result) {
