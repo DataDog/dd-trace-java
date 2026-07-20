@@ -58,8 +58,7 @@ public class AdditionalTagsMetricsBenchmark {
         AdditionalTagsSchema.from(
             new LinkedHashSet<>(Arrays.asList("region", "tenant_id")),
             MetricCardinalityLimits.ADDITIONAL_TAG_VALUE,
-            limitsEnabled,
-            this.health);
+            limitsEnabled);
     this.aggregator =
         new ClientStatsAggregator(
             new WellKnownTags("", "", "", "", "", ""),

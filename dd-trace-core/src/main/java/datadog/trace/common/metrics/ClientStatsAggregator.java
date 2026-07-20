@@ -105,8 +105,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             config.getTraceStatsAdditionalTags(),
             config.getTraceStatsCardinalityLimit(
                 "additional_tags", MetricCardinalityLimits.ADDITIONAL_TAG_VALUE),
-            true,
-            healthMetrics),
+            true),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(
@@ -468,7 +467,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     if (schema != null) {
       schema.resetHandlers(healthMetrics);
     }
-    additionalTagsSchema.resetHandlers();
+    additionalTagsSchema.resetHandlers(healthMetrics);
   }
 
   /**

@@ -22,30 +22,25 @@ final class AdditionalTagsSchema {
 
   /** Singleton empty schema returned when no additional tags are configured. */
   static final AdditionalTagsSchema EMPTY =
-      new AdditionalTagsSchema(new String[0], new TagCardinalityHandler[0], HealthMetrics.NO_OP);
+      new AdditionalTagsSchema(new String[0], new TagCardinalityHandler[0]);
 
   final String[] names;
 
   /** Per-key handlers providing UTF8 caching and per-cycle cardinality limiting. */
   private final TagCardinalityHandler[] handlers;
 
-  private final HealthMetrics healthMetrics;
-
-  private AdditionalTagsSchema(
-      String[] names, TagCardinalityHandler[] handlers, HealthMetrics healthMetrics) {
+  private AdditionalTagsSchema(String[] names, TagCardinalityHandler[] handlers) {
     this.names = names;
     this.handlers = handlers;
-    this.healthMetrics = healthMetrics;
   }
 
-  /** Test convenience: uses {@link HealthMetrics#NO_OP} and limits enabled. */
+  /** Test convenience: limits enabled. */
   static AdditionalTagsSchema from(Set<String> configured) {
-    return from(
-        configured, MetricCardinalityLimits.ADDITIONAL_TAG_VALUE, true, HealthMetrics.NO_OP);
+    return from(configured, MetricCardinalityLimits.ADDITIONAL_TAG_VALUE, true);
   }
 
   static AdditionalTagsSchema from(
-      Set<String> configured, int limit, boolean useBlockedSentinel, HealthMetrics healthMetrics) {
+      Set<String> configured, int limit, boolean useBlockedSentinel) {
     if (configured == null || configured.isEmpty()) {
       return EMPTY;
     }
@@ -93,7 +88,7 @@ final class AdditionalTagsSchema {
               useBlockedSentinel,
               MetricCardinalityLimits.ADDITIONAL_TAG_MAX_VALUE_LENGTH);
     }
-    return new AdditionalTagsSchema(namesArr, handlersArr, healthMetrics);
+    return new AdditionalTagsSchema(namesArr, handlersArr);
   }
 
   int size() {
@@ -108,7 +103,7 @@ final class AdditionalTagsSchema {
     return handlers[i].register(value);
   }
 
-  void resetHandlers() {
+  void resetHandlers(HealthMetrics healthMetrics) {
     for (int i = 0; i < handlers.length; i++) {
       long numBlocked = handlers[i].reset();
       if (numBlocked > 0) {
