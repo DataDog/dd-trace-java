@@ -356,7 +356,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     LogProbe probe =
         LogProbe.builder()
             .probeId(LINE_PROBE_ID1)
-            .where("DebuggerTestApplication.java", 88)
+            .where("DebuggerTestApplication.java", 95)
             .captureSnapshot(true)
             .build();
     setCurrentConfiguration(createConfig(probe));
@@ -365,7 +365,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
     registerSnapshotListener(
         snapshot -> {
           assertEquals(LINE_PROBE_ID1.getId(), snapshot.getProbe().getId());
-          CapturedContext capturedContext = snapshot.getCaptures().getLines().get(88);
+          CapturedContext capturedContext = snapshot.getCaptures().getLines().get(95);
           assertFullMethodCaptureArgs(capturedContext);
           assertNull(capturedContext.getLocals());
           assertNull(capturedContext.getCapturedThrowable());

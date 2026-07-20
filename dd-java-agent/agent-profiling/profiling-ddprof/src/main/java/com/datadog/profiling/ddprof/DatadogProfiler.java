@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.enableJMethodIDOptim;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getAllocationInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCStack;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getContextAttributes;
@@ -429,6 +430,12 @@ public final class DatadogProfiler {
     if (omitLineNumbers(configProvider)) {
       cmd.append(",linenumbers=f");
     }
+
+    // Default is true
+    if (enableJMethodIDOptim(configProvider)) {
+      cmd.append(",fjmethodid=false");
+    }
+
     if (profilingModes.contains(CPU)) {
       // cpu profiling is enabled.
       String schedulingEvent = getSchedulingEvent(configProvider);

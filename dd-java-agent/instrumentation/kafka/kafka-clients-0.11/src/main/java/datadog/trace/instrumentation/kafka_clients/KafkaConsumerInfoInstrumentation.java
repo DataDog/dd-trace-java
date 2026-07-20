@@ -37,6 +37,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.internals.ConsumerCoordinator;
+import org.apache.kafka.common.errors.WakeupException;
 
 /**
  * This instrumentation saves additional information from the KafkaConsumer, such as consumer group
@@ -258,11 +259,12 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       return null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void captureGroup(
         @Advice.Enter final AgentScope scope,
         @Advice.This KafkaConsumer consumer,
-        @Advice.Return ConsumerRecords records) {
+        @Advice.Return ConsumerRecords records,
+        @Advice.Thrown Throwable throwable) {
       int recordsCount = 0;
       if (records != null) {
         KafkaConsumerInfo kafkaConsumerInfo =
@@ -281,8 +283,11 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       }
       AgentSpan span = scope.span();
       span.setTag(KAFKA_RECORDS_COUNT, recordsCount);
-      span.finish();
+      if (!(throwable instanceof WakeupException)) {
+        span.addThrowable(throwable);
+      }
       scope.close();
+      span.finish();
     }
   }
 }

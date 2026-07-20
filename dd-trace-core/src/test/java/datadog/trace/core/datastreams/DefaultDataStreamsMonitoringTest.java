@@ -10,8 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -19,13 +21,18 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.KafkaConfigReport;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.SchemaRegistryUsage;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.ControllableTimeSource;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDCoreJavaSpecification;
@@ -1557,6 +1564,67 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
       // Stop accepting new buckets so any late submissions by the reporting thread aren't seen
       accepting = false;
     }
+  }
+
+  private DefaultDataStreamsMonitoring newDataStreamsMonitoring() {
+    return new DefaultDataStreamsMonitoring(
+        mock(Sink.class),
+        stubFeatures(true),
+        new ControllableTimeSource(),
+        () -> stubTraceConfig(true),
+        mock(DatastreamsPayloadWriter.class),
+        DEFAULT_BUCKET_DURATION_NANOS);
+  }
+
+  @Test
+  void setCheckpointTagsTheSpanWithThePathwayHash() {
+    DefaultDataStreamsMonitoring dataStreams = newDataStreamsMonitoring();
+
+    // Negative so the signed and unsigned string representations differ, proving the tag uses
+    // Long.toUnsignedString (pathway hashes are unsigned 64-bit values).
+    long hash = -1234567890123456789L;
+    PathwayContext pathwayContext = mock(PathwayContext.class);
+    when(pathwayContext.getHash()).thenReturn(hash);
+    AgentSpanContext spanContext = mock(AgentSpanContext.class);
+    when(spanContext.getPathwayContext()).thenReturn(pathwayContext);
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.spanContext()).thenReturn(spanContext);
+    DataStreamsContext context = mock(DataStreamsContext.class);
+
+    dataStreams.setCheckpoint(span, context);
+
+    verify(pathwayContext).setCheckpoint(eq(context), any());
+    verify(span).setTag(DDTags.PATHWAY_HASH, Long.toUnsignedString(hash));
+  }
+
+  @Test
+  void setCheckpointDoesNotTagTheSpanWhenThePathwayHashIsZero() {
+    DefaultDataStreamsMonitoring dataStreams = newDataStreamsMonitoring();
+
+    PathwayContext pathwayContext = mock(PathwayContext.class);
+    when(pathwayContext.getHash()).thenReturn(0L);
+    AgentSpanContext spanContext = mock(AgentSpanContext.class);
+    when(spanContext.getPathwayContext()).thenReturn(pathwayContext);
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.spanContext()).thenReturn(spanContext);
+
+    dataStreams.setCheckpoint(span, mock(DataStreamsContext.class));
+
+    verify(span, never()).setTag(eq(DDTags.PATHWAY_HASH), any(String.class));
+  }
+
+  @Test
+  void setCheckpointDoesNotTagTheSpanWhenThereIsNoPathwayContext() {
+    DefaultDataStreamsMonitoring dataStreams = newDataStreamsMonitoring();
+
+    AgentSpanContext spanContext = mock(AgentSpanContext.class);
+    when(spanContext.getPathwayContext()).thenReturn(null);
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.spanContext()).thenReturn(spanContext);
+
+    dataStreams.setCheckpoint(span, mock(DataStreamsContext.class));
+
+    verify(span, never()).setTag(eq(DDTags.PATHWAY_HASH), any(String.class));
   }
 
   static class CustomContextCarrier implements DataStreamsContextCarrier {

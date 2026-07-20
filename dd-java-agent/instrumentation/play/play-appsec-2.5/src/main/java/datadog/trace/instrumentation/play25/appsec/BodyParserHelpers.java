@@ -12,13 +12,19 @@ import com.fasterxml.jackson.databind.node.NumericNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.http.MultipartContentDecoder;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,6 +60,15 @@ public class BodyParserHelpers {
   // cause muzzle to disable the instrumentation for Play 2.7.
   private static final Method MULTIPART_FILES_METHOD;
 
+  // Cached via reflection: FilePart.ref() returns the generic file reference (TemporaryFile in
+  // Play 2.5/2.6), and TemporaryFile.file() returns java.io.File. Using reflection avoids
+  // embedding bytecode references to TemporaryFile that could break muzzle.
+  private static final Method FILE_PART_REF;
+  private static final Method TEMP_FILE_FILE;
+
+  public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
+  public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
+
   static {
     Method m = null;
     try {
@@ -61,6 +76,24 @@ public class BodyParserHelpers {
     } catch (Exception ignored) {
     }
     MULTIPART_FILES_METHOD = m;
+
+    Method ref = null;
+    Method file = null;
+    try {
+      ref = MultipartFormData.FilePart.class.getMethod("ref");
+    } catch (Exception ignored) {
+    }
+    try {
+      file =
+          Class.forName(
+                  "play.api.libs.Files$TemporaryFile",
+                  false,
+                  BodyParserHelpers.class.getClassLoader())
+              .getMethod("file");
+    } catch (Exception ignored) {
+    }
+    FILE_PART_REF = ref;
+    TEMP_FILE_FILE = file;
   }
 
   private static JFunction1<
@@ -148,6 +181,22 @@ public class BodyParserHelpers {
       log.debug("Error handling multipartFormData filenames", e);
     }
 
+    if (pendingBlock == null) {
+      try {
+        if (MULTIPART_FILES_METHOD != null) {
+          Object files = MULTIPART_FILES_METHOD.invoke(data);
+          if (files instanceof scala.collection.Iterable) {
+            handleMultipartFilesContent(
+                new ScalaIteratorAdapter(((scala.collection.Iterable<?>) files).iterator()));
+          }
+        }
+      } catch (BlockingException be) {
+        pendingBlock = be;
+      } catch (Exception e) {
+        log.debug("Error handling multipartFormData files content", e);
+      }
+    }
+
     if (pendingBlock != null) throw pendingBlock;
     return data;
   }
@@ -176,6 +225,7 @@ public class BodyParserHelpers {
     executeFilenamesCallback(reqCtx, callback, filenames);
   }
 
+  @VisibleForTesting
   static List<String> collectFilenames(java.util.Iterator<?> iterator) {
     List<String> filenames = new ArrayList<>();
     while (iterator.hasNext()) {
@@ -201,6 +251,91 @@ public class BodyParserHelpers {
         boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
         if (success) {
           throw new BlockingException("Blocked request (multipart file upload)");
+        }
+      }
+    }
+  }
+
+  private static void handleMultipartFilesContent(java.util.Iterator<?> iterator) {
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      return;
+    }
+    RequestContext reqCtx = span.getRequestContext();
+    if (reqCtx == null || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
+      return;
+    }
+
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, List<String>, Flow<Void>> callback =
+        cbp.getCallback(EVENTS.requestFilesContent());
+    if (callback == null) {
+      return;
+    }
+
+    List<String> contents = collectFilesContent(iterator);
+    if (contents.isEmpty()) {
+      return;
+    }
+
+    executeFilesContentCallback(reqCtx, callback, contents);
+  }
+
+  @VisibleForTesting
+  static List<String> collectFilesContent(java.util.Iterator<?> iterator) {
+    List<String> contents = new ArrayList<>(MAX_FILES_TO_INSPECT);
+    while (iterator.hasNext() && contents.size() < MAX_FILES_TO_INSPECT) {
+      MultipartFormData.FilePart<?> part = (MultipartFormData.FilePart<?>) iterator.next();
+      // null filename → no Content-Disposition filename attribute → form field → skip
+      // empty filename → file upload with no name → content still inspected
+      if (part.filename() == null) {
+        continue;
+      }
+      contents.add(readFilePartContent(part));
+    }
+    return contents;
+  }
+
+  @VisibleForTesting
+  static String readFilePartContent(MultipartFormData.FilePart<?> part) {
+    if (FILE_PART_REF == null || TEMP_FILE_FILE == null) {
+      return "";
+    }
+    try {
+      Object ref = FILE_PART_REF.invoke(part);
+      if (ref == null) {
+        return "";
+      }
+      Object fileObj = TEMP_FILE_FILE.invoke(ref);
+      if (!(fileObj instanceof File)) {
+        return "";
+      }
+      String contentType = null;
+      scala.Option<?> ct = (scala.Option<?>) part.contentType();
+      if (ct != null && ct.isDefined()) {
+        contentType = (String) ct.get();
+      }
+      try (InputStream is = new FileInputStream((File) fileObj)) {
+        return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
+      }
+    } catch (Exception ignored) {
+      return "";
+    }
+  }
+
+  private static void executeFilesContentCallback(
+      RequestContext reqCtx,
+      BiFunction<RequestContext, List<String>, Flow<Void>> callback,
+      List<String> contents) {
+    Flow<Void> flow = callback.apply(reqCtx, contents);
+    Flow.Action action = flow.getAction();
+    if (action instanceof Flow.Action.RequestBlockingAction) {
+      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+      if (brf != null) {
+        boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+        if (success) {
+          throw new BlockingException("Blocked request (multipart file upload content)");
         }
       }
     }

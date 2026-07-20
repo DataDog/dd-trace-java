@@ -16,6 +16,7 @@ import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -105,6 +106,23 @@ class DatadogProfilerTest {
         .mapToObj(
             x ->
                 Arguments.of((x & 0x1000) != 0, (x & 0x100) != 0, (x & 0x10) != 0, (x & 0x1) != 0));
+  }
+
+  @Test
+  void testStartCmdEnableJMethodIDOptim() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED, "true");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    Path dir = Paths.get("/tmp");
+    Path targetFile = Files.createTempFile(dir, "target_", ".jfr");
+    String cmd = profiler.cmdStartProfiling(targetFile);
+
+    assertTrue(cmd.contains(",fjmethodid=false"), cmd);
   }
 
   @ParameterizedTest

@@ -183,6 +183,14 @@ public class CiVisibilityGradleListener extends BuildAdapter
     Project project = gradle.getRootProject().project(projectPath);
     Test task = (Test) project.getTasks().getByName(taskIdentity.name);
 
+    // "com.android.base" is applied transitively by the application/library/dynamic-feature/test
+    // Android Gradle Plugins. The Android KMP library plugin (AGP 8.8+) is a separate entry point
+    // that does NOT apply com.android.base, so it must be checked explicitly.
+    PluginManager pluginManager = project.getPluginManager();
+    boolean isAndroid =
+        pluginManager.hasPlugin("com.android.base")
+            || pluginManager.hasPlugin("com.android.kotlin.multiplatform.library");
+
     Map<String, Object> inputProperties = task.getInputs().getProperties();
     BuildModuleLayout moduleLayout =
         (BuildModuleLayout) inputProperties.get(CiVisibilityPluginExtension.MODULE_LAYOUT_PROPERTY);
@@ -197,7 +205,7 @@ public class CiVisibilityGradleListener extends BuildAdapter
     List<Path> taskClasspath = CiVisibilityPluginExtension.getClasspath(task);
 
     ciVisibilityService.onModuleStart(
-        taskPath, moduleLayout, jvmExecutable, taskClasspath, jacocoAgent);
+        taskPath, isAndroid, moduleLayout, jvmExecutable, taskClasspath, jacocoAgent);
   }
 
   private JavaAgent getJacocoAgent(Test task) {

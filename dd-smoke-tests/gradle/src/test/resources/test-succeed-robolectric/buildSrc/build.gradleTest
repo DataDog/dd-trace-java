@@ -1,0 +1,21 @@
+apply plugin: 'java'
+
+repositories {
+  mavenLocal()
+
+  def proxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
+  if (proxyUrl) {
+    maven {
+      url = proxyUrl
+      allowInsecureProtocol = true
+    }
+  }
+
+  mavenCentral()
+}
+
+dependencies {
+  // Plugin<Project> lives in the Gradle API; the CI Visibility javac plugin is auto-injected into
+  // this compile task too, so the repositories above must be able to resolve it.
+  implementation gradleApi()
+}

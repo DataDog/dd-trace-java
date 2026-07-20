@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.armeria.grpc.client.GrpcClientDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.armeria.grpc.client.GrpcClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.armeria.grpc.client.GrpcClientDecorator.GRPC_MESSAGE;
@@ -21,7 +22,6 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -122,12 +122,14 @@ public final class ClientCallImplInstrumentation
         @Advice.Thrown Throwable error,
         @Advice.Local("$$ddSpan") AgentSpan span)
         throws Throwable {
+      if (null != error && null != span) {
+        DECORATE.onError(span, error);
+        DECORATE.beforeFinish(span);
+      }
       if (null != scope) {
         scope.close();
       }
       if (null != error && null != span) {
-        DECORATE.onError(span, error);
-        DECORATE.beforeFinish(span);
         span.finish();
         throw error;
       }
@@ -138,7 +140,7 @@ public final class ClientCallImplInstrumentation
   public static final class StartContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void before(@Advice.Argument(1) Metadata headers) {
-      DECORATE.injectContext(Java8BytecodeBridge.getCurrentContext(), headers, SETTER);
+      DECORATE.injectContext(currentContext(), headers, SETTER);
     }
   }
 
@@ -210,8 +212,8 @@ public final class ClientCallImplInstrumentation
         @Advice.Enter AgentScope scope, @Advice.Argument(0) Status status) {
       if (null != scope) {
         DECORATE.onClose(scope.span(), status);
-        scope.span().finish();
         scope.close();
+        scope.span().finish();
       }
     }
   }
@@ -238,15 +240,17 @@ public final class ClientCallImplInstrumentation
         @Advice.Argument(0) Status status,
         @Advice.FieldValue("closed") boolean closed) {
       if (null != scope) {
+        AgentSpan span = null;
         if (closed) {
-          AgentSpan span =
-              InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
+          span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).remove(call);
           if (span != null) {
             DECORATE.onClose(span, status);
-            span.finish();
           }
         }
         scope.close();
+        if (span != null) {
+          span.finish();
+        }
       }
     }
   }
@@ -268,8 +272,8 @@ public final class ClientCallImplInstrumentation
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter AgentScope scope) {
       if (null != scope) {
-        scope.span().finish();
         scope.close();
+        scope.span().finish();
       }
     }
   }
