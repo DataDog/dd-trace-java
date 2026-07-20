@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import java.util.Locale;
 import javax.annotation.Nonnull;
 
 public final class ConfigStrings {
@@ -7,11 +8,11 @@ public final class ConfigStrings {
   private ConfigStrings() {}
 
   public static String toEnvVar(String string) {
-    return string.replace('.', '_').replace('-', '_').toUpperCase();
+    return string.replace('.', '_').replace('-', '_').toUpperCase(Locale.ROOT);
   }
 
   public static String toEnvVarLowerCase(String string) {
-    return string.replace('.', '_').replace('-', '_').toLowerCase();
+    return string.replace('.', '_').replace('-', '_').toLowerCase(Locale.ROOT);
   }
 
   /**
@@ -24,18 +25,6 @@ public final class ConfigStrings {
   @Nonnull
   public static String propertyNameToEnvironmentVariableName(final String setting) {
     return "DD_" + toEnvVar(setting);
-  }
-
-  /**
-   * Converts the system property name, e.g. 'dd.service.name' into a public environment variable
-   * name, e.g. `DD_SERVICE_NAME`.
-   *
-   * @param setting The system property name, e.g. `dd.service.name`
-   * @return The public facing environment variable name
-   */
-  @Nonnull
-  public static String systemPropertyNameToEnvironmentVariableName(final String setting) {
-    return setting.replace('.', '_').replace('-', '_').toUpperCase();
   }
 
   /**

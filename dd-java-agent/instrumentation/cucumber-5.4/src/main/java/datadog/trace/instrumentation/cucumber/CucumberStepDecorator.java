@@ -44,7 +44,7 @@ public class CucumberStepDecorator extends BaseDecorator {
   public void onStepFinish(AgentScope scope) {
     AgentSpan span = scope.span();
     beforeFinish(span);
-    span.finish();
     scope.close();
+    span.finish();
   }
 }
