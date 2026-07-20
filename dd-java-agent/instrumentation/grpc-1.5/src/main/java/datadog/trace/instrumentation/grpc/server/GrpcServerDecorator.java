@@ -112,8 +112,8 @@ public class GrpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  public void onError(AgentSpan span, Throwable throwable) {
-    super.onError(span, throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
+  protected void doOnError(AgentSpan span, Throwable throwable, byte errorPriority) {
+    super.doOnError(span, throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
     if (throwable instanceof StatusRuntimeException) {
       onStatus(span, ((StatusRuntimeException) throwable).getStatus());
     } else if (throwable instanceof StatusException) {

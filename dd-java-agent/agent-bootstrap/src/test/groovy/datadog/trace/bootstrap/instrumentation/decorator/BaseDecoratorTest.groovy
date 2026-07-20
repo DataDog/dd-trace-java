@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
+import datadog.appsec.api.blocking.BlockingException
+import datadog.context.Context
 import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
@@ -91,6 +93,54 @@ class BaseDecoratorTest extends DDSpecification {
     then:
     (0..1) * span.localRootSpan
     0 * _
+  }
+
+  def "test onError swallows a throwing decorator"() {
+    setup:
+    def throwing = newThrowingDecorator(new RuntimeException("boom"))
+
+    when:
+    throwing.onError(span, new IllegalStateException("original"))
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "test beforeFinish swallows a throwing decorator"() {
+    setup:
+    def throwing = newThrowingDecorator(new RuntimeException("boom"))
+
+    when:
+    throwing.beforeFinish(span)
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "test onError rethrows BlockingException"() {
+    setup:
+    def blocking = new BlockingException("blocked")
+    def throwing = newThrowingDecorator(blocking)
+
+    when:
+    throwing.onError(span, new IllegalStateException("original"))
+
+    then:
+    def caught = thrown(BlockingException)
+    caught.is(blocking)
+  }
+
+  def "test beforeFinish rethrows BlockingException"() {
+    setup:
+    def blocking = new BlockingException("blocked")
+    def throwing = newThrowingDecorator(blocking)
+
+    when:
+    throwing.beforeFinish(span)
+
+    then:
+    def caught = thrown(BlockingException)
+    caught.is(blocking)
   }
 
   def "test analytics rate default disabled"() {
@@ -209,6 +259,35 @@ class BaseDecoratorTest extends DDSpecification {
         @Override
         protected CharSequence component() {
           return "test-component"
+        }
+      }
+  }
+
+  def newThrowingDecorator(Throwable toThrow) {
+    return new BaseDecorator() {
+        @Override
+        protected String[] instrumentationNames() {
+          return ["test1", "test2"]
+        }
+
+        @Override
+        protected CharSequence spanType() {
+          return "test-type"
+        }
+
+        @Override
+        protected CharSequence component() {
+          return "test-component"
+        }
+
+        @Override
+        protected void doOnError(AgentSpan span, Throwable throwable, byte errorPriority) {
+          throw toThrow
+        }
+
+        @Override
+        protected void doBeforeFinish(Context context) {
+          throw toThrow
         }
       }
   }

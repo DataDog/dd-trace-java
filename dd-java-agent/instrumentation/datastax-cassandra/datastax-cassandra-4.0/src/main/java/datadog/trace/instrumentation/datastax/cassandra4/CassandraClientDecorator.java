@@ -99,8 +99,8 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
   }
 
   @Override
-  public void onError(final AgentSpan span, final Throwable throwable) {
-    super.onError(span, throwable);
+  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+    super.doOnError(span, throwable, errorPriority);
 
     if (throwable instanceof CoordinatorException) {
       onResponse(span, ((CoordinatorException) throwable).getCoordinator(), null);

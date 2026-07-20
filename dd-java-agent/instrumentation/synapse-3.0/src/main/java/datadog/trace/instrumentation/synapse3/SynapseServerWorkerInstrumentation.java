@@ -95,14 +95,16 @@ public final class SynapseServerWorkerInstrumentation extends InstrumenterModule
       }
       // server worker is created in request event so be prepared to finish the span here
       // (if there's an ACK response or error we might not get a separate response event)
-      if ((null != httpResponse || null != error)
-          && null != request.getConnection().getContext().removeAttribute(SYNAPSE_CONTEXT_KEY)) {
+      boolean finishSpan =
+          (null != httpResponse || null != error)
+              && null != request.getConnection().getContext().removeAttribute(SYNAPSE_CONTEXT_KEY);
+      if (finishSpan) {
         DECORATE.beforeFinish(scope.context());
-        scope.close();
+      }
+      // otherwise the span will be finished by a separate server response event
+      scope.close();
+      if (finishSpan) {
         span.finish();
-      } else {
-        scope.close();
-        // otherwise will be finished by a separate server response event
       }
     }
   }
