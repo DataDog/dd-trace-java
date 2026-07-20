@@ -30,6 +30,7 @@ import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.propagation.PropagationTags;
@@ -1043,6 +1044,23 @@ public class DDSpanContext
         unsafeTags.putAll(map);
       }
     }
+  }
+
+  /**
+   * Seeds this span from a {@link SpanPrototype}: applies span.kind's ordinal side-effect directly,
+   * then bulk-shares the prototype's frozen constant Entries via {@code putAll} ({@code
+   * needsIntercept=false}) -- sharing the Entries (including span.kind's) instead of
+   * re-intercepting and rebuilding them. The prototype's constants are non-intercepted except
+   * span.kind (handled here); {@code SpanPrototypeConstructionTest} asserts that invariant to guard
+   * against future drift.
+   */
+  void seedFromPrototype(final SpanPrototype prototype) {
+    final TagMap protoTags = prototype.tags();
+    final Object kind = protoTags.get(Tags.SPAN_KIND);
+    if (kind != null) {
+      setSpanKindOrdinal(String.valueOf(kind));
+    }
+    setAllTags(protoTags, false); // putAll-share; span.kind's interception handled above
   }
 
   void setAllTags(final TagMap.Ledger ledger) {

@@ -2243,7 +2243,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       // set in the builder should come last, so that they override other tags.
       context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
       if (spanPrototype != SpanPrototype.NONE) {
-        context.setAllTags(spanPrototype.tags());
+        context.seedFromPrototype(spanPrototype);
       }
       context.setAllTags(tagLedger);
       context.setAllTags(coreTags, coreTagsNeedsIntercept);

@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -47,6 +48,20 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
       assertEquals("proto.op", span.getOperationName().toString()); // null -> prototype's
       assertEquals("web", span.getSpanType());
       assertEquals("test-component", span.getTags().get(COMPONENT)); // constant tag seeded
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
+  void seedsSpanKindOrdinalAndTag() {
+    // span.kind is intercepted (its ordinal drives isOutbound). seedFromPrototype applies the
+    // ordinal directly, then bulk-shares the tags -- so BOTH the ordinal side-effect and the
+    // span.kind tag Entry must land.
+    DDSpan span = (DDSpan) tracer.buildSpan(prototype, null).start();
+    try {
+      assertEquals(SPAN_KIND_SERVER, span.getSpanKindString()); // ordinal side-effect applied
+      assertEquals(SPAN_KIND_SERVER, span.getTags().get(SPAN_KIND)); // tag (shared Entry) present
     } finally {
       span.finish();
     }
