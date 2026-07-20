@@ -1656,9 +1656,9 @@ public class Agent {
     final Boolean legacyProviderEnabled =
         featureFlaggingBooleanSetting(FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED);
 
-    return !FeatureFlaggingConfig.CONFIGURATION_SOURCE_OFFLINE.equals(
-        FeatureFlaggingConfig.resolveConfigurationSource(
-            providerEnabled, configurationSource, legacyProviderEnabled));
+    return FeatureFlaggingConfig.resolveConfiguration(
+            providerEnabled, configurationSource, legacyProviderEnabled)
+        .isEnabled();
   }
 
   @SuppressFBWarnings(

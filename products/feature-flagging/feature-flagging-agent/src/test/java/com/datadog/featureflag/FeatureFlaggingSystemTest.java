@@ -3,7 +3,6 @@ package com.datadog.featureflag;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -121,9 +120,16 @@ class FeatureFlaggingSystemTest {
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "invalid")
   void invalidConfigurationSourceFailsClosed() {
-    assertNull(
-        FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects(), Config.get()));
+    final Config config = Config.get();
+    assertFalse(config.isFeatureFlaggingProviderEnabled());
+    assertNull(config.getFeatureFlaggingConfigurationSource());
+
+    try {
+      FeatureFlaggingSystem.start(sharedCommunicationObjects());
+      assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+    } finally {
+      FeatureFlaggingSystem.stop();
+    }
   }
 
   @Test
@@ -131,27 +137,11 @@ class FeatureFlaggingSystemTest {
     Config config = mock(Config.class);
     when(config.getFeatureFlaggingConfigurationSource()).thenReturn("invalid");
 
-    assertNull(
-        FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects(), config));
-  }
-
-  @Test
-  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
-  void offlineConfigurationSourceDoesNotStartNetworkSource() {
-    assertNull(
-        FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects(), Config.get()));
-  }
-
-  @Test
-  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
-  void startWithOfflineConfigurationSourceSkipsConfigService() {
-    try {
-      assertDoesNotThrow(() -> FeatureFlaggingSystem.start(sharedCommunicationObjects()));
-    } finally {
-      FeatureFlaggingSystem.stop();
-    }
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            FeatureFlaggingSystem.createConfigurationSourceService(
+                sharedCommunicationObjects(), config));
   }
 
   @Test

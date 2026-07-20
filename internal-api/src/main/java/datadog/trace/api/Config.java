@@ -725,7 +725,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_OFFLINE;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
@@ -733,7 +732,7 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.isSupportedConfigurationSource;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfigurationSource;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfiguration;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
@@ -750,6 +749,7 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -2864,8 +2864,8 @@ public class Config {
         configProvider.isSet(FEATURE_FLAGS_CONFIGURATION_SOURCE)
             ? configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE)
             : null;
-    final String resolvedFeatureFlaggingConfigurationSource =
-        resolveConfigurationSource(
+    final FeatureFlaggingConfig.Resolution resolvedFeatureFlaggingConfiguration =
+        resolveConfiguration(
             configuredFeatureFlaggingProviderEnabled,
             configuredFeatureFlaggingConfigurationSource,
             legacyFeatureFlaggingProviderEnabled);
@@ -2881,9 +2881,8 @@ public class Config {
           "Unsupported Feature Flagging configuration source: {}. Disabling Feature Flagging",
           configuredFeatureFlaggingConfigurationSource);
     }
-    featureFlaggingProviderEnabled =
-        !CONFIGURATION_SOURCE_OFFLINE.equals(resolvedFeatureFlaggingConfigurationSource);
-    featureFlaggingConfigurationSource = resolvedFeatureFlaggingConfigurationSource;
+    featureFlaggingProviderEnabled = resolvedFeatureFlaggingConfiguration.isEnabled();
+    featureFlaggingConfigurationSource = resolvedFeatureFlaggingConfiguration.getSource();
     featureFlaggingConfigurationSourceAgentlessBaseUrl =
         configProvider.getStringNotEmpty(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);

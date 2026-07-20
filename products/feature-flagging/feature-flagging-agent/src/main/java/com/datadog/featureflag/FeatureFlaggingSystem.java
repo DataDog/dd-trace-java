@@ -1,7 +1,6 @@
 package com.datadog.featureflag;
 
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
-import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_OFFLINE;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -29,13 +28,13 @@ public class FeatureFlaggingSystem {
     }
     LOGGER.debug("Feature Flagging system starting");
     final Config config = Config.get();
-    final String source = config.getFeatureFlaggingConfigurationSource();
     STARTED = true;
 
-    if (CONFIGURATION_SOURCE_OFFLINE.equals(source)) {
+    if (!config.isFeatureFlaggingProviderEnabled()) {
       LOGGER.debug("Feature Flagging system disabled");
       return;
     }
+    final String source = config.getFeatureFlaggingConfigurationSource();
     if (CONFIGURATION_SOURCE_AGENTLESS.equals(source)) {
       final FeatureFlaggingGateway.ActivationListener activationListener =
           () -> activateAgentless(sco, config);
@@ -119,9 +118,8 @@ public class FeatureFlaggingSystem {
     if (CONFIGURATION_SOURCE_AGENTLESS.equals(configurationSource)) {
       return new AgentlessConfigurationSource(config);
     }
-    LOGGER.debug(
-        "Feature Flagging offline configuration source selected; no config service started");
-    return null;
+    throw new IllegalArgumentException(
+        "Unsupported Feature Flagging configuration source: " + configurationSource);
   }
 
   public static synchronized void stop() {

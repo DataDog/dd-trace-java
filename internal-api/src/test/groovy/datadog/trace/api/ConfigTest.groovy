@@ -3519,7 +3519,7 @@ class ConfigTest extends DDSpecification {
     ""                  | "agentless"
     "   "               | "agentless"
     " ReMoTe_ConFiG "   | "remote_config"
-    "not-a-real-source" | "offline"
+    "not-a-real-source" | null
   }
 
   def "feature flag configuration applies migration precedence"() {
@@ -3546,12 +3546,12 @@ class ConfigTest extends DDSpecification {
     providerEnabled | source          | legacyProviderEnabled | expectedEnabled | expectedSource
     null            | null            | null                  | true            | "agentless"
     null            | null            | true                  | true            | "remote_config"
-    null            | null            | false                 | false           | "offline"
+    null            | null            | false                 | false           | null
     null            | "agentless"     | true                  | true            | "agentless"
     null            | "remote_config" | false                 | true            | "remote_config"
-    false           | "agentless"     | true                  | false           | "offline"
-    true            | null            | false                 | false           | "offline"
-    null            | "offline"       | null                  | false           | "offline"
+    false           | "agentless"     | true                  | false           | null
+    true            | null            | false                 | false           | null
+    null            | "not-a-source"  | null                  | false           | null
   }
 
   def "agentless feature flag timing falls back for non-positive values"() {
