@@ -9,7 +9,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import datadog.trace.junit.utils.config.WithConfigExtension;
+import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
