@@ -37,9 +37,9 @@ import org.openjdk.jmh.infra.Blackhole;
  * 1 thread
  *
  * Benchmark                                     Mode  Cnt          Score        Error  Units
- * create_flatHashtable                         thrpt   15     3794154.9 ±    52254.3  ops/s
- * create_hashMap                               thrpt   15      954573.2 ±    34051.9  ops/s
- * create_treeMap                               thrpt   15     1233590.4 ±     9950.1  ops/s
+ * create_flatHashtable                         thrpt   15     2158595.7 ±    73576.7  ops/s
+ * create_hashMap                               thrpt   15      944890.9 ±    34398.7  ops/s
+ * create_treeMap                               thrpt   15     1285085.3 ±   133648.6  ops/s
  *
  * lookup_flatHashtable                         thrpt   15    75350287.4 ±  4128577.5  ops/s
  * lookup_flatHashtable_lowLoad                 thrpt   15    77127204.7 ±  2546322.0  ops/s
@@ -226,6 +226,11 @@ public class CaseInsensitiveMapBenchmark {
     }
   }
 
+  // Never fires here (the mirror loop below only hits already-present keys), so it neither
+  // allocates nor captures; the value is unused. Kept static/non-capturing to avoid per-call cost.
+  static final FlatHashtable.CreateStrategy<CIEntry, String> CI_CREATE =
+      key -> new CIEntry(key, CaseInsensitiveKeyStrategy.INSTANCE.hashKey(key), 0);
+
   static CIEntry[] _create_flat(float loadFactor) {
     // 16 distinct case-insensitive keys (foo-0..quux-3).
     CIEntry[] table =
@@ -238,9 +243,16 @@ public class CaseInsensitiveMapBenchmark {
             table, new CIEntry(key, hash, suffix), CaseInsensitiveKeyStrategy.INSTANCE);
       }
     }
-    // The HashMap/TreeMap builds' second loop (UPPER_PREFIXES, suffix 0 & 2) only OVERWRITES values
-    // case-insensitively — it adds no new keys, and values don't affect lookup throughput — so the
-    // read set is these same 16 keys.
+    // Mirror the HashMap/TreeMap builds' second loop (UPPER_PREFIXES, suffix 0 & 2): 8 case-
+    // insensitive collisions. getOrCreate finds the already-present lower-case entry (a hit -> the
+    // create never fires, nothing allocates), doing the same probe/match work the maps' overwrite
+    // puts do — so all three create arms perform the same 24 operations and are comparable.
+    for (int suffix = 0; suffix < NUM_SUFFIXES; suffix += 2) {
+      for (String prefix : UPPER_PREFIXES) {
+        FlatHashtable.getOrCreate(
+            table, prefix + "-" + suffix, CaseInsensitiveKeyStrategy.INSTANCE, CI_CREATE);
+      }
+    }
     return table;
   }
 

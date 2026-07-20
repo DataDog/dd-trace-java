@@ -363,6 +363,12 @@ public final class Strings {
    * String.regionMatches(ignoreCase)} use ({@code toLowerCase(toUpperCase(c))}), so the two stay
    * consistent for all inputs, not just ASCII — pairing a one-way fold here with {@code
    * equalsIgnoreCase} would risk silent false misses on the Unicode characters where they diverge.
+   *
+   * <p>Folds per {@code char} (UTF-16 unit), which is exactly what {@code equalsIgnoreCase} itself
+   * does — so a supplementary case pair (e.g. U+10400 / U+10428) is treated as <i>distinct</i> by
+   * both, and the two remain consistent. This mirrors {@code equalsIgnoreCase} rather than doing
+   * full code-point case folding; a code-point fold would unify pairs {@code equalsIgnoreCase} does
+   * not, making the hash inconsistent with it.
    */
   public static int caseInsensitiveHashCode(String s) {
     int h = 0;
