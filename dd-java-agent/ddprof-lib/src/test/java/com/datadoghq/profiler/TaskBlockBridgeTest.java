@@ -13,8 +13,7 @@ class TaskBlockBridgeTest {
   @Test
   void resolvesPackagePrivateHooksFromProfilerPackage() {
     assertNotNull(TaskBlockBridge.findVirtual(SupportedHooks.class, "parkEnter", void.class));
-    assertNotNull(
-        TaskBlockBridge.findVirtual(SupportedHooks.class, "beginTaskBlock", long.class, int.class));
+    assertNotNull(TaskBlockBridge.findVirtual(SupportedHooks.class, "beginTaskBlock", long.class));
   }
 
   @Test
@@ -32,16 +31,14 @@ class TaskBlockBridgeTest {
   @Test
   void missingHooksAreReportedWithoutFailingClassInitialization() {
     assertNull(TaskBlockBridge.findVirtual(UnsupportedHooks.class, "parkEnter", void.class));
-    assertNull(
-        TaskBlockBridge.findVirtual(
-            UnsupportedHooks.class, "beginTaskBlock", long.class, int.class));
+    assertNull(TaskBlockBridge.findVirtual(UnsupportedHooks.class, "beginTaskBlock", long.class));
   }
 
   static final class SupportedHooks {
     void parkEnter() {}
 
-    long beginTaskBlock(int state) {
-      return state;
+    long beginTaskBlock() {
+      return 1L;
     }
   }
 

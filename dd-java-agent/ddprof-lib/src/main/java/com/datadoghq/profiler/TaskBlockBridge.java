@@ -17,8 +17,7 @@ public final class TaskBlockBridge {
   private static final MethodHandle PARK_ENTER = findVirtual("parkEnter", void.class);
   private static final MethodHandle PARK_EXIT =
       findVirtual("parkExit", void.class, long.class, long.class);
-  private static final MethodHandle BEGIN_TASK_BLOCK =
-      findVirtual("beginTaskBlock", long.class, int.class);
+  private static final MethodHandle BEGIN_TASK_BLOCK = findVirtual("beginTaskBlock", long.class);
   private static final MethodHandle END_TASK_BLOCK =
       findVirtual("endTaskBlock", boolean.class, long.class, long.class, long.class);
 
@@ -65,12 +64,12 @@ public final class TaskBlockBridge {
   }
 
   /** Begins a synchronous TaskBlock interval, returning {@code 0} when unsupported. */
-  public long beginTaskBlock(int state) {
+  public long beginTaskBlock() {
     if (!hasSynchronousTaskBlockSupport()) {
       return 0L;
     }
     try {
-      return (long) BEGIN_TASK_BLOCK.invokeExact(profiler, state);
+      return (long) BEGIN_TASK_BLOCK.invokeExact(profiler);
     } catch (Throwable throwable) {
       throw propagate(throwable);
     }
