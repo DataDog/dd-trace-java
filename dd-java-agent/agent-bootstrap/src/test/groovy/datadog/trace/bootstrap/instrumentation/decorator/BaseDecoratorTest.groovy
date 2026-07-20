@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.test.util.DDSpecification
+import javax.annotation.Nonnull
 import spock.lang.Shared
 
 class BaseDecoratorTest extends DDSpecification {
@@ -286,7 +287,7 @@ class BaseDecoratorTest extends DDSpecification {
         }
 
         @Override
-        protected void doBeforeFinish(Context context) {
+        protected void doBeforeFinish(@Nonnull Context context) {
           throw toThrow
         }
       }
