@@ -1043,16 +1043,18 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   /**
-   * Seeds identity (instrumentation name, operation, span type) and tags from a prototype.
-   *
-   * <p>TODO(follow-up): eager-sets identity from the proto today, which is fine while
-   * {@code buildSpan(proto)} is the only proto entry point. When a builder value and a proto value
-   * can coexist, resolve via helpers (builder-explicit wins, proto is the fallback) in the build
-   * path and make this carry-only — no reach-in to {@code builder.spanType}/{@code spanPrototype}.
+   * Seeds identity (instrumentation name, operation, span type) and constant tags from a prototype.
+   * {@code operationName} overrides the prototype's when non-null — the explicit value wins, the
+   * prototype is the fallback. The prototype's tags are seeded during {@link CoreSpanBuilder}
+   * construction just before the builder's own tags, so explicit tags override prototype constants.
    */
-  public CoreSpanBuilder buildSpan(final SpanPrototype prototype) {
+  @Override
+  public CoreSpanBuilder buildSpan(final SpanPrototype prototype, CharSequence operationName) {
+    if (operationName == null) {
+      operationName = prototype.operationName();
+    }
     CoreSpanBuilder builder =
-        createMultiSpanBuilder(prototype.instrumentationName(), prototype.operationName());
+        createMultiSpanBuilder(prototype.instrumentationName(), operationName);
     builder.spanPrototype = prototype;
     if (prototype.spanType() != null) {
       builder.spanType = prototype.spanType();

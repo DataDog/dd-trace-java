@@ -351,6 +351,30 @@ public class AgentTracer {
     SpanBuilder buildSpan(String instrumentationName, CharSequence spanName);
 
     /**
+     * Returns a SpanBuilder seeded from a {@link SpanPrototype}: the prototype supplies the
+     * instrumentation name, span type, and constant tags. {@code operationName} overrides the
+     * prototype's when non-null — the explicit value wins, the prototype is the fallback.
+     *
+     * <p>This default seeds identity only; a real tracer should override it to also seed the
+     * prototype's tags (see {@code CoreTracer}). The no-op tracer discards tags, so identity-only
+     * is correct there.
+     */
+    default SpanBuilder buildSpan(SpanPrototype prototype, CharSequence operationName) {
+      return buildSpan(
+          prototype.instrumentationName(),
+          operationName != null ? operationName : prototype.operationName());
+    }
+
+    /**
+     * Creates and starts a span seeded from a {@link SpanPrototype}. This is the
+     * auto-instrumentation entry point mirroring {@link #startSpan(String, CharSequence)}; see
+     * {@link #buildSpan(SpanPrototype, CharSequence)}.
+     */
+    default AgentSpan startSpan(SpanPrototype prototype, CharSequence operationName) {
+      return buildSpan(prototype, operationName).start();
+    }
+
+    /**
      * Returns a SpanBuilder that can be used to produce one and only one span. By imposing the
      * single span creation limitation, this method is more efficient than {@link #buildSpan}
      */
