@@ -171,6 +171,12 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     pending.clear();
   }
 
+  public void shutdown() {
+    if (sender != null) {
+      sender.shutdown();
+    }
+  }
+
   /**
    * Pushes the buffered entries through the metric visitor: one OTLP histogram data point per
    * non-empty ok/error latency series. Called by {@link OtlpMetricsProtoCollector#collectMetrics}

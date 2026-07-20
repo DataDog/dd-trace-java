@@ -78,6 +78,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final Thread thread;
   private final MessagePassingQueue<InboxItem> inbox;
   private final Sink sink;
+  private final MetricWriter metricWriter;
   private final Aggregator aggregator;
   private final long reportingInterval;
   private final TimeUnit reportingIntervalTimeUnit;
@@ -215,6 +216,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this.features = features;
     this.healthMetrics = healthMetric;
     this.sink = sink;
+    this.metricWriter = metricWriter;
     this.aggregator =
         new Aggregator(
             metricWriter,
@@ -604,6 +606,11 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     try {
       thread.join(THREAD_JOIN_TIMOUT_MS);
     } catch (InterruptedException ignored) {
+    }
+    // The OTLP stats writer owns a dedicated OTLP sender. Evict it now that the aggregator thread
+    // has stopped, so no in-flight finishBucket() flush is still using the sender.
+    if (metricWriter instanceof OtlpStatsMetricWriter) {
+      ((OtlpStatsMetricWriter) metricWriter).shutdown();
     }
   }
 

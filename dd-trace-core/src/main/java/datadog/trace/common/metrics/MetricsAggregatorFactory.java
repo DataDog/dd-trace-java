@@ -29,7 +29,7 @@ public class MetricsAggregatorFactory {
       }
       if (!config.isMetricsOtlpExporterEnabled()) {
         log.warn(
-            "OTLP trace span metrics are enabled but the OTLP metrics exporter is not "
+            "OTLP trace span metrics are enabled but the OTLP metrics exporter is not enabled "
                 + "("
                 + METRICS_OTEL_EXPORTER
                 + " is not 'otlp'); span metrics will still be exported over "
