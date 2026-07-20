@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -127,11 +126,6 @@ final class ScopeContinuation implements AgentScope.Continuation {
   @Override
   public AgentScope activate() {
     return (AgentScope) resume();
-  }
-
-  @Override
-  public AgentSpan span() {
-    return AgentSpan.fromContext(context);
   }
 
   @Override

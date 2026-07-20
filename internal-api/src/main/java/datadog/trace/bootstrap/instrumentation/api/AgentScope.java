@@ -24,8 +24,5 @@ public interface AgentScope extends ContextScope, TraceScope, Closeable {
 
     @Override
     AgentScope activate();
-
-    /** Provide access to the captured span */
-    AgentSpan span();
   }
 }
