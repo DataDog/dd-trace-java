@@ -18,12 +18,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.gateway.Flow.Action.RequestBlockingAction;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.undertow.server.HttpHandler;
@@ -112,10 +112,10 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
         }
       }
 
-      AgentScope.Continuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
+      ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
       if (continuation != null) {
         // not yet complete, not ready to do final activation of continuation
-        scope = continuation.span().attach();
+        scope = continuation.context().attach();
         return;
       }
 

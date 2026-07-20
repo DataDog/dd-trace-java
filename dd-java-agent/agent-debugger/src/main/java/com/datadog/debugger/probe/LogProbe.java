@@ -834,6 +834,13 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     Snapshot snapshot = createSnapshot();
     boolean shouldCommit = false;
     if (status.shouldSend()) {
+      if (isFullSnapshot()) {
+        // freeze context just before commit because line probes have only one context
+        Duration timeout =
+            Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+        lineContext.freeze(TimeoutChecker.create(Config.get(), timeout));
+        snapshot.addLine(lineContext, line);
+      }
       snapshot.setTraceId(CorrelationIdentifier.getTraceId());
       snapshot.setSpanId(CorrelationIdentifier.getSpanId());
       snapshot.setMessage(status.getMessage());
@@ -846,13 +853,6 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (shouldCommit) {
       incrementBudget();
       if (inBudget()) {
-        if (isFullSnapshot()) {
-          // freeze context just before commit because line probes have only one context
-          Duration timeout =
-              Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
-          lineContext.freeze(TimeoutChecker.create(Config.get(), timeout));
-          snapshot.addLine(lineContext, line);
-        }
         commitSnapshot(snapshot, sink);
         return;
       }

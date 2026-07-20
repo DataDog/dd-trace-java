@@ -3,8 +3,9 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 /** Helper utils for Runnable/Callable instrumentation */
@@ -18,16 +19,16 @@ public class AdviceUtils {
    * @param <T> task's type
    * @return scope if scope was started, or null
    */
-  public static <T> AgentScope startTaskScope(
+  public static <T> ContextScope startTaskScope(
       final ContextStore<T, State> contextStore, final T task) {
     return startTaskScope(contextStore.get(task));
   }
 
-  public static AgentScope startTaskScope(State state) {
+  public static ContextScope startTaskScope(State state) {
     if (state != null) {
-      final AgentScope.Continuation continuation = state.getAndResetContinuation();
+      final ContextContinuation continuation = state.getAndResetContinuation();
       if (continuation != null) {
-        final AgentScope scope = continuation.activate();
+        final ContextScope scope = continuation.resume();
         // important - stop timing after the scope has been activated so the time in the queue can
         // be attributed to the correct context without duplicating the propagated information
         state.stopTiming();
@@ -37,7 +38,7 @@ public class AdviceUtils {
     return null;
   }
 
-  public static void endTaskScope(final AgentScope scope) {
+  public static void endTaskScope(final ContextScope scope) {
     if (null != scope) {
       scope.close();
     }

@@ -496,6 +496,33 @@ test_published_artifacts:
     paths:
       - ./check_reports
 
+validate_build:
+  extends: .gradle_build
+  stage: tests
+  needs: [ build ]
+  variables:
+    CACHE_TYPE: "lib"
+  script:
+    # Preserve the `build` job artifacts before Gradle rebuilds and overwrites them under
+    # workspace/**/build/libs, so jardiff can compare the rebuilt jars against them.
+    - mkdir -p reference-artifacts
+    - cp workspace/dd-java-agent/build/libs/*.jar reference-artifacts/
+    - cp workspace/dd-trace-api/build/libs/*.jar reference-artifacts/
+    - cp workspace/dd-trace-ot/build/libs/*.jar reference-artifacts/
+    - ./gradlew --version
+    # This will run the shadowJar task and exercise the build cache, allowing to identify build-cache issues
+    - ./gradlew compareToReferenceJar -PjardiffReferenceDir="$CI_PROJECT_DIR/reference-artifacts" -PskipTests $GRADLE_ARGS
+  after_script:
+    - source .gitlab/gitlab-utils.sh
+    - gitlab_section_start "collect-reports" "Collecting reports"
+    - .gitlab/collect_reports.sh --destination ./check_reports
+    - gitlab_section_end "collect-reports"
+  artifacts:
+    when: always
+    paths:
+      - ./check_reports
+      - '.gradle/daemon/*/*.out.log'
+
 .check_job:
   extends: .gradle_build
   needs: [ build ]

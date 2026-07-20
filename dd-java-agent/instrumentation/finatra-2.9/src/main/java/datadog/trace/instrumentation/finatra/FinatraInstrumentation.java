@@ -95,8 +95,8 @@ public class FinatraInstrumentation extends InstrumenterModule.Tracing
       if (throwable != null) {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(scope.context());
-        span.finish();
         scope.close();
+        span.finish();
         return;
       }
 
