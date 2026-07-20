@@ -554,8 +554,8 @@ public final class DatadogProfiler {
     taskBlockBridge.parkExit(blocker, unblockingSpanId);
   }
 
-  long beginTaskBlock(int state) {
-    return RECORDING.get() ? taskBlockBridge.beginTaskBlock(state) : 0L;
+  long beginTaskBlock() {
+    return RECORDING.get() ? taskBlockBridge.beginTaskBlock() : 0L;
   }
 
   boolean endTaskBlock(long token, long blocker, long unblockingSpanId) {
