@@ -32,7 +32,9 @@ stages:
   - java-dacapo-parallel
   - java-dacapo-parallel-slo
   - java-post-pr-comment
-  - shared-pipeline
+  - shared-pipeline-build
+  - shared-pipeline-test
+  - shared-pipeline-publish
   - benchmarks
   - tests
   - tests-arm64
