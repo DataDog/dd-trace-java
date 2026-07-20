@@ -141,7 +141,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
         JavaVirtualMachine.isJavaVersionBetween(17, 22), "Robolectric 4.16 supports JDK 17-21");
     Assumptions.assumeFalse(
         OperatingSystem.architecture().isArm64(),
-        "Robolectric does not support arm64 (missing native runtime binaries)");
+        "Robolectric does not support arm64 (missing native runtime binaries, follow https://github.com/robolectric/robolectric/issues/9166)");
 
     gradleVersion = resolveVersion(gradleVersion);
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
