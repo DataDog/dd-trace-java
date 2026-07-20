@@ -124,12 +124,12 @@ public class ImmutableMapBenchmark {
   static final int[] SI_VALUES;
 
   static {
-    StringIndex.Data data = StringIndex.Support.create(INSERTION_KEYS);
+    StringIndex.Data data = StringIndex.EmbeddingSupport.create(INSERTION_KEYS);
     SI_HASHES = data.hashes;
     SI_NAMES = data.names;
     SI_VALUES = new int[SI_HASHES.length];
     for (int i = 0; i < INSERTION_KEYS.length; ++i) {
-      SI_VALUES[StringIndex.Support.indexOf(SI_HASHES, SI_NAMES, INSERTION_KEYS[i])] = i;
+      SI_VALUES[StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, INSERTION_KEYS[i])] = i;
     }
   }
 
@@ -276,12 +276,12 @@ public class ImmutableMapBenchmark {
 
   @Benchmark
   public int support_get(Cursor cursor) {
-    return SI_VALUES[StringIndex.Support.indexOf(SI_HASHES, SI_NAMES, cursor.nextKey())];
+    return SI_VALUES[StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextKey())];
   }
 
   @Benchmark
   public int support_get_sameKey(Cursor cursor) {
     return SI_VALUES[
-        StringIndex.Support.indexOf(SI_HASHES, SI_NAMES, cursor.nextKey(INSERTION_KEYS))];
+        StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextKey(INSERTION_KEYS))];
   }
 }
