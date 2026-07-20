@@ -359,6 +359,34 @@ class FlatHashtableTest {
   }
 
   @Test
+  void iterator_fullTable_yieldsMatchesIncludingTheWrappingSlot() {
+    // 2 slots, both filled by colliding (hash 0) entries -> the probe has no empty slot to stop at,
+    // so the traversal must yield the entry on the wrapping slot and then terminate on wrap.
+    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1);
+    TestEntry a = FlatHashtable.getOrCreate(table, "a", TestCollidingStrategy.INSTANCE, CREATE);
+    TestEntry b = FlatHashtable.getOrCreate(table, "b", TestCollidingStrategy.INSTANCE, CREATE);
+
+    Set<TestEntry> seen = new HashSet<>();
+    Iterator<TestEntry> it = FlatHashtable.iterator(table, 0, TestCollidingStrategy.INSTANCE);
+    while (it.hasNext()) {
+      seen.add(it.next());
+    }
+    assertEquals(new HashSet<>(Arrays.asList(a, b)), seen);
+  }
+
+  @Test
+  void iterator_fullTable_absentHash_terminatesOnWrap() {
+    // Full table, iterating a hash no stored entry has (all hashOf == 0) -> the traversal walks
+    // every slot and wraps without ever hitting an empty one, then reports no elements.
+    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1);
+    FlatHashtable.getOrCreate(table, "a", TestCollidingStrategy.INSTANCE, CREATE);
+    FlatHashtable.getOrCreate(table, "b", TestCollidingStrategy.INSTANCE, CREATE);
+
+    Iterator<TestEntry> it = FlatHashtable.iterator(table, 5, TestCollidingStrategy.INSTANCE);
+    assertFalse(it.hasNext());
+  }
+
+  @Test
   void capacityFor_honorsLoadFactor() {
     // default 0.5 -> >= 2x; LOW 0.25 -> >= 4x.
     assertEquals(8, FlatHashtable.capacityFor(4, FlatHashtable.DEFAULT_LOAD_FACTOR));
@@ -382,12 +410,13 @@ class FlatHashtableTest {
 
   @Test
   void resize_generalFlavor_growsAndKeepsEveryEntryFindable() {
-    TestEntry[] table = FlatHashtable.create(TestEntry.class, 1); // 2 slots
+    // 8 slots with only 2 entries -> the rehash loop skips empty slots as well as copying entries.
+    TestEntry[] table = FlatHashtable.create(TestEntry.class, 4);
     FlatHashtable.insert(table, new TestEntry("a"), TestEntryStrategy.INSTANCE);
     FlatHashtable.insert(table, new TestEntry("b"), TestEntryStrategy.INSTANCE);
 
     TestEntry[] grown = FlatHashtable.resize(table, TestEntryStrategy.INSTANCE);
-    assertEquals(4, grown.length);
+    assertEquals(16, grown.length);
     assertNotSame(table, grown);
     assertEquals("a", FlatHashtable.get(grown, "a", TestEntryStrategy.INSTANCE).key);
     assertEquals("b", FlatHashtable.get(grown, "b", TestEntryStrategy.INSTANCE).key);
@@ -395,12 +424,12 @@ class FlatHashtableTest {
 
   @Test
   void resize_entryFlavor_growsAndKeepsEveryEntryFindable() {
-    TestHashedEntry[] table = FlatHashtable.create(TestHashedEntry.class, 1); // 2 slots
+    TestHashedEntry[] table = FlatHashtable.create(TestHashedEntry.class, 4); // 8 slots, 2 entries
     FlatHashtable.insert(table, new TestHashedEntry("a"));
     FlatHashtable.insert(table, new TestHashedEntry("b"));
 
     TestHashedEntry[] grown = FlatHashtable.resize(table);
-    assertEquals(4, grown.length);
+    assertEquals(16, grown.length);
     assertEquals("a", FlatHashtable.get(grown, "a", TestHashedStrategy.INSTANCE).key);
     assertEquals("b", FlatHashtable.get(grown, "b", TestHashedStrategy.INSTANCE).key);
   }
