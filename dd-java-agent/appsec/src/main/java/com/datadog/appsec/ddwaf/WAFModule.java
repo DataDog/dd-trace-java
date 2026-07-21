@@ -312,6 +312,15 @@ public class WAFModule implements AppSecModule {
 
       try {
         resultWithData = doRunWaf(reqCtx, newData, ctxAndAddr, gwCtx);
+        if (resultWithData == null) {
+          // WAF context closed concurrently between the fast-path check and context creation; skip
+          // (APPSEC-69085).
+          log.debug("Skipped; the WAF context was closed concurrently");
+          if (gwCtx.isRasp) {
+            WafMetricCollector.get().raspRuleSkipped(gwCtx.raspRuleType);
+          }
+          return;
+        }
       } catch (TimeoutWafException tpe) {
         if (gwCtx.isRasp) {
           reqCtx.increaseRaspTimeouts();
@@ -560,6 +569,11 @@ public class WAFModule implements AppSecModule {
         throws AbstractWafException {
       WafContext wafContext =
           reqCtx.getOrCreateWafContext(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
+      if (wafContext == null) {
+        // Context closed concurrently with the isWafContextClosed() check in onDataAvailable; skip
+        // (APPSEC-69085).
+        return null;
+      }
       WafMetrics metrics;
       if (gwCtx.isRasp) {
         metrics = reqCtx.getRaspMetrics();

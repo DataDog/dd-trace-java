@@ -353,27 +353,38 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     this.extendedDataCollectionMaxHeaders = extendedDataCollectionMaxHeaders;
   }
 
+  /**
+   * Returns the request's {@link WafContext}, creating it on first use.
+   *
+   * <p>Returns {@code null} when the context has already been closed (see {@link
+   * #closeWafContext()}). Callers MUST treat a {@code null} return as "the WAF must not run for
+   * this request" and skip the evaluation. This prevents a late/async data event (e.g. a RASP
+   * callback on a driver or event-loop thread) from resurrecting a brand-new native {@code
+   * ddwaf_context} on an already-finished request, which would never be closed and would leak
+   * off-heap memory (APPSEC-69085).
+   */
   public WafContext getOrCreateWafContext(
       WafHandle wafHandle, boolean createMetrics, boolean isRasp) {
-    if (createMetrics) {
-      if (wafMetrics == null) {
-        this.wafMetrics = new WafMetrics();
-      }
-      if (isRasp && raspMetrics == null) {
-        this.raspMetrics = new WafMetrics();
-      }
-    }
-
-    WafContext curWafContext;
     synchronized (this) {
-      curWafContext = this.wafContext;
-      if (curWafContext != null) {
-        return curWafContext;
+      // Atomic with respect to closeWafContext(): both run under this monitor.
+      if (wafContextClosed) {
+        return null;
       }
-      curWafContext = new WafContext(wafHandle);
+      if (createMetrics) {
+        if (wafMetrics == null) {
+          this.wafMetrics = new WafMetrics();
+        }
+        if (isRasp && raspMetrics == null) {
+          this.raspMetrics = new WafMetrics();
+        }
+      }
+      if (this.wafContext != null) {
+        return this.wafContext;
+      }
+      WafContext curWafContext = new WafContext(wafHandle);
       this.wafContext = curWafContext;
+      return curWafContext;
     }
-    return curWafContext;
   }
 
   public void closeWafContext() {
