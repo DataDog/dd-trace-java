@@ -96,21 +96,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   /** Class names (internal format) queued for deferred retransformation by name lookup. */
   @VisibleForTesting final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
 
-  /**
-   * {@code retransformClasses()} is atomic for a given batch: if any single class in it fails to
-   * verify/redefine, the whole batch throws. For a multi-class batch, {@link
-   * #performPendingRetransforms()} reacts by bisecting it into two halves, deferred to the next
-   * heartbeat, to isolate the failing class(es) from any healthy batch-mates. Once a batch has been
-   * narrowed down to a single class, further failures of that same class are tracked here so it is
-   * dropped after {@link #MAX_RETRANSFORM_ATTEMPTS} instead of being retried forever and leaking
-   * its {@code Class<?>} (and {@code ClassLoader}) in Metaspace. Entries are removed on success or
-   * once the limit is reached, so this map only grows with currently-failing singleton classes.
-   */
-  @VisibleForTesting
-  final Map<Class<?>, Integer> retransformFailureCount = new ConcurrentHashMap<>();
-
-  private static final int MAX_RETRANSFORM_ATTEMPTS = 5;
-
   public ScaReachabilityTransformer(ScaCveDatabase database, Instrumentation instrumentation) {
     this.database = database;
     this.instrumentation = instrumentation;
@@ -399,35 +384,26 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * bisected into two halves that are re-queued as independent batches for the next heartbeat —
    * never retried within this same call — so that a healthy class is progressively isolated from an
    * unrelated, permanently-failing batch-mate instead of being dropped alongside it. Once a batch
-   * is down to a single class, further failures of that class are bounded by {@link
-   * #retransformFailureCount} and {@link #MAX_RETRANSFORM_ATTEMPTS} to guarantee it is eventually
-   * dropped instead of leaking its {@code Class<?>} forever.
+   * is down to a single class, a further failure of that class means it has already been proven to
+   * be the actual cause (or, for a class that started as a singleton, that its very first attempt
+   * failed): it is dropped immediately rather than retried, so it never leaks its {@code Class<?>}
+   * (and {@code ClassLoader}) in Metaspace. See APPSEC-69201 for the trade-off this implies.
    */
   private void retransformBatch(List<Class<?>> batch) {
     try {
       instrumentation.retransformClasses(batch.toArray(new Class<?>[0]));
       log.debug(
           "SCA Reachability: retransformed {} class(es) for method-level detection", batch.size());
-      for (Class<?> c : batch) {
-        retransformFailureCount.remove(c);
-      }
     } catch (Throwable t) {
       log.debug(
           "SCA Reachability: retransformClasses failed for a batch of {} class(es)",
           batch.size(),
           t);
       if (batch.size() == 1) {
-        Class<?> c = batch.get(0);
-        int attempts = retransformFailureCount.merge(c, 1, Integer::sum);
-        if (attempts < MAX_RETRANSFORM_ATTEMPTS) {
-          pendingRetransform.add(batch);
-        } else {
-          retransformFailureCount.remove(c);
-          log.debug(
-              "SCA Reachability: giving up retransforming {} after {} failed attempts",
-              c.getName(),
-              attempts);
-        }
+        log.debug(
+            "SCA Reachability: giving up retransforming {} after a failed attempt as a singleton"
+                + " batch",
+            batch.get(0).getName());
       } else {
         int mid = batch.size() / 2;
         pendingRetransform.add(new ArrayList<>(batch.subList(0, mid)));

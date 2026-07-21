@@ -89,12 +89,12 @@ class ScaReachabilityRetransformTest {
   }
 
   @Test
-  void performPendingRetransforms_givesUpAfterMaxFailedAttempts() throws Exception {
+  void performPendingRetransforms_dropsSingletonBatchImmediatelyOnFailure() throws Exception {
     // retransformClasses() is atomic for the whole array: an unrelated, permanently-failing class
     // (this test simulates it with a RuntimeException on every attempt) must not be re-queued
     // forever, or its Class<?> (and its ClassLoader) is retained indefinitely — the Metaspace leak
-    // from APPSEC-69201. After MAX_RETRANSFORM_ATTEMPTS failures the class must be dropped instead
-    // of re-queued.
+    // from APPSEC-69201. Once a batch is down to a single class, a failure is treated as proof the
+    // class itself is the cause and it is dropped on the spot, with no retry budget.
     Instrumentation instr = mock(Instrumentation.class);
     when(instr.isModifiableClass(Target.class)).thenReturn(true);
     doThrow(new RuntimeException("retransform failed")).when(instr).retransformClasses(any());
@@ -103,53 +103,35 @@ class ScaReachabilityRetransformTest {
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
     t.pendingRetransform.add(Collections.singletonList(Target.class));
 
-    // Each failed attempt re-queues the class for the next heartbeat; after the limit it must be
-    // dropped instead. Run one extra iteration beyond the limit to confirm it stays dropped.
-    for (int attempt = 1; attempt <= 6; attempt++) {
-      t.performPendingRetransforms();
-    }
+    t.performPendingRetransforms();
 
     assertTrue(
-        t.pendingRetransform.isEmpty(),
-        "class must be dropped (not re-queued) once the retry limit is exceeded");
-    assertTrue(
-        t.retransformFailureCount.isEmpty(),
-        "failure count must be cleared once the class is dropped, so the map does not grow"
-            + " unbounded");
+        t.pendingRetransform.isEmpty(), "class must be dropped (not re-queued) after one failure");
   }
 
   @Test
-  void performPendingRetransforms_clearsFailureCountOnEventualSuccess() throws Exception {
+  void performPendingRetransforms_doesNotRequeueSingletonBatchOnSuccess() throws Exception {
     Instrumentation instr = mock(Instrumentation.class);
     when(instr.isModifiableClass(Target.class)).thenReturn(true);
-    doThrow(new RuntimeException("retransform failed"))
-        .doNothing()
-        .when(instr)
-        .retransformClasses(any());
 
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
 
     t.pendingRetransform.add(Collections.singletonList(Target.class));
-    t.performPendingRetransforms(); // fails once, re-queued
-    assertEquals(1, t.pendingRetransform.size());
+    t.performPendingRetransforms();
 
-    t.performPendingRetransforms(); // succeeds this time
-
+    verify(instr).retransformClasses(Target.class);
     assertTrue(t.pendingRetransform.isEmpty(), "class must not be re-queued after success");
-    assertTrue(
-        t.retransformFailureCount.isEmpty(),
-        "failure count must be cleared once retransformClasses succeeds");
   }
 
   @Test
   void performPendingRetransforms_isolatesHealthyClassFromPermanentlyFailingBatchMateViaBisection()
       throws Exception {
     // A batch containing one permanently-failing class and one otherwise-healthy class fails once
-    // as a pair. Instead of tying both classes' failure counts together, the batch is immediately
-    // bisected into two singleton batches, deferred to the next heartbeat. On the next heartbeat
-    // the healthy class retransforms successfully on its own, isolated from its unrelated,
-    // permanently-failing batch-mate.
+    // as a pair. Rather than tying both classes together, the batch is immediately bisected into
+    // two singleton batches, deferred to the next heartbeat. On the next heartbeat the healthy
+    // class retransforms successfully on its own, isolated from its unrelated, permanently-failing
+    // batch-mate — which is dropped on the spot since it fails again alone.
     Class<?> poison = Target.class;
     Class<?> healthy = Other.class;
 
@@ -175,15 +157,13 @@ class ScaReachabilityRetransformTest {
     t.pendingRetransform.add(new ArrayList<>(Arrays.asList(poison, healthy)));
 
     t.performPendingRetransforms(); // batch of 2 fails, bisects into [poison] and [healthy]
-    t.performPendingRetransforms(); // [healthy] succeeds alone; [poison] keeps failing alone
+    t.performPendingRetransforms(); // [healthy] succeeds alone; [poison] fails alone and is dropped
 
     verify(instr).retransformClasses(healthy);
     assertTrue(
-        t.pendingRetransform.stream().noneMatch(batch -> batch.contains(healthy)),
-        "healthy class must be successfully retransformed and not remain queued");
-    assertTrue(
-        t.retransformFailureCount.containsKey(poison),
-        "poison class must still be tracked as a failing singleton batch");
+        t.pendingRetransform.isEmpty(),
+        "healthy class must be successfully retransformed and the poison class dropped, leaving"
+            + " nothing queued");
   }
 
   @Test
