@@ -66,9 +66,7 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   public void finishSpan(AgentSpan span, Throwable err) {
-    if (err != null) {
-      onError(span, err);
-    }
+    onError(span, err);
     DECORATE.beforeFinish(span);
     span.finish();
   }
