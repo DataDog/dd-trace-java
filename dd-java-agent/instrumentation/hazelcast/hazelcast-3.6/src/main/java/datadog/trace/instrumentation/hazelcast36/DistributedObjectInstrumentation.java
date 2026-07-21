@@ -215,14 +215,11 @@ public final class DistributedObjectInstrumentation
 
       // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
       final AgentSpan span = scope.span();
-      try {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-      } finally {
-        scope.close();
-        span.finish();
-        CallDepthThreadLocalMap.reset(DistributedObject.class); // reset call depth count
-      }
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
+      CallDepthThreadLocalMap.reset(DistributedObject.class); // reset call depth count
     }
 
     public static void muzzleCheck(

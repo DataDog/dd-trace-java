@@ -77,16 +77,13 @@ public final class ClientListenerInstrumentation
 
       // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
       final AgentSpan span = scope.span();
-      try {
-        if (throwable != null) {
-          DECORATE.onError(span, throwable);
-        }
-        DECORATE.beforeFinish(span);
-      } finally {
-        scope.close();
-        span.finish();
-        CallDepthThreadLocalMap.reset(ClientListener.class); // reset call depth count
+      if (throwable != null) {
+        DECORATE.onError(span, throwable);
       }
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
+      CallDepthThreadLocalMap.reset(ClientListener.class); // reset call depth count
     }
 
     public static void muzzleCheck(
