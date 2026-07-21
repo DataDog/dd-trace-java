@@ -39,20 +39,53 @@
 
   ✅ `public String[] triggerClasses() { return new String[]{"com.example.Foo"}; }`
 
-### Module constructor: new modules add a version alias; existing modules preserve existing names
+### Before writing a new module, scan for an existing one
 
-**New module**: pass a generic name AND a version-qualified alias so users can enable/disable this version independently:
+Before creating `dd-java-agent/instrumentation/$framework/$framework-$version/`, check whether `dd-java-agent/instrumentation/$framework/` already exists and what's in it.
+
+If an existing module covers the same framework at a compatible version, **modify it in place** — do NOT create a parallel `$framework-2.0-generated/` or nested `$framework/$framework-2.0/` copy. Duplicate modules cause muzzle to match twice, double the CI cost, and create reviewer confusion (see PR #10941's "the more I read about it, the less I understand what was done" — a duplicate module that the reviewer could not disentangle from the original).
+
+If the existing module targets a genuinely different version range (e.g. existing `foo-1.0/` and you're adding `foo-3.0/`), a version-sibling is correct — but confirm by reading the existing module's muzzle range first.
+
+### Module constructor: choose names based on sibling structure
+
+Each name passed to `super(...)` becomes a distinct `DD_TRACE_<NAME>_ENABLED` flag. Choose the number of names based on whether version-specific siblings exist (or are imminent):
+
+**Single module, no version siblings, no imminent sibling planned** — pass ONE name:
 
 ```java
-// CORRECT — generic + version alias
-public JedisInstrumentation() {
-    super("jedis", "jedis-3.0");
+// CORRECT — single-module framework (freemarker lives in freemarker-2.3.9/
+// and freemarker-2.3.24/ sibling directories yet still passes ONE name because
+// the two directories share the same integration name)
+public DollarVariableInstrumentation() {
+    super("freemarker");
 }
 ```
 
-The version alias (e.g. `"jedis-3.0"`) maps to `DD_TRACE_JEDIS_3_0_ENABLED`. Do NOT add version aliases to the decorator's `instrumentationNames()` — that method is for analytics keys only.
+Adding a version alias here mints a `DD_TRACE_<NAME>_<VER>_ENABLED` flag that has no counterpart to gate against; it doubles the config surface for no operator benefit. Empirically, single-name-only frameworks in dd-trace-java include `freemarker` (across `freemarker-2.3.9/` and `freemarker-2.3.24/`), `liberty` (across `liberty-20.0/` and `liberty-23.0/`), and most other framework directories with a single integration name.
+
+**Counter-example — `sparkjava`:** the `sparkjava-2.3/` module uses `super("sparkjava", "sparkjava-2.4")` (note the `-2.4`, not `-2.3`) because the module compiles against Spark 2.3 but tests against 2.4 (Spark's `JettyHandler` is available from 2.4). The versioned alias here reflects the version the code EXERCISES, not the compile-time minimum. This is intentional; do NOT invent a `-2.3` alias just because the directory is named `sparkjava-2.3/`. If in doubt, read the master `super(...)` and copy it verbatim.
+
+**Multiple version siblings exist** (`okhttp-2.0/` AND `okhttp-3.0/`, `jedis-1.4/` AND `jedis-3.0/` AND `jedis-4.0/`) — pass a shared group name PLUS a version-qualified alias so each version has an independent toggle sharing one group flag:
+
+```java
+// CORRECT — okhttp has real siblings (okhttp-2.0 and okhttp-3.0)
+public OkHttp3Instrumentation() {
+    super("okhttp", "okhttp-3");
+}
+```
+
+Users can then set `DD_TRACE_OKHTTP_ENABLED=false` (group off) OR `DD_TRACE_OKHTTP_3_ENABLED=false` (this version only).
+
+**New module you expect will soon have a sibling** — add the alias upfront and document why in the commit message. If no sibling appears, drop the alias in a follow-up.
 
 **Existing module** (modifying, refactoring, or splitting): read the existing module's `super(...)` and copy it verbatim. Integration names are public config API — renaming one silently breaks customer `DD_TRACE_*_ENABLED` settings.
+
+Before choosing, list the `dd-java-agent/instrumentation/$framework/` directory — the contents are the ground truth for whether siblings exist.
+
+Do NOT add version aliases to the decorator's `instrumentationNames()` — that method is for analytics keys only.
+
+**When rewriting or refactoring an existing module, preserve every override the master version has.** Not just `super(...)` — also `defaultEnabled()`, `helperClassNames()`, `contextStore()`, `orderPriority()`, `muzzleDirective()`, and any other overridden method. Read the current file on master before writing; carry each override forward verbatim unless there's a documented reason to change it. Silent loss of `defaultEnabled() = false` (or similar opt-in flags) ships an integration with a different default than users expected.
 
 ### Do not create a helper class just for CallDepthThreadLocalMap when only one type is instrumented
 
@@ -88,3 +121,18 @@ For complex frameworks with multiple version-specific or feature-specific instru
 - Member instrumentations must **not** carry `@AutoService` and must **not** extend `TargetSystem` subclasses
 
 See `docs/how_instrumentations_work.md` section "Grouping Instrumentations" for details.
+
+## Enrichment helpers must be declared in `helperClassNames()`
+
+If your advice delegates to a helper class (e.g. `SparkJavaRouteEnricher.enrich(...)` from inside `RoutesAdvice`), the helper's fully-qualified class name MUST be listed in `helperClassNames()` on the `InstrumenterModule` — unless the helper is supplied on the boot-class-path (e.g. from `agent-bootstrap`), in which case it is already available without injection:
+
+```java
+@Override
+public String[] helperClassNames() {
+  return new String[] {
+    packageName + ".SparkJavaRouteEnricher",
+  };
+}
+```
+
+Without this, the helper class is not loaded into the target application's classloader at instrumentation time, and the advice will `NoClassDefFoundError` at runtime. This is checked by muzzle; a missing helper reference is a common failure mode when refactoring advice.
