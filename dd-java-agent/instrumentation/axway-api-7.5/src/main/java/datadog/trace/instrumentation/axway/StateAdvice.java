@@ -36,14 +36,11 @@ public class StateAdvice {
     }
     final AgentSpan span = scope.span();
     final Context context = scope.context();
-    try {
-      if (throwable != null) {
-        DECORATE.onError(span, throwable);
-      }
-      DECORATE.beforeFinish(context);
-    } finally {
-      scope.close();
-      span.finish();
+    if (throwable != null) {
+      DECORATE.onError(span, throwable);
     }
+    DECORATE.beforeFinish(context);
+    scope.close();
+    span.finish();
   }
 }
