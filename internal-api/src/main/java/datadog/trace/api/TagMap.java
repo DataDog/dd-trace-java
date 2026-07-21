@@ -178,29 +178,31 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     static final byte ANY = 0;
 
     /**
+     * Whether {@code value} is treated as "no tag" — a null, or an empty {@link CharSequence}. Set
+     * paths that honor the tag-filtering contract (e.g. {@code AgentSpan.setTag}, {@link
+     * SpanPrototype}) can gate on this without constructing an Entry — which matters once a dense
+     * store makes per-tag Entry allocation the wrong path.
+     */
+    public static boolean isEmptyValue(Object value) {
+      return value == null
+          || (value instanceof CharSequence && ((CharSequence) value).length() == 0);
+    }
+
+    /**
      * Entry for {@code (tag, value)}, or null when {@code value} is null or an empty {@code
      * CharSequence} -- checked by runtime type, so an empty String passed as {@code Object} skips
      * the same as via the {@link #create(String, CharSequence)} overload.
      */
     @Nullable
     public static final Entry create(@Nonnull String tag, Object value) {
-      if (value == null) {
-        return null;
-      }
-      if (value instanceof CharSequence && ((CharSequence) value).length() == 0) {
-        return null;
-      }
-      return TagMap.Entry.newAnyEntry(tag, value);
+      return isEmptyValue(value) ? null : TagMap.Entry.newAnyEntry(tag, value);
     }
 
     /** If value is non-null, returns a new TagMap.Entry If value is null or empty, returns null */
     @Nullable
     public static final Entry create(@Nonnull String tag, CharSequence value) {
       // NOTE: From the static typing, we know that value is not a primitive box
-
-      return (value == null || value.length() == 0)
-          ? null
-          : TagMap.Entry.newObjectEntry(tag, value);
+      return isEmptyValue(value) ? null : TagMap.Entry.newObjectEntry(tag, value);
     }
 
     public static final Entry create(@Nonnull String tag, boolean value) {
