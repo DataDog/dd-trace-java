@@ -27,18 +27,18 @@ final class SpanSnapshot implements InboxItem {
    * carries the names + {@link TagCardinalityHandler}s in parallel array form; {@code
    * peerTagValues} holds the per-span tag values at the same indices.
    */
-  @Nullable final PeerTagSchema peerTagSchema;
+  final @Nullable PeerTagSchema peerTagSchema;
 
   /**
    * Peer tag values captured from the span, parallel to {@code peerTagSchema.names}. A {@code null}
    * entry means the span didn't have that peer tag set. {@code null} (the whole array) when {@link
    * #peerTagSchema} is {@code null}.
    */
-  @Nullable final String[] peerTagValues;
+  final @Nullable String[] peerTagValues;
 
-  @Nullable final String httpMethod;
-  @Nullable final String httpEndpoint;
-  @Nullable final String grpcStatusCode;
+  final @Nullable String httpMethod;
+  final @Nullable String httpEndpoint;
+  final @Nullable String grpcStatusCode;
 
   /**
    * Additional metric tag values captured from the span, parallel to {@code
