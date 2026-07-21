@@ -12,10 +12,10 @@ public abstract class ServerDecorator extends BaseDecorator {
       TagMap.Entry.create(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE);
 
   @Override
-  public void afterStart(final AgentSpan span) {
+  protected void doAfterStart(final AgentSpan span) {
     span.setTag(SPAN_KIND_ENTRY);
     span.setTag(LANG_ENTRY);
 
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 }

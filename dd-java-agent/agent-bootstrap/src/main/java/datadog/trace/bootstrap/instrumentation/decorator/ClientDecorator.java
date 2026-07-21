@@ -32,7 +32,7 @@ public abstract class ClientDecorator extends BaseDecorator {
   }
 
   @Override
-  public void afterStart(final AgentSpan span) {
+  protected void doAfterStart(final AgentSpan span) {
     final String service = service();
     if (service != null) {
       span.setServiceName(service, component());
@@ -41,6 +41,6 @@ public abstract class ClientDecorator extends BaseDecorator {
 
     // Generate metrics for all client spans.
     span.setMeasured(true);
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 }

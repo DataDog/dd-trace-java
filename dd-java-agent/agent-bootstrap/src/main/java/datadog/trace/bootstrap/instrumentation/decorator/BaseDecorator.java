@@ -97,7 +97,17 @@ public abstract class BaseDecorator {
     return false;
   }
 
-  public void afterStart(final AgentSpan span) {
+  public final void afterStart(final AgentSpan span) {
+    try {
+      doAfterStart(span);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span after start", t);
+    }
+  }
+
+  protected void doAfterStart(final AgentSpan span) {
     if (spanType() != null) {
       span.setSpanType(spanType());
     }
@@ -172,18 +182,19 @@ public abstract class BaseDecorator {
     }
   }
 
-  public void onPeerConnection(final AgentSpan span, final InetSocketAddress remoteConnection) {
+  public final void onPeerConnection(
+      final AgentSpan span, final InetSocketAddress remoteConnection) {
     if (remoteConnection != null) {
       onPeerConnection(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
       setPeerPort(span, remoteConnection.getPort());
     }
   }
 
-  public void onPeerConnection(final AgentSpan span, final InetAddress remoteAddress) {
+  public final void onPeerConnection(final AgentSpan span, final InetAddress remoteAddress) {
     onPeerConnection(span, remoteAddress, true);
   }
 
-  public void onPeerConnection(AgentSpan span, InetAddress remoteAddress, boolean resolved) {
+  public final void onPeerConnection(AgentSpan span, InetAddress remoteAddress, boolean resolved) {
     if (remoteAddress != null) {
       String ip = remoteAddress.getHostAddress();
       if (resolved && Config.get().isPeerHostNameEnabled()) {
