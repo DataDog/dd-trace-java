@@ -31,8 +31,13 @@ import org.openjdk.jmh.annotations.Warmup;
  * </ul>
  *
  * <p>Isolates the constant-application only (not span creation or the {@code afterStart} virtual
- * chain), so the delta is purely N-stamps vs. bulk-copy. Run with {@code -prof gc} — the
- * interesting axes are ops/s and B/op.
+ * chain), so the delta is purely N-stamps vs. bulk-copy. All arms apply tags at the {@code TagMap}
+ * level and skip the per-tag {@code TagInterceptor} dispatch that the real construction seed still
+ * incurs (span.kind, analytics-rate, ... are intercepted). That dispatch is a <em>common</em> cost
+ * on both the old and new production paths, so it cancels in the delta — but it means the absolute
+ * ops/s and the new/old ratio here are a TagMap-level upper bound, not the end-to-end win. (The
+ * interceptor-free bulk-share is what TagInterceptor retirement eventually unlocks; the current
+ * seed intercepts.) Run with {@code -prof gc} — the interesting axes are ops/s and B/op.
  */
 @State(Scope.Thread)
 @BenchmarkMode(Mode.Throughput)
@@ -60,7 +65,7 @@ public class SpanPrototypeBenchmark {
     // Baked once — the same constants, composed through the builder.
     prototype =
         SpanPrototype.builder()
-            .initComponent("netty")
+            .initComponentOnly("netty")
             .initKind(Tags.SPAN_KIND_SERVER)
             .initTag(DDTags.LANGUAGE_TAG_KEY, DDTags.LANGUAGE_TAG_VALUE)
             .initTag(ANALYTICS)

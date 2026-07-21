@@ -27,12 +27,14 @@ public final class SpanPrototype {
   private final String instrumentationName;
   private final CharSequence operationName;
   private final CharSequence spanType;
+  private final CharSequence integrationName;
   private final TagMap tags; // frozen
 
   private SpanPrototype(final Builder builder) {
     this.instrumentationName = builder.instrumentationName;
     this.operationName = builder.operationName;
     this.spanType = builder.spanType;
+    this.integrationName = builder.integrationName;
     this.tags = builder.tags.immutableCopy();
   }
 
@@ -48,6 +50,15 @@ public final class SpanPrototype {
     return spanType;
   }
 
+  /**
+   * The integration name to record on the span context ({@code setIntegrationName}), which the
+   * IntegrationAdder serializer step turns into {@code _dd.integration}. Null unless set via {@link
+   * Builder#initComponentAndIntegration}. Mirrors {@code BaseDecorator.afterStart}'s side effect.
+   */
+  public CharSequence integrationName() {
+    return integrationName;
+  }
+
   /** The frozen constant tags — the internal seed applied at span construction. */
   public TagMap tags() {
     return tags;
@@ -57,6 +68,7 @@ public final class SpanPrototype {
     private String instrumentationName;
     private CharSequence operationName;
     private CharSequence spanType;
+    private CharSequence integrationName;
     // Internal accumulator — never exposed; authors compose via the typed methods below.
     private final TagMap tags = TagMap.create();
 
@@ -77,28 +89,31 @@ public final class SpanPrototype {
         if (base.spanType != null) {
           this.spanType = base.spanType;
         }
+        if (base.integrationName != null) {
+          this.integrationName = base.integrationName;
+        }
         this.tags.putAll(base.tags);
       }
       return this;
     }
 
-    public Builder instrumentationName(final String[] instrumentationNames) {
+    public Builder initInstrumentationNames(final String[] instrumentationNames) {
       return (instrumentationNames == null || instrumentationNames.length == 0)
           ? this
-          : instrumentationName(instrumentationNames[0]);
+          : initInstrumentationName(instrumentationNames[0]);
     }
 
-    public Builder instrumentationName(final String instrumentationName) {
+    public Builder initInstrumentationName(final String instrumentationName) {
       this.instrumentationName = instrumentationName;
       return this;
     }
 
-    public Builder operationName(final CharSequence operationName) {
+    public Builder initOperationName(final CharSequence operationName) {
       this.operationName = operationName;
       return this;
     }
 
-    public Builder spanType(final CharSequence spanType) {
+    public Builder initSpanType(final CharSequence spanType) {
       this.spanType = spanType;
       return this;
     }
@@ -108,9 +123,28 @@ public final class SpanPrototype {
       return initTag(Tags.SPAN_KIND, kind);
     }
 
-    /** Sets {@code component}. */
-    public Builder initComponent(final CharSequence component) {
+    /**
+     * Sets the {@code component} tag only. Does NOT touch the integration name — so overriding a
+     * component inherited via {@link #initComponentAndIntegration} with this leaves the inherited
+     * integration name in place (a desync). Use {@link #initComponentAndIntegration} to override
+     * both together.
+     */
+    public Builder initComponentOnly(final CharSequence component) {
       return initTag(Tags.COMPONENT, component);
+    }
+
+    /**
+     * Sets the {@code component} tag AND records it as the integration name — the {@code
+     * BaseDecorator.afterStart} pairing (component tag + {@code setIntegrationName(component)},
+     * which the IntegrationAdder serializer turns into {@code _dd.integration}). Null/empty is a
+     * no-op for both.
+     */
+    public Builder initComponentAndIntegration(final CharSequence component) {
+      if (!TagMap.Entry.isEmptyValue(component)) {
+        this.tags.set(Tags.COMPONENT, component);
+        this.integrationName = component;
+      }
+      return this;
     }
 
     public Builder initTag(final String key, final CharSequence value) {

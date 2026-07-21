@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.common.writer.ListWriter;
@@ -28,11 +29,11 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
     tracer = tracerBuilder().writer(writer).build();
     prototype =
         SpanPrototype.builder()
-            .instrumentationName("test-instr")
-            .operationName("proto.op")
-            .spanType("web")
+            .initInstrumentationName("test-instr")
+            .initOperationName("proto.op")
+            .initSpanType("web")
             .initKind(SPAN_KIND_SERVER)
-            .initComponent("test-component")
+            .initComponentOnly("test-component")
             .build();
   }
 
@@ -93,6 +94,64 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
     DDSpan span = (DDSpan) tracer.buildSpan(prototype, null).withTag(COMPONENT, "override").start();
     try {
       assertEquals("override", span.getTags().get(COMPONENT));
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
+  void initComponentAndIntegrationSetsIntegrationName() {
+    // Mirrors BaseDecorator.afterStart: the component tag is seeded AND the integration name is set
+    // on the context, which IntegrationAdder serializes as _dd.integration (field -> tag mapping is
+    // covered by IntegrationAdderTest).
+    SpanPrototype proto =
+        SpanPrototype.builder()
+            .initInstrumentationName("test-instr")
+            .initComponentAndIntegration("netty")
+            .build();
+    DDSpan span = (DDSpan) tracer.buildSpan(proto, "op").start();
+    try {
+      assertEquals("netty", span.getTags().get(COMPONENT)); // component tag seeded
+      assertEquals("netty", ((DDSpanContext) span.spanContext()).getIntegrationName());
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
+  void initComponentOnlyDoesNotSetIntegrationName() {
+    // initComponentOnly is tag-only: no integration-name side effect, so no _dd.integration.
+    SpanPrototype proto =
+        SpanPrototype.builder()
+            .initInstrumentationName("test-instr")
+            .initComponentOnly("netty")
+            .build();
+    DDSpan span = (DDSpan) tracer.buildSpan(proto, "op").start();
+    try {
+      assertEquals("netty", span.getTags().get(COMPONENT)); // tag present
+      assertNull(((DDSpanContext) span.spanContext()).getIntegrationName()); // but no integration
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
+  void extendsWithComponentOnlyOverrideLeavesInheritedIntegrationName() {
+    // Documents a known desync: overriding an inherited initComponentAndIntegration component with
+    // tag-only initComponentOnly does NOT clear the inherited integration name. Use
+    // initComponentAndIntegration to override both together.
+    SpanPrototype base =
+        SpanPrototype.builder()
+            .initInstrumentationName("test-instr")
+            .initComponentAndIntegration("netty")
+            .build();
+    SpanPrototype derived =
+        SpanPrototype.builder().extends_(base).initComponentOnly("other").build();
+    DDSpan span = (DDSpan) tracer.buildSpan(derived, "op").start();
+    try {
+      assertEquals("other", span.getTags().get(COMPONENT)); // component overridden
+      // integration name stays inherited from the base (the documented desync)
+      assertEquals("netty", ((DDSpanContext) span.spanContext()).getIntegrationName());
     } finally {
       span.finish();
     }
