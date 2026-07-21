@@ -44,6 +44,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreTracer;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Assertions;
@@ -73,6 +74,17 @@ public class LogProbeTest {
     Builder builder = createLog(null);
     LogProbe snapshotProbe = builder.sampling(0.25).build();
     assertEquals(0.25, snapshotProbe.getSampling().getEventsPerSecond(), 0.01);
+  }
+
+  @Test
+  public void coordinatedSamplingEmitsProbeOnceConcurrently() {
+    LogProbe.CoordinatedSamplingState state =
+        new LogProbe.CoordinatedSamplingState(LogProbe.CoordinatedSamplingState.Status.EMIT);
+
+    long emitted =
+        IntStream.range(0, 1_000).parallel().filter(i -> state.tryEmit("probe-id")).count();
+
+    assertEquals(1, emitted);
   }
 
   @Test
@@ -160,8 +172,8 @@ public class LogProbeTest {
       LogProbe logProbe = builder.build();
       logProbe.initSamplers();
 
-      CapturedContext entryContext = capturedContext(span, logProbe);
-      CapturedContext exitContext = capturedContext(span, logProbe);
+      CapturedContext entryContext = capturedContext(span, logProbe, MethodLocation.ENTRY);
+      CapturedContext exitContext = capturedContext(span, logProbe, MethodLocation.EXIT);
       logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
       logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
 
@@ -206,8 +218,8 @@ public class LogProbeTest {
 
       LogProbe logProbe = builder.build();
 
-      CapturedContext entryContext = capturedContext(span, logProbe);
-      CapturedContext exitContext = capturedContext(span, logProbe);
+      CapturedContext entryContext = capturedContext(span, logProbe, MethodLocation.ENTRY);
+      CapturedContext exitContext = capturedContext(span, logProbe, MethodLocation.EXIT);
       logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
       logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
 
@@ -216,14 +228,11 @@ public class LogProbeTest {
     }
   }
 
-  private static CapturedContext capturedContext(AgentSpan span, ProbeDefinition probeDefinition) {
+  private static CapturedContext capturedContext(
+      AgentSpan span, ProbeDefinition probeDefinition, MethodLocation methodLocation) {
     CapturedContext context = new CapturedContext();
     context.evaluate(
-        probeDefinition,
-        "Log Probe test",
-        System.currentTimeMillis(),
-        MethodLocation.DEFAULT,
-        false);
+        probeDefinition, "Log Probe test", System.currentTimeMillis(), methodLocation, false);
     return context;
   }
 
@@ -380,8 +389,8 @@ public class LogProbeTest {
                           "greeting", new ValueScript(DSL.value("hello"), "'hello'"), null)))
               .build();
       logProbe.initSamplers();
-      CapturedContext entryContext = capturedContext(span, logProbe);
-      CapturedContext exitContext = capturedContext(span, logProbe);
+      CapturedContext entryContext = capturedContext(span, logProbe, MethodLocation.ENTRY);
+      CapturedContext exitContext = capturedContext(span, logProbe, MethodLocation.EXIT);
       logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
       logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
       Snapshot snapshot = new Snapshot(currentThread(), logProbe, 3);

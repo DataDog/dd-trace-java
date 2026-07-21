@@ -1,6 +1,8 @@
 package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
+import static com.datadog.debugger.probe.LogProbe.CoordinatedSamplingState.Status.DROP;
+import static com.datadog.debugger.probe.LogProbe.CoordinatedSamplingState.Status.EMIT;
 import static datadog.trace.api.debugger.DebuggerMetricCollector.SkippedReason.RATE_LIMIT;
 import static java.lang.String.format;
 
@@ -24,6 +26,8 @@ import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
+import datadog.context.Context;
+import datadog.context.ContextKey;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTraceId;
@@ -52,6 +56,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
@@ -62,7 +68,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
-
+  private static final ContextKey<CoordinatedSamplingState> SAMPLING_KEY =
+      ContextKey.named("debugger_sampling");
   public static final int CAPTURING_PROBE_BUDGET = 10;
   public static final int NON_CAPTURING_PROBE_BUDGET = 1000;
 
@@ -511,7 +518,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   public boolean isReadyToCapture() {
     if (!hasCondition()) {
       // we are sampling here to avoid creating CapturedContext when the sampling result is negative
-      boolean sampled = ProbeRateLimiter.tryProbe(sampler, isFullSnapshot());
+      boolean sampled = trySample(sampler);
       if (!sampled) {
         DebuggerAgent.getSink().skipSnapshot(id, RATE_LIMIT);
       }
@@ -585,9 +592,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     // at 1/s rate instead of the log template one
     Sampler localSampler =
         logStatus.hasConditionErrors && !isFullSnapshot() ? errorSampler : sampler;
-    boolean sampled =
-        !logStatus.getDebugSessionStatus().isDisabled()
-            && ProbeRateLimiter.tryProbe(localSampler, isFullSnapshot());
+    boolean sampled = !logStatus.getDebugSessionStatus().isDisabled() && trySample(localSampler);
     logStatus.setSampled(sampled);
     if (!sampled && !logStatus.getDebugSessionStatus().isDisabled()) {
       DebuggerAgent.getSink().skipSnapshot(id, RATE_LIMIT);
@@ -642,6 +647,71 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     }
   }
 
+  /**
+   * Holds the once-per-trace coordinated sampling decision shared by all full-snapshot probes on
+   * a given local root span, so that either all of them emit or none of them do.
+   */
+  static class CoordinatedSamplingState {
+    /** Outcome of the first probe's sampling decision for the trace, cached on the root span. */
+    enum Status {
+      /** The trace was not sampled; every probe sharing this state must not emit. */
+      DROP,
+      /** The trace was sampled; probes sharing this state may emit, once each. */
+      EMIT
+    }
+
+    private final Set<String> emittedProbeIds;
+    private final Status status;
+
+    CoordinatedSamplingState(Status status) {
+      this.status = status;
+      if (status == EMIT) {
+        emittedProbeIds = ConcurrentHashMap.newKeySet();
+      } else {
+        emittedProbeIds = Collections.emptySet();
+      }
+    }
+
+    boolean tryEmit(String probeEncodedId) {
+      return status == EMIT && emittedProbeIds.add(probeEncodedId);
+    }
+  }
+
+  private boolean trySample(Sampler sampler) {
+    if (!isFullSnapshot()) {
+      return ProbeRateLimiter.tryProbe(sampler, false);
+    }
+
+    AgentSpan localRootSpan = getActiveLocalRootSpan();
+    if (localRootSpan == null) {
+      return ProbeRateLimiter.tryProbe(sampler, true);
+    }
+
+    CoordinatedSamplingState state = Context.from(localRootSpan).get(SAMPLING_KEY);
+    if (state == null) {
+      synchronized (localRootSpan) {
+        Context traceContext = Context.from(localRootSpan);
+        state = traceContext.get(SAMPLING_KEY);
+        if (state == null) {
+          boolean sampled = ProbeRateLimiter.tryProbe(sampler, true);
+          state = new CoordinatedSamplingState(sampled ? EMIT : DROP);
+          traceContext.with(SAMPLING_KEY, state).attachTo(localRootSpan);
+        }
+      }
+    }
+    return state.tryEmit(getProbeId().getEncodedId());
+  }
+
+  private AgentSpan getActiveLocalRootSpan() {
+    TracerAPI tracer = AgentTracer.get();
+    AgentSpan activeSpan = tracer != null ? tracer.activeSpan() : null;
+    if (activeSpan == null || activeSpan == AgentTracer.noopSpan()) {
+      return null;
+    }
+    AgentSpan localRootSpan = activeSpan.getLocalRootSpan();
+    return localRootSpan != AgentTracer.noopSpan() ? localRootSpan : null;
+  }
+
   protected Snapshot createSnapshot() {
     int maxDepth = capture != null ? capture.maxReferenceDepth : -1;
     return new Snapshot(Thread.currentThread(), this, maxDepth);
@@ -652,8 +722,9 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions,
       Snapshot snapshot) {
-    LogStatus entryStatus = convertStatus(entryContext.getStatus(probeId.getEncodedId()));
-    LogStatus exitStatus = convertStatus(exitContext.getStatus(probeId.getEncodedId()));
+    String probeEncodedId = getProbeId().getEncodedId();
+    LogStatus entryStatus = convertStatus(entryContext.getStatus(probeEncodedId));
+    LogStatus exitStatus = convertStatus(exitContext.getStatus(probeEncodedId));
     String message = null;
     switch (evaluateAt) {
       case ENTRY:
@@ -829,7 +900,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
 
   @Override
   public void commit(CapturedContext lineContext, int line) {
-    LogStatus status = (LogStatus) lineContext.getStatus(probeId.getEncodedId());
+    LogStatus status = (LogStatus) lineContext.getStatus(getProbeId().getEncodedId());
     if (status == null) {
       return;
     }
