@@ -114,14 +114,14 @@ public final class SpanPrototype {
     }
 
     public Builder initTag(final String key, final CharSequence value) {
-      if (value != null) {
+      if (!TagMap.Entry.isEmptyValue(value)) {
         this.tags.set(key, value);
       }
       return this;
     }
 
     public Builder initTag(final String key, final Object value) {
-      if (value != null) {
+      if (!TagMap.Entry.isEmptyValue(value)) {
         this.tags.set(key, value);
       }
       return this;
