@@ -55,9 +55,8 @@ public class SpanPrototypeConstructionTest extends DDCoreJavaSpecification {
 
   @Test
   void seedsSpanKindOrdinalAndTag() {
-    // span.kind is intercepted (its ordinal drives isOutbound). seedFromPrototype applies the
-    // ordinal directly, then bulk-shares the tags -- so BOTH the ordinal side-effect and the
-    // span.kind tag Entry must land.
+    // span.kind is intercepted (its ordinal drives isOutbound). The prototype's tags seed through
+    // the interceptor, so BOTH the ordinal side-effect and the span.kind tag Entry must land.
     DDSpan span = (DDSpan) tracer.buildSpan(prototype, null).start();
     try {
       assertEquals(SPAN_KIND_SERVER, span.getSpanKindString()); // ordinal side-effect applied

@@ -2243,7 +2243,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       // set in the builder should come last, so that they override other tags.
       context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
       if (spanPrototype != SpanPrototype.NONE) {
-        context.seedFromPrototype(spanPrototype);
+        // Seed the frozen constant tags through the interceptor. A cheaper bulk-share path (skipping
+        // interception for non-intercepted tags) is deferred to the dense-store / tag-registry work,
+        // which will expose intercept status at the internal-api level.
+        context.setAllTags(spanPrototype.tags());
       }
       context.setAllTags(tagLedger);
       context.setAllTags(coreTags, coreTagsNeedsIntercept);
