@@ -19,6 +19,7 @@ import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import java.util.BitSet;
 import java.util.function.Function;
+import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 
 public class GrpcServerDecorator extends ServerDecorator {
 
@@ -79,7 +80,7 @@ public class GrpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  protected void doAfterStart(final AgentSpan span) {
+  protected void doAfterStart(@NonNullDecl final AgentSpan span) {
     span.setMeasured(true);
     super.doAfterStart(span);
   }

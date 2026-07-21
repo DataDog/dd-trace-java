@@ -4,7 +4,10 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 public abstract class ServerDecorator extends BaseDecorator {
   private static final TagMap.Entry SPAN_KIND_ENTRY =
       TagMap.Entry.create(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);

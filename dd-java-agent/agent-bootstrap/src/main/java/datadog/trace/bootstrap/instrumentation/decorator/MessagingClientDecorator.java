@@ -2,7 +2,10 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 public abstract class MessagingClientDecorator extends ClientDecorator {
 
   protected final boolean endToEndDurationsEnabled;

@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.net.InetAddress;
 
 public class CicsDecorator extends ClientDecorator {
@@ -36,7 +37,7 @@ public class CicsDecorator extends ClientDecorator {
   }
 
   @Override
-  protected void doAfterStart(AgentSpan span) {
+  protected void doAfterStart(@NonNull AgentSpan span) {
     assert span != null;
     span.setTag("rpc.system", "cics");
     super.doAfterStart(span);

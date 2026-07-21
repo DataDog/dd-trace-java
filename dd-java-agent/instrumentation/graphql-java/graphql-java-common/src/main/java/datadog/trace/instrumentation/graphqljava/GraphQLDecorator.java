@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import graphql.execution.ExecutionContext;
 import graphql.language.Argument;
 import graphql.language.Field;
@@ -54,7 +55,7 @@ public class GraphQLDecorator extends BaseDecorator {
   }
 
   @Override
-  protected void doAfterStart(final AgentSpan span) {
+  protected void doAfterStart(@NonNull final AgentSpan span) {
     span.setMeasured(true);
     super.doAfterStart(span);
   }

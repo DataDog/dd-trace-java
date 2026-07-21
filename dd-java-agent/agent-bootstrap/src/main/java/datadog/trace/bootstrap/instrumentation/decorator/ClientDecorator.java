@@ -3,7 +3,9 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 public abstract class ClientDecorator extends BaseDecorator {
   // Deliberately not volatile, reading a stale null and creating an extra Entry is safe
   private TagMap.Entry cachedSpanKindEntry = null;
