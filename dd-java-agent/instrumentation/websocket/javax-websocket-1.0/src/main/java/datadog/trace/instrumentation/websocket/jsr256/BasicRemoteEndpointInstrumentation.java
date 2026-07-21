@@ -103,11 +103,8 @@ public class BasicRemoteEndpointInstrumentation
       if (scope == null) {
         return;
       }
-      boolean finishSpan = last == null || last;
-      if (throwable != null) {
-        finishSpan = true;
-        DECORATE.onError(scope, throwable);
-      }
+      DECORATE.onError(scope, throwable);
+      boolean finishSpan = last == null || last || throwable != null;
       if (finishSpan) {
         DECORATE.onFrameEnd(handlerContext);
       }
@@ -146,11 +143,8 @@ public class BasicRemoteEndpointInstrumentation
       if (scope == null) {
         return;
       }
-      boolean finishSpan = last == null || last;
-      if (throwable != null) {
-        finishSpan = true;
-        DECORATE.onError(scope, throwable);
-      }
+      DECORATE.onError(scope, throwable);
+      boolean finishSpan = last == null || last || throwable != null;
       if (finishSpan) {
         DECORATE.onFrameEnd(handlerContext);
       }
@@ -187,9 +181,7 @@ public class BasicRemoteEndpointInstrumentation
       if (scope == null) {
         return;
       }
-      if (throwable != null) {
-        DECORATE.onError(scope, throwable);
-      }
+      DECORATE.onError(scope, throwable);
       DECORATE.onFrameEnd(handlerContext);
       scope.close();
     }

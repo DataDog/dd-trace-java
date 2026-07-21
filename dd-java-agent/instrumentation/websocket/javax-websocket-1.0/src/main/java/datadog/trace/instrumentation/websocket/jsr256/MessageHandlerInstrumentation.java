@@ -81,11 +81,8 @@ public class MessageHandlerInstrumentation
         return;
       }
       CallDepthThreadLocalMap.reset(MessageHandler.class);
-      boolean finishSpan = last == null || last;
-      if (throwable != null) {
-        finishSpan = true;
-        DECORATE.onError(scope, throwable);
-      }
+      DECORATE.onError(scope, throwable);
+      boolean finishSpan = last == null || last || throwable != null;
       if (finishSpan) {
         DECORATE.onFrameEnd(handlerContext);
       }
