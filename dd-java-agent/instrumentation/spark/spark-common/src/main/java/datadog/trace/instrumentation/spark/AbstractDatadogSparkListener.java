@@ -1236,7 +1236,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
    * by scanning the serialized bytes; on any failure we return 0, which reproduces the original
    * (non-repair-aware) trace id so correlation is never worse than before.
    */
-  private static int getDatabricksJobRunAttempt(Properties properties) {
+  // Package-private for testing against real unity.scope.data payloads.
+  static int getDatabricksJobRunAttempt(Properties properties) {
     String scopeData = properties.getProperty("unity.scope.data");
     if (scopeData == null) {
       return 0;

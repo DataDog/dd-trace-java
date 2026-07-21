@@ -21,6 +21,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
 import spock.lang.IgnoreIf
 
+import java.util.Properties
+
 @IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
   JavaVirtualMachine.isJ9()
 })
@@ -523,6 +525,58 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
 
     contextRepairedAttempt.getTraceId() != contextWithJobRunId.getTraceId()
     contextRepairedAttempt.getSpanId() == contextWithJobRunId.getSpanId()
+  }
+
+  private static String loadResource(String path) {
+    def stream = AbstractSparkTest.getResourceAsStream(path)
+    assert stream != null : "missing test resource $path"
+    stream.withCloseable { it.getText("UTF-8").trim() }
+  }
+
+  def "extract databricks repair attempt from serialized unity.scope.data payloads"() {
+    // The repair attempt index is only reachable inside the base64 + java-serialized
+    // "unity.scope.data" local property. These fixtures are synthetic, secret-free blobs that
+    // reproduce the exact java-serialization format Databricks emits (a map whose "jobRunAttemptNum"
+    // key is immediately followed by its value as a TC_STRING, alongside decoy keys), so the byte-scan
+    // extraction is exercised without committing real driver captures (which carry tokens/PII) to this
+    // public repo.
+    setup:
+    def originalScopeData = loadResource("/databricks/unity-scope-data-original.txt")
+    def repairedScopeData = loadResource("/databricks/unity-scope-data-repaired.txt")
+
+    def originalProps = new Properties()
+    originalProps.setProperty("unity.scope.data", originalScopeData)
+    def repairedProps = new Properties()
+    repairedProps.setProperty("unity.scope.data", repairedScopeData)
+    def missingProps = new Properties()
+    def garbageProps = new Properties()
+    garbageProps.setProperty("unity.scope.data", "not-valid-base64-@@@")
+
+    when:
+    def originalAttempt = AbstractDatadogSparkListener.getDatabricksJobRunAttempt(originalProps)
+    def repairedAttempt = AbstractDatadogSparkListener.getDatabricksJobRunAttempt(repairedProps)
+
+    then:
+    originalAttempt == 0
+    repairedAttempt == 1
+    // best-effort: absent or unparseable payloads fall back to the original (attempt 0) trace id
+    AbstractDatadogSparkListener.getDatabricksJobRunAttempt(missingProps) == 0
+    AbstractDatadogSparkListener.getDatabricksJobRunAttempt(garbageProps) == 0
+
+    when:
+    // Real ids from the captured run: same job_id and parentRunId across both attempts, so only the
+    // extracted attempt index makes the repaired run land on its own trace.
+    def jobId = "572654733963082"
+    def parentRunId = "969804783110783"
+    def originalContext = new DatabricksParentContext(jobId, parentRunId, "807469286696866", originalAttempt)
+    def repairedContext = new DatabricksParentContext(jobId, parentRunId, "1118998436174647", repairedAttempt)
+
+    then:
+    originalContext.getTraceId() == DDTraceId.from("1778014590613446263")
+    repairedContext.getTraceId() == DDTraceId.from("6773783437690493483")
+    originalContext.getTraceId() != repairedContext.getTraceId()
+    originalContext.getSpanId() == DDSpanId.from("17781921289443961499")
+    repairedContext.getSpanId() == DDSpanId.from("9672347302126591758")
   }
 
   private Dataset<Row> generateSampleDataframe(SparkSession spark) {
