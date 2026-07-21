@@ -32,19 +32,19 @@ class ProductTraceSourceTest extends DDSpecification {
     ProductTraceSource.ASM | ProductTraceSource.AI_GUARD | false
   }
 
-  void 'test isProductMarked with varargs'(){
+  void 'test isProductMarked with two products'(){
     when:
-    final result = ProductTraceSource.isProductMarked(value, products as int[])
+    final result = ProductTraceSource.isProductMarked(value, productA, productB)
 
     then:
     result == expected
 
     where:
-    value                   | products                                            | expected
-    ProductTraceSource.ASM      | [ProductTraceSource.ASM, ProductTraceSource.AI_GUARD] | true
-    ProductTraceSource.AI_GUARD | [ProductTraceSource.ASM, ProductTraceSource.AI_GUARD] | true
-    ProductTraceSource.DSM      | [ProductTraceSource.ASM, ProductTraceSource.AI_GUARD] | false
-    ProductTraceSource.UNSET    | [ProductTraceSource.ASM, ProductTraceSource.AI_GUARD] | false
+    value                   | productA               | productB                    | expected
+    ProductTraceSource.ASM      | ProductTraceSource.ASM | ProductTraceSource.AI_GUARD | true
+    ProductTraceSource.AI_GUARD | ProductTraceSource.ASM | ProductTraceSource.AI_GUARD | true
+    ProductTraceSource.DSM      | ProductTraceSource.ASM | ProductTraceSource.AI_GUARD | false
+    ProductTraceSource.UNSET    | ProductTraceSource.ASM | ProductTraceSource.AI_GUARD | false
   }
 
   void 'test getBitfieldHex'(){

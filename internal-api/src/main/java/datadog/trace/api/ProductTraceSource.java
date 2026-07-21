@@ -34,12 +34,9 @@ public class ProductTraceSource {
     return (bitfield & product) != 0;
   }
 
-  /** Checks if the bitfield is marked for any of the given products. */
-  public static boolean isProductMarked(final int bitfield, int... products) {
-    for (int product : products) {
-      if ((bitfield & product) != 0) return true;
-    }
-    return false;
+  /** Checks if the bitfield is marked for either of the two given products. */
+  public static boolean isProductMarked(final int bitfield, int productA, int productB) {
+    return (bitfield & (productA | productB)) != 0;
   }
 
   /**
