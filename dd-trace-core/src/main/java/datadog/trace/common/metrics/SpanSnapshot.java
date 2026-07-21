@@ -46,7 +46,7 @@ final class SpanSnapshot implements InboxItem {
    * {@code null} (the whole array) when no additional tags are configured or none were set on the
    * span. Length cap is applied on the aggregator thread; the producer carries raw values only.
    */
-  @Nullable final String[] additionalTagValues;
+  final @Nullable String[] additionalTagValues;
 
   /** Duration in nanoseconds, OR-ed with {@code ERROR_TAG} / {@code TOP_LEVEL_TAG} as needed. */
   final long tagAndDuration;
