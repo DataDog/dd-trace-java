@@ -96,7 +96,7 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   @Override
-  public void afterStart(AgentSpan span) {
+  protected void doAfterStart(AgentSpan span) {
     if (llmObsEnabled) {
       // set global dd_tags as base layer so UST and span-level tags can override them
       for (Map.Entry<String, String> entry : Config.get().getGlobalTags().entrySet()) {
@@ -130,7 +130,7 @@ public class OpenAiDecorator extends ClientDecorator {
         span.setTag(CommonTags.SESSION_ID, sessionId);
       }
     }
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 
   @Override

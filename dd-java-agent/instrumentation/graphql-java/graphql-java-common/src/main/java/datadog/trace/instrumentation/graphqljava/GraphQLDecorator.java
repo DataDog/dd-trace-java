@@ -54,9 +54,9 @@ public class GraphQLDecorator extends BaseDecorator {
   }
 
   @Override
-  public void afterStart(final AgentSpan span) {
+  protected void doAfterStart(final AgentSpan span) {
     span.setMeasured(true);
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 
   public void onRequest(final AgentSpan span, final ExecutionContext context) {

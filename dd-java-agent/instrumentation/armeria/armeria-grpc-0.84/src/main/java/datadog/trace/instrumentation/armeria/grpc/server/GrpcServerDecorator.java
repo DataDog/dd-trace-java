@@ -79,9 +79,9 @@ public class GrpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  public void afterStart(final AgentSpan span) {
+  protected void doAfterStart(final AgentSpan span) {
     span.setMeasured(true);
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 
   public <RespT, ReqT> void onCall(final AgentSpan span, ServerCall<ReqT, RespT> call) {

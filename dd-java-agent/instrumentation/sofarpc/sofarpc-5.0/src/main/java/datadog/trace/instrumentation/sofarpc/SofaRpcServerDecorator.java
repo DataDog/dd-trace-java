@@ -35,9 +35,9 @@ public class SofaRpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  public void afterStart(AgentSpan span) {
+  protected void doAfterStart(AgentSpan span) {
     span.setMeasured(true);
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 
   public void onRequest(AgentSpan span, SofaRequest request) {

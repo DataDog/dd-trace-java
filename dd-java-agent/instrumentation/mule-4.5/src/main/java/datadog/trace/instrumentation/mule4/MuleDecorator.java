@@ -51,10 +51,10 @@ public class MuleDecorator extends BaseDecorator {
   }
 
   @Override
-  public void afterStart(final AgentSpan span) {
+  protected void doAfterStart(final AgentSpan span) {
     span.setMeasured(true);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 
   public AgentSpan startMuleSpan(

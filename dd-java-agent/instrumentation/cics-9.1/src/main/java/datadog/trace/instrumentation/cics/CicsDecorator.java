@@ -36,10 +36,10 @@ public class CicsDecorator extends ClientDecorator {
   }
 
   @Override
-  public void afterStart(AgentSpan span) {
+  protected void doAfterStart(AgentSpan span) {
     assert span != null;
     span.setTag("rpc.system", "cics");
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 
   /**
