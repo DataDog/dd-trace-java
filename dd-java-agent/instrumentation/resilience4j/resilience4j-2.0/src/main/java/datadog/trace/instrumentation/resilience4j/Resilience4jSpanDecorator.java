@@ -27,8 +27,8 @@ public class Resilience4jSpanDecorator<T> extends BaseDecorator {
   }
 
   @Override
-  public void afterStart(AgentSpan span) {
-    super.afterStart(span);
+  protected void doAfterStart(AgentSpan span) {
+    super.doAfterStart(span);
     span.setSpanName(RESILIENCE4J);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
     if (Config.get().isResilience4jMeasuredEnabled()) {

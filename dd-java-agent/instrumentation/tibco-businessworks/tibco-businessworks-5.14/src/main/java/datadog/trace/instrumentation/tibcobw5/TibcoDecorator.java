@@ -57,9 +57,9 @@ public class TibcoDecorator extends BaseDecorator {
   }
 
   @Override
-  public void afterStart(final AgentSpan span) {
+  protected void doAfterStart(final AgentSpan span) {
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 
   public void onProcessStart(AgentSpan span, String processName) {

@@ -29,8 +29,8 @@ public class RmiServerDecorator extends ServerDecorator {
   }
 
   @Override
-  public void afterStart(final AgentSpan span) {
+  protected void doAfterStart(final AgentSpan span) {
     span.setMeasured(true);
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 }
