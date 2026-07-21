@@ -23,9 +23,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@ParametersAreNonnullByDefault
 public abstract class BaseDecorator {
   private static final Logger log = LoggerFactory.getLogger(BaseDecorator.class);
 
@@ -97,7 +99,7 @@ public abstract class BaseDecorator {
     return false;
   }
 
-  public final void afterStart(@Nonnull final AgentSpan span) {
+  public final void afterStart(final AgentSpan span) {
     try {
       doAfterStart(span);
     } catch (BlockingException e) {

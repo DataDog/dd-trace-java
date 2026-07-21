@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -57,7 +58,7 @@ public class TibcoDecorator extends BaseDecorator {
   }
 
   @Override
-  protected void doAfterStart(final AgentSpan span) {
+  protected void doAfterStart(@NonNull final AgentSpan span) {
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
     super.doAfterStart(span);
   }

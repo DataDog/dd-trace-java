@@ -14,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import io.grpc.ServerCall;
 import io.grpc.Status;
 import io.grpc.StatusException;
@@ -80,7 +81,7 @@ public class GrpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  protected void doAfterStart(final AgentSpan span) {
+  protected void doAfterStart(@NonNull final AgentSpan span) {
     span.setMeasured(true);
     super.doAfterStart(span);
   }

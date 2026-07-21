@@ -5,7 +5,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 public class RmiServerDecorator extends ServerDecorator {
   public static final CharSequence RMI_SERVER = UTF8BytesString.create("rmi-server");
   public static final RmiServerDecorator DECORATE = new RmiServerDecorator();
