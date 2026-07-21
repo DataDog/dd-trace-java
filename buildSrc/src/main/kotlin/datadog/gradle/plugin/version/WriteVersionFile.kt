@@ -1,5 +1,6 @@
 package datadog.gradle.plugin.version
 
+import org.checkerframework.checker.units.qual.g
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.ProjectLayout
@@ -8,6 +9,7 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.property
@@ -34,7 +36,11 @@ abstract class WriteVersionFile @Inject constructor(
       }
     )
 
-  @get:Internal
+  @get:Input
+  val gitHashTruncation: Property<Int> = objects.property<Int>()
+    .convention(10)
+
+  @get:Input
   val projectName: Property<String> = objects.property<String>()
     .convention(project.name)
 
@@ -46,6 +52,6 @@ abstract class WriteVersionFile @Inject constructor(
   fun writeVersionFile() {
     val versionFile = outputDirectory.file("${projectName.get()}.version").get().asFile
     versionFile.parentFile.mkdirs()
-    versionFile.writeText("${version.get()}~${gitHash.get()}")
+    versionFile.writeText("${version.get()}~${gitHash.get().take(gitHashTruncation.get())}")
   }
 }
