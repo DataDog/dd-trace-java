@@ -8,9 +8,9 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.instrumentation.opentracing.DefaultLogHandler
+import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.instrumentation.opentracing32.TypeConverter
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext
 
@@ -40,14 +40,14 @@ class TypeConverterTest extends InstrumentationSpecification {
     typeConverter.toSpanContext(noopContext) is typeConverter.toSpanContext(noopContext)
   }
 
-  def "should avoid the noop scope wrapper allocation"() {
-    def noopScope = noopScope()
+  def "should reuse the noop span wrapper via scope"() {
+    def noopScope = Stub(AgentScope) {
+      span() >> noopSpan()
+    }
+    def noopSpanWrapper = typeConverter.toSpan(noopSpan())
     expect:
-    typeConverter.toScope(noopScope, true) is typeConverter.toScope(noopScope, true)
-    typeConverter.toScope(noopScope, false) is typeConverter.toScope(noopScope, false)
-    // noop scopes expected to be the same despite the finishSpanOnClose flag
-    typeConverter.toScope(noopScope, true) is typeConverter.toScope(noopScope, false)
-    typeConverter.toScope(noopScope, false) is typeConverter.toScope(noopScope, true)
+    typeConverter.toScope(noopScope, true).span() is noopSpanWrapper
+    typeConverter.toScope(noopScope, false).span() is noopSpanWrapper
   }
 
   def createTestSpanContext() {
