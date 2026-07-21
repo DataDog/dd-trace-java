@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.netty38;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.instrumentation.netty38.NettyChannelPipelineInstrumentation.ADDITIONAL_INSTRUMENTATION_NAMES;
 import static datadog.trace.instrumentation.netty38.NettyChannelPipelineInstrumentation.INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -67,7 +67,7 @@ public class NettyChannelInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter
     public static void addConnectContinuation(@Advice.This final Channel channel) {
       ContextContinuation continuation = captureActiveSpan();
-      if (continuation != noopContinuation()) {
+      if (continuation.context() != rootContext()) {
         final ContextStore<Channel, ChannelTraceContext> contextStore =
             InstrumentationContext.get(Channel.class, ChannelTraceContext.class);
 
