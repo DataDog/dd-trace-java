@@ -20,6 +20,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
+import net.bytebuddy.jar.asm.ClassReader;
+import net.bytebuddy.jar.asm.ClassVisitor;
+import net.bytebuddy.jar.asm.Handle;
+import net.bytebuddy.jar.asm.MethodVisitor;
+import net.bytebuddy.utility.OpenedClassReader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -267,6 +273,115 @@ class ScaReachabilityMethodLevelTest {
     // RFC: "reporting a single occurrence is sufficient" — only the first callsite per CVE is kept.
     assertEquals(1, hits.size(), "Only the first hit per CVE is retained (RFC: single occurrence)");
     assertEquals("GHSA-shared", hits.get(0).vulnId());
+  }
+
+  /**
+   * Fixture whose methods start with bytecode opcodes that {@code MethodEntryInjector} used to
+   * leave unhandled (NEW, INVOKEDYNAMIC, LDC): the injected callback landed after that first
+   * instruction instead of at true method entry.
+   */
+  public static class UnhandledFirstOpcodeMethods {
+    public static Object newFirst() {
+      return new Object();
+    }
+
+    public static Supplier<String> lambdaFirst() {
+      return () -> "hi";
+    }
+
+    public static String ldcFirst() {
+      return "constant".trim();
+    }
+  }
+
+  @Test
+  void inject_withoutLineNumbersInjectsBeforeNewInstruction() throws Exception {
+    assertCallbackIsFirstInstruction("newFirst");
+  }
+
+  @Test
+  void inject_withoutLineNumbersInjectsBeforeInvokeDynamicInstruction() throws Exception {
+    assertCallbackIsFirstInstruction("lambdaFirst");
+  }
+
+  @Test
+  void inject_withoutLineNumbersInjectsBeforeLdcInstruction() throws Exception {
+    assertCallbackIsFirstInstruction("ldcFirst");
+  }
+
+  /**
+   * Regression test for the delayed-injection bug: verifies (via ASM inspection of the injected
+   * bytecode, not just observed behavior) that the very first instruction visited in {@code
+   * methodName} is the callback's own {@code LDC} of the injected {@code vulnId} — i.e. the
+   * callback runs strictly before the method's original first instruction. Before the fix, {@code
+   * MethodEntryInjector} did not override {@code visitTypeInsn}/{@code
+   * visitInvokeDynamicInsn}/{@code visitLdcInsn}, so for methods starting with {@code NEW}, {@code
+   * INVOKEDYNAMIC} or {@code LDC} the original instruction was visited first and the callback was
+   * spliced in right after it instead of before it.
+   */
+  private void assertCallbackIsFirstInstruction(String methodName) throws Exception {
+    byte[] original = bytecodeWithoutDebugInfo(UnhandledFirstOpcodeMethods.class);
+    Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks = new HashMap<>();
+    callbacks.put(
+        methodName,
+        Collections.singletonList(
+            spec(
+                "GHSA-first-instruction",
+                "com.example:lib",
+                "1.0.0",
+                UnhandledFirstOpcodeMethods.class.getName(),
+                methodName)));
+    byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
+
+    assertEquals(
+        "GHSA-first-instruction",
+        firstVisitedInstructionOf(modified, methodName),
+        "the injected callback's first LDC (vulnId) must be the method's first visited instruction");
+  }
+
+  /**
+   * Reads {@code methodName} from {@code bytecode} and returns whatever value/marker the very first
+   * opcode-visiting callback receives (the LDC constant for {@code visitLdcInsn}, or the opcode
+   * name for other instruction kinds).
+   */
+  private static Object firstVisitedInstructionOf(byte[] bytecode, String methodName) {
+    Object[] first = {null};
+    new ClassReader(bytecode)
+        .accept(
+            new ClassVisitor(OpenedClassReader.ASM_API) {
+              @Override
+              public MethodVisitor visitMethod(
+                  int access, String name, String descriptor, String signature, String[] exc) {
+                if (!name.equals(methodName)) {
+                  return null;
+                }
+                return new MethodVisitor(OpenedClassReader.ASM_API) {
+                  @Override
+                  public void visitLdcInsn(Object value) {
+                    if (first[0] == null) {
+                      first[0] = value;
+                    }
+                  }
+
+                  @Override
+                  public void visitTypeInsn(int opcode, String type) {
+                    if (first[0] == null) {
+                      first[0] = "TYPE_INSN:" + opcode;
+                    }
+                  }
+
+                  @Override
+                  public void visitInvokeDynamicInsn(String n, String d, Handle h, Object... args) {
+                    if (first[0] == null) {
+                      first[0] = "INVOKEDYNAMIC";
+                    }
+                  }
+                };
+              }
+            },
+            0);
+    assertNotNull(first[0], "no matching instruction found in " + methodName);
+    return first[0];
   }
 
   // ---------------------------------------------------------------------------

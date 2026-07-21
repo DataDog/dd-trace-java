@@ -92,6 +92,20 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   /** Class names (internal format) queued for deferred retransformation by name lookup. */
   @VisibleForTesting final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
 
+  /**
+   * {@code retransformClasses()} is atomic for the whole array: if any single class in the batch
+   * fails to verify/redefine, the entire batch throws and would otherwise be re-queued forever (see
+   * {@link #performPendingRetransforms()}), permanently retaining every {@code Class<?>} in that
+   * batch and leaking Metaspace. This tracks per-class failure counts so a class that keeps failing
+   * is dropped after {@link #MAX_RETRANSFORM_ATTEMPTS} instead of blocking the batch and being
+   * retried indefinitely. Entries are removed on success or once the limit is reached, so this map
+   * only grows with currently-failing classes.
+   */
+  @VisibleForTesting
+  final Map<Class<?>, Integer> retransformFailureCount = new ConcurrentHashMap<>();
+
+  private static final int MAX_RETRANSFORM_ATTEMPTS = 5;
+
   public ScaReachabilityTransformer(ScaCveDatabase database, Instrumentation instrumentation) {
     this.database = database;
     this.instrumentation = instrumentation;
@@ -358,10 +372,28 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       log.debug(
           "SCA Reachability: retransformed {} class(es) for method-level detection",
           toRetransform.size());
+      for (Class<?> c : toRetransform) {
+        retransformFailureCount.remove(c);
+      }
     } catch (Throwable t) {
       log.debug("SCA Reachability: retransformClasses failed", t);
-      // Re-queue on failure so the next heartbeat can retry
-      pendingRetransform.addAll(toRetransform);
+      // retransformClasses() is atomic for the whole array, so a single unrelated failure (this
+      // transformer's own bytecode, another registered transformer, or a transient JVM issue)
+      // fails every class in the batch. Re-queue each class individually, up to a bounded number
+      // of attempts, so a class that keeps failing is eventually dropped instead of retaining its
+      // Class<?> (and its ClassLoader) forever.
+      for (Class<?> c : toRetransform) {
+        int attempts = retransformFailureCount.merge(c, 1, Integer::sum);
+        if (attempts < MAX_RETRANSFORM_ATTEMPTS) {
+          pendingRetransform.add(c);
+        } else {
+          retransformFailureCount.remove(c);
+          log.debug(
+              "SCA Reachability: giving up retransforming {} after {} failed attempts",
+              c.getName(),
+              attempts);
+        }
+      }
     }
   }
 
