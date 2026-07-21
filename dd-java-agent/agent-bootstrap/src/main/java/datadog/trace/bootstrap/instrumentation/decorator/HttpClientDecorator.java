@@ -145,7 +145,17 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     }
   }
 
-  public void onResponse(final AgentSpan span, final RESPONSE response) {
+  public final void onResponse(final AgentSpan span, final RESPONSE response) {
+    try {
+      doOnResponse(span, response);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on response", t);
+    }
+  }
+
+  protected void doOnResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);
       if (status > UNSET_STATUS) {
