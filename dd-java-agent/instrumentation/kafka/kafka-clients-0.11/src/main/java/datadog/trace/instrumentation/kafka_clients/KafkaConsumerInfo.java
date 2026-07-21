@@ -8,8 +8,6 @@ public class KafkaConsumerInfo {
   private final String consumerGroup;
   private final Metadata clientMetadata;
   private final String bootstrapServers;
-  // Last consumer group membership reported to DSM; used to avoid re-reporting when neither the
-  // member id nor the generation changed. Not part of identity (excluded from equals/hashCode).
   private volatile String lastReportedMemberId;
   private volatile int lastReportedGenerationId = Integer.MIN_VALUE;
 

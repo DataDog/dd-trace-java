@@ -293,7 +293,6 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     packer.writeUTF8(CONFIGS);
     packer.startArray(configs.size());
     for (KafkaConfigReport config : configs) {
-      // Type, KafkaClusterId, ConsumerGroup, MemberId, GenerationId, MemberProtocol, Config
       packer.startMap(7);
 
       packer.writeUTF8(CONFIG_TYPE);
@@ -309,7 +308,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
       packer.writeString(config.getMemberId(), null);
 
       packer.writeUTF8(CONFIG_GENERATION_ID);
-      packer.writeLong(config.getGenerationId());
+      packer.writeInt(config.getGenerationId());
 
       packer.writeUTF8(CONFIG_MEMBER_PROTOCOL);
       packer.writeString(config.getMemberProtocol(), null);

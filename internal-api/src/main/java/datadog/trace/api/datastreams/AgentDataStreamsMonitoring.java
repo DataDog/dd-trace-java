@@ -22,17 +22,6 @@ public interface AgentDataStreamsMonitoring
   void reportKafkaConfig(
       String type, String kafkaClusterId, String consumerGroup, Map<String, String> config);
 
-  /**
-   * Reports Kafka consumer group membership for Data Streams Monitoring. Called every time a
-   * consumer (re)joins a group, carrying the broker-assigned member id alongside the cluster id and
-   * consumer group.
-   *
-   * @param kafkaClusterId the Kafka cluster identifier, or empty string if not yet known
-   * @param consumerGroup the consumer group name
-   * @param memberId the broker-assigned consumer group member id
-   * @param generationId the consumer group generation/epoch at join time
-   * @param memberProtocol the negotiated partition assignment protocol (e.g. "range")
-   */
   void reportKafkaConsumerGroupMember(
       String kafkaClusterId,
       String consumerGroup,

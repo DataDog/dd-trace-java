@@ -105,22 +105,14 @@ public class KafkaConfigHelper {
     log.debug("Stored pending consumer config (cluster ID not yet known)");
   }
 
-  /**
-   * Reports consumer group membership when a consumer (re)joins a group. The broker-assigned member
-   * id is sent alongside the cluster id and consumer group.
-   */
-  public static void reportConsumerGroupMember(
+  public static boolean reportConsumerGroupMember(
       String clusterId,
       String consumerGroup,
       String memberId,
       int generationId,
       String memberProtocol) {
-    if (memberId == null || memberId.isEmpty()) {
-      return;
-    }
-    // Skip until the cluster id is known: the report can't be attributed downstream without it.
-    if (clusterId == null || clusterId.isEmpty()) {
-      return;
+    if (memberId == null || memberId.isEmpty() || clusterId == null || clusterId.isEmpty()) {
+      return false;
     }
     if (Config.get().isDataStreamsEnabled()) {
       AgentTracer.get()
@@ -132,6 +124,7 @@ public class KafkaConfigHelper {
               generationId,
               memberProtocol != null ? memberProtocol : "");
     }
+    return true;
   }
 
   /** Called from metadata update advice when the cluster ID becomes available. */

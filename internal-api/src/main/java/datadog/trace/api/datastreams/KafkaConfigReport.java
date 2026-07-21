@@ -7,22 +7,16 @@ import java.util.Objects;
 /**
  * KafkaConfigReport captures Kafka producer or consumer configuration to be sent via the Data
  * Streams payload. Each unique configuration is sent only once.
- *
- * <p>It is also reused to report consumer-group membership: when a consumer (re)joins a group, a
- * report is emitted carrying the broker-assigned {@code memberId} (plus the group {@code
- * generationId} and the negotiated {@code memberProtocol}) alongside the cluster id and consumer
- * group, with an empty {@link #config} map.
  */
 public class KafkaConfigReport implements InboxItem {
-  /** Sentinel generation id for reports that are not membership reports. */
-  public static final int NO_GENERATION = -1;
+  private static final int NO_GENERATION = -1;
 
-  private final String type; // "kafka_producer" or "kafka_consumer"
+  private final String type;
   private final String kafkaClusterId;
   private final String consumerGroup;
-  private final String memberId; // broker-assigned consumer group member id, or "" when unknown
-  private final int generationId; // consumer group generation/epoch, or NO_GENERATION
-  private final String memberProtocol; // negotiated partition assignment protocol, or ""
+  private final String memberId;
+  private final int generationId;
+  private final String memberProtocol;
   private final Map<String, String> config;
   private final long timestampNanos;
   private final String serviceNameOverride;

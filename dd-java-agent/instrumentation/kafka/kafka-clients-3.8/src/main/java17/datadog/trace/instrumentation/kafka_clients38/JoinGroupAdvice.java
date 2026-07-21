@@ -24,13 +24,10 @@ public class JoinGroupAdvice {
     if (kafkaConsumerInfo == null) {
       return;
     }
-    // Only report when the membership changes (new member id or new generation) to avoid
-    // re-reporting an unchanged membership.
     if (memberId.equals(kafkaConsumerInfo.getLastReportedMemberId().orElse(null))
         && generationId == kafkaConsumerInfo.getLastReportedGenerationId()) {
       return;
     }
-    kafkaConsumerInfo.setLastReportedMembership(memberId, generationId);
 
     String consumerGroup = kafkaConsumerInfo.getConsumerGroup().orElse(null);
     Metadata consumerMetadata = kafkaConsumerInfo.getmetadata().orElse(null);
@@ -40,12 +37,13 @@ public class JoinGroupAdvice {
           InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata);
       clusterId = metadataState != null ? metadataState.clusterId : null;
     }
-    KafkaConfigHelper.reportConsumerGroupMember(
-        clusterId, consumerGroup, memberId, generationId, memberProtocol);
+    if (KafkaConfigHelper.reportConsumerGroupMember(
+        clusterId, consumerGroup, memberId, generationId, memberProtocol)) {
+      kafkaConsumerInfo.setLastReportedMembership(memberId, generationId);
+    }
   }
 
   public static void muzzleCheck(ConsumerRecord record) {
-    // Match ConsumerCoordinatorAdvice: only apply for kafka versions with headers
     record.headers();
   }
 }

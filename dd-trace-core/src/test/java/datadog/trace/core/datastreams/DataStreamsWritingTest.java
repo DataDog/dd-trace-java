@@ -351,11 +351,9 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
             fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
     dataStreams.start();
 
-    // Report consumer group membership (as emitted on join)
     dataStreams.reportKafkaConsumerGroupMember(
         "cluster-1", "test-group", "consumer-1-abc123", 7, "range");
 
-    // Also add a stats point so the bucket has content
     dataStreams.add(
         new StatsPoint(
             DataStreamsTags.create(null, null),
@@ -466,11 +464,11 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
               assertEquals("ConsumerGroup", unpacker.unpackString());
               unpacker.unpackString(); // skip consumer group value
               assertEquals("MemberId", unpacker.unpackString());
-              unpacker.unpackString(); // skip member id value
+              unpacker.unpackString();
               assertEquals("GenerationId", unpacker.unpackString());
-              unpacker.unpackLong(); // skip generation id value
+              unpacker.unpackInt();
               assertEquals("MemberProtocol", unpacker.unpackString());
-              unpacker.unpackString(); // skip member protocol value
+              unpacker.unpackString();
               assertEquals("Config", unpacker.unpackString());
               int configSize = unpacker.unpackMapHeader();
               Map<String, String> configEntries = new HashMap<>();
@@ -545,11 +543,10 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
             assertEquals("MemberId", unpacker.unpackString());
             assertEquals("consumer-1-abc123", unpacker.unpackString());
             assertEquals("GenerationId", unpacker.unpackString());
-            assertEquals(7, unpacker.unpackLong());
+            assertEquals(7, unpacker.unpackInt());
             assertEquals("MemberProtocol", unpacker.unpackString());
             assertEquals("range", unpacker.unpackString());
             assertEquals("Config", unpacker.unpackString());
-            // Membership reports carry no config entries
             assertEquals(0, unpacker.unpackMapHeader());
           } else {
             unpacker.skipValue();
@@ -601,11 +598,11 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
               assertEquals("ConsumerGroup", unpacker.unpackString());
               unpacker.unpackString(); // skip consumer group value
               assertEquals("MemberId", unpacker.unpackString());
-              unpacker.unpackString(); // skip member id value
+              unpacker.unpackString();
               assertEquals("GenerationId", unpacker.unpackString());
-              unpacker.unpackLong(); // skip generation id value
+              unpacker.unpackInt();
               assertEquals("MemberProtocol", unpacker.unpackString());
-              unpacker.unpackString(); // skip member protocol value
+              unpacker.unpackString();
               assertEquals("Config", unpacker.unpackString());
               int configSize = unpacker.unpackMapHeader();
               Map<String, String> configEntries = new HashMap<>();

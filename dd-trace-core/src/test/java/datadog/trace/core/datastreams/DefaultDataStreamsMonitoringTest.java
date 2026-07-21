@@ -1190,7 +1190,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals("range", report.getMemberProtocol());
     assertTrue(report.getConfig().isEmpty());
 
-    // cleanup
     payloadWriter.close();
     dataStreams.close();
   }
