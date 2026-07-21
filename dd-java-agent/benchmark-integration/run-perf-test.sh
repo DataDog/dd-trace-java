@@ -83,6 +83,12 @@ cat "$settings_file"
 # versions at different heaps to expose the ample-vs-tight-heap regime.
 server_heap="${PERF_HEAP:-${server_heap:-256m}}"
 echo "server heap: -Xms$server_heap -Xmx$server_heap"
+
+# Repeats per endpoint (one warmup, then N back-to-back measurement windows, no server restart).
+# Throughput on a shared dev box is noisy -- repeats + reported stdev turn that into a real signal
+# instead of a single noisy sample. Override via the settings file (test_repeats=...) or PERF_REPEATS.
+test_repeats="${PERF_REPEATS:-${test_repeats:-1}}"
+echo "repeats per endpoint: $test_repeats"
 echo ""
 echo ""
 
@@ -188,26 +194,70 @@ function stop_server {
     fi
 }
 
-# Warmup and run wrk tests on a single endpoint.
-# echos out a file containing raw wrk output
-# and a final line of the average requests/second
+# Warmup once, then run wrk $test_repeats times (no server restart between repeats) against a
+# single endpoint. Echos out the raw wrk output files, one per repeat, space-separated.
 function test_endpoint {
     url=$1
     # warmup
     wrk -c $test_num_connections -t$test_num_threads -d ${test_warmup_seconds}s $url >/dev/null
 
-    # run test
-    wrk_results=/tmp/wrk_results.`date +%s`
-    wrk -c $test_num_connections -t$test_num_threads -d ${test_time_seconds}s $url > $wrk_results
-    # Sanity gate: with the HTTP-200 readiness check above, wrk should never see socket connect
-    # errors. If it does, the app was not healthy under load and the row would be garbage (the
-    # failure mode behind the bogus 26x sweep) -- abort loudly instead of recording it.
-    if grep -qE 'Socket errors:.*connect [1-9]' "$wrk_results"; then
-        echo "ERROR: wrk reported socket connect errors on $url -- server unhealthy under load:" >&2
-        grep -E 'Socket errors|Requests/sec' "$wrk_results" >&2
-        exit 1
+    local results=()
+    for ((rep = 1; rep <= test_repeats; rep++)); do
+        wrk_results=/tmp/wrk_results.$(date +%s%N)
+        wrk -c $test_num_connections -t$test_num_threads -d ${test_time_seconds}s $url > "$wrk_results"
+        # Sanity gate: with the HTTP-200 readiness check above, wrk should never see socket connect
+        # errors. If it does, the app was not healthy under load and the row would be garbage (the
+        # failure mode behind the bogus 26x sweep) -- abort loudly instead of recording it.
+        if grep -qE 'Socket errors:.*connect [1-9]' "$wrk_results"; then
+            echo "ERROR: wrk reported socket connect errors on $url (repeat $rep/$test_repeats) -- server unhealthy under load:" >&2
+            grep -E 'Socket errors|Requests/sec' "$wrk_results" >&2
+            exit 1
+        fi
+        results+=("$wrk_results")
+    done
+    echo "${results[@]}"
+}
+
+# Mean of plain numeric values (no unit suffix), e.g. throughput.
+function mean_plain {
+    local sum=0 count=0
+    for v in "$@"; do
+        sum=$(echo "$sum + $v" | bc)
+        count=$((count + 1))
+    done
+    echo "scale=2; $sum / $count" | bc
+}
+
+# Sample stdev of plain numeric values; 0 when fewer than 2 samples (single repeat).
+function stdev_plain {
+    if [ "$#" -le 1 ]; then
+        echo "0.00"
+        return
     fi
-    echo $wrk_results
+    local mean sumsq=0
+    mean=$(mean_plain "$@")
+    for v in "$@"; do
+        sumsq=$(echo "$sumsq + ($v - $mean) ^ 2" | bc)
+    done
+    echo "scale=2; sqrt($sumsq / ($# - 1))" | bc
+}
+
+# Mean of values sharing a unit suffix (e.g. "7.16ms" "6.20ms"). Assumes wrk keeps the same unit
+# across repeats of the same endpoint/load -- if not (rare, only on a load-regime change mid-run),
+# warn and fall back to the first repeat rather than silently averaging mismatched units.
+function mean_with_unit {
+    local unit sum=0 count=0
+    unit=$(echo "$1" | sed -E 's/^-?[0-9.]+//')
+    for v in "$@"; do
+        if [ "$(echo "$v" | sed -E 's/^-?[0-9.]+//')" != "$unit" ]; then
+            echo "WARN: mixed units across repeats ($1 vs $v) -- reporting first repeat only" >&2
+            echo "$1"
+            return
+        fi
+        sum=$(echo "$sum + $(echo "$v" | sed -E 's/[a-zA-Z%]+$//')" | bc)
+        count=$((count + 1))
+    done
+    echo "scale=2; $sum / $count" | bc | awk -v u="$unit" '{printf "%.2f%s", $1, u}'
 }
 
 
@@ -215,7 +265,7 @@ trap 'stop_server; exit' SIGINT
 trap 'kill $server_pid; exit' SIGTERM
 header='Client Version'
 for label in "${test_order[@]}"; do
-    header="$header,$label Latency,$label Throughput"
+    header="$header,$label Latency,$label Throughput,$label Throughput Stdev"
 done
 header="$header,Agent CPU Burn,Server CPU Burn,Agent RSS Delta,Server Max RSS,Server Start RSS,Server Load Increase RSS"
 echo $header > $test_csv_file
@@ -264,14 +314,25 @@ for agent_jar in $agent_jars; do
         label="$t"
         url="${endpoints[$label]}"
         echo "--Testing $label -- $url--"
-        test_output_file=$(test_endpoint $url)
+        test_output_files=($(test_endpoint $url))
         let server_total_rss=$server_total_rss+$(ps -o rss= -p "$server_pid")
         let server_total_rss_count=$server_total_rss_count+1
-        cat $test_output_file
-        avg_latency=$(awk '$1 == "Latency" { print $2 }' $test_output_file)
-        avg_throughput=$(awk '$1 == "Requests/sec:" { print $2 }' $test_output_file)
-        result_row="$result_row,$avg_latency,$avg_throughput"
-        rm $test_output_file
+
+        latencies=()
+        throughputs=()
+        for f in "${test_output_files[@]}"; do
+            cat "$f"
+            latencies+=("$(awk '$1 == "Latency" { print $2 }' "$f")")
+            throughputs+=("$(awk '$1 == "Requests/sec:" { print $2 }' "$f")")
+            rm "$f"
+        done
+        avg_latency=$(mean_with_unit "${latencies[@]}")
+        avg_throughput=$(mean_plain "${throughputs[@]}")
+        stdev_throughput=$(stdev_plain "${throughputs[@]}")
+        if [ "${#throughputs[@]}" -gt 1 ]; then
+            echo "  $label: ${#throughputs[@]} repeats, throughput mean=$avg_throughput stdev=$stdev_throughput (${throughputs[*]})"
+        fi
+        result_row="$result_row,$avg_latency,$avg_throughput,$stdev_throughput"
     done
 
     if [ "$agent_pid" = "" ]; then

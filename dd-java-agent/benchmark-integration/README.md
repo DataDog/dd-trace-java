@@ -86,6 +86,18 @@ Results land in per-heap subdirs (`heap-64m/`, …) plus a combined `throughput-
 `Heap` column). **Runtime is heaps × variants** — a heap list multiplies the wall clock, so size the
 version list accordingly.
 
+#### Repeats (noise vs. a single sample)
+Throughput on a shared dev box is noisy -- a single wrk run per endpoint can swing several percent
+run to run. Set `PETCLINIC_REPEATS=N` to warm up once per endpoint and then measure N back-to-back
+windows (no server restart between them); the CSV reports the mean and stdev of throughput across
+the repeats (`<endpoint> Throughput`, `<endpoint> Throughput Stdev`), so you can see the noise band
+instead of a single point estimate:
+```
+PETCLINIC_REPEATS=5 ./run-petclinic.sh 1.58.0 1.62.0 current
+```
+Default is 1 repeat (no change in behavior/runtime from before this knob existed). Repeats multiply
+runtime the same way heaps do -- factor them into the total when combined with a heap sweep.
+
 PetClinic is pinned to a specific commit in `fetch-petclinic.sh` (bump deliberately); JFR is opt-in in
 `run-perf-test.sh` via `PERF_JFR=1`, and endpoints/load live in `perf-test-petclinic-settings.rc`.
 
