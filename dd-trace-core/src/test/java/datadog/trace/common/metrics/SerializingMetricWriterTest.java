@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
@@ -466,6 +467,130 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
     assertTrue(sink.validatedInput());
   }
 
+  @Test
+  void additionalMetricTagsEmittedWhenSet() {
+    AdditionalTagsSchema schema =
+        AdditionalTagsSchema.from(new LinkedHashSet<>(Arrays.asList("region", "tenant_id")));
+    AggregateTable table = newTable(schema);
+
+    table.findOrInsert(snapshot(schema, "us-east-1", "acme-corp")).recordOneDuration(1L);
+
+    List<AggregateEntry> content = contentOf(table);
+    assertEquals(1, content.size());
+    // Both configured tags are packed in schema (alphabetical) order: region first, then
+    // tenant_id.
+    UTF8BytesString[] additionalTags = content.get(0).getAdditionalTags();
+    assertEquals(2, additionalTags.length);
+    assertEquals("region:us-east-1", additionalTags[0].toString());
+    assertEquals("tenant_id:acme-corp", additionalTags[1].toString());
+
+    // ValidatingSink re-checks the serialized AdditionalMetricTags array against the entry.
+    serializeAndValidate(content);
+  }
+
+  @Test
+  void additionalMetricTagsFieldOmittedWhenNoneSet() {
+    // Schema configured, but the span doesn't set any of the configured tags.
+    AdditionalTagsSchema schema =
+        AdditionalTagsSchema.from(new LinkedHashSet<>(Arrays.asList("region")));
+    AggregateTable table = newTable(schema);
+
+    table.findOrInsert(snapshot(schema, new String[] {null})).recordOneDuration(1L);
+
+    List<AggregateEntry> content = contentOf(table);
+    assertEquals(1, content.size());
+    // No slots populated -> empty packed array -> AdditionalMetricTags omitted from the payload.
+    assertEquals(0, content.get(0).getAdditionalTags().length);
+
+    serializeAndValidate(content);
+  }
+
+  @Test
+  void additionalMetricTagsSkipsNullSlots() {
+    AdditionalTagsSchema schema =
+        AdditionalTagsSchema.from(new LinkedHashSet<>(Arrays.asList("region", "tenant_id")));
+    AggregateTable table = newTable(schema);
+
+    // Set only tenant_id; leave region null.
+    table
+        .findOrInsert(
+            snapshot(
+                schema,
+                new String[] {
+                  /*region*/
+                  null, /*tenant_id*/ "acme-corp"
+                }))
+        .recordOneDuration(1L);
+
+    List<AggregateEntry> content = contentOf(table);
+    assertEquals(1, content.size());
+    // The null region slot is skipped; only tenant_id survives in the packed array.
+    UTF8BytesString[] additionalTags = content.get(0).getAdditionalTags();
+    assertEquals(1, additionalTags.length);
+    assertEquals("tenant_id:acme-corp", additionalTags[0].toString());
+
+    serializeAndValidate(content);
+  }
+
+  // ---------- additional-tags helpers ----------
+
+  private static AggregateTable newTable(AdditionalTagsSchema schema) {
+    return new AggregateTable(64, schema);
+  }
+
+  private static SpanSnapshot snapshot(AdditionalTagsSchema schema, String... values) {
+    String[] padded = new String[schema.size()];
+    if (values != null) {
+      System.arraycopy(values, 0, padded, 0, Math.min(values.length, padded.length));
+    }
+    return new SpanSnapshot(
+        "resource",
+        "service",
+        "operation",
+        null,
+        "web",
+        (short) 200,
+        false,
+        true,
+        "client",
+        null,
+        null,
+        null,
+        null,
+        null,
+        padded,
+        0L);
+  }
+
+  /**
+   * Collects the table's entries in iteration order (the same order the writer serializes them).
+   */
+  private static List<AggregateEntry> contentOf(AggregateTable table) {
+    List<AggregateEntry> content = new ArrayList<>();
+    table.forEach(content::add);
+    return content;
+  }
+
+  /**
+   * Serializes {@code content} through the shared {@link ValidatingSink} and asserts it decoded.
+   */
+  private static void serializeAndValidate(List<AggregateEntry> content) {
+    long startTime = MILLISECONDS.toNanos(System.currentTimeMillis());
+    long duration = SECONDS.toNanos(10);
+    WellKnownTags wellKnownTags =
+        new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language");
+    ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content);
+    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128);
+
+    writer.startBucket(content.size(), startTime, duration);
+    for (AggregateEntry entry : content) {
+      writer.add(entry);
+    }
+    writer.finishBucket();
+
+    assertTrue(sink.validatedInput());
+  }
+
   static final class ValidatingSink implements Sink {
 
     private final WellKnownTags wellKnownTags;
@@ -558,12 +683,15 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
         boolean hasHttpEndpoint = entry.hasHttpEndpoint();
         boolean hasServiceSource = entry.hasServiceSource();
         boolean hasGrpcStatusCode = entry.hasGrpcStatusCode();
+        UTF8BytesString[] additionalTags = entry.getAdditionalTags();
+        boolean hasAdditionalTags = additionalTags.length > 0;
         int expectedMapSize =
             15
                 + (hasServiceSource ? 1 : 0)
                 + (hasHttpMethod ? 1 : 0)
                 + (hasHttpEndpoint ? 1 : 0)
-                + (hasGrpcStatusCode ? 1 : 0);
+                + (hasGrpcStatusCode ? 1 : 0)
+                + (hasAdditionalTags ? 1 : 0);
         assertEquals(expectedMapSize, metricMapSize);
         int elementCount = 0;
         assertEquals("Name", unpacker.unpackString());
@@ -600,6 +728,18 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
           assertEquals(entry.getPeerTags().get(i).toString(), unpackedPeerTag);
         }
         ++elementCount;
+        // AdditionalMetricTags is a packed array of pre-built "key:value" strings in schema
+        // (alphabetical-by-key) order. Emitted immediately after PeerTags and omitted entirely
+        // when the entry set none, mirroring the writer's optional-field handling above.
+        if (hasAdditionalTags) {
+          assertEquals("AdditionalMetricTags", unpacker.unpackString());
+          int additionalTagsLength = unpacker.unpackArrayHeader();
+          assertEquals(additionalTags.length, additionalTagsLength);
+          for (int i = 0; i < additionalTagsLength; i++) {
+            assertEquals(additionalTags[i].toString(), unpacker.unpackString());
+          }
+          ++elementCount;
+        }
         // Service source is only present when the service name has been overridden by the tracer
         if (hasServiceSource) {
           assertEquals("srv_src", unpacker.unpackString());
