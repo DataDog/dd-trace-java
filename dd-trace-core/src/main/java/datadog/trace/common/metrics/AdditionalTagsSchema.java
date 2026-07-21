@@ -39,8 +39,7 @@ final class AdditionalTagsSchema {
     return from(configured, MetricCardinalityLimits.ADDITIONAL_TAG_VALUE, true);
   }
 
-  static AdditionalTagsSchema from(
-      Set<String> configured, int limit, boolean useBlockedSentinel) {
+  static AdditionalTagsSchema from(Set<String> configured, int limit, boolean useBlockedSentinel) {
     if (configured == null || configured.isEmpty()) {
       return EMPTY;
     }
