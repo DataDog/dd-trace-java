@@ -238,7 +238,21 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             }
           };
 
-  public void onRequest(
+  public final void onRequest(
+      final AgentSpan span,
+      final CONNECTION connection,
+      final REQUEST request,
+      final Context parentContext) {
+    try {
+      doOnRequest(span, connection, request, parentContext);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on request", t);
+    }
+  }
+
+  protected void doOnRequest(
       final AgentSpan span,
       final CONNECTION connection,
       final REQUEST request,
@@ -449,7 +463,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return null;
   }
 
-  public void onResponseStatus(final AgentSpan span, final int status) {
+  public final void onResponseStatus(final AgentSpan span, final int status) {
+    try {
+      doOnResponseStatus(span, status);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on response status", t);
+    }
+  }
+
+  protected void doOnResponseStatus(final AgentSpan span, final int status) {
     if (status > UNSET_STATUS) {
       span.setHttpStatusCode(status);
       // explicitly set here because some other decorators might already set an error without
