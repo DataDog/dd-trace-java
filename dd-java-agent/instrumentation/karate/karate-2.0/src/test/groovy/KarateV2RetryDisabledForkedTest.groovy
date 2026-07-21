@@ -13,8 +13,10 @@ class KarateV2RetryDisabledForkedTest extends CiVisibilityInstrumentationTest {
     injectSysConfig("trace.test-retry.enabled", "false")
   }
 
-  def "finishes scenarios when retry instrumentation is disabled"() {
+  def "finishes scenarios without execution policies when retry instrumentation is disabled"() {
     setup:
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
     TestEventsHandlerHolder.start()
 
     when:
