@@ -80,8 +80,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * Batches of classes whose bytecode needs (re)transformation for method-level symbol injection:
    *
    * <ul>
-   *   <li>Classes already loaded at startup before this transformer was registered (queued as
-   *       singleton batches).
+   *   <li>Classes already loaded at startup before this transformer was registered (queued as a
+   *       single shared batch by {@link #checkAlreadyLoadedClasses()}).
    *   <li>Batches that failed {@code retransformClasses()} and were bisected into halves (see
    *       {@link #performPendingRetransforms()}).
    * </ul>
@@ -246,6 +246,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * would produce false positives if used as reachability proxies. See APPSEC-62260.
    */
   public void checkAlreadyLoadedClasses() {
+    List<Class<?>> toRetransform = new ArrayList<>();
     for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
       if (clazz == null) {
         continue;
@@ -267,9 +268,16 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       }
       // All symbols are method-level: always schedule retransformation so the bytecode
       // callback can be injected. We can't modify bytecode during the startup scan; deferred
-      // to performPendingRetransforms(). Queued as its own singleton batch so a failure never
-      // couples it to an unrelated class.
-      pendingRetransform.add(Collections.singletonList(clazz));
+      // to performPendingRetransforms().
+      toRetransform.add(clazz);
+    }
+    if (!toRetransform.isEmpty()) {
+      // Queued as a single shared batch: the common case is that all of these classes retransform
+      // successfully together, so this keeps the startup scan to one retransformClasses() call
+      // instead of one per already-loaded class. If the batch does fail,
+      // performPendingRetransforms()
+      // bisects it on the next heartbeat like any other batch.
+      pendingRetransform.add(toRetransform);
     }
   }
 

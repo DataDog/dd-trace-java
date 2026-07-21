@@ -51,6 +51,11 @@ import org.junit.jupiter.api.condition.JRE;
  */
 class ScaReachabilityTransformerJava9Test {
 
+  /** Second dummy vulnerable class, distinct from {@code TargetClass}, used to test batching. */
+  public static class SecondTargetClass {
+    public void method() {}
+  }
+
   private static final String JACKSON_JSON =
       "{\"version\":1,\"entries\":[{"
           + "\"vuln_id\":\"GHSA-test-jackson\","
@@ -311,6 +316,46 @@ class ScaReachabilityTransformerJava9Test {
     assertSame(
         ScaReachabilityMethodLevelTest.TargetClass.class,
         transformer.pendingRetransform.peek().get(0));
+  }
+
+  @Test
+  void checkAlreadyLoadedClasses_queuesAllMatchingClassesAsOneSharedBatch() throws Exception {
+    // Startup can find many already-loaded vulnerable classes at once. Queuing each as its own
+    // singleton batch would turn the common (all-succeed) case into one retransformClasses() call
+    // per class instead of one call for all of them; bisection only needs to kick in if this shared
+    // batch actually fails on a later heartbeat.
+    String targetName =
+        ScaReachabilityMethodLevelTest.TargetClass.class.getName().replace('.', '/');
+    String secondName = SecondTargetClass.class.getName().replace('.', '/');
+    String json =
+        "{\"version\":1,\"entries\":["
+            + "{\"vuln_id\":\"GHSA-target\",\"artifact\":\"com.example:lib\","
+            + "\"version_ranges\":[\"< 999.0.0\"],"
+            + "\"symbols\":[{\"class\":\""
+            + targetName
+            + "\",\"method\":\"vulnerableMethod\"}]},"
+            + "{\"vuln_id\":\"GHSA-second\",\"artifact\":\"com.example:lib2\","
+            + "\"version_ranges\":[\"< 999.0.0\"],"
+            + "\"symbols\":[{\"class\":\""
+            + secondName
+            + "\",\"method\":\"method\"}]}"
+            + "]}";
+
+    Instrumentation mockInstr = mock(Instrumentation.class);
+    when(mockInstr.getAllLoadedClasses())
+        .thenReturn(
+            new Class<?>[] {
+              ScaReachabilityMethodLevelTest.TargetClass.class, SecondTargetClass.class,
+            });
+    ScaReachabilityTransformer transformer =
+        new ScaReachabilityTransformer(ScaCveDatabase.parse(new StringReader(json)), mockInstr);
+
+    transformer.checkAlreadyLoadedClasses();
+
+    assertEquals(1, transformer.pendingRetransform.size(), "both classes must share one batch");
+    assertEquals(
+        Arrays.asList(ScaReachabilityMethodLevelTest.TargetClass.class, SecondTargetClass.class),
+        transformer.pendingRetransform.peek());
   }
 
   @Test
