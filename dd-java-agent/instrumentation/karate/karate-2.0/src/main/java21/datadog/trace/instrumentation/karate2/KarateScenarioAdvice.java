@@ -85,6 +85,7 @@ public class KarateScenarioAdvice {
         @Advice.Argument(value = 0, readOnly = false) StepResult stepResult,
         @Advice.FieldValue("scenario") Scenario scenario) {
 
+      // Keep expected failures intact so Karate can apply the @fail result inversion.
       if (stepResult.isFailed() && !scenario.isFail()) {
         ExecutionContext executionContext =
             InstrumentationContext.get(Scenario.class, ExecutionContext.class).get(scenario);
