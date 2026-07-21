@@ -6,9 +6,9 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
@@ -48,12 +48,12 @@ public final class AsyncTaskInstrumentation
 
   public static class Run {
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ForkJoinTask<?> zis) {
+    public static ContextScope before(@Advice.This ForkJoinTask<?> zis) {
       return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), zis);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }

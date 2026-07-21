@@ -155,7 +155,7 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT
-import static datadog.trace.api.config.OtlpConfig.TRACES_SPAN_METRICS_ENABLED
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER
 import datadog.trace.config.inversion.ConfigHelper
@@ -565,7 +565,7 @@ class ConfigTest extends DDSpecification {
     config.otlpTracesProtocol == HTTP_PROTOBUF
     config.otlpTracesTimeout == 10000
 
-    !config.tracesSpanMetricsEnabled
+    !config.otelTracesSpanMetricsEnabled
     !config.traceOtelSemanticsEnabled
     config.traceStatsInterval == 10000
   }
@@ -736,7 +736,7 @@ class ConfigTest extends DDSpecification {
       System.setProperty(PREFIX + METRICS_OTEL_EXPORTER, metricsExporter)
     }
     if (override != null) {
-      System.setProperty(PREFIX + TRACES_SPAN_METRICS_ENABLED, override)
+      System.setProperty(PREFIX + OTEL_TRACES_SPAN_METRICS_ENABLED, override)
     }
 
     when:
@@ -744,8 +744,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     // Unset: emit iff OTLP trace export and OTLP metrics export are both on. An explicit
-    // dd.traces.span.metrics.enabled always wins.
-    config.tracesSpanMetricsEnabled == expected
+    // dd.otel.traces.span.metrics.enabled always wins.
+    config.otelTracesSpanMetricsEnabled == expected
 
     where:
     exporter | metricsEnabled | metricsExporter | override | expected
@@ -999,7 +999,7 @@ class ConfigTest extends DDSpecification {
     config.otlpTracesTimeout == 5002
 
     config.traceOtelSemanticsEnabled
-    config.tracesSpanMetricsEnabled // tri-state default: OTLP trace export + OTel metrics both on
+    config.otelTracesSpanMetricsEnabled // tri-state default: OTLP trace export + OTel metrics both on
   }
 
   def "specify overrides via env vars"() {

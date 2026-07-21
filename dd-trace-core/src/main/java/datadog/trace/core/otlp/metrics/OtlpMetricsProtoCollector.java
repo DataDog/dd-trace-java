@@ -14,7 +14,6 @@ import static datadog.trace.core.otlp.metrics.OtlpMetricsProto.recordMetricMessa
 import static datadog.trace.core.otlp.metrics.OtlpMetricsProto.recordScopedMetricsMessage;
 
 import datadog.communication.serialization.GrowableBuffer;
-import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
@@ -46,13 +45,16 @@ import java.util.function.Consumer;
 public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
     implements OtlpMetricsVisitor, OtlpScopedMetricsVisitor, OtlpMetricVisitor {
 
-  public static final OtlpMetricsProtoCollector INSTANCE =
-      new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
-
   private final GrowableBuffer buf = new GrowableBuffer(512);
   private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
 
   private final TimeSource timeSource;
+
+  private final boolean forceHistogramDelta;
+
+  // resource chunk prepended to every payload; lets callers pick the plain vendor-neutral resource
+  // or the datadog-attrs variant (datadog.runtime_id / process tags)
+  private final byte[] resourceMessage;
 
   private long startNanos;
   private long endNanos;
@@ -66,8 +68,19 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
   private OtelInstrumentDescriptor currentMetric;
 
   public OtlpMetricsProtoCollector(TimeSource timeSource) {
+    this(timeSource, false);
+  }
+
+  OtlpMetricsProtoCollector(TimeSource timeSource, boolean forceHistogramDelta) {
+    this(timeSource, forceHistogramDelta, RESOURCE_MESSAGE);
+  }
+
+  OtlpMetricsProtoCollector(
+      TimeSource timeSource, boolean forceHistogramDelta, byte[] resourceMessage) {
     this.timeSource = timeSource;
     this.endNanos = timeSource.getCurrentTimeNanos();
+    this.forceHistogramDelta = forceHistogramDelta;
+    this.resourceMessage = resourceMessage;
   }
 
   /**
@@ -82,6 +95,16 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
 
   OtlpPayload collectMetrics(Consumer<OtlpMetricsVisitor> registry) {
     start();
+    return run(registry);
+  }
+
+  OtlpPayload collectMetrics(
+      Consumer<OtlpMetricsVisitor> registry, long startNanos, long endNanos) {
+    startWithWindow(startNanos, endNanos);
+    return run(registry);
+  }
+
+  private OtlpPayload run(Consumer<OtlpMetricsVisitor> registry) {
     try {
       registry.accept(this);
       return completePayload();
@@ -96,6 +119,18 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
     startNanos = endNanos;
     endNanos = timeSource.getCurrentTimeNanos();
 
+    recalibrate();
+  }
+
+  /** Prepare temporary elements to collect metrics over an explicit window. */
+  private void startWithWindow(long startNanos, long endNanos) {
+    this.startNanos = startNanos;
+    this.endNanos = endNanos;
+
+    recalibrate();
+  }
+
+  private void recalibrate() {
     // remove stale entries from caches
     OtlpCommonProto.recalibrateCaches();
   }
@@ -165,7 +200,7 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
     }
 
     // prepend the canned resource chunk
-    payloadBytes += protobuf.recordMessage(RESOURCE_MESSAGE);
+    payloadBytes += protobuf.recordMessage(resourceMessage);
 
     // finally prepend the total length of all collected chunks
     protobuf.recordMessage(buf, 1, payloadBytes);
@@ -193,7 +228,8 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
 
     // add metric message prefix to its nested chunks and promote to scoped
     if (metricBytes > 0) {
-      scopedBytes += recordMetricMessage(buf, currentMetric, metricBytes, protobuf);
+      scopedBytes +=
+          recordMetricMessage(buf, currentMetric, metricBytes, protobuf, forceHistogramDelta);
     }
 
     // reset temporary elements for next metric

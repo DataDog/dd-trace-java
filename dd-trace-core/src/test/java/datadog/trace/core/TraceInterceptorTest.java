@@ -14,7 +14,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.common.writer.ListWriter;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;

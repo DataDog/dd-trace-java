@@ -12,9 +12,9 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
@@ -54,14 +54,14 @@ public final class JavaForkJoinTaskInstrumentation
 
   public static final class Exec {
     @Advice.OnMethodEnter
-    public static <T> AgentScope before(@Advice.This ForkJoinTask<T> task) {
+    public static <T> ContextScope before(@Advice.This ForkJoinTask<T> task) {
       return exclude(FORK_JOIN_TASK, task)
           ? null
           : startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }

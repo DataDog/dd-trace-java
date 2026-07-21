@@ -20,7 +20,7 @@ import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.Test;

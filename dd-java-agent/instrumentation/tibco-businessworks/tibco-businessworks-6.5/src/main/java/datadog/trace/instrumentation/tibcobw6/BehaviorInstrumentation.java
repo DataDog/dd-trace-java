@@ -108,16 +108,20 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
       if (scope == null) {
         return;
       }
+      final AgentSpan span = scope.span();
+      boolean finished = false;
       try {
-        final AgentSpan span = scope.span();
-        if (self.isFinished(pmContext, pmTask)) {
+        finished = self.isFinished(pmContext, pmTask);
+        if (finished) {
           TibcoDecorator.DECORATE.beforeFinish(span);
-          span.finish();
         } else {
           InstrumentationContext.get(PmWorkUnit.class, AgentSpan.class).put(pmTask, span);
         }
       } finally {
         scope.close();
+        if (finished) {
+          span.finish();
+        }
       }
     }
   }

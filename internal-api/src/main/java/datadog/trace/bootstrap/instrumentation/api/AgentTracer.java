@@ -1,5 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.context.Context;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextListener;
+import datadog.context.ContextManager;
+import datadog.context.ContextScope;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
@@ -87,7 +92,7 @@ public class AgentTracer {
    *     asynchronous propagation is disabled.
    */
   @Nonnull
-  public static AgentScope.Continuation captureActiveSpan() {
+  public static ContextContinuation captureActiveSpan() {
     return get().captureActiveSpan();
   }
 
@@ -100,7 +105,7 @@ public class AgentTracer {
    * @return Continuation of the given span.
    */
   @Nonnull
-  public static AgentScope.Continuation captureSpan(final AgentSpan span) {
+  public static ContextContinuation captureSpan(final AgentSpan span) {
     return get().captureSpan(span);
   }
 
@@ -231,18 +236,6 @@ public class AgentTracer {
     return NoopScope.INSTANCE;
   }
 
-  /**
-   * Returns the noop continuation instance.
-   *
-   * <p>This instance will always be the same, and can be safely tested using object identity (ie
-   * {@code ==}).
-   *
-   * @return the noop continuation instance.
-   */
-  public static AgentScope.Continuation noopContinuation() {
-    return NoopContinuation.INSTANCE;
-  }
-
   public static final TracerAPI NOOP_TRACER = new NoopTracerAPI();
 
   private static volatile TracerAPI provider = NOOP_TRACER;
@@ -328,9 +321,10 @@ public class AgentTracer {
     void activateSpanWithoutScope(AgentSpan span);
 
     @Override
+    @SuppressWarnings("deprecation")
     AgentScope.Continuation captureActiveSpan();
 
-    AgentScope.Continuation captureSpan(AgentSpan span);
+    ContextContinuation captureSpan(AgentSpan span);
 
     void checkpointActiveForRollback();
 
@@ -402,6 +396,20 @@ public class AgentTracer {
     void updatePreferredServiceName(String serviceName, CharSequence source);
 
     void addShutdownListener(Runnable listener);
+
+    // these methods are only used for legacy context manager migration
+
+    @Deprecated
+    Context currentContext();
+
+    @Deprecated
+    ContextScope attach(Context context);
+
+    @Deprecated
+    Context swap(Context context);
+
+    @Deprecated
+    ContextContinuation capture(Context context);
   }
 
   public interface SpanBuilder {
@@ -482,12 +490,13 @@ public class AgentTracer {
     public void activateSpanWithoutScope(final AgentSpan span) {}
 
     @Override
+    @SuppressWarnings("deprecation")
     public AgentScope.Continuation captureActiveSpan() {
       return NoopContinuation.INSTANCE;
     }
 
     @Override
-    public AgentScope.Continuation captureSpan(final AgentSpan span) {
+    public ContextContinuation captureSpan(final AgentSpan span) {
       return NoopContinuation.INSTANCE;
     }
 
@@ -653,16 +662,36 @@ public class AgentTracer {
     public void updatePreferredServiceName(String serviceName, CharSequence preferredServiceName) {
       // no ops
     }
+
+    @Override
+    public Context currentContext() {
+      return Context.root();
+    }
+
+    @Override
+    public ContextScope attach(Context context) {
+      return NoopScope.INSTANCE;
+    }
+
+    @Override
+    public Context swap(Context context) {
+      return Context.root();
+    }
+
+    @Override
+    public ContextContinuation capture(Context context) {
+      return NoopContinuation.INSTANCE;
+    }
   }
 
   public static class NoopAgentTraceCollector implements AgentTraceCollector {
     public static final NoopAgentTraceCollector INSTANCE = new NoopAgentTraceCollector();
 
     @Override
-    public void registerContinuation(final AgentScope.Continuation continuation) {}
+    public void registerContinuation(final ContextContinuation continuation) {}
 
     @Override
-    public void removeContinuation(final AgentScope.Continuation continuation) {}
+    public void removeContinuation(final ContextContinuation continuation) {}
   }
 
   /** TraceConfig when there is no tracer; this is not the same as a default config. */
@@ -737,6 +766,54 @@ public class AgentTracer {
     @Override
     public List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors() {
       return null;
+    }
+  }
+
+  /**
+   * Decides whether to install the legacy approach to managing contexts, which requires a tracer.
+   *
+   * <p>Must be called ahead of instrumentation, before any use of the Context API.
+   */
+  public static void maybeInstallLegacyContextManager() {
+    installLegacyContextManager(); // install everywhere to begin with
+  }
+
+  /**
+   * Always install the legacy approach to managing contexts, which requires a tracer.
+   *
+   * <p>Must be called ahead of instrumentation, before any use of the Context API.
+   */
+  public static void installLegacyContextManager() {
+    ContextManager.register(LegacyContextManager.INSTANCE);
+  }
+
+  /** Shim mapping new Context API to legacy scope manager. */
+  static final class LegacyContextManager implements ContextManager {
+    static final LegacyContextManager INSTANCE = new LegacyContextManager();
+
+    @Override
+    public Context current() {
+      return AgentTracer.get().currentContext();
+    }
+
+    @Override
+    public ContextScope attach(@Nonnull Context context) {
+      return AgentTracer.get().attach(context);
+    }
+
+    @Override
+    public Context swap(@Nonnull Context context) {
+      return AgentTracer.get().swap(context);
+    }
+
+    @Override
+    public ContextContinuation capture(@Nonnull Context context) {
+      return AgentTracer.get().capture(context);
+    }
+
+    @Override
+    public void addListener(@Nonnull ContextListener listener) {
+      // this method is never used in legacy mode...
     }
   }
 }
