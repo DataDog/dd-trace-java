@@ -102,7 +102,7 @@ results_dir="$script_dir/build/petclinic-results/results-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$results_dir"
 combined_csv="$results_dir/throughput-grid.csv"
 
-log "sweeping ${#resolved[@]} variant(s) x ${#heaps[@]} heap(s) [${heaps[*]}], JFR enabled, settings=$settings"
+log "sweeping ${#resolved[@]} variant(s) x ${#heaps[@]} heap(s) [${heaps[*]}] x ${PETCLINIC_REPEATS:-1} repeat(s), JFR enabled, settings=$settings"
 for heap in "${heaps[@]}"; do
   heap_dir="$results_dir/heap-$heap"
   mkdir -p "$heap_dir"
@@ -110,7 +110,7 @@ for heap in "${heaps[@]}"; do
   log "=== HEAP $heap ==="
   (
     cd "$script_dir"
-    PERF_JFR=1 PERF_HEAP="$heap" PERF_SETTINGS="$settings" \
+    PERF_JFR=1 PERF_HEAP="$heap" PERF_REPEATS="${PETCLINIC_REPEATS:-1}" PERF_SETTINGS="$settings" \
       bash ./run-perf-test.sh jar "$petclinic_jar" "${resolved[@]}"
   )
   cp -f /tmp/perf_results.csv "$heap_dir/" 2>/dev/null || true
