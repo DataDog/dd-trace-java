@@ -17,7 +17,7 @@ final class OtlpMetricsSenderFactory {
 
   /**
    * Builds the sender for {@code config}'s OTLP metrics protocol, or {@code null} if the protocol
-   * has no protobuf encoder yet (e.g. HTTP_JSON).
+   * is unsupported.
    */
   @Nullable
   static OtlpSender create(Config config) {
@@ -30,6 +30,7 @@ final class OtlpMetricsSenderFactory {
             config.getOtlpMetricsTimeout(),
             config.getOtlpMetricsCompression());
       case HTTP_PROTOBUF:
+      case HTTP_JSON:
         return new OtlpHttpSender(
             config.getOtlpMetricsEndpoint(),
             "/v1/metrics",
