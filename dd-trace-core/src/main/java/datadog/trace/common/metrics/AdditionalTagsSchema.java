@@ -60,25 +60,17 @@ final class AdditionalTagsSchema {
       return EMPTY;
     }
     Collections.sort(valid);
-    // Dedup (sort brings duplicates adjacent)
-    List<String> deduped = new ArrayList<>(valid.size());
-    String prev = null;
-    for (String key : valid) {
-      if (!key.equals(prev)) {
-        deduped.add(key);
-        prev = key;
-      }
-    }
-    if (deduped.size() > MAX_ADDITIONAL_TAG_KEYS) {
+    // Keys arrive as a Set, so they are already distinct — no dedup needed.
+    if (valid.size() > MAX_ADDITIONAL_TAG_KEYS) {
       log.warn(
           "Configured additional metric tag keys ({}) exceeds the supported limit of {}; "
               + "dropping extra keys: {}",
-          deduped.size(),
+          valid.size(),
           MAX_ADDITIONAL_TAG_KEYS,
-          deduped.subList(MAX_ADDITIONAL_TAG_KEYS, deduped.size()));
-      deduped = deduped.subList(0, MAX_ADDITIONAL_TAG_KEYS);
+          valid.subList(MAX_ADDITIONAL_TAG_KEYS, valid.size()));
+      valid = valid.subList(0, MAX_ADDITIONAL_TAG_KEYS);
     }
-    String[] namesArr = deduped.toArray(new String[0]);
+    String[] namesArr = valid.toArray(new String[0]);
     TagCardinalityHandler[] handlersArr = new TagCardinalityHandler[namesArr.length];
     for (int i = 0; i < namesArr.length; i++) {
       handlersArr[i] =

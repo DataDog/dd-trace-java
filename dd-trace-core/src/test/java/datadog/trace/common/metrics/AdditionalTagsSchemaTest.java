@@ -26,7 +26,7 @@ class AdditionalTagsSchemaTest {
   }
 
   @Test
-  void schemaDedupesAndCapsAtMaxTagKeys() {
+  void schemaSortsAndCapsAtMaxTagKeys() {
     LinkedHashSet<String> configured = new LinkedHashSet<>();
     // 6 distinct keys, more than MAX_ADDITIONAL_TAG_KEYS (4). Sort alphabetically, drop the last 2.
     for (int i = 0; i < 6; i++) {
