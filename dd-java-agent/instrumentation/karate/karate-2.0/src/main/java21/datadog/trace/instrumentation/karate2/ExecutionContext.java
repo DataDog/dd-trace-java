@@ -11,6 +11,7 @@ public class ExecutionContext {
   private final TestExecutionPolicy executionPolicy;
   private boolean suppressFailures;
   private Throwable suppressedError;
+  private boolean testStarted;
 
   public ExecutionContext(TestExecutionPolicy executionPolicy) {
     this.executionPolicy = executionPolicy;
@@ -26,6 +27,14 @@ public class ExecutionContext {
 
   public TestExecutionPolicy getExecutionPolicy() {
     return executionPolicy;
+  }
+
+  public void setTestStarted(boolean testStarted) {
+    this.testStarted = testStarted;
+  }
+
+  public boolean isTestStarted() {
+    return testStarted;
   }
 
   /**
