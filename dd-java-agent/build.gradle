@@ -348,8 +348,11 @@ def generateAgentJarIndex = tasks.register('generateAgentJarIndex', JavaExec) {
   it.mainClass = 'datadog.trace.bootstrap.AgentJarIndex$IndexGenerator'
 
   it.inputs.files(includedJarFileTree)
-  it.inputs.files(it.classpath)
+    .withPropertyName("includedAgentFiles")
+    .withPathSensitivity(PathSensitivity.RELATIVE)
   it.outputs.dir(destinationDir)
+    .withPropertyName("agentJarIndex")
+  it.outputs.cacheIf { true }
   it.classpath = objects.fileCollection().tap {
     it.from(project.configurations.named("shadowInclude"))
     it.from(project.configurations.named('slf4j-simple'))

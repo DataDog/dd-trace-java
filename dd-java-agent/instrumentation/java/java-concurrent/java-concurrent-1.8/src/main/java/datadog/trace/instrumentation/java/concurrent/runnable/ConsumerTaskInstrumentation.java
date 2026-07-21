@@ -9,10 +9,10 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
@@ -62,12 +62,12 @@ public class ConsumerTaskInstrumentation extends InstrumenterModule.ContextTrack
 
   public static final class Run {
     @Advice.OnMethodEnter
-    public static <T> AgentScope before(@Advice.This ForkJoinTask<T> task) {
+    public static <T> ContextScope before(@Advice.This ForkJoinTask<T> task) {
       return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }

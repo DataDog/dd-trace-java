@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.playws1;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
 
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import play.shaded.ahc.org.asynchttpclient.AsyncHandler;
 import play.shaded.ahc.org.asynchttpclient.HttpResponseBodyPart;
@@ -15,7 +15,7 @@ import play.shaded.ahc.org.asynchttpclient.Response;
 public class AsyncHandlerWrapper implements AsyncHandler {
   private final AsyncHandler delegate;
   private final AgentSpan span;
-  private final AgentScope.Continuation continuation;
+  private final ContextContinuation continuation;
 
   private final Response.ResponseBuilder builder = new Response.ResponseBuilder();
 
@@ -54,7 +54,7 @@ public class AsyncHandlerWrapper implements AsyncHandler {
     span.finish();
 
     if (continuation != null) {
-      try (final ContextScope scope = continuation.activate()) {
+      try (final ContextScope scope = continuation.resume()) {
         return delegate.onCompleted();
       }
     } else {
@@ -69,7 +69,7 @@ public class AsyncHandlerWrapper implements AsyncHandler {
     span.finish();
 
     if (continuation != null) {
-      try (final ContextScope scope = continuation.activate()) {
+      try (final ContextScope scope = continuation.resume()) {
         delegate.onThrowable(throwable);
       }
     } else {

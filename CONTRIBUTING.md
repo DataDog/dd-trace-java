@@ -118,7 +118,7 @@ Both pull requests and issues should be labelled with at least a component or an
 
 Labels are used to not only categorize but also alter the continuous integration behavior:
 
-* `tag: no release note` to exclude a pull request from the next release changelog. Use it when changes are not relevant to the users like:
+* `tag: no release notes` to exclude a pull request from the next release changelog. Use it when changes are not relevant to the users like:
   * Internal features changes
   * Refactoring pull requests
   * CI and build tools improvements

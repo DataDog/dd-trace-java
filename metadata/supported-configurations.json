@@ -747,9 +747,9 @@
     ],
     "DD_CIVISIBILITY_JACOCO_PLUGIN_VERSION": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
-        "default": "0.8.14",
+        "default": "0.8.15",
         "aliases": []
       }
     ],
@@ -910,6 +910,14 @@
         "version": "A",
         "type": "boolean",
         "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_CODE_COVERAGE_FLAGS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
         "aliases": []
       }
     ],

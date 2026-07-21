@@ -14,10 +14,10 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.TPEHelper;
@@ -34,23 +34,23 @@ import net.bytebuddy.matcher.ElementMatcher;
  * The old way of doing this is to wrap the Runnable when it is added to the queue, which is scary
  * by itself, since the queue can contain any type of object that implements Runnable, and the queue
  * implementation can try to cast it to something that our wrapper doesn't implement. To avoid this
- * we use the existing State field context store in the Runnable and hand off the AgentScope from
+ * we use the existing State field context store in the Runnable and hand off the ContextScope from
  * beforeExecute to afterExecute via a ThreadLocal.
  *
  * <p>Here is a simple flow chart for the non wrapping version with + signifying added code:
  *
  * <pre>{@code
  * beforeExecute -> enter
- *                  + start AgentScope if available and pass it to exit
+ *                  + start ContextScope if available and pass it to exit
  *                  normal method body
  *                  exit
- *               <- + store AgentScope in ThreadLocal if available
+ *               <- + store ContextScope in ThreadLocal if available
  * normal execution of the Runnable
  * afterExecute  -> enter
- *                  + clear and pass ThreadLocal AgentScope if available to exit
+ *                  + clear and pass ThreadLocal ContextScope if available to exit
  *                  normal method body
  *                  exit
- *               <- + close AgentScope if available
+ *               <- + close ContextScope if available
  * }</pre>
  */
 public final class ThreadPoolExecutorInstrumentation
@@ -154,7 +154,7 @@ public final class ThreadPoolExecutorInstrumentation
 
   public static final class BeforeExecute {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope beforeExecuteEnter(
+    public static ContextScope beforeExecuteEnter(
         @Advice.This final ThreadPoolExecutor zis,
         @Advice.Argument(readOnly = false, value = 1) Runnable task) {
       if (TPEHelper.shouldPropagate(
@@ -171,7 +171,7 @@ public final class ThreadPoolExecutorInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void beforeExecuteExit(
-        @Advice.Enter final AgentScope scope, @Advice.Argument(value = 1) Runnable task) {
+        @Advice.Enter final ContextScope scope, @Advice.Argument(value = 1) Runnable task) {
       if (scope != null) {
         TPEHelper.setThreadLocalScope(scope, task);
       }
@@ -180,7 +180,7 @@ public final class ThreadPoolExecutorInstrumentation
 
   public static final class AfterExecute {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope afterExecuteEnter(
+    public static ContextScope afterExecuteEnter(
         @Advice.This final ThreadPoolExecutor zis,
         @Advice.Argument(readOnly = false, value = 0) Runnable task) {
       if (TPEHelper.shouldPropagate(
@@ -196,7 +196,7 @@ public final class ThreadPoolExecutorInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterExecuteExit(
-        @Advice.Enter final AgentScope scope, @Advice.Argument(value = 0) Runnable task) {
+        @Advice.Enter final ContextScope scope, @Advice.Argument(value = 0) Runnable task) {
       if (scope != null) {
         TPEHelper.endScope(scope, task);
       }
