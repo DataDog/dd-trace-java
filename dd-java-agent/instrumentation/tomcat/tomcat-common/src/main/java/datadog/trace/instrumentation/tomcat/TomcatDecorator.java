@@ -126,7 +126,7 @@ public class TomcatDecorator
   }
 
   @Override
-  public void onResponse(AgentSpan span, Response response) {
+  protected void doOnResponse(AgentSpan span, Response response) {
     Request req = response.getRequest();
     if (Config.get().isServletPrincipalEnabled() && req.getUserPrincipal() != null) {
       span.setTag(DDTags.USER_NAME, req.getUserPrincipal().getName());
@@ -139,7 +139,7 @@ public class TomcatDecorator
     if (throwable instanceof Throwable) {
       onError(span, (Throwable) throwable);
     }
-    super.onResponse(span, response);
+    super.doOnResponse(span, response);
   }
 
   @Override

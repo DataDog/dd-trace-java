@@ -126,13 +126,13 @@ public class LibertyDecorator
     return true;
   }
 
-  public void onResponse(AgentSpan span, SRTServletResponse response) {
+  protected void doOnResponse(AgentSpan span, SRTServletResponse response) {
     HttpServletRequest req = response.getRequest();
 
     if (Config.get().isServletPrincipalEnabled() && req.getUserPrincipal() != null) {
       span.setTag(DDTags.USER_NAME, req.getUserPrincipal().getName());
     }
-    super.onResponse(span, response);
+    super.doOnResponse(span, response);
 
     Object ex = req.getAttribute("javax.servlet.error.exception");
     Object report;
