@@ -17,6 +17,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 /**
  * Front-half (application-thread) benchmark for <b>multi-span trace assembly</b>: a
@@ -87,7 +88,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.Throughput)
 @Threads(8)
 @OutputTimeUnit(MICROSECONDS)
-@Fork(value = 3)
+@Fork(value = 3, jvmArgsAppend = "-DTEST_LOG_LEVEL=warn")
 public class TraceAssemblyBenchmark {
   private static final String INSTRUMENTATION_NAME = "bench";
   private static final String ROOT_OPERATION = "servlet.request";
@@ -106,8 +107,8 @@ public class TraceAssemblyBenchmark {
   CoreTracer tracer;
 
   @Setup
-  public void setup() {
-    this.tracer = CoreTracer.builder().writer(new DropWriter()).build();
+  public void setup(Blackhole blackhole) {
+    this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
   }
 
   @TearDown

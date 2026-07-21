@@ -16,6 +16,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 /**
  * Grounding benchmark for the full span-creation lifecycle: create -> (set tags) -> finish.
@@ -97,7 +98,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.Throughput)
 @Threads(8)
 @OutputTimeUnit(MICROSECONDS)
-@Fork(value = 3)
+@Fork(value = 3, jvmArgsAppend = "-DTEST_LOG_LEVEL=warn")
 public class SpanCreationBenchmark {
   private static final String INSTRUMENTATION_NAME = "bench";
   private static final String SERVER_OPERATION_NAME = "servlet.request";
@@ -132,10 +133,10 @@ public class SpanCreationBenchmark {
   CoreTracer tracer;
 
   @Setup
-  public void setup() {
+  public void setup(Blackhole blackhole) {
     // DropWriter keeps finish() from pulling in serialization / agent I/O, so -prof gc reflects
     // span creation + tagging + PendingTrace completion only.
-    this.tracer = CoreTracer.builder().writer(new DropWriter()).build();
+    this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
   }
 
   @TearDown

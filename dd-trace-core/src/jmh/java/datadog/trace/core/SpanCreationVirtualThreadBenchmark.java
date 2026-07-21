@@ -18,6 +18,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 /**
  * Runs span creation on a <b>virtual thread</b> — the regime the platform-thread {@link
@@ -43,7 +44,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.Throughput)
 @Threads(4)
 @OutputTimeUnit(MICROSECONDS)
-@Fork(value = 3)
+@Fork(value = 3, jvmArgsAppend = "-DTEST_LOG_LEVEL=warn")
 public class SpanCreationVirtualThreadBenchmark {
   private static final String INSTRUMENTATION_NAME = "bench";
   private static final String OPERATION_NAME = "servlet.request";
@@ -55,8 +56,8 @@ public class SpanCreationVirtualThreadBenchmark {
   private Runnable spanTask;
 
   @Setup
-  public void setup() throws Throwable {
-    this.tracer = CoreTracer.builder().writer(new DropWriter()).build();
+  public void setup(Blackhole blackhole) throws Throwable {
+    this.tracer = CoreTracer.builder().writer(new DropWriter(blackhole)).build();
     this.startVirtualThread =
         MethodHandles.publicLookup()
             .findStatic(
