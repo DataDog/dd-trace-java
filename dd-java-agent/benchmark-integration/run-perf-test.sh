@@ -52,7 +52,7 @@ function regime_banner {
 function assert_expected_agent {
     local expect="${EXPECT_AGENT:-any}"
     if [ "$expect" != "any" ] && [ "$expect" != "$agent_state" ]; then
-        echo "ERROR: EXPECT_AGENT=$expect but the Datadog Agent on :8126 is '$agent_state'." >&2
+        echo "ERROR: EXPECT_AGENT=$expect but the Datadog Agent on :${TRACE_AGENT_PORT:-8126} is '$agent_state'." >&2
         regime_banner >&2
         echo "Aborting to avoid measuring the wrong regime (set EXPECT_AGENT=any to override)." >&2
         [ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null
@@ -254,8 +254,8 @@ for agent_jar in $agent_jars; do
         agent_start_cpu=$(ps -o 'pid,time' | awk "\$1 == $agent_pid { print \$2 }" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }')
         agent_start_rss=$(ps -o 'pid,rss' | awk "\$1 == $agent_pid { print \$2 }")
     fi
-    server_start_cpu=$(ps -o 'pid,time' | awk "\$1 == $server_pid { print \$2 }" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }')
-    server_start_rss=$(ps -o 'pid,rss' | awk "\$1 == $server_pid { print \$2 }")
+    server_start_cpu=$(ps -o time= -p "$server_pid" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }')
+    server_start_rss=$(ps -o rss= -p "$server_pid")
 
     server_total_rss=0
     server_total_rss_count=0
@@ -265,7 +265,7 @@ for agent_jar in $agent_jars; do
         url="${endpoints[$label]}"
         echo "--Testing $label -- $url--"
         test_output_file=$(test_endpoint $url)
-        let server_total_rss=$server_total_rss+$(ps -o 'pid,rss' | awk "\$1 == $server_pid { print \$2 }")
+        let server_total_rss=$server_total_rss+$(ps -o rss= -p "$server_pid")
         let server_total_rss_count=$server_total_rss_count+1
         cat $test_output_file
         avg_latency=$(awk '$1 == "Latency" { print $2 }' $test_output_file)
@@ -281,7 +281,7 @@ for agent_jar in $agent_jars; do
         agent_stop_cpu=$(ps -o 'pid,time' | awk "\$1 == $agent_pid { print \$2 }" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }')
         agent_stop_rss=$(ps -o 'pid,rss' | awk "\$1 == $agent_pid { print \$2 }")
     fi
-    server_stop_cpu=$(ps -o 'pid,time' | awk "\$1 == $server_pid { print \$2 }" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }')
+    server_stop_cpu=$(ps -o time= -p "$server_pid" | awk -F'[:\.]' '{ print ($1 * 3600) + ($2 * 60) + $3 }')
 
     let agent_cpu=$agent_stop_cpu-$agent_start_cpu
     let agent_rss=$agent_stop_rss-$agent_start_rss
