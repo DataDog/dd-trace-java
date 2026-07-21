@@ -77,29 +77,34 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   final ConcurrentHashMap<String, Dependency> classpathArtifactCache = new ConcurrentHashMap<>();
 
   /**
-   * Classes whose bytecode needs (re)transformation for method-level symbol injection:
+   * Batches of classes whose bytecode needs (re)transformation for method-level symbol injection:
    *
    * <ul>
-   *   <li>Classes already loaded at startup before this transformer was registered.
-   *   <li>Classes where JAR version resolution returned no results at load time and needs a retry.
+   *   <li>Classes already loaded at startup before this transformer was registered (queued as
+   *       singleton batches).
+   *   <li>Batches that failed {@code retransformClasses()} and were bisected into halves (see
+   *       {@link #performPendingRetransforms()}).
    * </ul>
    *
-   * Drained and processed by {@link #performPendingRetransforms()} on each telemetry heartbeat.
+   * <p>Each element is retransformed via its own {@code retransformClasses()} call, independently
+   * of the other batches, so an unrelated failure in one batch never affects another. Drained and
+   * processed by {@link #performPendingRetransforms()} on each telemetry heartbeat.
    */
   @VisibleForTesting
-  final ConcurrentLinkedQueue<Class<?>> pendingRetransform = new ConcurrentLinkedQueue<>();
+  final ConcurrentLinkedQueue<List<Class<?>>> pendingRetransform = new ConcurrentLinkedQueue<>();
 
   /** Class names (internal format) queued for deferred retransformation by name lookup. */
   @VisibleForTesting final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
 
   /**
-   * {@code retransformClasses()} is atomic for the whole array: if any single class in the batch
-   * fails to verify/redefine, the entire batch throws and would otherwise be re-queued forever (see
-   * {@link #performPendingRetransforms()}), permanently retaining every {@code Class<?>} in that
-   * batch and leaking Metaspace. This tracks per-class failure counts so a class that keeps failing
-   * is dropped after {@link #MAX_RETRANSFORM_ATTEMPTS} instead of blocking the batch and being
-   * retried indefinitely. Entries are removed on success or once the limit is reached, so this map
-   * only grows with currently-failing classes.
+   * {@code retransformClasses()} is atomic for a given batch: if any single class in it fails to
+   * verify/redefine, the whole batch throws. For a multi-class batch, {@link
+   * #performPendingRetransforms()} reacts by bisecting it into two halves, deferred to the next
+   * heartbeat, to isolate the failing class(es) from any healthy batch-mates. Once a batch has been
+   * narrowed down to a single class, further failures of that same class are tracked here so it is
+   * dropped after {@link #MAX_RETRANSFORM_ATTEMPTS} instead of being retried forever and leaking
+   * its {@code Class<?>} (and {@code ClassLoader}) in Metaspace. Entries are removed on success or
+   * once the limit is reached, so this map only grows with currently-failing singleton classes.
    */
   @VisibleForTesting
   final Map<Class<?>, Integer> retransformFailureCount = new ConcurrentHashMap<>();
@@ -277,8 +282,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       }
       // All symbols are method-level: always schedule retransformation so the bytecode
       // callback can be injected. We can't modify bytecode during the startup scan; deferred
-      // to performPendingRetransforms().
-      pendingRetransform.add(clazz);
+      // to performPendingRetransforms(). Queued as its own singleton batch so a failure never
+      // couples it to an unrelated class.
+      pendingRetransform.add(Collections.singletonList(clazz));
     }
   }
 
@@ -300,21 +306,30 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     if (instrumentation == null) {
       return; // no-op when instrumentation is unavailable (e.g. in unit tests)
     }
-    // Drain the direct Class<?> queue (from checkAlreadyLoadedClasses)
-    List<Class<?>> toRetransform = new ArrayList<>();
-    Class<?> clazz;
-    while ((clazz = pendingRetransform.poll()) != null) {
-      if (instrumentation.isModifiableClass(clazz)) {
-        toRetransform.add(clazz);
+    // Drain the batch queue (from checkAlreadyLoadedClasses and prior bisections), dropping any
+    // classes that are no longer modifiable from within each batch while preserving the rest of
+    // that batch's grouping.
+    List<List<Class<?>>> batches = new ArrayList<>();
+    List<Class<?>> batch;
+    while ((batch = pendingRetransform.poll()) != null) {
+      List<Class<?>> modifiable = new ArrayList<>(batch.size());
+      for (Class<?> c : batch) {
+        if (instrumentation.isModifiableClass(c)) {
+          modifiable.add(c);
+        }
+      }
+      if (!modifiable.isEmpty()) {
+        batches.add(modifiable);
       }
     }
 
-    // Resolve any classes queued by name (from processClass timing failures).
-    // Use contains+removeAll instead of remove inside the loop: the same class may be loaded
-    // by multiple classloaders (e.g. Spring Boot LaunchedURLClassLoader creates more than one
-    // instance), and we must retransform ALL of them, not just the first one found.
+    // Resolve any classes queued by name (from processClass timing failures) into their own
+    // batch. Use contains+removeAll instead of remove inside the loop: the same class may be
+    // loaded by multiple classloaders (e.g. Spring Boot LaunchedURLClassLoader creates more than
+    // one instance), and we must retransform ALL of them, not just the first one found.
     if (!pendingRetransformNames.isEmpty()) {
       Set<String> matched = new HashSet<>();
+      List<Class<?>> resolved = new ArrayList<>();
       for (Class<?> loaded : instrumentation.getAllLoadedClasses()) {
         if (loaded == null) {
           continue;
@@ -324,14 +339,17 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
           // Always add to matched to drain the pending set; only retransform if modifiable.
           matched.add(name);
           if (instrumentation.isModifiableClass(loaded)) {
-            toRetransform.add(loaded);
+            resolved.add(loaded);
           }
         }
       }
       pendingRetransformNames.removeAll(matched);
+      if (!resolved.isEmpty()) {
+        batches.add(resolved);
+      }
     }
 
-    if (toRetransform.isEmpty()) {
+    if (batches.isEmpty()) {
       return;
     }
 
@@ -343,49 +361,66 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     //      spring-boot-starter-web) whose pom.properties is not in the class's own JAR.
     //      Without pre-warming classpathArtifactCache, this scans all java.class.path JARs via
     //      resolveDependencies() under JVM locks, reintroducing the snakeyaml deadlock.
-    for (Class<?> c : toRetransform) {
-      ProtectionDomain pd = c.getProtectionDomain();
-      if (pd == null) {
-        continue;
-      }
-      CodeSource cs = pd.getCodeSource();
-      if (cs == null) {
-        continue;
-      }
-      URL loc = cs.getLocation();
-      if (loc == null) {
-        continue;
-      }
-      resolveDependencies(loc);
-      String internalName = c.getName().replace('.', '/');
-      List<ScaEntry> dbEntries = database.entriesForClass(internalName);
-      if (dbEntries != null) {
-        List<Dependency> classJarDeps = resolveDependenciesFromCache(loc);
-        for (ScaEntry entry : dbEntries) {
-          resolveVersionForArtifact(entry.artifact(), classJarDeps);
+    for (List<Class<?>> b : batches) {
+      for (Class<?> c : b) {
+        ProtectionDomain pd = c.getProtectionDomain();
+        if (pd == null) {
+          continue;
+        }
+        CodeSource cs = pd.getCodeSource();
+        if (cs == null) {
+          continue;
+        }
+        URL loc = cs.getLocation();
+        if (loc == null) {
+          continue;
+        }
+        resolveDependencies(loc);
+        String internalName = c.getName().replace('.', '/');
+        List<ScaEntry> dbEntries = database.entriesForClass(internalName);
+        if (dbEntries != null) {
+          List<Dependency> classJarDeps = resolveDependenciesFromCache(loc);
+          for (ScaEntry entry : dbEntries) {
+            resolveVersionForArtifact(entry.artifact(), classJarDeps);
+          }
         }
       }
     }
 
+    // Each batch is retransformed independently: a failure in one batch never affects another,
+    // and a failing multi-class batch is bisected rather than dropped as a whole.
+    for (List<Class<?>> b : batches) {
+      retransformBatch(b);
+    }
+  }
+
+  /**
+   * Attempts {@code retransformClasses()} for a single batch. On failure, a multi-class batch is
+   * bisected into two halves that are re-queued as independent batches for the next heartbeat —
+   * never retried within this same call — so that a healthy class is progressively isolated from an
+   * unrelated, permanently-failing batch-mate instead of being dropped alongside it. Once a batch
+   * is down to a single class, further failures of that class are bounded by {@link
+   * #retransformFailureCount} and {@link #MAX_RETRANSFORM_ATTEMPTS} to guarantee it is eventually
+   * dropped instead of leaking its {@code Class<?>} forever.
+   */
+  private void retransformBatch(List<Class<?>> batch) {
     try {
-      instrumentation.retransformClasses(toRetransform.toArray(new Class<?>[0]));
+      instrumentation.retransformClasses(batch.toArray(new Class<?>[0]));
       log.debug(
-          "SCA Reachability: retransformed {} class(es) for method-level detection",
-          toRetransform.size());
-      for (Class<?> c : toRetransform) {
+          "SCA Reachability: retransformed {} class(es) for method-level detection", batch.size());
+      for (Class<?> c : batch) {
         retransformFailureCount.remove(c);
       }
     } catch (Throwable t) {
-      log.debug("SCA Reachability: retransformClasses failed", t);
-      // retransformClasses() is atomic for the whole array, so a single unrelated failure (this
-      // transformer's own bytecode, another registered transformer, or a transient JVM issue)
-      // fails every class in the batch. Re-queue each class individually, up to a bounded number
-      // of attempts, so a class that keeps failing is eventually dropped instead of retaining its
-      // Class<?> (and its ClassLoader) forever.
-      for (Class<?> c : toRetransform) {
+      log.debug(
+          "SCA Reachability: retransformClasses failed for a batch of {} class(es)",
+          batch.size(),
+          t);
+      if (batch.size() == 1) {
+        Class<?> c = batch.get(0);
         int attempts = retransformFailureCount.merge(c, 1, Integer::sum);
         if (attempts < MAX_RETRANSFORM_ATTEMPTS) {
-          pendingRetransform.add(c);
+          pendingRetransform.add(batch);
         } else {
           retransformFailureCount.remove(c);
           log.debug(
@@ -393,6 +428,14 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
               c.getName(),
               attempts);
         }
+      } else {
+        int mid = batch.size() / 2;
+        pendingRetransform.add(new ArrayList<>(batch.subList(0, mid)));
+        pendingRetransform.add(new ArrayList<>(batch.subList(mid, batch.size())));
+        log.debug(
+            "SCA Reachability: bisecting failing batch of {} class(es) into two halves for the"
+                + " next heartbeat",
+            batch.size());
       }
     }
   }

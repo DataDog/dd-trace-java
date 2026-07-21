@@ -3,6 +3,7 @@ package com.datadog.appsec.sca;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -10,6 +11,9 @@ import static org.mockito.Mockito.when;
 
 import java.io.StringReader;
 import java.lang.instrument.Instrumentation;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -80,7 +84,8 @@ class ScaReachabilityRetransformTest {
     assertEquals(
         2,
         t.pendingRetransform.size(),
-        "both classes must be re-queued in pendingRetransform for the next heartbeat retry");
+        "the failing batch of 2 must be bisected into 2 singleton batches for the next"
+            + " heartbeat retry");
   }
 
   @Test
@@ -96,7 +101,7 @@ class ScaReachabilityRetransformTest {
 
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
-    t.pendingRetransform.add(Target.class);
+    t.pendingRetransform.add(Collections.singletonList(Target.class));
 
     // Each failed attempt re-queues the class for the next heartbeat; after the limit it must be
     // dropped instead. Run one extra iteration beyond the limit to confirm it stays dropped.
@@ -125,7 +130,7 @@ class ScaReachabilityRetransformTest {
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
 
-    t.pendingRetransform.add(Target.class);
+    t.pendingRetransform.add(Collections.singletonList(Target.class));
     t.performPendingRetransforms(); // fails once, re-queued
     assertEquals(1, t.pendingRetransform.size());
 
@@ -138,38 +143,47 @@ class ScaReachabilityRetransformTest {
   }
 
   @Test
-  void performPendingRetransforms_dropsBothClassesWhenBatchedWithAPermanentlyFailingOne()
+  void performPendingRetransforms_isolatesHealthyClassFromPermanentlyFailingBatchMateViaBisection()
       throws Exception {
-    // A batch containing one permanently-failing class and one otherwise-healthy class fails
-    // atomically on every attempt while both are queued together, so both accumulate the same
-    // failure count and are dropped in the same call once MAX_RETRANSFORM_ATTEMPTS is reached —
-    // the healthy class is never isolated from its unrelated batch-mate and never retransforms.
-    // This documents a real limitation of per-class attempt counting: it bounds retention (no
-    // Metaspace leak) but does not guarantee an unrelated healthy class in the same batch is ever
-    // successfully retransformed.
+    // A batch containing one permanently-failing class and one otherwise-healthy class fails once
+    // as a pair. Instead of tying both classes' failure counts together, the batch is immediately
+    // bisected into two singleton batches, deferred to the next heartbeat. On the next heartbeat
+    // the healthy class retransforms successfully on its own, isolated from its unrelated,
+    // permanently-failing batch-mate.
     Class<?> poison = Target.class;
     Class<?> healthy = Other.class;
 
     Instrumentation instr = mock(Instrumentation.class);
     when(instr.isModifiableClass(poison)).thenReturn(true);
     when(instr.isModifiableClass(healthy)).thenReturn(true);
-    doThrow(new RuntimeException("retransform failed")).when(instr).retransformClasses(any());
+    doAnswer(
+            invocation -> {
+              // Mockito flattens the varargs invocation, so getArguments() yields the individual
+              // Class<?> elements rather than the backing array.
+              for (Object arg : invocation.getArguments()) {
+                if (arg == poison) {
+                  throw new RuntimeException("retransform failed");
+                }
+              }
+              return null;
+            })
+        .when(instr)
+        .retransformClasses(any());
 
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
-    t.pendingRetransform.add(poison);
-    t.pendingRetransform.add(healthy);
+    t.pendingRetransform.add(new ArrayList<>(Arrays.asList(poison, healthy)));
 
-    for (int attempt = 1; attempt <= 6; attempt++) {
-      t.performPendingRetransforms();
-    }
+    t.performPendingRetransforms(); // batch of 2 fails, bisects into [poison] and [healthy]
+    t.performPendingRetransforms(); // [healthy] succeeds alone; [poison] keeps failing alone
 
+    verify(instr).retransformClasses(healthy);
     assertTrue(
-        t.pendingRetransform.isEmpty(),
-        "both classes must be dropped once the shared batch exceeds the retry limit");
+        t.pendingRetransform.stream().noneMatch(batch -> batch.contains(healthy)),
+        "healthy class must be successfully retransformed and not remain queued");
     assertTrue(
-        t.retransformFailureCount.isEmpty(),
-        "failure counts for both classes must be cleared once dropped");
+        t.retransformFailureCount.containsKey(poison),
+        "poison class must still be tracked as a failing singleton batch");
   }
 
   @Test

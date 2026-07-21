@@ -177,7 +177,8 @@ class ScaReachabilityTransformerJava9Test {
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
     ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, mockInstr);
 
-    transformer.pendingRetransform.add(com.fasterxml.jackson.databind.ObjectMapper.class);
+    transformer.pendingRetransform.add(
+        singletonList(com.fasterxml.jackson.databind.ObjectMapper.class));
     transformer.performPendingRetransforms();
 
     assertFalse(
@@ -223,7 +224,8 @@ class ScaReachabilityTransformerJava9Test {
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(crossJarJson));
     ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, mockInstr);
 
-    transformer.pendingRetransform.add(com.fasterxml.jackson.databind.ObjectMapper.class);
+    transformer.pendingRetransform.add(
+        singletonList(com.fasterxml.jackson.databind.ObjectMapper.class));
     transformer.performPendingRetransforms();
 
     // jackson-core is on the test classpath (transitive dependency of jackson-databind).
@@ -307,7 +309,8 @@ class ScaReachabilityTransformerJava9Test {
 
     assertEquals(1, transformer.pendingRetransform.size());
     assertSame(
-        ScaReachabilityMethodLevelTest.TargetClass.class, transformer.pendingRetransform.peek());
+        ScaReachabilityMethodLevelTest.TargetClass.class,
+        transformer.pendingRetransform.peek().get(0));
   }
 
   @Test
@@ -315,12 +318,14 @@ class ScaReachabilityTransformerJava9Test {
     ScaReachabilityTransformer transformer =
         new ScaReachabilityTransformer(
             ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}")), null);
-    transformer.pendingRetransform.add(ScaReachabilityMethodLevelTest.TargetClass.class);
+    transformer.pendingRetransform.add(
+        singletonList(ScaReachabilityMethodLevelTest.TargetClass.class));
 
     transformer.performPendingRetransforms();
 
     assertSame(
-        ScaReachabilityMethodLevelTest.TargetClass.class, transformer.pendingRetransform.peek());
+        ScaReachabilityMethodLevelTest.TargetClass.class,
+        transformer.pendingRetransform.peek().get(0));
   }
 
   @Test
