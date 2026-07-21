@@ -2286,6 +2286,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         // skips interception for non-intercepted tags is deferred to the dense-store / tag-registry
         // work, which will expose intercept status at the internal-api level.
         context.setAllTags(spanPrototype.tags());
+        // Apply the integration-name side effect BaseDecorator.afterStart performs alongside the
+        // component tag; IntegrationAdder serializes it as _dd.integration.
+        final CharSequence integrationName = spanPrototype.integrationName();
+        if (integrationName != null) {
+          context.setIntegrationName(integrationName);
+        }
       }
       context.setAllTags(tagLedger);
       context.setAllTags(coreTags, coreTagsNeedsIntercept);

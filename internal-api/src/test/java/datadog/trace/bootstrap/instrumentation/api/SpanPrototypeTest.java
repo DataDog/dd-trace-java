@@ -11,12 +11,16 @@ class SpanPrototypeTest {
   void extendsInheritsBaseIdentityAndTagsThenOverrides() {
     final SpanPrototype base =
         SpanPrototype.builder()
-            .instrumentationName("base")
-            .spanType("base-type")
+            .initInstrumentationName("base")
+            .initSpanType("base-type")
             .initKind("server")
             .build();
     final SpanPrototype derived =
-        SpanPrototype.builder().extends_(base).initComponent("netty").spanType("http").build();
+        SpanPrototype.builder()
+            .extends_(base)
+            .initComponentOnly("netty")
+            .initSpanType("http")
+            .build();
 
     assertEquals("base", derived.instrumentationName()); // inherited
     assertEquals("http", derived.spanType()); // overridden
@@ -30,7 +34,7 @@ class SpanPrototypeTest {
     // empty tag. A raw tags.set would otherwise bake a tag that per-span stamping never emits.
     final SpanPrototype proto =
         SpanPrototype.builder()
-            .initComponent("") // empty -> dropped
+            .initComponentOnly("") // empty -> dropped
             .initKind("") // empty -> dropped
             .initTag("empty.cs", "") // empty CharSequence -> dropped
             .initTag("null.cs", (CharSequence) null) // null -> dropped
