@@ -103,6 +103,19 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     "test-efd-new-slow-test"            | [TestSucceedKarateSlow]            | [] // is executed only twice
     "test-efd-faulty-session-threshold" | [TestParameterizedMoreCasesKarate] | []
     "test-efd-skip-new-test"            | [TestSucceedKarateSkipEfd]         | []
+    "test-efd-called-feature"           | [TestSucceedCalledFeatureKarate]   | [new TestFQN("[org/example/test_called_feature] test called feature", "caller")]
+  }
+
+  def "test early flakiness detection ignores setup scenarios"() {
+    given:
+    Assumptions.assumeTrue(KarateUtils.isSetupTagSupported(KarateUtils.getKarateVersion()))
+
+    givenEarlyFlakinessDetectionEnabled(true)
+    givenKnownTests([])
+
+    runTests([TestWithSetupKarate])
+
+    assertSpansData("test-efd-setup")
   }
 
   def "test quarantined #testcaseName"() {
