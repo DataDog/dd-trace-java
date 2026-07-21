@@ -23,10 +23,12 @@ import java.io.StringWriter;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -442,7 +444,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withTag("databricks_task_run_id", databricksTaskRunId);
 
       AgentSpanContext parentContext =
-          new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
+          new DatabricksParentContext(
+              databricksJobId,
+              databricksJobRunId,
+              databricksTaskRunId,
+              getDatabricksJobRunAttempt(properties));
 
       if (parentContext.getTraceId() != DDTraceId.ZERO) {
         if (withParentContext) {
@@ -1218,6 +1224,58 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     return null;
+  }
+
+  private static final byte[] JOB_RUN_ATTEMPT_NUM_KEY =
+      "jobRunAttemptNum".getBytes(StandardCharsets.UTF_8);
+
+  /**
+   * Returns the Databricks repair attempt index (0 for the original run, 1+ for each repair). It is
+   * not exposed as a first-class Spark property: the only source is the base64 + java-serialized
+   * "unity.scope.data" local property, under the key "jobRunAttemptNum". We extract it best-effort
+   * by scanning the serialized bytes; on any failure we return 0, which reproduces the original
+   * (non-repair-aware) trace id so correlation is never worse than before.
+   */
+  private static int getDatabricksJobRunAttempt(Properties properties) {
+    String scopeData = properties.getProperty("unity.scope.data");
+    if (scopeData == null) {
+      return 0;
+    }
+    try {
+      byte[] decoded = Base64.getDecoder().decode(scopeData);
+      int keyIdx = indexOf(decoded, JOB_RUN_ATTEMPT_NUM_KEY);
+      if (keyIdx < 0) {
+        return 0;
+      }
+      // In the java-serialized stream the value follows its key as the next string, written as
+      // TC_STRING (0x74) with a 2-byte big-endian length prefix.
+      for (int i = keyIdx + JOB_RUN_ATTEMPT_NUM_KEY.length; i + 3 <= decoded.length; i++) {
+        if (decoded[i] != 0x74) {
+          continue;
+        }
+        int len = ((decoded[i + 1] & 0xff) << 8) | (decoded[i + 2] & 0xff);
+        if (len > 0 && len <= 9 && i + 3 + len <= decoded.length) {
+          return Integer.parseInt(new String(decoded, i + 3, len, StandardCharsets.UTF_8));
+        }
+        break;
+      }
+    } catch (Exception e) {
+      log.debug("Unable to extract databricks job run attempt from unity.scope.data", e);
+    }
+    return 0;
+  }
+
+  private static int indexOf(byte[] haystack, byte[] needle) {
+    outer:
+    for (int i = 0; i <= haystack.length - needle.length; i++) {
+      for (int j = 0; j < needle.length; j++) {
+        if (haystack[i + j] != needle[j]) {
+          continue outer;
+        }
+      }
+      return i;
+    }
+    return -1;
   }
 
   private String stackTraceToString(Throwable e) {

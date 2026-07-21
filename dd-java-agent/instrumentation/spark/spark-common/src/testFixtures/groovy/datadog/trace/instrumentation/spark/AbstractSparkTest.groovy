@@ -500,10 +500,13 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
 
   def "compute the databricks parent context"() {
     setup:
-    def contextWithJobRunId = new DatabricksParentContext("1234", "5678", "9012")
-    def contextWithoutJobRunId = new DatabricksParentContext("1234", null, "9012")
-    def contextWithoutJobId = new DatabricksParentContext(null, "5678", "9012")
-    def contextWithoutTaskRunId = new DatabricksParentContext(null, "5678", null)
+    def contextWithJobRunId = new DatabricksParentContext("1234", "5678", "9012", 0)
+    def contextWithoutJobRunId = new DatabricksParentContext("1234", null, "9012", 0)
+    def contextWithoutJobId = new DatabricksParentContext(null, "5678", "9012", 0)
+    def contextWithoutTaskRunId = new DatabricksParentContext(null, "5678", null, 0)
+    // A repaired run reuses the same jobRunId but reports a non-zero attempt, which must yield a
+    // different trace id (its own trace) while a repaired task keeps its own fresh taskRunId span id.
+    def contextRepairedAttempt = new DatabricksParentContext("1234", "5678", "9012", 1)
 
     expect:
     contextWithJobRunId.getTraceId() == DDTraceId.from("8944764253919609482")
@@ -517,6 +520,9 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
 
     contextWithoutTaskRunId.getTraceId() == DDTraceId.ZERO
     contextWithoutTaskRunId.getSpanId() == DDSpanId.ZERO
+
+    contextRepairedAttempt.getTraceId() != contextWithJobRunId.getTraceId()
+    contextRepairedAttempt.getSpanId() == contextWithJobRunId.getSpanId()
   }
 
   private Dataset<Row> generateSampleDataframe(SparkSession spark) {
