@@ -62,8 +62,8 @@ public class WebsocketDecorator extends BaseDecorator {
   }
 
   @Override
-  public void afterStart(AgentSpan span) {
-    super.afterStart(span);
+  protected void doAfterStart(AgentSpan span) {
+    super.doAfterStart(span);
     span.setMeasured(true);
   }
 
