@@ -33,7 +33,9 @@ public final class ServerRequestContext {
     final ServerRequestContext serverContext = new ServerRequestContext(context, acceptHeader);
     contexts.addLast(serverContext);
     // The deque is authoritative for server request/response matching. CONTEXT_ATTRIBUTE_KEY is a
-    // legacy mirror of the current inbound request used by generic fire* activation.
+    // context mirror of the current inbound request used by
+    // NettyChannelHandlerContextInstrumentation.FireAdvice and copied to HTTP/2 stream channels by
+    // Http2MultiplexHandlerStreamChannelInstrumentation.
     attributes.attr(CONTEXT_ATTRIBUTE_KEY).set(context);
     return serverContext;
   }
@@ -85,8 +87,8 @@ public final class ServerRequestContext {
         // getOrCreate will recreate it lazily if another request arrives.
         attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).remove();
       } else {
-        // Keep the legacy mirror pointed at the current inbound request after removing an older
-        // response context.
+        // Keep the context mirror pointed at the current inbound request after removing an older
+        // response context. It may still be copied to a new HTTP/2 stream channel.
         attributes.attr(CONTEXT_ATTRIBUTE_KEY).set(currentContext.tracingContext());
       }
     }
@@ -94,7 +96,7 @@ public final class ServerRequestContext {
 
   /** Closes all pending request contexts on channel close. */
   public static void closeAll(final AttributeMap attributes) {
-    // The legacy mirror must not outlive the authoritative request queue.
+    // The context mirror must not outlive the authoritative request queue.
     attributes.attr(CONTEXT_ATTRIBUTE_KEY).remove();
     attributes.attr(BLOCKED_RESPONSE_ATTRIBUTE_KEY).remove();
     close(attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).getAndRemove());

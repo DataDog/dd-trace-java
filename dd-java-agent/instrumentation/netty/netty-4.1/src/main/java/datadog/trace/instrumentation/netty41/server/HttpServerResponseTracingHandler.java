@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.netty41.server;
 
+import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.WEBSOCKET_SENDER_HANDLER_CONTEXT;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 
@@ -28,7 +29,13 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
     }
 
     final ServerRequestContext serverContext = ServerRequestContext.nextResponse(ctx.channel());
-    final Context storedContext = serverContext == null ? null : serverContext.tracingContext();
+    final Context storedContext =
+        serverContext == null
+            // HTTP/2 multiplex stream channels only inherit the mirrored context attribute from
+            // Http2MultiplexHandlerStreamChannelInstrumentation.PropagateContextAdvice, without a
+            // per-stream request queue.
+            ? ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get()
+            : serverContext.tracingContext();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
 
     if (span == null) {
@@ -45,7 +52,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         DECORATE.onError(span, throwable);
         span.setHttpStatusCode(500);
         span.finish(); // Finish the span manually since finishSpanOnClose was false
-        ServerRequestContext.remove(ctx.channel(), serverContext);
+        removeServerContext(ctx, serverContext);
         throw throwable;
       }
       final boolean isWebsocketUpgrade =
@@ -61,8 +68,17 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         DECORATE.onResponse(span, response);
         DECORATE.beforeFinish(scope.context());
         span.finish(); // Finish the span manually since finishSpanOnClose was false
-        ServerRequestContext.remove(ctx.channel(), serverContext);
+        removeServerContext(ctx, serverContext);
       }
+    }
+  }
+
+  private static void removeServerContext(
+      final ChannelHandlerContext ctx, final ServerRequestContext serverContext) {
+    if (serverContext == null) {
+      ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
+    } else {
+      ServerRequestContext.remove(ctx.channel(), serverContext);
     }
   }
 }
