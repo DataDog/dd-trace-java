@@ -94,13 +94,13 @@ public class LibertyDecorator
   }
 
   @Override
-  public void onResponseStatus(AgentSpan span, int status) {
+  protected void doOnResponseStatus(AgentSpan span, int status) {
     Integer currentStatus = (Integer) span.getTag(Tags.HTTP_STATUS);
     // do not set status if the tag is already there and it's an error span
     // we may have the status during response blocking, but in that case
     // the status code is not propagated to the servlet layer
     if (currentStatus == null || !span.isError()) {
-      super.onResponseStatus(span, status);
+      super.doOnResponseStatus(span, status);
     }
   }
 

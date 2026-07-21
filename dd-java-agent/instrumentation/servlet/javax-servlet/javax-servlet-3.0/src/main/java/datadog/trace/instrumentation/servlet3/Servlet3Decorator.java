@@ -97,7 +97,7 @@ public class Servlet3Decorator
   }
 
   @Override
-  public void onRequest(
+  protected void doOnRequest(
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
@@ -116,7 +116,7 @@ public class Servlet3Decorator
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
-    super.onRequest(span, connection, request, parentContext);
+    super.doOnRequest(span, connection, request, parentContext);
   }
 
   @Override
