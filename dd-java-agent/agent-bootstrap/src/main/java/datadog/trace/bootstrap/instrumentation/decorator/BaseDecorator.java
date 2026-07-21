@@ -137,7 +137,7 @@ public abstract class BaseDecorator {
     }
   }
 
-  public final void beforeFinish(@Nonnull final Context context) {
+  public final void beforeFinish(final Context context) {
     try {
       doBeforeFinish(context);
     } catch (BlockingException e) {
@@ -147,7 +147,7 @@ public abstract class BaseDecorator {
     }
   }
 
-  protected void doBeforeFinish(@Nonnull final Context context) {}
+  protected void doBeforeFinish(final Context context) {}
 
   public final void onError(@Nullable final AgentScope scope, @Nullable final Throwable throwable) {
     if (scope != null) {
@@ -186,21 +186,18 @@ public abstract class BaseDecorator {
     }
   }
 
-  public final void onPeerConnection(
-      @Nonnull final AgentSpan span, @Nullable final InetSocketAddress remoteConnection) {
+  public final void onPeerConnection(final AgentSpan span, @Nullable final InetSocketAddress remoteConnection) {
     if (remoteConnection != null) {
       onPeerConnection(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
       setPeerPort(span, remoteConnection.getPort());
     }
   }
 
-  public final void onPeerConnection(
-      @Nonnull final AgentSpan span, @Nullable final InetAddress remoteAddress) {
+  public final void onPeerConnection(final AgentSpan span, @Nullable final InetAddress remoteAddress) {
     onPeerConnection(span, remoteAddress, true);
   }
 
-  public final void onPeerConnection(
-      @Nonnull AgentSpan span, @Nullable InetAddress remoteAddress, boolean resolved) {
+  public final void onPeerConnection(AgentSpan span, @Nullable InetAddress remoteAddress, boolean resolved) {
     if (remoteAddress != null) {
       String ip = remoteAddress.getHostAddress();
       if (resolved && Config.get().isPeerHostNameEnabled()) {
@@ -227,9 +224,6 @@ public abstract class BaseDecorator {
   /**
    * This method is used to generate an acceptable span (operation) name based on a given method
    * reference. Anonymous classes are named based on their parent.
-   *
-   * @param method
-   * @return
    */
   public CharSequence spanNameForMethod(final Method method) {
     return spanNameForMethod(method.getDeclaringClass(), method);
@@ -242,7 +236,7 @@ public abstract class BaseDecorator {
    * @param method the method to get the name from, nullable
    * @return the span name from the class and method
    */
-  public CharSequence spanNameForMethod(final Class<?> clazz, final Method method) {
+  public CharSequence spanNameForMethod(final Class<?> clazz, @Nullable final Method method) {
     if (null == method) {
       return CLASS_NAMES.getClassName(clazz);
     }
@@ -256,16 +250,13 @@ public abstract class BaseDecorator {
    * @param methodName the name of the method to get the name from, nullable
    * @return the span name from the class and method
    */
-  public CharSequence spanNameForMethod(final Class<?> clazz, final String methodName) {
+  public CharSequence spanNameForMethod(final Class<?> clazz, @Nullable final String methodName) {
     return CLASS_NAMES.getQualifiedName(clazz, methodName);
   }
 
   /**
    * This method is used to generate an acceptable span (operation) name based on a given class
    * reference. Anonymous classes are named based on their parent.
-   *
-   * @param clazz
-   * @return
    */
   public CharSequence className(final Class<?> clazz) {
     String simpleName = clazz.getSimpleName();
