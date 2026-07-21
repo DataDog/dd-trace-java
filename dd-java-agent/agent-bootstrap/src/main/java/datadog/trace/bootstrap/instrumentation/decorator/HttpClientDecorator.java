@@ -92,7 +92,17 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
             }
           };
 
-  public void onRequest(final AgentSpan span, final REQUEST request) {
+  public final void onRequest(final AgentSpan span, final REQUEST request) {
+    try {
+      doOnRequest(span, request);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on request", t);
+    }
+  }
+
+  protected void doOnRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {
       AgentTracer.get()
           .getDataStreamsMonitoring()
