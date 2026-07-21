@@ -384,6 +384,98 @@ class ScaReachabilityMethodLevelTest {
     return first[0];
   }
 
+  /**
+   * Fixture exercising the instruction kinds {@link ScaMethodCallbackInjector.MethodEntryInjector}
+   * must forward to the delegate unchanged: BIPUSH ({@code visitIntInsn}), a conditional jump
+   * ({@code visitJumpInsn}), a loop increment ({@code visitIincInsn}), a dense switch ({@code
+   * visitTableSwitchInsn}), a sparse switch ({@code visitLookupSwitchInsn}) and a 2D array
+   * allocation ({@code visitMultiANewArrayInsn}).
+   */
+  public static class OpcodeCoverageMethods {
+    public static int intInsn() {
+      return 100;
+    }
+
+    public static int jumpInsn(boolean flag) {
+      if (flag) {
+        return 1;
+      }
+      return 2;
+    }
+
+    public static int iincInsn() {
+      int i = 0;
+      i++;
+      return i;
+    }
+
+    public static int tableSwitchInsn(int x) {
+      switch (x) {
+        case 0:
+          return 1;
+        case 1:
+          return 2;
+        case 2:
+          return 3;
+        default:
+          return -1;
+      }
+    }
+
+    public static int lookupSwitchInsn(int x) {
+      switch (x) {
+        case 0:
+          return 1;
+        case 100:
+          return 2;
+        case 10000:
+          return 3;
+        default:
+          return -1;
+      }
+    }
+
+    public static int[][] multiANewArrayInsn() {
+      return new int[2][3];
+    }
+  }
+
+  @Test
+  void inject_preservesBehaviorForAllInstructionKinds() throws Exception {
+    // Coverage for MethodEntryInjector's visitIntInsn/visitJumpInsn/visitIincInsn/
+    // visitTableSwitchInsn/visitLookupSwitchInsn/visitMultiANewArrayInsn overrides: each must
+    // forward to the delegate unchanged so the original method body still executes correctly
+    // once the entry callback is spliced in.
+    byte[] original = bytecodeOf(OpcodeCoverageMethods.class);
+    Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks = new HashMap<>();
+    for (String methodName :
+        new String[] {
+          "intInsn",
+          "jumpInsn",
+          "iincInsn",
+          "tableSwitchInsn",
+          "lookupSwitchInsn",
+          "multiANewArrayInsn"
+        }) {
+      callbacks.put(
+          methodName,
+          Collections.singletonList(
+              spec("GHSA-" + methodName, "com.example:lib", "1.0.0", "T", methodName)));
+    }
+
+    Class<?> cls = loadModified(ScaMethodCallbackInjector.inject(original, callbacks));
+
+    assertEquals(100, cls.getMethod("intInsn").invoke(null));
+    assertEquals(1, cls.getMethod("jumpInsn", boolean.class).invoke(null, true));
+    assertEquals(2, cls.getMethod("jumpInsn", boolean.class).invoke(null, false));
+    assertEquals(1, cls.getMethod("iincInsn").invoke(null));
+    assertEquals(2, cls.getMethod("tableSwitchInsn", int.class).invoke(null, 1));
+    assertEquals(2, cls.getMethod("lookupSwitchInsn", int.class).invoke(null, 100));
+    assertEquals(2, ((int[][]) cls.getMethod("multiANewArrayInsn").invoke(null)).length);
+
+    assertEquals(6, drainHits().size(), "each instrumented method fires its own callback");
+  }
+
   // ---------------------------------------------------------------------------
   // transform(): two-phase design — first load enqueues, retransform injects
   // ---------------------------------------------------------------------------
