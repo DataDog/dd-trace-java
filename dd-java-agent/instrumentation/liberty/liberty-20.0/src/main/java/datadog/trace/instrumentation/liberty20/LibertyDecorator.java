@@ -8,6 +8,7 @@ import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.ws.webcontainer.webapp.WebAppErrorReport;
 import com.ibm.wsspi.webcontainer.servlet.IExtendedResponse;
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -32,6 +33,7 @@ public class LibertyDecorator
 
   public static final CharSequence LIBERTY_SERVER = UTF8BytesString.create("liberty-server");
   public static final LibertyDecorator DECORATE = new LibertyDecorator();
+  private static final Logger log = LoggerFactory.getLogger(LibertyDecorator.class);
   public static final CharSequence SERVLET_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());
   public static final String DD_PARENT_CONTEXT_ATTRIBUTE = "datadog.parent-context";
@@ -126,13 +128,23 @@ public class LibertyDecorator
     return true;
   }
 
-  protected void doOnResponse(AgentSpan span, SRTServletResponse response) {
+  public void onResponse(AgentSpan span, SRTServletResponse response) {
+    try {
+      decorateResponse(span, response);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on response", t);
+    }
+  }
+
+  private void decorateResponse(AgentSpan span, SRTServletResponse response) {
     HttpServletRequest req = response.getRequest();
 
     if (Config.get().isServletPrincipalEnabled() && req.getUserPrincipal() != null) {
       span.setTag(DDTags.USER_NAME, req.getUserPrincipal().getName());
     }
-    super.doOnResponse(span, response);
+    super.onResponse(span, response);
 
     Object ex = req.getAttribute("javax.servlet.error.exception");
     Object report;
