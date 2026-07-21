@@ -84,7 +84,7 @@ public class PlayHttpServerDecorator
   }
 
   @Override
-  public void onRequest(
+  protected void doOnRequest(
       final AgentSpan span,
       final Request<?> connection,
       final Request<?> request,
@@ -96,7 +96,7 @@ public class PlayHttpServerDecorator
     // forwarded one. This way the IG callbacks and tags receive the correct peer.
     // (APPSEC-62562)
     final Request<?> connectionForSuper = withCapturedPeer(span, connection);
-    super.onRequest(span, connectionForSuper, request, parentContext);
+    super.doOnRequest(span, connectionForSuper, request, parentContext);
     if (request != null) {
       // more about routes here:
       // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md#router-tags-are-now-attributes

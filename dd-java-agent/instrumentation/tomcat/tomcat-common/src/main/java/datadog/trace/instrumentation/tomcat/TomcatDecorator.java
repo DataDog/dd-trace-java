@@ -95,7 +95,7 @@ public class TomcatDecorator
   }
 
   @Override
-  public void onRequest(
+  protected void doOnRequest(
       final AgentSpan span,
       final Request connection,
       final Request request,
@@ -117,7 +117,7 @@ public class TomcatDecorator
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
-    super.onRequest(span, connection, request, parentContext);
+    super.doOnRequest(span, connection, request, parentContext);
   }
 
   @Override
