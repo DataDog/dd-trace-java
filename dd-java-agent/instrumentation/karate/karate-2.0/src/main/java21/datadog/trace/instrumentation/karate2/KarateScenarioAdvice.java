@@ -44,6 +44,8 @@ public class KarateScenarioAdvice {
       ExecutionContext context =
           InstrumentationContext.get(Scenario.class, ExecutionContext.class).get(scenario);
       if (context == null || !context.isTestStarted()) {
+        // avoid retrying an aborted scenario that did not start, as the execution policy will not
+        // advance and loop
         return;
       }
       KarateTracingListener.afterScenario(scenarioRuntime, result, context);
