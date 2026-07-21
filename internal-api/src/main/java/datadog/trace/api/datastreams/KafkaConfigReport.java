@@ -11,7 +11,7 @@ import java.util.Objects;
 public class KafkaConfigReport implements InboxItem {
   private static final int NO_GENERATION = -1;
 
-  private final String type;
+  private final String type; // "kafka_producer" or "kafka_consumer"
   private final String kafkaClusterId;
   private final String consumerGroup;
   private final String memberId;

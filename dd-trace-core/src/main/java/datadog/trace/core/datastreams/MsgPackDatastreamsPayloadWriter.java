@@ -293,6 +293,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     packer.writeUTF8(CONFIGS);
     packer.startArray(configs.size());
     for (KafkaConfigReport config : configs) {
+      // Type, KafkaClusterId, ConsumerGroup, MemberId, GenerationId, MemberProtocol, Config
       packer.startMap(7);
 
       packer.writeUTF8(CONFIG_TYPE);
