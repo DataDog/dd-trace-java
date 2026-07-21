@@ -36,9 +36,7 @@ public class StateAdvice {
     }
     final AgentSpan span = scope.span();
     final Context context = scope.context();
-    if (throwable != null) {
-      DECORATE.onError(span, throwable);
-    }
+    DECORATE.onError(span, throwable);
     DECORATE.beforeFinish(context);
     scope.close();
     span.finish();
