@@ -39,19 +39,20 @@ public class KarateScenarioAdvice {
         return;
       }
 
+      Scenario scenario = scenarioRuntime.getScenario();
+      ExecutionContext context =
+          InstrumentationContext.get(Scenario.class, ExecutionContext.class).get(scenario);
+      if (context == null) {
+        return;
+      }
+      KarateTracingListener.afterScenario(scenarioRuntime, result, context);
+
       if (CallDepthThreadLocalMap.incrementCallDepth(ScenarioRuntime.class) > 0) {
-        // nested call (a retry invoked below, or a called scenario)
+        // retry invoked below
         return;
       }
 
       try {
-        Scenario scenario = scenarioRuntime.getScenario();
-        ExecutionContext context =
-            InstrumentationContext.get(Scenario.class, ExecutionContext.class).get(scenario);
-        if (context == null) {
-          return;
-        }
-
         ScenarioResult finalResult = result;
         TestExecutionPolicy executionPolicy = context.getExecutionPolicy();
         while (executionPolicy.applicable()) {
@@ -79,7 +80,7 @@ public class KarateScenarioAdvice {
         @Advice.Argument(value = 0, readOnly = false) StepResult stepResult,
         @Advice.FieldValue("scenario") Scenario scenario) {
 
-      if (stepResult.isFailed()) {
+      if (stepResult.isFailed() && !scenario.isFail()) {
         ExecutionContext executionContext =
             InstrumentationContext.get(Scenario.class, ExecutionContext.class).get(scenario);
         if (executionContext == null) {

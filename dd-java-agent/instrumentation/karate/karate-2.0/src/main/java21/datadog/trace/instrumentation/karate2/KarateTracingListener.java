@@ -61,6 +61,14 @@ public class KarateTracingListener implements RunListener {
     return true;
   }
 
+  private void afterScenario(ScenarioRunEvent event) {
+    ScenarioRuntime sr = event.source();
+    Scenario scenario = sr.getScenario();
+    if (scenarioContext.get(scenario) == null) {
+      afterScenario(sr, event.result(), null);
+    }
+  }
+
   private boolean beforeFeature(FeatureRunEvent event) {
     FeatureRuntime fr = event.source();
     if (skipTracking(fr)) {
@@ -149,16 +157,14 @@ public class KarateTracingListener implements RunListener {
     return true;
   }
 
-  private void afterScenario(ScenarioRunEvent event) {
-    ScenarioRuntime sr = event.source();
+  public static void afterScenario(
+      ScenarioRuntime sr, ScenarioResult result, ExecutionContext context) {
     if (skipTracking(sr)) {
       return;
     }
     Scenario scenario = sr.getScenario();
-    ScenarioResult result = event.result();
     TestDescriptor testDescriptor = KarateUtils.toTestDescriptor(sr);
 
-    ExecutionContext context = scenarioContext.get(scenario);
     Throwable suppressedError = context != null ? context.getAndClearSuppressedError() : null;
     Throwable failedReason = getFailedReason(result, suppressedError);
 
