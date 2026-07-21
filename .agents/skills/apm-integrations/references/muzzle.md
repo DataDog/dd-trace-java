@@ -202,9 +202,14 @@ muzzle {
 
 An eval regenerated this WITHOUT the `fail` block. Muzzle would still likely fail naturally on rxjava2 (the FQNs don't exist in that artifact), but the explicit assertion is what catches the failure at CI time with a specific error message rather than a generic muzzle mismatch.
 
-**Rule:** for any module whose brand has a prior major version published under different Maven coordinates in the same repo, check master for a `muzzle { fail { name = "..." } }` block. If present, preserve verbatim on regen. When creating a new module for a library that has a prior-major sibling module in the repo, add such a fail block to assert non-overlap.
+**Rule:** for any module whose brand has a prior major version — **whether published under different Maven coordinates or under the same coordinates at an incompatible major** — check master for a `muzzle { fail { name = "..." } }` block. If present, preserve verbatim on regen. When creating a new module for a library that has a prior-major sibling module in the repo, add such a fail block to assert non-overlap.
 
-Common cases where this applies: `rxjava-2.0` ↔ `rxjava-3.0`, `okhttp-2.0` ↔ `okhttp-3.0`, `jedis-1.4` ↔ `jedis-3.0` ↔ `jedis-4.0`, `jetty-server-7.0` ↔ `jetty-server-9.0.4` ↔ `jetty-server-11.0` (etc.).
+Common cases where this applies:
+
+- **Different Maven coordinates:** `rxjava-2.0` (`io.reactivex.rxjava2:rxjava`) ↔ `rxjava-3.0` (`io.reactivex.rxjava3:rxjava`); `javax-jms-*` ↔ `jakarta-jms-*`; `spring-webflux-5.0` (`org.springframework:spring-webflux`) ↔ `spring-webflux-6.0` (`org.springframework:spring-webflux`, but Jakarta EE 9+ package rename).
+- **Same Maven coordinates, incompatible majors:** `okhttp-2.0` ↔ `okhttp-3.0` (both `com.squareup.okhttp*`, package renamed at v3); `jedis-1.4` ↔ `jedis-3.0` ↔ `jedis-4.0` (all `redis.clients:jedis`, API changed across majors); `jetty-server-7.0` ↔ `jetty-server-9.0.4` ↔ `jetty-server-11.0` (all `org.eclipse.jetty:jetty-server`, `javax.servlet` → `jakarta.servlet` at 11+).
+
+For same-coordinate cases, the `fail` block still applies: it asserts the older major's version range does NOT match the newer module's advice, even though the coordinates are identical. Look for `versions = "[,3.0.0)"` bounded ranges in the master's `fail` block, not a coordinate difference.
 
 ## Preserve `compileOnly` dependency versions on regen
 
@@ -232,7 +237,14 @@ dependencies {
 
 ## Preserve test-scope build.gradle dependencies on regen
 
-When regenerating an existing module, preserve every `testImplementation`, `latestDepTestImplementation`, and `forkedTestImplementation` dependency verbatim unless the corresponding test file is also being removed. Do not drop cross-module test dependencies — they back annotation-driven and cross-tracer interop tests that silently fail to compile or run without them.
+When regenerating an existing module, preserve every test-scope dependency verbatim — **including runtime-only scopes** — unless the corresponding test file is also being removed. The full set to preserve is:
+
+- `testImplementation`, `latestDepTestImplementation`, `forkedTestImplementation` (compile-scope test deps)
+- `testRuntimeOnly`, `latestDepTestRuntimeOnly`, `forkedTestRuntimeOnly` (runtime-only test deps — **these do NOT show up as compile failures if dropped**)
+
+Do not drop cross-module test dependencies — they back annotation-driven, cross-tracer interop, and cross-instrumentation-coexistence tests that silently fail to compile or run without them.
+
+**Why runtime-only scopes matter:** modules like `rxjava-3.0` declare `testRuntimeOnly project(':dd-java-agent:instrumentation:rxjava:rxjava-2.0')` to load the rxjava2 instrumenter into the test JVM. This is what verifies rxjava3 tests are NOT accidentally being served by rxjava2's advice (the mutual-exclusion coverage that pairs with the `muzzle { fail { ... } }` block above). Dropping the `testRuntimeOnly` dep still compiles cleanly — but the test JVM no longer has rxjava2's instrumenter loaded, so the mutual-exclusion coverage silently disappears with no CI signal.
 
 **Concrete failure pattern (from dd-trace-java PR #11940, reactor-core-3.1 regen):** the eval dropped these test dependencies:
 

@@ -136,7 +136,22 @@ OptimizableOperatorInstrumentation.java
 
 The eval output kept only 2 (`ReactorCoreModule`, `ReactorAsyncResultExtension`) and added 3 new ones (`FluxInstrumentation`, `MonoInstrumentation`, `TracingCoreSubscriber`). Net effect: 5 master classes silently dropped, including `ReactorContextBridge` — which is what breaks Spring WebFlux, Spring Kafka reactive, and other downstream Reactor-based libraries. No CI check on the target module catches it; the regression only surfaces when sibling-module tests fail.
 
-**How to apply this rule:** before generating, enumerate every `.java` file in the existing module — `find dd-java-agent/instrumentation/<module>/src/main/java -name "*.java"` — and record each filename. After generating, diff that list against the classes in your output. Any master class not present in the output must be explicitly justified in the PR description.
+**How to apply this rule:** before generating, enumerate every production source file in the existing module — **not just `src/main/java`**. Several modules keep production classes in version-specific or JVM-specific source sets:
+
+- `src/main/java17` — Java 17-only APIs (`kafka-clients-3.8`, `jetty-server-12.0`)
+- `src/main/java11` — Java 11-only APIs (some HTTP-client modules)
+- `src/main/groovy` — Groovy production classes (rare, but present in some modules)
+- `src/main/scala` — Scala production classes (Play framework, some Akka modules)
+
+A regen that walks only `src/main/java` will silently miss version-specific instrumentation classes and lose them from the output. Use this command instead:
+
+```
+find dd-java-agent/instrumentation/<module>/src/main \
+     \( -name "*.java" -o -name "*.groovy" -o -name "*.scala" -o -name "*.kt" \) \
+     -type f
+```
+
+Record each filename. After generating, diff that list against the classes in your output. Any master class not present in the output must be explicitly justified in the PR description.
 
 ### Preserve declarative-array ordering (`helperClassNames`, `contextStore` keys)
 

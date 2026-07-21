@@ -127,7 +127,9 @@ Master's solution: put version-sensitive tests in `src/latestDepTest/` where the
 **Rule:**
 - Before generating tests, `ls src/latestDepTest/` in master's module. If it exists, the regen must include the equivalent source set.
 - If master's `build.gradle` has `addTestSuiteForDir('latestDepTest', ...)` or `addTestSuite('latestDepTest')`, preserve that declaration verbatim.
-- When generating tests for a library that has deprecated or removed APIs across recent minor versions, use `latestDepTest/` for tests that exercise those APIs and `test/` for tests that exercise stable APIs.
+- **Route each test to the source set whose classpath actually satisfies its imports.** Two distinct scenarios drive the split:
+  - **API is only in the latest version** (added after the pinned min) → the test uses that API, must go in `src/latestDepTest/`. `src/test/` compiles against `testImplementation` (pinned min), where the API is absent — the test would fail to compile there.
+  - **API is only in the pinned min** (removed in a later version, e.g. Reactor's `Schedulers.elastic()` removed in 3.4+) → the test uses the removed API, must go in `src/test/` and NOT in `latestDepTest/`. Placing it in `src/latestDepTest/` (where the classpath resolves to the latest release) would produce a compile failure like the concrete failure pattern above. Prefer testing the equivalent replacement API (`Schedulers.boundedElastic()`) in `latestDepTest/` instead.
 - Common libraries where this split matters: Reactor (`Schedulers.elastic()` removed in 3.4+), Netty (channel handler API changes across 4.x), gRPC (generated-code shape evolves), Kafka clients (consumer API changed 3.0), Cassandra driver (3.x vs 4.x are largely incompatible).
 
 Source: master's `dd-java-agent/instrumentation/reactor-core-3.1/src/latestDepTest/groovy/ReactorCoreTest.groovy`.
