@@ -273,10 +273,11 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
+    String probeEncodedId = getProbeId().getEncodedId();
     CapturedContext.Status status =
         evaluateAt == MethodLocation.EXIT
-            ? exitContext.getStatus(probeId.getEncodedId())
-            : entryContext.getStatus(probeId.getEncodedId());
+            ? exitContext.getStatus(probeEncodedId)
+            : entryContext.getStatus(probeEncodedId);
     if (status == null) {
       return;
     }
@@ -287,7 +288,7 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
 
   @Override
   public void commit(CapturedContext lineContext, int line) {
-    CapturedContext.Status status = lineContext.getStatus(probeId.getEncodedId());
+    CapturedContext.Status status = lineContext.getStatus(getProbeId().getEncodedId());
     if (status == null) {
       return;
     }
@@ -319,7 +320,7 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     }
     if (!tagsToDecorate.isEmpty()) {
       // only send EMITTING status if we set at least one tag
-      DebuggerAgent.getSink().getProbeStatusSink().addEmitting(probeId);
+      DebuggerAgent.getSink().getProbeStatusSink().addEmitting(getProbeId());
     }
   }
 
