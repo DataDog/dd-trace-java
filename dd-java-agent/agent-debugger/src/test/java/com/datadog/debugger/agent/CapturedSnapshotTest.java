@@ -3,6 +3,10 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.el.DSL.not;
 import static com.datadog.debugger.el.DSL.nullValue;
 import static com.datadog.debugger.el.DSL.ref;
+import static com.datadog.debugger.el.ValueType.INT;
+import static com.datadog.debugger.el.expressions.BooleanExpression.FALSE;
+import static com.datadog.debugger.el.expressions.BooleanExpression.TRUE;
+import static com.datadog.debugger.el.expressions.ComparisonOperator.EQ;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.DEPTH_REASON;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.FIELD_COUNT_REASON;
@@ -17,7 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -34,6 +40,8 @@ import static utils.TestHelper.setFieldInConfig;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.ValueScript;
+import com.datadog.debugger.el.expressions.BooleanExpression;
+import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.StringValue;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.Types;
@@ -50,6 +58,7 @@ import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.datadog.debugger.util.TestSnapshotListener;
 import com.datadog.debugger.util.TestTraceInterceptor;
+import datadog.context.Context;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.Config;
@@ -83,6 +92,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.DoubleConsumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.jetbrains.kotlin.com.intellij.util.lang.JavaVersion;
 import org.joor.Reflect;
 import org.joor.ReflectException;
@@ -93,6 +103,8 @@ import org.junit.jupiter.api.condition.DisabledIf;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import utils.SourceCompiler;
@@ -442,15 +454,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Snapshot snapshot1 = snapshots.get(1);
     assertCaptureArgs(snapshot1.getCaptures().getEntry(), "value", "int", "31");
     assertCaptureReturnValue(snapshot1.getCaptures().getReturn(), "int", "31");
-  }
-
-  private List<Snapshot> assertSnapshots(
-      TestSnapshotListener listener, int expectedCount, ProbeId... probeIds) {
-    assertEquals(expectedCount, listener.snapshots.size());
-    for (int i = 0; i < probeIds.length; i++) {
-      assertEquals(probeIds[i].getId(), listener.snapshots.get(i).getProbe().getId());
-    }
-    return listener.snapshots;
   }
 
   @Test
@@ -2184,6 +2187,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
         IllegalStateException.class.getTypeName(),
         expectedFields);
     listener.snapshots.clear();
+    Context.root().swap(); // clear context for coordinated sampling
     result = Reflect.onClass(testClass).call("main", "illegalArgument").get();
     assertEquals(0, result);
     snapshot = assertOneSnapshot(listener);
@@ -2721,7 +2725,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void ensureCallingSamplingDupMethodProbeCondition()
       throws IOException, URISyntaxException {
-    doSamplingTest(this::mergedProbesWithAdditionalProbeConditionTest, 2, 2);
+    // only one call to sampler because coordinated sampling kicks in
+    doSamplingTest(this::mergedProbesWithAdditionalProbeConditionTest, 1, 1);
   }
 
   @Test
@@ -3296,6 +3301,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
         "Instrumentation failed for com.datadog.debugger.CapturedSnapshot33: Instrumentation of a record with type annotation is not supported",
         strCaptor.getAllValues().get(0));
   }
+
 
   private TestSnapshotListener setupInstrumentTheWorldTransformer(
       String excludeFileName, String includeFileName) {

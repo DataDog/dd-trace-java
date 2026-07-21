@@ -1,6 +1,8 @@
 package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
+import static com.datadog.debugger.probe.LogProbe.CoordinatedSamplingState.Status.DROP;
+import static com.datadog.debugger.probe.LogProbe.CoordinatedSamplingState.Status.EMIT;
 import static java.lang.String.format;
 
 import com.datadog.debugger.agent.DebuggerAgent;
@@ -22,6 +24,8 @@ import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
+import datadog.context.Context;
+import datadog.context.ContextKey;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTraceId;
@@ -47,9 +51,11 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
@@ -507,9 +513,21 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
 
   @Override
   public boolean isReadyToCapture() {
+    CoordinatedSamplingState coordinatedSamplingState = getCoordinatedSamplingState();
+    CoordinatedSamplingState.Status coordinatedSamplingStatus = getCoordinatedSamplingStatus(coordinatedSamplingState);
+    LOGGER.debug("{} isReadyToCapture coordinatedSamplingState: {}", probeId, coordinatedSamplingStatus);
+    if (coordinatedSamplingStatus == DROP) {
+      // if the coordinated sampling is DROP we are bailing out ASAP
+      return false;
+    }
     if (!hasCondition()) {
+      if (coordinatedSamplingStatus == EMIT) {
+        return !isAlreadyEmitted(coordinatedSamplingState);
+      }
       // we are sampling here to avoid creating CapturedContext when the sampling result is negative
-      return ProbeRateLimiter.tryProbe(sampler, isFullSnapshot());
+      boolean sampled = ProbeRateLimiter.tryProbe(sampler, isFullSnapshot());
+      setCoordinatedSampling(sampled ? EMIT : DROP);
+      return sampled;
     }
     return true;
   }
@@ -524,6 +542,16 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       throw new IllegalStateException("Invalid status: " + status.getClass());
     }
     LogStatus logStatus = (LogStatus) status;
+    CoordinatedSamplingState coordinatedSamplingState = getCoordinatedSamplingState();
+    CoordinatedSamplingState.Status coordinatedSamplingStatus = getCoordinatedSamplingStatus(coordinatedSamplingState);
+    LOGGER.debug("{} evaluate coordinatedSamplingState: {}", probeId, coordinatedSamplingStatus);
+    if (coordinatedSamplingStatus == DROP) {
+      return;
+    }
+    if (coordinatedSamplingStatus == EMIT) {
+      boolean added = addEmitted(coordinatedSamplingState);
+      logStatus.setForceSampling(added);
+    }
     if (!hasCondition()) {
       if (singleProbe) {
         // sampling was already done in isReadyToCapture so we assume that if we are executing the
@@ -550,6 +578,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     processMsgTemplate(context, logStatus);
     processCaptureExpressions(context, logStatus);
   }
+
+  static final ContextKey<CoordinatedSamplingState> SAMPLING_KEY = ContextKey.named("debugger_sampling");
 
   private void processMsgTemplate(CapturedContext context, LogStatus logStatus) {
     if (!logStatus.isSampled() || !logStatus.getCondition()) {
@@ -583,6 +613,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         !logStatus.getDebugSessionStatus().isDisabled()
             && ProbeRateLimiter.tryProbe(localSampler, isFullSnapshot());
     logStatus.setSampled(sampled);
+    setCoordinatedSampling(sampled ? EMIT : DROP);
     if (!sampled) {
       DebuggerAgent.getSink()
           .skipSnapshot(
@@ -636,6 +667,56 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       }
     } else {
       sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
+    }
+  }
+
+  static class CoordinatedSamplingState {
+    enum Status {
+      UNKNOWN,
+      DROP,
+      EMIT
+    }
+    Status status = Status.UNKNOWN;
+    Set<String> probeIdEmitted = new HashSet<>();
+
+    public CoordinatedSamplingState(Status status) {
+      this.status = status;
+    }
+  }
+
+  private CoordinatedSamplingState getCoordinatedSamplingState() {
+    return Context.current().get(SAMPLING_KEY);
+  }
+
+  private CoordinatedSamplingState.Status getCoordinatedSamplingStatus() {
+    CoordinatedSamplingState state = Context.current().get(SAMPLING_KEY);
+    return state != null ? state.status : CoordinatedSamplingState.Status.UNKNOWN;
+  }
+
+  private CoordinatedSamplingState.Status getCoordinatedSamplingStatus(CoordinatedSamplingState state) {
+    return state != null ? state.status : CoordinatedSamplingState.Status.UNKNOWN;
+  }
+
+  private boolean isAlreadyEmitted(CoordinatedSamplingState state) {
+    return state.probeIdEmitted.contains(probeId.getId());
+  }
+
+  private boolean addEmitted(CoordinatedSamplingState coordinatedSamplingState) {
+    return coordinatedSamplingState.probeIdEmitted.add(probeId.getId());
+  }
+
+  private void setCoordinatedSampling(CoordinatedSamplingState.Status status) {
+    LOGGER.debug("{} setCoordinatingSampling status: {}", this.probeId, status);
+    CoordinatedSamplingState state = Context.current().get(SAMPLING_KEY);
+    if (state == null) {
+      state = new CoordinatedSamplingState(status);
+      Context.current().with(SAMPLING_KEY, state).swap();
+    } else {
+      state.status = status;
+    }
+    if (status == EMIT) {
+      LOGGER.debug("{} setCoordinatingSampling added", this.probeId);
+      state.probeIdEmitted.add(probeId.getId());
     }
   }
 
