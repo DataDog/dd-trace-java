@@ -122,7 +122,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   protected volatile List<AgentSpanLink> links;
 
   private static final List<AgentSpanEvent> NO_EVENTS = Collections.emptyList();
-  protected volatile List<AgentSpanEvent> spanEvents = NO_EVENTS;
+  protected volatile List<AgentSpanEvent> events = NO_EVENTS;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -941,29 +941,29 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     }
   }
 
-  public List<? extends AgentSpanEvent> getSpanEvents() {
-    return this.spanEvents;
+  public List<? extends AgentSpanEvent> getEvents() {
+    return this.events;
   }
 
   @Override
-  public void addSpanEvents(List<? extends AgentSpanEvent> newEvents) {
-    if (newEvents == null || newEvents.isEmpty()) {
+  public void addEvent(AgentSpanEvent event) {
+    if (event == null) {
       return;
     }
 
     // Mirrors `addLink()` method thread safety model.
-    List<AgentSpanEvent> events = this.spanEvents;
+    List<AgentSpanEvent> events = this.events;
     if (events != NO_EVENTS) {
-      events.addAll(newEvents);
+      events.add(event);
       return;
     }
 
     synchronized (this) {
-      events = this.spanEvents;
+      events = this.events;
       if (events != NO_EVENTS) {
-        events.addAll(newEvents);
+        events.add(event);
       } else {
-        this.spanEvents = new CopyOnWriteArrayList<>(newEvents);
+        this.events = new CopyOnWriteArrayList<>(Collections.singletonList(event));
       }
     }
   }

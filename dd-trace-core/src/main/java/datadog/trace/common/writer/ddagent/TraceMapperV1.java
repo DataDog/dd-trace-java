@@ -161,9 +161,9 @@ public final class TraceMapperV1 implements TraceMapper {
       // (example values: web, db, lambda)
       encodeString(writable, 10, span.getType());
       // links = 11, a collection of links to other spans
-      encodeSpanLinks(writable, 11, meta.getSpanLinks());
+      encodeSpanLinks(writable, 11, meta.getLinks());
       // events = 12, a collection of events that occurred during this span
-      encodeSpanEvents(writable, 12, meta.getSpanEvents());
+      encodeSpanEvents(writable, 12, meta.getEvents());
       // env = 13, the optional string environment of this span
       encodeString(writable, 13, tags.getString(Tags.ENV));
       // version = 14, the optional string version of this span

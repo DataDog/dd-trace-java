@@ -1242,9 +1242,9 @@ public class DDSpanContext
       }
 
       // Events: flatten the structured span events into the legacy JSON `events` tag for protocols
-      // that don't encode them natively (V1 reads Metadata.getSpanEvents() instead).
+      // that don't encode them natively (V1 reads Metadata.getEvents() instead).
       if (injectEventsAsTags) {
-        String eventsTag = spanEventsToTag(restrictedSpan.getSpanEvents());
+        String eventsTag = spanEventsToTag(restrictedSpan.getEvents());
         if (eventsTag != null) {
           unsafeTags.set(SPAN_EVENTS, eventsTag);
         }
@@ -1277,7 +1277,7 @@ public class DDSpanContext
               longRunningVersion,
               ProcessTags.getTagsForSerialization(),
               restrictedSpan.getLinks(),
-              restrictedSpan.getSpanEvents()));
+              restrictedSpan.getEvents()));
     }
   }
 

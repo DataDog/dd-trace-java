@@ -13,7 +13,6 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.interceptor.MutableSpan;
-import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -215,7 +214,7 @@ public interface AgentSpan
 
   void addLink(AgentSpanLink link);
 
-  void addSpanEvents(List<? extends AgentSpanEvent> events);
+  void addEvent(AgentSpanEvent event);
 
   AgentSpan setMetaStruct(final String field, final Object value);
 

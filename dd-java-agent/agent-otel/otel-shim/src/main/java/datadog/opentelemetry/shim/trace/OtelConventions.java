@@ -135,14 +135,6 @@ public final class OtelConventions {
     }
   }
 
-  public static void recordSpanEvents(AgentSpan span, List<OtelSpanEvent> events) {
-    if (events == null || events.isEmpty()) {
-      return;
-    }
-
-    span.addSpanEvents(events);
-  }
-
   public static void applySpanEventExceptionAttributesAsTags(
       AgentSpan span, Attributes exceptionAttributes) {
     span.setTag(ERROR_MSG, exceptionAttributes.get(EXCEPTION_MESSAGE_ATTRIBUTE_KEY));

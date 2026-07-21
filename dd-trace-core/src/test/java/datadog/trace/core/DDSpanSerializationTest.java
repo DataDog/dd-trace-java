@@ -454,7 +454,9 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     DDSpanContext context = createSpanContext(tracer);
     DDSpan span = DDSpan.create("test", 0, context, null);
-    span.addSpanEvents(spanEvents());
+    for (AgentSpanEvent event : spanEvents()) {
+      span.addEvent(event);
+    }
 
     CaptureBuffer capture = new CaptureBuffer();
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, capture));
@@ -491,7 +493,9 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     DDSpanContext context = createSpanContext(tracer);
     DDSpan span = DDSpan.create("test", 0, context, null);
-    span.addSpanEvents(spanEvents());
+    for (AgentSpanEvent event : spanEvents()) {
+      span.addEvent(event);
+    }
 
     CaptureBuffer capture = new CaptureBuffer();
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, capture));

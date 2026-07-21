@@ -406,8 +406,9 @@ class TrackingSpanDecorator implements AgentSpan {
     delegate.addLink(link)
   }
 
-  void addSpanEvents(List<? extends AgentSpanEvent> events) {
-    delegate.addSpanEvents(events)
+  @Override
+  void addEvent(AgentSpanEvent event) {
+    delegate.addEvent(event)
   }
 
   @Override

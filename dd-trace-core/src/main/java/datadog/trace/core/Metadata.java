@@ -23,8 +23,8 @@ public final class Metadata {
   private final CharSequence origin;
   private final int longRunningVersion;
   private final UTF8BytesString processTags;
-  private final List<? extends AgentSpanLink> spanLinks;
-  private final List<? extends AgentSpanEvent> spanEvents;
+  private final List<? extends AgentSpanLink> links;
+  private final List<? extends AgentSpanEvent> events;
 
   public Metadata(
       long threadId,
@@ -38,8 +38,8 @@ public final class Metadata {
       CharSequence origin,
       int longRunningVersion,
       UTF8BytesString processTags,
-      List<? extends AgentSpanLink> spanLinks,
-      List<? extends AgentSpanEvent> spanEvents) {
+      List<? extends AgentSpanLink> links,
+      List<? extends AgentSpanEvent> events) {
     this.threadId = threadId;
     this.threadName = threadName;
     this.httpStatusCode = httpStatusCode;
@@ -51,8 +51,8 @@ public final class Metadata {
     this.origin = origin;
     this.longRunningVersion = longRunningVersion;
     this.processTags = processTags;
-    this.spanLinks = spanLinks == null ? emptyList() : spanLinks;
-    this.spanEvents = spanEvents == null ? emptyList() : spanEvents;
+    this.links = links == null ? emptyList() : links;
+    this.events = events == null ? emptyList() : events;
   }
 
   public UTF8BytesString getHttpStatusCode() {
@@ -103,11 +103,11 @@ public final class Metadata {
     return processTags;
   }
 
-  public List<? extends AgentSpanLink> getSpanLinks() {
-    return spanLinks;
+  public List<? extends AgentSpanLink> getLinks() {
+    return links;
   }
 
-  public List<? extends AgentSpanEvent> getSpanEvents() {
-    return spanEvents;
+  public List<? extends AgentSpanEvent> getEvents() {
+    return events;
   }
 }
