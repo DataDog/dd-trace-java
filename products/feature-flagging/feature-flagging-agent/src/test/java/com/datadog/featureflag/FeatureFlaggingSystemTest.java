@@ -1,7 +1,7 @@
 package com.datadog.featureflag;
 
-import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -22,10 +23,10 @@ import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
-import datadog.trace.api.config.FeatureFlaggingConfig;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.AfterEach;
@@ -57,6 +58,7 @@ class FeatureFlaggingSystemTest {
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
 
     FeatureFlaggingSystem.start(sharedCommunicationObjects);
+    FeatureFlaggingSystem.start(sharedCommunicationObjects);
 
     verify(poller).addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     verify(poller).addListener(eq(Product.FFE_FLAGS), any(ConfigurationDeserializer.class), any());
@@ -67,6 +69,8 @@ class FeatureFlaggingSystemTest {
     FeatureFlaggingSystem.shutdown();
     assertFalse(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
     assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
+    // stop() is idempotent: a second call after shutdown must be a safe no-op.
+    FeatureFlaggingSystem.stop();
 
     verify(poller).removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     verify(poller).removeListeners(Product.FFE_FLAGS);
@@ -162,16 +166,6 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
-  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "invalid")
-  void invalidConfigurationSourceFailsBeforeStartingNetworkSource() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            FeatureFlaggingSystem.createConfigurationSourceService(
-                sharedCommunicationObjects(), Config.get()));
-  }
-
-  @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
   void offlineConfigurationSourceDoesNotStartNetworkSource() {
     assertNull(
@@ -189,6 +183,67 @@ class FeatureFlaggingSystemTest {
     } finally {
       FeatureFlaggingSystem.stop();
     }
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "invalid")
+  void invalidConfigurationSourceUsesAgentlessDefault() {
+    assertInstanceOf(
+        AgentlessConfigurationSource.class,
+        FeatureFlaggingSystem.createConfigurationSourceService(
+            sharedCommunicationObjects(), Config.get()));
+  }
+
+  @Test
+  void rejectsUnsupportedNormalizedConfigurationSource() {
+    Config config = mock(Config.class);
+    when(config.getFeatureFlaggingConfigurationSource()).thenReturn("invalid");
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            FeatureFlaggingSystem.createConfigurationSourceService(
+                sharedCommunicationObjects(), config));
+  }
+
+  @Test
+  void initializationFailureClosesConfigurationSourceAndExposureWriter() {
+    ConfigurationSourceService configService = mock(ConfigurationSourceService.class);
+    ExposureWriter exposureWriter = mock(ExposureWriter.class);
+    doThrow(new IllegalStateException("exposure init failed")).when(exposureWriter).init();
+
+    assertThrows(
+        IllegalStateException.class,
+        () -> FeatureFlaggingSystem.initialize(configService, exposureWriter));
+
+    verify(configService).init();
+    verify(configService).close();
+    verify(exposureWriter).close();
+  }
+
+  @Test
+  void initializationFailureWithoutConfigurationSourceClosesExposureWriter() {
+    ExposureWriter exposureWriter = mock(ExposureWriter.class);
+    doThrow(new IllegalStateException("exposure init failed")).when(exposureWriter).init();
+
+    assertThrows(
+        IllegalStateException.class, () -> FeatureFlaggingSystem.initialize(null, exposureWriter));
+
+    verify(exposureWriter).close();
+  }
+
+  @Test
+  void initializationFailureClosesConfigurationSourceWhenExposureWriterCloseFails() {
+    ConfigurationSourceService configService = mock(ConfigurationSourceService.class);
+    ExposureWriter exposureWriter = mock(ExposureWriter.class);
+    doThrow(new IllegalStateException("exposure init failed")).when(exposureWriter).init();
+    doThrow(new IllegalArgumentException("exposure close failed")).when(exposureWriter).close();
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> FeatureFlaggingSystem.initialize(configService, exposureWriter));
+
+    verify(configService).close();
   }
 
   private static SharedCommunicationObjects sharedCommunicationObjects() {

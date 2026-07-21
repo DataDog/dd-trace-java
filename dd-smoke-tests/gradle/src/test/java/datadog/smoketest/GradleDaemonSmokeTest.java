@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.GeneralConfig;
@@ -127,6 +128,37 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
         flakyRetries,
         expectedTraces,
         expectedCoverages);
+  }
+
+  @TableTest({
+    "scenario           | gradleVersion | projectName              | expectedTraces",
+    "robolectric-latest | latest        | test-succeed-robolectric | 7             "
+  })
+  @ParameterizedTest
+  void testRobolectric(String gradleVersion, String projectName, int expectedTraces)
+      throws IOException {
+    Assumptions.assumeTrue(
+        JavaVirtualMachine.isJavaVersionBetween(17, 22), "Robolectric 4.16 supports JDK 17-21");
+    Assumptions.assumeFalse(
+        OperatingSystem.architecture().isArm64(),
+        "Robolectric does not support arm64 (missing native runtime binaries, follow https://github.com/robolectric/robolectric/issues/9166)");
+
+    gradleVersion = resolveVersion(gradleVersion);
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
+    givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
+    givenGradleProjectFiles(projectName);
+    givenGradleProjectProperties();
+    ensureDependenciesDownloaded(gradleVersion);
+
+    BuildResult buildResult = runGradleTests(gradleVersion, true, false);
+    assertBuildSuccessful(buildResult);
+
+    verifyEventsAndCoverages(
+        projectName,
+        "gradle",
+        gradleVersion,
+        mockBackend.waitForEvents(expectedTraces),
+        mockBackend.waitForCoverages(0));
   }
 
   // TODO: add back LATEST_GRADLE_VERSION after fixing ordering on Gradle 9.3.0

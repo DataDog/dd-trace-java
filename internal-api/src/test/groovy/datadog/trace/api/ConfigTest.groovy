@@ -2,6 +2,8 @@ package datadog.trace.api
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
@@ -55,6 +57,9 @@ import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.VERSION
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS
@@ -150,7 +155,7 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT
-import static datadog.trace.api.config.OtlpConfig.TRACES_SPAN_METRICS_ENABLED
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER
 import datadog.trace.config.inversion.ConfigHelper
@@ -560,7 +565,7 @@ class ConfigTest extends DDSpecification {
     config.otlpTracesProtocol == HTTP_PROTOBUF
     config.otlpTracesTimeout == 10000
 
-    !config.tracesSpanMetricsEnabled
+    !config.otelTracesSpanMetricsEnabled
     !config.traceOtelSemanticsEnabled
     config.traceStatsInterval == 10000
   }
@@ -731,7 +736,7 @@ class ConfigTest extends DDSpecification {
       System.setProperty(PREFIX + METRICS_OTEL_EXPORTER, metricsExporter)
     }
     if (override != null) {
-      System.setProperty(PREFIX + TRACES_SPAN_METRICS_ENABLED, override)
+      System.setProperty(PREFIX + OTEL_TRACES_SPAN_METRICS_ENABLED, override)
     }
 
     when:
@@ -739,8 +744,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     // Unset: emit iff OTLP trace export and OTLP metrics export are both on. An explicit
-    // dd.traces.span.metrics.enabled always wins.
-    config.tracesSpanMetricsEnabled == expected
+    // dd.otel.traces.span.metrics.enabled always wins.
+    config.otelTracesSpanMetricsEnabled == expected
 
     where:
     exporter | metricsEnabled | metricsExporter | override | expected
@@ -994,7 +999,7 @@ class ConfigTest extends DDSpecification {
     config.otlpTracesTimeout == 5002
 
     config.traceOtelSemanticsEnabled
-    config.tracesSpanMetricsEnabled // tri-state default: OTLP trace export + OTel metrics both on
+    config.otelTracesSpanMetricsEnabled // tri-state default: OTLP trace export + OTel metrics both on
   }
 
   def "specify overrides via env vars"() {
@@ -3477,5 +3482,55 @@ class ConfigTest extends DDSpecification {
     "false" | false
     "1"     | true
     "0"     | false
+  }
+
+  def "agentless feature flag timing uses positive configured values"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS, "60")
+    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS, "4")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.featureFlaggingConfigurationSourcePollIntervalSeconds == 60
+    config.featureFlaggingConfigurationSourceRequestTimeoutSeconds == 4
+  }
+
+  def "feature flag configuration source normalizes #value to #expected"() {
+    setup:
+    Properties properties = new Properties()
+    if (value != null) {
+      properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE, value)
+    }
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.featureFlaggingConfigurationSource == expected
+
+    where:
+    value               | expected
+    null                | "agentless"
+    ""                  | "agentless"
+    "   "               | "agentless"
+    " ReMoTe_ConFiG "   | "remote_config"
+    "not-a-real-source" | "agentless"
+  }
+
+  def "agentless feature flag timing falls back for non-positive values"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS, "0")
+    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS, "-1")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.featureFlaggingConfigurationSourcePollIntervalSeconds == DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS
+    config.featureFlaggingConfigurationSourceRequestTimeoutSeconds == DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS
   }
 }

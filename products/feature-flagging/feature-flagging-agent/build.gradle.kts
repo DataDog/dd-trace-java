@@ -17,6 +17,7 @@ dependencies {
   api(libs.slf4j)
   api(project(":products:feature-flagging:feature-flagging-lib"))
   api(project(":internal-api"))
+  implementation(project(":products:feature-flagging:feature-flagging-config"))
 
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)

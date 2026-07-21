@@ -303,6 +303,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_ORDE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CODE_COVERAGE_FLAGS;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_COMMIT_HEAD_SHA;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH_SHA;
@@ -364,10 +365,6 @@ import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_DETECTION_INCL
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_EXCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_INCLUDES;
 import static datadog.trace.api.config.DebuggerConfig.THIRD_PARTY_SHADING_IDENTIFIERS;
-import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
-import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
-import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
-import static datadog.trace.api.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL;
@@ -433,6 +430,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
@@ -486,6 +484,7 @@ import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPERIMENTAL_ENAB
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_HEADERS;
@@ -502,7 +501,6 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
-import static datadog.trace.api.config.OtlpConfig.TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
@@ -729,6 +727,10 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
@@ -828,6 +830,7 @@ import org.slf4j.LoggerFactory;
 public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
+  private static final int MAX_CODE_COVERAGE_FLAGS = 32;
 
   private static final Pattern COLON = Pattern.compile(":");
 
@@ -1013,7 +1016,7 @@ public class Config {
   private final int otlpMetricsTimeout;
   private final OtlpConfig.Temporality otlpMetricsTemporalityPreference;
 
-  private final boolean tracesSpanMetricsEnabled;
+  private final boolean otelTracesSpanMetricsEnabled;
   private final boolean traceOtelSemanticsEnabled;
 
   private final String traceOtelExporter;
@@ -1154,6 +1157,7 @@ public class Config {
   private final boolean ciVisibilityCodeCoverageEnabled;
   private final Boolean ciVisibilityCoverageLinesEnabled;
   private final String ciVisibilityCodeCoverageReportDumpDir;
+  private final List<String> codeCoverageFlags;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
   private final boolean ciVisibilityJacocoPluginVersionProvided;
@@ -2153,9 +2157,9 @@ public class Config {
     traceOtelSemanticsEnabled = configProvider.getBoolean(TRACE_OTEL_SEMANTICS_ENABLED, false);
     // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
     // export and OTLP metrics export are both enabled.
-    tracesSpanMetricsEnabled =
+    otelTracesSpanMetricsEnabled =
         configProvider.getBoolean(
-            TRACES_SPAN_METRICS_ENABLED,
+            OTEL_TRACES_SPAN_METRICS_ENABLED,
             isTraceOtlpExporterEnabled()
                 && isMetricsOtelEnabled()
                 && isMetricsOtlpExporterEnabled());
@@ -2272,7 +2276,8 @@ public class Config {
     final int defaultMaxPending = tightHeap ? 64 : 128;
 
     tracerMetricsMaxAggregates =
-        configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, defaultMaxAggregates);
+        configProvider.getInteger(
+            TRACE_STATS_CARDINALITY_LIMIT, defaultMaxAggregates, TRACER_METRICS_MAX_AGGREGATES);
     /*
      * TRACER_METRICS_MAX_PENDING historically counted conflating Batch slots (~64 spans per batch
      * via Batch.MAX_BATCH_SIZE). The inbox now holds 1 SpanSnapshot per metrics-eligible span, so
@@ -2710,6 +2715,7 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED);
     ciVisibilityCodeCoverageReportDumpDir =
         configProvider.getString(CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR);
+    codeCoverageFlags = parseCodeCoverageFlags(configProvider.getList(CODE_COVERAGE_FLAGS));
     ciVisibilityCompilerPluginVersion =
         configProvider.getString(
             CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
@@ -2856,14 +2862,32 @@ public class Config {
     featureFlaggingConfigurationSourceAgentlessBaseUrl =
         configProvider.getStringNotEmpty(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
-    featureFlaggingConfigurationSourcePollIntervalSeconds =
+    int configuredFeatureFlaggingPollIntervalSeconds =
         configProvider.getInteger(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS,
             DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS);
-    featureFlaggingConfigurationSourceRequestTimeoutSeconds =
+    if (configuredFeatureFlaggingPollIntervalSeconds <= 0) {
+      log.warn(
+          "Invalid Feature Flagging agentless poll interval: {}. The value must be positive",
+          configuredFeatureFlaggingPollIntervalSeconds);
+      configuredFeatureFlaggingPollIntervalSeconds =
+          DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS;
+    }
+    featureFlaggingConfigurationSourcePollIntervalSeconds =
+        configuredFeatureFlaggingPollIntervalSeconds;
+    int configuredFeatureFlaggingRequestTimeoutSeconds =
         configProvider.getInteger(
             FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS,
             DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS);
+    if (configuredFeatureFlaggingRequestTimeoutSeconds <= 0) {
+      log.warn(
+          "Invalid Feature Flagging agentless request timeout: {}. The value must be positive",
+          configuredFeatureFlaggingRequestTimeoutSeconds);
+      configuredFeatureFlaggingRequestTimeoutSeconds =
+          DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS;
+    }
+    featureFlaggingConfigurationSourceRequestTimeoutSeconds =
+        configuredFeatureFlaggingRequestTimeoutSeconds;
 
     dynamicInstrumentationEnabled =
         configProvider.getBoolean(
@@ -3782,7 +3806,21 @@ public class Config {
       return DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
     }
     final String normalized = source.trim().toLowerCase(Locale.ROOT);
-    return normalized.isEmpty() ? DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE : normalized;
+    if (normalized.isEmpty()) {
+      return DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
+    }
+    switch (normalized) {
+      case "agentless":
+      case "remote_config":
+      case "offline":
+        return normalized;
+      default:
+        log.warn(
+            "Unsupported Feature Flagging configuration source: {}. Defaulting to {}",
+            source,
+            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE);
+        return DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE;
+    }
   }
 
   public boolean isBaggageExtract() {
@@ -3916,6 +3954,16 @@ public class Config {
 
   public int getTraceStatsInterval() {
     return traceStatsInterval;
+  }
+
+  /**
+   * Returns the per-cycle cardinality limit for the named stats field, following the RFC naming
+   * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
+   * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
+   * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
+   */
+  public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
+    return configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
   }
 
   public boolean isLogsInjectionEnabled() {
@@ -4421,6 +4469,10 @@ public class Config {
 
   public String getCiVisibilityCodeCoverageReportDumpDir() {
     return ciVisibilityCodeCoverageReportDumpDir;
+  }
+
+  public List<String> getCodeCoverageFlags() {
+    return codeCoverageFlags;
   }
 
   public String getCiVisibilityCompilerPluginVersion() {
@@ -5686,8 +5738,8 @@ public class Config {
     return otlpMetricsTemporalityPreference;
   }
 
-  public boolean isTracesSpanMetricsEnabled() {
-    return tracesSpanMetricsEnabled;
+  public boolean isOtelTracesSpanMetricsEnabled() {
+    return otelTracesSpanMetricsEnabled;
   }
 
   public boolean isTraceOtelSemanticsEnabled() {
@@ -6121,6 +6173,29 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
+  private static List<String> parseCodeCoverageFlags(List<String> configuredFlags) {
+    if (configuredFlags.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    List<String> flags = new ArrayList<>(configuredFlags.size());
+    for (String configuredFlag : configuredFlags) {
+      if (!configuredFlag.isEmpty()) {
+        flags.add(configuredFlag);
+      }
+    }
+
+    if (flags.size() > MAX_CODE_COVERAGE_FLAGS) {
+      log.warn(
+          "Cannot apply {} code coverage report flags: the maximum supported number is {}. The report will be uploaded without flags.",
+          flags.size(),
+          MAX_CODE_COVERAGE_FLAGS);
+      return Collections.emptyList();
+    }
+
+    return Collections.unmodifiableList(flags);
+  }
+
   private static <T> Set<T> convertStringSetToSet(
       String setting, final Set<String> input, Function<String, T> mapper) {
     if (input.isEmpty()) {
@@ -6309,6 +6384,8 @@ public class Config {
         + experimentalFeaturesEnabled
         + ", integrationSynapseLegacyOperationName="
         + integrationSynapseLegacyOperationName
+        + ", codeCoverageFlags="
+        + codeCoverageFlags
         + ", writerType='"
         + writerType
         + '\''
@@ -6808,8 +6885,8 @@ public class Config {
         + otlpMetricsTimeout
         + ", otlpMetricsTemporalityPreference="
         + otlpMetricsTemporalityPreference
-        + ", tracesSpanMetricsEnabled="
-        + tracesSpanMetricsEnabled
+        + ", otelTracesSpanMetricsEnabled="
+        + otelTracesSpanMetricsEnabled
         + ", traceOtelSemanticsEnabled="
         + traceOtelSemanticsEnabled
         + ", traceStatsInterval="

@@ -14,8 +14,12 @@ public abstract class FeatureFlaggingGateway {
 
   public interface ExposureListener extends Consumer<ExposureEvent> {}
 
+  public interface SpanEnrichmentListener extends Consumer<SpanEnrichmentEvent> {}
+
   private static final List<ConfigListener> CONFIG_LISTENERS = new CopyOnWriteArrayList<>();
   private static final List<ExposureListener> EXPOSURE_LISTENERS = new CopyOnWriteArrayList<>();
+  private static final List<SpanEnrichmentListener> SPAN_ENRICHMENT_LISTENERS =
+      new CopyOnWriteArrayList<>();
 
   private static final AtomicReference<ServerConfiguration> CURRENT_CONFIG =
       new AtomicReference<>();
@@ -93,5 +97,17 @@ public abstract class FeatureFlaggingGateway {
   /** Returns whether EVP flagevaluation hook events may be enqueued. */
   public static boolean isFlagEvaluationEnqueueEnabled() {
     return flagEvalEnqueueEnabled;
+  }
+
+  public static void addSpanEnrichmentListener(final SpanEnrichmentListener listener) {
+    SPAN_ENRICHMENT_LISTENERS.add(listener);
+  }
+
+  public static void removeSpanEnrichmentListener(final SpanEnrichmentListener listener) {
+    SPAN_ENRICHMENT_LISTENERS.remove(listener);
+  }
+
+  public static void dispatch(final SpanEnrichmentEvent event) {
+    SPAN_ENRICHMENT_LISTENERS.forEach(listener -> listener.accept(event));
   }
 }
