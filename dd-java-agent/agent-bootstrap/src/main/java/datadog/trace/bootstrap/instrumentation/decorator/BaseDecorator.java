@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.DEFAULT;
 import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
 
 import datadog.appsec.api.blocking.BlockingException;
@@ -12,7 +13,6 @@ import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
@@ -97,7 +97,7 @@ public abstract class BaseDecorator {
     return false;
   }
 
-  public final void afterStart(final AgentSpan span) {
+  public final void afterStart(@Nonnull final AgentSpan span) {
     try {
       doAfterStart(span);
     } catch (BlockingException e) {
@@ -147,17 +147,18 @@ public abstract class BaseDecorator {
 
   protected void doBeforeFinish(@Nonnull final Context context) {}
 
-  public final void onError(final AgentScope scope, final Throwable throwable) {
+  public final void onError(@Nullable final AgentScope scope, @Nullable final Throwable throwable) {
     if (scope != null) {
       onError(scope.span(), throwable);
     }
   }
 
-  public final void onError(final AgentSpan span, final Throwable throwable) {
-    onError(span, throwable, ErrorPriorities.DEFAULT);
+  public final void onError(@Nullable final AgentSpan span, @Nullable final Throwable throwable) {
+    onError(span, throwable, DEFAULT);
   }
 
-  public final void onError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+  public final void onError(
+      @Nullable final AgentSpan span, @Nullable final Throwable throwable, byte errorPriority) {
     try {
       doOnError(span, throwable, errorPriority);
     } catch (BlockingException e) {
@@ -167,7 +168,8 @@ public abstract class BaseDecorator {
     }
   }
 
-  public final void onError(final ContextScope scope, final Throwable throwable) {
+  public final void onError(
+      @Nullable final ContextScope scope, @Nullable final Throwable throwable) {
     if (scope != null) {
       onError(AgentSpan.fromContext(scope.context()), throwable);
     }
@@ -183,18 +185,20 @@ public abstract class BaseDecorator {
   }
 
   public final void onPeerConnection(
-      final AgentSpan span, final InetSocketAddress remoteConnection) {
+      @Nonnull final AgentSpan span, @Nullable final InetSocketAddress remoteConnection) {
     if (remoteConnection != null) {
       onPeerConnection(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
       setPeerPort(span, remoteConnection.getPort());
     }
   }
 
-  public final void onPeerConnection(final AgentSpan span, final InetAddress remoteAddress) {
+  public final void onPeerConnection(
+      @Nonnull final AgentSpan span, @Nullable final InetAddress remoteAddress) {
     onPeerConnection(span, remoteAddress, true);
   }
 
-  public final void onPeerConnection(AgentSpan span, InetAddress remoteAddress, boolean resolved) {
+  public final void onPeerConnection(
+      @Nonnull AgentSpan span, @Nullable InetAddress remoteAddress, boolean resolved) {
     if (remoteAddress != null) {
       String ip = remoteAddress.getHostAddress();
       if (resolved && Config.get().isPeerHostNameEnabled()) {

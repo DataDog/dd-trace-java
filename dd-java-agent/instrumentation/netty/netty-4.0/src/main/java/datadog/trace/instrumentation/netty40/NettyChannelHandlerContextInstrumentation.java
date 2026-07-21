@@ -85,6 +85,7 @@ public class NettyChannelHandlerContextInstrumentation extends InstrumenterModul
       scope.close();
     }
 
+    @SuppressWarnings("DataFlowIssue")
     private void muzzleCheck() {
       NettyHttpClientDecorator.DECORATE.afterStart(null);
       NettyHttpServerDecorator.DECORATE.afterStart(null);
