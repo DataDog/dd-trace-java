@@ -77,9 +77,7 @@ public final class ClientListenerInstrumentation
 
       // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
       final AgentSpan span = scope.span();
-      if (throwable != null) {
-        DECORATE.onError(span, throwable);
-      }
+      DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
       scope.close();
       span.finish();
