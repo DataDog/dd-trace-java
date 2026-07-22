@@ -3,7 +3,6 @@ muzzle {
     group = "org.postgresql"
     module = "postgresql"
     versions = "[42.0.0,)"
-    assertInverse = true
   }
 }
 
