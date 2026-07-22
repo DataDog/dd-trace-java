@@ -77,7 +77,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
 
     Flow<Void> flow =
         DECORATE.callIGCallbackResponseAndHeaders(
-            span, origResponse, origResponse.getStatus().code(), ResponseExtractAdapter.GETTER);
+            span, origResponse, statusCode, ResponseExtractAdapter.GETTER);
     serverContext.markResponseAnalyzed();
     Flow.Action action = flow.getAction();
     if (!(action instanceof Flow.Action.RequestBlockingAction)) {
