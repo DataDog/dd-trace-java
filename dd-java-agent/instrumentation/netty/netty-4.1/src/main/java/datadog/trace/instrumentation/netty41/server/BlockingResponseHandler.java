@@ -172,7 +172,10 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     private final HttpVersion protocolVersion;
     private final String acceptHeader;
 
-    private PendingBlockResponse(
+    // Prevent the generation of BlockingResponseHandler$1 by making this constructor
+    // package-private to allow the BlockingResponseHandler to call this. This module emits Java 8
+    // bytecode, so it cannot use Java 11 nested access.
+    PendingBlockResponse(
         TraceSegment segment,
         int statusCode,
         BlockingContentType bct,
@@ -189,7 +192,7 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
       this.acceptHeader = acceptHeader;
     }
 
-    private FullHttpResponse toResponse() {
+    FullHttpResponse toResponse() {
       int httpCode = BlockingActionHelper.getHttpCode(statusCode);
       HttpResponseStatus httpResponseStatus = HttpResponseStatus.valueOf(httpCode);
       FullHttpResponse response = new DefaultFullHttpResponse(protocolVersion, httpResponseStatus);
