@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import static datadog.environment.JavaVirtualMachine.isHotspot;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
 import static datadog.trace.api.Config.isExplicitlyDisabled;
@@ -34,7 +35,6 @@ import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.CrashTrackingConfig;
 import datadog.trace.api.config.CwsConfig;
 import datadog.trace.api.config.DebuggerConfig;
-import datadog.trace.api.config.FeatureFlaggingConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.IastConfig;
 import datadog.trace.api.config.JmxFetchConfig;
@@ -44,6 +44,7 @@ import datadog.trace.api.config.RemoteConfigConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
+import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.git.EmbeddedGitInfoBuilder;
@@ -60,6 +61,7 @@ import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
+import datadog.trace.util.JDK9ModuleAccess;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.instrument.Instrumentation;
@@ -335,6 +337,8 @@ public class Agent {
       startCrashTracking();
       StaticEventLogger.end("crashtracking");
     }
+
+    AgentTracer.maybeInstallLegacyContextManager();
 
     startDatadogAgent(initTelemetry, inst);
 
@@ -659,6 +663,8 @@ public class Agent {
       }
 
       installDatadogMeter(initTelemetry);
+      // Must run before installDatadogTracer, which triggers the ddprof profiler load.
+      prepareDatadogProfilerContextStorage(instrumentation);
       installDatadogTracer(initTelemetry, scoClass, sco);
       maybeInstallLogsIntake(scoClass, sco);
       maybeStartIast(instrumentation);
@@ -676,6 +682,7 @@ public class Agent {
       }
 
       maybeStartAppSec(scoClass, sco);
+      maybeStartScaReachability(instrumentation);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
       maybeStartLLMObs(instrumentation, scoClass, sco);
       // Start RC-backed products before remote config so their products and capabilities are
@@ -902,6 +909,8 @@ public class Agent {
       }
     }
     if (profilingEnabled) {
+      // Both of these register JFR events through registerJfrEvents(), which force-initializes the
+      // JDK's JFR event-holder class first (see initializeJfrEventHolderClass) to avoid a deadlock.
       registerDeadlockDetectionEvent();
       registerSmapEntryEvent();
       if (PROFILER_INIT_AFTER_JMX != null) {
@@ -931,40 +940,143 @@ public class Agent {
 
   private static synchronized void registerDeadlockDetectionEvent() {
     log.debug("Initializing JMX thread deadlock detector");
-    try {
-      final Class<?> deadlockFactoryClass =
-          AGENT_CLASSLOADER.loadClass(
-              "com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory");
-      final Method registerMethod = deadlockFactoryClass.getMethod("registerEvents");
-      registerMethod.invoke(null);
-    } catch (final NoClassDefFoundError
-        | ClassNotFoundException
-        | UnsupportedClassVersionError ignored) {
-      log.debug("JMX deadlock detection not supported");
-    } catch (final Throwable ex) {
-      log.error("Unable to initialize JMX thread deadlock detector", ex);
+    registerJfrEvents(
+        "com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory",
+        "JMX thread deadlock detection");
+  }
+
+  private static void initializeJfrEventHolderClass() {
+    initializeJfrEventHolderClass(AGENT_CLASSLOADER);
+  }
+
+  /**
+   * Force-initializes the JDK's JFR event-holder class early to avoid an ABBA deadlock between
+   * {@code jdk.jfr.internal.Utils}'s monitor and the holder class's initialization lock. See <a
+   * href="https://bugs.openjdk.org/browse/JDK-8371889">JDK-8371889</a> and the SCP-1278 thread
+   * dump.
+   *
+   * <p>The holder's {@code <clinit>} looks up the JDK's built-in event handlers through {@code
+   * jdk.jfr.internal.Utils} (taking its monitor); conversely, JFR event registration initializes
+   * the holder while holding that same monitor. The deadlock forms when one thread holds the {@code
+   * Utils} monitor and wants the holder's class-init lock, while another thread holds the
+   * class-init lock (running {@code <clinit>}) and wants the {@code Utils} monitor. In SCP-1278
+   * this was the profiler's smap-event registration (holding {@code Utils}) against a concurrent
+   * JMXFetch ByteBuddy transform that had triggered the holder {@code <clinit>}. Running the {@code
+   * <clinit>} here, on this thread, before we register our own JFR events, means the holder is
+   * already initialized by then, so the cycle cannot form.
+   *
+   * <p>Ordering matters twice over:
+   *
+   * <ul>
+   *   <li>We force {@code FlightRecorder} initialization first, which registers the JDK's built-in
+   *       events (via {@code JDKEvents.initialize()}). The holder's fields are {@code static final}
+   *       and are populated from {@code Utils} at {@code <clinit>} time; running {@code <clinit>}
+   *       before the events are registered would cache {@code null} into those fields permanently
+   *       and silently disable the built-in socket/file/exception JFR events (verified on JDK
+   *       17.0.17 and 21.0.9). This mirrors the JDK's own fix, which initializes the holder only
+   *       after {@code JDKEvents.initialize()}. The event registration below would trigger the same
+   *       {@code FlightRecorder} initialization anyway; we merely order it ahead of the holder
+   *       {@code <clinit>}. If {@code FlightRecorder} init fails, JFR is unavailable and there is
+   *       nothing to protect against, so we skip the holder init entirely.
+   *   <li>{@link Class#forName(String, boolean, ClassLoader)} with {@code initialize=true} is
+   *       required: {@link ClassLoader#loadClass(String)} would only load the class without running
+   *       {@code <clinit>}, so it would neither take the class-init lock early nor prevent the
+   *       deadlock.
+   * </ul>
+   *
+   * <p>The holder class was renamed across JDK versions, so it is selected by version (see {@link
+   * #jfrEventHolderClassName()}): {@code jdk.jfr.events.Handlers} on JDK 15-18, {@code
+   * jdk.jfr.events.EventConfigurations} on JDK 19-22. Earlier JDKs (including 11 LTS) predate the
+   * holder and JDK 23+ removed the eager-init pattern; on those this method does nothing. On
+   * patched JDKs (the JDK-8371889 fix was backported to 21.0.11) the JDK already initializes the
+   * holder safely during {@code FlightRecorder} startup, so forcing it here is a harmless no-op.
+   *
+   * @param loader class loader used to resolve the JFR classes (package-private for testing; see
+   *     JfrEventHolderInitForkedTest)
+   */
+  static void initializeJfrEventHolderClass(final ClassLoader loader) {
+    final String holderClassName = jfrEventHolderClassName();
+    if (holderClassName == null) {
+      return; // no eager-init holder on this JDK, so there is no deadlock to prevent
     }
+    try {
+      // Register the JDK's built-in JFR events first, so the holder's <clinit> below sees non-null
+      // handlers instead of caching null.
+      Class.forName("jdk.jfr.FlightRecorder", true, loader)
+          .getMethod("getFlightRecorder")
+          .invoke(null);
+      // Force the holder's <clinit>.
+      Class.forName(holderClassName, true, loader);
+    } catch (final Throwable ignored) {
+      // JFR unavailable/disabled or initialization failed: nothing (left) to do. We catch Throwable
+      // rather than Exception because forcing initialization can surface Errors such as
+      // ExceptionInInitializerError, NoClassDefFoundError or LinkageError.
+    }
+  }
+
+  /**
+   * Returns the fully-qualified name of the JDK's JFR event-holder class for the running JVM, or
+   * {@code null} if this JDK has no such class. The class is selected by JDK version rather than by
+   * probing with {@link ClassNotFoundException} so the mapping is explicit:
+   *
+   * <ul>
+   *   <li>JDK 15-18: {@code jdk.jfr.events.Handlers}
+   *   <li>JDK 19-22: {@code jdk.jfr.events.EventConfigurations}
+   *   <li>otherwise (JDK 14 and earlier predate the holder; JDK 23+ removed the eager-init
+   *       pattern): {@code null}
+   * </ul>
+   *
+   * <p>Also returns {@code null} on non-HotSpot VMs: JDK-8371889 is a HotSpot JFR bug, and other
+   * VMs (e.g. Eclipse OpenJ9 / IBM Semeru) ship a different JFR implementation where this holder /
+   * {@code Utils} mechanism does not apply.
+   */
+  static String jfrEventHolderClassName() {
+    if (!isHotspot()) {
+      return null;
+    }
+    if (isJavaVersionAtLeast(15) && !isJavaVersionAtLeast(19)) {
+      return "jdk.jfr.events.Handlers";
+    }
+    if (isJavaVersionAtLeast(19) && !isJavaVersionAtLeast(23)) {
+      return "jdk.jfr.events.EventConfigurations";
+    }
+    return null;
   }
 
   private static synchronized void registerSmapEntryEvent() {
     log.debug("Initializing smap entry scraping");
+    registerJfrEvents(
+        "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory", "Smap entry scraping");
+  }
 
-    // Load JFR Handlers class early, if present (it has been moved and renamed in JDK23+).
-    // This prevents a deadlock. See https://bugs.openjdk.org/browse/JDK-8371889.
+  /**
+   * Registers a profiling JFR event factory's events, after force-initializing the JDK's JFR
+   * event-holder class (see {@link #initializeJfrEventHolderClass(ClassLoader)}).
+   *
+   * <p><strong>All JFR event registration during agent startup must go through this
+   * method.</strong> Registering a JFR event triggers the holder class's initialization while
+   * holding the {@code jdk.jfr.internal.Utils} monitor; unless the holder has already been fully
+   * initialized, that can deadlock (JDK-8371889). Routing every registration through here
+   * guarantees the holder is initialized first, so future event registrations cannot reintroduce
+   * the deadlock by running before it.
+   *
+   * @param factoryClassName fully-qualified name of the event factory with a static {@code
+   *     registerEvents()} method
+   * @param description human-readable name used in log messages
+   */
+  private static void registerJfrEvents(final String factoryClassName, final String description) {
+    // Enforce the ordering invariant: the holder must be initialized before any JFR event is
+    // registered. Idempotent and cheap once done, so it is safe to call before every registration.
+    initializeJfrEventHolderClass();
     try {
-      AGENT_CLASSLOADER.loadClass("jdk.jfr.events.Handlers");
-    } catch (Exception e) {
-      // Ignore when the class is not found or anything else goes wrong.
-    }
-
-    try {
-      final Class<?> smapFactoryClass =
-          AGENT_CLASSLOADER.loadClass(
-              "com.datadog.profiling.controller.openjdk.events.SmapEntryFactory");
-      final Method registerMethod = smapFactoryClass.getMethod("registerEvents");
-      registerMethod.invoke(null);
-    } catch (final Exception ignored) {
-      log.debug("Smap entry scraping not supported");
+      final Class<?> factoryClass = AGENT_CLASSLOADER.loadClass(factoryClassName);
+      factoryClass.getMethod("registerEvents").invoke(null);
+    } catch (final NoClassDefFoundError
+        | ClassNotFoundException
+        | UnsupportedClassVersionError ignored) {
+      log.debug("{} not supported", description);
+    } catch (final Throwable ex) {
+      log.error("Unable to initialize {}", description, ex);
     }
   }
 
@@ -1072,6 +1184,27 @@ public class Agent {
     // Still return true in other if unexpected cases (e.g. SunOS), and we'll handle loading errors
     // during AppSec startup.
     return true;
+  }
+
+  private static void maybeStartScaReachability(Instrumentation instrumentation) {
+    if (!Config.get().isAppSecScaEnabled()) {
+      return;
+    }
+    if (!telemetryEnabled || !Config.get().isTelemetryDependencyServiceEnabled()) {
+      log.warn(
+          "Not starting SCA Reachability subsystem: telemetry or dependency collection disabled");
+      return;
+    }
+    StaticEventLogger.begin("ScaReachability");
+    try {
+      final Class<?> scaClass =
+          AGENT_CLASSLOADER.loadClass("com.datadog.appsec.sca.ScaReachabilitySystem");
+      final Method startMethod = scaClass.getMethod("start", Instrumentation.class);
+      startMethod.invoke(null, instrumentation);
+    } catch (final Throwable ex) {
+      log.warn("Not starting SCA Reachability subsystem: {}", ex.getMessage());
+    }
+    StaticEventLogger.end("ScaReachability");
   }
 
   private static void maybeStartIast(Instrumentation instrumentation) {
@@ -1332,6 +1465,33 @@ public class Agent {
             }
           }
         });
+  }
+
+  /**
+   * Exports {@code jdk.internal.misc} to the classloader that loads {@code
+   * com.datadoghq.profiler.*} before the Datadog profiler is loaded.
+   *
+   * <p>On JDK 21+, the profiler scopes its context {@code ThreadContext} storage to the carrier
+   * thread using {@code jdk.internal.misc.CarrierThreadLocal}, so a mounted virtual thread resolves
+   * to its current carrier's record — fixing a virtual-thread context use-after-free. That type
+   * lives in a non-exported package, hence the export. Must run before {@code
+   * installDatadogTracer}, which loads the profiler via {@link
+   * #createProfilingContextIntegration()}.
+   */
+  private static void prepareDatadogProfilerContextStorage(Instrumentation inst) {
+    try {
+      if (inst == null
+          || !Config.get().isProfilingEnabled()
+          || !Config.get().isDatadogProfilerEnabled()
+          || OperatingSystem.isWindows()
+          || !isJavaVersionAtLeast(21)) {
+        return;
+      }
+      JDK9ModuleAccess.exportModuleToUnnamedModule(
+          inst, "java.base", new String[] {"jdk.internal.misc"}, AGENT_CLASSLOADER);
+    } catch (Throwable t) {
+      log.debug("Unable to export jdk.internal.misc for the Datadog profiler", t);
+    }
   }
 
   /**

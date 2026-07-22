@@ -79,13 +79,9 @@ public final class ClientListenerInstrumentation
       final AgentSpan span = scope.span();
       try {
         if (throwable != null) {
-          // There was an synchronous error,
-          // which means we shouldn't wait for a callback to close the span.
           DECORATE.onError(span, throwable);
-          DECORATE.beforeFinish(span);
-        } else {
-          DECORATE.beforeFinish(span);
         }
+        DECORATE.beforeFinish(span);
       } finally {
         scope.close();
         span.finish();

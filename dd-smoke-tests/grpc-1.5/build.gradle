@@ -39,8 +39,12 @@ protobuf {
 }
 
 tasks.withType(ShadowJar).configureEach {
+  duplicatesStrategy = DuplicatesStrategy.INCLUDE
   archiveClassifier.set("fat")
   mergeServiceFiles()
+  filesNotMatching('META-INF/services/**') {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  }
 }
 
 tasks.withType(Test).configureEach {

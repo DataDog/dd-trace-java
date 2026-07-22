@@ -15,7 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
-import datadog.trace.junit.utils.tabletest.TableTestTypeConverters;
+import datadog.trace.test.junit.utils.tabletest.TableTestTypeConverters;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.tabletest.junit.TableTest;
@@ -58,7 +58,7 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
         new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
             .withRequestContextDataAppSec("dummy");
     DDSpan span = (DDSpan) tracer.buildSpan("datadog", "top").asChildOf(extracted).start();
-    PropagationTags dd = span.context().getPropagationTags();
+    PropagationTags dd = span.spanContext().getPropagationTags();
 
     span.setSamplingPriority(newPriority, newMechanism);
 
@@ -90,9 +90,9 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
         new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
             .withRequestContextDataAppSec("dummy");
     DDSpan rootSpan = (DDSpan) tracer.buildSpan("datadog", "top").asChildOf(extracted).start();
-    PropagationTags ddRoot = rootSpan.context().getPropagationTags();
+    PropagationTags ddRoot = rootSpan.spanContext().getPropagationTags();
     DDSpan span =
-        (DDSpan) tracer.buildSpan("datadog", "current").asChildOf(rootSpan.context()).start();
+        (DDSpan) tracer.buildSpan("datadog", "current").asChildOf(rootSpan.spanContext()).start();
 
     span.setSamplingPriority(newPriority, newMechanism);
 
@@ -116,9 +116,9 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
         new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
             .withRequestContextDataAppSec("dummy");
     DDSpan span = (DDSpan) tracer.buildSpan("datadog", "top").asChildOf(extracted).start();
-    PropagationTags dd = span.context().getPropagationTags();
+    PropagationTags dd = span.spanContext().getPropagationTags();
 
-    span.context().forceKeep();
+    span.spanContext().forceKeep();
 
     assertEquals(newHeader, dd.headerValue(PropagationTags.HeaderType.DATADOG));
     assertEquals(tagMap, dd.createTagMap());
@@ -144,11 +144,11 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
         new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
             .withRequestContextDataAppSec("dummy");
     DDSpan rootSpan = (DDSpan) tracer.buildSpan("datadog", "top").asChildOf(extracted).start();
-    PropagationTags ddRoot = rootSpan.context().getPropagationTags();
+    PropagationTags ddRoot = rootSpan.spanContext().getPropagationTags();
     DDSpan span =
-        (DDSpan) tracer.buildSpan("datadog", "current").asChildOf(rootSpan.context()).start();
+        (DDSpan) tracer.buildSpan("datadog", "current").asChildOf(rootSpan.spanContext()).start();
 
-    span.context().forceKeep();
+    span.spanContext().forceKeep();
 
     assertEquals(rootHeader, ddRoot.headerValue(PropagationTags.HeaderType.DATADOG));
     assertEquals(rootTagMap, ddRoot.createTagMap());

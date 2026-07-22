@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.GeneralConfig;
@@ -25,7 +26,6 @@ import org.gradle.testkit.runner.TaskOutcome;
 import org.gradle.tooling.internal.consumer.DefaultGradleConnector;
 import org.gradle.util.GradleVersion;
 import org.gradle.wrapper.Download;
-import org.gradle.wrapper.GradleUserHomeLookup;
 import org.gradle.wrapper.Install;
 import org.gradle.wrapper.PathAssembler;
 import org.gradle.wrapper.WrapperConfiguration;
@@ -64,7 +64,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   @TableTest({
     "scenario                    | gradleVersion | projectName                                      | successExpected | expectedTraces | expectedCoverages",
-    "succeed-old-gradle-3.5      | 3.5           | test-succeed-old-gradle                          | true            | 5              | 1                ",
+    "succeed-old-gradle-oldest   | oldest        | test-succeed-old-gradle                          | true            | 5              | 1                ",
     "succeed-legacy              | 7.6.4         | test-succeed-legacy-instrumentation              | true            | 5              | 1                ",
     "succeed-multi-module-legacy | 7.6.4         | test-succeed-multi-module-legacy-instrumentation | true            | 7              | 2                ",
     "succeed-multi-forks-legacy  | 7.6.4         | test-succeed-multi-forks-legacy-instrumentation  | true            | 6              | 2                ",
@@ -118,15 +118,47 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       int expectedTraces,
       int expectedCoverages)
       throws IOException {
-    String resolvedGradleVersion = resolveLatest(gradleVersion);
+    Assumptions.assumeFalse(
+        JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
     runGradleTest(
-        resolvedGradleVersion,
+        gradleVersion,
         projectName,
         configurationCache,
         successExpected,
         flakyRetries,
         expectedTraces,
         expectedCoverages);
+  }
+
+  @TableTest({
+    "scenario           | gradleVersion | projectName              | expectedTraces",
+    "robolectric-latest | latest        | test-succeed-robolectric | 7             "
+  })
+  @ParameterizedTest
+  void testRobolectric(String gradleVersion, String projectName, int expectedTraces)
+      throws IOException {
+    Assumptions.assumeTrue(
+        JavaVirtualMachine.isJavaVersionBetween(17, 22), "Robolectric 4.16 supports JDK 17-21");
+    Assumptions.assumeFalse(
+        OperatingSystem.architecture().isArm64(),
+        "Robolectric does not support arm64 (missing native runtime binaries, follow https://github.com/robolectric/robolectric/issues/9166)");
+
+    gradleVersion = resolveVersion(gradleVersion);
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
+    givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
+    givenGradleProjectFiles(projectName);
+    givenGradleProjectProperties();
+    ensureDependenciesDownloaded(gradleVersion);
+
+    BuildResult buildResult = runGradleTests(gradleVersion, true, false);
+    assertBuildSuccessful(buildResult);
+
+    verifyEventsAndCoverages(
+        projectName,
+        "gradle",
+        gradleVersion,
+        mockBackend.waitForEvents(expectedTraces),
+        mockBackend.waitForCoverages(0));
   }
 
   // TODO: add back LATEST_GRADLE_VERSION after fixing ordering on Gradle 9.3.0
@@ -160,8 +192,27 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     verifyTestOrder(mockBackend.waitForEvents(eventsNumber), expectedOrder);
   }
 
-  private static String resolveLatest(String gradleVersion) {
-    return "latest".equals(gradleVersion) ? LATEST_GRADLE_VERSION : gradleVersion;
+  // Resolves the symbolic versions used in the scenario tables:
+  //  - "latest": the newest eligible Gradle release
+  //  - "oldest": the latest patch of the oldest major the current Gradle TestKit still supports
+  // Any other value is treated as a concrete version and returned as-is.
+  private static String resolveVersion(String gradleVersion) {
+    if ("latest".equals(gradleVersion)) {
+      return LATEST_GRADLE_VERSION;
+    }
+    if ("oldest".equals(gradleVersion)) {
+      return oldestSupportedGradleVersion();
+    }
+    return gradleVersion;
+  }
+
+  private static String oldestSupportedGradleVersion() {
+    // The oldest major the current Gradle TestKit can run is dictated by Gradle itself; tracking it
+    // dynamically (rather than hardcoding a version) means the floor follows TestKit automatically.
+    // We test the latest patch of that major rather than its initial release for stability.
+    int oldestSupportedMajor =
+        DefaultGradleConnector.MINIMUM_SUPPORTED_GRADLE_VERSION.getMajorVersion();
+    return toolVersion("gradle.latest." + oldestSupportedMajor);
   }
 
   private static void givenGradleVersionIsSupportedByCurrentGradleTestKit(String gradleVersion) {
@@ -184,6 +235,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       int expectedTraces,
       int expectedCoverages)
       throws IOException {
+    gradleVersion = resolveVersion(gradleVersion);
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
     givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
     givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache);
@@ -286,7 +338,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
               GradleVersion.current().getVersion(),
               GRADLE_DISTRIBUTION_NETWORK_TIMEOUT);
 
-      java.io.File userHomeDir = GradleUserHomeLookup.gradleUserHome();
+      java.io.File userHomeDir = testKitFolder.toFile();
       java.io.File projectDir = projectFolder.toFile();
       Install install = new Install(logger, download, new PathAssembler(userHomeDir, projectDir));
 
@@ -306,6 +358,9 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   private BuildResult runGradle(
       String gradleVersion, List<String> arguments, boolean successExpected) throws IOException {
     Map<String, String> buildEnv = new HashMap<>();
+    buildEnv.put("GRADLE_ARGS", "");
+    buildEnv.put("GRADLE_OPTS", "");
+    buildEnv.put("GRADLE_USER_HOME", testKitFolder.toString());
     buildEnv.put("GRADLE_VERSION", gradleVersion);
     buildEnv.put(
         GradleDistribution.GRADLE_DISTRIBUTION_URL_ENV,

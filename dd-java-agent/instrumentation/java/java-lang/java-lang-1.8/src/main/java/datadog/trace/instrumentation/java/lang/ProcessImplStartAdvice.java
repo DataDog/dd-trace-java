@@ -30,13 +30,13 @@ class ProcessImplStartAdvice {
     span.setSpanType("system");
     span.setResourceName(ProcessImplInstrumentationHelpers.determineResource(command));
     span.setTag("component", "subprocess");
-    span.context().setIntegrationName("subprocess");
+    span.spanContext().setIntegrationName("subprocess");
     ProcessImplInstrumentationHelpers.setTags(span, command);
     ProcessImplInstrumentationHelpers.cmdiRaspCheck(command);
     return span;
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterStart(
       @Advice.Return Process p, @Advice.Enter AgentSpan span, @Advice.Thrown Throwable t) {
     if (span == null) {

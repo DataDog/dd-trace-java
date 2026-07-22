@@ -193,10 +193,17 @@ public class WriterFactory {
         ddAgentApi.addResponseListener((RemoteResponseListener) sampler);
       }
 
+      // Drop p0 (sampled-out) traces when client-side stats are being computed -- either via the
+      // native agent-stats path (featuresDiscovery) or the OTLP trace metrics path
+      final boolean otlpSpanMetricsEnabled = config.isOtelTracesSpanMetricsEnabled();
+      final DroppingPolicy droppingPolicy =
+          () -> otlpSpanMetricsEnabled || featuresDiscovery.active();
+
       DDAgentWriter.DDAgentWriterBuilder builder =
           DDAgentWriter.builder()
               .agentApi(ddAgentApi)
               .featureDiscovery(featuresDiscovery)
+              .droppingPolicy(droppingPolicy)
               .prioritization(prioritization)
               .healthMetrics(healthMetrics)
               .monitoring(commObjects.monitoring)

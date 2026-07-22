@@ -5,7 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.grizzly.client.InjectAdapter.SETTER;
@@ -63,9 +63,11 @@ public final class AsyncHttpClientInstrumentation
         AgentSpan span = scope.span();
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
+        scope.close();
         span.finish();
+      } else {
+        scope.close();
       }
-      scope.close();
     }
   }
 
@@ -73,7 +75,7 @@ public final class AsyncHttpClientInstrumentation
   public static class ExecuteContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) final Request request) {
-      DECORATE.injectContext(getCurrentContext(), request, SETTER);
+      DECORATE.injectContext(currentContext(), request, SETTER);
     }
   }
 }

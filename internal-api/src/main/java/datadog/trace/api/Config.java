@@ -11,12 +11,13 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_SAMPLE_DELAY;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_AGENTIC_ONBOARDING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_STACK_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_WAF_METRICS;
@@ -72,10 +73,12 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_C
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_POLL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_TIMEOUT;
@@ -131,6 +134,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
@@ -185,6 +189,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_STATS_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
@@ -210,6 +215,7 @@ import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_ENABLED;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_CONTENT_SIZE;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_MAX_MESSAGES_LENGTH;
 import static datadog.trace.api.config.AIGuardConfig.DEFAULT_AI_GUARD_TIMEOUT;
+import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED;
@@ -217,6 +223,7 @@ import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED_EXPERIM
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_SAMPLE_DELAY;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_AGENTIC_ONBOARDING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_BODY_PARSING_SIZE_LIMIT;
@@ -231,10 +238,9 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORTING_INBAND;
-import static datadog.trace.api.config.AppSecConfig.APPSEC_REPORT_TIMEOUT_SEC;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_RULES_FILE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_MAX_TRACKED_DEPENDENCIES;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_STACKTRACE_ENABLED_DEPRECATED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_STACK_TRACE_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_TRACE_RATE_LIMIT;
@@ -296,6 +302,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_ORDE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TEST_SKIPPING_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_TRACE_SANITATION_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CODE_COVERAGE_FLAGS;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_COMMIT_HEAD_SHA;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH;
 import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_BRANCH_SHA;
@@ -324,9 +331,11 @@ import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_MAX_EXCEPTION_PER
 import static datadog.trace.api.config.DebuggerConfig.DEBUGGER_SOURCE_FILE_TRACKING_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DISTRIBUTED_DEBUGGER_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT;
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_CLASSFILE_DUMP_ENABLED;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_DIAGNOSTICS_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_ENABLED;
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT_MS;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_INCLUDE_FILES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_INSTRUMENT_THE_WORLD;
@@ -339,6 +348,7 @@ import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_RE
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTED_TYPES;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_SNAPSHOT_URL;
+import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL;
 import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_INTERVAL_SECONDS;
@@ -418,6 +428,8 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGAT
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
+import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
@@ -471,6 +483,7 @@ import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPERIMENTAL_ENAB
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_HEADERS;
@@ -812,6 +825,7 @@ import org.slf4j.LoggerFactory;
 public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
+  private static final int MAX_CODE_COVERAGE_FLAGS = 32;
 
   private static final Pattern COLON = Pattern.compile(":");
 
@@ -997,6 +1011,9 @@ public class Config {
   private final int otlpMetricsTimeout;
   private final OtlpConfig.Temporality otlpMetricsTemporalityPreference;
 
+  private final boolean otelTracesSpanMetricsEnabled;
+  private final boolean traceOtelSemanticsEnabled;
+
   private final String traceOtelExporter;
   private final String otlpTracesEndpoint;
   private final Map<String, String> otlpTracesHeaders;
@@ -1015,6 +1032,7 @@ public class Config {
   private final boolean tracerMetricsBufferingEnabled;
   private final int tracerMetricsMaxAggregates;
   private final int tracerMetricsMaxPending;
+  private final int traceStatsInterval;
 
   private final boolean reportHostName;
 
@@ -1068,19 +1086,18 @@ public class Config {
 
   private final boolean clientIpEnabled;
 
-  private final boolean appSecReportingInband;
   private final String appSecRulesFile;
-  private final int appSecReportMinTimeout;
-  private final int appSecReportMaxTimeout;
   private final int appSecTraceRateLimit;
   private final boolean appSecWafMetrics;
   private final int appSecWafTimeout;
+  private final String appSecAgenticOnboarding;
   private final String appSecObfuscationParameterKeyRegexp;
   private final String appSecObfuscationParameterValueRegexp;
   private final String appSecHttpBlockedTemplateHtml;
   private final String appSecHttpBlockedTemplateJson;
   private final UserIdCollectionMode appSecUserIdCollectionMode;
   private final Boolean appSecScaEnabled;
+  private final int appSecScaMaxTrackedDependencies;
   private final boolean appSecStackTraceEnabled;
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
@@ -1136,6 +1153,7 @@ public class Config {
   private final boolean ciVisibilityCodeCoverageEnabled;
   private final Boolean ciVisibilityCoverageLinesEnabled;
   private final String ciVisibilityCodeCoverageReportDumpDir;
+  private final List<String> codeCoverageFlags;
   private final String ciVisibilityCompilerPluginVersion;
   private final String ciVisibilityJacocoPluginVersion;
   private final boolean ciVisibilityJacocoPluginVersionProvided;
@@ -1224,7 +1242,9 @@ public class Config {
   private final String dynamicInstrumentationInstrumentTheWorld;
   private final String dynamicInstrumentationExcludeFiles;
   private final String dynamicInstrumentationIncludeFiles;
+  private final String dynamicInstrumentationTimeoutCheckerMode;
   private final int dynamicInstrumentationCaptureTimeout;
+  private final int dynamicInstrumentationEvaluationTimeout;
   private final String dynamicInstrumentationRedactedIdentifiers;
   private final Set<String> dynamicInstrumentationRedactionExcludedIdentifiers;
   private final String dynamicInstrumentationRedactedTypes;
@@ -1395,7 +1415,6 @@ public class Config {
 
   private final boolean jdkSocketEnabled;
 
-  private final boolean optimizedMapEnabled;
   private final boolean spanBuilderReuseEnabled;
   private final int tagNameUtf8CacheSize;
   private final int tagValueUtf8CacheSize;
@@ -1504,7 +1523,9 @@ public class Config {
         configProvider.getBoolean(WRITER_BAGGAGE_INJECT, isDatadogTraceWriter);
     injectLinksAsTagsEnabled = configProvider.getBoolean(WRITER_LINKS_INJECT, isDatadogTraceWriter);
     String lambdaInitType = getEnv("AWS_LAMBDA_INITIALIZATION_TYPE");
-    if (lambdaInitType != null && lambdaInitType.equals("snap-start")) {
+    String lambdaMicrovmImageArn = ConfigHelper.env("AWS_LAMBDA_MICROVM_IMAGE_ARN");
+    if ((lambdaInitType != null && lambdaInitType.equals("snap-start"))
+        || (lambdaMicrovmImageArn != null && !lambdaMicrovmImageArn.isEmpty())) {
       secureRandom = true;
     } else {
       secureRandom = configProvider.getBoolean(SECURE_RANDOM, DEFAULT_SECURE_RANDOM);
@@ -1840,7 +1861,8 @@ public class Config {
             DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
 
     tracePropagationStyleB3PaddingEnabled =
-        isEnabled(true, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
+        isEnabled(
+            DEFAULT_PROPAGATION_B3_PADDING_ENABLED, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
 
     TracePropagationBehaviorExtract tmpTracePropagationBehaviorExtract;
     try {
@@ -2123,6 +2145,16 @@ public class Config {
             OtlpConfig.Temporality.class,
             OtlpConfig.Temporality.DELTA);
 
+    traceOtelSemanticsEnabled = configProvider.getBoolean(TRACE_OTEL_SEMANTICS_ENABLED, false);
+    // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
+    // export and OTLP metrics export are both enabled.
+    otelTracesSpanMetricsEnabled =
+        configProvider.getBoolean(
+            OTEL_TRACES_SPAN_METRICS_ENABLED,
+            isTraceOtlpExporterEnabled()
+                && isMetricsOtelEnabled()
+                && isMetricsOtlpExporterEnabled());
+
     otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
     if (otlpTimeout < 0) {
       log.warn("Invalid OTLP traces timeout: {}. The value must be positive", otlpTimeout);
@@ -2202,6 +2234,18 @@ public class Config {
         configProvider.getBoolean(TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION, false);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
+    // Internal, test-only override of the stats flush interval. Read directly from the
+    // underscore-prefixed env var so it bypasses config-inversion validation and telemetry.
+    int statsInterval = DEFAULT_TRACE_STATS_INTERVAL;
+    String statsIntervalOverride = ConfigHelper.env("_DD_TRACE_STATS_INTERVAL");
+    if (statsIntervalOverride != null) {
+      try {
+        statsInterval = Integer.parseInt(statsIntervalOverride);
+      } catch (NumberFormatException ignored) {
+        // fall back to the default
+      }
+    }
+    traceStatsInterval = statsInterval;
     // The metrics inbox is an MpscArrayQueue<SpanSnapshot>; each saturated slot holds one
     // ~120 B SpanSnapshot. The historical default TRACER_METRICS_MAX_PENDING=2048 (logical) *
     // LEGACY_BATCH_SIZE=64 = 131072 slots was sized for the prior conflating-Batch model where
@@ -2223,7 +2267,8 @@ public class Config {
     final int defaultMaxPending = tightHeap ? 64 : 128;
 
     tracerMetricsMaxAggregates =
-        configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, defaultMaxAggregates);
+        configProvider.getInteger(
+            TRACE_STATS_CARDINALITY_LIMIT, defaultMaxAggregates, TRACER_METRICS_MAX_AGGREGATES);
     /*
      * TRACER_METRICS_MAX_PENDING historically counted conflating Batch slots (~64 spans per batch
      * via Batch.MAX_BATCH_SIZE). The inbox now holds 1 SpanSnapshot per metrics-eligible span, so
@@ -2240,7 +2285,6 @@ public class Config {
         (long) configProvider.getInteger(TRACER_METRICS_MAX_PENDING, defaultMaxPending)
             * LEGACY_BATCH_SIZE;
     tracerMetricsMaxPending = (int) Math.min(requestedMaxPending, MAX_SAFE_ARRAY_SIZE);
-
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
@@ -2458,13 +2502,7 @@ public class Config {
             DEFAULT_TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE);
     clientIpEnabled = configProvider.getBoolean(CLIENT_IP_ENABLED, DEFAULT_CLIENT_IP_ENABLED);
 
-    appSecReportingInband =
-        configProvider.getBoolean(APPSEC_REPORTING_INBAND, DEFAULT_APPSEC_REPORTING_INBAND);
     appSecRulesFile = configProvider.getString(APPSEC_RULES_FILE, null);
-
-    // Default AppSec report timeout min=5, max=60
-    appSecReportMaxTimeout = configProvider.getInteger(APPSEC_REPORT_TIMEOUT_SEC, 60);
-    appSecReportMinTimeout = Math.min(appSecReportMaxTimeout, 5);
 
     appSecTraceRateLimit =
         configProvider.getInteger(APPSEC_TRACE_RATE_LIMIT, DEFAULT_APPSEC_TRACE_RATE_LIMIT);
@@ -2472,6 +2510,10 @@ public class Config {
     appSecWafMetrics = configProvider.getBoolean(APPSEC_WAF_METRICS, DEFAULT_APPSEC_WAF_METRICS);
 
     appSecWafTimeout = configProvider.getInteger(APPSEC_WAF_TIMEOUT, DEFAULT_APPSEC_WAF_TIMEOUT);
+
+    // RFC-1113: reported verbatim in configuration telemetry; always emitted (empty when unset).
+    appSecAgenticOnboarding =
+        configProvider.getString(APPSEC_AGENTIC_ONBOARDING, DEFAULT_APPSEC_AGENTIC_ONBOARDING);
 
     appSecObfuscationParameterKeyRegexp =
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, null);
@@ -2487,6 +2529,9 @@ public class Config {
             configProvider.getStringNotEmpty(APPSEC_AUTO_USER_INSTRUMENTATION_MODE, null),
             configProvider.getStringNotEmpty(APPSEC_AUTOMATED_USER_EVENTS_TRACKING, null));
     appSecScaEnabled = configProvider.getBoolean(APPSEC_SCA_ENABLED);
+    appSecScaMaxTrackedDependencies =
+        configProvider.getInteger(
+            APPSEC_SCA_MAX_TRACKED_DEPENDENCIES, DEFAULT_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES);
     appSecStackTraceEnabled =
         configProvider.getBoolean(
             APPSEC_STACK_TRACE_ENABLED,
@@ -2526,9 +2571,10 @@ public class Config {
             DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS);
     apiSecurityDownstreamRequestBodyAnalysisSampleRate =
         configProvider.getDouble(
-            API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
+            API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE,
             DEFAULT_API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE,
-            API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE);
+            API_SECURITY_DOWNSTREAM_REQUEST_ANALYSIS_SAMPLE_RATE,
+            API_SECURITY_DOWNSTREAM_REQUEST_BODY_ANALYSIS_SAMPLE_RATE);
 
     // Trace Resource Renaming (Endpoint Inference) configuration
     // Default: enabled if AppSec is enabled, otherwise disabled
@@ -2664,6 +2710,7 @@ public class Config {
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED);
     ciVisibilityCodeCoverageReportDumpDir =
         configProvider.getString(CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR);
+    codeCoverageFlags = parseCodeCoverageFlags(configProvider.getList(CODE_COVERAGE_FLAGS));
     ciVisibilityCompilerPluginVersion =
         configProvider.getString(
             CIVISIBILITY_COMPILER_PLUGIN_VERSION, DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION);
@@ -2863,10 +2910,18 @@ public class Config {
         configProvider.getString(DYNAMIC_INSTRUMENTATION_EXCLUDE_FILES);
     dynamicInstrumentationIncludeFiles =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_INCLUDE_FILES);
+    dynamicInstrumentationTimeoutCheckerMode =
+        configProvider.getString(
+            DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE,
+            DEFAULT_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE);
     dynamicInstrumentationCaptureTimeout =
         configProvider.getInteger(
             DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
-            DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT);
+            DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT,
+            DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS);
+    dynamicInstrumentationEvaluationTimeout =
+        configProvider.getInteger(
+            DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT_MS, DEFAULT_DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT);
     dynamicInstrumentationRedactedIdentifiers =
         configProvider.getString(DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, null);
     dynamicInstrumentationRedactionExcludedIdentifiers =
@@ -3251,7 +3306,6 @@ public class Config {
 
     this.jdkSocketEnabled = configProvider.getBoolean(JDK_SOCKET_ENABLED, true);
 
-    this.optimizedMapEnabled = configProvider.getBoolean(GeneralConfig.OPTIMIZED_MAP_ENABLED, true);
     this.spanBuilderReuseEnabled =
         configProvider.getBoolean(GeneralConfig.SPAN_BUILDER_REUSE_ENABLED, true);
     this.tagNameUtf8CacheSize =
@@ -3837,6 +3891,20 @@ public class Config {
     return tracerMetricsMaxPending;
   }
 
+  public int getTraceStatsInterval() {
+    return traceStatsInterval;
+  }
+
+  /**
+   * Returns the per-cycle cardinality limit for the named stats field, following the RFC naming
+   * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
+   * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
+   * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
+   */
+  public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
+    return configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+  }
+
   public boolean isLogsInjectionEnabled() {
     return logsInjectionEnabled;
   }
@@ -4090,18 +4158,6 @@ public class Config {
     return instrumenterConfig.getAppSecActivation();
   }
 
-  public boolean isAppSecReportingInband() {
-    return appSecReportingInband;
-  }
-
-  public int getAppSecReportMinTimeout() {
-    return appSecReportMinTimeout;
-  }
-
-  public int getAppSecReportMaxTimeout() {
-    return appSecReportMaxTimeout;
-  }
-
   public int getAppSecTraceRateLimit() {
     return appSecTraceRateLimit;
   }
@@ -4352,6 +4408,10 @@ public class Config {
 
   public String getCiVisibilityCodeCoverageReportDumpDir() {
     return ciVisibilityCodeCoverageReportDumpDir;
+  }
+
+  public List<String> getCodeCoverageFlags() {
+    return codeCoverageFlags;
   }
 
   public String getCiVisibilityCompilerPluginVersion() {
@@ -4675,8 +4735,16 @@ public class Config {
     return dynamicInstrumentationIncludeFiles;
   }
 
+  public String getDynamicInstrumentationTimeoutCheckerMode() {
+    return dynamicInstrumentationTimeoutCheckerMode;
+  }
+
   public int getDynamicInstrumentationCaptureTimeout() {
     return dynamicInstrumentationCaptureTimeout;
+  }
+
+  public int getDynamicInstrumentationEvalTimeout() {
+    return dynamicInstrumentationEvaluationTimeout;
   }
 
   public boolean isSymbolDatabaseEnabled() {
@@ -5086,10 +5154,6 @@ public class Config {
 
   public boolean isJdkSocketEnabled() {
     return jdkSocketEnabled;
-  }
-
-  public boolean isOptimizedMapEnabled() {
-    return optimizedMapEnabled;
   }
 
   public boolean isSpanBuilderReuseEnabled() {
@@ -5597,6 +5661,14 @@ public class Config {
     return otlpMetricsTemporalityPreference;
   }
 
+  public boolean isOtelTracesSpanMetricsEnabled() {
+    return otelTracesSpanMetricsEnabled;
+  }
+
+  public boolean isTraceOtelSemanticsEnabled() {
+    return traceOtelSemanticsEnabled;
+  }
+
   public boolean isTraceOtelEnabled() {
     return instrumenterConfig.isTraceOtelEnabled();
   }
@@ -5638,9 +5710,9 @@ public class Config {
   }
 
   /**
-   * @param integrationNames
-   * @param defaultEnabled
-   * @return
+   * @param integrationNames the integration names to check
+   * @param defaultEnabled the value to return when no integration name is configured
+   * @return {@code true} if the JMX fetch integration is enabled
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
    *     #isJmxFetchIntegrationEnabled(Iterable, boolean)}.
    */
@@ -5807,9 +5879,9 @@ public class Config {
   }
 
   /**
-   * @param integrationNames
-   * @param defaultEnabled
-   * @return
+   * @param integrationNames the integration names to check
+   * @param defaultEnabled the value to return when no integration name is configured
+   * @return {@code true} if the trace analytics integration is enabled
    * @deprecated This method should only be used internally. Use the instance getter instead {@link
    *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    */
@@ -5844,6 +5916,10 @@ public class Config {
 
   public boolean isAppSecScaEnabled() {
     return appSecScaEnabled != null && appSecScaEnabled;
+  }
+
+  public int getAppSecScaMaxTrackedDependencies() {
+    return appSecScaMaxTrackedDependencies;
   }
 
   public boolean isAppSecRaspEnabled() {
@@ -6018,6 +6094,29 @@ public class Config {
       result.add(str.substring(start));
     }
     return Collections.unmodifiableSet(result);
+  }
+
+  private static List<String> parseCodeCoverageFlags(List<String> configuredFlags) {
+    if (configuredFlags.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    List<String> flags = new ArrayList<>(configuredFlags.size());
+    for (String configuredFlag : configuredFlags) {
+      if (!configuredFlag.isEmpty()) {
+        flags.add(configuredFlag);
+      }
+    }
+
+    if (flags.size() > MAX_CODE_COVERAGE_FLAGS) {
+      log.warn(
+          "Cannot apply {} code coverage report flags: the maximum supported number is {}. The report will be uploaded without flags.",
+          flags.size(),
+          MAX_CODE_COVERAGE_FLAGS);
+      return Collections.emptyList();
+    }
+
+    return Collections.unmodifiableList(flags);
   }
 
   private static <T> Set<T> convertStringSetToSet(
@@ -6208,6 +6307,8 @@ public class Config {
         + experimentalFeaturesEnabled
         + ", integrationSynapseLegacyOperationName="
         + integrationSynapseLegacyOperationName
+        + ", codeCoverageFlags="
+        + codeCoverageFlags
         + ", writerType='"
         + writerType
         + '\''
@@ -6558,8 +6659,6 @@ public class Config {
         + grpcClientErrorStatuses
         + ", clientIpEnabled="
         + clientIpEnabled
-        + ", appSecReportingInband="
-        + appSecReportingInband
         + ", appSecRulesFile='"
         + appSecRulesFile
         + "'"
@@ -6567,7 +6666,9 @@ public class Config {
         + appSecHttpBlockedTemplateHtml
         + ", appSecWafTimeout="
         + appSecWafTimeout
-        + " us, appSecHttpBlockedTemplateJson="
+        + " us, appSecAgenticOnboarding="
+        + appSecAgenticOnboarding
+        + ", appSecHttpBlockedTemplateJson="
         + appSecHttpBlockedTemplateJson
         + ", apiSecurityEnabled="
         + apiSecurityEnabled
@@ -6627,6 +6728,8 @@ public class Config {
         + telemetryMetricsEnabled
         + ", appSecScaEnabled="
         + appSecScaEnabled
+        + ", appSecScaMaxTrackedDependencies="
+        + appSecScaMaxTrackedDependencies
         + ", appSecRaspEnabled="
         + isAppSecRaspEnabled()
         + ", dataJobsOpenLineageEnabled="
@@ -6699,6 +6802,12 @@ public class Config {
         + otlpMetricsTimeout
         + ", otlpMetricsTemporalityPreference="
         + otlpMetricsTemporalityPreference
+        + ", otelTracesSpanMetricsEnabled="
+        + otelTracesSpanMetricsEnabled
+        + ", traceOtelSemanticsEnabled="
+        + traceOtelSemanticsEnabled
+        + ", traceStatsInterval="
+        + traceStatsInterval
         + ", traceOtelExporter="
         + traceOtelExporter
         + ", otlpTracesEndpoint="

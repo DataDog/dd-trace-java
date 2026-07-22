@@ -2,6 +2,14 @@ package datadog.smoketest
 
 import static java.util.concurrent.TimeUnit.SECONDS
 
+import datadog.environment.JavaVirtualMachine
+import datadog.environment.OperatingSystem
+import spock.lang.IgnoreIf
+
+// TODO: OpenJ9 (Semeru) on Linux arm64 fails on this test.
+@IgnoreIf({
+  OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64() && JavaVirtualMachine.isJ9()
+})
 class Java9ModulesSmokeTest extends AbstractSmokeTest {
   // Estimate for the amount of time instrumentation plus some extra
   private static final int TIMEOUT_SECS = 30

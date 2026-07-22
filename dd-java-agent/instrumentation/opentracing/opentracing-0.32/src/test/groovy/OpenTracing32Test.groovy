@@ -1,3 +1,4 @@
+import datadog.context.Context
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
@@ -34,7 +35,6 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
 
 class OpenTracing32Test extends InstrumentationSpecification {
 
@@ -118,7 +118,7 @@ class OpenTracing32Test extends InstrumentationSpecification {
             }
             defaultTags(addReference != null)
           }
-          assert span.context().integrationName == "opentracing"
+          assert span.spanContext().integrationName == "opentracing"
         }
       }
     }
@@ -176,7 +176,7 @@ class OpenTracing32Test extends InstrumentationSpecification {
     span instanceof MutableSpan
     scope instanceof TraceScope
     !internalTracer.isAsyncPropagationEnabled()
-    (scope as TraceScope).capture() == noopContinuation()
+    (scope as TraceScope).capture().context() == Context.root()
     (tracer.scopeManager().active().span().delegate == span.delegate)
 
     when:

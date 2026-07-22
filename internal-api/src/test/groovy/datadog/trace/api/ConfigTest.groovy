@@ -53,6 +53,7 @@ import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SSI_INJECTION_FORCE
 import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES
+import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.VERSION
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED
@@ -137,6 +138,7 @@ import static datadog.trace.api.config.OtlpConfig.Protocol.HTTP_JSON
 import static datadog.trace.api.config.OtlpConfig.Temporality.CUMULATIVE
 import static datadog.trace.api.config.OtlpConfig.Temporality.DELTA
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT
@@ -148,7 +150,9 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER
 import datadog.trace.config.inversion.ConfigHelper
 
 import datadog.trace.api.env.FixedCapturedEnvironment
@@ -555,6 +559,10 @@ class ConfigTest extends DDSpecification {
     config.otlpTracesHeaders == [:]
     config.otlpTracesProtocol == HTTP_PROTOBUF
     config.otlpTracesTimeout == 10000
+
+    !config.otelTracesSpanMetricsEnabled
+    !config.traceOtelSemanticsEnabled
+    config.traceStatsInterval == 10000
   }
 
   def "otel: check syntax for OTLP headers"() {
@@ -715,6 +723,36 @@ class ConfigTest extends DDSpecification {
     config.otlpTracesEndpoint == "http://localhost:4318/v1/traces"
   }
 
+  def "traces span metrics tri-state default: exporter=#exporter metricsEnabled=#metricsEnabled metricsExporter=#metricsExporter override=#override"() {
+    setup:
+    System.setProperty(PREFIX + TRACE_OTEL_EXPORTER, exporter)
+    System.setProperty(PREFIX + METRICS_OTEL_ENABLED, metricsEnabled)
+    if (metricsExporter != null) {
+      System.setProperty(PREFIX + METRICS_OTEL_EXPORTER, metricsExporter)
+    }
+    if (override != null) {
+      System.setProperty(PREFIX + OTEL_TRACES_SPAN_METRICS_ENABLED, override)
+    }
+
+    when:
+    Config config = new Config()
+
+    then:
+    // Unset: emit iff OTLP trace export and OTLP metrics export are both on. An explicit
+    // dd.otel.traces.span.metrics.enabled always wins.
+    config.otelTracesSpanMetricsEnabled == expected
+
+    where:
+    exporter | metricsEnabled | metricsExporter | override | expected
+    "otlp"   | "true"         | null            | null     | true   // metrics defaults to otlp
+    "otlp"   | "true"         | "otlp"          | null     | true
+    "otlp"   | "true"         | "none"          | null     | false  // metrics exporter explicitly disabled
+    "otlp"   | "false"        | "otlp"          | null     | false  // metrics feature flag off overrides exporter
+    "none"   | "true"         | null            | null     | false
+    "none"   | "true"         | "otlp"          | null     | false
+    "none"   | "false"        | "none"          | "true"   | true   // explicit override wins
+    "otlp"   | "true"         | "otlp"          | "false"  | false  // explicit override wins
+  }
 
   def "specify overrides via system properties"() {
     setup:
@@ -831,6 +869,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(OTEL_EXPORTER_OTLP_TRACES_PROTOCOL_PROP, "http/protobuf")
     System.setProperty(OTEL_EXPORTER_OTLP_TRACES_TIMEOUT_PROP, "5002")
     System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production")
+    System.setProperty(PREFIX + TRACE_OTEL_SEMANTICS_ENABLED, "true")
 
     when:
     Config config = new Config()
@@ -953,6 +992,9 @@ class ConfigTest extends DDSpecification {
     config.otlpTracesHeaders["traces-config-value"] == "T"
     config.otlpTracesProtocol == HTTP_PROTOBUF
     config.otlpTracesTimeout == 5002
+
+    config.traceOtelSemanticsEnabled
+    config.otelTracesSpanMetricsEnabled // tri-state default: OTLP trace export + OTel metrics both on
   }
 
   def "specify overrides via env vars"() {

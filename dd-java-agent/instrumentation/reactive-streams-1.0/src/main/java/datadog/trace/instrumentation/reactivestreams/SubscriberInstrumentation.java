@@ -10,7 +10,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -51,12 +50,8 @@ public class SubscriberInstrumentation
   public static class SubscriberDownStreamAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope before(@Advice.This final Subscriber self) {
-      final Context currentContext = Java8BytecodeBridge.getCurrentContext();
-      if (currentContext != null && currentContext != Java8BytecodeBridge.getRootContext()) {
-        return null;
-      }
-      final Context context = InstrumentationContext.get(Subscriber.class, Context.class).get(self);
-      return context == null || context == currentContext ? null : context.attach();
+      return ReactiveStreamsContextPropagation.activateOnSignal(
+          self, InstrumentationContext.get(Subscriber.class, Context.class));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -75,8 +70,8 @@ public class SubscriberInstrumentation
   public static class SubscriberCompleteAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope before(@Advice.This final Subscriber self) {
-      final Context context = InstrumentationContext.get(Subscriber.class, Context.class).get(self);
-      return context == null ? null : context.attach();
+      return ReactiveStreamsContextPropagation.activateOnComplete(
+          self, InstrumentationContext.get(Subscriber.class, Context.class));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

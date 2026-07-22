@@ -21,69 +21,7 @@ java {
   sourceCompatibility = JavaVersion.VERSION_1_8
 }
 
-ext {
-  serverName = 'tomcat'
-  serverModule = 'tomcat-9'
-  serverVersion = '9.0.117'
-  serverExtension = 'zip'
-}
-
-repositories {
-  ivy {
-    url = 'https://dlcdn.apache.org'
-    patternLayout {
-      artifact '/[organisation]/[module]/v[revision]/bin/apache-[organisation]-[revision].[ext]'
-    }
-    metadataSources {
-      it.artifact()
-    }
-  }
-}
-
-configurations {
-  serverFile {
-    extendsFrom implementation
-    canBeResolved = true
-  }
-}
-
 dependencies {
-  // uses the ivy repository url to download the tomcat server
-  // organisation = serverName, revision = serverVersion, module = serverModule, ext = serverExtension
-  serverFile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
-
-  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.12'
-  providedRuntime group: 'org.springframework.boot', name: 'spring-boot-starter-tomcat', version: '2.5.12'
-}
-
-tasks.register("unzip", Copy) {
-  def zipFileNamePrefix = "tomcat"
-  def serverZipTree = providers.provider {
-    // eager access
-    def zipPath = project.configurations.serverFile.find {
-      it.name.startsWith(zipFileNamePrefix)
-    }
-    if (zipPath == null) {
-      throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
-    }
-    zipTree(zipPath)
-  }
-
-  from serverZipTree
-  into layout.buildDirectory
-
-  // When tests are disabled this would still be run, so disable this manually
-  onlyIf { !project.rootProject.hasProperty("skipTests") }
-}
-
-tasks.named('bootWar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('bootWarMainClassName') {
-  dependsOn 'unzip'
-}
-
-tasks.named('war') {
-  dependsOn 'unzip'
+  implementation 'org.springframework.boot:spring-boot-starter-web:2.5.12'
+  providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat:2.5.12'
 }

@@ -90,6 +90,8 @@
 /dd-trace-api/src/main/java/datadog/trace/api/EventTracker.java @DataDog/asm-java
 /internal-api/src/main/java/datadog/trace/api/gateway/          @DataDog/asm-java
 /internal-api/src/main/java/datadog/trace/api/http/             @DataDog/asm-java
+/internal-api/src/main/java/datadog/trace/api/telemetry/ScaReachability* @DataDog/asm-java
+/telemetry/src/main/java/datadog/telemetry/sca/                 @DataDog/asm-java
 **/appsec/                                                      @DataDog/asm-java
 **/*CallSite*.java                                              @DataDog/asm-java
 **/*CallSite*.groovy                                            @DataDog/asm-java
@@ -108,7 +110,8 @@
 /dd-java-agent/instrumentation/cucumber-5.4/        @DataDog/ci-app-libraries
 /dd-java-agent/instrumentation/jacoco-0.8.9/        @DataDog/ci-app-libraries
 /dd-java-agent/instrumentation/junit                @DataDog/ci-app-libraries
-/dd-java-agent/instrumentation/karate-1.0/          @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/karate/              @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/robolectric-4.13/    @DataDog/ci-app-libraries
 /dd-java-agent/instrumentation/scalatest-3.0.8/     @DataDog/ci-app-libraries
 /dd-java-agent/instrumentation/selenium-3.13/       @DataDog/ci-app-libraries
 /dd-java-agent/instrumentation/testng/              @DataDog/ci-app-libraries

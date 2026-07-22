@@ -21,8 +21,9 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.TraceCollector;
-import datadog.trace.junit.utils.config.WithConfig;
-import datadog.trace.junit.utils.context.AllowContextTestingExtension;
+import datadog.trace.test.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.context.AllowContextTestingExtension;
+import datadog.trace.test.junit.utils.context.LegacyContextTestingExtension;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.List;
@@ -54,7 +55,11 @@ import org.opentest4j.AssertionFailedError;
  * </ul>
  */
 @WithConfig(key = "detailed.instrumentation.errors", value = "true")
-@ExtendWith({TestClassShadowingExtension.class, AllowContextTestingExtension.class})
+@ExtendWith({
+  TestClassShadowingExtension.class,
+  AllowContextTestingExtension.class,
+  LegacyContextTestingExtension.class
+})
 public abstract class AbstractInstrumentationTest {
   static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
 
@@ -196,7 +201,7 @@ public abstract class AbstractInstrumentationTest {
 
   static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
     if (span instanceof DDSpan) {
-      TraceCollector traceCollector = ((DDSpan) span).context().getTraceCollector();
+      TraceCollector traceCollector = ((DDSpan) span).spanContext().getTraceCollector();
       if (!(traceCollector instanceof PendingTrace)) {
         throw new IllegalStateException(
             "Expected PendingTrace trace collector, got " + traceCollector.getClass().getName());

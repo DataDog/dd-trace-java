@@ -94,7 +94,7 @@ public class LibertyDecorator
   }
 
   @Override
-  public AgentSpan onResponseStatus(AgentSpan span, int status) {
+  public void onResponseStatus(AgentSpan span, int status) {
     Integer currentStatus = (Integer) span.getTag(Tags.HTTP_STATUS);
     // do not set status if the tag is already there and it's an error span
     // we may have the status during response blocking, but in that case
@@ -102,10 +102,9 @@ public class LibertyDecorator
     if (currentStatus == null || !span.isError()) {
       super.onResponseStatus(span, status);
     }
-    return span;
   }
 
-  public AgentSpan getPath(AgentSpan span, HttpServletRequest request) {
+  public void getPath(AgentSpan span, HttpServletRequest request) {
     if (request != null) {
       String contextPath = request.getContextPath();
       String servletPath = request.getServletPath();
@@ -120,7 +119,6 @@ public class LibertyDecorator
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
       request.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, servletPath);
     }
-    return span;
   }
 
   @Override
@@ -128,7 +126,7 @@ public class LibertyDecorator
     return true;
   }
 
-  public AgentSpan onResponse(AgentSpan span, SRTServletResponse response) {
+  public void onResponse(AgentSpan span, SRTServletResponse response) {
     HttpServletRequest req = response.getRequest();
 
     if (Config.get().isServletPrincipalEnabled() && req.getUserPrincipal() != null) {
@@ -154,10 +152,9 @@ public class LibertyDecorator
       span.setError(true);
       span.setTag(DDTags.ERROR_MSG, (String) errorMessage);
     }
-    return span;
   }
 
-  public AgentSpan onError(AgentSpan span, WebAppErrorReport report, Throwable servletThrowable) {
+  public void onError(AgentSpan span, WebAppErrorReport report, Throwable servletThrowable) {
     span.setError(true);
     // make sure the two reported throwables are different throwables
     if (report.getCause() != null
@@ -165,7 +162,6 @@ public class LibertyDecorator
       span.addThrowable(report.getCause());
     }
     span.setTag(DDTags.ERROR_MSG, report.getMessage());
-    return span;
   }
 
   public static class LibertyBlockResponseFunction implements BlockResponseFunction {

@@ -1,19 +1,25 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.PropagationTags.HeaderType;
+import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
+import static datadog.trace.core.propagation.PropagationTags.factory;
+import static datadog.trace.core.propagation.ptags.W3CPTagsCodec.MAX_MEMBER_COUNT;
+import static java.lang.Math.min;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
+import static java.util.stream.IntStream.concat;
+import static java.util.stream.IntStream.rangeClosed;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.core.DDCoreJavaSpecification;
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
-import datadog.trace.junit.utils.tabletest.ProductTraceSourceConverter;
-import datadog.trace.junit.utils.tabletest.SamplingMechanismConverter;
-import java.util.HashSet;
+import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
+import datadog.trace.test.junit.utils.converter.ProductTraceSourceConverter;
+import datadog.trace.test.junit.utils.converter.SamplingMechanismConverter;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -24,24 +30,18 @@ import org.tabletest.junit.TableTest;
 
 class W3CPropagationTagsTest extends DDCoreJavaSpecification {
 
-  private static final int DD_TAGS_MAX_LEN = 512;
-
-  private static PropagationTags.Factory factory() {
-    return PropagationTags.factory(DD_TAGS_MAX_LEN);
-  }
-
   @ParameterizedTest
   @MethodSource("validateTracestateHeaderLimitsArguments")
   void validateTracestateHeaderLimits(String headerValue, boolean valid) {
-    PropagationTags propagationTags = factory().fromHeaderValue(HeaderType.W3C, headerValue);
+    PropagationTags propagationTags = factory().fromHeaderValue(W3C, headerValue);
 
     if (valid) {
-      assertEquals(headerValue.trim(), propagationTags.headerValue(HeaderType.W3C));
+      assertEquals(headerValue.trim(), propagationTags.headerValue(W3C));
     } else {
-      assertNull(propagationTags.headerValue(HeaderType.W3C));
+      assertNull(propagationTags.headerValue(W3C));
     }
     // we're not using any dd members in the tests
-    assertEquals(emptyMap(), propagationTags.createTagMap());
+    assertTrue(propagationTags.createTagMap().isEmpty());
   }
 
   static Stream<Arguments> validateTracestateHeaderLimitsArguments() {
@@ -66,115 +66,112 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
   @ParameterizedTest
   @MethodSource("validateTracestateHeaderValidKeyContentsArguments")
   void validateTracestateHeaderValidKeyContents(String headerChar) {
-    String lcAlpha = toLcAlpha(headerChar);
+    String lcAlpha = toLowerCaseAlpha(headerChar);
     String simpleKeyHeader = lcAlpha + headerChar + "_-*/=1";
     String multiKeyHeader = headerChar + "@" + lcAlpha + headerChar + "_-*/=1";
 
-    PropagationTags simpleKeyPT = factory().fromHeaderValue(HeaderType.W3C, simpleKeyHeader);
-    PropagationTags multiKeyPT = factory().fromHeaderValue(HeaderType.W3C, multiKeyHeader);
+    PropagationTags simpleKeyPT = factory().fromHeaderValue(W3C, simpleKeyHeader);
+    PropagationTags multiKeyPT = factory().fromHeaderValue(W3C, multiKeyHeader);
 
-    assertEquals(simpleKeyHeader, simpleKeyPT.headerValue(HeaderType.W3C));
-    assertEquals(multiKeyHeader, multiKeyPT.headerValue(HeaderType.W3C));
+    assertEquals(simpleKeyHeader, simpleKeyPT.headerValue(W3C));
+    assertEquals(multiKeyHeader, multiKeyPT.headerValue(W3C));
     // we're not using any dd members in the tests
-    assertEquals(emptyMap(), simpleKeyPT.createTagMap());
-    assertEquals(emptyMap(), multiKeyPT.createTagMap());
+    assertTrue(simpleKeyPT.createTagMap().isEmpty());
+    assertTrue(multiKeyPT.createTagMap().isEmpty());
   }
 
   static Stream<Arguments> validateTracestateHeaderValidKeyContentsArguments() {
-    return IntStream.concat(IntStream.rangeClosed('a', 'z'), IntStream.rangeClosed('0', '9'))
+    return concat(rangeClosed('a', 'z'), rangeClosed('0', '9'))
         .mapToObj(c -> arguments(String.valueOf((char) c)));
   }
 
   @ParameterizedTest
   @MethodSource("validateTracestateHeaderInvalidKeyContentsArguments")
   void validateTracestateHeaderInvalidKeyContents(String headerChar) {
-    String lcAlpha = toLcAlpha(headerChar);
+    String lcAlpha = toLowerCaseAlpha(headerChar);
     String simpleKeyHeader = lcAlpha + headerChar + "_-*/=1";
     String multiKeyHeader = lcAlpha + headerChar + "@" + lcAlpha + headerChar + "_-*/=1";
 
-    PropagationTags simpleKeyPT = factory().fromHeaderValue(HeaderType.W3C, simpleKeyHeader);
-    PropagationTags multiKeyPT = factory().fromHeaderValue(HeaderType.W3C, multiKeyHeader);
+    PropagationTags simpleKeyPT = factory().fromHeaderValue(W3C, simpleKeyHeader);
+    PropagationTags multiKeyPT = factory().fromHeaderValue(W3C, multiKeyHeader);
 
-    assertNull(simpleKeyPT.headerValue(HeaderType.W3C));
-    assertNull(multiKeyPT.headerValue(HeaderType.W3C));
+    assertNull(simpleKeyPT.headerValue(W3C));
+    assertNull(multiKeyPT.headerValue(W3C));
     // we're not using any dd members in the tests
     assertEquals(emptyMap(), simpleKeyPT.createTagMap());
     assertEquals(emptyMap(), multiKeyPT.createTagMap());
   }
 
   static Stream<Arguments> validateTracestateHeaderInvalidKeyContentsArguments() {
-    Set<Character> validKeyChars = new HashSet<>();
-    for (char c = 'a'; c <= 'z'; c++) validKeyChars.add(c);
-    for (char c = '0'; c <= '9'; c++) validKeyChars.add(c);
-    validKeyChars.add('_');
-    validKeyChars.add('-');
-    validKeyChars.add('*');
-    validKeyChars.add('/');
-    Stream.Builder<Arguments> builder = Stream.builder();
-    for (char c = ' '; c <= 'ÿ'; c++) {
-      if (!validKeyChars.contains(c)) {
-        builder.add(arguments(String.valueOf(c)));
-      }
+    return rangeClosed(' ', 'ÿ')
+        .filter(W3CPropagationTagsTest::invalidKeyChar)
+        .mapToObj(value -> String.valueOf((char) value))
+        .map(Arguments::of);
+  }
+
+  static boolean invalidKeyChar(int i) {
+    if (i >= 'a' && i <= 'z') {
+      return false;
     }
-    return builder.build();
+    if (i >= '0' && i <= '9') {
+      return false;
+    }
+    return i != '_' && i != '-' && i != '*' && i != '/';
   }
 
   @ParameterizedTest
   @MethodSource("validateTracestateHeaderValidValueContentsArguments")
   void validateTracestateHeaderValidValueContents(String valueChar) {
-    String lcAlpha = toLcAlpha(valueChar);
+    String lcAlpha = toLowerCaseAlpha(valueChar);
     String mostlyOkHeader = lcAlpha + "=" + valueChar;
     String alwaysOkHeader = lcAlpha + "=" + lcAlpha + valueChar + lcAlpha;
 
-    PropagationTags mostlyOkPT = factory().fromHeaderValue(HeaderType.W3C, mostlyOkHeader);
-    PropagationTags alwaysOkPT = factory().fromHeaderValue(HeaderType.W3C, alwaysOkHeader);
+    PropagationTags mostlyOkPT = factory().fromHeaderValue(W3C, mostlyOkHeader);
+    PropagationTags alwaysOkPT = factory().fromHeaderValue(W3C, alwaysOkHeader);
 
     if (" ".equals(valueChar)) {
-      assertNull(mostlyOkPT.headerValue(HeaderType.W3C));
+      assertNull(mostlyOkPT.headerValue(W3C));
     } else {
-      assertEquals(mostlyOkHeader, mostlyOkPT.headerValue(HeaderType.W3C));
+      assertEquals(mostlyOkHeader, mostlyOkPT.headerValue(W3C));
     }
-    assertEquals(alwaysOkHeader, alwaysOkPT.headerValue(HeaderType.W3C));
+    assertEquals(alwaysOkHeader, alwaysOkPT.headerValue(W3C));
     // we're not using any dd members in the tests
     assertEquals(emptyMap(), mostlyOkPT.createTagMap());
     assertEquals(emptyMap(), alwaysOkPT.createTagMap());
   }
 
   static Stream<Arguments> validateTracestateHeaderValidValueContentsArguments() {
-    Stream.Builder<Arguments> builder = Stream.builder();
-    for (char c = ' '; c <= '~'; c++) {
-      if (c != ',' && c != '=') {
-        builder.add(arguments(String.valueOf(c)));
-      }
-    }
-    return builder.build();
+    return rangeClosed(' ', '~')
+        .filter(c -> c != ',' && c != '=')
+        .mapToObj(String::valueOf)
+        .map(Arguments::of);
   }
 
   @ParameterizedTest
   @MethodSource("validateTracestateHeaderInvalidValueContentsArguments")
   void validateTracestateHeaderInvalidValueContents(String valueChar) {
-    String lcAlpha = toLcAlpha(valueChar);
+    String lcAlpha = toLowerCaseAlpha(valueChar);
     String alwaysBadHeader = lcAlpha + "=" + lcAlpha + valueChar + lcAlpha;
 
-    PropagationTags alwaysBadPT = factory().fromHeaderValue(HeaderType.W3C, alwaysBadHeader);
+    PropagationTags alwaysBadPT = factory().fromHeaderValue(W3C, alwaysBadHeader);
 
-    assertNull(alwaysBadPT.headerValue(HeaderType.W3C));
+    assertNull(alwaysBadPT.headerValue(W3C));
     // we're not using any dd members in the tests
     assertEquals(emptyMap(), alwaysBadPT.createTagMap());
   }
 
   static Stream<Arguments> validateTracestateHeaderInvalidValueContentsArguments() {
-    Set<Character> validValueChars = new HashSet<>();
-    for (char c = ' '; c <= '~'; c++) {
-      if (c != ',' && c != '=') validValueChars.add(c);
+    return rangeClosed(' ', 'ÿ')
+        .filter(W3CPropagationTagsTest::invalidValueChar)
+        .mapToObj(value -> String.valueOf((char) value))
+        .map(Arguments::of);
+  }
+
+  static boolean invalidValueChar(int i) {
+    if (i >= ' ' && i <= '~') {
+      return i == ',' || i == '=';
     }
-    Stream.Builder<Arguments> builder = Stream.builder();
-    for (char c = ' '; c <= 'ÿ'; c++) {
-      if (!validValueChars.contains(c)) {
-        builder.add(arguments(String.valueOf(c)));
-      }
-    }
-    return builder.build();
+    return true;
   }
 
   @ParameterizedTest(name = "{0} members")
@@ -182,12 +179,12 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
   void validateTracestateHeaderNumberOfMembersWithoutDatadogMember(int memberCount) {
     String header = buildHeader(memberCount);
 
-    PropagationTags headerPT = factory().fromHeaderValue(HeaderType.W3C, header);
+    PropagationTags headerPT = factory().fromHeaderValue(W3C, header);
 
     if (memberCount <= 32) {
-      assertEquals(header, headerPT.headerValue(HeaderType.W3C));
+      assertEquals(header, headerPT.headerValue(W3C));
     } else {
-      assertNull(headerPT.headerValue(HeaderType.W3C));
+      assertNull(headerPT.headerValue(W3C));
     }
     // we're not using any dd members in the tests
     assertEquals(emptyMap(), headerPT.createTagMap());
@@ -198,12 +195,12 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
   void validateTracestateHeaderNumberOfMembersWithDatadogMember(int memberCount) {
     String header = "dd=s:1," + buildHeader(memberCount);
 
-    PropagationTags headerPT = factory().fromHeaderValue(HeaderType.W3C, header);
+    PropagationTags headerPT = factory().fromHeaderValue(W3C, header);
 
     if (memberCount + 1 <= 32) {
-      assertEquals(header, headerPT.headerValue(HeaderType.W3C));
+      assertEquals(header, headerPT.headerValue(W3C));
     } else {
-      assertNull(headerPT.headerValue(HeaderType.W3C));
+      assertNull(headerPT.headerValue(W3C));
     }
     // we're not using any dd members in the tests
     assertEquals(emptyMap(), headerPT.createTagMap());
@@ -214,24 +211,22 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
   void validateTracestateHeaderNumberOfMembersWhenPropagatingOriginalTracestate(int memberCount) {
     String header = buildHeader(memberCount);
     String expectedHeader =
-        "dd=t.dm:-4," + (memberCount > 32 ? "" : buildHeader(Math.min(memberCount, 31)));
+        "dd=t.dm:-4," + (memberCount > MAX_MEMBER_COUNT ? "" : buildHeader(min(memberCount, 31)));
 
     PropagationTags datadogHeaderPT = factory().fromHeaderValue(HeaderType.DATADOG, "_dd.p.dm=-4");
-    PropagationTags headerPT = factory().fromHeaderValue(HeaderType.W3C, header);
+    PropagationTags headerPT = factory().fromHeaderValue(W3C, header);
     datadogHeaderPT.updateW3CTracestate(headerPT.getW3CTracestate());
 
     if (memberCount <= 32) {
-      assertEquals(expectedHeader, datadogHeaderPT.headerValue(HeaderType.W3C));
+      assertEquals(expectedHeader, datadogHeaderPT.headerValue(W3C));
     } else {
-      assertEquals("dd=t.dm:-4", datadogHeaderPT.headerValue(HeaderType.W3C));
+      assertEquals("dd=t.dm:-4", datadogHeaderPT.headerValue(W3C));
     }
-    Map<String, String> expectedTags = new java.util.LinkedHashMap<>();
-    expectedTags.put("_dd.p.dm", "-4");
-    assertEquals(expectedTags, datadogHeaderPT.createTagMap());
+    assertEquals(singletonMap("_dd.p.dm", "-4"), datadogHeaderPT.createTagMap());
   }
 
   static IntStream memberCountArguments() {
-    return IntStream.rangeClosed(1, 37);
+    return rangeClosed(1, 37);
   }
 
   @TableTest({
@@ -267,9 +262,9 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
   })
   void createPropagationTagsFromHeaderValue(
       String headerValue, String expectedHeaderValue, Map<String, String> tags) {
-    PropagationTags propagationTags = factory().fromHeaderValue(HeaderType.W3C, headerValue);
+    PropagationTags propagationTags = factory().fromHeaderValue(W3C, headerValue);
 
-    assertEquals(expectedHeaderValue, propagationTags.headerValue(HeaderType.W3C));
+    assertEquals(expectedHeaderValue, propagationTags.headerValue(W3C));
     assertEquals(tags, propagationTags.createTagMap());
   }
 
@@ -286,35 +281,35 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
   })
   void w3cPropagationTagsShouldTranslateToDatadogTags(
       String headerValue, String expectedHeaderValue, Map<String, String> tags) {
-    PropagationTags propagationTags = factory().fromHeaderValue(HeaderType.W3C, headerValue);
+    PropagationTags propagationTags = factory().fromHeaderValue(W3C, headerValue);
 
     assertEquals(expectedHeaderValue, propagationTags.headerValue(HeaderType.DATADOG));
     assertEquals(tags, propagationTags.createTagMap());
   }
 
   @TableTest({
-    "scenario               | headerValue                       | priority                      | mechanism                           | origin | expectedHeaderValue                | tags                    ",
-    "sampler keep default   | 'dd=s:0;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT           | other  | 'dd=s:0;o:other;t.dm:934086a686-4' | [_dd.p.dm: 934086a686-4]",
-    "user keep local rule   | 'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_KEEP    | SamplingMechanism.LOCAL_USER_RULE   | same   | 'dd=s:2;o:same;t.dm:-3;x:unknown'  | [_dd.p.dm: '-3']        ",
-    "user drop manual       | 'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL            |        | 'dd=s:-1;x:unknown'                | [:]                     ",
-    "keep external override | 'dd=s:0;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.EXTERNAL_OVERRIDE | other  | 'dd=s:1;o:other;t.dm:-0'           | [_dd.p.dm: '-0']        ",
-    "drop external override | 'dd=s:1;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_DROP | SamplingMechanism.EXTERNAL_OVERRIDE | other  | 'dd=s:0;o:other'                   | [:]                     "
+    "scenario               | headerValue                       | priority     | mechanism                           | origin | expectedHeaderValue                | tags                    ",
+    "sampler keep default   | 'dd=s:0;o:some;t.dm:934086a686-4' | SAMPLER_KEEP | SamplingMechanism.DEFAULT           | other  | 'dd=s:0;o:other;t.dm:934086a686-4' | [_dd.p.dm: 934086a686-4]",
+    "user keep local rule   | 'dd=s:0;o:some;x:unknown'         | USER_KEEP    | SamplingMechanism.LOCAL_USER_RULE   | same   | 'dd=s:2;o:same;t.dm:-3;x:unknown'  | [_dd.p.dm: '-3']        ",
+    "user drop manual       | 'dd=s:0;o:some;x:unknown'         | USER_DROP    | SamplingMechanism.MANUAL            |        | 'dd=s:-1;x:unknown'                | [:]                     ",
+    "keep external override | 'dd=s:0;o:some;t.dm:934086a686-4' | SAMPLER_KEEP | SamplingMechanism.EXTERNAL_OVERRIDE | other  | 'dd=s:1;o:other;t.dm:-0'           | [_dd.p.dm: '-0']        ",
+    "drop external override | 'dd=s:1;o:some;t.dm:934086a686-4' | SAMPLER_DROP | SamplingMechanism.EXTERNAL_OVERRIDE | other  | 'dd=s:0;o:other'                   | [:]                     "
   })
   void propagationTagsShouldBeUpdatedBySamplingAndOrigin(
       String headerValue,
-      @ConvertWith(PrioritySamplingConverter.class) int priority,
-      @ConvertWith(SamplingMechanismConverter.class) int mechanism,
+      @ConvertWith(PrioritySamplingConverter.class) byte priority,
+      @ConvertWith(SamplingMechanismConverter.class) byte mechanism,
       String origin,
       String expectedHeaderValue,
       Map<String, String> tags) {
-    PropagationTags propagationTags = factory().fromHeaderValue(HeaderType.W3C, headerValue);
+    PropagationTags propagationTags = factory().fromHeaderValue(W3C, headerValue);
 
-    assertNotEquals(expectedHeaderValue, propagationTags.headerValue(HeaderType.W3C));
+    assertNotEquals(expectedHeaderValue, propagationTags.headerValue(W3C));
 
     propagationTags.updateTraceSamplingPriority(priority, mechanism);
     propagationTags.updateTraceOrigin(origin);
 
-    assertEquals(expectedHeaderValue, propagationTags.headerValue(HeaderType.W3C));
+    assertEquals(expectedHeaderValue, propagationTags.headerValue(W3C));
     assertEquals(tags, propagationTags.createTagMap());
   }
 
@@ -330,13 +325,13 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
       @ConvertWith(ProductTraceSourceConverter.class) int product,
       String expectedHeaderValue,
       Map<String, String> tags) {
-    PropagationTags propagationTags = factory().fromHeaderValue(HeaderType.W3C, headerValue);
+    PropagationTags propagationTags = factory().fromHeaderValue(W3C, headerValue);
 
-    assertNotEquals(expectedHeaderValue, propagationTags.headerValue(HeaderType.W3C));
+    assertNotEquals(expectedHeaderValue, propagationTags.headerValue(W3C));
 
     propagationTags.addTraceSource(product);
 
-    assertEquals(expectedHeaderValue, propagationTags.headerValue(HeaderType.W3C));
+    assertEquals(expectedHeaderValue, propagationTags.headerValue(W3C));
     assertEquals(tags, propagationTags.createTagMap());
   }
 
@@ -355,8 +350,7 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
     return sb.toString();
   }
 
-  private static String toLcAlpha(String cs) {
-    // Argh groovy and characters
+  private static String toLowerCaseAlpha(String cs) {
     char c = cs.charAt(0);
     char a = 'a';
     char z = 'z';

@@ -30,7 +30,8 @@ import org.junit.jupiter.api.io.TempDir;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
 
-  protected static final String LATEST_GRADLE_VERSION = getLatestGradleVersion();
+  private static final Properties TOOL_VERSIONS = loadToolVersions();
+  protected static final String LATEST_GRADLE_VERSION = toolVersion("gradle.latest");
 
   // test resources use this instead of ".gradle" to avoid unwanted evaluation
   private static final String GRADLE_TEST_RESOURCE_EXTENSION = ".gradleTest";
@@ -247,7 +248,7 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
     }
   }
 
-  private static String getLatestGradleVersion() {
+  private static Properties loadToolVersions() {
     Properties properties = new Properties();
     try (InputStream stream =
         AbstractGradleTest.class
@@ -261,6 +262,18 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    return properties.getProperty("gradle.version");
+    return properties;
+  }
+
+  protected static String toolVersion(String key) {
+    String value = TOOL_VERSIONS.getProperty(key);
+    if (value == null) {
+      throw new IllegalStateException(
+          "Missing '"
+              + key
+              + "' in latest-tool-versions.properties; re-run the "
+              + "update-smoke-test-latest-versions workflow.");
+    }
+    return value;
   }
 }

@@ -34,7 +34,10 @@ public class HttpServerResponseEndHandlerInstrumentation extends InstrumenterMod
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.vertx.core.http.impl.Http1xServerResponse", "io.vertx.core.http.impl.Http2ServerResponse "
+      "io.vertx.core.http.impl.Http1xServerResponse",
+      "io.vertx.core.http.impl.Http2ServerResponse",
+      "io.vertx.core.http.impl.http1.Http1ServerResponse", // HTTP/1 response when v >= 5.1
+      "io.vertx.core.http.impl.HttpServerResponseImpl" // HTTP/2 response when v >= 5.1
     };
   }
 

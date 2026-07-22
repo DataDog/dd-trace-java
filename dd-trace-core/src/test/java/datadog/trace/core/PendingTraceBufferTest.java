@@ -21,6 +21,8 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.environment.JavaVirtualMachine;
 import datadog.metrics.api.Monitoring;
 import datadog.trace.SamplingPriorityMetadataChecker;
@@ -30,7 +32,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.time.SystemTimeSource;
-import datadog.trace.context.TraceScope;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
@@ -68,7 +69,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
   private CoreTracer.ConfigSnapshot traceConfig;
   private ContinuableScopeManager scopeManager;
   private PendingTrace.Factory factory;
-  private List<TraceScope.Continuation> continuations;
+  private List<ContextContinuation> continuations;
 
   @BeforeAll
   static void checkJvm() {
@@ -141,7 +142,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
 
     clearInvocations(bufferSpy, tracer, traceConfig);
 
-    continuations.get(0).cancel();
+    continuations.get(0).release();
 
     assertEquals(0, trace.getPendingReferenceCount());
     verify(tracer).write(argThat(it -> it.size() == 1));
@@ -250,7 +251,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
   void continuationAllowsAddingAfterRootFinished() {
     PendingTrace trace = factory.create(DDTraceId.ONE);
     DDSpan parent = addContinuation(newSpanOf(trace));
-    TraceScope.Continuation continuation = continuations.get(0);
+    ContextContinuation continuation = continuations.get(0);
 
     assertEquals(1, continuations.size());
 
@@ -276,7 +277,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     // write() is called synchronously on this thread. Starting the buffer
     // would introduce a race where the worker thread could process the
     // enqueued trace before continuation.cancel(), causing unexpected interactions.
-    continuation.cancel();
+    continuation.release();
 
     assertEquals(0, trace.size());
     assertEquals(0, trace.getPendingReferenceCount());
@@ -503,7 +504,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
   }
 
   private DDSpan addContinuation(DDSpan span) {
-    TraceScope scope = scopeManager.activateSpan(span);
+    ContextScope scope = scopeManager.activateSpan(span);
     continuations.add(scopeManager.captureSpan(span));
     scope.close();
     return span;
@@ -539,12 +540,12 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
   }
 
   private static DDSpan newSpanOf(DDSpan parent) {
-    TraceCollector traceCollector = parent.context().getTraceCollector();
+    TraceCollector traceCollector = parent.spanContext().getTraceCollector();
     DDSpanContext context =
         new DDSpanContext(
-            parent.context().getTraceId(),
+            parent.spanContext().getTraceId(),
             2,
-            parent.context().getSpanId(),
+            parent.spanContext().getSpanId(),
             null,
             "fakeService",
             "fakeOperation",

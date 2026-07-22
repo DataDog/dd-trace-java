@@ -1,14 +1,14 @@
 package datadog.trace.agent.test.assertions;
 
-import static datadog.trace.agent.test.assertions.Matchers.assertValue;
-import static datadog.trace.agent.test.assertions.Matchers.is;
-import static datadog.trace.agent.test.assertions.Matchers.isFalse;
-import static datadog.trace.agent.test.assertions.Matchers.isNonNull;
-import static datadog.trace.agent.test.assertions.Matchers.isNull;
-import static datadog.trace.agent.test.assertions.Matchers.isTrue;
-import static datadog.trace.agent.test.assertions.Matchers.matches;
-import static datadog.trace.agent.test.assertions.Matchers.validates;
 import static datadog.trace.core.DDSpanAccessor.spanLinks;
+import static datadog.trace.test.junit.utils.assertions.Matchers.assertValue;
+import static datadog.trace.test.junit.utils.assertions.Matchers.is;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isFalse;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isNonNull;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isNull;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isTrue;
+import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
+import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
 import static java.time.Duration.ofNanos;
 import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 
@@ -16,6 +16,10 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.core.DDSpan;
+import datadog.trace.test.junit.utils.assertions.Any;
+import datadog.trace.test.junit.utils.assertions.IsNull;
+import datadog.trace.test.junit.utils.assertions.Matcher;
+import datadog.trace.test.junit.utils.assertions.Matchers;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,6 +49,8 @@ import org.opentest4j.AssertionFailedError;
  *       #durationLongerThan(Duration)}
  *   <li>span type with {@link #type(String)}
  *   <li>span error status with {@link #error()} and {@link #error(boolean)}
+ *   <li>span measured status with {@link #measured()} and {@link #measured(boolean)}
+ *   <li>span top-level status with {@link #topLevel()} and {@link #topLevel(boolean)}
  *   <li>span tags with {@link #tags(TagsMatcher...)}
  *   <li>span links with {@link #links(SpanLinkMatcher...)}
  * </ul>
@@ -53,18 +59,22 @@ public final class SpanMatcher {
   private Matcher<DDTraceId> traceIdMatcher;
   private Matcher<Long> idMatcher;
   private Matcher<Long> parentIdMatcher;
+  private int parentSpanIndex;
   private Matcher<String> serviceNameMatcher;
   private Matcher<CharSequence> operationNameMatcher;
   private Matcher<CharSequence> resourceNameMatcher;
   private Matcher<Duration> durationMatcher;
   private Matcher<String> typeMatcher;
   private Matcher<Boolean> errorMatcher;
+  private Matcher<Boolean> measuredMatcher;
+  private Matcher<Boolean> topLevelMatcher;
   private TagsMatcher[] tagMatchers;
   private SpanLinkMatcher[] linkMatchers;
 
   private static final Matcher<Long> CHILD_OF_PREVIOUS_MATCHER = is(0L);
 
   private SpanMatcher() {
+    this.parentSpanIndex = -1;
     this.serviceNameMatcher = validates(s -> s != null && !s.isEmpty());
     this.typeMatcher = isNull();
     this.errorMatcher = isFalse();
@@ -120,6 +130,7 @@ public final class SpanMatcher {
    */
   public SpanMatcher childOf(long parentId) {
     this.parentIdMatcher = is(parentId);
+    this.parentSpanIndex = -1;
     return this;
   }
 
@@ -130,6 +141,19 @@ public final class SpanMatcher {
    */
   public SpanMatcher childOfPrevious() {
     this.parentIdMatcher = CHILD_OF_PREVIOUS_MATCHER;
+    this.parentSpanIndex = -1;
+    return this;
+  }
+
+  /**
+   * Checks the span is a direct child of the span at the specified index in the trace.
+   *
+   * @param parentSpanIndex The index of the parent span in the trace.
+   * @return The current {@link SpanMatcher} instance with the child-of constraint applied.
+   */
+  public SpanMatcher childOfIndex(int parentSpanIndex) {
+    this.parentIdMatcher = null;
+    this.parentSpanIndex = parentSpanIndex;
     return this;
   }
 
@@ -284,6 +308,50 @@ public final class SpanMatcher {
     return this;
   }
 
+  /**
+   * Checks the span is measured.
+   *
+   * @return The current {@link SpanMatcher} instance updated with the specified measured
+   *     constraint.
+   */
+  public SpanMatcher measured() {
+    return measured(true);
+  }
+
+  /**
+   * Checks the span measured status matches the given value.
+   *
+   * @param measured The expected measured status.
+   * @return The current {@link SpanMatcher} instance updated with the specified measured
+   *     constraint.
+   */
+  public SpanMatcher measured(boolean measured) {
+    this.measuredMatcher = measured ? isTrue() : isFalse();
+    return this;
+  }
+
+  /**
+   * Checks the span is a top-level span.
+   *
+   * @return The current {@link SpanMatcher} instance updated with the specified top-level
+   *     constraint.
+   */
+  public SpanMatcher topLevel() {
+    return topLevel(true);
+  }
+
+  /**
+   * Checks the span top-level status matches the given value.
+   *
+   * @param topLevel The expected top-level status.
+   * @return The current {@link SpanMatcher} instance updated with the specified top-level
+   *     constraint.
+   */
+  public SpanMatcher topLevel(boolean topLevel) {
+    this.topLevelMatcher = topLevel ? isTrue() : isFalse();
+    return this;
+  }
+
   public SpanMatcher tags(TagsMatcher... matchers) {
     this.tagMatchers = matchers;
     return this;
@@ -301,21 +369,32 @@ public final class SpanMatcher {
     return this;
   }
 
-  void assertSpan(DDSpan span, DDSpan previousSpan) {
+  void assertSpan(List<DDSpan> trace, int spanIndex) {
+    DDSpan span = trace.get(spanIndex);
+    // Apply parent span index
+    if (this.parentSpanIndex >= 0) {
+      this.parentIdMatcher = is(trace.get(this.parentSpanIndex).getSpanId());
+    }
     // Apply parent id matcher from the previous span
-    if (this.parentIdMatcher == CHILD_OF_PREVIOUS_MATCHER) {
+    else if (this.parentIdMatcher == CHILD_OF_PREVIOUS_MATCHER) {
+      if (spanIndex == 0) {
+        throw new IllegalStateException("Cannot use childOfPrevious() matcher on the first span");
+      }
+      DDSpan previousSpan = trace.get(spanIndex - 1);
       this.parentIdMatcher = is(previousSpan.getSpanId());
     }
     // Assert span values
-    assertValue(this.traceIdMatcher, span.getTraceId(), "Expected trace identifier");
-    assertValue(this.idMatcher, span.getSpanId(), "Expected identifier");
-    assertValue(this.parentIdMatcher, span.getParentId(), "Expected parent identifier");
-    assertValue(this.serviceNameMatcher, span.getServiceName(), "Expected service name");
-    assertValue(this.operationNameMatcher, span.getOperationName(), "Expected operation name");
-    assertValue(this.resourceNameMatcher, span.getResourceName(), "Expected resource name");
-    assertValue(this.durationMatcher, ofNanos(span.getDurationNano()), "Expected duration");
-    assertValue(this.typeMatcher, span.getSpanType(), "Expected span type");
-    assertValue(this.errorMatcher, span.isError(), "Expected error status");
+    assertValue(this.traceIdMatcher, span.getTraceId(), "Unexpected trace identifier");
+    assertValue(this.idMatcher, span.getSpanId(), "Unexpected identifier");
+    assertValue(this.parentIdMatcher, span.getParentId(), "Unexpected parent identifier");
+    assertValue(this.serviceNameMatcher, span.getServiceName(), "Unexpected service name");
+    assertValue(this.operationNameMatcher, span.getOperationName(), "Unexpected operation name");
+    assertValue(this.resourceNameMatcher, span.getResourceName(), "Unexpected resource name");
+    assertValue(this.durationMatcher, ofNanos(span.getDurationNano()), "Unexpected duration");
+    assertValue(this.typeMatcher, span.getSpanType(), "Unexpected span type");
+    assertValue(this.errorMatcher, span.isError(), "Unexpected error status");
+    assertValue(this.measuredMatcher, span.isMeasured(), "Unexpected measured status");
+    assertValue(this.topLevelMatcher, span.isTopLevel(), "Unexpected top-level status");
     assertSpanTags(span.getTags());
     assertSpanLinks(spanLinks(span));
   }
@@ -374,7 +453,7 @@ public final class SpanMatcher {
           .buildAndThrow();
     }
     for (int i = 0; i < expectedLinkCount; i++) {
-      SpanLinkMatcher linkMatcher = this.linkMatchers[expectedLinkCount];
+      SpanLinkMatcher linkMatcher = this.linkMatchers[i];
       AgentSpanLink link = links.get(i);
       linkMatcher.assertLink(link);
     }

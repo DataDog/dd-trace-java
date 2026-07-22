@@ -53,6 +53,8 @@ out/
 # Claude Code local custom settings #
 #####################################
 .claude/*.local.*
+.claude-invariants.md
+.claude-status.md
 
 # Vim #
 #######

@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -78,6 +79,16 @@ class RateLimitedLoggerTest {
             nullable(Marker.class),
             eq("test {} {} (Will not log warnings for 1 minute)"),
             (Object[]) any());
+  }
+
+  @Test
+  void warningDisabled() {
+    when(this.log.isWarnEnabled()).thenReturn(false);
+    when(this.log.isDebugEnabled()).thenReturn(false);
+    RatelimitedLogger rateLimitedLog = new RatelimitedLogger(this.log, 1, MINUTES, this.timeSource);
+
+    assertFalse(rateLimitedLog.warn("test {} {}", "message", EXCEPTION));
+    verify(this.log, never()).warn(nullable(Marker.class), any(String.class), (Object[]) any());
   }
 
   @Test

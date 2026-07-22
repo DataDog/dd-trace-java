@@ -10,8 +10,8 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
-import datadog.trace.junit.utils.tabletest.SamplingMechanismConverter;
+import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
+import datadog.trace.test.junit.utils.converter.SamplingMechanismConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
@@ -82,9 +82,9 @@ class OT33ApiTest extends DDJavaSpecification {
   })
   void testInjectExtract(
       String scenario,
-      @ConvertWith(PrioritySamplingConverter.class) int contextPriority,
-      @ConvertWith(SamplingMechanismConverter.class) int samplingMechanism,
-      @ConvertWith(PrioritySamplingConverter.class) int propagatedPriority)
+      @ConvertWith(PrioritySamplingConverter.class) byte contextPriority,
+      @ConvertWith(SamplingMechanismConverter.class) byte samplingMechanism,
+      @ConvertWith(PrioritySamplingConverter.class) byte propagatedPriority)
       throws Exception {
     io.opentracing.Span span = tracer.buildSpan("some name").start();
     io.opentracing.SpanContext context = span.context();
@@ -95,8 +95,8 @@ class OT33ApiTest extends DDJavaSpecification {
     ddContext.setSamplingPriority(contextPriority, samplingMechanism);
     tracer.inject(context, Format.Builtin.TEXT_MAP, adapter);
 
-    DDTraceId traceId = ((OTSpan) span).getDelegate().context().getTraceId();
-    long spanId = ((OTSpan) span).getDelegate().context().getSpanId();
+    DDTraceId traceId = ((OTSpan) span).getDelegate().spanContext().getTraceId();
+    long spanId = ((OTSpan) span).getDelegate().spanContext().getSpanId();
     String expectedTraceparent =
         "00-"
             + traceId.toHexStringPadded(32)

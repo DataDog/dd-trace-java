@@ -19,9 +19,11 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.Collection;
 import java.util.function.BiFunction;
+import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
-import org.eclipse.jetty.server.Request;
+import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(InstrumenterModule.class)
@@ -39,6 +41,11 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".MultipartHelper"};
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("extractContentParameters").and(takesArguments(0)),
@@ -48,6 +55,11 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.eclipse.jetty.util.MultiMap"))),
         getClass().getName() + "$GetPartsAdvice");
+    transformer.applyAdvice(
+        named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
+    transformer.applyAdvice(
+        named("getParts").and(takesArguments(1)),
+        getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
   }
 
   private static final Reference REQUEST_REFERENCE =
@@ -63,7 +75,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ExtractContentParametersAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return MultiMap<String> map,
         @ActiveRequestContext RequestContext reqCtx,
@@ -99,13 +111,12 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
       return map == null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean proceed,
         @Advice.FieldValue("_contentParameters") final MultiMap<String> map,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      CallDepthThreadLocalMap.decrementCallDepth(Request.class);
       if (!proceed) {
         return;
       }
@@ -132,6 +143,77 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
             reqCtx.getTraceSegment().effectivelyBlocked();
           }
         }
+      }
+    }
+  }
+
+  /**
+   * Fires the {@code requestFilesFilenames} event when the application calls public {@code
+   * getParts()}. Guards prevent double-firing:
+   *
+   * <ul>
+   *   <li>{@code _contentParameters != null}: set by {@code extractContentParameters()} (the {@code
+   *       getParameterMap()} path); means filenames were already reported via {@code
+   *       GetFilenamesFromMultiPartAdvice}.
+   *   <li>{@code _multiPartInputStream != null}: set by the first {@code getParts()} call in Jetty
+   *       9.2.x; means filenames were already reported.
+   * </ul>
+   */
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
+  public static class GetFilenamesAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static boolean before(
+        @Advice.FieldValue("_contentParameters") final MultiMap<String> contentParameters,
+        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
+            final Object multiPartInputStream) {
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MultipartHelper.class);
+      return callDepth == 0 && contentParameters == null && multiPartInputStream == null;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    static void after(
+        @Advice.Enter boolean proceed,
+        @Advice.Return Collection<Part> parts,
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      CallDepthThreadLocalMap.decrementCallDepth(MultipartHelper.class);
+      if (!proceed || t != null || parts == null || parts.isEmpty()) {
+        return;
+      }
+      t = MultipartHelper.fireFilenamesEvent(parts, reqCtx);
+      if (t == null) {
+        t = MultipartHelper.fireFilesContentEvent(parts, reqCtx);
+      }
+    }
+  }
+
+  /**
+   * Fires the {@code requestFilesFilenames} event when multipart content is parsed via the internal
+   * {@code getParts(MultiMap)} path triggered by {@code getParameter*()} / {@code
+   * getParameterMap()} — i.e. when the application never calls public {@code getParts()}. The
+   * call-depth guard prevents double-firing when {@code getParts()} internally delegates to this
+   * method.
+   */
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
+  public static class GetFilenamesFromMultiPartAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static boolean before() {
+      return CallDepthThreadLocalMap.incrementCallDepth(MultipartHelper.class) == 0;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    static void after(
+        @Advice.Enter boolean proceed,
+        @Advice.Return Collection<Part> parts,
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      CallDepthThreadLocalMap.decrementCallDepth(MultipartHelper.class);
+      if (!proceed || t != null || parts == null || parts.isEmpty()) {
+        return;
+      }
+      t = MultipartHelper.fireFilenamesEvent(parts, reqCtx);
+      if (t == null) {
+        t = MultipartHelper.fireFilesContentEvent(parts, reqCtx);
       }
     }
   }

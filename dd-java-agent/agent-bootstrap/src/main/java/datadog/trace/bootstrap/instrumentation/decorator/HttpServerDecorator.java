@@ -166,7 +166,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
    * @param parentContext The parent context of the span to create.
    * @return A new context bundling the span, child of the given parent context.
    */
-  public Context startSpan(REQUEST_CARRIER carrier, Context parentContext) {
+  public Context startSpan(REQUEST_CARRIER carrier, @Nonnull Context parentContext) {
     String instrumentationName = component().toString();
     AgentSpanContext extracted = getExtractedSpanContext(parentContext);
     // Call IG callbacks
@@ -237,7 +237,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             }
           };
 
-  public AgentSpan onRequest(
+  public void onRequest(
       final AgentSpan span,
       final CONNECTION connection,
       final REQUEST request,
@@ -428,13 +428,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS,
             request,
             DSM_TRANSACTION_SOURCE_READER);
-    return span;
   }
 
   protected static AgentSpanContext.Extracted getExtractedSpanContext(Context parentContext) {
     AgentSpan extractedSpan = AgentSpan.fromContext(parentContext);
     if (extractedSpan != null) {
-      AgentSpanContext extractedSpanContext = extractedSpan.context();
+      AgentSpanContext extractedSpanContext = extractedSpan.spanContext();
       if (extractedSpanContext instanceof AgentSpanContext.Extracted) {
         return (AgentSpanContext.Extracted) extractedSpanContext;
       } else {
@@ -449,7 +448,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return null;
   }
 
-  public AgentSpan onResponseStatus(final AgentSpan span, final int status) {
+  public void onResponseStatus(final AgentSpan span, final int status) {
     if (status > UNSET_STATUS) {
       span.setHttpStatusCode(status);
       // explicitly set here because some other decorators might already set an error without
@@ -465,7 +464,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
       span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
     }
-    return span;
   }
 
   /**
@@ -483,7 +481,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return false;
   }
 
-  public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
+  public void onResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);
       onResponseStatus(span, status);
@@ -501,7 +499,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         callIGCallbackResponseAndHeaders(span, response, status);
       }
     }
-    return span;
   }
 
   private AgentSpanContext callIGCallbackStart(@Nullable final AgentSpanContext extracted) {
@@ -536,13 +533,12 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+  public void onError(final AgentSpan span, final Throwable throwable) {
     if (throwable != null) {
       span.addThrowable(
           throwable instanceof ExecutionException ? throwable.getCause() : throwable,
           ErrorPriorities.HTTP_SERVER_DECORATOR);
     }
-    return span;
   }
 
   private Flow<Void> callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
@@ -639,7 +635,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  public Context beforeFinish(Context context) {
+  public void beforeFinish(Context context) {
     AgentSpan span = AgentSpan.fromContext(context);
     if (span != null) {
       onRequestEndForInstrumentationGateway(span);
@@ -648,7 +644,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     // Close Serverless Gateway Inferred Span if any
     finishInferredProxySpan(context);
 
-    return super.beforeFinish(context);
+    super.beforeFinish(context);
   }
 
   protected void finishInferredProxySpan(Context context) {
