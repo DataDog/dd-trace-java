@@ -194,7 +194,9 @@ final class FlagEvaluationPayloads {
     static FlagEvaluationEvent fromBucket(
         final FlagEvaluationAggregator.EvalBucket bucket,
         final boolean isFullTier,
+        final boolean observeFullEvaluationData,
         final long flushTimeMs) {
+      final boolean includeRawContext = isFullTier && observeFullEvaluationData;
       return new FlagEvaluationEvent(
           flushTimeMs,
           bucket.flagKey,
@@ -203,10 +205,23 @@ final class FlagEvaluationPayloads {
           bucket.count,
           bucket.variant,
           bucket.allocationKey,
-          isFullTier ? bucket.targetingKey : null,
+          resolveTargetingKey(bucket.targetingKey, isFullTier, observeFullEvaluationData),
           bucket.runtimeDefaultUsed,
           bucket.errorMessage,
-          isFullTier ? bucket.prunedAttrs : null);
+          includeRawContext ? bucket.prunedAttrs : null);
+    }
+
+    private static String resolveTargetingKey(
+        final String rawTargetingKey,
+        final boolean isFullTier,
+        final boolean observeFullEvaluationData) {
+      if (!isFullTier || rawTargetingKey == null) {
+        return null;
+      }
+      if (observeFullEvaluationData) {
+        return rawTargetingKey;
+      }
+      return "sha256_" + ULeb128Encoder.hashTargetingKey(rawTargetingKey);
     }
 
     FlagEvaluationEvent withoutTargetingKeyAndContext() {

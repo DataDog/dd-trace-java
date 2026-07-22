@@ -67,7 +67,7 @@ class FlagEvaluationPayloadsTest {
             FlagEvaluationPayloads.buildPayloads(
                 java.util.Collections.singletonList(
                     FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                        bucket, true, flushTimeMs)),
+                        bucket, true, true, flushTimeMs)),
                 CONTEXT,
                 1_000_000));
 
@@ -88,13 +88,76 @@ class FlagEvaluationPayloadsTest {
         firstPayload(
             FlagEvaluationPayloads.buildPayloads(
                 java.util.Collections.singletonList(
-                    FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, false, EVAL_MS)),
+                    FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+                        bucket, false, true, EVAL_MS)),
                 CONTEXT,
                 1_000_000));
 
     final Map<String, Object> ev = firstEvent(json);
     assertNull(ev.get("targeting_key"));
     assertNull(ev.get("context"));
+  }
+
+  @Test
+  void fullTierWithObserveFullEvaluationDataTrueEmitsRawTargetingKeyAndContext() throws Exception {
+    final Map<String, Object> attrs = new HashMap<>();
+    attrs.put("region", "us-east-1");
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        new FlagEvaluationAggregator.EvalBucket(
+            "pii-flag", "on", "alloc1", "jane.doe@datadoghq.com", null, EVAL_MS, false, attrs);
+
+    final Map<String, Object> json =
+        firstPayload(
+            FlagEvaluationPayloads.buildPayloads(
+                java.util.Collections.singletonList(
+                    FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+                        bucket, true, true, EVAL_MS)),
+                CONTEXT,
+                1_000_000));
+
+    final Map<String, Object> ev = firstEvent(json);
+    assertEquals("jane.doe@datadoghq.com", ev.get("targeting_key"));
+    final Map<?, ?> ctx = (Map<?, ?>) ev.get("context");
+    assertNotNull(ctx);
+    final Map<?, ?> evalAttrs = (Map<?, ?>) ctx.get("evaluation");
+    assertNotNull(evalAttrs);
+    assertEquals("us-east-1", evalAttrs.get("region"));
+  }
+
+  @Test
+  void fullTierWithObserveFullEvaluationDataFalseHashesTargetingKeyAndOmitsContext()
+      throws Exception {
+    final Map<String, Object> attrs = new HashMap<>();
+    attrs.put("region", "us-east-1");
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        new FlagEvaluationAggregator.EvalBucket(
+            "pii-flag", "on", "alloc1", "jane.doe@datadoghq.com", null, EVAL_MS, false, attrs);
+
+    final FlagEvaluationPayloads.EncodedPayloads payloads =
+        FlagEvaluationPayloads.buildPayloads(
+            java.util.Collections.singletonList(
+                FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+                    bucket, true, false, EVAL_MS)),
+            CONTEXT,
+            1_000_000);
+    final String rawJson =
+        new String(payloads.bodies.get(0), java.nio.charset.StandardCharsets.UTF_8);
+
+    // The raw wire bytes must carry the hashed key and must not leak the raw PII value or the
+    // per-event evaluation context — these are the exact properties system-tests asserts over the
+    // wire. (The batch envelope has its own top-level "context" field, so we guard on the nested
+    // "evaluation" key instead, which only appears inside a per-event context object.)
+    assertTrue(
+        rawJson.contains(
+            "sha256_b4698f9b6d186781fa8dc59e533578fa2d8379a46b1cf6db85cda6aa9c99e51b"));
+    assertFalse(rawJson.contains("jane.doe@datadoghq.com"));
+    assertFalse(rawJson.contains("\"evaluation\":"));
+
+    final Map<String, Object> ev = firstEvent(parse(payloads.bodies.get(0)));
+    assertEquals(
+        "sha256_b4698f9b6d186781fa8dc59e533578fa2d8379a46b1cf6db85cda6aa9c99e51b",
+        ev.get("targeting_key"));
+    assertFalse(ev.containsKey("context"));
   }
 
   @Test

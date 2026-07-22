@@ -471,15 +471,19 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
     private List<FlagEvaluationPayloads.FlagEvaluationEvent> buildEventList() {
       final long flushTimeMs = System.currentTimeMillis();
+      final boolean observeFullEvaluationData =
+          FeatureFlaggingGateway.isObserveFullEvaluationDataEnabled();
       final List<FlagEvaluationPayloads.FlagEvaluationEvent> events =
           new ArrayList<>(aggregator.bucketCount());
       for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.fullBuckets()) {
         events.add(
-            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, true, flushTimeMs));
+            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+                bucket, true, observeFullEvaluationData, flushTimeMs));
       }
       for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.degradedBuckets()) {
         events.add(
-            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, false, flushTimeMs));
+            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+                bucket, false, observeFullEvaluationData, flushTimeMs));
       }
       return events;
     }

@@ -99,6 +99,16 @@ public abstract class FeatureFlaggingGateway {
     return flagEvalEnqueueEnabled;
   }
 
+  /**
+   * Returns whether the currently active UFC environment has {@code observeFullEvaluationData}
+   * enabled. {@code false} (privacy-preserving default) when no UFC has been dispatched yet or when
+   * the field was absent/false on the last dispatched configuration.
+   */
+  public static boolean isObserveFullEvaluationDataEnabled() {
+    final ServerConfiguration current = CURRENT_CONFIG.get();
+    return current != null && current.observeFullEvaluationData;
+  }
+
   public static void addSpanEnrichmentListener(final SpanEnrichmentListener listener) {
     SPAN_ENRICHMENT_LISTENERS.add(listener);
   }

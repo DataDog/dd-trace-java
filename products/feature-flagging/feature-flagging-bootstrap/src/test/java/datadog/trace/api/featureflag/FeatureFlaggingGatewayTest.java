@@ -1,11 +1,14 @@
 package datadog.trace.api.featureflag;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import java.util.Collections;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -94,6 +97,25 @@ class FeatureFlaggingGatewayTest {
 
     verify(spanEnrichmentListener).accept(secondEvent);
     verifyNoMoreInteractions(spanEnrichmentListener);
+  }
+
+  @Test
+  void isObserveFullEvaluationDataEnabledDefaultsToFalseWithNoConfig() {
+    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+    assertFalse(FeatureFlaggingGateway.isObserveFullEvaluationDataEnabled());
+  }
+
+  @Test
+  void isObserveFullEvaluationDataEnabledReflectsLastDispatchedConfig() {
+    final ServerConfiguration enabled =
+        new ServerConfiguration("", "", true, null, Collections.emptyMap());
+    FeatureFlaggingGateway.dispatch(enabled);
+    assertTrue(FeatureFlaggingGateway.isObserveFullEvaluationDataEnabled());
+
+    final ServerConfiguration disabled =
+        new ServerConfiguration("", "", false, null, Collections.emptyMap());
+    FeatureFlaggingGateway.dispatch(disabled);
+    assertFalse(FeatureFlaggingGateway.isObserveFullEvaluationDataEnabled());
   }
 
   private static void clearCurrentServerConfiguration() {

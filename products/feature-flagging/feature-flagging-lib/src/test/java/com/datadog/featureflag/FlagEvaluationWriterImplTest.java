@@ -6,12 +6,14 @@ import static com.datadog.featureflag.FlagEvaluationTestSupport.cfg;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.clearCoreMetrics;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.event;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.eventForFlag;
+import static com.datadog.featureflag.FlagEvaluationTestSupport.flushAndCapture;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.flushAndCaptureJson;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.metricSum;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.repeat;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.simpleEvent;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,6 +34,7 @@ import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import datadog.trace.api.telemetry.MetricCollector;
@@ -62,6 +65,8 @@ class FlagEvaluationWriterImplTest {
     clearCoreMetrics();
     FeatureFlaggingGateway.setFlagEvalWriter(null);
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+    // Reset the dispatched UFC state so observeFullEvaluationData can't leak into other tests.
+    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
   }
 
   @Test
@@ -531,6 +536,71 @@ class FlagEvaluationWriterImplTest {
     assertEquals(2, posts.get());
     setup.handler.flush();
     assertEquals(2, posts.get());
+  }
+
+  private static final String HASHED_JANE_DOE =
+      "sha256_b4698f9b6d186781fa8dc59e533578fa2d8379a46b1cf6db85cda6aa9c99e51b";
+
+  @Test
+  void observeFullEvaluationDataTrueEmitsRawTargetingKeyAndContext() throws Exception {
+    dispatchObserveFullEvaluationData(true);
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+    setup.handler.add(piiEvent());
+
+    final Map<String, Object> json = flushAndCapture(setup).parsed;
+
+    final Map<String, Object> ev = eventForFlag(json, "pii-flag");
+    assertNotNull(ev);
+    assertEquals("jane.doe@datadoghq.com", ev.get("targeting_key"));
+    final Map<?, ?> ctx = (Map<?, ?>) ev.get("context");
+    assertNotNull(ctx);
+    final Map<?, ?> evalAttrs = (Map<?, ?>) ctx.get("evaluation");
+    assertNotNull(evalAttrs);
+    assertEquals("us-east-1", evalAttrs.get("region"));
+  }
+
+  @Test
+  void observeFullEvaluationDataFalseHashesTargetingKeyAndOmitsContext() throws Exception {
+    dispatchObserveFullEvaluationData(false);
+    assertHashedTargetingKeyAndOmittedContext();
+  }
+
+  @Test
+  void observeFullEvaluationDataAbsentDefaultsToHashedBehavior() throws Exception {
+    // No UFC dispatched (default state) — must behave exactly like the explicit "false" case.
+    assertHashedTargetingKeyAndOmittedContext();
+  }
+
+  private void assertHashedTargetingKeyAndOmittedContext() throws Exception {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+    setup.handler.add(piiEvent());
+
+    final FlagEvaluationTestSupport.CapturedJson captured = flushAndCapture(setup);
+
+    final Map<String, Object> ev = eventForFlag(captured.parsed, "pii-flag");
+    assertNotNull(ev);
+    assertEquals(HASHED_JANE_DOE, ev.get("targeting_key"));
+    assertFalse(ev.containsKey("context"));
+    // The raw wire bytes must carry the hashed key and never leak the raw PII value or a per-event
+    // evaluation context (the batch envelope owns the top-level "context" key, so guard on the
+    // nested "evaluation" field instead).
+    assertTrue(captured.raw.contains(HASHED_JANE_DOE));
+    assertFalse(captured.raw.contains("jane.doe@datadoghq.com"));
+    assertFalse(captured.raw.contains("\"evaluation\":"));
+  }
+
+  private static FlagEvalEvent piiEvent() {
+    final Map<String, Object> attrs = new HashMap<>();
+    attrs.put("region", "us-east-1");
+    return event("pii-flag", "on", "alloc1", "jane.doe@datadoghq.com", 1000L, attrs);
+  }
+
+  private static void dispatchObserveFullEvaluationData(final boolean value) {
+    FeatureFlaggingGateway.dispatch(
+        new ServerConfiguration(
+            "2024-04-17T19:40:53.716Z", "SERVER", value, null, java.util.Collections.emptyMap()));
   }
 
   private static Object lifecycleLock(final FlagEvaluationWriterImpl writer) throws Exception {

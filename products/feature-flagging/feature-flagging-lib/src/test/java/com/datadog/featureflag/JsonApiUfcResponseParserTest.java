@@ -2,6 +2,7 @@ package com.datadog.featureflag;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -73,8 +74,48 @@ class JsonApiUfcResponseParserTest {
                     + "}}{}"));
   }
 
+  @Test
+  void observeFullEvaluationDataDefaultsToFalseWhenAbsent() throws Exception {
+    final ServerConfiguration configuration = parse(wrap(emptyConfig()));
+    assertNotNull(configuration);
+    assertFalse(configuration.observeFullEvaluationData);
+  }
+
+  @Test
+  void observeFullEvaluationDataParsesTrue() throws Exception {
+    final ServerConfiguration configuration =
+        parse(wrap(configWithObserveFullEvaluationData(true)));
+    assertNotNull(configuration);
+    assertTrue(configuration.observeFullEvaluationData);
+  }
+
+  @Test
+  void observeFullEvaluationDataParsesFalse() throws Exception {
+    final ServerConfiguration configuration =
+        parse(wrap(configWithObserveFullEvaluationData(false)));
+    assertNotNull(configuration);
+    assertFalse(configuration.observeFullEvaluationData);
+  }
+
   private static ServerConfiguration parse(final String json) throws Exception {
     return JsonApiUfcResponseParser.INSTANCE.parse(json.getBytes(UTF_8));
+  }
+
+  private static String wrap(final String attributes) {
+    return "{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":"
+        + attributes
+        + "}}";
+  }
+
+  private static String configWithObserveFullEvaluationData(final boolean value) {
+    return "{"
+        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+        + "\"observeFullEvaluationData\":"
+        + value
+        + ","
+        + "\"environment\":{\"name\":\"Test\"},"
+        + "\"flags\":{}"
+        + "}";
   }
 
   private static String emptyConfig() {

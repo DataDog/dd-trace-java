@@ -181,7 +181,7 @@ public class DDEvaluatorTest {
     flags.put("null-allocation", new Flag("target", true, null, null, null));
     flags.put("empty-allocation", new Flag("target", true, null, null, emptyList()));
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", null, flags));
+    evaluator.accept(new ServerConfiguration("", "", false, null, flags));
 
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("allocation");
 
