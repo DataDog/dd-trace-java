@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -19,8 +20,13 @@ class DatabricksRepairAttemptTest {
       if (stream == null) {
         throw new IllegalStateException("missing test resource " + path);
       }
-      byte[] bytes = stream.readAllBytes();
-      return new String(bytes, StandardCharsets.UTF_8).trim();
+      ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+      byte[] chunk = new byte[4096];
+      int read;
+      while ((read = stream.read(chunk)) != -1) {
+        bytes.write(chunk, 0, read);
+      }
+      return new String(bytes.toByteArray(), StandardCharsets.UTF_8).trim();
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
