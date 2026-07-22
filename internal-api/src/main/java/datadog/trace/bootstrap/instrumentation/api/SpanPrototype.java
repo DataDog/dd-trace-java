@@ -97,12 +97,6 @@ public final class SpanPrototype {
       return this;
     }
 
-    public Builder initInstrumentationNames(final String[] instrumentationNames) {
-      return (instrumentationNames == null || instrumentationNames.length == 0)
-          ? this
-          : initInstrumentationName(instrumentationNames[0]);
-    }
-
     public Builder initInstrumentationName(final String instrumentationName) {
       this.instrumentationName = instrumentationName;
       return this;

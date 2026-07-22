@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
@@ -25,25 +24,20 @@ class BaseDecoratorTest extends DDSpecification {
   def spanContext = Mock(AgentSpanContext)
 
   def "test afterStart"() {
+    setup:
+    def recordingSpan = new RecordingSpan()
+
     when:
-    decorator.afterStart(span)
+    decorator.afterStart(recordingSpan)
 
     then:
-    1 * span.setSpanType(decorator.spanType())
-    1 * span.setTag(TagMap.Entry.create(Tags.COMPONENT, "test-component"))
-    1 * span.spanContext() >> spanContext
-    1 * spanContext.setIntegrationName("test-component")
-    _ * span.setTag(_)
-    _ * span.setTag(_, _) // Want to allow other calls from child implementations.
-    _ * span.setTag(_)
-    _ * span.setMeasured(true)
-    _ * span.setMetric(_)
-    _ * span.setMetric(_, _)
-    _ * span.setMetric(_)
-    _ * span.setServiceName(_, _)
-    _ * span.setOperationName(_)
-    _ * span.setSamplingPriority(_)
-    0 * _
+    // The base spec runs polymorphically against every subclass decorator, so it only asserts the
+    // baseline identity every decorator applies, tolerating the tags subclasses layer on. Each
+    // level's exact tag set is asserted by its own afterStart spec.
+    ExpectedSpanState.expected()
+      .spanType(decorator.spanType())
+      .component("test-component")
+      .assertIdentityAppliedTo(recordingSpan)
   }
 
   def "test onPeerConnection"() {
