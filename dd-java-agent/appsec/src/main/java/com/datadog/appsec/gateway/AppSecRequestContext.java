@@ -388,15 +388,15 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   }
 
   public void closeWafContext() {
-    if (wafContext != null) {
-      synchronized (this) {
-        if (wafContext != null) {
-          try {
-            wafContextClosed = true;
-            wafContext.close();
-          } finally {
-            wafContext = null;
-          }
+    synchronized (this) {
+      // Must be set unconditionally, even if the WAF never ran for this request: a late/async
+      // caller of getOrCreateWafContext() must not resurrect a context after close (APPSEC-69085).
+      wafContextClosed = true;
+      if (wafContext != null) {
+        try {
+          wafContext.close();
+        } finally {
+          wafContext = null;
         }
       }
     }

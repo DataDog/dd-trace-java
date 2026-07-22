@@ -316,6 +316,7 @@ public class WAFModule implements AppSecModule {
           // WAF context closed concurrently between the fast-path check and context creation; skip
           // (APPSEC-69085).
           log.debug("Skipped; the WAF context was closed concurrently");
+          WafMetricCollector.get().wafContextClosedRace();
           if (gwCtx.isRasp) {
             WafMetricCollector.get().raspRuleSkipped(gwCtx.raspRuleType);
           }

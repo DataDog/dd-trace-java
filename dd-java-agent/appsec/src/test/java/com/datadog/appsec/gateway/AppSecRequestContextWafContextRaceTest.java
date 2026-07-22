@@ -104,6 +104,20 @@ class AppSecRequestContextWafContextRaceTest {
     assertTrue(ctx.isWafContextClosed());
   }
 
+  @Test
+  void closeBeforeFirstUsePreventsLaterCreation() {
+    AppSecRequestContext ctx = new AppSecRequestContext();
+
+    // Close before the WAF ever ran for this request (e.g. an early-blocked request).
+    ctx.closeWafContext();
+    assertTrue(ctx.isWafContextClosed());
+
+    // A late/async caller must not create a brand-new orphaned context after close.
+    WafContext afterClose = ctx.getOrCreateWafContext(wafHandle, false, false);
+    assertNull(afterClose);
+    assertTrue(ctx.isWafContextClosed());
+  }
+
   /**
    * Drives {@code closeWafContext()} and {@code getOrCreateWafContext()} concurrently via a barrier
    * across many iterations. The invariant: whatever {@code getOrCreateWafContext} returns after the
