@@ -19,11 +19,11 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.ReferenceCountUtil;
+import java.nio.channels.ClosedChannelException;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +43,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       // block further writes while the blocking response close is still asynchronous
       log.debug("Write suppressed; dropped outbound message");
       ReferenceCountUtil.release(msg);
+      prm.tryFailure(new ClosedChannelException());
       return;
     }
 
@@ -69,10 +70,9 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     }
     HttpResponse origResponse = (HttpResponse) msg;
     int statusCode = origResponse.status().code();
-    boolean isWebsocketUpgrade =
-        statusCode == HttpResponseStatus.SWITCHING_PROTOCOLS.code()
-            && "websocket".equals(origResponse.headers().get(HttpHeaderNames.UPGRADE));
-    if (statusCode >= 100 && statusCode < 200 && !isWebsocketUpgrade) {
+    if (statusCode >= 100
+        && statusCode < 200
+        && statusCode != HttpResponseStatus.SWITCHING_PROTOCOLS.code()) {
       super.write(ctx, msg, prm);
       return;
     }
