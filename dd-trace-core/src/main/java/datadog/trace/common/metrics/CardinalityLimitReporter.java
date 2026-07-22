@@ -4,7 +4,6 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.util.Hashtable;
-import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,18 +37,13 @@ final class CardinalityLimitReporter {
   // rather than dropping, so an underestimate only adds chain depth on this cold path.
   private static final int TAG_CAPACITY = 64;
 
-  /** Appends {@code tag=count} entries, comma-separated, into the supplied builder. */
-  private static final BiConsumer<StringBuilder, TagBlockCount> APPEND_ENTRY =
-      (sb, entry) -> {
-        if (sb.length() > 0) {
-          sb.append(", ");
-        }
-        sb.append(entry.key()).append('=').append(entry.count);
-      };
+  // Rough width of one "<tag>=<count>, " entry, used to pre-size the summary builder. Cold path, so
+  // an over-estimate just avoids a resize rather than mattering for footprint.
+  private static final int APPROX_CHARS_PER_ENTRY = 32;
 
   private final RatelimitedLogger rlLog;
   // Tag name -> blocked count accumulated since the last emitted summary.
-  private final Hashtable.D1<String, TagBlockCount> blockedByTag = new Hashtable.D1<>(TAG_CAPACITY);
+  private final Hashtable.D1<String, TagBlockEntry> blockedByTag = new Hashtable.D1<>(TAG_CAPACITY);
 
   CardinalityLimitReporter() {
     this(new RatelimitedLogger(log, 5, MINUTES));
@@ -62,7 +56,7 @@ final class CardinalityLimitReporter {
   /** Records {@code count} values blocked for {@code tag} in the current reporting cycle. */
   void record(String tag, long count) {
     if (count > 0) {
-      blockedByTag.getOrCreate(tag, TagBlockCount::new).count += count;
+      blockedByTag.getOrCreate(tag, TagBlockEntry::new).count += count;
     }
   }
 
@@ -85,18 +79,26 @@ final class CardinalityLimitReporter {
   }
 
   private String summarize() {
-    StringBuilder sb = new StringBuilder();
-    blockedByTag.forEach(sb, APPEND_ENTRY);
-    return sb.toString();
+    StringBuilder builder = new StringBuilder(blockedByTag.size() * APPROX_CHARS_PER_ENTRY);
+    // Non-capturing: the builder is threaded through as forEach's context argument.
+    blockedByTag.forEach(
+        builder,
+        (into, entry) -> {
+          if (into.length() > 0) {
+            into.append(", ");
+          }
+          into.append(entry.key()).append('=').append(entry.count);
+        });
+    return builder.toString();
   }
 
   /**
    * Single-key counter entry: the tag name (via {@link #key()}) plus its in-place-mutated count.
    */
-  private static final class TagBlockCount extends Hashtable.D1.Entry<String> {
+  private static final class TagBlockEntry extends Hashtable.D1.Entry<String> {
     long count;
 
-    TagBlockCount(String tag) {
+    TagBlockEntry(String tag) {
       super(tag);
     }
   }
