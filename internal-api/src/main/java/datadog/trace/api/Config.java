@@ -481,6 +481,7 @@ import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPERIMENTAL_ENAB
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_HEADERS;
@@ -497,7 +498,6 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
-import static datadog.trace.api.config.OtlpConfig.TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
@@ -1009,7 +1009,7 @@ public class Config {
   private final int otlpMetricsTimeout;
   private final OtlpConfig.Temporality otlpMetricsTemporalityPreference;
 
-  private final boolean tracesSpanMetricsEnabled;
+  private final boolean otelTracesSpanMetricsEnabled;
   private final boolean traceOtelSemanticsEnabled;
 
   private final String traceOtelExporter;
@@ -2145,9 +2145,9 @@ public class Config {
     traceOtelSemanticsEnabled = configProvider.getBoolean(TRACE_OTEL_SEMANTICS_ENABLED, false);
     // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
     // export and OTLP metrics export are both enabled.
-    tracesSpanMetricsEnabled =
+    otelTracesSpanMetricsEnabled =
         configProvider.getBoolean(
-            TRACES_SPAN_METRICS_ENABLED,
+            OTEL_TRACES_SPAN_METRICS_ENABLED,
             isTraceOtlpExporterEnabled()
                 && isMetricsOtelEnabled()
                 && isMetricsOtlpExporterEnabled());
@@ -5654,8 +5654,8 @@ public class Config {
     return otlpMetricsTemporalityPreference;
   }
 
-  public boolean isTracesSpanMetricsEnabled() {
-    return tracesSpanMetricsEnabled;
+  public boolean isOtelTracesSpanMetricsEnabled() {
+    return otelTracesSpanMetricsEnabled;
   }
 
   public boolean isTraceOtelSemanticsEnabled() {
@@ -6793,8 +6793,8 @@ public class Config {
         + otlpMetricsTimeout
         + ", otlpMetricsTemporalityPreference="
         + otlpMetricsTemporalityPreference
-        + ", tracesSpanMetricsEnabled="
-        + tracesSpanMetricsEnabled
+        + ", otelTracesSpanMetricsEnabled="
+        + otelTracesSpanMetricsEnabled
         + ", traceOtelSemanticsEnabled="
         + traceOtelSemanticsEnabled
         + ", traceStatsInterval="

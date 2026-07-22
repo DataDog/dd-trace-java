@@ -60,6 +60,20 @@ public final class OtlpMetricsProto {
       OtelInstrumentDescriptor descriptor,
       int nestedDataPointBytes,
       OtlpProtoBuffer protobuf) {
+    return recordMetricMessage(buf, descriptor, nestedDataPointBytes, protobuf, false);
+  }
+
+  /**
+   * Records a metric message after its nested data point messages have been recorded. When {@code
+   * forceDelta} is {@code true}, a histogram is encoded as DELTA regardless of the configured
+   * temporality preference (for sources whose data points are inherently per-interval deltas).
+   */
+  public static int recordMetricMessage(
+      GrowableBuffer buf,
+      OtelInstrumentDescriptor descriptor,
+      int nestedDataPointBytes,
+      OtlpProtoBuffer protobuf,
+      boolean forceDelta) {
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeString(buf, descriptor.getName().getUtf8Bytes());
@@ -107,7 +121,7 @@ public final class OtlpMetricsProto {
         writeTag(buf, 9, LEN_WIRE_TYPE);
         writeVarInt(buf, nestedDataPointBytes + 2);
         writeTag(buf, 2, VARINT_WIRE_TYPE);
-        writeVarInt(buf, HISTOGRAM_TEMPORALITY);
+        writeVarInt(buf, forceDelta ? TEMPORALITY_DELTA : HISTOGRAM_TEMPORALITY);
         break;
       default:
         throw new IllegalArgumentException("Unknown instrument type: " + descriptor.getType());
