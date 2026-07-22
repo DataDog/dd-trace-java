@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.netty41.server;
 
+import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
 
@@ -18,6 +19,7 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -45,7 +47,10 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     }
 
     ServerRequestContext serverContext = ServerRequestContext.nextResponse(channel);
-    Context storedContext = serverContext == null ? null : serverContext.tracingContext();
+    Context storedContext =
+        serverContext == null
+            ? channel.attr(CONTEXT_ATTRIBUTE_KEY).get()
+            : serverContext.tracingContext();
     AgentSpan span = AgentSpan.fromContext(storedContext);
     RequestContext requestContext;
     if (span == null || (requestContext = span.getRequestContext()) == null) {
@@ -53,7 +58,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       return;
     }
 
-    if (serverContext.isResponseAnalyzed()) {
+    if (serverContext != null && serverContext.isResponseAnalyzed()) {
       super.write(ctx, msg, prm);
       return;
     }
@@ -63,15 +68,21 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       return;
     }
     HttpResponse origResponse = (HttpResponse) msg;
-    if (origResponse.status().code() == HttpResponseStatus.CONTINUE.code()) {
+    int statusCode = origResponse.status().code();
+    boolean isWebsocketUpgrade =
+        statusCode == HttpResponseStatus.SWITCHING_PROTOCOLS.code()
+            && "websocket".equals(origResponse.headers().get(HttpHeaderNames.UPGRADE));
+    if (statusCode >= 100 && statusCode < 200 && !isWebsocketUpgrade) {
       super.write(ctx, msg, prm);
       return;
     }
 
     Flow<Void> flow =
         DECORATE.callIGCallbackResponseAndHeaders(
-            span, origResponse, origResponse.getStatus().code(), ResponseExtractAdapter.GETTER);
-    serverContext.markResponseAnalyzed();
+            span, origResponse, statusCode, ResponseExtractAdapter.GETTER);
+    if (serverContext != null) {
+      serverContext.markResponseAnalyzed();
+    }
     Flow.Action action = flow.getAction();
     if (!(action instanceof Flow.Action.RequestBlockingAction)) {
       super.write(ctx, msg, prm);
@@ -96,7 +107,8 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     BlockingContentType bct = rba.getBlockingContentType();
     if (bct != BlockingContentType.NONE) {
       BlockingActionHelper.TemplateType type =
-          BlockingActionHelper.determineTemplateType(bct, serverContext.acceptHeader());
+          BlockingActionHelper.determineTemplateType(
+              bct, serverContext == null ? null : serverContext.acceptHeader());
       headers.set("Content-type", BlockingActionHelper.getContentType(type));
       byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
       setContentLength(response, template.length);
