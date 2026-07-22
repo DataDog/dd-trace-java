@@ -71,10 +71,9 @@ variables:
     value: "false"
   # Temporary cross-repository pin for the TaskBlock rollout. java-profiler is fetched from its
   # public GitHub repository because GitLab rejects cross-project CI_JOB_TOKEN authentication.
-  # The branch check makes movement explicit, while the commit SHA makes the build input immutable.
-  DDPROF_BRANCH: "paul.fournillon/taskblock-native-io"
-  DDPROF_COMMIT_SHA: "18130c4978fe2b737d86c05dee0ff742885c1b5a"
-  DDPROF_ARTIFACT_VERSION: "1.47.0-taskblock-native-io-18130c497"
+  # Fetch the immutable commit directly so later branch updates do not invalidate this pipeline.
+  DDPROF_COMMIT_SHA: "4698b06106e60ae0c890bef42375f831660f5f82"
+  DDPROF_ARTIFACT_VERSION: "1.47.0-taskblock-native-io-4698b0610"
   DDPROF_BUILD_IMAGE_X64: "registry.ddbuild.io/ci/async-profiler-build:v107978918-x64-2.17-base@sha256:03fb65c5c7fb2866397ceaf18ccb5a0b91bb377a9f89c94264427b62d48cfffd"
   DDPROF_BUILD_IMAGE_X64_MUSL: "registry.ddbuild.io/ci/async-profiler-build:v107978918-x64-musl-base@sha256:0efe0c5fbd04e5647a53235d4c4942a2dd305b3d76bf5afdc052d64a7c0b9505"
   DDPROF_BUILD_IMAGE_ARM64: "registry.ddbuild.io/ci/async-profiler-build:v107978918-arm64-base@sha256:15670752fa8e67c81c1b7fd4d93ef34c668649f117584ab29327d8d7733d64d6"
@@ -355,7 +354,6 @@ dd-octo-sts-pre-release-check:
   - |
     set -euo pipefail
     export DDPROF_REPO_DIR="${CI_PROJECT_DIR}/java-profiler"
-    : "${DDPROF_BRANCH:?DDPROF_BRANCH must be set}"
     : "${DDPROF_COMMIT_SHA:?DDPROF_COMMIT_SHA must be set}"
     : "${DDPROF_ARTIFACT_VERSION:?DDPROF_ARTIFACT_VERSION must be set}"
 
@@ -363,11 +361,11 @@ dd-octo-sts-pre-release-check:
     (
       cd "${DDPROF_REPO_DIR}"
       git remote add origin "https://github.com/DataDog/java-profiler.git"
-      git fetch --depth=1 origin "${DDPROF_BRANCH}"
+      git fetch --depth=1 origin "${DDPROF_COMMIT_SHA}"
 
       resolved_commit=$(git rev-parse FETCH_HEAD)
       if [[ "${resolved_commit}" != "${DDPROF_COMMIT_SHA}" ]]; then
-        echo "Pinned java-profiler branch moved: expected ${DDPROF_COMMIT_SHA}, got ${resolved_commit}" >&2
+        echo "Fetched unexpected java-profiler commit: expected ${DDPROF_COMMIT_SHA}, got ${resolved_commit}" >&2
         exit 1
       fi
       git checkout --detach "${resolved_commit}"
