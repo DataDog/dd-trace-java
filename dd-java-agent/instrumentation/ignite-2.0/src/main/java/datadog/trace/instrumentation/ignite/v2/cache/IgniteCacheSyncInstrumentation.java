@@ -98,10 +98,11 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
         return;
       }
 
-      DECORATE.onError(scope.span(), throwable);
-      DECORATE.beforeFinish(scope.span());
+      AgentSpan span = scope.span();
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
       scope.close();
-      scope.span().finish();
+      span.finish();
       CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
     }
   }
