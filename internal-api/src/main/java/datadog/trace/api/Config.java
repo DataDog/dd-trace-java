@@ -5191,9 +5191,9 @@ public class Config {
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
     // The _dd.apm.enabled:0 billing marker is intentionally NOT set here. When APM tracing is
-    // disabled it is stamped on the first span of each exported chunk (see CoreTracer.write), so
-    // that chunks flushed without their local root span (e.g. a late child span) still opt out of
-    // APM host billing.
+    // disabled it is stamped on the root-most span of each exported chunk (see CoreTracer.write),
+    // so that chunks flushed without their local root span (e.g. a late child span) still opt out
+    // of APM host billing.
 
     if (reportHostName) {
       final String hostName = getHostName();
