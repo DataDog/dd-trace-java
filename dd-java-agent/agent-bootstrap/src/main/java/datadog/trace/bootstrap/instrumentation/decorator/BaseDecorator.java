@@ -12,6 +12,7 @@ import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
@@ -45,8 +46,9 @@ public abstract class BaseDecorator {
 
   private final TagMap.Entry traceAnalyticsEntry;
 
-  // Deliberately not volatile, reading null and repeating the calculation is safe
-  private TagMap.Entry cachedComponentEntry = null;
+  // Deliberately not volatile: reading a stale null and rebuilding is safe. SpanPrototype is
+  // frozen, so a benign race produces two equivalent prototypes and either is fine.
+  private SpanPrototype cachedSpanPrototype = null;
 
   protected BaseDecorator() {
     final Config config = Config.get();
@@ -72,18 +74,38 @@ public abstract class BaseDecorator {
 
   protected abstract CharSequence component();
 
-  /** Caches the component TagMap.Entry, so it isn't recreated for every trace */
-  protected final TagMap.Entry componentEntry() {
-    // DQH = Tried calling component() in the constructor, but that had issues with static
-    // field ordering.  That was caught be an integration test, but I didn't want to risk
-    // breaking other integrations where the test is not as thorough.
-
-    // This approach while more complicated doesn't have any field initialization ordering issues.
-    TagMap.Entry componentEntry = cachedComponentEntry;
-    if (componentEntry == null) {
-      cachedComponentEntry = componentEntry = TagMap.Entry.create(Tags.COMPONENT, component());
+  /**
+   * The baked-once {@link SpanPrototype} carrying this decorator's constant identity and tags: span
+   * type, component, integration name, and — via the {@link ServerDecorator} / {@link
+   * ClientDecorator} extensions — span kind and language.
+   *
+   * <p>Built lazily on first access, not in the constructor: {@link #component()}, {@link
+   * #spanType()}, and (in {@link ClientDecorator}) {@code spanKind()} are overridable and may
+   * reference statics that are not yet initialized while the decorator singleton is under
+   * construction. Deferring the build sidesteps that field-initialization-ordering hazard (the same
+   * one the old per-{@link TagMap.Entry} caches guarded against) while collapsing those several
+   * caches into a single object. Not volatile: {@link SpanPrototype} is frozen, so a benign race
+   * rebuilds an equivalent prototype.
+   */
+  protected final SpanPrototype spanPrototype() {
+    SpanPrototype prototype = cachedSpanPrototype;
+    if (prototype == null) {
+      cachedSpanPrototype = prototype = buildSpanPrototype();
     }
-    return componentEntry;
+    return prototype;
+  }
+
+  /**
+   * Builds this decorator's {@link SpanPrototype}. Subclasses extend the chain with {@link
+   * SpanPrototype.Builder#extends_} to add their level's constants (see {@link ServerDecorator} /
+   * {@link ClientDecorator}), mirroring the decorator class hierarchy. Called once per decorator,
+   * lazily — see {@link #spanPrototype()}.
+   */
+  protected SpanPrototype buildSpanPrototype() {
+    return SpanPrototype.builder()
+        .initSpanType(spanType())
+        .initComponentAndIntegration(component())
+        .build();
   }
 
   protected boolean traceAnalyticsDefault() {
@@ -91,16 +113,10 @@ public abstract class BaseDecorator {
   }
 
   public void afterStart(final AgentSpan span) {
-    if (spanType() != null) {
-      span.setSpanType(spanType());
-    }
-
-    span.setTag(componentEntry());
-
-    // DQH - Could retrieve the value from componentEntry and cast to avoid the virtual call,
-    // unclear which option is better here
-    final CharSequence component = component();
-    span.spanContext().setIntegrationName(component);
+    // Stamps the prototype's constant span type, tags, and integration name as fallback defaults.
+    // apply is the single seam the construction-seeding path shares; because it never clobbers, it
+    // self-neutralizes once construction has already seeded the same prototype.
+    span.apply(spanPrototype());
 
     // null handled by setMetric
     span.setMetric(traceAnalyticsEntry);
