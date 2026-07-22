@@ -477,10 +477,12 @@ final class AggregateEntry extends Hashtable.Entry {
      */
     private void populateAdditionalTags(@Nullable String[] values) {
       additionalTagsSize = 0;
-      int n = additionalTagsBuffer.length;
-      if (n == 0 || values == null) {
+      // values is captured against the same additionalTagsSchema, so it is either null or exactly
+      // schema.size() long (== additionalTagsBuffer.length); guard the array we actually index.
+      if (values == null || values.length == 0) {
         return;
       }
+      int n = additionalTagsBuffer.length;
       for (int i = 0; i < n; i++) {
         String v = values[i];
         if (v == null) {
