@@ -147,7 +147,7 @@ abstract class TestcontainersLimitService implements BuildService<BuildServicePa
 }
 
 ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainersLimit", TestcontainersLimitService) {
-  maxParallelUsages = 2
+  maxParallelUsages = project.findProperty("testcontainersMaxParallelUsages").toInteger()
 }
 
 // Task for tests that want to run forked in their own separate JVM
