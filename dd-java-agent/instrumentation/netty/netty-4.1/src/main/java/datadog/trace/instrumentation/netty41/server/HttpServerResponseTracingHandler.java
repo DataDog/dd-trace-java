@@ -69,6 +69,8 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         DECORATE.beforeFinish(scope.context());
         span.finish(); // Finish the span manually since finishSpanOnClose was false
         removeServerContext(ctx, serverContext);
+        BlockingResponseHandler.maybeWriteDeferredBlockResponse(
+            ctx, ServerRequestContext.nextResponse(ctx.channel()));
       }
     }
   }

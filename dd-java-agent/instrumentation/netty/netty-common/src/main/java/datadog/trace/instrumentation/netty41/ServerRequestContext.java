@@ -176,6 +176,7 @@ public final class ServerRequestContext {
   private final Context tracingContext;
   private final String acceptHeader;
   private boolean responseAnalyzed;
+  private Object deferredBlockResponse;
 
   public Context tracingContext() {
     return tracingContext;
@@ -191,6 +192,14 @@ public final class ServerRequestContext {
 
   public void markResponseAnalyzed() {
     responseAnalyzed = true;
+  }
+
+  public Object deferredBlockResponse() {
+    return deferredBlockResponse;
+  }
+
+  public void deferBlockResponse(final Object deferredBlockResponse) {
+    this.deferredBlockResponse = deferredBlockResponse;
   }
 
   private ServerRequestContext(final Context tracingContext, final String acceptHeader) {

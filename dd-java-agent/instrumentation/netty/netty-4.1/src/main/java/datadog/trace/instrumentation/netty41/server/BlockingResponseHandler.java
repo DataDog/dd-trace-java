@@ -4,6 +4,7 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
+import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -15,6 +16,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
+import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.ReferenceCountUtil;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -22,6 +24,9 @@ import org.slf4j.LoggerFactory;
 
 public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   public static final Logger log = LoggerFactory.getLogger(BlockingResponseHandler.class);
+  private static final String IGNORE_ALL_WRITES_HANDLER = "ignore_all_writes_handler";
+  private static final String MISSING_RESPONSE_TRACING_HANDLER_MESSAGE =
+      "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline";
   private static volatile boolean HAS_WARNED;
 
   private final TraceSegment segment;
@@ -29,6 +34,7 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   private final BlockingContentType bct;
   private final Map<String, String> extraHeaders;
   private final String securityResponseId;
+  private final ServerRequestContext serverContext;
 
   private boolean hasBlockedAlready;
 
@@ -43,15 +49,19 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     this.bct = bct;
     this.extraHeaders = extraHeaders;
     this.securityResponseId = securityResponseId;
+    this.serverContext = null;
   }
 
-  public BlockingResponseHandler(TraceSegment segment, Flow.Action.RequestBlockingAction rba) {
-    this(
-        segment,
-        rba.getStatusCode(),
-        rba.getBlockingContentType(),
-        rba.getExtraHeaders(),
-        rba.getSecurityResponseId());
+  public BlockingResponseHandler(
+      TraceSegment segment,
+      Flow.Action.RequestBlockingAction rba,
+      ServerRequestContext serverContext) {
+    this.segment = segment;
+    this.statusCode = rba.getStatusCode();
+    this.bct = rba.getBlockingContentType();
+    this.extraHeaders = rba.getExtraHeaders();
+    this.securityResponseId = rba.getSecurityResponseId();
+    this.serverContext = serverContext;
   }
 
   @Override
@@ -73,73 +83,136 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     }
 
     if (ctxForDownstream == null) {
-      if (HAS_WARNED) {
-        log.debug(
-            "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline");
-      } else {
-        log.warn(
-            "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline");
-        HAS_WARNED = true;
-      }
+      logMissingResponseTracingHandler();
       ctx.fireChannelRead(msg);
       return;
     }
 
     HttpRequest request = (HttpRequest) msg;
 
-    int httpCode = BlockingActionHelper.getHttpCode(statusCode);
-    HttpResponseStatus httpResponseStatus = HttpResponseStatus.valueOf(httpCode);
-    FullHttpResponse response =
-        new DefaultFullHttpResponse(request.protocolVersion(), httpResponseStatus);
-
-    HttpHeaders headers = response.headers();
-    headers.set("Connection", "close");
-
-    for (Map.Entry<String, String> h : this.extraHeaders.entrySet()) {
-      headers.set(h.getKey(), h.getValue());
-    }
-
-    if (bct != BlockingContentType.NONE) {
-      String acceptHeader = request.headers().get("accept");
-      BlockingActionHelper.TemplateType type =
-          BlockingActionHelper.determineTemplateType(bct, acceptHeader);
-      headers.set("Content-type", BlockingActionHelper.getContentType(type));
-
-      byte[] template = BlockingActionHelper.getTemplate(type, this.securityResponseId);
-      HttpUtil.setContentLength(response, template.length);
-      response.content().writeBytes(template);
-    }
-
     this.hasBlockedAlready = true;
 
+    PendingBlockResponse pendingBlockResponse =
+        new PendingBlockResponse(
+            segment,
+            statusCode,
+            bct,
+            extraHeaders,
+            securityResponseId,
+            request.protocolVersion(),
+            request.headers().get("accept"));
     ReferenceCountUtil.release(msg);
 
+    if (serverContext != null
+        && ServerRequestContext.nextResponse(ctx.channel()) != serverContext) {
+      serverContext.deferBlockResponse(pendingBlockResponse);
+      return;
+    }
+
+    writeBlockResponse(ctxForDownstream, pendingBlockResponse);
+  }
+
+  private static void logMissingResponseTracingHandler() {
+    if (HAS_WARNED) {
+      log.debug(MISSING_RESPONSE_TRACING_HANDLER_MESSAGE);
+    } else {
+      log.warn(MISSING_RESPONSE_TRACING_HANDLER_MESSAGE);
+      HAS_WARNED = true;
+    }
+  }
+
+  static boolean maybeWriteDeferredBlockResponse(
+      ChannelHandlerContext ctx, ServerRequestContext serverContext) {
+    if (serverContext == null) {
+      return false;
+    }
+    Object deferredBlockResponse = serverContext.deferredBlockResponse();
+    if (!(deferredBlockResponse instanceof PendingBlockResponse)) {
+      return false;
+    }
+    serverContext.deferBlockResponse(null);
+    writeBlockResponse(ctx, (PendingBlockResponse) deferredBlockResponse);
+    return true;
+  }
+
+  private static void writeBlockResponse(
+      ChannelHandlerContext ctxForDownstream, PendingBlockResponse pendingBlockResponse) {
     // write starts in the handler before the one associated with ctx
     // so add one that will be skipped (but that will prevent any writes later coming from later
     // handlers).
     // We do not want to start from the end of the
     // pipeline because there is an increased risk of hitting duplex handlers that
     // expect to have seen a request before processing the response
-    ctxForDownstream =
-        ctxForDownstream
-            .pipeline()
-            .addAfter(
-                ctxForDownstream.name(),
-                "ignore_all_writes_handler",
-                IgnoreAllWritesHandler.INSTANCE)
-            .context("ignore_all_writes_handler");
+    if (ctxForDownstream.pipeline().get(IGNORE_ALL_WRITES_HANDLER) == null) {
+      ctxForDownstream
+          .pipeline()
+          .addAfter(
+              ctxForDownstream.name(), IGNORE_ALL_WRITES_HANDLER, IgnoreAllWritesHandler.INSTANCE);
+    }
+    ChannelHandlerContext writeContext =
+        ctxForDownstream.pipeline().context(IGNORE_ALL_WRITES_HANDLER);
 
-    segment.effectivelyBlocked();
-
-    ctxForDownstream
-        .writeAndFlush(response)
+    writeContext
+        .writeAndFlush(pendingBlockResponse.toResponse())
         .addListener(
             fut -> {
               if (!fut.isSuccess()) {
                 log.warn("Write of blocking response failed", fut.cause());
               }
-              ctx.channel().close();
+              writeContext.channel().close();
             });
+  }
+
+  private static class PendingBlockResponse {
+    private final TraceSegment segment;
+    private final int statusCode;
+    private final BlockingContentType bct;
+    private final Map<String, String> extraHeaders;
+    private final String securityResponseId;
+    private final HttpVersion protocolVersion;
+    private final String acceptHeader;
+
+    private PendingBlockResponse(
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType bct,
+        Map<String, String> extraHeaders,
+        String securityResponseId,
+        HttpVersion protocolVersion,
+        String acceptHeader) {
+      this.segment = segment;
+      this.statusCode = statusCode;
+      this.bct = bct;
+      this.extraHeaders = extraHeaders;
+      this.securityResponseId = securityResponseId;
+      this.protocolVersion = protocolVersion;
+      this.acceptHeader = acceptHeader;
+    }
+
+    private FullHttpResponse toResponse() {
+      int httpCode = BlockingActionHelper.getHttpCode(statusCode);
+      HttpResponseStatus httpResponseStatus = HttpResponseStatus.valueOf(httpCode);
+      FullHttpResponse response = new DefaultFullHttpResponse(protocolVersion, httpResponseStatus);
+
+      HttpHeaders headers = response.headers();
+      headers.set("Connection", "close");
+
+      for (Map.Entry<String, String> h : extraHeaders.entrySet()) {
+        headers.set(h.getKey(), h.getValue());
+      }
+
+      if (bct != BlockingContentType.NONE) {
+        BlockingActionHelper.TemplateType type =
+            BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+        headers.set("Content-type", BlockingActionHelper.getContentType(type));
+
+        byte[] template = BlockingActionHelper.getTemplate(type, securityResponseId);
+        HttpUtil.setContentLength(response, template.length);
+        response.content().writeBytes(template);
+      }
+      segment.effectivelyBlocked();
+      return response;
+    }
   }
 
   @ChannelHandler.Sharable
