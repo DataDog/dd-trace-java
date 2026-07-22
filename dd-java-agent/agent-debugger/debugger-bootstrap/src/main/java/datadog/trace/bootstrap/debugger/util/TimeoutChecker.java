@@ -1,33 +1,21 @@
 package datadog.trace.bootstrap.debugger.util;
 
+import datadog.trace.api.Config;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 
-public class TimeoutChecker {
-  public static final Duration DEFAULT_TIME_OUT = Duration.of(100, ChronoUnit.MILLIS);
+public interface TimeoutChecker {
 
-  private final long start;
-  private final Duration timeOut;
+  String CPU = "CPU";
+  String WALL = "WALL";
 
-  public TimeoutChecker(Duration timeOut) {
-    this.start = System.currentTimeMillis();
-    this.timeOut = timeOut;
-  }
+  boolean isTimedOut();
 
-  public TimeoutChecker(long start, Duration timeOut) {
-    this.start = start;
-    this.timeOut = timeOut;
-  }
+  Duration getTimeOut();
 
-  public boolean isTimedOut(long currentTimeMillis) {
-    return (currentTimeMillis - start) > timeOut.toMillis();
-  }
-
-  public long getStart() {
-    return start;
-  }
-
-  public Duration getTimeOut() {
-    return timeOut;
+  static TimeoutChecker create(Config config, Duration timeout) {
+    if (config.getDynamicInstrumentationTimeoutCheckerMode().equals(CPU)) {
+      return new CpuTimeoutChecker(timeout);
+    }
+    return new WallTimeoutChecker(timeout);
   }
 }

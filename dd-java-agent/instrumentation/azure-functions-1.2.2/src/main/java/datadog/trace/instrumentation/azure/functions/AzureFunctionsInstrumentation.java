@@ -5,7 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.azure.functions.AzureFunctionsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -74,7 +74,7 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
       return parentContext.attach();
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Enter final ContextScope scope) {
       scope.close();
     }
@@ -86,7 +86,7 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
         @Advice.Argument(0) final HttpRequestMessage<?> request,
         @Advice.Argument(1) final ExecutionContext executionContext) {
       final Context parentContext =
-          getCurrentContext(); // parent context attached by ContextTrackingAdvice
+          currentContext(); // parent context attached by ContextTrackingAdvice
       final Context context = DECORATE.startSpan(request, parentContext);
       final AgentSpan span = fromContext(context);
       DECORATE.afterStart(span, executionContext.getFunctionName());

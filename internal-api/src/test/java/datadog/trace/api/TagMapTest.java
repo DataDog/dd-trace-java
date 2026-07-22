@@ -15,6 +15,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -891,10 +892,59 @@ public class TagMapTest {
     }
   }
 
+  @Test
+  public void stream() {
+    int size = randomSize();
+    TagMap map = createTagMap(size);
+
+    Set<String> keys = map.stream().map(TagMap.EntryReader::tag).collect(Collectors.toSet());
+
+    assertEquals(size, keys.size());
+    for (int i = 0; i < size; ++i) {
+      assertTrue(keys.contains(key(i)));
+    }
+  }
+
+  @Test
+  public void compute() {
+    TagMap map = TagMap.create();
+    map.set("key", "original");
+
+    map.compute("key", (k, v) -> "updated");
+    assertEquals("updated", map.get("key"));
+
+    map.compute("new-key", (k, v) -> "created");
+    assertEquals("created", map.get("new-key"));
+  }
+
+  @Test
+  public void computeIfAbsent() {
+    TagMap map = TagMap.create();
+    map.set("key", "existing");
+
+    map.computeIfAbsent("key", k -> "ignored");
+    assertEquals("existing", map.get("key"));
+
+    map.computeIfAbsent("new-key", k -> "added");
+    assertEquals("added", map.get("new-key"));
+  }
+
+  @Test
+  public void computeIfPresent() {
+    TagMap map = TagMap.create();
+    map.set("key", "original");
+
+    map.computeIfPresent("key", (k, v) -> "updated");
+    assertEquals("updated", map.get("key"));
+
+    map.computeIfPresent("missing", (k, v) -> "never");
+    assertNull(map.get("missing"));
+  }
+
   @ParameterizedTest
   @ValueSource(ints = {0, 5, 25, 125})
   public void _toInternalString(int size) {
-    OptimizedTagMap tagMap = new OptimizedTagMap();
+    TagMap tagMap = new TagMap();
     fillMap(tagMap, size);
 
     String str = tagMap.toInternalString();
@@ -1014,9 +1064,7 @@ public class TagMapTest {
   }
 
   static final void assertSize(int size, TagMap map) {
-    if (map instanceof OptimizedTagMap) {
-      assertEquals(size, ((OptimizedTagMap) map).computeSize());
-    }
+    assertEquals(size, map.computeSize());
     assertEquals(size, map.size());
 
     assertEquals(size, count(map));
@@ -1044,16 +1092,12 @@ public class TagMapTest {
   }
 
   static void assertNotEmpty(TagMap map) {
-    if (map instanceof OptimizedTagMap) {
-      assertFalse(((OptimizedTagMap) map).checkIfEmpty());
-    }
+    assertFalse(map.checkIfEmpty());
     assertFalse(map.isEmpty());
   }
 
   static void assertEmpty(TagMap map) {
-    if (map instanceof OptimizedTagMap) {
-      assertTrue(((OptimizedTagMap) map).checkIfEmpty());
-    }
+    assertTrue(map.checkIfEmpty());
     assertTrue(map.isEmpty());
   }
 
@@ -1078,9 +1122,6 @@ public class TagMapTest {
   }
 
   static void checkIntegrity(TagMap map) {
-    if (map instanceof OptimizedTagMap) {
-      OptimizedTagMap optMap = (OptimizedTagMap) map;
-      optMap.checkIntegrity();
-    }
+    map.checkIntegrity();
   }
 }

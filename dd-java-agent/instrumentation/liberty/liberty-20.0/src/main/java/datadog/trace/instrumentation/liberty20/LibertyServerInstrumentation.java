@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.liberty20;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.liberty20.HttpInboundServiceContextImplInstrumentation.REQUEST_MSG_TYPE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
@@ -108,7 +108,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       parentScope = parentContext.attach();
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
       if (parentScope != null) parentScope.close();
     }
@@ -138,7 +138,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
 
       Object parentContextObj = request.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
       final Context parentContext =
-          (parentContextObj instanceof Context) ? (Context) parentContextObj : getRootContext();
+          (parentContextObj instanceof Context) ? (Context) parentContextObj : rootContext();
       final Context context = DECORATE.startSpan(request, parentContext);
       scope = context.attach();
       final AgentSpan span = fromContext(context);
@@ -184,7 +184,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       return false;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(
         @Advice.Local("contextScope") final ContextScope scope,
         @Advice.Argument(value = 0) ServletRequest req) {

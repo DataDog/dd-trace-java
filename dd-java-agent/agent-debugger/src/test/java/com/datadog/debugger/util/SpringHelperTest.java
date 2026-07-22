@@ -35,4 +35,12 @@ class SpringHelperTest {
     when(inst.getAllLoadedClasses()).thenReturn(new Class[0]);
     assertFalse(SpringHelper.isSpringUsingOnlyMethodParameters(inst));
   }
+
+  @Test
+  void invalidSpringVersion() {
+    IllegalArgumentException illegalArgumentException =
+        assertThrows(
+            IllegalArgumentException.class, () -> new SpringHelper.ParsedSpringVersion("foo"));
+    assertEquals("Cannot parse SpringVersion: foo", illegalArgumentException.getMessage());
+  }
 }

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.squareup.moshi.Moshi
 import datadog.common.version.VersionInfo
 import datadog.trace.api.Config
+import datadog.trace.api.ProductTraceSource
 import datadog.trace.api.aiguard.AIGuard
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.telemetry.WafMetricCollector
@@ -192,7 +193,8 @@ class AIGuardInternalTests extends DDSpecification {
     then:
     1 * span.setTag(AIGuardInternal.TARGET_TAG, suite.target)
     1 * localRootSpan.setTag(Tags.AI_GUARD_KEEP, true)
-    1 * localRootSpan.setTag(AIGuardInternal.EVENT_TAG, true)
+    1 * localRootSpan.setTag(Tags.AI_GUARD_EVENT, true)
+    1 * localRootSpan.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD)
     if (suite.target == 'tool') {
       1 * span.setTag(AIGuardInternal.TOOL_TAG, 'calc')
     }
@@ -859,6 +861,28 @@ class AIGuardInternalTests extends DDSpecification {
       assert receivedMessages[0].contentParts[1].imageUrl.url.length() > maxContent
       return span
     }
+  }
+
+  void 'test adapter serializes content parts'() {
+    given:
+    final adapter = new Moshi.Builder().add(new AIGuardInternal.AIGuardFactory()).build()
+    .adapter(AIGuard.Message)
+
+    expect:
+    // STRICT enforces array element ordering (object key order is always ignored), so a regression
+    // that serialized the content parts out of sequence would be caught here
+    JSONAssert.assertEquals(expected, adapter.toJson(message), JSONCompareMode.STRICT)
+
+    where:
+    message                                                                            | expected
+    AIGuard.Message.message('user', [] as List<AIGuard.ContentPart>)                    | '{"role": "user", "content": []}'
+    AIGuard.Message.message('user', [AIGuard.ContentPart.text('Hello world')])         | '{"role": "user", "content": [{"type": "text", "text": "Hello world"}]}'
+    AIGuard.Message.message('user', [AIGuard.ContentPart.imageUrl('https://example.com/image.jpg')]) | '{"role": "user", "content": [{"type": "image_url", "image_url": {"url": "https://example.com/image.jpg"}}]}'
+    AIGuard.Message.message('user', [
+      AIGuard.ContentPart.text('Describe this image:'),
+      AIGuard.ContentPart.imageUrl('https://example.com/image.jpg'),
+      AIGuard.ContentPart.text('What do you see?')
+    ]) | '{"role": "user", "content": [{"type": "text", "text": "Describe this image:"}, {"type": "image_url", "image_url": {"url": "https://example.com/image.jpg"}}, {"type": "text", "text": "What do you see?"}]}'
   }
 
   void 'test backward compatibility with string content'() {

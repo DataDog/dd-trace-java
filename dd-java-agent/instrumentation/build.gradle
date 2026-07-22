@@ -87,11 +87,13 @@ subprojects { Project subProj ->
       }
     }
 
-    if (subProj.path != ':dd-java-agent:instrumentation:vertx:vertx-redis-client:vertx-redis-client-stubs') {
-      // don't include the redis RequestImpl stubs
-      parent_project.dependencies {
-        addProvider("implementation", providers.provider { project(subProj.path) })
-      }
+    if (subProj.path != ':dd-java-agent:instrumentation:vertx:vertx-redis-client:vertx-redis-client-stubs'
+      && subProj.path != ':dd-java-agent:instrumentation:tibco-businessworks:tibco-businessworks-stubs') {
+      // don't include the redis or tibco stubs
+      parent_project.dependencies.add(
+        "implementation",
+        parent_project.dependencies.project(path: subProj.path)
+        )
     }
   }
 
@@ -119,14 +121,22 @@ if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleRep
 }
 
 tasks.named('shadowJar', ShadowJar) {
+  // Keep duplicate detection enabled on the aggregate instrumentation jar.
+  //
+  // The previous source-set fixes and the servlet5 relocated-jar fix keep extra classes in
+  // producer jars without also publishing their raw output through `runtimeElements`. The old
+  // per-path `EXCLUDE` workaround is no longer needed.
+  //
+  // Shadow 9 honors `DuplicatesStrategy.FAIL` for these inputs. If a producer publishes the same
+  // classes from both its jar and a runtime file or directory, this task should fail again.
   duplicatesStrategy = DuplicatesStrategy.FAIL
   dependencies {
     // the tracer is now in a separate shadow jar
     exclude(project(":dd-trace-core"))
     exclude(dependency('com.datadoghq:sketches-java'))
     exclude(dependency('com.google.re2j:re2j'))
+    deps.excludeShared.execute(it)
   }
-  dependencies deps.excludeShared
 }
 
 // temporary config to add slf4j-simple so we get logging from instrumenters while indexing
@@ -145,8 +155,9 @@ TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, S
       it.from(project.configurations.named("runtimeClasspath"))
       it.from(project.configurations.named('slf4j-simple'))
     }
-    it.inputs.files(it.classpath)
     it.outputs.dir(destinationDir)
+      .withPropertyName("indexDirectory")
+    it.outputs.cacheIf { true }
     it.argumentProviders.add(new CommandLineArgumentProvider() {
         @Override
         Iterable<String> asArguments() {

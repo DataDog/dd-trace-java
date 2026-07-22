@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DB
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.INSTRUMENTATION_TIME_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
@@ -15,7 +16,6 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -153,7 +153,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     }
   }
 
-  public AgentSpan onConnection(final AgentSpan span, DBInfo dbInfo) {
+  public void onConnection(final AgentSpan span, DBInfo dbInfo) {
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
 
@@ -161,7 +161,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       setTagIfPresent(span, DB_SCHEMA, dbInfo.getSchema());
       setTagIfPresent(span, DB_POOL_NAME, dbInfo.getPoolName());
     }
-    return super.onConnection(span, dbInfo);
+    super.onConnection(span, dbInfo);
   }
 
   public static DBInfo parseDBInfo(
@@ -249,14 +249,14 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return dbInfo;
   }
 
-  public AgentSpan onStatement(AgentSpan span, final String statement) {
+  public void onStatement(AgentSpan span, final String statement) {
     onRawStatement(span, statement);
     DBQueryInfo dbQueryInfo = DBQueryInfo.ofStatement(statement);
-    return withQueryInfo(span, dbQueryInfo, JDBC_STATEMENT);
+    withQueryInfo(span, dbQueryInfo, JDBC_STATEMENT);
   }
 
-  public AgentSpan onPreparedStatement(AgentSpan span, DBQueryInfo dbQueryInfo) {
-    return withQueryInfo(span, dbQueryInfo, JDBC_PREPARED_STATEMENT);
+  public void onPreparedStatement(AgentSpan span, DBQueryInfo dbQueryInfo) {
+    withQueryInfo(span, dbQueryInfo, JDBC_PREPARED_STATEMENT);
   }
 
   /**
@@ -269,7 +269,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     }
   }
 
-  private AgentSpan withQueryInfo(AgentSpan span, DBQueryInfo info, CharSequence component) {
+  private void withQueryInfo(AgentSpan span, DBQueryInfo info, CharSequence component) {
     if (null != info) {
       span.setResourceName(info.getSql());
       span.setTag(DB_OPERATION, info.getOperation());
@@ -277,7 +277,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       span.setResourceName(DB_QUERY);
     }
     span.spanContext().setIntegrationName(component);
-    return span.setTag(Tags.COMPONENT, component);
+    span.setTag(Tags.COMPONENT, component);
   }
 
   public boolean isOracle(final DBInfo dbInfo) {
@@ -343,7 +343,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
             .start();
     DECORATE.afterStart(instrumentationSpan);
     DECORATE.onConnection(instrumentationSpan, dbInfo);
-    try (AgentScope scope = activateSpan(instrumentationSpan)) {
+    try (ContextScope scope = activateSpan(instrumentationSpan)) {
       final byte samplingDecision =
           (byte) (instrumentationSpan.forceSamplingDecision() > 0 ? 1 : 0);
       final byte versionAndSamplingDecision =

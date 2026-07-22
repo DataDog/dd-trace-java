@@ -15,7 +15,7 @@ dependencies {
   implementation project(':communication')
   implementation project(':products:metrics:metrics-api')
   implementation project(':telemetry')
-  implementation group: 'io.sqreen', name: 'libsqreen', version: '17.3.0'
+  implementation group: 'io.sqreen', name: 'libsqreen', version: '17.4.0'
   implementation libs.moshi
 
   compileOnly project(':dd-java-agent:agent-bootstrap')
@@ -89,7 +89,9 @@ ext {
     'com.datadog.appsec.config.AppSecFeatures.AutoUserInstrum',
     'com.datadog.appsec.AppSecModule.AppSecModuleActivationException',
     'com.datadog.appsec.event.ReplaceableEventProducerService',
+    'com.datadog.appsec.event.data.IntrospectionExcludedTypesTrie',
     'com.datadog.appsec.api.security.ApiSecuritySampler.NoOp',
+    'com.datadog.appsec.sca.ScaStackExclusionTrie',
   ]
   excludedClassesBranchCoverage = [
     'com.datadog.appsec.gateway.GatewayBridge',

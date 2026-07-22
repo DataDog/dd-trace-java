@@ -23,6 +23,7 @@ dependencies {
   api project(':dd-java-agent:agent-debugger:debugger-bootstrap')
   api project(':components:environment')
   api project(':components:json')
+  api project(':products:feature-flagging:feature-flagging-config')
   api project(':products:metrics:metrics-agent')
   api libs.instrument.java
   api libs.slf4j
@@ -73,5 +74,10 @@ tasks.withType(Test).configureEach {
     it,
     JavaVersion.VERSION_16,
     ['--add-opens', 'java.base/java.net=ALL-UNNAMED'] // for HostNameResolverForkedTest
+    )
+  conditionalJvmArgs(
+    it,
+    JavaVersion.VERSION_11,
+    ['--add-opens', 'jdk.jfr/jdk.jfr.events=ALL-UNNAMED'] // for JfrEventHolderInitForkedTest
     )
 }

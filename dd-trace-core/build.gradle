@@ -51,10 +51,22 @@ excludedClassesCoverage += [
   'datadog.trace.core.TracingConfigPoller.Updater',
   // covered with dd-trace-core/src/test/groovy/datadog/trace/core/datastreams/CheckpointerTest.groovy
   'datadog.trace.core.datastreams.DefaultDataStreamsMonitoring',
+  // no-op
+  'datadog.trace.core.datastreams.DisabledDataStreamsMonitoring',
+  // pojo
+  'datadog.trace.core.datastreams.DataStreamsTransactionExtractors.DataStreamsTransactionExtractorImpl',
+  // it's a private inner class. Tested indirectly via deserialize in DataStreamsTransactionExtractorsTest
+  'datadog.trace.core.datastreams.DataStreamsTransactionExtractors.JsonDataStreamsTransactionExtractor',
   // TODO CorePropagation will be removed during context refactoring
   'datadog.trace.core.propagation.CorePropagation',
   // TODO DSM propagator will be tested once fully migrated
-  'datadog.trace.core.datastreams.DataStreamPropagator'
+  'datadog.trace.core.datastreams.DataStreamPropagator',
+  // send() requires live HTTP/2 server
+  'datadog.trace.core.otlp.common.OtlpGrpcSender',
+  // covered by OTLP system-tests
+  'datadog.trace.core.otlp.logs.OtlpLogsService',
+  'datadog.trace.core.otlp.metrics.OtlpMetricsSenderFactory',
+  'datadog.trace.core.otlp.metrics.OtlpMetricsService'
 ]
 
 addTestSuite('traceAgentTest')
@@ -108,7 +120,8 @@ dependencies {
   testImplementation group: 'com.amazonaws', name: 'aws-lambda-java-events', version:'3.11.0'
   testImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.14.0'
   testImplementation libs.testcontainers
-  testImplementation project(':utils:junit-utils')
+  testImplementation project(':utils:test-junit-utils')
+  testImplementation project(':utils:test-junit-converter-utils')
 
   traceAgentTestImplementation libs.testcontainers
 }

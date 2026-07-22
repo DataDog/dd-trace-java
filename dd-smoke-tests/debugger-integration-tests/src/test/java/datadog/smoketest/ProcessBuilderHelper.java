@@ -1,7 +1,5 @@
 package datadog.smoketest;
 
-import static datadog.environment.OperatingSystem.architecture;
-
 import datadog.environment.OperatingSystem;
 import java.io.File;
 import java.nio.file.Path;
@@ -59,7 +57,7 @@ class ProcessBuilderHelper {
 
     List<String> command = new ArrayList<>();
     command.addAll(baseCommand);
-    if (OperatingSystem.isLinux() && architecture().isArm64()) {
+    if (OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64()) {
       // Disable CDS to avoid SIGSEGVs on Linux arm64.
       command.add(1, "-Xshare:off");
     }

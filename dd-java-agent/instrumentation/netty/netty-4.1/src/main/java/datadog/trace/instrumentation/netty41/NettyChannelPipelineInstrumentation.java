@@ -5,7 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -13,12 +13,12 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.instrumentation.netty41.client.HttpClientRequestTracingHandler;
 import datadog.trace.instrumentation.netty41.client.HttpClientResponseTracingHandler;
 import datadog.trace.instrumentation.netty41.client.HttpClientTracingHandler;
@@ -256,12 +256,12 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
   public static class ConnectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean addParentSpan(@Advice.This final ChannelPipeline pipeline) {
-      AgentScope.Continuation continuation = captureActiveSpan();
-      if (continuation != noopContinuation()) {
-        final Attribute<AgentScope.Continuation> attribute =
+      ContextContinuation continuation = captureActiveSpan();
+      if (continuation.context() != rootContext()) {
+        final Attribute<ContextContinuation> attribute =
             pipeline.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY);
         if (!attribute.compareAndSet(null, continuation)) {
-          continuation.cancel();
+          continuation.release();
           return false;
         }
         return Boolean.TRUE.equals(
