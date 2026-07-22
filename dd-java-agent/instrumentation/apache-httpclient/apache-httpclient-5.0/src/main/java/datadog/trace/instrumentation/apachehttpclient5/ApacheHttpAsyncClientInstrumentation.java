@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
@@ -113,7 +114,7 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
         @Advice.Argument(value = 3, readOnly = false) HttpContext context,
         @Advice.Argument(value = 4, readOnly = false) FutureCallback<?> futureCallback) {
 
-      final AgentScope.Continuation parentContinuation = captureActiveSpan();
+      final ContextContinuation parentContinuation = captureActiveSpan();
       final AgentSpan clientSpan = startSpan(APACHE_HTTP_CLIENT.toString(), HTTP_REQUEST);
       final AgentScope clientScope = activateSpan(clientSpan);
       DECORATE.afterStart(clientSpan);
@@ -142,15 +143,17 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
       if (scope == null) {
         return;
       }
+      final AgentSpan span = scope.span();
       try {
         if (throwable != null) {
-          final AgentSpan span = scope.span();
           DECORATE.onError(span, throwable);
           DECORATE.beforeFinish(span);
-          span.finish();
         }
       } finally {
         scope.close();
+        if (throwable != null) {
+          span.finish();
+        }
       }
     }
   }

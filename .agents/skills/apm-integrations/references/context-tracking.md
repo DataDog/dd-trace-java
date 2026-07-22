@@ -60,3 +60,63 @@ When a boundary type exposes multiple overloads of the subscribe / invoke method
 If the library DOES perform I/O — sends HTTP requests, runs DB queries, makes RPC calls, talks to a broker, reads/writes a cache — write a **span-creating instrumentation** (`InstrumenterModule.Tracing`) instead. Context-tracking is only for libraries that coordinate work; the moment there's actual I/O to observe, you want spans around it.
 
 Hybrid libraries that BOTH coordinate work AND perform I/O usually get one span-creating instrumentation for the I/O path and (optionally) one context-tracking instrumentation for the coordination path. `lettuce-5.0` is an example: there is a span-creating instrumentation for Redis commands and a separate context-tracking instrumentation for the async command queue.
+
+## Preserving cancellation on `CompletableFuture` / `CompletionStage` returns
+
+When advice attaches a completion callback to a `CompletableFuture` returned from an async client, do NOT reassign the return with `future = future.whenComplete(...)`. `whenComplete` produces a **dependent stage**; cancelling that stage does not cancel the original request. The caller's `future.cancel(true)` then only cancels the dependent stage and leaves the underlying I/O running.
+
+The correct pattern attaches the callback for side-effects only, without reassigning the return — so `@Advice.Return` does NOT need `readOnly = false`. It also declares `onThrowable = Throwable.class` so the exit runs even when the instrumented method throws before returning its future (otherwise ByteBuddy skips exit advice on thrown paths and any span/scope started on enter leaks). And per the "no lambdas in advice methods" rule in `advice-class.md`, the completion callback must be a named helper class, not a lambda — lambdas compile to synthetic classes that muzzle does not helper-inject and ByteBuddy cannot resolve at the instrumentation site.
+
+```java
+// WRONG — three issues in one:
+//   (a) reassigning `future = ...` severs cancellation from the caller
+//   (b) unnecessary readOnly = false
+//   (c) lambda body compiles to a synthetic class that isn't helper-injected
+@Advice.OnMethodExit(suppress = Throwable.class)
+public static void exit(@Advice.Return(readOnly = false) CompletableFuture<Response> future,
+                        @Advice.Enter AgentSpan span) {
+  future = future.whenComplete((result, error) -> finishSpan(span, result, error));
+}
+
+// CORRECT — attach a named callback for its side-effect; keep the return read-only;
+// run on both normal and throwable exit so the caller-thrown case still cleans up.
+@Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+public static void exit(@Advice.Return CompletableFuture<Response> future,
+                        @Advice.Enter AgentSpan span,
+                        @Advice.Thrown Throwable thrown) {
+  if (thrown != null) {
+    // The instrumented method threw before returning a future — no future to attach to.
+    // Finish the span here directly.
+    ClientCompletionCallback.finishOnThrow(span, thrown);
+    return;
+  }
+  if (future != null) {
+    future.whenComplete(new ClientCompletionCallback(span));
+  }
+}
+```
+
+where `ClientCompletionCallback` is a named `BiConsumer<Response, Throwable>` in a separate helper file listed in `helperClassNames()`:
+
+```java
+public final class ClientCompletionCallback implements BiConsumer<Response, Throwable> {
+  private final AgentSpan span;
+
+  public ClientCompletionCallback(AgentSpan span) {
+    this.span = span;
+  }
+
+  @Override
+  public void accept(Response result, Throwable error) {
+    // finish the span with the observed outcome
+  }
+
+  public static void finishOnThrow(AgentSpan span, Throwable thrown) {
+    // handle the enter-but-no-future case
+  }
+}
+```
+
+Only add `readOnly = false` if you have a documented reason to substitute the return value. If your goal is just to observe completion, the read-only + named-callback pattern is safer (preserves cancellation), obeys the no-lambdas-in-advice rule, and handles the thrown-before-return case.
+
+If the wrapper genuinely needs to return a different `CompletionStage` (rare), forward `cancel(...)` to the original future explicitly.

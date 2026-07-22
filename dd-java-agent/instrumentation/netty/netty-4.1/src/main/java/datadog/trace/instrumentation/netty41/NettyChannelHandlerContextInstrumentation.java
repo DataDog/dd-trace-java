@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.NettyChannelPipelineInstrumentation.ADDITIONAL_INSTRUMENTATION_NAMES;
@@ -76,14 +75,16 @@ public class NettyChannelHandlerContextInstrumentation extends InstrumenterModul
           spanFromContext(ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get());
       if (channelSpan == null || channelSpan == activeSpan()) {
         // don't modify the scope
-        return noopScope();
+        return null;
       }
       return activateSpan(channelSpan);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void close(@Advice.Enter final AgentScope scope) {
-      scope.close();
+      if (scope != null) {
+        scope.close();
+      }
     }
 
     private void muzzleCheck() {

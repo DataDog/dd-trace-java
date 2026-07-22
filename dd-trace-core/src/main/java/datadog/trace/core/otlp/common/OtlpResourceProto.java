@@ -1,65 +1,48 @@
 package datadog.trace.core.otlp.common;
 
-import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeAttribute;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
+import static datadog.trace.core.otlp.common.OtlpResourceAttributes.datadogResourceAttributes;
+import static datadog.trace.core.otlp.common.OtlpResourceAttributes.traceResourceAttributes;
+import static datadog.trace.core.otlp.common.OtlpResourceAttributes.visitResourceAttributes;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Set;
+import java.util.Collections;
+import java.util.Map;
 
 /** Provides a canned message for OpenTelemetry's "resource.proto" wire protocol. */
 public final class OtlpResourceProto {
   private OtlpResourceProto() {}
 
-  private static final Set<String> IGNORED_GLOBAL_TAGS =
-      new HashSet<>(
-          Arrays.asList(
-              "service",
-              "env",
-              "version",
-              "service.name",
-              "deployment.environment.name",
-              "service.version",
-              "telemetry.sdk.name",
-              "telemetry.sdk.version",
-              "telemetry.sdk.language"));
+  /** Vendor-neutral resource (no {@code datadog.*}). Used by the OTLP metric export. */
+  public static final byte[] RESOURCE_MESSAGE =
+      buildResourceMessage(Config.get(), Collections.emptyMap());
 
-  public static final byte[] RESOURCE_MESSAGE = buildResourceMessage(Config.get());
+  /**
+   * Resource that additionally carries {@code datadog.runtime_id} and process tags (each prefixed
+   * {@code datadog.}). Used by the default-mode SDK trace-metrics export; omitted in OTel-semantics
+   * mode.
+   */
+  public static final byte[] RESOURCE_MESSAGE_WITH_DATADOG_ATTRS =
+      buildResourceMessage(Config.get(), datadogResourceAttributes(Config.get()));
 
-  static byte[] buildResourceMessage(Config config) {
+  /**
+   * Resource used by the OTLP trace export. Identical to {@link #RESOURCE_MESSAGE} but adds the
+   * {@code _dd.stats_computed} marker when the SDK is computing OTLP span metrics, so a downstream
+   * Agent does not recompute them from the exported spans.
+   */
+  public static final byte[] TRACE_RESOURCE_MESSAGE =
+      buildResourceMessage(Config.get(), traceResourceAttributes(Config.get()));
+
+  static byte[] buildResourceMessage(Config config, Map<String, String> extraAttributes) {
     GrowableBuffer buf = new GrowableBuffer(512);
 
-    String serviceName = config.getServiceName();
-    String env = config.getEnv();
-    String version = config.getVersion();
-
-    writeResourceAttribute(buf, "service.name", serviceName);
-    if (!env.isEmpty()) {
-      writeResourceAttribute(buf, "deployment.environment.name", env);
-    }
-    if (!version.isEmpty()) {
-      writeResourceAttribute(buf, "service.version", version);
-    }
-    writeResourceAttribute(buf, "telemetry.sdk.name", "datadog");
-    writeResourceAttribute(buf, "telemetry.sdk.version", TRACER_VERSION);
-    writeResourceAttribute(buf, "telemetry.sdk.language", "java");
-
-    config
-        .getGlobalTags()
-        .forEach(
-            (key, value) -> {
-              // ignore datadog tags and their otel equivalents that we map above
-              if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))) {
-                writeResourceAttribute(buf, key, value);
-              }
-            });
+    visitResourceAttributes(
+        config, extraAttributes, (key, value) -> writeResourceAttribute(buf, key, value));
 
     OtlpProtoBuffer protobuf = new OtlpProtoBuffer(buf.capacity());
     int numBytes = protobuf.recordMessage(buf, 1);
