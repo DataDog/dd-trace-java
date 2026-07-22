@@ -21,6 +21,7 @@ import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import java.util.BitSet;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 
 public class GrpcServerDecorator extends ServerDecorator {
 
@@ -113,7 +114,8 @@ public class GrpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  protected void doOnError(AgentSpan span, Throwable throwable, byte errorPriority) {
+  protected void doOnError(
+      @Nonnull AgentSpan span, @NonNull Throwable throwable, byte errorPriority) {
     super.doOnError(span, throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
     if (throwable instanceof StatusRuntimeException) {
       onStatus(span, ((StatusRuntimeException) throwable).getStatus());

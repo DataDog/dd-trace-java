@@ -568,7 +568,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+  protected void doOnError(
+      @Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
     if (throwable != null) {
       span.addThrowable(
           throwable instanceof ExecutionException ? throwable.getCause() : throwable,

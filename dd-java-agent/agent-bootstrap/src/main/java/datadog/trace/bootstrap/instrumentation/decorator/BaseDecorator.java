@@ -160,12 +160,14 @@ public abstract class BaseDecorator {
 
   public final void onError(
       @Nullable final AgentSpan span, @Nullable final Throwable throwable, byte errorPriority) {
-    try {
-      doOnError(span, throwable, errorPriority);
-    } catch (BlockingException e) {
-      throw e;
-    } catch (Throwable t) {
-      log.debug("Failed to decorate span on error", t);
+    if (span != null && throwable != null) {
+      try {
+        doOnError(span, throwable, errorPriority);
+      } catch (BlockingException e) {
+        throw e;
+      } catch (Throwable t) {
+        log.debug("Failed to decorate span on error", t);
+      }
     }
   }
 
@@ -176,13 +178,9 @@ public abstract class BaseDecorator {
     }
   }
 
-  protected void doOnError(
-      @Nullable final AgentSpan span, @Nullable final Throwable throwable, byte errorPriority) {
-    if (throwable != null && span != null) {
-      span.addThrowable(
-          throwable instanceof ExecutionException ? throwable.getCause() : throwable,
-          errorPriority);
-    }
+  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+    span.addThrowable(
+        throwable instanceof ExecutionException ? throwable.getCause() : throwable, errorPriority);
   }
 
   public final void onPeerConnection(

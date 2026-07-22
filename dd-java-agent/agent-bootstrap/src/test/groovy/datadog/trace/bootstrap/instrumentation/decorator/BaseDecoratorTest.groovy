@@ -283,7 +283,7 @@ class BaseDecoratorTest extends DDSpecification {
         }
 
         @Override
-        protected void doOnError(AgentSpan span, Throwable throwable, byte errorPriority) {
+        protected void doOnError(@Nonnull AgentSpan span, @Nonnull Throwable throwable, byte errorPriority) {
           throw toThrow
         }
 

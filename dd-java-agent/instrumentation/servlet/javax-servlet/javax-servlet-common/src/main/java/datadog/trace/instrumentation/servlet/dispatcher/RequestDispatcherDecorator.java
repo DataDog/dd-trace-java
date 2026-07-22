@@ -9,6 +9,7 @@ import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
+import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 
 public class RequestDispatcherDecorator extends BaseDecorator {
@@ -34,7 +35,8 @@ public class RequestDispatcherDecorator extends BaseDecorator {
   }
 
   @Override
-  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+  protected void doOnError(
+      @Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
     if (throwable instanceof ServletException && throwable.getCause() != null) {
       super.doOnError(span, throwable.getCause(), errorPriority);
     } else {

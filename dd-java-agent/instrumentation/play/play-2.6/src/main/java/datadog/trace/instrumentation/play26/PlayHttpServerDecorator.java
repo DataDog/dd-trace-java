@@ -24,6 +24,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import play.api.mvc.Headers;
@@ -213,7 +214,8 @@ public class PlayHttpServerDecorator
   }
 
   @Override
-  protected void doOnError(final AgentSpan span, Throwable throwable, byte errorPriority) {
+  protected void doOnError(
+      @Nonnull final AgentSpan span, @Nonnull Throwable throwable, byte errorPriority) {
     if (REPORT_HTTP_STATUS) {
       span.setHttpStatusCode(500);
     }
