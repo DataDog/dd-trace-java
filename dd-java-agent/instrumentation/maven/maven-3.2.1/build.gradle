@@ -28,7 +28,7 @@ dependencies {
   latestDepTestImplementation group: 'org.apache.maven', name: 'maven-embedder', version: '3.+'
   latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-connector-basic', version: '2.+'
   latestDepTestImplementation group: 'org.apache.maven.resolver', name: 'maven-resolver-transport-apache', version: '2.+'
-  latestDepTestRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: '1.5.+'
+  latestDepTestRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: '1.3.+'
   latestDepTestImplementation group: 'org.fusesource.jansi', name: 'jansi', version: '+'
   // Fix issue "No implementation for RepositorySystem was bound while locating DefaultProjectBuildingHelper"
   // See: https://issues.apache.org/jira/browse/MNG-6561
