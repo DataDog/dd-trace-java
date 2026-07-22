@@ -1,5 +1,6 @@
 package datadog.smoketest.apmtracingdisabled;
 
+import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.util.GlobalTracer;
 import java.io.IOException;
@@ -69,6 +70,29 @@ public class Controller {
       RestTemplate restTemplate = new RestTemplate();
       restTemplate.getForObject(url, String.class);
     }
+  }
+
+  @GetMapping("/late-outbound")
+  public String lateOutbound(@RequestParam(name = "url") String url) {
+    final Span span = GlobalTracer.get().activeSpan();
+    Thread thread =
+        new Thread(
+            () -> {
+              try {
+                Thread.sleep(1000);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+              }
+              try (Scope scope = GlobalTracer.get().activateSpan(span)) {
+                new RestTemplate().getForObject(url, String.class);
+              } catch (Exception ignored) {
+                // The outbound target response is irrelevant; we only need the client child span.
+              }
+            });
+    thread.setDaemon(true);
+    thread.start();
+    return "late-outbound";
   }
 
   private String forceKeepSpan() {

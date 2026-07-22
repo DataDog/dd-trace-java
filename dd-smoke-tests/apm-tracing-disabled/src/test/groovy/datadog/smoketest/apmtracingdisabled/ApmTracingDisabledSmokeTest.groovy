@@ -50,6 +50,28 @@ abstract class ApmTracingDisabledSmokeTest extends AbstractApmTracingDisabledSmo
     !hasApmDisabledTag(getServiceTrace(APM_ENABLED_SERVICE_NAME))
   }
 
+  void 'When APM is disabled, a delayed outbound child flushed in its own chunk must still carry _dd.apm.enabled:0'() {
+    setup:
+    final targetUrl = "http://localhost:${httpPorts[1]}/rest-api/greetings"
+    final url = "http://localhost:${httpPorts[0]}/rest-api/late-outbound?url=${URLEncoder.encode(targetUrl, 'UTF-8')}"
+    final request = new Request.Builder().url(url).get().build()
+
+    when:
+    final response = client.newCall(request).execute()
+
+    then: 'the request root, the delayed outbound child, and the downstream service each report a chunk'
+    response.successful
+    waitForTraceCount(3)
+    // The delayed outbound client span belongs to the APM-disabled service but is exported alone,
+    // in a separate chunk from the /late-outbound service-entry span that carries the marker.
+    def outboundChunk = getOutboundChunk(APM_TRACING_DISABLED_SERVICE_NAME, targetUrl)
+    assert outboundChunk != null
+    assert outboundChunk.spans.every { it.resource != 'GET /rest-api/late-outbound' }
+
+    then: 'the delayed child chunk must still carry the billing marker (fails before the fix)'
+    hasApmDisabledTag(outboundChunk)
+  }
+
   void 'When APM is disabled, libraries must completely disable the generation of APM trace metrics'(){
     setup:
     final url1 = "http://localhost:${httpPorts[0]}/rest-api/greetings"

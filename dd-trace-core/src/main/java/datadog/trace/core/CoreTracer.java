@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
@@ -193,6 +194,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final TagMap localRootSpanTags;
 
   private final boolean localRootSpanTagsNeedIntercept;
+
+  /**
+   * When APM tracing is disabled, every exported trace chunk must carry the {@code
+   * _dd.apm.enabled:0} billing marker so the intake does not bill APM host usage.
+   */
+  private final boolean apmTracingEnabled;
 
   /** A set of tags that are added to every span */
   private final TagMap defaultSpanTags;
@@ -668,6 +675,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.serviceName = serviceName;
 
     this.initialConfig = config;
+    this.apmTracingEnabled = config.isApmTracingEnabled();
     this.initialSampler = sampler;
 
     // Get initial Trace Sampling Rules from config
@@ -1302,6 +1310,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     spanToSample.forceKeep(forceKeep);
     boolean published = forceKeep || traceCollector.sample(spanToSample);
     if (published) {
+      if (!apmTracingEnabled) {
+        // Stamp the billing marker on the first span of each exported chunk. Doing this at export
+        // rather than only on the local root span guarantees that chunks flushed without their
+        // local root (e.g. a late child span) still opt out of APM host billing.
+        writtenTrace.get(0).setTag(APM_ENABLED, 0);
+      }
       writer.write(writtenTrace);
     } else {
       // with span streaming this won't work - it needs to be changed

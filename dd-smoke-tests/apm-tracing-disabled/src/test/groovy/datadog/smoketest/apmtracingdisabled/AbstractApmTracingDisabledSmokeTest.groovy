@@ -81,6 +81,15 @@ abstract class AbstractApmTracingDisabledSmokeTest extends AbstractServerSmokeTe
     return trace.spans[0].metrics['_dd.apm.enabled'] == 0
   }
 
+  /** The chunk holding the delayed outbound client span (service == serviceName, http.url == url). */
+  protected DecodedTrace getOutboundChunk(String serviceName, String url) {
+    return traces.find { trace ->
+      trace.spans.any { span ->
+        span.service == serviceName && span.meta['http.url'] == url
+      }
+    }
+  }
+
   protected hasASMEvents(DecodedTrace trace){
     return trace.spans[0].meta['_dd.iast.json'] != null || trace.spans[0].meta['_dd.appsec.json'] != null
   }
