@@ -685,7 +685,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   protected void finishInferredProxySpan(Context context) {
     InferredProxySpan inferredProxySpan;
     if ((inferredProxySpan = InferredProxySpan.fromContext(context)) != null) {
-      inferredProxySpan.finish(fromContext(context));
+      inferredProxySpan.finish(AgentSpan.fromContext(context));
     }
   }
 
