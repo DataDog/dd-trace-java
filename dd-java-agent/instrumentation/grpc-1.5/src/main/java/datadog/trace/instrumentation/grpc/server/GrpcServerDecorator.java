@@ -14,7 +14,6 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import io.grpc.ServerCall;
 import io.grpc.Status;
 import io.grpc.StatusException;
@@ -82,7 +81,7 @@ public class GrpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  protected void doAfterStart(@NonNull final AgentSpan span) {
+  protected void doAfterStart(@Nonnull final AgentSpan span) {
     span.setMeasured(true);
     super.doAfterStart(span);
   }
@@ -115,7 +114,7 @@ public class GrpcServerDecorator extends ServerDecorator {
 
   @Override
   protected void doOnError(
-      @Nonnull AgentSpan span, @NonNull Throwable throwable, byte errorPriority) {
+      @Nonnull AgentSpan span, @Nonnull Throwable throwable, byte errorPriority) {
     super.doOnError(span, throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
     if (throwable instanceof StatusRuntimeException) {
       onStatus(span, ((StatusRuntimeException) throwable).getStatus());

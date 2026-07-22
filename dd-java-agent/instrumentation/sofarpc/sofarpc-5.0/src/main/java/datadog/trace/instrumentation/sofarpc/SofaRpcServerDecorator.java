@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import javax.annotation.Nonnull;
 
 public class SofaRpcServerDecorator extends ServerDecorator {
 
@@ -36,7 +36,7 @@ public class SofaRpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  protected void doAfterStart(@NonNull AgentSpan span) {
+  protected void doAfterStart(@Nonnull AgentSpan span) {
     span.setMeasured(true);
     super.doAfterStart(span);
   }

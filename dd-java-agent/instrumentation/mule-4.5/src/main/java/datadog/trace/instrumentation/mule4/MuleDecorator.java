@@ -13,7 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.function.Function;
-import org.checkerframework.checker.nullness.qual.NonNull;
+import javax.annotation.Nonnull;
 import org.mule.runtime.api.component.Component;
 import org.mule.runtime.core.api.event.CoreEvent;
 import org.mule.runtime.tracer.api.span.info.InitialSpanInfo;
@@ -52,7 +52,7 @@ public class MuleDecorator extends BaseDecorator {
   }
 
   @Override
-  protected void doAfterStart(final @NonNull AgentSpan span) {
+  protected void doAfterStart(final @Nonnull AgentSpan span) {
     span.setMeasured(true);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
     super.doAfterStart(span);

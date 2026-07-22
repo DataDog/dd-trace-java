@@ -13,7 +13,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import graphql.execution.ExecutionContext;
 import graphql.language.Argument;
 import graphql.language.Field;
@@ -23,6 +22,7 @@ import graphql.language.Value;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
+import javax.annotation.Nonnull;
 
 public class GraphQLDecorator extends BaseDecorator {
   public static final GraphQLDecorator DECORATE = new GraphQLDecorator();
@@ -55,7 +55,7 @@ public class GraphQLDecorator extends BaseDecorator {
   }
 
   @Override
-  protected void doAfterStart(@NonNull final AgentSpan span) {
+  protected void doAfterStart(@Nonnull final AgentSpan span) {
     span.setMeasured(true);
     super.doAfterStart(span);
   }

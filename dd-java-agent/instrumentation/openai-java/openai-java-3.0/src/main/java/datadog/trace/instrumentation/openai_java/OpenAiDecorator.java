@@ -20,7 +20,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
-import org.jetbrains.annotations.NotNull;
 
 public class OpenAiDecorator extends ClientDecorator {
   public static final OpenAiDecorator DECORATE = new OpenAiDecorator();
@@ -92,7 +91,7 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   @Override
-  protected void doAfterStart(@NotNull AgentSpan span) {
+  protected void doAfterStart(@Nonnull AgentSpan span) {
     if (llmObsEnabled) {
       // set global dd_tags as base layer so UST and span-level tags can override them
       for (Map.Entry<String, String> entry : Config.get().getGlobalTags().entrySet()) {

@@ -5,7 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import javax.annotation.Nonnull;
 
 public class Resilience4jSpanDecorator<T> extends BaseDecorator {
   public static final Resilience4jSpanDecorator<Void> DECORATE = new Resilience4jSpanDecorator<>();
@@ -28,7 +28,7 @@ public class Resilience4jSpanDecorator<T> extends BaseDecorator {
   }
 
   @Override
-  protected void doAfterStart(@NonNull AgentSpan span) {
+  protected void doAfterStart(@Nonnull AgentSpan span) {
     super.doAfterStart(span);
     span.setSpanName(RESILIENCE4J);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);

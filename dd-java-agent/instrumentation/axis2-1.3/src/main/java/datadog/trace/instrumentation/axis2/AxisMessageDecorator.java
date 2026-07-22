@@ -14,8 +14,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.net.URI;
+import javax.annotation.Nonnull;
 import org.apache.axis2.addressing.EndpointReference;
 import org.apache.axis2.context.MessageContext;
 
@@ -96,7 +96,7 @@ public class AxisMessageDecorator extends BaseDecorator {
   }
 
   @Override
-  protected void doAfterStart(@NonNull AgentSpan span) {
+  protected void doAfterStart(@Nonnull AgentSpan span) {
     super.doAfterStart(span);
     span.setMeasured(true);
   }
