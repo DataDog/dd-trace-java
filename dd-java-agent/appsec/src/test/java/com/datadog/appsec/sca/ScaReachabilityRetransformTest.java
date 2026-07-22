@@ -101,7 +101,7 @@ class ScaReachabilityRetransformTest {
 
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
-    t.pendingRetransform.add(Collections.singletonList(Target.class));
+    t.pendingRetransform.add(new ArrayList<>(Collections.singletonList(Target.class)));
 
     t.performPendingRetransforms();
 
@@ -117,7 +117,7 @@ class ScaReachabilityRetransformTest {
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
 
-    t.pendingRetransform.add(Collections.singletonList(Target.class));
+    t.pendingRetransform.add(new ArrayList<>(Collections.singletonList(Target.class)));
     t.performPendingRetransforms();
 
     verify(instr).retransformClasses(Target.class);

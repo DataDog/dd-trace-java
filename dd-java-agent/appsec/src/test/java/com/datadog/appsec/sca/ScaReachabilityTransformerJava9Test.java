@@ -18,6 +18,7 @@ import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import java.io.StringReader;
 import java.lang.instrument.Instrumentation;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -183,7 +184,7 @@ class ScaReachabilityTransformerJava9Test {
     ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, mockInstr);
 
     transformer.pendingRetransform.add(
-        singletonList(com.fasterxml.jackson.databind.ObjectMapper.class));
+        new ArrayList<>(singletonList(com.fasterxml.jackson.databind.ObjectMapper.class)));
     transformer.performPendingRetransforms();
 
     assertFalse(
@@ -230,7 +231,7 @@ class ScaReachabilityTransformerJava9Test {
     ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, mockInstr);
 
     transformer.pendingRetransform.add(
-        singletonList(com.fasterxml.jackson.databind.ObjectMapper.class));
+        new ArrayList<>(singletonList(com.fasterxml.jackson.databind.ObjectMapper.class)));
     transformer.performPendingRetransforms();
 
     // jackson-core is on the test classpath (transitive dependency of jackson-databind).

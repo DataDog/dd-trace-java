@@ -305,14 +305,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     List<List<Class<?>>> batches = new ArrayList<>();
     List<Class<?>> batch;
     while ((batch = pendingRetransform.poll()) != null) {
-      List<Class<?>> modifiable = new ArrayList<>(batch.size());
-      for (Class<?> c : batch) {
-        if (instrumentation.isModifiableClass(c)) {
-          modifiable.add(c);
-        }
-      }
-      if (!modifiable.isEmpty()) {
-        batches.add(modifiable);
+      batch.removeIf(c -> !instrumentation.isModifiableClass(c));
+      if (!batch.isEmpty()) {
+        batches.add(batch);
       }
     }
 
