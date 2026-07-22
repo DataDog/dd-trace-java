@@ -69,11 +69,10 @@ variables:
   NON_DEFAULT_JVMS:
     description: "Enable tests on JVMs that are not the default"
     value: "false"
-  # Temporary cross-repository pin for the TaskBlock rollout. java-profiler is fetched from its
+  # Temporary cross-repository branch for the TaskBlock rollout. java-profiler is fetched from its
   # public GitHub repository because GitLab rejects cross-project CI_JOB_TOKEN authentication.
-  # Fetch the immutable commit directly so later branch updates do not invalidate this pipeline.
-  DDPROF_COMMIT_SHA: "4698b06106e60ae0c890bef42375f831660f5f82"
-  DDPROF_ARTIFACT_VERSION: "1.47.0-taskblock-native-io-4698b0610"
+  DDPROF_BRANCH: "paul.fournillon/wallclock-taskblock"
+  DDPROF_ARTIFACT_VERSION: "1.47.0-taskblock-native-io"
   DDPROF_BUILD_IMAGE_X64: "registry.ddbuild.io/ci/async-profiler-build:v107978918-x64-2.17-base@sha256:03fb65c5c7fb2866397ceaf18ccb5a0b91bb377a9f89c94264427b62d48cfffd"
   DDPROF_BUILD_IMAGE_X64_MUSL: "registry.ddbuild.io/ci/async-profiler-build:v107978918-x64-musl-base@sha256:0efe0c5fbd04e5647a53235d4c4942a2dd305b3d76bf5afdc052d64a7c0b9505"
   DDPROF_BUILD_IMAGE_ARM64: "registry.ddbuild.io/ci/async-profiler-build:v107978918-arm64-base@sha256:15670752fa8e67c81c1b7fd4d93ef34c668649f117584ab29327d8d7733d64d6"
@@ -350,25 +349,20 @@ dd-octo-sts-pre-release-check:
     max: 2
     when: always
 
-.checkout_pinned_ddprof: &checkout_pinned_ddprof
+.checkout_ddprof_branch: &checkout_ddprof_branch
   - |
     set -euo pipefail
     export DDPROF_REPO_DIR="${CI_PROJECT_DIR}/java-profiler"
-    : "${DDPROF_COMMIT_SHA:?DDPROF_COMMIT_SHA must be set}"
+    : "${DDPROF_BRANCH:?DDPROF_BRANCH must be set}"
     : "${DDPROF_ARTIFACT_VERSION:?DDPROF_ARTIFACT_VERSION must be set}"
 
     git init "${DDPROF_REPO_DIR}"
     (
       cd "${DDPROF_REPO_DIR}"
       git remote add origin "https://github.com/DataDog/java-profiler.git"
-      git fetch --depth=1 origin "${DDPROF_COMMIT_SHA}"
-
-      resolved_commit=$(git rev-parse FETCH_HEAD)
-      if [[ "${resolved_commit}" != "${DDPROF_COMMIT_SHA}" ]]; then
-        echo "Fetched unexpected java-profiler commit: expected ${DDPROF_COMMIT_SHA}, got ${resolved_commit}" >&2
-        exit 1
-      fi
-      git checkout --detach "${resolved_commit}"
+      git fetch --depth=1 origin "refs/heads/${DDPROF_BRANCH}"
+      git checkout --detach FETCH_HEAD
+      echo "Building java-profiler branch ${DDPROF_BRANCH} at $(git rev-parse HEAD)"
     )
 
     if [[ -z "${JAVA_HOME:-}" || ! -x "${JAVA_HOME}/bin/java" ]]; then
@@ -381,14 +375,14 @@ dd-octo-sts-pre-release-check:
     fi
     export ORG_GRADLE_PROJECT_mavenRepositoryProxy="${MAVEN_REPOSITORY_PROXY}"
 
-.build_pinned_ddprof_native:
+.build_ddprof_branch_native:
   stage: ddprof-native
   variables:
     KUBERNETES_CPU_REQUEST: 10
     KUBERNETES_MEMORY_REQUEST: 20Gi
     KUBERNETES_MEMORY_LIMIT: 20Gi
   script:
-    - *checkout_pinned_ddprof
+    - *checkout_ddprof_branch
     - |
       set -euo pipefail
       : "${TARGET:?TARGET must be set for native builds}"
@@ -415,28 +409,28 @@ dd-octo-sts-pre-release-check:
     expire_in: 1 day
 
 build_ddprof_x64:
-  extends: .build_pinned_ddprof_native
+  extends: .build_ddprof_branch_native
   image: $DDPROF_BUILD_IMAGE_X64
   tags: [ "arch:amd64" ]
   variables:
     TARGET: linux-x64
 
 build_ddprof_x64_musl:
-  extends: .build_pinned_ddprof_native
+  extends: .build_ddprof_branch_native
   image: $DDPROF_BUILD_IMAGE_X64_MUSL
   tags: [ "arch:amd64" ]
   variables:
     TARGET: linux-x64-musl
 
 build_ddprof_arm64:
-  extends: .build_pinned_ddprof_native
+  extends: .build_ddprof_branch_native
   image: $DDPROF_BUILD_IMAGE_ARM64
   tags: [ "arch:arm64" ]
   variables:
     TARGET: linux-arm64
 
 build_ddprof_arm64_musl:
-  extends: .build_pinned_ddprof_native
+  extends: .build_ddprof_branch_native
   image: $DDPROF_BUILD_IMAGE_ARM64_MUSL
   tags: [ "arch:arm64" ]
   timeout: 3h
@@ -457,7 +451,7 @@ assemble_ddprof:
     - job: build_ddprof_arm64_musl
       artifacts: true
   script:
-    - *checkout_pinned_ddprof
+    - *checkout_ddprof_branch
     - |
       set -euo pipefail
       for target in linux-x64 linux-x64-musl linux-arm64 linux-arm64-musl; do
