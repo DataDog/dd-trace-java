@@ -128,9 +128,9 @@ public class LibertyDecorator
     return true;
   }
 
-  public void onResponse(AgentSpan span, SRTServletResponse response) {
+  public void onSRTResponse(AgentSpan span, SRTServletResponse response) {
     try {
-      decorateResponse(span, response);
+      doOnSRTResponse(span, response);
     } catch (BlockingException e) {
       throw e;
     } catch (Throwable t) {
@@ -138,13 +138,13 @@ public class LibertyDecorator
     }
   }
 
-  private void decorateResponse(AgentSpan span, SRTServletResponse response) {
+  private void doOnSRTResponse(AgentSpan span, SRTServletResponse response) {
     HttpServletRequest req = response.getRequest();
 
     if (Config.get().isServletPrincipalEnabled() && req.getUserPrincipal() != null) {
       span.setTag(DDTags.USER_NAME, req.getUserPrincipal().getName());
     }
-    super.onResponse(span, response);
+    doOnResponse(span, response);
 
     Object ex = req.getAttribute("javax.servlet.error.exception");
     Object report;
