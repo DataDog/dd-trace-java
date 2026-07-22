@@ -12,11 +12,13 @@ import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufHolder;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.FileRegion;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponse;
@@ -58,6 +60,11 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
 
     try (final ContextScope ignored = storedContext.attach()) {
       final boolean terminalResponse = isTerminalResponse(ctx, span, serverContext, msg);
+      final boolean writeSyntheticLastContent =
+          msg instanceof HttpResponse
+              && !(msg instanceof LastHttpContent)
+              && isHeaderOnly((HttpResponse) msg, serverContext)
+              && !isWebsocketUpgrade((HttpResponse) msg);
       final boolean knownLengthResponseComplete =
           !terminalResponse && serverContext.recordResponseBodyBytes(responseBodyBytes(msg));
       final boolean finishResponseOnWrite = terminalResponse || knownLengthResponseComplete;
@@ -67,15 +74,17 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         if (finishResponseOnWrite) {
           removeServerContext(ctx, serverContext);
           writePromise.addListener(
-              future -> {
-                finishSpan(serverContext, storedContext, span, future);
-                if (future.isSuccess()) {
-                  BlockingResponseHandler.maybeWriteDeferredBlockResponse(
-                      ctx, ServerRequestContext.nextResponse(ctx.channel()));
-                }
-              });
+              future -> finishSpan(serverContext, storedContext, span, future));
         }
         ctx.write(msg, writePromise);
+        if (finishResponseOnWrite && (!writePromise.isDone() || writePromise.isSuccess())) {
+          final ServerRequestContext nextResponse =
+              ServerRequestContext.nextResponse(ctx.channel());
+          if (writeSyntheticLastContent && nextResponse != null) {
+            ctx.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER), ctx.voidPromise());
+          }
+          BlockingResponseHandler.maybeWriteDeferredBlockResponse(ctx, nextResponse);
+        }
       } catch (final Throwable throwable) {
         if (!finishResponseOnWrite || !writePromise.isDone()) {
           DECORATE.onError(span, throwable);
@@ -114,7 +123,6 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         removeServerContext(ctx, null);
         throw throwable;
       }
-
       if (isInformationalResponse(response) && !isWebsocketUpgrade) {
         return;
       }
@@ -157,6 +165,10 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       if (contentLength > 0 && !HttpUtil.isTransferEncodingChunked(response)) {
         serverContext.setResponseContentLength(contentLength);
       }
+      if (msg instanceof LastHttpContent
+          && (hasKnownBodyLength(response) || HttpUtil.isContentLengthSet(response))) {
+        return true;
+      }
       // HTTP/1.x responses with neither a Content-Length nor chunked transfer-encoding are
       // delimited by the connection closing. HTTP/2 streams translated through
       // Http2StreamFrameToHttpObjectCodec are delimited by END_STREAM/LastHttpContent instead.
@@ -164,10 +176,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         serverContext.markResponseCloseDelimited();
         return false;
       }
-      if (msg instanceof LastHttpContent) {
-        return true;
-      }
-      return false;
+      return msg instanceof LastHttpContent;
     }
     return serverContext.isResponseStarted()
         && !serverContext.isResponseCloseDelimited()
@@ -267,6 +276,27 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
     } else {
       ServerRequestContext.remove(ctx.channel(), serverContext);
+    }
+  }
+
+  private static boolean isHeaderOnly(
+      final HttpResponse response, final ServerRequestContext serverContext) {
+    final int statusCode = response.status().code();
+    return (serverContext != null && serverContext.isHeadRequest())
+        || statusCode == HttpResponseStatus.NO_CONTENT.code()
+        || statusCode == HttpResponseStatus.RESET_CONTENT.code()
+        || statusCode == HttpResponseStatus.NOT_MODIFIED.code()
+        || (hasZeroContentLength(response) && !HttpUtil.isTransferEncodingChunked(response));
+  }
+
+  private static boolean hasZeroContentLength(final HttpResponse response) {
+    if (!HttpUtil.isContentLengthSet(response)) {
+      return false;
+    }
+    try {
+      return HttpUtil.getContentLength(response) == 0;
+    } catch (final NumberFormatException ignored) {
+      return false;
     }
   }
 }

@@ -6,7 +6,6 @@ import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpRequest;
 import io.netty.util.AttributeKey;
 import io.netty.util.AttributeMap;
 import java.util.ArrayDeque;
@@ -34,21 +33,37 @@ public final class ServerRequestContext {
 
   /** Adds a request context to the queue tail. */
   public static ServerRequestContext add(
-      final AttributeMap attributes, final Context context, final HttpRequest request) {
-    return add(attributes, context, request.headers(), request.method());
+      final AttributeMap attributes,
+      final Context context,
+      final String acceptHeader,
+      final boolean headRequest) {
+    return add(attributes, context, acceptHeader, headRequest ? HttpMethod.HEAD : null);
+  }
+
+  /** Adds a request context to the queue tail. */
+  public static ServerRequestContext add(
+      final AttributeMap attributes,
+      final Context context,
+      final HttpHeaders requestHeaders,
+      final HttpMethod requestMethod) {
+    return add(
+        attributes,
+        context,
+        requestHeaders == null ? null : requestHeaders.get("accept"),
+        requestMethod);
   }
 
   private static ServerRequestContext add(
       final AttributeMap attributes,
       final Context context,
-      final HttpHeaders requestHeaders,
+      final String acceptHeader,
       final HttpMethod requestMethod) {
     final Deque<ServerRequestContext> contexts = getOrCreate(attributes);
     if (!canAdd(attributes, contexts)) {
       return null;
     }
     final ServerRequestContext serverContext =
-        new ServerRequestContext(context, requestHeaders, requestMethod);
+        new ServerRequestContext(context, acceptHeader, requestMethod);
     contexts.addLast(serverContext);
     // The deque is authoritative for server request/response matching. CONTEXT_ATTRIBUTE_KEY is a
     // context mirror of the current inbound request used by
@@ -65,6 +80,13 @@ public final class ServerRequestContext {
     // HTTP/1.1 responses are written in request order, including when requests are pipelined on one
     // connection.
     return contexts == null || isPoisoned(contexts) ? null : contexts.peekFirst();
+  }
+
+  /** Returns the server request context for the current inbound request. */
+  public static ServerRequestContext currentRequest(final AttributeMap attributes) {
+    final Deque<ServerRequestContext> contexts =
+        attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).get();
+    return contexts == null || isPoisoned(contexts) ? null : contexts.peekLast();
   }
 
   /** Returns whether the channel is closing after an AppSec response block. */
@@ -290,11 +312,9 @@ public final class ServerRequestContext {
   }
 
   private ServerRequestContext(
-      final Context tracingContext,
-      final HttpHeaders requestHeaders,
-      final HttpMethod requestMethod) {
+      final Context tracingContext, final String acceptHeader, final HttpMethod requestMethod) {
     this.tracingContext = tracingContext;
-    this.acceptHeader = requestHeaders == null ? null : requestHeaders.get("accept");
+    this.acceptHeader = acceptHeader;
     this.requestMethod = requestMethod;
   }
 }

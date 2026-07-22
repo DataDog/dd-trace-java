@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.netty41.server;
 
+import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
 
@@ -22,6 +23,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.ReferenceCountUtil;
+import java.nio.channels.ClosedChannelException;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,11 +43,15 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       // block further writes while the blocking response close is still asynchronous
       log.debug("Write suppressed; dropped outbound message");
       ReferenceCountUtil.release(msg);
+      prm.tryFailure(new ClosedChannelException());
       return;
     }
 
     ServerRequestContext serverContext = ServerRequestContext.nextResponse(channel);
-    Context storedContext = serverContext == null ? null : serverContext.tracingContext();
+    Context storedContext =
+        serverContext == null
+            ? channel.attr(CONTEXT_ATTRIBUTE_KEY).get()
+            : serverContext.tracingContext();
     AgentSpan span = AgentSpan.fromContext(storedContext);
     RequestContext requestContext;
     if (span == null || (requestContext = span.getRequestContext()) == null) {
@@ -53,7 +59,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       return;
     }
 
-    if (serverContext.isResponseAnalyzed()) {
+    if (serverContext != null && serverContext.isResponseAnalyzed()) {
       super.write(ctx, msg, prm);
       return;
     }
@@ -78,7 +84,9 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     Flow<Void> flow =
         DECORATE.callIGCallbackResponseAndHeaders(
             span, origResponse, statusCode, ResponseExtractAdapter.GETTER);
-    serverContext.markResponseAnalyzed();
+    if (serverContext != null) {
+      serverContext.markResponseAnalyzed();
+    }
     Flow.Action action = flow.getAction();
     if (!(action instanceof Flow.Action.RequestBlockingAction)) {
       super.write(ctx, msg, prm);
@@ -103,7 +111,8 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     BlockingContentType bct = rba.getBlockingContentType();
     if (bct != BlockingContentType.NONE) {
       BlockingActionHelper.TemplateType type =
-          BlockingActionHelper.determineTemplateType(bct, serverContext.acceptHeader());
+          BlockingActionHelper.determineTemplateType(
+              bct, serverContext == null ? null : serverContext.acceptHeader());
       headers.set("Content-type", BlockingActionHelper.getContentType(type));
       byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
       setContentLength(response, template.length);

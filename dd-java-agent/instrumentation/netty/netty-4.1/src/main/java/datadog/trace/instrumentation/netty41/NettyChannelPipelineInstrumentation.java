@@ -85,7 +85,6 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
       packageName + ".server.NettyHttpServerDecorator",
       packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
       packageName + ".server.BlockingResponseHandler",
-      packageName + ".server.BlockingResponseHandler$1",
       packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
       packageName + ".server.BlockingResponseHandler$PendingBlockResponse",
       packageName + ".server.HttpServerContextTrackingHandler",

@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -109,17 +110,24 @@ public class NettyHttpServerDecorator
   @Override
   protected BlockResponseFunction createBlockResponseFunction(
       HttpRequest httpRequest, Channel channel) {
-    return new NettyBlockResponseFunction(channel.pipeline(), httpRequest);
+    return new NettyBlockResponseFunction(
+        channel.pipeline(), httpRequest, ServerRequestContext.currentRequest(channel));
   }
 
   public static class NettyBlockResponseFunction implements BlockResponseFunction {
-    private final ChannelPipeline pipeline;
     public static final Logger log = LoggerFactory.getLogger(NettyBlockResponseFunction.class);
-    private final HttpRequest httpRequestMessage;
 
-    public NettyBlockResponseFunction(ChannelPipeline pipeline, HttpRequest httpRequestMessage) {
+    private final ChannelPipeline pipeline;
+    private final HttpRequest httpRequestMessage;
+    private final ServerRequestContext serverContext;
+
+    public NettyBlockResponseFunction(
+        ChannelPipeline pipeline,
+        HttpRequest httpRequestMessage,
+        ServerRequestContext serverContext) {
       this.pipeline = pipeline;
       this.httpRequestMessage = httpRequestMessage;
+      this.serverContext = serverContext;
     }
 
     @Override
@@ -145,7 +153,12 @@ public class NettyHttpServerDecorator
                 pipeline.context(handlerBefore).name(),
                 "blocking_handler",
                 new BlockingResponseHandler(
-                    segment, statusCode, templateType, extraHeaders, securityResponseId))
+                    segment,
+                    statusCode,
+                    templateType,
+                    extraHeaders,
+                    securityResponseId,
+                    serverContext))
             .addBefore(
                 "blocking_handler", "before_blocking_handler", new ChannelInboundHandlerAdapter());
       } catch (RuntimeException rte) {

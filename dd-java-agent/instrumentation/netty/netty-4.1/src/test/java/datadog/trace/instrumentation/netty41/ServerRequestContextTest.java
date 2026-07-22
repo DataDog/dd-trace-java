@@ -42,6 +42,16 @@ class ServerRequestContextTest {
   }
 
   @Test
+  void capturesHeadRequest() {
+    DefaultAttributeMap attributes = new DefaultAttributeMap();
+
+    ServerRequestContext serverContext =
+        ServerRequestContext.add(attributes, Context.root(), null, true);
+
+    assertTrue(serverContext.isHeadRequest());
+  }
+
+  @Test
   void tracksBlockedResponseUntilChannelClose() {
     DefaultAttributeMap attributes = new DefaultAttributeMap();
     ServerRequestContext serverContext =
