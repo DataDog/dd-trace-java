@@ -1,0 +1,91 @@
+# Full tag composition per concrete span type (after extends/include/applies).
+# Not de-duped: a tag from >1 source appears >1 time.
+# annotation: [g<grp>f<n> dense group:field-decl | trace g<grp>f<n> trace layer | bkt bucketed]  <required>  I=intercepted
+
+db.client  (21 contributions, 21 distinct):
+  [base]
+    _dd.parent_id              g1f0         required     
+    component                  g1f1         required     
+    span.kind                  g1f2         required     I
+    _dd.integration            g1f3         recommended  
+    _dd.svc_src                bkt          optional     
+    error.type                 g1f4         recommended  
+    error.message              g1f5         recommended  
+    error.stack                g1f6         recommended  
+  [db.client]
+    db.type                    g2f0         required     
+    db.instance                g2f1         recommended  
+    db.operation               g2f2         recommended  
+    db.user                    g2f3         recommended  
+    db.pool.name               bkt          optional     
+    db.statement               g2f4         recommended  I
+  [incl:peer]
+    peer.service               g8f0         recommended  I
+    _dd.peer.service.source    g8f1         recommended  
+    _dd.peer.service.remapped_from g8f2         recommended  
+    peer.hostname              g8f3         recommended  
+    peer.ipv4                  bkt          optional     
+    peer.ipv6                  bkt          optional     
+    peer.port                  bkt          optional     
+
+http.client  (20 contributions, 20 distinct):
+  [base]
+    _dd.parent_id              g1f0         required     
+    component                  g1f1         required     
+    span.kind                  g1f2         required     I
+    _dd.integration            g1f3         recommended  
+    _dd.svc_src                bkt          optional     
+    error.type                 g1f4         recommended  
+    error.message              g1f5         recommended  
+    error.stack                g1f6         recommended  
+  [http]
+    http.method                g3f0         required     I
+    http.status_code           g3f1         conditional  
+    network.protocol.version   g3f2         recommended  
+  [http.client]
+    http.url                   g4f0         required     I
+    http.resend_count          g4f1         recommended  
+  [incl:peer]
+    peer.service               g8f0         recommended  I
+    _dd.peer.service.source    g8f1         recommended  
+    _dd.peer.service.remapped_from g8f2         recommended  
+    peer.hostname              g8f3         recommended  
+    peer.ipv4                  bkt          optional     
+    peer.ipv6                  bkt          optional     
+    peer.port                  bkt          optional     
+
+http.server  (18 contributions, 18 distinct):
+  [base]
+    _dd.parent_id              g1f0         required     
+    component                  g1f1         required     
+    span.kind                  g1f2         required     I
+    _dd.integration            g1f3         recommended  
+    _dd.svc_src                bkt          optional     
+    error.type                 g1f4         recommended  
+    error.message              g1f5         recommended  
+    error.stack                g1f6         recommended  
+  [http]
+    http.method                g3f0         required     I
+    http.status_code           g3f1         conditional  
+    network.protocol.version   g3f2         recommended  
+  [http.server]
+    http.url                   g4f0         required     I
+    http.route                 g5f0         conditional  
+    http.hostname              g5f1         required     
+    http.useragent             g5f2         recommended  
+    http.query.string          g5f3         recommended  
+    servlet.path               bkt          optional     
+    servlet.context            bkt          optional     I
+
+view.render  (9 contributions, 9 distinct):
+  [base]
+    _dd.parent_id              g1f0         required     
+    component                  g1f1         required     
+    span.kind                  g1f2         required     I
+    _dd.integration            g1f3         recommended  
+    _dd.svc_src                bkt          optional     
+    error.type                 g1f4         recommended  
+    error.message              g1f5         recommended  
+    error.stack                g1f6         recommended  
+  [view.render]
+    view.name                  g6f0         recommended  

@@ -1038,6 +1038,37 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   private Object[] knownValues;
   private int knownCount;
 
+  /**
+   * Two-tier presence filter over the dense store — the fast path that lets a definitely-absent
+   * known tag append in O(1) instead of paying the {@link #knownIndexOf} scan (the common per-build
+   * insert). Each tag's id carries a declaration coordinate {@code (group-decl, field-decl)} (see
+   * {@link KnownTagCodec}); a tag is present ONLY IF its group-decl bit is set in {@link
+   * #knownGroupMask} AND its field-decl bit is set in {@link #knownFieldMask}. Either bit clear ⟹
+   * definitely absent ⟹ skip the scan.
+   *
+   * <ul>
+   *   <li><b>Tier 1 — group mask:</b> one bit per declaration group ({@code 1L << group-decl}). A
+   *       clear group bit proves EVERY tag of that group is absent, so seeding a fresh group (e.g.
+   *       a {@code SpanPrototype} bulk insert) skips the scan for the whole group — the bulk-insert
+   *       payoff. Disjoint groups across two maps ({@code (a.knownGroupMask & b.knownGroupMask) ==
+   *       0}) prove nothing shadows across them, which the read-through shadow check exploits (see
+   *       {@link #parentDenseHidden}).
+   *   <li><b>Tier 2 — field bloom:</b> when the group bit clashes, fall back to one shared word
+   *       over {@code field-decl & 63}. A clear field bit still proves absence; a clash falls
+   *       through to the authoritative scan.
+   * </ul>
+   *
+   * Superset semantics: bits are set on every add and NEVER cleared on remove (a stale bit only
+   * costs a scan, never a wrong answer), so correctness never depends on the coordinate→bit
+   * collision rate — only the fast-path hit rate does. With a single declaration group (today), the
+   * group bit is always set once anything is stored, so this degrades gracefully to exactly the
+   * tier-2 field bloom. A collision-minimizing coordinate assignment (the tag registry) later only
+   * raises the hit rate.
+   */
+  private long knownGroupMask;
+
+  private long knownFieldMask;
+
   private static final int KNOWN_INIT_CAP =
       12; // generous per-type max stopgap; exact per-type sizing comes with the tag registry
 
@@ -1355,26 +1386,63 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   }
 
   /**
+   * Tier-1 presence bit for {@code tagId}: {@code 1L << group-decl} (group-decl is 6 bits ≤ 63).
+   */
+  private static long knownGroupBit(long tagId) {
+    return 1L << KnownTagCodec.groupDecl(tagId);
+  }
+
+  /**
+   * Tier-2 presence bit for {@code tagId}: {@code field-decl} folded into one shared word ({@code
+   * field-decl & 63}). Crude to start; a collision-minimizing coordinate assignment (the tag
+   * registry) later only raises the hit rate — the scan stays authoritative.
+   */
+  private static long knownFieldBit(long tagId) {
+    return 1L << (KnownTagCodec.fieldDecl(tagId) & 63);
+  }
+
+  /**
+   * Whether {@code tagId} MAY be present in the dense store (both tiers say maybe), vs DEFINITELY
+   * absent (either tier's bit is clear). Group bit checked first so a fresh group short-circuits
+   * before touching the field bloom.
+   */
+  private boolean knownMaybePresent(long tagId) {
+    return (this.knownGroupMask & knownGroupBit(tagId)) != 0
+        && (this.knownFieldMask & knownFieldBit(tagId)) != 0;
+  }
+
+  /**
    * Stores a known tag's value densely (no {@link Entry} alloc). Overwrites in place when present
    * (returning the prior value materialized as an Entry, per the {@code Map} contract — usually
-   * discarded by {@code set}); otherwise appends, growing x2 as needed.
+   * discarded by {@code set}); otherwise appends, growing x2 as needed. The two-tier presence
+   * filter skips the {@link #knownIndexOf} scan when the tag is definitely absent (the common
+   * per-build case), so an append is O(1) instead of O(n).
    */
   private Entry putKnownValue(long tagId, Object value) {
-    int i = this.knownIndexOf(tagId);
-    if (i >= 0) {
-      Object prior = this.knownValues[i];
-      this.knownValues[i] = value;
-      return materializeKnown(tagId, prior);
+    long groupBit = knownGroupBit(tagId);
+    long fieldBit = knownFieldBit(tagId);
+    // maybe present only if BOTH tiers say so; either bit clear ⟹ definitely absent ⟹ append
+    if ((this.knownGroupMask & groupBit) != 0 && (this.knownFieldMask & fieldBit) != 0) {
+      int i = this.knownIndexOf(tagId);
+      if (i >= 0) {
+        Object prior = this.knownValues[i];
+        this.knownValues[i] = value;
+        return materializeKnown(tagId, prior);
+      }
+      // filter false positive (coordinate collision) -> fall through to append
     }
     this.ensureKnownCapacity();
     int slot = this.knownCount++;
     this.knownIds[slot] = tagId;
     this.knownValues[slot] = value;
+    this.knownGroupMask |= groupBit;
+    this.knownFieldMask |= fieldBit;
     return null;
   }
 
   /** Raw dense value for {@code tagId}, or {@code null} when absent (no Entry, no boxing). */
   private Object knownRawValue(long tagId) {
+    if (!this.knownMaybePresent(tagId)) return null; // definitely absent, no scan
     int i = this.knownIndexOf(tagId);
     return i < 0 ? null : this.knownValues[i];
   }
@@ -1383,6 +1451,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * Removes a known tag from the dense store (swap-with-last), returning the prior Entry or null.
    */
   private Entry removeKnown(long tagId) {
+    if (!this.knownMaybePresent(tagId)) return null; // definitely absent
     int i = this.knownIndexOf(tagId);
     if (i < 0) return null;
     Object prior = this.knownValues[i];
@@ -1391,6 +1460,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.knownValues[i] = this.knownValues[last];
     this.knownIds[last] = 0L;
     this.knownValues[last] = null;
+    // knownGroupMask/knownFieldMask intentionally NOT cleared: a stale-set bit only costs a scan;
+    // clearing could drop a bit still shared (via collision) by a present id -> false negative.
     return materializeKnown(tagId, prior);
   }
 
@@ -1405,7 +1476,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * local bucket entry — known tags never bucket — so no bucket check is needed here.)
    */
   private boolean parentDenseHidden(long tagId) {
-    if (this.knownIndexOf(tagId) >= 0) return true; // shadowed by a local dense entry
+    // shadowed by a local dense entry — the two-tier filter prunes the scan when definitely absent,
+    // so a parent whose groups are disjoint from ours never pays a scan here (read-through win)
+    if (this.knownMaybePresent(tagId) && this.knownIndexOf(tagId) >= 0) return true;
     return this.removedFromParent != null
         && this.removedFromParent.contains(KnownTagCodec.nameOf(tagId)); // tombstoned
   }
@@ -1794,6 +1867,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       this.knownIds = Arrays.copyOf(that.knownIds, that.knownIds.length);
       this.knownValues = Arrays.copyOf(that.knownValues, that.knownValues.length);
       this.knownCount = that.knownCount;
+      this.knownGroupMask = that.knownGroupMask;
+      this.knownFieldMask = that.knownFieldMask;
     }
   }
 
@@ -2175,6 +2250,8 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.knownIds = null;
     this.knownValues = null;
     this.knownCount = 0;
+    this.knownGroupMask = 0L;
+    this.knownFieldMask = 0L;
   }
 
   public TagMap freeze() {
