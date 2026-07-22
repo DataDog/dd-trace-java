@@ -56,7 +56,7 @@ public class StatusHeaderSendJsonAdvice {
     }
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   static void after() {
     CallDepthThreadLocalMap.decrementCallDepth(StatusHeader.class);
   }

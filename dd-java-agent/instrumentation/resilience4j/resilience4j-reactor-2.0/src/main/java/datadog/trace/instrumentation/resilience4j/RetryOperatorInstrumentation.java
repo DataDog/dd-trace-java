@@ -29,7 +29,7 @@ public class RetryOperatorInstrumentation
   }
 
   public static class ApplyAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
         @Advice.Return(readOnly = false) Publisher<?> result,
         @Advice.FieldValue(value = "retry") Retry retry) {
