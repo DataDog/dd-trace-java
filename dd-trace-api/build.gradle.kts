@@ -5,6 +5,11 @@ plugins {
 apply(from = "$rootDir/gradle/java.gradle")
 apply(from = "$rootDir/gradle/publish.gradle")
 
+configure<datadog.gradle.plugin.jardiff.JardiffExtension> {
+  // jar is not cacheable, and may differ
+  ignoreHashCheck = true
+}
+
 extra["minimumBranchCoverage"] = 0.8
 
 // These are tested outside of this module since this module mainly just defines 'API'
@@ -38,7 +43,6 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.civisibility.noop.NoOpDDTestSession",
   "datadog.trace.api.civisibility.noop.NoOpDDTestSuite",
   "datadog.trace.api.config.AIGuardConfig",
-  "datadog.trace.api.config.FeatureFlaggingConfig",
   "datadog.trace.api.config.ProfilingConfig",
   "datadog.trace.api.interceptor.MutableSpan",
   "datadog.trace.api.profiling.Profiling",

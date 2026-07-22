@@ -78,12 +78,11 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
     return null;
   }
 
-  public AgentSpan onStatement(final AgentSpan span, final CharSequence statement) {
+  public void onStatement(final AgentSpan span, final CharSequence statement) {
     span.setResourceName(normalizedQuery(statement));
-    return span;
   }
 
-  public AgentSpan onResponse(final AgentSpan span, final ResultSet result) {
+  public void onResponse(final AgentSpan span, final ResultSet result) {
     if (result != null) {
       final Host host = result.getExecutionInfo().getQueriedHost();
       onPeerConnection(span, host.getSocketAddress());
@@ -100,6 +99,5 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
       } catch (final Throwable ignored) {
       }
     }
-    return span;
   }
 }

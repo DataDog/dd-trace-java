@@ -38,6 +38,7 @@ docs/                     Developer documentation (see below)
 | Testing guide (6 test types) | [docs/how_to_test.md](docs/how_to_test.md) |
 | Working with Gradle | [docs/how_to_work_with_gradle.md](docs/how_to_work_with_gradle.md) |
 | Bootstrap/premain constraints | [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) |
+| Instrumentation/advice constraints | [docs/instrumentation_design_guidelines.md](docs/instrumentation_design_guidelines.md) |
 | CI/CD workflows | [.github/workflows/README.md](.github/workflows/README.md) |
 
 **When working on a topic above, read the linked file first** — they are the source of truth maintained by humans.
@@ -56,26 +57,26 @@ docs/                     Developer documentation (see below)
 ## Code conventions
 
 - **Formatting**: google-java-format enforced via Spotless. Run `./gradlew spotlessApply` before committing.
-- **Static imports**: Prefer static imports over class-qualified calls for call-style helpers — JUnit `Assertions`, Mockito (`mock`, `when`, `verify`, `anyString`, `RETURNS_DEFAULTS`, ...), Hamcrest/AssertJ matchers, internal test DSLs, and similar. Same goes for production code: `Collections.emptyList()` is fine, but if you find yourself repeatedly writing `Foo.bar(...)` where `Foo` adds no information at the call site, static-import `bar`. Wildcard `import static x.*` is disallowed (enforced by IDE config in CONTRIBUTING.md).
+- **Static imports**: Prefer static imports over class-qualified calls for call-style helpers, in both test (Assertions.assertEquals, Mockito.mock) and production code (Collections.emptyList). Wildcard imports disallowed — see CONTRIBUTING.md.
 - **Instrumentation layout**: `dd-java-agent/instrumentation/{framework}/{framework}-{minVersion}/`
 - **Instrumentation pattern**: Type matching → Method matching → Advice class (bytecode advice, not AOP)
 - **Test frameworks**: Always use JUnit 5 for unit tests. Only use Groovy / Spock tests for instrumentation and smoke tests.
 - **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
 - **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
-- **Instrumentation one-shot methods**: Never extract the return values of `triggerClasses()`, `contextStore()`, `classLoaderMatcher()`, or `methodAdvice()` into static constants. These are called once by the framework — extracting to a constant adds constant-pool bloat with no benefit.
 
 ## PR conventions
 
 - Title: imperative verb sentence describing user-visible change (e.g. "Fix span sampling rule parsing")
 - Labels: always add `tag: ai generated` and at least one `comp:` or `inst:` label + one `type:` label
-- Use `tag: no release note` for internal/refactoring changes
+- Use `tag: no release notes` for internal/refactoring changes
 - Open as draft first, convert to ready when reviewable
 
-## Bootstrap constraints (critical)
+## Review Guidelines
 
-Code running in the agent's `premain` phase must **not** use:
-- `java.util.logging.*` — locks in log manager before app configures it
-- `java.nio.*` — triggers premature provider initialization
-- `javax.management.*` — causes class loading issues
+- **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
+- **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).
 
-See [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) for details and alternatives.
+## Critical constraints
+
+- **Bootstrap**: never use `java.util.logging.*`, `java.nio.file.*`, or `javax.management.*` in `premain` code — see [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md).
+- **Advice**: never call a static interface method from advice — can cause a `VerifyError` — see [docs/instrumentation_design_guidelines.md](docs/instrumentation_design_guidelines.md).

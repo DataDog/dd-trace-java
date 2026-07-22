@@ -137,7 +137,7 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
           && CallDepthThreadLocalMap.getCallDepth(Part.class) == 0;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean proceed,
         @Advice.Return Collection<?> parts,
@@ -149,7 +149,11 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       }
       BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
       BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
-      t = bodyBlock != null ? bodyBlock : filenamesBlock;
+      BlockingException contentBlock =
+          bodyBlock == null && filenamesBlock == null
+              ? PartHelper.fireFilesContentEvent(parts, reqCtx)
+              : null;
+      t = bodyBlock != null ? bodyBlock : (filenamesBlock != null ? filenamesBlock : contentBlock);
     }
   }
 
@@ -174,7 +178,7 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
           && multiPartInputStream == null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean proceed,
         @Advice.Return Part part,
@@ -192,7 +196,11 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       }
       BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
       BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
-      t = bodyBlock != null ? bodyBlock : filenamesBlock;
+      BlockingException contentBlock =
+          bodyBlock == null && filenamesBlock == null
+              ? PartHelper.fireFilesContentEvent(parts, reqCtx)
+              : null;
+      t = bodyBlock != null ? bodyBlock : (filenamesBlock != null ? filenamesBlock : contentBlock);
     }
   }
 }

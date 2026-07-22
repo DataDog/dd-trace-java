@@ -21,7 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.instrumentation.aws.v2.sqs.TracingList;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;

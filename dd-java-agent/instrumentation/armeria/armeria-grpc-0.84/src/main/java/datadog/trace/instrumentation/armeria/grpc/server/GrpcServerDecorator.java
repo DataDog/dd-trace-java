@@ -79,12 +79,12 @@ public class GrpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(final AgentSpan span) {
+  public void afterStart(final AgentSpan span) {
     span.setMeasured(true);
-    return super.afterStart(span);
+    super.afterStart(span);
   }
 
-  public <RespT, ReqT> AgentSpan onCall(final AgentSpan span, ServerCall<ReqT, RespT> call) {
+  public <RespT, ReqT> void onCall(final AgentSpan span, ServerCall<ReqT, RespT> call) {
     if (TRIM_RESOURCE_PACKAGE_NAME) {
       span.setResourceName(
           cachedResourceNames.computeIfAbsent(
@@ -92,33 +92,31 @@ public class GrpcServerDecorator extends ServerDecorator {
     } else {
       span.setResourceName(call.getMethodDescriptor().getFullMethodName());
     }
-    return span;
   }
 
-  public AgentSpan onStatus(final AgentSpan span, final Status status) {
+  public void onStatus(final AgentSpan span, final Status status) {
     span.setTag("status.code", status.getCode().name());
     span.setTag("grpc.status.code", status.getCode().name());
     span.setTag(InstrumentationTags.GRPC_STATUS_CODE, status.getCode().value());
     span.setTag("status.description", status.getDescription());
-    return span.setError(
+    span.setError(
         SERVER_ERROR_STATUSES.get(status.getCode().value()), ErrorPriorities.HTTP_SERVER_DECORATOR);
   }
 
-  public AgentSpan onClose(final AgentSpan span, final Status status) {
+  public void onClose(final AgentSpan span, final Status status) {
     if (status.getCause() != null) {
       onError(span, status.getCause());
     }
-    return onStatus(span, status);
+    onStatus(span, status);
   }
 
   @Override
-  public AgentSpan onError(AgentSpan span, Throwable throwable) {
+  public void onError(AgentSpan span, Throwable throwable) {
     super.onError(span, throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
     if (throwable instanceof StatusRuntimeException) {
       onStatus(span, ((StatusRuntimeException) throwable).getStatus());
     } else if (throwable instanceof StatusException) {
       onStatus(span, ((StatusException) throwable).getStatus());
     }
-    return span;
   }
 }

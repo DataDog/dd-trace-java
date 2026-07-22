@@ -1,3 +1,7 @@
+import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheLicenseResourceTransformer
+import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheNoticeResourceTransformer
+import org.gradle.api.file.DuplicatesStrategy.INCLUDE
+
 plugins {
   java
   id("com.diffplug.spotless") version "8.4.0"
@@ -69,11 +73,11 @@ tasks {
   }
 
   shadowJar {
-    duplicatesStrategy = DuplicatesStrategy.FAIL
-    // Let's skip license/notice since this jar's only use is during build
-    filesMatching(listOf("META-INF/LICENSE*", "META-INF/NOTICE*")) {
-      duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    }
+    duplicatesStrategy = INCLUDE
+    transform<ApacheLicenseResourceTransformer>()
+    transform<ApacheNoticeResourceTransformer>()
+    failOnDuplicateEntries = true
+
     manifest {
       attributes(mapOf("Main-Class" to "datadog.trace.plugin.csi.PluginApplication"))
     }

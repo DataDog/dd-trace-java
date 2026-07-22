@@ -51,7 +51,7 @@ public class MessageBodyReaderInvocationInstrumentation extends InstrumenterModu
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class AbstractReaderInterceptorAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return final Object ret,
         @ActiveRequestContext RequestContext reqCtx,

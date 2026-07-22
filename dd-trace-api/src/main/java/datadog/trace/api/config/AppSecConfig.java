@@ -4,6 +4,7 @@ package datadog.trace.api.config;
 public final class AppSecConfig {
 
   public static final String APPSEC_ENABLED = "appsec.enabled";
+  public static final String APPSEC_AGENTIC_ONBOARDING = "appsec.agentic_onboarding";
   public static final String APPSEC_RULES_FILE = "appsec.rules";
   public static final String APPSEC_IP_ADDR_HEADER = "appsec.ipheader";
   public static final String APPSEC_TRACE_RATE_LIMIT = "appsec.trace.rate.limit";
