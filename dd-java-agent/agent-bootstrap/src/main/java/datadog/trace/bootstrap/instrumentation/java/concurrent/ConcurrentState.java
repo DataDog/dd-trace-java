@@ -1,13 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.shouldCapture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
 
+import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,16 +32,19 @@ public final class ConcurrentState {
   private ConcurrentState() {}
 
   public static <K> ConcurrentState captureContinuation(
-      ContextStore<K, ConcurrentState> contextStore, K key, AgentSpan span) {
-    if (span == null || !span.isValid() || !isAsyncPropagationEnabled()) {
+      ContextStore<K, ConcurrentState> contextStore, K key, Context context) {
+    if (shouldCapture(context)) {
+      final ConcurrentState state = contextStore.putIfAbsent(key, FACTORY);
+      if (!state.captureAndSetContinuation(context) && log.isDebugEnabled()) {
+        log.debug(
+            "continuation was already set for {} in context {}, no continuation captured.",
+            key,
+            context);
+      }
+      return state;
+    } else {
       return null;
     }
-    final ConcurrentState state = contextStore.putIfAbsent(key, FACTORY);
-    if (!state.captureAndSetContinuation(span) && log.isDebugEnabled()) {
-      log.debug(
-          "continuation was already set for {} in span {}, no continuation captured.", key, span);
-    }
-    return state;
   }
 
   public static <K> ContextScope activateAndContinueContinuation(
@@ -83,10 +85,10 @@ public final class ConcurrentState {
     state.cancelAndClearContinuation();
   }
 
-  private boolean captureAndSetContinuation(final AgentSpan span) {
+  private boolean captureAndSetContinuation(final Context context) {
     if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
       // lazy write is guaranteed to be seen by getAndSet
-      CONTINUATION.lazySet(this, captureSpan(span).hold());
+      CONTINUATION.lazySet(this, context.capture().hold());
       return true;
     }
     return false;

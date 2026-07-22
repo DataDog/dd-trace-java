@@ -34,7 +34,7 @@ public final class FutureObjectInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static <T> void afterInit() {
       Try<?> result = Future$.MODULE$.unit().value().get();
-      InstrumentationContext.get(Try.class, Context.class).put(result, null);
+      InstrumentationContext.get(Try.class, Context.class).remove(result);
     }
 
     /** Promise.Transformation was introduced in scala 2.13 */

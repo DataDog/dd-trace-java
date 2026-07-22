@@ -1,14 +1,15 @@
 package datadog.trace.instrumentation.springamqp;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.shouldCapture;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -39,10 +40,10 @@ public class DeliveryInstrumentation extends InstrumenterModule.Tracing
   public static class CaptureActiveScope {
     @Advice.OnMethodExit
     public static void captureActiveScope(@Advice.This Delivery delivery) {
-      AgentSpan span = activeSpan();
-      if (span != null) {
+      Context context = currentContext();
+      if (shouldCapture(context)) {
         State state = State.FACTORY.create();
-        state.captureAndSetContinuation(span);
+        state.captureAndSetContinuation(context);
         InstrumentationContext.get(Delivery.class, State.class).put(delivery, state);
       }
     }
