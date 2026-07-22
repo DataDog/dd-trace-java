@@ -26,19 +26,17 @@ class TaskBlockHelperTest {
   @Test
   void zeroIsTheOnlyInvalidToken() {
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
-    when(profiling.beginTaskBlock(ProfilingContextIntegration.BLOCKING_STATE_SLEEPING))
-        .thenReturn(0L);
+    when(profiling.beginTaskBlock()).thenReturn(0L);
 
     assertNull(TaskBlockHelper.captureForSleep(profiling));
-    verify(profiling).beginTaskBlock(ProfilingContextIntegration.BLOCKING_STATE_SLEEPING);
+    verify(profiling).beginTaskBlock();
     verify(profiling, never()).endTaskBlock(0L, 0L, 0L);
   }
 
   @Test
   void positiveTokenIsRetainedWithItsIntegration() {
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
-    when(profiling.beginTaskBlock(ProfilingContextIntegration.BLOCKING_STATE_SLEEPING))
-        .thenReturn(TOKEN);
+    when(profiling.beginTaskBlock()).thenReturn(TOKEN);
 
     TaskBlockHelper.State state = TaskBlockHelper.captureForSleep(profiling);
 
@@ -50,8 +48,7 @@ class TaskBlockHelperTest {
   @Test
   void negativeNonzeroTokenIsValid() {
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
-    when(profiling.beginTaskBlock(ProfilingContextIntegration.BLOCKING_STATE_SLEEPING))
-        .thenReturn(Long.MIN_VALUE);
+    when(profiling.beginTaskBlock()).thenReturn(Long.MIN_VALUE);
 
     TaskBlockHelper.State state = TaskBlockHelper.captureForSleep(profiling);
     TaskBlockHelper.finish(state);
@@ -82,8 +79,7 @@ class TaskBlockHelperTest {
   @Test
   void entryAndExitFailuresAreContained() {
     ProfilingContextIntegration entryFailure = mock(ProfilingContextIntegration.class);
-    when(entryFailure.beginTaskBlock(ProfilingContextIntegration.BLOCKING_STATE_SLEEPING))
-        .thenThrow(new IllegalStateException("entry"));
+    when(entryFailure.beginTaskBlock()).thenThrow(new IllegalStateException("entry"));
     ProfilingContextIntegration exitFailure = mock(ProfilingContextIntegration.class);
     doThrow(new IllegalStateException("exit")).when(exitFailure).endTaskBlock(TOKEN, 0L, 0L);
 
