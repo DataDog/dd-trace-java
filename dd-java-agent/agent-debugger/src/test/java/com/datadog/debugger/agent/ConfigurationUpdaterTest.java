@@ -658,7 +658,7 @@ public class ConfigurationUpdaterTest {
     Map<String, byte[]> buffers =
         compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "8", Arrays.asList("-parameters"));
     Class<?> testClass = loadClass(CLASS_NAME, buffers);
-    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 19)) {
+    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 20)) {
       // on JDK 17 introduced Spring6 class
       Class<?> springClass = Class.forName("org.springframework.core.SpringVersion");
       when(inst.getAllLoadedClasses()).thenReturn(new Class[] {testClass, springClass});
@@ -669,7 +669,7 @@ public class ConfigurationUpdaterTest {
     configurationUpdater.accept(
         REMOTE_CONFIG,
         singletonList(LogProbe.builder().probeId(PROBE_ID).where(CLASS_NAME, "main").build()));
-    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 19)) {
+    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 20)) {
       // on JDK 17 with Spring6 class, transformation cannot happen
       verify(inst, times(2)).getAllLoadedClasses();
       verify(inst, times(0)).retransformClasses(any());

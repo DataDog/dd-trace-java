@@ -3191,7 +3191,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Class<?> testClass = loadClass(CLASS_NAME, buffers);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
-    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 19)) {
+    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 20)) {
       // on JDK 17 with Spring6 class, transformation cannot happen
       assertEquals(0, listener.snapshots.size());
       ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
