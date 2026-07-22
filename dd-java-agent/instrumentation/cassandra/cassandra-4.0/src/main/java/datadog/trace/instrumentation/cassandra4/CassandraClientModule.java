@@ -10,7 +10,7 @@ import java.util.List;
 public class CassandraClientModule extends InstrumenterModule.Tracing {
 
   public CassandraClientModule() {
-    super("cassandra-toolkit");
+    super("cassandra");
   }
 
   @Override
