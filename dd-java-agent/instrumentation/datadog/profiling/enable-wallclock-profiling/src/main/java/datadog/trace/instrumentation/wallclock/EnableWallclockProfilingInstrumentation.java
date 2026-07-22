@@ -94,7 +94,7 @@ public class EnableWallclockProfilingInstrumentation extends InstrumenterModule.
       return false;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Enter boolean wasDisabled) {
       if (wasDisabled) {
         AgentTracer.get().getProfilingContext().onDetach();

@@ -3,7 +3,6 @@ package com.datadog.debugger.symbol;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -16,7 +15,6 @@ import static utils.TestClassFileHelper.getClassFileBytes;
 
 import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.util.ClassNameFiltering;
-import datadog.environment.JavaVirtualMachine;
 import java.net.URL;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
@@ -83,7 +81,6 @@ class SymbolAggregatorTest {
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Flaky on J9 JVMs")
   void testScopeFilter() {
-    assumeFalse(JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
     ScopeFilter mockFilter = mock(ScopeFilter.class);
     when(mockFilter.filterOut(any())).thenReturn(true);
     SymbolSink symbolSink = mock(SymbolSink.class);

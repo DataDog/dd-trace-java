@@ -11,8 +11,13 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLongArray;
 import javax.annotation.Nullable;
 
-/** Aggregator hashtable entry: UTF8 label fields + counter/histogram state. */
-final class AggregateEntry extends Hashtable.Entry {
+/**
+ * Aggregator hashtable entry: UTF8 label fields + counter/histogram state.
+ *
+ * <p>Public so the cross-package OTLP writer ({@code datadog.trace.core.otlp.metrics}) can read the
+ * per-entry accessors.
+ */
+public final class AggregateEntry extends Hashtable.Entry {
 
   static final long ERROR_TAG = 0x8000000000000000L;
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
@@ -48,7 +53,10 @@ final class AggregateEntry extends Hashtable.Entry {
   private int errorCount;
   private int hitCount;
   private int topLevelCount;
-  private long duration;
+  // OK and error durations are tracked separately so the OTLP writer can emit per-outcome
+  // histogram sums; getDuration() returns their sum for the native msgpack path.
+  private long okDuration;
+  private long errorDuration;
 
   /**
    * Field-bearing constructor. Package-private so {@link AggregateEntryTestUtils} can build
@@ -134,20 +142,20 @@ final class AggregateEntry extends Hashtable.Entry {
     return h;
   }
 
-  // Accessors for SerializingMetricWriter.
-  UTF8BytesString getResource() {
+  // Accessors for SerializingMetricWriter and the cross-package OTLP writer.
+  public UTF8BytesString getResource() {
     return resource;
   }
 
-  UTF8BytesString getService() {
+  public UTF8BytesString getService() {
     return service;
   }
 
-  UTF8BytesString getOperationName() {
+  public UTF8BytesString getOperationName() {
     return operationName;
   }
 
-  UTF8BytesString getServiceSource() {
+  public UTF8BytesString getServiceSource() {
     return serviceSource;
   }
 
@@ -157,41 +165,41 @@ final class AggregateEntry extends Hashtable.Entry {
    * captured" (see field comment) -- callers that need a presence check should go through this
    * predicate rather than comparing against {@code EMPTY} directly.
    */
-  boolean hasServiceSource() {
+  public boolean hasServiceSource() {
     return serviceSource.length() > 0;
   }
 
-  UTF8BytesString getType() {
+  public UTF8BytesString getType() {
     return type;
   }
 
-  UTF8BytesString getSpanKind() {
+  public UTF8BytesString getSpanKind() {
     return spanKind;
   }
 
-  UTF8BytesString getHttpMethod() {
+  public UTF8BytesString getHttpMethod() {
     return httpMethod;
   }
 
   /**
    * Whether the snapshot carried an HTTP method. See {@link #hasServiceSource} for the contract.
    */
-  boolean hasHttpMethod() {
+  public boolean hasHttpMethod() {
     return httpMethod.length() > 0;
   }
 
-  UTF8BytesString getHttpEndpoint() {
+  public UTF8BytesString getHttpEndpoint() {
     return httpEndpoint;
   }
 
   /**
    * Whether the snapshot carried an HTTP endpoint. See {@link #hasServiceSource} for the contract.
    */
-  boolean hasHttpEndpoint() {
+  public boolean hasHttpEndpoint() {
     return httpEndpoint.length() > 0;
   }
 
-  UTF8BytesString getGrpcStatusCode() {
+  public UTF8BytesString getGrpcStatusCode() {
     return grpcStatusCode;
   }
 
@@ -199,23 +207,23 @@ final class AggregateEntry extends Hashtable.Entry {
    * Whether the snapshot carried a gRPC status code. See {@link #hasServiceSource} for the
    * contract.
    */
-  boolean hasGrpcStatusCode() {
+  public boolean hasGrpcStatusCode() {
     return grpcStatusCode.length() > 0;
   }
 
-  int getHttpStatusCode() {
+  public int getHttpStatusCode() {
     return httpStatusCode;
   }
 
-  boolean isSynthetics() {
+  public boolean isSynthetics() {
     return synthetic;
   }
 
-  boolean isTraceRoot() {
+  public boolean isTraceRoot() {
     return traceRoot;
   }
 
-  List<UTF8BytesString> getPeerTags() {
+  public List<UTF8BytesString> getPeerTags() {
     return peerTags;
   }
 
@@ -225,29 +233,37 @@ final class AggregateEntry extends Hashtable.Entry {
    *     present (no null slots), so the length is the count of present tags -- empty when the span
    *     set none or no additional tags are configured.
    */
-  UTF8BytesString[] getAdditionalTags() {
+  public UTF8BytesString[] getAdditionalTags() {
     return additionalTags;
   }
 
   // ----- recording state accessors -----
 
-  int getHitCount() {
+  public int getHitCount() {
     return hitCount;
   }
 
-  int getErrorCount() {
+  public int getErrorCount() {
     return errorCount;
   }
 
-  int getTopLevelCount() {
+  public int getTopLevelCount() {
     return topLevelCount;
   }
 
-  long getDuration() {
-    return duration;
+  public long getDuration() {
+    return okDuration + errorDuration;
   }
 
-  Histogram getOkLatencies() {
+  public long getOkDuration() {
+    return okDuration;
+  }
+
+  public long getErrorDuration() {
+    return errorDuration;
+  }
+
+  public Histogram getOkLatencies() {
     return okLatencies;
   }
 
@@ -256,7 +272,7 @@ final class AggregateEntry extends Hashtable.Entry {
    * Callers should treat null as "serialize as an empty histogram" (see {@link
    * SerializingMetricWriter}).
    */
-  Histogram getErrorLatencies() {
+  public Histogram getErrorLatencies() {
     return errorLatencies;
   }
 
@@ -288,11 +304,12 @@ final class AggregateEntry extends Hashtable.Entry {
     if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
       tagAndDuration ^= ERROR_TAG;
       errorLatenciesForWrite().accept(tagAndDuration);
+      errorDuration += tagAndDuration;
       ++errorCount;
     } else {
       okLatencies.accept(tagAndDuration);
+      okDuration += tagAndDuration;
     }
-    duration += tagAndDuration;
     return this;
   }
 
@@ -316,11 +333,12 @@ final class AggregateEntry extends Hashtable.Entry {
       if ((d & ERROR_TAG) == ERROR_TAG) {
         d ^= ERROR_TAG;
         errorLatenciesForWrite().accept(d);
+        this.errorDuration += d;
         ++errorCount;
       } else {
         okLatencies.accept(d);
+        this.okDuration += d;
       }
-      this.duration += d;
     }
     return this;
   }
@@ -338,7 +356,8 @@ final class AggregateEntry extends Hashtable.Entry {
     this.errorCount = 0;
     this.hitCount = 0;
     this.topLevelCount = 0;
-    this.duration = 0;
+    this.okDuration = 0;
+    this.errorDuration = 0;
     this.okLatencies.clear();
     if (this.errorLatencies != null) {
       this.errorLatencies.clear();

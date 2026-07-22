@@ -1,8 +1,8 @@
 package datadog.trace.common.metrics;
 
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
-import static datadog.trace.junit.utils.config.WithConfigExtension.removeSysConfig;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.removeSysConfig;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;

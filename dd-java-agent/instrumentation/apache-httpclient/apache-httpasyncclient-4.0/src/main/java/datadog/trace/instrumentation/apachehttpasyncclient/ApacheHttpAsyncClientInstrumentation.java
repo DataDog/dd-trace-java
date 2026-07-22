@@ -13,10 +13,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.asm.Advice;
@@ -102,7 +102,7 @@ public class ApacheHttpAsyncClientInstrumentation
         requestProducer = new DelegatingRequestProducer(requestProducer);
       }
 
-      final AgentScope.Continuation parentContinuation = captureActiveSpan();
+      final ContextContinuation parentContinuation = captureActiveSpan();
       final AgentSpan clientSpan = startSpan(APACHE_HTTPASYNCCLIENT.toString(), HTTP_REQUEST);
       DECORATE.afterStart(clientSpan);
       ((DelegatingRequestProducer) requestProducer).setSpan(clientSpan);

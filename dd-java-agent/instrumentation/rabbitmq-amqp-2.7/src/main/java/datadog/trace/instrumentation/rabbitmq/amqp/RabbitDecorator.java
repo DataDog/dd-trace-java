@@ -268,12 +268,12 @@ public class RabbitDecorator extends MessagingClientDecorator {
 
   public static void finishReceivingSpan(AgentScope scope) {
     AgentSpan span = scope.span();
+    scope.close();
     if (CONSUMER_DECORATE.endToEndDurationsEnabled) {
       span.finishWithEndToEnd();
     } else {
       span.finish();
     }
-    scope.close();
   }
 
   public static final String RABBITMQ_PRODUCED_KEY = "x_datadog_rabbitmq_produced";

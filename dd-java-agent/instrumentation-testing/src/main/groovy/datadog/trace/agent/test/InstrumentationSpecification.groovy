@@ -10,7 +10,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FO
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 
-
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.util.ContextInitializer
 import com.datadog.debugger.agent.ClassesToRetransformFinder
@@ -125,7 +124,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     StringBuilder ddEnvVars = new StringBuilder()
     for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
       if (entry.getKey().toString().startsWith("dd.")) {
-        ddEnvVars.append(ConfigStrings.systemPropertyNameToEnvironmentVariableName(entry.getKey().toString()))
+        ddEnvVars.append(ConfigStrings.toEnvVar(entry.getKey().toString()))
         .append("=").append(entry.getValue()).append(",")
       }
     }
@@ -351,17 +350,19 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   void setupSpec() {
     InstrumentationErrors.resetErrors()
 
-    AgentMeter.registerIfAbsent(
-    STATS_D_CLIENT,
-    new MonitoringImpl(STATS_D_CLIENT, 10, TimeUnit.SECONDS),
-    DDSketchHistograms.FACTORY
-    )
-
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath. If one test extends AgentTestRunner in a module, all tests must extend
     assert Config.getClassLoader() == null: "Config must load on the bootstrap classpath."
 
     configurePreAgent()
+
+    AgentTracer.maybeInstallLegacyContextManager()
+
+    AgentMeter.registerIfAbsent(
+    STATS_D_CLIENT,
+    new MonitoringImpl(STATS_D_CLIENT, 10, TimeUnit.SECONDS),
+    DDSketchHistograms.FACTORY
+    )
 
     TEST_DATA_STREAMS_WRITER = new RecordingDatastreamsPayloadWriter()
     DDAgentFeaturesDiscovery features = new MockFeaturesDiscovery(true)

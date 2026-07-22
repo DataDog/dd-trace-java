@@ -165,7 +165,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records.add(record)
         }
       })
