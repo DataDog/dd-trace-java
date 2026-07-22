@@ -101,10 +101,8 @@ class DatabricksRepairAttemptTest {
     String jobId = "1234";
     String parentRunId = "5678";
 
-    DatabricksParentContext original =
-        new DatabricksParentContext(jobId, parentRunId, "9012", 0);
-    DatabricksParentContext repaired =
-        new DatabricksParentContext(jobId, parentRunId, "3456", 1);
+    DatabricksParentContext original = new DatabricksParentContext(jobId, parentRunId, "9012", 0);
+    DatabricksParentContext repaired = new DatabricksParentContext(jobId, parentRunId, "3456", 1);
 
     assertEquals(DDTraceId.from("8944764253919609482"), original.getTraceId());
     assertNotEquals(original.getTraceId(), repaired.getTraceId());
