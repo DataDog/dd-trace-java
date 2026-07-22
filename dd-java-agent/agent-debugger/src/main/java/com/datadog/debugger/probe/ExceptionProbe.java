@@ -104,6 +104,10 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
     }
     String fingerprint =
         Fingerprinter.fingerprint(innerMostThrowable, exceptionProbeManager.getClassNameFilter());
+    if (fingerprint == null) {
+      // Fingerprinter.fingerprint already logged why in debug
+      return;
+    }
     if (exceptionProbeManager.shouldCaptureException(fingerprint)) {
       LOGGER.debug("Capturing exception matching fingerprint: {}", fingerprint);
       // capture only on uncaught exception matching the fingerprint
