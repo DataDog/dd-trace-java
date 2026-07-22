@@ -47,14 +47,13 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     final Context parentContext =
         storedParentContext != null ? storedParentContext : DECORATE.extract(headers);
     final Context context = DECORATE.startSpan(headers, parentContext);
+    final ServerRequestContext serverContext =
+        ServerRequestContext.add(channel, context, headers.get("accept"));
 
     try (final ContextScope ignored = context.attach()) {
       final AgentSpan span = AgentSpan.fromContext(context);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, channel, request, parentContext);
-
-      final ServerRequestContext serverContext =
-          ServerRequestContext.add(channel, context, headers.get("accept"));
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {

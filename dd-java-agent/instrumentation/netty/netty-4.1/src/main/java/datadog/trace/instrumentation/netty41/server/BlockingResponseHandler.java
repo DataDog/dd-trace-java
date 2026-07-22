@@ -43,13 +43,14 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
       int statusCode,
       BlockingContentType bct,
       Map<String, String> extraHeaders,
-      String securityResponseId) {
+      String securityResponseId,
+      ServerRequestContext serverContext) {
     this.segment = segment;
     this.statusCode = statusCode;
     this.bct = bct;
     this.extraHeaders = extraHeaders;
     this.securityResponseId = securityResponseId;
-    this.serverContext = null;
+    this.serverContext = serverContext;
   }
 
   public BlockingResponseHandler(

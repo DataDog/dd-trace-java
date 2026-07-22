@@ -49,6 +49,13 @@ public final class ServerRequestContext {
     return contexts == null || isPoisoned(contexts) ? null : contexts.peekFirst();
   }
 
+  /** Returns the server request context for the current inbound request. */
+  public static ServerRequestContext currentRequest(final AttributeMap attributes) {
+    final Deque<ServerRequestContext> contexts =
+        attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).get();
+    return contexts == null || isPoisoned(contexts) ? null : contexts.peekLast();
+  }
+
   /** Returns whether the channel is closing after an AppSec response block. */
   public static boolean isResponseBlocked(final AttributeMap attributes) {
     return attributes.attr(BLOCKED_RESPONSE_ATTRIBUTE_KEY).get() != null;

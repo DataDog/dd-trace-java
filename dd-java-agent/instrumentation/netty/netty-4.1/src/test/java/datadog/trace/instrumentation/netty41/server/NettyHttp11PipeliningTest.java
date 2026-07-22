@@ -9,6 +9,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.emptyMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,11 +18,13 @@ import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.TraceMatcher;
 import datadog.trace.api.function.TriFunction;
+import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.ActiveSubsystems;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import io.netty.bootstrap.ServerBootstrap;
@@ -38,6 +41,7 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.util.ReferenceCountUtil;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
@@ -103,6 +107,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
       appSecSubscriptions = null;
       ActiveSubsystems.APPSEC_ACTIVE = originalAppSecActive;
     }
+    handler.clearBlockResponseFunctionBlocking();
   }
 
   @Test
@@ -158,6 +163,35 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
     }
   }
 
+  @Test
+  void blockResponseFunctionOnLaterPipelinedRequestDoesNotOvertakeEarlierResponse()
+      throws Exception {
+    enableAppSec();
+    handler.expectRequests(1);
+
+    try (Socket socket = new Socket("localhost", port)) {
+      socket.setSoTimeout(5000);
+      socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(handler.awaitAllRequestsReceived(), "server did not receive first request");
+
+      CountDownLatch blockedRequestSeen = handler.blockWithResponseFunctionFor(SECOND_PATH);
+      socket.getOutputStream().write(request(SECOND_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(
+          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+
+      handler.writeResponses();
+
+      assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
+      assertTrue(
+          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          "second response should be the deferred blocking response");
+    }
+  }
+
   private static String pipelinedRequests() {
     return "GET "
         + FIRST_PATH
@@ -175,21 +209,9 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
   }
 
   private CountDownLatch enableAppSecRequestBlockingFor(String blockedPath) {
+    SubscriptionService subscriptions = (SubscriptionService) enableAppSec();
     CountDownLatch blockedRequestSeen = new CountDownLatch(1);
-    SubscriptionService subscriptions =
-        (SubscriptionService) AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
-    appSecSubscriptions = subscriptions;
-    originalAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
-    ActiveSubsystems.APPSEC_ACTIVE = true;
 
-    subscriptions.registerCallback(
-        EVENTS.requestStarted(),
-        new Supplier<Flow<Object>>() {
-          @Override
-          public Flow<Object> get() {
-            return new Flow.ResultFlow<>(new Object());
-          }
-        });
     subscriptions.registerCallback(
         EVENTS.requestMethodUriRaw(),
         new TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>() {
@@ -209,6 +231,24 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
           }
         });
     return blockedRequestSeen;
+  }
+
+  private Object enableAppSec() {
+    SubscriptionService subscriptions =
+        (SubscriptionService) AgentTracer.get().getSubscriptionService(RequestContextSlot.APPSEC);
+    appSecSubscriptions = subscriptions;
+    originalAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
+    ActiveSubsystems.APPSEC_ACTIVE = true;
+
+    subscriptions.registerCallback(
+        EVENTS.requestStarted(),
+        new Supplier<Flow<Object>>() {
+          @Override
+          public Flow<Object> get() {
+            return new Flow.ResultFlow<>(new Object());
+          }
+        });
+    return subscriptions;
   }
 
   private static TraceMatcher serverTrace(String path) {
@@ -272,8 +312,11 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
     private volatile CountDownLatch receivedRequests;
     private final List<String> paths = new ArrayList<>();
     private volatile ChannelHandlerContext context;
+    private volatile String blockResponseFunctionPath;
+    private volatile CountDownLatch blockResponseFunctionRequestSeen;
 
     private PipeliningHandler() {
+      super(false);
       expectRequests(0);
     }
 
@@ -285,13 +328,46 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
       }
     }
 
+    private CountDownLatch blockWithResponseFunctionFor(String path) {
+      blockResponseFunctionPath = path;
+      blockResponseFunctionRequestSeen = new CountDownLatch(1);
+      return blockResponseFunctionRequestSeen;
+    }
+
+    private void clearBlockResponseFunctionBlocking() {
+      blockResponseFunctionPath = null;
+      blockResponseFunctionRequestSeen = null;
+    }
+
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
       context = ctx;
+      boolean blockingResponseCommitted = false;
       synchronized (paths) {
         paths.add(request.uri());
       }
+      if (request.uri().equals(blockResponseFunctionPath)) {
+        AgentSpan span = AgentTracer.activeSpan();
+        RequestContext requestContext = span == null ? null : span.getRequestContext();
+        BlockResponseFunction blockResponseFunction =
+            requestContext == null ? null : requestContext.getBlockResponseFunction();
+        if (blockResponseFunction != null) {
+          blockingResponseCommitted =
+              blockResponseFunction.tryCommitBlockingResponse(
+                  requestContext.getTraceSegment(),
+                  403,
+                  BlockingContentType.NONE,
+                  emptyMap(),
+                  null);
+        }
+        if (blockingResponseCommitted && blockResponseFunctionRequestSeen != null) {
+          blockResponseFunctionRequestSeen.countDown();
+        }
+      }
       receivedRequests.countDown();
+      if (!blockingResponseCommitted) {
+        ReferenceCountUtil.release(request);
+      }
     }
 
     private boolean awaitAllRequestsReceived() throws InterruptedException {
