@@ -29,6 +29,14 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
     this.metricsQueue = new ArrayBlockingQueue<>(RAW_QUEUE_SIZE);
   }
 
+  public void count(String metricName, long value, String tag) {
+    if (value <= 0) {
+      return;
+    }
+    this.metricsQueue.offer(
+        new CoreMetric(METRIC_NAMESPACE, true, metricName, "count", value, tag));
+  }
+
   @Override
   public void prepareMetrics() {
     // Collect span metrics

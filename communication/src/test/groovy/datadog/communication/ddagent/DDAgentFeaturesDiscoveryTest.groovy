@@ -6,6 +6,8 @@ import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V05_ENDPOIN
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V07_CONFIG_ENDPOINT
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V1_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V4_EVP_PROXY_ENDPOINT
 import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID
 import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH
 import static datadog.trace.api.ProtocolVersion.V0_4
@@ -75,6 +77,8 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     features.supportsEvpProxy()
     features.supportsContentEncodingHeadersWithEvpProxy()
     features.getEvpProxyEndpoint() == "evp_proxy/v4/"
+    features.supportsEvpProxyEndpoint(V2_EVP_PROXY_ENDPOINT)
+    features.supportsEvpProxyEndpoint(V4_EVP_PROXY_ENDPOINT)
     features.getVersion() == "0.99.0"
     !features.supportsLongRunning()
     !features.supportsTelemetryProxy()
@@ -489,6 +493,8 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     1 * client.newCall(_) >> { Request request -> infoResponse(request, INFO_WITH_OLD_EVP_PROXY) }
     features.supportsEvpProxy()
     features.getEvpProxyEndpoint() == "evp_proxy/v2/" // v3 is advertised, but the tracer should ignore it
+    features.supportsEvpProxyEndpoint(V2_EVP_PROXY_ENDPOINT)
+    !features.supportsEvpProxyEndpoint(V4_EVP_PROXY_ENDPOINT)
     !features.supportsContentEncodingHeadersWithEvpProxy()
     features.supportsDebugger()
     features.getDebuggerSnapshotEndpoint() == "debugger/v1/diagnostics"

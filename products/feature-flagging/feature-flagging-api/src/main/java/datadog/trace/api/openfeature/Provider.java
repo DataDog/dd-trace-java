@@ -36,7 +36,7 @@ public class Provider extends EventProvider implements Metadata {
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
-  private final FlagEvalHook flagEvalHook;
+  private final FlagEvalMetricsHook flagEvalMetricsHook;
   // Span enrichment: null unless the gate is on, so the feature has no idle overhead when off.
   private final SpanEnrichmentHook spanEnrichmentHook;
   // Precomputed hook list returned by getProviderHooks() on every evaluation. Immutable and built
@@ -66,16 +66,16 @@ public class Provider extends EventProvider implements Metadata {
     this.options = options;
     this.evaluator = evaluator;
     FlagEvalMetrics metrics = null;
-    FlagEvalHook hook = null;
+    FlagEvalMetricsHook hook = null;
     try {
       metrics = new FlagEvalMetrics();
-      hook = new FlagEvalHook(metrics);
+      hook = new FlagEvalMetricsHook(metrics);
     } catch (LinkageError | Exception e) {
       // This outer catch fires when the metrics helper itself can't load (OTel API absent).
       log.warn("Evaluation metrics unavailable — OTel API classes not on classpath", e);
     }
     this.flagEvalMetrics = metrics;
-    this.flagEvalHook = hook;
+    this.flagEvalMetricsHook = hook;
 
     // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
     // per-evaluation overhead.
@@ -87,9 +87,19 @@ public class Provider extends EventProvider implements Metadata {
 
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
-    final List<Hook> hooks = new ArrayList<>(2);
-    if (flagEvalHook != null) {
-      hooks.add(flagEvalHook);
+    final List<Hook> hooks = new ArrayList<>(3);
+    if (flagEvalMetricsHook != null) {
+      hooks.add(flagEvalMetricsHook);
+    }
+    // EVP flagevaluation hook: always registered; no-op when writer is absent (killswitch off).
+    // Writer is resolved lazily from FeatureFlaggingGateway.getFlagEvalWriter() on each call.
+    try {
+      final Hook flagEvalLoggingHook = buildFlagEvalLoggingHook();
+      if (flagEvalLoggingHook != null) {
+        hooks.add(flagEvalLoggingHook);
+      }
+    } catch (LinkageError | Exception e) {
+      // Keep older bootstrap/API combinations working: EVP recording is best-effort.
     }
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
@@ -214,6 +224,10 @@ public class Provider extends EventProvider implements Metadata {
   @Override
   public List<Hook> getProviderHooks() {
     return providerHooks;
+  }
+
+  Hook buildFlagEvalLoggingHook() {
+    return FlagEvalLoggingHook.INSTANCE;
   }
 
   @Override
