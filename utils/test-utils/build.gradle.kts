@@ -32,7 +32,8 @@ dependencies {
 
   api(project(":components:environment"))
   api(project(":utils:config-utils"))
-  api(project(":utils:junit-utils"))
+  api(project(":utils:test-junit-utils"))
+  api(project(":utils:test-junit-converter-utils"))
   api(group = "commons-fileupload", name = "commons-fileupload", version = "1.5")
 
   compileOnly(project(":components:annotations"))

@@ -7,6 +7,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.SubSequence;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -53,19 +54,29 @@ public class SharedDBCommenter {
   private static volatile boolean staticPrefixComputed = false;
   private static volatile String staticPrefix;
 
-  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection.
-  // Note: the contains-chain could still be done "better" (a single scan), but the per-call
-  // "KEY + =" concatenation -- the allocating part -- is now hoisted to the *_EQ constants above.
+  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection. Mongo
+  // passes the already-extracted comment body; SQLCommenter uses the range overload to check it
+  // in place. Both run the same nine "<key>=" needle checks.
   public static boolean containsTraceComment(String commentContent) {
-    return commentContent.contains(PARENT_SERVICE_EQ)
-        || commentContent.contains(DATABASE_SERVICE_EQ)
-        || commentContent.contains(DD_HOSTNAME_EQ)
-        || commentContent.contains(DD_DB_NAME_EQ)
-        || commentContent.contains(DD_PEER_SERVICE_EQ)
-        || commentContent.contains(DD_ENV_EQ)
-        || commentContent.contains(DD_VERSION_EQ)
-        || commentContent.contains(TRACEPARENT_EQ)
-        || commentContent.contains(DD_SERVICE_HASH_EQ);
+    return containsTraceComment(commentContent, 0, commentContent.length());
+  }
+
+  /**
+   * Range overload: true if {@code sql} contains a trace-comment needle fully within {@code [from,
+   * to)} -- checks the comment body in place, with no substring allocation of the region.
+   */
+  public static boolean containsTraceComment(String sql, int from, int to) {
+    // Zero-copy view of the comment body; reads like ordinary String.contains, no substring.
+    SubSequence comment = SubSequence.of(sql, from, to);
+    return comment.contains(PARENT_SERVICE_EQ)
+        || comment.contains(DATABASE_SERVICE_EQ)
+        || comment.contains(DD_HOSTNAME_EQ)
+        || comment.contains(DD_DB_NAME_EQ)
+        || comment.contains(DD_PEER_SERVICE_EQ)
+        || comment.contains(DD_ENV_EQ)
+        || comment.contains(DD_VERSION_EQ)
+        || comment.contains(TRACEPARENT_EQ)
+        || comment.contains(DD_SERVICE_HASH_EQ);
   }
 
   // Build database comment content without comment delimiters such as /* */

@@ -161,6 +161,7 @@ include(
   ":products:feature-flagging:feature-flagging-agent",
   ":products:feature-flagging:feature-flagging-api",
   ":products:feature-flagging:feature-flagging-bootstrap",
+  ":products:feature-flagging:feature-flagging-config",
   ":products:feature-flagging:feature-flagging-lib"
 )
 
@@ -169,7 +170,8 @@ include(
   ":dd-java-agent:testing",
   ":utils:config-utils",
   ":utils:container-utils",
-  ":utils:junit-utils",
+  ":utils:test-junit-utils",
+  ":utils:test-junit-converter-utils",
   ":utils:filesystem-utils",
   ":utils:flare-utils",
   ":utils:logging-utils",
@@ -464,7 +466,8 @@ include(
   ":dd-java-agent:instrumentation:kafka:kafka-connect-0.11",
   ":dd-java-agent:instrumentation:kafka:kafka-streams-0.11",
   ":dd-java-agent:instrumentation:kafka:kafka-streams-1.0",
-  ":dd-java-agent:instrumentation:karate-1.0",
+  ":dd-java-agent:instrumentation:karate:karate-1.0",
+  ":dd-java-agent:instrumentation:karate:karate-2.0",
   ":dd-java-agent:instrumentation:kotlin-coroutines-1.3",
   ":dd-java-agent:instrumentation:lettuce:lettuce-4.0",
   ":dd-java-agent:instrumentation:lettuce:lettuce-5.0",

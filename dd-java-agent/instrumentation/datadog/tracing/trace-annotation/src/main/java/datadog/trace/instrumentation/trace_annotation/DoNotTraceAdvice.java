@@ -15,7 +15,7 @@ public class DoNotTraceAdvice {
     return activateSpan(blackholeSpan());
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void after(
       @Advice.Enter final AgentScope scope,
       @Advice.Origin final MethodType methodType,

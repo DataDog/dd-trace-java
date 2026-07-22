@@ -108,7 +108,7 @@ When a cell references a symbolic constant like `Long.MAX_VALUE` or `DDSpanId.MA
 Prefer a shared class so converters are reused across tests:
 
 ```java
-// utils/junit-utils - shared across modules
+// utils/test-junit-converter-utils - shared across modules
 public final class TableTestTypeConverters {
     @TypeConverter
     public static long toLong(String value) {

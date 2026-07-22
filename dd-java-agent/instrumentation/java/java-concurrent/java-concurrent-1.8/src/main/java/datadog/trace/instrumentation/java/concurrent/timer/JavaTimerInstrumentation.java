@@ -52,7 +52,7 @@ public class JavaTimerInstrumentation
       }
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Argument(0) TimerTask task, @Advice.Thrown Throwable thrown) {
       if (null != thrown && !exclude(RUNNABLE, task)) {
         cancelTask(InstrumentationContext.get(Runnable.class, State.class), task);
