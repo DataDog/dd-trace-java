@@ -11,6 +11,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_SAMPLE_DELAY;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_AGENTIC_ONBOARDING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT;
@@ -222,6 +223,7 @@ import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED_EXPERIM
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_SAMPLE_DELAY;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_AGENTIC_ONBOARDING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_BODY_PARSING_SIZE_LIMIT;
@@ -481,6 +483,7 @@ import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPERIMENTAL_ENAB
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_HEADERS;
@@ -497,7 +500,6 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
-import static datadog.trace.api.config.OtlpConfig.TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
@@ -1009,7 +1011,7 @@ public class Config {
   private final int otlpMetricsTimeout;
   private final OtlpConfig.Temporality otlpMetricsTemporalityPreference;
 
-  private final boolean tracesSpanMetricsEnabled;
+  private final boolean otelTracesSpanMetricsEnabled;
   private final boolean traceOtelSemanticsEnabled;
 
   private final String traceOtelExporter;
@@ -1088,6 +1090,7 @@ public class Config {
   private final int appSecTraceRateLimit;
   private final boolean appSecWafMetrics;
   private final int appSecWafTimeout;
+  private final String appSecAgenticOnboarding;
   private final String appSecObfuscationParameterKeyRegexp;
   private final String appSecObfuscationParameterValueRegexp;
   private final String appSecHttpBlockedTemplateHtml;
@@ -2145,9 +2148,9 @@ public class Config {
     traceOtelSemanticsEnabled = configProvider.getBoolean(TRACE_OTEL_SEMANTICS_ENABLED, false);
     // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
     // export and OTLP metrics export are both enabled.
-    tracesSpanMetricsEnabled =
+    otelTracesSpanMetricsEnabled =
         configProvider.getBoolean(
-            TRACES_SPAN_METRICS_ENABLED,
+            OTEL_TRACES_SPAN_METRICS_ENABLED,
             isTraceOtlpExporterEnabled()
                 && isMetricsOtelEnabled()
                 && isMetricsOtlpExporterEnabled());
@@ -2507,6 +2510,10 @@ public class Config {
     appSecWafMetrics = configProvider.getBoolean(APPSEC_WAF_METRICS, DEFAULT_APPSEC_WAF_METRICS);
 
     appSecWafTimeout = configProvider.getInteger(APPSEC_WAF_TIMEOUT, DEFAULT_APPSEC_WAF_TIMEOUT);
+
+    // RFC-1113: reported verbatim in configuration telemetry; always emitted (empty when unset).
+    appSecAgenticOnboarding =
+        configProvider.getString(APPSEC_AGENTIC_ONBOARDING, DEFAULT_APPSEC_AGENTIC_ONBOARDING);
 
     appSecObfuscationParameterKeyRegexp =
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, null);
@@ -5654,8 +5661,8 @@ public class Config {
     return otlpMetricsTemporalityPreference;
   }
 
-  public boolean isTracesSpanMetricsEnabled() {
-    return tracesSpanMetricsEnabled;
+  public boolean isOtelTracesSpanMetricsEnabled() {
+    return otelTracesSpanMetricsEnabled;
   }
 
   public boolean isTraceOtelSemanticsEnabled() {
@@ -6659,7 +6666,9 @@ public class Config {
         + appSecHttpBlockedTemplateHtml
         + ", appSecWafTimeout="
         + appSecWafTimeout
-        + " us, appSecHttpBlockedTemplateJson="
+        + " us, appSecAgenticOnboarding="
+        + appSecAgenticOnboarding
+        + ", appSecHttpBlockedTemplateJson="
         + appSecHttpBlockedTemplateJson
         + ", apiSecurityEnabled="
         + apiSecurityEnabled
@@ -6793,8 +6802,8 @@ public class Config {
         + otlpMetricsTimeout
         + ", otlpMetricsTemporalityPreference="
         + otlpMetricsTemporalityPreference
-        + ", tracesSpanMetricsEnabled="
-        + tracesSpanMetricsEnabled
+        + ", otelTracesSpanMetricsEnabled="
+        + otelTracesSpanMetricsEnabled
         + ", traceOtelSemanticsEnabled="
         + traceOtelSemanticsEnabled
         + ", traceStatsInterval="

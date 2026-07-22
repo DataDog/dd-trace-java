@@ -243,9 +243,10 @@ public class KarateTracingListener implements RunListener {
     return fr.getCaller() != null;
   }
 
-  private static boolean skipTracking(ScenarioRuntime sr) {
+  public static boolean skipTracking(ScenarioRuntime sr) {
     // do not track nested (called) scenario runs and setup scenarios
-    return sr.getFeatureRuntime().getCaller() != null || sr.getScenario().isSetup();
+    FeatureRuntime fr = sr.getFeatureRuntime();
+    return fr == null || fr.getCaller() != null || sr.getScenario().isSetup();
   }
 
   private static boolean skipTracking(Step step) {

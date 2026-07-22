@@ -32,7 +32,10 @@ stages:
   - java-dacapo-parallel
   - java-dacapo-parallel-slo
   - java-post-pr-comment
-  - shared-pipeline
+  - shared-pipeline-build
+  - shared-pipeline-test
+  - publish-release-artifacts
+  - shared-pipeline-publish
   - benchmarks
   - tests
   - tests-arm64
@@ -1287,8 +1290,11 @@ deploy_to_di_backend:manual:
 # If the deploy_to_maven_central job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
 deploy_to_maven_central:
   extends: .gradle_build
-  stage: publish
-  needs: [ build ]
+  stage: publish-release-artifacts
+  needs:
+    - job: build
+    - job: system_tests
+      optional: true
   variables:
     CACHE_TYPE: "lib"
   rules:
@@ -1340,7 +1346,7 @@ deploy_snapshot_with_ddprof_snapshot:
       - 'workspace/dd-trace-ot/build/libs/*.jar'
 
 deploy_artifacts_to_github:
-  stage: publish
+  stage: publish-release-artifacts
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   id_tokens:
@@ -1407,7 +1413,7 @@ override_verify_maven_central:
 # Verify Maven Central deployment is publicly available before publishing OCI images
 verify_maven_central_deployment:
   image: registry.ddbuild.io/images/base/gbi-ubuntu_2204:release
-  stage: publish
+  stage: publish-release-artifacts
   needs: [ deploy_to_maven_central ]
   rules:
     - if: '$POPULATE_CACHE'
@@ -1459,7 +1465,7 @@ verify_maven_central_deployment:
       done
 
 publishing-gate:
-  stage: publish
+  stage: publish-release-artifacts
   needs:
     - job: verify_maven_central_deployment
       optional: true # Required for releases only

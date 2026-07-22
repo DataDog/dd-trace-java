@@ -3283,6 +3283,10 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   @EnabledForJreRange(min = JRE.JAVA_17)
   public void recordWithTypeAnnotation() throws IOException, URISyntaxException {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4)) {
+      // Fixed since JDK 25.0.4
+      return;
+    }
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot33";
     LogProbe probe1 = createMethodProbeAtExit(PROBE_ID1, CLASS_NAME, "parse", null);
     TestSnapshotListener listener = installProbes(probe1);

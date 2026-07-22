@@ -1,7 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
-# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:karate-1.0:dependencies --write-locks
+# To regenerate this file, run: ./gradlew :dd-java-agent:instrumentation:karate:karate-1.0:dependencies --write-locks
 cafe.cryptography:curve25519-elisabeth:0.1.0=karate131TestRuntimeClasspath,karate141TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 cafe.cryptography:ed25519-elisabeth:0.1.0=karate131TestRuntimeClasspath,karate141TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 ch.qos.logback:logback-classic:1.2.13=karate131TestCompileClasspath,karate131TestRuntimeClasspath,karate141TestCompileClasspath,karate141TestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
@@ -173,7 +173,7 @@ io.netty:netty-transport-native-unix-common:4.2.6.Final=latestDepTestCompileClas
 io.netty:netty-transport:4.1.79.Final=karate131TestCompileClasspath,karate131TestRuntimeClasspath
 io.netty:netty-transport:4.1.96.Final=karate141TestCompileClasspath,karate141TestRuntimeClasspath
 io.netty:netty-transport:4.2.6.Final=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
-io.sqreen:libsqreen:17.3.0=karate131TestRuntimeClasspath,karate141TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
+io.sqreen:libsqreen:17.4.0=karate131TestRuntimeClasspath,karate141TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
 javax.servlet:javax.servlet-api:3.1.0=karate131TestCompileClasspath,karate131TestRuntimeClasspath,karate141TestCompileClasspath,karate141TestRuntimeClasspath,latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 jaxen:jaxen:2.0.0=spotbugs
 junit:junit:4.13.2=karate131TestRuntimeClasspath,karate141TestRuntimeClasspath,latestDepTestRuntimeClasspath,testRuntimeClasspath
