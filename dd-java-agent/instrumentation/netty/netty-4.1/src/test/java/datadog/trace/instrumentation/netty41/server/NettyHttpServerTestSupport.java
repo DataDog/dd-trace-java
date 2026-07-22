@@ -29,7 +29,7 @@ abstract class NettyHttpServerTestSupport extends AbstractInstrumentationTest {
 
   @BeforeAll
   void startServer() throws Exception {
-    eventLoopGroup = new NioEventLoopGroup();
+    eventLoopGroup = new NioEventLoopGroup(1);
     ServerBootstrap bootstrap =
         new ServerBootstrap()
             .group(eventLoopGroup)
@@ -47,11 +47,14 @@ abstract class NettyHttpServerTestSupport extends AbstractInstrumentationTest {
 
   @AfterAll
   void stopServer() {
-    if (serverChannel != null) {
-      serverChannel.close();
-    }
-    if (eventLoopGroup != null) {
-      eventLoopGroup.shutdownGracefully();
+    try {
+      if (serverChannel != null) {
+        serverChannel.close().syncUninterruptibly();
+      }
+    } finally {
+      if (eventLoopGroup != null) {
+        eventLoopGroup.shutdownGracefully().syncUninterruptibly();
+      }
     }
   }
 
