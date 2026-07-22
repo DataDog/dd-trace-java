@@ -90,8 +90,8 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
-  public long beginTaskBlock(int state) {
-    return DDPROF.beginTaskBlock(state);
+  public long beginTaskBlock() {
+    return DDPROF.beginTaskBlock();
   }
 
   @Override

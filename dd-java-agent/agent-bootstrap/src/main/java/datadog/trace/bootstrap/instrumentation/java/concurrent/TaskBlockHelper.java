@@ -33,7 +33,7 @@ public final class TaskBlockHelper {
       if (profiling == null) {
         return null;
       }
-      long token = profiling.beginTaskBlock(ProfilingContextIntegration.BLOCKING_STATE_SLEEPING);
+      long token = profiling.beginTaskBlock();
       return token == 0L ? null : new State(profiling, token);
     } catch (Throwable ignored) {
       return null;
