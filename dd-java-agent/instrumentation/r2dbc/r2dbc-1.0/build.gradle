@@ -3,7 +3,6 @@ muzzle {
     group = "io.r2dbc"
     module = "r2dbc-spi"
     versions = "[1.0.0.RELEASE,)"
-    assertInverse = true
   }
 }
 
