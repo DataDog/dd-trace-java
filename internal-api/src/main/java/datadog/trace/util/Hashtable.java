@@ -265,6 +265,16 @@ public final class Hashtable {
         this.key2 = key2;
       }
 
+      /** The first key part this entry was created with. */
+      public K1 key1() {
+        return this.key1;
+      }
+
+      /** The second key part this entry was created with. */
+      public K2 key2() {
+        return this.key2;
+      }
+
       public boolean matches(K1 key1, K2 key2) {
         return Objects.equals(this.key1, key1) && Objects.equals(this.key2, key2);
       }
