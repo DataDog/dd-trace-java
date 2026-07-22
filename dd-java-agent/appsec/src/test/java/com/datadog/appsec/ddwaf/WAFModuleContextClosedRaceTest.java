@@ -22,6 +22,7 @@ import com.squareup.moshi.Types;
 import datadog.trace.api.telemetry.RuleType;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import java.io.InputStream;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import okio.Okio;
@@ -102,7 +103,7 @@ class WAFModuleContextClosedRaceTest {
   }
 
   @Test
-  void skipsRaspRuleWhenContextClosedConcurrently() {
+  void countsRaspEvalNotSkippedWhenContextClosedConcurrently() {
     AppSecRequestContext reqCtx = mock(AppSecRequestContext.class);
     when(reqCtx.isWafContextClosed()).thenReturn(false);
     when(reqCtx.getOrCreateWafContext(any(), anyBoolean(), anyBoolean())).thenReturn(null);
@@ -115,9 +116,15 @@ class WAFModuleContextClosedRaceTest {
 
     assertFalse(flow.isBlocking());
     WafMetricCollector.get().prepareMetrics();
+    // The eval attempt was already counted before the race was detected; rasp.rule.skipped is
+    // reserved for calls that never attempted eval (e.g. the isWafContextClosed() fast path), so
+    // it must not also be reported here - otherwise the same callback is double-counted.
+    Collection<WafMetricCollector.WafMetric> metrics = WafMetricCollector.get().drain();
+    boolean sawRaspEval = metrics.stream().anyMatch(m -> "rasp.rule.eval".equals(m.metricName));
     boolean sawRaspSkipped =
-        WafMetricCollector.get().drain().stream()
-            .anyMatch(m -> "rasp.rule.skipped".equals(m.metricName));
-    assertTrue(sawRaspSkipped, "expected rasp.rule.skipped to be reported");
+        metrics.stream().anyMatch(m -> "rasp.rule.skipped".equals(m.metricName));
+    assertTrue(sawRaspEval, "expected rasp.rule.eval to be reported");
+    assertFalse(
+        sawRaspSkipped, "rasp.rule.skipped must not double-count an already-evaluated call");
   }
 }

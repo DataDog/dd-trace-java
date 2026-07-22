@@ -731,8 +731,10 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       if (wafContext != null) {
         log.debug(
             SEND_TELEMETRY, "WAF object had not been closed (probably missed request-end event)");
-        closeWafContext();
       }
+      // Always close, even if the WAF never ran for this request: wafContextClosed must be set so
+      // a late/async caller of getOrCreateWafContext() cannot resurrect a context (APPSEC-69085).
+      closeWafContext();
       collectedCookies = null;
       requestHeaders.clear();
       responseHeaders.clear();

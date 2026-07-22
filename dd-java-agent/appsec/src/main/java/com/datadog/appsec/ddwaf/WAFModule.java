@@ -314,12 +314,10 @@ public class WAFModule implements AppSecModule {
         resultWithData = doRunWaf(reqCtx, newData, ctxAndAddr, gwCtx);
         if (resultWithData == null) {
           // WAF context closed concurrently between the fast-path check and context creation; skip
-          // (APPSEC-69085).
+          // (APPSEC-69085). raspRuleEval() was already counted above, so don't also count
+          // raspRuleSkipped() here - that counter is reserved for calls that never attempted eval.
           log.debug("Skipped; the WAF context was closed concurrently");
           WafMetricCollector.get().wafContextClosedRace();
-          if (gwCtx.isRasp) {
-            WafMetricCollector.get().raspRuleSkipped(gwCtx.raspRuleType);
-          }
           return;
         }
       } catch (TimeoutWafException tpe) {
