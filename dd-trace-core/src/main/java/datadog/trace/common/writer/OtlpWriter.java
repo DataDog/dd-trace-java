@@ -13,6 +13,9 @@ import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.otlp.common.OtlpGrpcSender;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
 import datadog.trace.core.otlp.common.OtlpSender;
+import datadog.trace.core.otlp.trace.OtlpTraceCollector;
+import datadog.trace.core.otlp.trace.OtlpTraceJsonCollector;
+import datadog.trace.core.otlp.trace.OtlpTraceProtoCollector;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -140,7 +143,11 @@ public class OtlpWriter extends RemoteWriter {
                     endpoint, HTTP_TRACES_SIGNAL_PATH, headers, timeoutMillis, compression);
       }
 
-      final OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender);
+      final OtlpTraceCollector collector =
+          protocol == OtlpConfig.Protocol.HTTP_JSON
+              ? new OtlpTraceJsonCollector()
+              : new OtlpTraceProtoCollector();
+      final OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
       final TraceProcessingWorker worker =
           new TraceProcessingWorker(
               traceBufferSize,

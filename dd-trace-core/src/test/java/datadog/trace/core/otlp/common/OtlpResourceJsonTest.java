@@ -13,12 +13,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.WireFormat;
+import datadog.json.JsonMapper;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Stream;
@@ -28,22 +28,10 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Tests for {@link OtlpResourceProto#buildResourceMessage}.
- *
- * <p>Each test creates a {@link Config} from a {@link Properties} instance, calls {@link
- * OtlpResourceProto#buildResourceMessage}, then extracts the byte array and verifies its content
- * against the OpenTelemetry protobuf encoding defined in {@code
- * opentelemetry/proto/resource/v1/resource.proto}.
- *
- * <p>Relevant proto field numbers:
- *
- * <pre>
- *   Resource { repeated KeyValue attributes = 1; }
- *   KeyValue { string key = 1; AnyValue value = 2; }
- *   AnyValue { string string_value = 1; }
- * </pre>
+ * Tests for {@link OtlpResourceJson#buildResourceFragment}, mirroring {@link OtlpResourceProtoTest}
+ * to keep the proto and JSON encoders in parity.
  */
-class OtlpResourceProtoTest {
+class OtlpResourceJsonTest {
 
   // ── test data ─────────────────────────────────────────────────────────────
 
@@ -66,39 +54,32 @@ class OtlpResourceProtoTest {
     return map;
   }
 
-  static Stream<Arguments> resourceMessageCases() {
+  static Stream<Arguments> resourceFragmentCases() {
     return Stream.of(
-        // service not set: should use the auto-detected name
         Arguments.of(
             "service not set, no env, no version, no tags",
             props(),
             attrs("service.name", Config.get().getServiceName())),
-        // custom service name
         Arguments.of(
             "custom service name, no env, no version, no tags",
             props(SERVICE_NAME, "my-service"),
             attrs("service.name", "my-service")),
-        // env set to empty string: no deployment.environment.name written;
         Arguments.of(
             "env set to empty string",
             props(SERVICE_NAME, "my-service", ENV, ""),
             attrs("service.name", "my-service")),
-        // env set to non-empty value: deployment.environment.name written;
         Arguments.of(
             "env set to non-empty value",
             props(SERVICE_NAME, "my-service", ENV, "prod"),
             attrs("service.name", "my-service", "deployment.environment.name", "prod")),
-        // version set to empty string: no service.version written;
         Arguments.of(
             "version set to empty string",
             props(SERVICE_NAME, "my-service", VERSION, ""),
             attrs("service.name", "my-service")),
-        // version set to non-empty value: service.version written;
         Arguments.of(
             "version set to non-empty value",
             props(SERVICE_NAME, "my-service", VERSION, "1.0.0"),
             attrs("service.name", "my-service", "service.version", "1.0.0")),
-        // tags as comma-separated key:value pairs (no env or version)
         Arguments.of(
             "tags as comma-separated key:value pairs",
             props(SERVICE_NAME, "my-service", TAGS, "region:us-east,team:platform"),
@@ -106,12 +87,10 @@ class OtlpResourceProtoTest {
                 "service.name", "my-service",
                 "region", "us-east",
                 "team", "platform")),
-        // report-hostname enabled: host.name written with the detected hostname
         Arguments.of(
             "report-hostname enabled",
             props(SERVICE_NAME, "my-service", TRACE_REPORT_HOSTNAME, "true"),
             attrs("service.name", "my-service", "host.name", Config.get().getHostName())),
-        // all config values set together; telemetry.sdk.* keys in tags must be ignored
         Arguments.of(
             "service, env, version, and tags all set",
             props(
@@ -145,24 +124,24 @@ class OtlpResourceProtoTest {
                 "region", "eu-west")));
   }
 
-  // ── test ─────────────────────────────────────────────────────────────────
+  // ── tests ─────────────────────────────────────────────────────────────────
 
   @ParameterizedTest(name = "{0}")
-  @MethodSource("resourceMessageCases")
-  void testBuildResourceMessage(
+  @MethodSource("resourceFragmentCases")
+  void testBuildResourceFragment(
       String caseName, Properties properties, Map<String, String> expectedAttributes)
       throws IOException {
     Config config = Config.get(properties);
-    byte[] bytes = OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap());
+    String fragment = OtlpResourceJson.buildResourceFragment(config, Collections.emptyMap());
 
-    Map<String, String> actualAttributes = parseResourceAttributes(bytes);
+    Map<String, String> actualAttributes = parseResourceAttributes(fragment);
     assertEquals(expectedAttributes, actualAttributes, "For case: " + caseName);
   }
 
   /**
-   * The datadog-attrs variant ({@code buildResourceMessage(config, datadogResourceAttributes)})
-   * carries {@code datadog.runtime_id}; the plain variant omits it. (Process tags are emitted only
-   * when the experimental process-tag propagation is enabled, so they aren't asserted here.)
+   * The datadog-attrs variant carries {@code datadog.runtime_id}; the plain variant omits it.
+   * (Process tags are emitted only when the experimental process-tag propagation is enabled, so
+   * they aren't asserted here.)
    */
   @Test
   void datadogResourceAttributesVariantCarriesRuntimeId() throws IOException {
@@ -170,10 +149,10 @@ class OtlpResourceProtoTest {
 
     Map<String, String> withDatadog =
         parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(config, datadogResourceAttributes(config)));
+            OtlpResourceJson.buildResourceFragment(config, datadogResourceAttributes(config)));
     Map<String, String> plain =
         parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap()));
+            OtlpResourceJson.buildResourceFragment(config, Collections.emptyMap()));
 
     assertTrue(
         withDatadog.containsKey("datadog.runtime_id"),
@@ -193,11 +172,11 @@ class OtlpResourceProtoTest {
 
     Map<String, String> withMarker =
         parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(
+            OtlpResourceJson.buildResourceFragment(
                 withMetrics, traceResourceAttributes(withMetrics)));
     Map<String, String> without =
         parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(
+            OtlpResourceJson.buildResourceFragment(
                 withoutMetrics, traceResourceAttributes(withoutMetrics)));
 
     assertEquals(
@@ -205,67 +184,54 @@ class OtlpResourceProtoTest {
     assertFalse(without.containsKey("_dd.stats_computed"), "marker absent when stats not computed");
   }
 
+  @Test
+  void cannedFragmentsMatchTheirProtoCounterparts() throws IOException {
+    assertEquals(
+        parseResourceAttributesFromProto(OtlpResourceProto.RESOURCE_MESSAGE),
+        parseResourceAttributes(OtlpResourceJson.RESOURCE_FRAGMENT));
+    assertEquals(
+        parseResourceAttributesFromProto(OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS),
+        parseResourceAttributes(OtlpResourceJson.RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS));
+    assertEquals(
+        parseResourceAttributesFromProto(OtlpResourceProto.TRACE_RESOURCE_MESSAGE),
+        parseResourceAttributes(OtlpResourceJson.TRACE_RESOURCE_FRAGMENT));
+  }
+
   // ── parsing helpers ───────────────────────────────────────────────────────
 
-  /**
-   * Parses the resource message bytes into an attribute map while validating the protobuf wire
-   * format (field numbers and wire types) of every field read.
-   *
-   * <p>{@code buildResourceMessage} returns a length-prefixed message with an outer tag (field 1,
-   * LEN wire type) followed by the Resource body size and body. Read the outer tag, then iterate
-   * over all {@code Resource.attributes} (field 1, LEN wire type). Each attribute is a {@code
-   * KeyValue} whose {@code value} is an {@code AnyValue} containing a {@code string_value}.
-   */
-  private static Map<String, String> parseResourceAttributes(byte[] bytes) throws IOException {
-    // Read the outer tag (field 1, LEN wire type) that wraps the Resource body
-    CodedInputStream outer = CodedInputStream.newInstance(bytes);
-    int outerTag = outer.readTag();
-    assertEquals(1, WireFormat.getTagFieldNumber(outerTag), "outer field is Resource (field 1)");
-    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(outerTag));
-    CodedInputStream resource = outer.readBytes().newCodedInput();
+  @SuppressWarnings("unchecked")
+  private static Map<String, String> parseResourceAttributes(String fragment) throws IOException {
+    Map<String, Object> resource = JsonMapper.fromJsonToMap(fragment);
+    List<Object> attributes = (List<Object>) resource.get("attributes");
+
+    Map<String, String> result = new LinkedHashMap<>();
+    for (Object attribute : attributes) {
+      Map<String, Object> keyValue = (Map<String, Object>) attribute;
+      Map<String, Object> value = (Map<String, Object>) keyValue.get("value");
+      result.put((String) keyValue.get("key"), (String) value.get("stringValue"));
+    }
+    return result;
+  }
+
+  private static Map<String, String> parseResourceAttributesFromProto(byte[] bytes)
+      throws IOException {
+    com.google.protobuf.CodedInputStream outer =
+        com.google.protobuf.CodedInputStream.newInstance(bytes);
+    outer.readTag();
+    com.google.protobuf.CodedInputStream resource = outer.readBytes().newCodedInput();
 
     Map<String, String> attributes = new LinkedHashMap<>();
     while (!resource.isAtEnd()) {
-      // Each attribute is Resource.attributes (field 1, LEN wire type)
-      int tag = resource.readTag();
-      assertEquals(1, WireFormat.getTagFieldNumber(tag), "Resource.attributes is field 1");
-      assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
-
-      // Read the full KeyValue body
-      CodedInputStream kv = resource.readBytes().newCodedInput();
-
-      String key = readKeyField(kv);
-      CodedInputStream av = readAnyValueField(kv);
-
-      // Read AnyValue.string_value (field 1, LEN)
-      int avTag = av.readTag();
-      assertEquals(1, WireFormat.getTagFieldNumber(avTag), "AnyValue.string_value is field 1");
-      assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(avTag));
+      resource.readTag();
+      com.google.protobuf.CodedInputStream kv = resource.readBytes().newCodedInput();
+      kv.readTag();
+      String key = kv.readString();
+      kv.readTag();
+      com.google.protobuf.CodedInputStream av = kv.readBytes().newCodedInput();
+      av.readTag();
       String value = av.readString();
-      assertTrue(av.isAtEnd(), "no extra fields in AnyValue");
-      assertTrue(kv.isAtEnd(), "no extra fields in KeyValue");
-
       attributes.put(key, value);
     }
     return attributes;
-  }
-
-  /** Reads the {@code KeyValue.key} field (field 1, LEN) and returns the string value. */
-  private static String readKeyField(CodedInputStream kv) throws IOException {
-    int tag = kv.readTag();
-    assertEquals(1, WireFormat.getTagFieldNumber(tag), "KeyValue.key is field 1");
-    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
-    return kv.readString();
-  }
-
-  /**
-   * Reads the {@code KeyValue.value} field (field 2, LEN) and returns a stream over the {@code
-   * AnyValue} body.
-   */
-  private static CodedInputStream readAnyValueField(CodedInputStream kv) throws IOException {
-    int tag = kv.readTag();
-    assertEquals(2, WireFormat.getTagFieldNumber(tag), "KeyValue.value is field 2");
-    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
-    return kv.readBytes().newCodedInput();
   }
 }
