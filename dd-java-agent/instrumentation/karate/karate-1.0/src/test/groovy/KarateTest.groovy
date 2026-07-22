@@ -85,6 +85,8 @@ class KarateTest extends CiVisibilityInstrumentationTest {
   }
 
   def "test early flakiness detection #testcaseName"() {
+    Assumptions.assumeTrue(assumption)
+
     givenEarlyFlakinessDetectionEnabled(true)
     givenKnownTests(knownTestsList)
 
@@ -93,16 +95,18 @@ class KarateTest extends CiVisibilityInstrumentationTest {
     assertSpansData(testcaseName)
 
     where:
-    testcaseName                        | tests                              | knownTestsList
-    "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | [new TestFQN("[org/example/test_succeed_one_case] test succeed", "first scenario")]
+    testcaseName                        | tests                              | knownTestsList                                                                                       | assumption
+    "test-efd-known-test"               | [TestSucceedOneCaseKarate]         | [new TestFQN("[org/example/test_succeed_one_case] test succeed", "first scenario")]                 | true
     "test-efd-known-parameterized-test" | [TestParameterizedKarate]          | [
       new TestFQN("[org/example/test_parameterized] test parameterized", "first scenario as an outline")
-    ]
-    "test-efd-new-test"                 | [TestSucceedOneCaseKarate]         | []
-    "test-efd-new-parameterized-test"   | [TestParameterizedKarate]          | []
-    "test-efd-new-slow-test"            | [TestSucceedKarateSlow]            | [] // is executed only twice
-    "test-efd-faulty-session-threshold" | [TestParameterizedMoreCasesKarate] | []
-    "test-efd-skip-new-test"            | [TestSucceedKarateSkipEfd]         | []
+    ]                                                                                                                                                           | true
+    "test-efd-new-test"                 | [TestSucceedOneCaseKarate]         | []                                                                                                   | true
+    "test-efd-new-parameterized-test"   | [TestParameterizedKarate]          | []                                                                                                   | true
+    "test-efd-new-slow-test"            | [TestSucceedKarateSlow]            | []                                                                                                   | true // is executed only twice
+    "test-efd-faulty-session-threshold" | [TestParameterizedMoreCasesKarate] | []                                                                                                   | true
+    "test-efd-skip-new-test"            | [TestSucceedKarateSkipEfd]         | []                                                                                                   | true
+    "test-efd-setup"                    | [TestWithSetupKarate]              | []                                                                                                   | KarateUtils.isSetupTagSupported(KarateUtils.getKarateVersion())
+    "test-efd-called-feature"           | [TestSucceedCalledFeatureKarate]   | [new TestFQN("[org/example/test_called_feature] test called feature", "caller")]                   | true
   }
 
   def "test quarantined #testcaseName"() {
