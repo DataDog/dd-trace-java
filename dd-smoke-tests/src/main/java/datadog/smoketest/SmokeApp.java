@@ -1,5 +1,6 @@
 package datadog.smoketest;
 
+import static datadog.trace.agent.test.utils.PortUtils.waitForPortToOpen;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.smoketest.backend.TraceBackend;
@@ -215,7 +216,7 @@ public final class SmokeApp
     this.backend.start();
     launch();
     if (this.server) {
-      PortUtils.waitForPortToOpen(this.httpPort, this.startupTimeoutSeconds, SECONDS, this.process);
+      waitForPortToOpen(this.httpPort, this.startupTimeoutSeconds, SECONDS, this.process);
     } else if (!this.process.isAlive() && this.process.exitValue() != 0) {
       throw new IllegalStateException(
           "App '"
