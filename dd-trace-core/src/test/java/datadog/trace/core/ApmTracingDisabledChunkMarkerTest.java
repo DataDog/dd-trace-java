@@ -3,6 +3,7 @@ package datadog.trace.core;
 import static datadog.trace.api.DDTags.APM_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.common.writer.ListWriter;
@@ -158,6 +159,93 @@ class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
     assertTrue(
         rootSpanHasApmDisabledMarker(chunk),
         "marker must sit on the service-entry root span, not the first-finished child");
+  }
+
+  @Test
+  void rootlessMultiSpanChunkMarksOrphanRootNotInnerChild()
+      throws InterruptedException, TimeoutException {
+    // Exercises the fallback path in markChunkRoots: a multi-span chunk exported WITHOUT its local
+    // root (a partial flush / orphaned subtree). getRootSpan() still returns the already-written
+    // local root, so it is non-null but absent from this chunk -> the fast-path scan misses and the
+    // id-set + binarySearch(parentId) fallback runs. This is the only branch that allocates and
+    // sorts, and the only one that must mark by parent-presence rather than by identity.
+    DDSpan root = (DDSpan) tracer.buildSpan("test", "root").start();
+    DDSpan childA =
+        (DDSpan) tracer.buildSpan("test", "childA").asChildOf(root.spanContext()).start();
+    DDSpan grandchild =
+        (DDSpan) tracer.buildSpan("test", "grandchild").asChildOf(childA.spanContext()).start();
+
+    PendingTrace trace = (PendingTrace) root.spanContext().getTraceCollector();
+
+    // Flush the root on its own first (rootSpanWritten=true), so the descendants can only export in
+    // a later, root-less chunk.
+    root.finish();
+    trace.write();
+    writer.waitForTraces(1);
+    assertEquals(1, writer.get(0).size(), "expected the root to flush alone in the first chunk");
+
+    // Both descendants finish, then flush together in a single root-less chunk.
+    childA.finish();
+    grandchild.finish();
+    trace.write();
+    writer.waitForTraces(2);
+
+    List<DDSpan> chunk = writer.get(1);
+    assertEquals(2, chunk.size(), "expected childA and grandchild in one root-less chunk");
+    assertTrue(chunk.contains(childA) && chunk.contains(grandchild), "chunk must hold both spans");
+    assertTrue(!chunk.contains(root), "the local root must not be part of this chunk");
+
+    // childA tops the chunk (its parent, the local root, is absent) -> binarySearch(parentId) < 0
+    // -> marked.
+    assertEquals(
+        Integer.valueOf(0),
+        childA.getTag(APM_ENABLED),
+        "the orphan that tops the root-less chunk must carry the billing marker");
+    // grandchild's parent (childA) IS in the chunk -> binarySearch(parentId) >= 0 -> not an
+    // orphan-root, must be left unmarked. This is the skip branch no other test reaches.
+    assertNull(
+        grandchild.getTag(APM_ENABLED),
+        "an inner child whose parent is in the chunk must not be marked");
+
+    assertTrue(chunkHasApmDisabledMarker(chunk), "chunk must carry _dd.apm.enabled:0");
+    assertTrue(
+        rootSpanHasApmDisabledMarker(chunk), "marker must sit on the orphan that tops the chunk");
+  }
+
+  @Test
+  void rootlessMultiSpanChunkMarksEveryOrphanRoot() throws InterruptedException, TimeoutException {
+    // Same fallback path, but with two independent children of the (already-written) local root
+    // exported together. Both top the root-less chunk, so the fallback loop must mark BOTH -- this
+    // is the case that a single "mark one root and return" would get wrong.
+    DDSpan root = (DDSpan) tracer.buildSpan("test", "root").start();
+    DDSpan childA =
+        (DDSpan) tracer.buildSpan("test", "childA").asChildOf(root.spanContext()).start();
+    DDSpan childB =
+        (DDSpan) tracer.buildSpan("test", "childB").asChildOf(root.spanContext()).start();
+
+    PendingTrace trace = (PendingTrace) root.spanContext().getTraceCollector();
+
+    root.finish();
+    trace.write();
+    writer.waitForTraces(1);
+
+    childA.finish();
+    childB.finish();
+    trace.write();
+    writer.waitForTraces(2);
+
+    List<DDSpan> chunk = writer.get(1);
+    assertEquals(2, chunk.size(), "expected both sibling children in one root-less chunk");
+    assertTrue(chunk.contains(childA) && chunk.contains(childB), "chunk must hold both siblings");
+
+    // Both siblings' parent (the local root) is absent from the chunk, so both are orphan-roots and
+    // both must be marked.
+    assertEquals(
+        Integer.valueOf(0), childA.getTag(APM_ENABLED), "first orphan sibling must be marked");
+    assertEquals(
+        Integer.valueOf(0), childB.getTag(APM_ENABLED), "second orphan sibling must be marked");
+    assertTrue(
+        rootSpanHasApmDisabledMarker(chunk), "every root-most span of the chunk must be marked");
   }
 
   /**
