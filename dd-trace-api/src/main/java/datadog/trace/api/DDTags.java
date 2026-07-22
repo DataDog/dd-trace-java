@@ -33,13 +33,6 @@ public class DDTags {
   public static final String THREAD_ID = "thread.id";
   public static final String DB_STATEMENT = "sql.query";
   public static final String PATHWAY_HASH = "pathway.hash";
-  public static final String SCHEMA_DEFINITION = "schema.definition";
-  public static final String SCHEMA_WEIGHT = "schema.weight";
-  public static final String SCHEMA_TYPE = "schema.type";
-  public static final String SCHEMA_ID = "schema.id";
-  public static final String SCHEMA_TOPIC = "schema.topic";
-  public static final String SCHEMA_OPERATION = "schema.operation";
-  public static final String SCHEMA_NAME = "schema.name";
 
   public static final String HTTP_QUERY = "http.query.string";
   public static final String HTTP_FRAGMENT = "http.fragment.string";
