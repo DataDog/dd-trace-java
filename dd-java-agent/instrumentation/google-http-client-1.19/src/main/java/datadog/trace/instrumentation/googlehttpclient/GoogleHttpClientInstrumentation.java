@@ -118,10 +118,10 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
       if (throwable != null) {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
-      }
-      scope.close();
-      if (throwable != null) {
+        scope.close();
         span.finish();
+      } else {
+        scope.close();
       }
     }
   }
