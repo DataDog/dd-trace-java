@@ -57,6 +57,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
   private static final boolean JAVA_AT_LEAST_19 = JavaVirtualMachine.isJavaVersionAtLeast(19);
   private static final boolean JAVA_AT_LEAST_16 = JavaVirtualMachine.isJavaVersionAtLeast(16);
+  private static final boolean JAVA_AT_LEAST_25_0_4 =
+      JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4);
   private static final Method GET_RECORD_COMPONENTS_METHOD;
   private static final Method GET_ANNOTATED_TYPES_METHOD;
 
@@ -353,8 +355,9 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
     public static List<Class<?>> detectRecordWithTypeAnnotation(
         Consumer<String> reportError, List<Class<?>> changedClasses) {
-      if (!JAVA_AT_LEAST_16) {
+      if (!JAVA_AT_LEAST_16 || JAVA_AT_LEAST_25_0_4) {
         // records introduced in JDK 16 (final version)
+        // JDK-8376185 fixed since JDK 25.0.4
         return changedClasses;
       }
       List<Class<?>> result = new ArrayList<>();
