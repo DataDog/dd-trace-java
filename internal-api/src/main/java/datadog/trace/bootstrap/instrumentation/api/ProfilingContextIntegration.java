@@ -7,9 +7,6 @@ import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.*;
 
 public interface ProfilingContextIntegration extends Profiling, EndpointCheckpointer, Timer {
-  /** Native {@code OSThreadState::SLEEPING}; used for {@code Thread.sleep} intervals. */
-  int BLOCKING_STATE_SLEEPING = 7;
-
   /**
    * invoked when the profiler is started, implementations must not initialise JFR before this is
    * called.
@@ -54,16 +51,15 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
   /**
    * Starts a synchronous TaskBlock interval on the current platform thread.
    *
-   * @param state native blocking-state identifier
    * @return an opaque token for {@link #endTaskBlock(long, long, long)}, or {@code 0} when the
    *     interval was not accepted
    */
-  default long beginTaskBlock(int state) {
+  default long beginTaskBlock() {
     return 0L;
   }
 
   /**
-   * Completes a TaskBlock interval accepted by {@link #beginTaskBlock(int)}.
+   * Completes a TaskBlock interval accepted by {@link #beginTaskBlock()}.
    *
    * @param token nonzero token returned by {@code beginTaskBlock}
    * @param blocker identity hash of the blocking object, or {@code 0} when absent
