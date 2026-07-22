@@ -95,6 +95,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   private volatile Configuration currentConfiguration;
   private DebuggerTransformer currentTransformer;
   private final ProbeMetadata probeMetadata = new ProbeMetadata();
+  private final Config config;
   private final DebuggerSink sink;
   private final ClassesToRetransformFinder finder;
   private final String serviceName;
@@ -112,6 +113,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     this.instrumentation = instrumentation;
     this.transformerSupplier = transformerSupplier;
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
+    this.config = config;
     this.sink = sink;
     this.finder = finder;
   }
@@ -255,11 +257,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     // install new probe definitions
     DebuggerTransformer newTransformer =
         transformerSupplier.supply(
-            Config.get(),
-            newConfiguration,
-            this::recordInstrumentationProgress,
-            probeMetadata,
-            sink);
+            config, newConfiguration, this::recordInstrumentationProgress, probeMetadata, sink);
     instrumentation.addTransformer(newTransformer, true);
     currentTransformer = newTransformer;
     LOGGER.debug("New transformer installed with probes: {}", newConfiguration.getDefinitions());

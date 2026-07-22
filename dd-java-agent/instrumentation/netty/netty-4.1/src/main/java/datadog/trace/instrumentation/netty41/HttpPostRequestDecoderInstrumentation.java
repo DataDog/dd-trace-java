@@ -80,7 +80,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   static class ParseBodyAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.This InterfaceHttpPostRequestDecoder thiz,
         @Advice.FieldValue("currentStatus") Enum currentStatus,

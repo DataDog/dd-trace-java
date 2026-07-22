@@ -46,7 +46,7 @@ public class RequestExtractParametersInstrumentation extends InstrumenterModule.
       return CallDepthThreadLocalMap.incrementCallDepth(Request.class);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(@Advice.Enter final int depth) {
       if (depth > 0) {
         return;

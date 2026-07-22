@@ -90,7 +90,7 @@ public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.
       return true;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean skip, @Advice.Thrown(readOnly = false) Throwable thrown) {
       if (!skip) {

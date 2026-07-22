@@ -71,7 +71,7 @@ public class MessageHandlerInstrumentation
       return activateSpan(wsSpan);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
         @Advice.Enter final AgentScope scope,
         @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
