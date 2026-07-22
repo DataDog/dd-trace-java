@@ -2282,16 +2282,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       // set in the builder should come last, so that they override other tags.
       context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
       if (spanPrototype != SpanPrototype.NONE) {
-        // Seed the frozen constant tags through the interceptor. A cheaper bulk-share path that
-        // skips interception for non-intercepted tags is deferred to the dense-store / tag-registry
-        // work, which will expose intercept status at the internal-api level.
-        context.setAllTags(spanPrototype.tags());
-        // Apply the integration-name side effect BaseDecorator.afterStart performs alongside the
-        // component tag; IntegrationAdder serializes it as _dd.integration.
-        final CharSequence integrationName = spanPrototype.integrationName();
-        if (integrationName != null) {
-          context.setIntegrationName(integrationName);
-        }
+        // Seed the prototype's constant tags + integration name as fallback defaults (span type was
+        // already seeded onto the builder). apply never clobbers, so tags set below still win, and
+        // this is the same seam decorator afterStart uses.
+        context.apply(spanPrototype);
       }
       context.setAllTags(tagLedger);
       context.setAllTags(coreTags, coreTagsNeedsIntercept);
