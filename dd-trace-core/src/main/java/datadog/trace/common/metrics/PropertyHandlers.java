@@ -2,15 +2,11 @@ package datadog.trace.common.metrics;
 
 import datadog.trace.api.Config;
 import datadog.trace.core.monitor.HealthMetrics;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Bundles the nine per-field property cardinality handlers; owned by {@link ClientStatsAggregator}.
  */
 final class PropertyHandlers {
-
-  private static final Logger log = LoggerFactory.getLogger(PropertyHandlers.class);
 
   final PropertyCardinalityHandler resource;
   final PropertyCardinalityHandler service;
@@ -62,14 +58,12 @@ final class PropertyHandlers {
         };
   }
 
-  void reset(HealthMetrics healthMetrics) {
+  void reset(HealthMetrics healthMetrics, CardinalityLimitReporter reporter) {
     for (PropertyCardinalityHandler h : handlers) {
       long numBlocked = h.reset();
       if (numBlocked > 0) {
-        log.warn(
-            "Cardinality limit reached for stats field '{}'; further values will be reported as tracer_blocked_value",
-            h.name);
         healthMetrics.onTagCardinalityBlocked(h.statsDTag(), numBlocked);
+        reporter.record(h.name, numBlocked);
       }
     }
   }

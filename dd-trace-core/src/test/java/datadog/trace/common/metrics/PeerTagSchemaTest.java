@@ -107,12 +107,12 @@ class PeerTagSchemaTest {
           }
         };
 
-    schema.resetHandlers(hm);
+    schema.resetHandlers(hm, new CardinalityLimitReporter());
     assertEquals(2, recorded[0]);
 
     // After the reset, no new values were registered so the next reset reports nothing.
     recorded[0] = 0;
-    schema.resetHandlers(hm);
+    schema.resetHandlers(hm, new CardinalityLimitReporter());
     assertEquals(0, recorded[0]);
   }
 }

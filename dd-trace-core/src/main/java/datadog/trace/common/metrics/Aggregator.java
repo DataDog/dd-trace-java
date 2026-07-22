@@ -82,8 +82,8 @@ final class Aggregator implements Runnable {
     this.onReportCycle = onReportCycle;
   }
 
-  void resetPropertyHandlers(HealthMetrics healthMetrics) {
-    aggregates.resetHandlers(healthMetrics);
+  void resetPropertyHandlers(HealthMetrics healthMetrics, CardinalityLimitReporter reporter) {
+    aggregates.resetHandlers(healthMetrics, reporter);
   }
 
   @Override

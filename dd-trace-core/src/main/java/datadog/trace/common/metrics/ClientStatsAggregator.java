@@ -84,6 +84,9 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final TimeUnit reportingIntervalTimeUnit;
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
+  // Aggregates per-cycle cardinality-block counts by tag name into a single rate-limited warn,
+  // instead of warning per field on every reporting cycle. Aggregator-thread confined.
+  private final CardinalityLimitReporter cardinalityLimitReporter = new CardinalityLimitReporter();
   private final AdditionalTagsSchema additionalTagsSchema;
   private final boolean includeEndpointInMetrics;
   private final boolean otlpStatsExportEnabled;
@@ -545,13 +548,14 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    */
   private void resetCardinalityHandlers() {
     reconcilePeerTagSchema();
-    aggregator.resetPropertyHandlers(healthMetrics);
-    PeerTagSchema.INTERNAL.resetHandlers(healthMetrics);
+    aggregator.resetPropertyHandlers(healthMetrics, cardinalityLimitReporter);
+    PeerTagSchema.INTERNAL.resetHandlers(healthMetrics, cardinalityLimitReporter);
     PeerTagSchema schema = cachedPeerTagSchema;
     if (schema != null) {
-      schema.resetHandlers(healthMetrics);
+      schema.resetHandlers(healthMetrics, cardinalityLimitReporter);
     }
-    additionalTagsSchema.resetHandlers(healthMetrics);
+    additionalTagsSchema.resetHandlers(healthMetrics, cardinalityLimitReporter);
+    cardinalityLimitReporter.reportIfDue();
   }
 
   /**
@@ -580,8 +584,11 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       cached.state = latestState;
     } else {
       // Tags actually changed: flush the outgoing schema's accumulated block telemetry before
-      // discarding it, otherwise the partial-cycle blockedCounts would silently disappear.
-      cached.resetHandlers(healthMetrics);
+      // discarding it, otherwise the partial-cycle blockedCounts would silently disappear. Flushing
+      // into the reporter by tag name is also what carries block counts across the rebuild -- a
+      // surviving tag's new handler resumes adding to the same reporter entry, so no per-tag
+      // transfer or handler reuse is needed.
+      cached.resetHandlers(healthMetrics, cardinalityLimitReporter);
       cachedPeerTagSchema = PeerTagSchema.of(normalized, latestState);
     }
   }

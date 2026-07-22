@@ -7,8 +7,6 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Parallel arrays of peer-tag names and their {@link TagCardinalityHandler}s, using matching
@@ -31,7 +29,9 @@ import org.slf4j.LoggerFactory;
  * </ul>
  *
  * <p>Cardinality blocks are counted inside each {@link TagCardinalityHandler} and flushed once per
- * cycle (with a warn log) via {@code ClientStatsAggregator#resetCardinalityHandlers}.
+ * cycle via {@code ClientStatsAggregator#resetCardinalityHandlers} -- to {@link HealthMetrics} as a
+ * per-cycle count and to the shared {@link CardinalityLimitReporter}, which aggregates by tag name
+ * and emits a rate-limited warn summary.
  *
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
@@ -42,8 +42,6 @@ import org.slf4j.LoggerFactory;
  * cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
  */
 final class PeerTagSchema {
-
-  private static final Logger log = LoggerFactory.getLogger(PeerTagSchema.class);
 
   /**
    * Sentinel {@link #state} for schemas that are never reconciled against feature discovery: the
@@ -115,19 +113,18 @@ final class PeerTagSchema {
   }
 
   /**
-   * Resets every {@link TagCardinalityHandler}'s working set, flushes accumulated per-tag block
-   * counts to {@link HealthMetrics}, and emits a warn log for each tag that hit its limit this
-   * cycle. Must be called on the aggregator thread; handlers are not thread-safe.
+   * Resets every {@link TagCardinalityHandler}'s working set and flushes this cycle's per-tag block
+   * counts to both {@link HealthMetrics} (as a per-cycle count) and {@code reporter} (accumulated
+   * by tag name for the rate-limited summary). Flushing by name here is what lets a peer-tag schema
+   * rebuild discard these handlers without losing counts. Must be called on the aggregator thread;
+   * handlers are not thread-safe.
    */
-  void resetHandlers(HealthMetrics healthMetrics) {
+  void resetHandlers(HealthMetrics healthMetrics, CardinalityLimitReporter reporter) {
     for (int i = 0; i < handlers.length; i++) {
       long numBlocked = handlers[i].reset();
       if (numBlocked > 0) {
-        log.warn(
-            "Cardinality limit reached for peer tag '{}'; further values are reported as"
-                + " 'tracer_blocked_value' until the next reporting cycle",
-            names[i]);
         healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), numBlocked);
+        reporter.record(names[i], numBlocked);
       }
     }
   }

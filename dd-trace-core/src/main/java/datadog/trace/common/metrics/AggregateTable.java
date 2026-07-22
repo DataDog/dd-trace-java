@@ -52,8 +52,8 @@ final class AggregateTable {
     this.canonical = new AggregateEntry.Canonical(additionalTagsSchema, handlers);
   }
 
-  void resetHandlers(HealthMetrics healthMetrics) {
-    canonical.handlers.reset(healthMetrics);
+  void resetHandlers(HealthMetrics healthMetrics, CardinalityLimitReporter reporter) {
+    canonical.handlers.reset(healthMetrics, reporter);
   }
 
   int size() {

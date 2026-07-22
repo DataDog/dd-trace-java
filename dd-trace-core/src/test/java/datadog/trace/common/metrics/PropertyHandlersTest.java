@@ -22,7 +22,7 @@ class PropertyHandlersTest {
     handlers.spanKind.register("overflow-2");
 
     HealthMetrics metrics = mock(HealthMetrics.class);
-    handlers.reset(metrics);
+    handlers.reset(metrics, new CardinalityLimitReporter());
 
     verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:span_kind"}, 2L);
     verifyNoMoreInteractions(metrics);
@@ -42,7 +42,7 @@ class PropertyHandlersTest {
     exhaustAndBlock(handlers.grpcStatusCode, MetricCardinalityLimits.GRPC_STATUS_CODE);
 
     HealthMetrics metrics = mock(HealthMetrics.class);
-    handlers.reset(metrics);
+    handlers.reset(metrics, new CardinalityLimitReporter());
 
     verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:resource"}, 1L);
     verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:service"}, 1L);
@@ -64,7 +64,7 @@ class PropertyHandlersTest {
     }
     assertEquals("tracer_blocked_value", handlers.spanKind.register("overflow").toString());
 
-    handlers.reset(HealthMetrics.NO_OP);
+    handlers.reset(HealthMetrics.NO_OP, new CardinalityLimitReporter());
 
     // Overflow value should now be accepted as a real value.
     assertNotEquals("tracer_blocked_value", handlers.spanKind.register("overflow").toString());
@@ -78,7 +78,7 @@ class PropertyHandlersTest {
     handlers.service.register("svc");
 
     HealthMetrics metrics = mock(HealthMetrics.class);
-    handlers.reset(metrics);
+    handlers.reset(metrics, new CardinalityLimitReporter());
 
     verifyNoMoreInteractions(metrics);
   }

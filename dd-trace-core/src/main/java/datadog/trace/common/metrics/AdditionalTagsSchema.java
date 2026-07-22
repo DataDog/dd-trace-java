@@ -94,14 +94,12 @@ final class AdditionalTagsSchema {
     return handlers[i].register(value);
   }
 
-  void resetHandlers(HealthMetrics healthMetrics) {
+  void resetHandlers(HealthMetrics healthMetrics, CardinalityLimitReporter reporter) {
     for (int i = 0; i < handlers.length; i++) {
       long numBlocked = handlers[i].reset();
       if (numBlocked > 0) {
-        log.warn(
-            "Cardinality limit reached for additional metric tag '{}'; further values will be reported as tracer_blocked_value",
-            names[i]);
         healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), numBlocked);
+        reporter.record(names[i], numBlocked);
       }
     }
   }

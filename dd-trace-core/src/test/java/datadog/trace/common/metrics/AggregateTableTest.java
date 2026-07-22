@@ -328,7 +328,7 @@ class AggregateTableTest {
     assertSame(blocked, blocked2);
 
     HealthMetrics metrics = mock(HealthMetrics.class);
-    table.resetHandlers(metrics);
+    table.resetHandlers(metrics, new CardinalityLimitReporter());
 
     verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:service"}, 2L);
     verifyNoMoreInteractions(metrics);
