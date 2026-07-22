@@ -108,7 +108,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       parentScope = parentContext.attach();
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
       if (parentScope != null) parentScope.close();
     }
@@ -184,7 +184,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       return false;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(
         @Advice.Local("contextScope") final ContextScope scope,
         @Advice.Argument(value = 0) ServletRequest req) {

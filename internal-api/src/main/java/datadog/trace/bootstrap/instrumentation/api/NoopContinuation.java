@@ -4,8 +4,8 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 
 @SuppressWarnings("deprecation")
-final class NoopContinuation implements AgentScope.Continuation {
-  static final NoopContinuation INSTANCE = new NoopContinuation();
+public final class NoopContinuation implements AgentScope.Continuation {
+  public static final NoopContinuation INSTANCE = new NoopContinuation();
 
   private NoopContinuation() {}
 
@@ -21,7 +21,7 @@ final class NoopContinuation implements AgentScope.Continuation {
 
   @Override
   public Context context() {
-    return NoopSpan.INSTANCE;
+    return Context.root();
   }
 
   @Override
@@ -30,11 +30,6 @@ final class NoopContinuation implements AgentScope.Continuation {
   @Override
   public AgentScope activate() {
     return NoopScope.INSTANCE;
-  }
-
-  @Override
-  public AgentSpan span() {
-    return NoopSpan.INSTANCE;
   }
 
   @Override

@@ -64,7 +64,7 @@ public class SirdPathExtractorInstrumentation extends InstrumenterModule.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   static class ExtractAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return scala.Option<scala.collection.immutable.List<String>> ret,
         @ActiveRequestContext RequestContext reqCtx,
