@@ -134,17 +134,6 @@ public final class HashingUtils {
     return addToHash(hash, Double.hashCode(value));
   }
 
-  public static final int addToHash(int hash, Object[] arr, int len) {
-    for (int i = 0; i < len; i++) {
-      hash = addToHash(hash, arr[i]);
-    }
-    return hash;
-  }
-
-  public static final int addToHash(int hash, Object[] arr) {
-    return addToHash(hash, arr, arr.length);
-  }
-
   public static final int hash(Iterable<?> objs) {
     int result = 0;
     for (Object obj : objs) {
