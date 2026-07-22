@@ -4,17 +4,24 @@ import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.Context;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.LastHttpContent;
 import org.junit.jupiter.api.Test;
 
 class HttpServerResponseTracingHandlerTest extends AbstractInstrumentationTest {
@@ -33,5 +40,36 @@ class HttpServerResponseTracingHandlerTest extends AbstractInstrumentationTest {
     assertNull(channel.attr(CONTEXT_ATTRIBUTE_KEY).get());
     channel.finishAndReleaseAll();
     assertTraces(trace(span().root().operationName("mirrored-http2-server")));
+  }
+
+  @Test
+  void forwardsLastContentBeforeFinalResponseWhenItWasNotSyntheticTerminator() {
+    EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
+    ServerRequestContext.add(channel, Context.root(), null);
+    LastHttpContent lastContent = new DefaultLastHttpContent();
+
+    assertTrue(channel.writeOutbound(lastContent));
+
+    LastHttpContent forwarded = channel.readOutbound();
+    assertSame(lastContent, forwarded);
+    forwarded.release();
+    channel.finishAndReleaseAll();
+  }
+
+  @Test
+  void doesNotThrowOnMalformedContentLength() {
+    EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
+    AgentSpan span = startSpan("netty", "malformed-content-length-server");
+    ServerRequestContext.add(channel, span, null);
+    FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK);
+    response.headers().set(CONTENT_LENGTH, "malformed");
+
+    assertDoesNotThrow(() -> assertTrue(channel.writeOutbound(response)));
+
+    FullHttpResponse forwarded = channel.readOutbound();
+    assertSame(response, forwarded);
+    forwarded.release();
+    channel.finishAndReleaseAll();
+    assertTraces(trace(span().root().operationName("malformed-content-length-server")));
   }
 }

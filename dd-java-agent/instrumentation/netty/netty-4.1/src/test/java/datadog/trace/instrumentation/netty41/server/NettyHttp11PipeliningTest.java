@@ -4,7 +4,13 @@ import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceAssertions.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
+import static io.netty.handler.codec.http.HttpHeaderNames.TRANSFER_ENCODING;
+import static io.netty.handler.codec.http.HttpHeaderValues.CHUNKED;
+import static io.netty.handler.codec.http.HttpHeaderValues.KEEP_ALIVE;
+import static io.netty.handler.codec.http.HttpResponseStatus.CONTINUE;
+import static io.netty.handler.codec.http.HttpResponseStatus.NO_CONTENT;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 import static java.nio.charset.StandardCharsets.US_ASCII;
@@ -38,8 +44,12 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.DefaultHttpContent;
+import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.util.ReferenceCountUtil;
 import java.io.ByteArrayOutputStream;
@@ -65,6 +75,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
   private static final String FIRST_PATH = "/pipelined/first";
   private static final String SECOND_PATH = "/pipelined/second";
   private static final String THIRD_PATH = "/pipelined/third";
+  private static final HttpResponseStatus EARLY_HINTS = new HttpResponseStatus(103, "Early Hints");
 
   private EventLoopGroup eventLoopGroup;
   private PipeliningHandler handler;
@@ -164,6 +175,143 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
   }
 
   @Test
+  void requestBlockOnLaterPipelinedRequestWaitsForEarlierChunkedResponseCompletion()
+      throws Exception {
+    handler.expectRequests(1);
+
+    try (Socket socket = new Socket("localhost", port)) {
+      socket.setSoTimeout(5000);
+      socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(handler.awaitAllRequestsReceived(), "server did not receive first request");
+
+      CountDownLatch blockedRequestSeen = enableAppSecRequestBlockingFor(SECOND_PATH);
+      socket.getOutputStream().write(request(SECOND_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(
+          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+
+      handler.writeChunkedResponse();
+
+      assertEquals("response " + FIRST_PATH, readHttpChunkedResponseBody(socket.getInputStream()));
+      assertTrue(
+          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          "second response should be the deferred blocking response");
+    }
+  }
+
+  @Test
+  void requestBlockOnLaterPipelinedRequestFollowsEarlierHeaderOnlyResponse() throws Exception {
+    handler.expectRequests(1);
+
+    try (Socket socket = new Socket("localhost", port)) {
+      socket.setSoTimeout(5000);
+      socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(handler.awaitAllRequestsReceived(), "server did not receive first request");
+
+      CountDownLatch blockedRequestSeen = enableAppSecRequestBlockingFor(SECOND_PATH);
+      socket.getOutputStream().write(request(SECOND_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(
+          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+
+      handler.writeHeaderOnlyResponse();
+
+      assertTrue(
+          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 204 "),
+          "first response should be the header-only response");
+      assertTrue(
+          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          "second response should be the deferred blocking response");
+    }
+  }
+
+  @Test
+  void requestBlockOnLaterPipelinedRequestFollowsEarlierHeadResponse() throws Exception {
+    handler.expectRequests(1);
+
+    try (Socket socket = new Socket("localhost", port)) {
+      socket.setSoTimeout(5000);
+      socket.getOutputStream().write(headRequest(FIRST_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(handler.awaitAllRequestsReceived(), "server did not receive first request");
+
+      CountDownLatch blockedRequestSeen = enableAppSecRequestBlockingFor(SECOND_PATH);
+      socket.getOutputStream().write(request(SECOND_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(
+          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+
+      handler.writeHeadResponse();
+
+      assertTrue(
+          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 200 "),
+          "first response should be the HEAD response");
+      assertTrue(
+          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          "second response should be the deferred blocking response");
+    }
+  }
+
+  @Test
+  void lastContentAfterInterimResponseDoesNotCompleteServerSpan() throws Exception {
+    handler.expectRequests(1);
+
+    try (Socket socket = new Socket("localhost", port)) {
+      socket.setSoTimeout(5000);
+      socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(handler.awaitAllRequestsReceived(), "server did not receive first request");
+
+      handler.writeInterimResponseWithTerminatorThenResponse();
+
+      assertTrue(
+          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 100 "),
+          "first response should be the interim response");
+      assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
+    }
+  }
+
+  @Test
+  void requestBlockOnLaterPipelinedRequestWaitsForEarlierEarlyHintsResponseCompletion()
+      throws Exception {
+    handler.expectRequests(1);
+
+    try (Socket socket = new Socket("localhost", port)) {
+      socket.setSoTimeout(5000);
+      socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(handler.awaitAllRequestsReceived(), "server did not receive first request");
+
+      CountDownLatch blockedRequestSeen = enableAppSecRequestBlockingFor(SECOND_PATH);
+      socket.getOutputStream().write(request(SECOND_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(
+          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+
+      handler.writeEarlyHintsWithTerminatorThenResponse();
+
+      assertTrue(
+          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 103 "),
+          "first response should be the early hints response");
+      assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
+      assertTrue(
+          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          "second response should be the deferred blocking response");
+    }
+  }
+
+  @Test
   void blockResponseFunctionOnLaterPipelinedRequestDoesNotOvertakeEarlierResponse()
       throws Exception {
     enableAppSec();
@@ -206,6 +354,10 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
 
   private static String request(String path) {
     return "GET " + path + " HTTP/1.1\r\nHost: localhost\r\n\r\n";
+  }
+
+  private static String headRequest(String path) {
+    return "HEAD " + path + " HTTP/1.1\r\nHost: localhost\r\n\r\n";
   }
 
   private CountDownLatch enableAppSecRequestBlockingFor(String blockedPath) {
@@ -276,6 +428,36 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
     return new String(body, UTF_8);
   }
 
+  private static String readHttpChunkedResponseBody(InputStream in) throws IOException {
+    String headers = readHttpResponseHeaders(in);
+    assertTrue(headers.startsWith("HTTP/1.1 200 "), "unexpected response: " + headers);
+
+    ByteArrayOutputStream body = new ByteArrayOutputStream();
+    while (true) {
+      String chunkSizeLine = readHttpLine(in);
+      int chunkSize = Integer.parseInt(chunkSizeLine, 16);
+      if (chunkSize == 0) {
+        String trailer;
+        do {
+          trailer = readHttpLine(in);
+        } while (!trailer.isEmpty());
+        return body.toString(UTF_8.name());
+      }
+      byte[] chunk = new byte[chunkSize];
+      int read = 0;
+      while (read < chunkSize) {
+        int count = in.read(chunk, read, chunkSize - read);
+        if (count == -1) {
+          throw new EOFException("response ended before chunk was complete");
+        }
+        read += count;
+      }
+      body.write(chunk);
+      String chunkTerminator = readHttpLine(in);
+      assertEquals("", chunkTerminator, "chunk was not followed by CRLF");
+    }
+  }
+
   private static String readHttpResponseHeaders(InputStream in) throws IOException {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     int state = 0;
@@ -294,6 +476,23 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
       }
     }
     return out.toString(US_ASCII.name());
+  }
+
+  private static String readHttpLine(InputStream in) throws IOException {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    int previous = -1;
+    while (true) {
+      int current = in.read();
+      if (current == -1) {
+        throw new EOFException("response ended before line was complete");
+      }
+      if (previous == '\r' && current == '\n') {
+        byte[] line = out.toByteArray();
+        return new String(line, 0, line.length - 1, US_ASCII);
+      }
+      out.write(current);
+      previous = current;
+    }
   }
 
   private static int contentLength(String headers) {
@@ -394,6 +593,120 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
                   response.headers().set(CONTENT_LENGTH, body.length);
                   responseContext.write(response);
                 }
+                responseContext.flush();
+              });
+    }
+
+    private void writeChunkedResponse() {
+      ChannelHandlerContext responseContext = context;
+      if (responseContext == null) {
+        throw new IllegalStateException("no request context captured");
+      }
+      String path;
+      synchronized (paths) {
+        path = paths.get(0);
+      }
+      responseContext
+          .executor()
+          .execute(
+              () -> {
+                byte[] body = ("response " + path).getBytes(UTF_8);
+                DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+                response.headers().set(TRANSFER_ENCODING, CHUNKED);
+                responseContext.write(response);
+                responseContext.write(new DefaultHttpContent(Unpooled.wrappedBuffer(body)));
+                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
+                responseContext.flush();
+              });
+    }
+
+    private void writeHeaderOnlyResponse() {
+      ChannelHandlerContext responseContext = context;
+      if (responseContext == null) {
+        throw new IllegalStateException("no request context captured");
+      }
+      responseContext
+          .executor()
+          .execute(
+              () -> {
+                DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, NO_CONTENT);
+                response.headers().set(CONNECTION, KEEP_ALIVE);
+                responseContext.write(response);
+                responseContext.flush();
+              });
+    }
+
+    private void writeHeadResponse() {
+      ChannelHandlerContext responseContext = context;
+      if (responseContext == null) {
+        throw new IllegalStateException("no request context captured");
+      }
+      String path;
+      synchronized (paths) {
+        path = paths.get(0);
+      }
+      responseContext
+          .executor()
+          .execute(
+              () -> {
+                byte[] body = ("response " + path).getBytes(UTF_8);
+                DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+                response.headers().set(CONTENT_LENGTH, body.length);
+                responseContext.write(response);
+                responseContext.flush();
+              });
+    }
+
+    private void writeInterimResponseWithTerminatorThenResponse() {
+      ChannelHandlerContext responseContext = context;
+      if (responseContext == null) {
+        throw new IllegalStateException("no request context captured");
+      }
+      String path;
+      synchronized (paths) {
+        path = paths.get(0);
+      }
+      responseContext
+          .executor()
+          .execute(
+              () -> {
+                responseContext.write(new DefaultHttpResponse(HTTP_1_1, CONTINUE));
+                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
+
+                byte[] body = ("response " + path).getBytes(UTF_8);
+                DefaultFullHttpResponse response =
+                    new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
+                response.headers().set(CONTENT_LENGTH, body.length);
+                responseContext.write(response);
+                responseContext.flush();
+              });
+    }
+
+    private void writeEarlyHintsWithTerminatorThenResponse() {
+      writeInformationalResponseWithTerminatorThenResponse(EARLY_HINTS);
+    }
+
+    private void writeInformationalResponseWithTerminatorThenResponse(HttpResponseStatus status) {
+      ChannelHandlerContext responseContext = context;
+      if (responseContext == null) {
+        throw new IllegalStateException("no request context captured");
+      }
+      String path;
+      synchronized (paths) {
+        path = paths.get(0);
+      }
+      responseContext
+          .executor()
+          .execute(
+              () -> {
+                responseContext.write(new DefaultHttpResponse(HTTP_1_1, status));
+                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
+
+                byte[] body = ("response " + path).getBytes(UTF_8);
+                DefaultFullHttpResponse response =
+                    new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
+                response.headers().set(CONTENT_LENGTH, body.length);
+                responseContext.write(response);
                 responseContext.flush();
               });
     }
