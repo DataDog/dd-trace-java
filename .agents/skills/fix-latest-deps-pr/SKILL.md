@@ -52,6 +52,14 @@ what to set up rather than working around it.
   untruncated job logs from the `/trace` endpoint and download `reports.tar` artifacts
   when the ddci summary/logs are insufficient. If unavailable, fall back to ddci
   `getJobLogs` pagination.
+- **Module-specific credentials — conditional.** Some optional instrumentations are
+  excluded from the Gradle build unless a property is set, so their project path is
+  unresolvable in Phase 3 without it. Notably `akka-http-10.6`
+  (`:dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6`) is omitted from
+  `settings.gradle.kts` when `akkaRepositoryToken` is blank — export
+  `ORG_GRADLE_PROJECT_akkaRepositoryToken` (as the weekly workflow does) before
+  reproducing or verifying a fix for that module. If a failed module is missing/omitted
+  from the build, check for a required token before assuming the mapping is wrong.
 
 ---
 
@@ -74,7 +82,7 @@ what to set up rather than working around it.
    directly into every command that needs it. Phase 3 needs this SHA to retrieve the
    *broken* lockfiles after Phase 2 has rolled them back.
 
-4. **Ensure the branch is checked out.**
+4. **Ensure the branch is checked out at the PR head.**
    ```bash
    git rev-parse --abbrev-ref HEAD
    ```
@@ -84,6 +92,20 @@ what to set up rather than working around it.
    gh pr checkout <PR>
    ```
    If they say no, stop — the skill needs the branch checked out to proceed.
+
+   Branch name alone is not enough: a local branch with the PR's name can be stale or
+   behind `headRefOid`. After the branch is checked out, verify `HEAD` matches the
+   captured PR head SHA:
+   ```bash
+   git rev-parse HEAD   # must equal ORIG_PR_HEAD
+   ```
+   If it does not match, sync to the exact PR head before continuing (with the user's
+   agreement, since this moves their branch):
+   ```bash
+   git fetch origin && git reset --hard <ORIG_PR_HEAD-sha>
+   ```
+   Do not triage or commit until `HEAD` equals the PR head — otherwise Phase 2 builds
+   rollback commits on the wrong tree and the push is rejected or reverts stale content.
 
 5. **Require a clean worktree.** This skill rewrites `gradle.lockfile`s in place, so any
    uncommitted local work could be silently discarded. Check first:
@@ -120,21 +142,42 @@ what to set up rather than working around it.
      ```
      Execution failed for task ':dd-java-agent:instrumentation:openai-java:openai-java-3.0:latestDepTest'.
      ```
-   - **Collect only** Gradle task paths whose final segment is a `latestDep` test task
-     — i.e. matches `:latestDepTest`, `:latestDepForkedTest`, or any
-     `:latestDep*Test` variant. **Ignore** everything else (`:test`, `:forkedTest`,
-     muzzle, infra, etc.).
-   - A single job can contain multiple failing latestDep tasks — collect them **all**,
-     across all failed jobs. Dedupe.
+   - **Collect only** Gradle task paths belonging to a module's **latest-dep** work.
+     A break can surface as either a test-execution failure or a *compile/resolution*
+     failure of the latest-dep source set (which fails before the test task runs), so
+     match any final segment that is:
+     - a latest-dep **test** task — `:latestDepTest`, `:latestDepForkedTest`, or any
+       `:latestDep*Test` variant; **or**
+     - a latest-dep **build** task — `:compileLatestDepTestJava`,
+       `:compileLatestDepTestGroovy`, or any `:*LatestDepTest*`/`:compileLatestDep*`
+       source-set task.
+
+     **Ignore** everything else (`:test`, `:forkedTest`, `:compileTestJava`, muzzle,
+     infra, etc.).
+   - **Record the exact failing task name(s)** for each module — do not assume it is
+     `latestDepTest`. Phase 3 reuses the real task name(s) to verify the fix (some
+     modules define only `latestDepForkedTest`).
+   - A single job can contain multiple failing latest-dep tasks — collect them **all**,
+     across all failed jobs. Dedupe by module.
 
 4. **Map each Gradle task path → module dir → lockfile.** Strip the trailing
    `:<taskName>`, then convert `:` to `/`:
    - `:dd-java-agent:instrumentation:openai-java:openai-java-3.0:latestDepTest`
      → module `dd-java-agent/instrumentation/openai-java/openai-java-3.0`
      → lockfile `dd-java-agent/instrumentation/openai-java/openai-java-3.0/gradle.lockfile`
-   - Verify the lockfile exists. If the path mapping fails (rare mismatch between
-     Gradle project path and directory), locate it by the leaf module name:
-     `find . -path '*<leaf>/gradle.lockfile'`.
+   - Verify the derived lockfile path exists; if it does, use it directly — do not search.
+   - Only if the derived path does **not** exist (rare Gradle-path/directory mismatch),
+     resolve the directory authoritatively from the Gradle project path rather than
+     guessing by name:
+     ```bash
+     ./gradlew -q :<project-path>:properties | grep '^projectDir:'
+     ```
+     then use `<projectDir>/gradle.lockfile`.
+   - Do **not** fall back to a bare leaf-name search: leaf names are not unique (e.g.
+     `grpc-1.5` exists under both `dd-java-agent/instrumentation/` and `dd-smoke-tests/`),
+     so a search can roll back the wrong module's lockfile. If you must search, it has to
+     resolve to **exactly one** lockfile; on zero or multiple matches, stop and ask the
+     user for the fully-qualified module path.
 
 5. **Report the triage** to the user: the list of failed latestDep modules, each with
    its Gradle path and lockfile, before making any change.
@@ -146,15 +189,29 @@ what to set up rather than working around it.
 For **each** failed module, create **one commit** rolling its lockfile back to the
 pre-update state. Do **not** push between commits.
 
-1. Determine the pre-update baseline (the lockfile as it was before the update commit):
+1. Determine the pre-update baseline (the lockfile as it was before the update commit)
+   and restore that module's lockfile to it:
    ```bash
    BASE=$(git merge-base HEAD origin/master)
-   git checkout "$BASE" -- <module>/gradle.lockfile
+   ```
+   - **If the lockfile existed at `BASE`** (the common case — an update), restore it:
+     ```bash
+     git checkout "$BASE" -- <module>/gradle.lockfile
+     ```
+   - **If the lockfile did NOT exist at `BASE`** (the update workflow *created* a
+     brand-new lockfile for this module), there is nothing to check out — rolling back
+     means **deleting** it:
+     ```bash
+     git rm <module>/gradle.lockfile
+     ```
+   Detect which case applies with:
+   ```bash
+   git cat-file -e "$BASE:<module>/gradle.lockfile" 2>/dev/null && echo existed || echo new
    ```
 
-2. Commit that single module's lockfile:
+2. Commit that single module's change (a reverted or a removed lockfile):
    ```bash
-   git add <module>/gradle.lockfile
+   git add <module>/gradle.lockfile   # 'git rm' already stages a deletion
    git commit -m "temporary fix: rolled back conflicting dependencies to unblock PR merging
 
    Module: <gradle-task-path-without-task>"
@@ -205,16 +262,25 @@ For each module:
    with the new dependency version. Match surrounding code style; follow repo test
    conventions.
 
-5. **Verify locally — the fix must make latestDep green WITHOUT breaking the base
-   test set.** `latestDepTest` is a separate source/test set from `test`, so run both,
-   plus every other test task the module defines:
+5. **Verify locally — the fix must make the latest-dep suite green WITHOUT breaking the
+   base test set.** The latest-dep suite is a separate source/test set from `test`.
+   First discover what the module actually defines — do not assume `latestDepTest`
+   exists (some modules define only `latestDepForkedTest`):
    ```bash
-   ./gradlew :<gradle-path>:latestDepTest
+   ./gradlew :<gradle-path>:tasks --group=verification
+   ```
+   Then run, and require all to pass:
+   - the **exact failing task(s) you recorded in triage** for this module (e.g.
+     `:<gradle-path>:latestDepForkedTest`) — this is the suite that was red;
+   - the base `:<gradle-path>:test` (and its forked variant if defined), to prove the
+     fix does not regress the base set;
+   - any other verification tasks the module defines.
+
+   ```bash
+   ./gradlew :<gradle-path>:<recorded-latestDep-task>
    ./gradlew :<gradle-path>:test
    ```
-   Also run any other test tasks the module has (e.g. `forkedTest`, `latestDepForkedTest`).
-   List the module's tasks with `./gradlew :<gradle-path>:tasks --group=verification`
-   and run all relevant ones. Every one must pass. Do not proceed while anything is red.
+   Do not proceed while anything is red.
 
 6. **Only when everything is green**, commit, push the branch, and open a **draft** PR
    off `master`.
