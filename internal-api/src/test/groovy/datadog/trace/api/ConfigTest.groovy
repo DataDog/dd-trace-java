@@ -2253,7 +2253,7 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
-    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_LOGS_INJECTION", "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED"].toSet()
+    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_LOGS_INJECTION", "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED", "DD_TRACE_STATS_ADDITIONAL_TAGS"].toSet()
   }
 
   def "detect if agent is configured using default values"() {
