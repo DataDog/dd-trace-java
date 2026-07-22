@@ -65,7 +65,8 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
             .addAfter(
                 ctx.name(),
                 "blocking_handler",
-                new BlockingResponseHandler(span.getRequestContext().getTraceSegment(), rba));
+                new BlockingResponseHandler(
+                    span.getRequestContext().getTraceSegment(), rba, serverContext));
       }
 
       try {

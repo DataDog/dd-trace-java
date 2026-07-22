@@ -39,7 +39,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
 
     if (ServerRequestContext.isResponseBlocked(channel)) {
       // block further writes while the blocking response close is still asynchronous
-      log.debug("Write suppressed, msg {} dropped", msg);
+      log.debug("Write suppressed; dropped outbound message");
       ReferenceCountUtil.release(msg);
       return;
     }
