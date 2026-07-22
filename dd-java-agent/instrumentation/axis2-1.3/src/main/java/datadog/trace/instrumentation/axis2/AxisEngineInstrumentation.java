@@ -12,6 +12,8 @@ import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -84,10 +86,10 @@ public final class AxisEngineInstrumentation
     public static AgentScope beginResumingMessage(
         @Advice.Argument(0) final MessageContext message) {
       Object continuation = message.getSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY);
-      if (null != continuation) {
+      if (continuation instanceof ContextContinuation) {
         message.removeSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY);
         // resuming is a distinct operation, so create a new span under the original request
-        try (AgentScope parentScope = ((AgentScope.Continuation) continuation).activate()) {
+        try (ContextScope parentScope = ((ContextContinuation) continuation).resume()) {
           AgentSpan span = startSpan("axis2", AXIS2_MESSAGE);
           DECORATE.afterStart(span);
           DECORATE.onMessage(span, message);

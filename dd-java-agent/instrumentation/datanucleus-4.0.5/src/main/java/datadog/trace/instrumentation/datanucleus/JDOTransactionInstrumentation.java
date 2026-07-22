@@ -51,8 +51,8 @@ public class JDOTransactionInstrumentation
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
 
-      span.finish();
       scope.close();
+      span.finish();
     }
   }
 }

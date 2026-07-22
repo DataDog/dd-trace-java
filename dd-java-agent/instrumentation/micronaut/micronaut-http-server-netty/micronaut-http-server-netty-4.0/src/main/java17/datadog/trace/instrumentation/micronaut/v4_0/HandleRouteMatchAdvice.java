@@ -10,7 +10,7 @@ import io.micronaut.web.router.UriRouteMatch;
 import net.bytebuddy.asm.Advice;
 
 public class HandleRouteMatchAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void captureRoute(
       @Advice.Argument(0) final HttpRequest<?> request,
       @Advice.Return final UriRouteMatch routeMatch) {

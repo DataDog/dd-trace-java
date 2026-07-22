@@ -52,6 +52,11 @@ abstract class Jetty8LatestDepForkedTest extends Jetty76Test {
     return false;
   }
 
+  @Override
+  public boolean testBodyFilesContent() {
+    return true;
+  }
+
   static class Jetty8TestHandler extends AbstractHandler {
     private static final MultipartConfigElement MULTIPART_CONFIG =
         new MultipartConfigElement(System.getProperty("java.io.tmpdir"));

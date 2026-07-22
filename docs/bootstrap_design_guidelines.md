@@ -47,12 +47,12 @@ import org.slf4j.LoggerFactory;
 private static final Logger log = LoggerFactory.getLogger(MyClass.class);
 ```
 
-### 2. Java NIO (`java.nio.*`)
+### 2. Java NIO (`java.nio.file.*`)
 
 **Why to avoid:**
 - Calling `FileSystems.getDefault()` during premain can break applications that set the `java.nio.file.spi.DefaultFileSystemProvider` system property in their `main` method
 - Some applications expect to control the default filesystem implementation, and premature initialization locks in the wrong provider
-- Loading `java.nio` also triggers native library initialization (`pthread` on Linux) which can introduce a race condition
+- Loading `java.nio.file` also triggers native library initialization (`pthread` on Linux) which can introduce a race condition
 
 **Reference:** [Java NIO FileSystems Documentation](https://docs.oracle.com/javase/8/docs/api/java/nio/file/FileSystems.html#getDefault--)
 
@@ -63,7 +63,7 @@ private static final Logger log = LoggerFactory.getLogger(MyClass.class);
 
 **Example from issue #9780:**
 ```java
-// BAD - Triggers java.nio initialization in premain
+// BAD - Triggers java.nio.file initialization in premain
 FileSystems.getDefault();
 Path.of("/some/path");
 
@@ -110,6 +110,6 @@ Loading a class during premain can have unintended side effects:
 **Guideline:** Be aware of native library loading and initialization
 
 Some Java classes trigger native library loading:
-- `java.nio` - triggers pthread initialization on Linux and may create a [race condition (race conditionJDK-8345810)](https://bugs.openjdk.org/browse/JDK-8345810)
+- `java.nio.file` - triggers pthread initialization on Linux and may create a [race condition (race conditionJDK-8345810)](https://bugs.openjdk.org/browse/JDK-8345810)
 - Socket operations - may trigger native networking libraries
 - File system operations - platform-specific native code

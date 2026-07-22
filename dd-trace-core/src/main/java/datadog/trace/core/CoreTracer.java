@@ -22,6 +22,9 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.context.Context;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.context.propagation.Propagators;
 import datadog.environment.ThreadSupport;
 import datadog.logging.RatelimitedLogger;
@@ -1160,12 +1163,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public AgentScope.Continuation captureActiveSpan() {
     return scopeManager.captureActiveSpan();
   }
 
   @Override
-  public AgentScope.Continuation captureSpan(final AgentSpan span) {
+  public ContextContinuation captureSpan(final AgentSpan span) {
     return scopeManager.captureSpan(span);
   }
 
@@ -1255,7 +1259,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public void notifyAppSecEnd(AgentSpan span) {
+  public void notifyAppSecEnd(AgentSpan span, Object result) {
+    LambdaAppSecHandler.processResponseData(span, result);
     LambdaAppSecHandler.processRequestEnd(span);
   }
 
@@ -2463,5 +2468,25 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       }
     }
     return result.freeze();
+  }
+
+  @Override
+  public Context currentContext() {
+    return scopeManager.currentContext();
+  }
+
+  @Override
+  public ContextScope attach(Context context) {
+    return scopeManager.attach(context);
+  }
+
+  @Override
+  public Context swap(Context context) {
+    return scopeManager.swap(context);
+  }
+
+  @Override
+  public ContextContinuation capture(Context context) {
+    return scopeManager.capture(context);
   }
 }

@@ -44,9 +44,12 @@ dependencies {
   api("dev.openfeature:sdk:1.20.1")
 
   compileOnly(project(":products:feature-flagging:feature-flagging-bootstrap"))
+  compileOnly(project(":products:feature-flagging:feature-flagging-config"))
+  compileOnly(project(":utils:config-utils"))
   compileOnly("io.opentelemetry:opentelemetry-api:1.47.0")
 
   testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
+  testImplementation(project(":utils:config-utils"))
   testImplementation("io.opentelemetry:opentelemetry-api:1.47.0")
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
@@ -73,4 +76,10 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<Javadoc>().configureEach {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
+}
+
+// The dd-openfeature provider jar is not produced by the CI `build` job, so there is no reference
+// artifact to compare against. Disable the release jar comparison gate registered by publish.gradle.
+tasks.named("compareToReferenceJar") {
+  enabled = false
 }

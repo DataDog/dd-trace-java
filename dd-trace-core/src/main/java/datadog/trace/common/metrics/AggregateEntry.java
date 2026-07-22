@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics;
 
 import datadog.metrics.api.Histogram;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
@@ -21,43 +22,40 @@ import javax.annotation.Nullable;
  * static); tests using {@link PeerTagSchema} must also call {@code PeerTagSchema#resetHandlers} on
  * the schema instance.
  */
-final class AggregateEntry extends Hashtable.Entry {
+public final class AggregateEntry extends Hashtable.Entry {
 
   static final long ERROR_TAG = 0x8000000000000000L;
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
   private static final UTF8BytesString[] EMPTY_TAGS = new UTF8BytesString[0];
 
-  // Sentinel substitution is disabled until per-component config is wired in a follow-up PR.
-  // Tests that need sentinel mode should pass useBlockedSentinel=true explicitly.
-  static final boolean LIMITS_ENABLED = false;
-
-  // Per-field cardinality handlers. Limits live on MetricCardinalityLimits -- see that class for
-  // per-field rationale.
+  // Configurable per-field cardinality handlers — tunable via env var.
   static final PropertyCardinalityHandler RESOURCE_HANDLER =
-      new PropertyCardinalityHandler("resource", MetricCardinalityLimits.RESOURCE, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler SERVICE_HANDLER =
-      new PropertyCardinalityHandler("service", MetricCardinalityLimits.SERVICE, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler OPERATION_HANDLER =
       new PropertyCardinalityHandler(
-          "operation", MetricCardinalityLimits.OPERATION, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler SERVICE_SOURCE_HANDLER =
-      new PropertyCardinalityHandler(
-          "service_source", MetricCardinalityLimits.SERVICE_SOURCE, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler TYPE_HANDLER =
-      new PropertyCardinalityHandler("type", MetricCardinalityLimits.TYPE, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler SPAN_KIND_HANDLER =
-      new PropertyCardinalityHandler(
-          "span_kind", MetricCardinalityLimits.SPAN_KIND, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler HTTP_METHOD_HANDLER =
-      new PropertyCardinalityHandler(
-          "http_method", MetricCardinalityLimits.HTTP_METHOD, LIMITS_ENABLED);
+          "resource",
+          Config.get().getTraceStatsCardinalityLimit("resource", MetricCardinalityLimits.RESOURCE));
   static final PropertyCardinalityHandler HTTP_ENDPOINT_HANDLER =
       new PropertyCardinalityHandler(
-          "http_endpoint", MetricCardinalityLimits.HTTP_ENDPOINT, LIMITS_ENABLED);
+          "http_endpoint",
+          Config.get()
+              .getTraceStatsCardinalityLimit(
+                  "http_endpoint", MetricCardinalityLimits.HTTP_ENDPOINT));
+
+  // Fixed per-field cardinality handlers — hardcoded, not user-configurable.
+  static final PropertyCardinalityHandler SERVICE_HANDLER =
+      new PropertyCardinalityHandler("service", MetricCardinalityLimits.SERVICE);
+  static final PropertyCardinalityHandler OPERATION_HANDLER =
+      new PropertyCardinalityHandler("operation", MetricCardinalityLimits.OPERATION);
+  static final PropertyCardinalityHandler SERVICE_SOURCE_HANDLER =
+      new PropertyCardinalityHandler("service_source", MetricCardinalityLimits.SERVICE_SOURCE);
+  static final PropertyCardinalityHandler TYPE_HANDLER =
+      new PropertyCardinalityHandler("type", MetricCardinalityLimits.TYPE);
+  static final PropertyCardinalityHandler SPAN_KIND_HANDLER =
+      new PropertyCardinalityHandler("span_kind", MetricCardinalityLimits.SPAN_KIND);
+  static final PropertyCardinalityHandler HTTP_METHOD_HANDLER =
+      new PropertyCardinalityHandler("http_method", MetricCardinalityLimits.HTTP_METHOD);
   static final PropertyCardinalityHandler GRPC_STATUS_CODE_HANDLER =
-      new PropertyCardinalityHandler(
-          "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE, LIMITS_ENABLED);
+      new PropertyCardinalityHandler("grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE);
 
   // Single authoritative list used by resetCardinalityHandlers(). populateFrom() and hashOf() keep
   // named access for readability and to avoid per-span iteration overhead; this array ensures the
@@ -105,7 +103,8 @@ final class AggregateEntry extends Hashtable.Entry {
   private int errorCount;
   private int hitCount;
   private int topLevelCount;
-  private long duration;
+  private long okDuration;
+  private long errorDuration;
 
   /**
    * Field-bearing constructor. Package-private so {@link AggregateEntryTestUtils} can build
@@ -155,31 +154,40 @@ final class AggregateEntry extends Hashtable.Entry {
     if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
       tagAndDuration ^= ERROR_TAG;
       errorLatenciesForWrite().accept(tagAndDuration);
+      errorDuration += tagAndDuration;
       ++errorCount;
     } else {
       okLatencies.accept(tagAndDuration);
+      okDuration += tagAndDuration;
     }
-    duration += tagAndDuration;
     return this;
   }
 
-  int getErrorCount() {
+  public int getErrorCount() {
     return errorCount;
   }
 
-  int getHitCount() {
+  public int getHitCount() {
     return hitCount;
   }
 
-  int getTopLevelCount() {
+  public int getTopLevelCount() {
     return topLevelCount;
   }
 
-  long getDuration() {
-    return duration;
+  public long getDuration() {
+    return okDuration + errorDuration;
   }
 
-  Histogram getOkLatencies() {
+  public long getOkDuration() {
+    return okDuration;
+  }
+
+  public long getErrorDuration() {
+    return errorDuration;
+  }
+
+  public Histogram getOkLatencies() {
     return okLatencies;
   }
 
@@ -189,7 +197,7 @@ final class AggregateEntry extends Hashtable.Entry {
    * {@link SerializingMetricWriter}.
    */
   @Nullable
-  Histogram getErrorLatencies() {
+  public Histogram getErrorLatencies() {
     return errorLatencies;
   }
 
@@ -214,7 +222,8 @@ final class AggregateEntry extends Hashtable.Entry {
     this.errorCount = 0;
     this.hitCount = 0;
     this.topLevelCount = 0;
-    this.duration = 0;
+    this.okDuration = 0;
+    this.errorDuration = 0;
     this.okLatencies.clear();
     // errorLatencies stays null on entries that never errored. Only clear if it was allocated.
     if (this.errorLatencies != null) {
@@ -275,19 +284,19 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   // Accessors for SerializingMetricWriter.
-  UTF8BytesString getResource() {
+  public UTF8BytesString getResource() {
     return resource;
   }
 
-  UTF8BytesString getService() {
+  public UTF8BytesString getService() {
     return service;
   }
 
-  UTF8BytesString getOperationName() {
+  public UTF8BytesString getOperationName() {
     return operationName;
   }
 
-  UTF8BytesString getServiceSource() {
+  public UTF8BytesString getServiceSource() {
     return serviceSource;
   }
 
@@ -297,41 +306,41 @@ final class AggregateEntry extends Hashtable.Entry {
    * captured" (see field comment) -- callers that need a presence check should go through this
    * predicate rather than comparing against {@code EMPTY} directly.
    */
-  boolean hasServiceSource() {
+  public boolean hasServiceSource() {
     return serviceSource.length() > 0;
   }
 
-  UTF8BytesString getType() {
+  public UTF8BytesString getType() {
     return type;
   }
 
-  UTF8BytesString getSpanKind() {
+  public UTF8BytesString getSpanKind() {
     return spanKind;
   }
 
-  UTF8BytesString getHttpMethod() {
+  public UTF8BytesString getHttpMethod() {
     return httpMethod;
   }
 
   /**
    * Whether the snapshot carried an HTTP method. See {@link #hasServiceSource} for the contract.
    */
-  boolean hasHttpMethod() {
+  public boolean hasHttpMethod() {
     return httpMethod.length() > 0;
   }
 
-  UTF8BytesString getHttpEndpoint() {
+  public UTF8BytesString getHttpEndpoint() {
     return httpEndpoint;
   }
 
   /**
    * Whether the snapshot carried an HTTP endpoint. See {@link #hasServiceSource} for the contract.
    */
-  boolean hasHttpEndpoint() {
+  public boolean hasHttpEndpoint() {
     return httpEndpoint.length() > 0;
   }
 
-  UTF8BytesString getGrpcStatusCode() {
+  public UTF8BytesString getGrpcStatusCode() {
     return grpcStatusCode;
   }
 
@@ -339,23 +348,23 @@ final class AggregateEntry extends Hashtable.Entry {
    * Whether the snapshot carried a gRPC status code. See {@link #hasServiceSource} for the
    * contract.
    */
-  boolean hasGrpcStatusCode() {
+  public boolean hasGrpcStatusCode() {
     return grpcStatusCode.length() > 0;
   }
 
-  int getHttpStatusCode() {
+  public int getHttpStatusCode() {
     return httpStatusCode;
   }
 
-  boolean isSynthetics() {
+  public boolean isSynthetics() {
     return synthetic;
   }
 
-  boolean isTraceRoot() {
+  public boolean isTraceRoot() {
     return traceRoot;
   }
 
-  List<UTF8BytesString> getPeerTags() {
+  public List<UTF8BytesString> getPeerTags() {
     return peerTags;
   }
 

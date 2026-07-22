@@ -3,9 +3,9 @@ package java.util.concurrent;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static java.util.concurrent.CompletableFuture.ASYNC;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
 import java.util.concurrent.CompletableFuture.UniCompletion;
@@ -32,7 +32,7 @@ public final class CompletableFutureAdvice {
 
   public static final class UniSubTryFire {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(
+    public static ContextScope enter(
         @Advice.This UniCompletion zis,
         @Advice.Local("hadExecutor") boolean hadExecutor,
         @Advice.Local("wasClaimed") boolean wasClaimed,
@@ -51,7 +51,7 @@ public final class CompletableFutureAdvice {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
-        @Advice.Enter AgentScope scope,
+        @Advice.Enter ContextScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.This UniCompletion zis,
         @Advice.Argument(0) int mode,

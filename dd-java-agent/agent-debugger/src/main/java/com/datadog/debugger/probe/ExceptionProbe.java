@@ -12,12 +12,14 @@ import com.datadog.debugger.instrumentation.ExceptionInstrumenter;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.Snapshot;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeLocation;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
+import java.time.Duration;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +49,8 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
         new ProbeCondition(DSL.when(DSL.TRUE), "true"),
         capture,
         sampling,
-        null);
+        null,
+        Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout()));
     this.exceptionProbeManager = exceptionProbeManager;
     this.chainedExceptionIdx = chainedExceptionIdx;
     initSamplers();
@@ -101,6 +104,10 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
     }
     String fingerprint =
         Fingerprinter.fingerprint(innerMostThrowable, exceptionProbeManager.getClassNameFilter());
+    if (fingerprint == null) {
+      // Fingerprinter.fingerprint already logged why in debug
+      return;
+    }
     if (exceptionProbeManager.shouldCaptureException(fingerprint)) {
       LOGGER.debug("Capturing exception matching fingerprint: {}", fingerprint);
       // capture only on uncaught exception matching the fingerprint

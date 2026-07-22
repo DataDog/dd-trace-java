@@ -96,7 +96,7 @@ public class AsyncRemoteEndpointInstrumentation
       }
 
       final AgentSpan wsSpan =
-          DECORATE.onSendFrameStart(
+          DECORATE.startOutboundFrameSpan(
               handlerContext,
               CHAR_SEQUENCE_SIZE_CALCULATOR.getFormat(),
               CHAR_SEQUENCE_SIZE_CALCULATOR.getLengthFunction().applyAsInt(text));
@@ -106,7 +106,7 @@ public class AsyncRemoteEndpointInstrumentation
       return activateSpan(wsSpan);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
         @Advice.Enter final AgentScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
@@ -153,7 +153,7 @@ public class AsyncRemoteEndpointInstrumentation
       }
 
       final AgentSpan wsSpan =
-          DECORATE.onSendFrameStart(
+          DECORATE.startOutboundFrameSpan(
               handlerContext,
               BYTE_BUFFER_SIZE_CALCULATOR.getFormat(),
               BYTE_BUFFER_SIZE_CALCULATOR.getLengthFunction().applyAsInt(buffer));
@@ -163,7 +163,7 @@ public class AsyncRemoteEndpointInstrumentation
       return activateSpan(wsSpan);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
         @Advice.Enter final AgentScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
@@ -209,14 +209,15 @@ public class AsyncRemoteEndpointInstrumentation
       }
 
       final AgentSpan wsSpan =
-          DECORATE.onSendFrameStart(handlerContext, BYTE_BUFFER_SIZE_CALCULATOR.getFormat(), 0);
+          DECORATE.startOutboundFrameSpan(
+              handlerContext, BYTE_BUFFER_SIZE_CALCULATOR.getFormat(), 0);
       if (sendHandler != null) {
         sendHandler = new TracingSendHandler(sendHandler, handlerContext);
       }
       return activateSpan(wsSpan);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
         @Advice.Enter final AgentScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,

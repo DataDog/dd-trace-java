@@ -6,8 +6,8 @@ public abstract class DBTypeProcessingDatabaseClientDecorator<CONNECTION>
     extends DatabaseClientDecorator<CONNECTION> {
 
   @Override
-  public AgentSpan afterStart(AgentSpan span) {
+  public void afterStart(AgentSpan span) {
     processDatabaseType(span, dbType());
-    return super.afterStart(span);
+    super.afterStart(span);
   }
 }

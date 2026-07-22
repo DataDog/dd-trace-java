@@ -75,7 +75,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ExtractContentParametersAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return MultiMap<String> map,
         @ActiveRequestContext RequestContext reqCtx,
@@ -111,7 +111,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
       return map == null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean proceed,
         @Advice.FieldValue("_contentParameters") final MultiMap<String> map,
@@ -170,7 +170,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
       return callDepth == 0 && contentParameters == null && multiPartInputStream == null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean proceed,
         @Advice.Return Collection<Part> parts,
@@ -181,6 +181,9 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         return;
       }
       t = MultipartHelper.fireFilenamesEvent(parts, reqCtx);
+      if (t == null) {
+        t = MultipartHelper.fireFilesContentEvent(parts, reqCtx);
+      }
     }
   }
 
@@ -198,7 +201,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
       return CallDepthThreadLocalMap.incrementCallDepth(MultipartHelper.class) == 0;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean proceed,
         @Advice.Return Collection<Part> parts,
@@ -209,6 +212,9 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         return;
       }
       t = MultipartHelper.fireFilenamesEvent(parts, reqCtx);
+      if (t == null) {
+        t = MultipartHelper.fireFilesContentEvent(parts, reqCtx);
+      }
     }
   }
 }

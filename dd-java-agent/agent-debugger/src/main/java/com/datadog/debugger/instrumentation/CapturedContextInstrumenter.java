@@ -40,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
@@ -58,6 +59,8 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.analysis.BasicValue;
+import org.objectweb.asm.tree.analysis.Frame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +74,7 @@ public class CapturedContextInstrumenter extends Instrumenter {
   private int exitContextVar = -1;
   private int timestampStartVar = -1;
   private int throwableListVar = -1;
-  private Collection<LocalVariableNode> hoistedLocalVars = Collections.emptyList();
+  protected Collection<LocalVariableNode> hoistedLocalVars = Collections.emptyList();
 
   public CapturedContextInstrumenter(
       ProbeDefinition definition,
@@ -96,9 +99,10 @@ public class CapturedContextInstrumenter extends Instrumenter {
       installFinallyBlocks();
       return InstrumentationResult.Status.INSTALLED;
     }
+    Map<AbstractInsnNode, Frame<BasicValue>> frames = computeFrames(classNode.name, methodNode);
     instrumentMethodEnter();
     instrumentTryCatchHandlers();
-    processInstructions();
+    processInstructions(frames);
     addFinallyHandler(contextInitLabel, returnHandlerLabel);
     installFinallyBlocks();
     return InstrumentationResult.Status.INSTALLED;
@@ -265,7 +269,8 @@ public class CapturedContextInstrumenter extends Instrumenter {
   }
 
   @Override
-  protected InsnList getBeforeReturnInsnList(AbstractInsnNode node) {
+  protected InsnList getBeforeReturnInsnList(
+      AbstractInsnNode node, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     InsnList insnList = new InsnList();
     // stack [ret_value]
     insnList.add(new VarInsnNode(Opcodes.ALOAD, entryContextVar));
@@ -465,7 +470,7 @@ public class CapturedContextInstrumenter extends Instrumenter {
 
   // Initialize and hoist local variables to the top of the method
   // if there is name/slot conflict, do nothing for the conflicting local variable
-  private Collection<LocalVariableNode> initAndHoistLocalVars(MethodNode methodNode) {
+  protected Collection<LocalVariableNode> initAndHoistLocalVars(MethodNode methodNode) {
     int hoistingLevel = Config.get().getDynamicInstrumentationLocalVarHoistingLevel();
     if (hoistingLevel == 0 || language != JvmLanguage.JAVA) {
       // for now, only hoist local vars for Java

@@ -54,9 +54,9 @@ jobs:
 
             // Check for override label — skip all checks if label present
             const labels = context.payload.pull_request.labels.map(l => l.name)
-            if (labels.includes('tag: override-groovy-enforcement')) {
+            if (labels.includes('tag: override groovy enforcement')) {
               await deleteManagedComment()
-              console.log('tag: override-groovy-enforcement label detected — skipping all checks.')
+              console.log('tag: override groovy enforcement label detected — skipping all checks.')
               return
             }
 
@@ -99,7 +99,7 @@ jobs:
                 `Please avoid introducing new \`.groovy\` files to this repository.\n\n` +
                 `${fileList}\n\n` +
                 `Instead, rewrite the new file(s) in Java / JUnit. See the [How to Test With JUnit Guide](https://github.com/DataDog/dd-trace-java/blob/master/docs/how_to_test_with_junit.md) for more details.\n\n` +
-                `If this PR needs an exception, add the \`tag: override-groovy-enforcement\` label to bypass this workflow.\n\n` +
+                `If this PR needs an exception, add the \`tag: override groovy enforcement\` label to bypass this workflow.\n\n` +
                 managedMarker
               if (existingComment) {
                 await github.rest.issues.updateComment({
@@ -125,5 +125,5 @@ jobs:
             }
 
             if (introducedGroovy.length > 0) {
-              core.setFailed(`${introducedGroovy.length} new Groovy file(s) detected. See PR comment for details. To bypass this workflow, add the 'tag: override-groovy-enforcement' label.`)
+              core.setFailed(`${introducedGroovy.length} new Groovy file(s) detected. See PR comment for details. To bypass this workflow, add the 'tag: override groovy enforcement' label.`)
             }

@@ -20,10 +20,10 @@ public abstract class MessagingClientDecorator extends ClientDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(final AgentSpan span) {
+  public void afterStart(final AgentSpan span) {
     if (endToEndDurationsEnabled) {
       span.beginEndToEnd();
     }
-    return super.afterStart(span);
+    super.afterStart(span);
   }
 }
