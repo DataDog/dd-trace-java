@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.DEFAULT;
 import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
 
 import datadog.appsec.api.blocking.BlockingException;
@@ -13,6 +12,7 @@ import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
@@ -155,7 +155,7 @@ public abstract class BaseDecorator {
   }
 
   public final void onError(@Nullable final AgentSpan span, @Nullable final Throwable throwable) {
-    onError(span, throwable, DEFAULT);
+    onError(span, throwable, ErrorPriorities.DEFAULT);
   }
 
   public final void onError(
