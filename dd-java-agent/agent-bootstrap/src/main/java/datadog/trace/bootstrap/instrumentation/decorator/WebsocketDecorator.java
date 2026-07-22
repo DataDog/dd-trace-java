@@ -26,7 +26,6 @@ import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +62,7 @@ public class WebsocketDecorator extends BaseDecorator {
   }
 
   @Override
-  protected void doAfterStart(@NonNull AgentSpan span) {
+  protected void doAfterStart(@Nonnull AgentSpan span) {
     super.doAfterStart(span);
     span.setMeasured(true);
   }
