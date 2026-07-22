@@ -314,15 +314,18 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       if (peerTagSchema == null) {
         peerTagSchema = bootstrapPeerTagSchema();
       }
+      // ignoredResources is fixed for the lifetime of the aggregator and typically empty; hoist the
+      // check so the common case skips both the lookup and the getResourceName() call per span.
+      final boolean hasIgnoredResources = !ignoredResources.isEmpty();
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span, isTopLevel)) {
-          final CharSequence resourceName = span.getResourceName();
-          if (!ignoredResources.isEmpty()
-              && resourceName != null
-              && ignoredResources.contains(resourceName.toString())) {
-            // skip publishing all children
-            break;
+          if (hasIgnoredResources) {
+            final CharSequence resourceName = span.getResourceName();
+            if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
+              // skip publishing all children
+              break;
+            }
           }
           counted++;
           forceKeep |= publish(span, isTopLevel, peerTagSchema);
