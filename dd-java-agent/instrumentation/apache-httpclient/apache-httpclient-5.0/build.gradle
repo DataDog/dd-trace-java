@@ -14,7 +14,8 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'org.apache.httpcomponents.client5', name: 'httpclient5', version: '5.0'
 
-  testImplementation group: 'org.apache.httpcomponents.client5', name: 'httpclient5', version: '5.0'
+  testImplementation group: 'org.apache.httpcomponents.client5', name: 'httpclient5', version: '5.0.4'
+  // addExecInterceptorLast is broken in earlier versions
 
   latestDepTestImplementation group: 'org.apache.httpcomponents.client5', name: 'httpclient5', version: '+'
 }
