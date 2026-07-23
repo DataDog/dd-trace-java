@@ -35,8 +35,20 @@ final class TagCardinalityHandler {
 
   private UTF8BytesString cacheBlocked = null;
 
-  /** Accumulated block count for the current cycle. Returned and zeroed by {@link #reset()}. */
-  private long blockedCount;
+  /**
+   * Values collapsed by the per-cycle cardinality (distinct-value) budget in the current cycle.
+   * Returned and zeroed by {@link #reset()}. Surfaces as the {@code collapsed:} health-metric tag.
+   */
+  private long collapsedCount;
+
+  /**
+   * Values collapsed by the per-value length cap in the current cycle. Always 0 when {@code
+   * maxValueLength} is unbounded (e.g. peer tags). Read via {@link #oversizedCount()} before {@link
+   * #reset()} and surfaces as the {@code oversized:} health-metric tag. Kept separate from {@link
+   * #collapsedCount} because the approved Cardinality Limits RFC tags length-collapses ({@code
+   * oversized:}) distinctly from cardinality-collapses ({@code collapsed:}).
+   */
+  private long oversizedCount;
 
   /**
    * Test convenience: limits-enabled mode, no per-value length cap. Production uses the
@@ -92,7 +104,7 @@ final class TagCardinalityHandler {
     // Values exceeding the length cap are blocked regardless of cardinality budget: application
     // code can accidentally populate a tag with a stack trace, SQL statement, or JSON blob.
     if (value.length() > this.maxValueLength && this.useBlockedSentinel) {
-      this.blockedCount++;
+      this.oversizedCount++;
       return this.tracerBlockedValue();
     }
     // Compute the initial probe slot once. The same start slot is used for the
@@ -117,7 +129,7 @@ final class TagCardinalityHandler {
     // If sentinel mode is enabled and the tag has reached its value budget,
     // collapse this value to "tag:tracer_blocked_value" and record the block.
     if (capExhausted && this.useBlockedSentinel) {
-      this.blockedCount++;
+      this.collapsedCount++;
       return this.tracerBlockedValue();
     }
     // Try to find the same raw value in the previous-cycle table so the encoded
@@ -163,12 +175,23 @@ final class TagCardinalityHandler {
   }
 
   /**
-   * Resets the per-cycle working set and returns the accumulated block count for this cycle. The
-   * caller is responsible for reporting the count to health metrics if non-zero.
+   * Number of values collapsed by the per-value length cap in the current cycle. Must be read
+   * before {@link #reset()}, which zeroes it along with the cardinality count.
+   */
+  long oversizedCount() {
+    return this.oversizedCount;
+  }
+
+  /**
+   * Resets the per-cycle working set and returns the cardinality-collapse count for this cycle (the
+   * {@code collapsed:} count). Also zeroes the length-collapse count, so callers that report it
+   * must read {@link #oversizedCount()} first. The caller reports both counts to health metrics if
+   * non-zero.
    */
   long reset() {
-    long count = this.blockedCount;
-    this.blockedCount = 0;
+    long count = this.collapsedCount;
+    this.collapsedCount = 0;
+    this.oversizedCount = 0;
     final String[] tmpKeys = this.priorKeys;
     final UTF8BytesString[] tmpValues = this.priorValues;
     this.priorKeys = this.curKeys;

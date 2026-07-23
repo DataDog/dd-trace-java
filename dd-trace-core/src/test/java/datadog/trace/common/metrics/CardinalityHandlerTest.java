@@ -150,8 +150,10 @@ class CardinalityHandlerTest {
 
     assertEquals("k:" + atCap, h.register(atCap).toString());
     assertEquals("k:tracer_blocked_value", h.register(overCap).toString());
-    // Only the over-cap value was blocked; the at-cap value flowed through as its real value.
-    assertEquals(1, h.reset());
+    // The over-cap value is a length ("oversized") collapse, tracked separately from the
+    // cardinality-collapse count that reset() returns.
+    assertEquals(1, h.oversizedCount());
+    assertEquals(0, h.reset());
   }
 
   @Test
@@ -161,6 +163,7 @@ class CardinalityHandlerTest {
     TagCardinalityHandler h = new TagCardinalityHandler("k", 10, false, 200);
     String overCap = stringOfLength(201);
     assertEquals("k:" + overCap, h.register(overCap).toString());
+    assertEquals(0, h.oversizedCount());
     assertEquals(0, h.reset());
   }
 

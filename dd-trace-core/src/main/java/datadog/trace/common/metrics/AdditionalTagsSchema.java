@@ -20,6 +20,12 @@ final class AdditionalTagsSchema {
   // Backend stats pipeline only supports a few primary tag dimensions; drop overflow at startup.
   static final int MAX_ADDITIONAL_TAG_KEYS = 4;
 
+  // Health-metric statsD tags per the approved Cardinality Limits RFC (section 5): collapses are
+  // reported under the lowercased protobuf field name additional_metric_tags, with cardinality-
+  // collapses (collapsed:) and per-value length-collapses (oversized:) tagged distinctly.
+  private static final String[] COLLAPSED_STATSD_TAG = {"collapsed:additional_metric_tags"};
+  private static final String[] OVERSIZED_STATSD_TAG = {"oversized:additional_metric_tags"};
+
   /** Singleton empty schema returned when no additional tags are configured. */
   static final AdditionalTagsSchema EMPTY =
       new AdditionalTagsSchema(new String[0], new TagCardinalityHandler[0]);
@@ -95,12 +101,29 @@ final class AdditionalTagsSchema {
   }
 
   void resetHandlers(HealthMetrics healthMetrics, CardinalityLimitReporter reporter) {
+    long totalCollapsed = 0;
+    long totalOversized = 0;
     for (int i = 0; i < handlers.length; i++) {
-      long numBlocked = handlers[i].reset();
-      if (numBlocked > 0) {
-        healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), numBlocked);
-        reporter.record(names[i], numBlocked);
+      // oversizedCount() must be read before reset(), which zeroes both per-cycle counts.
+      long oversized = handlers[i].oversizedCount();
+      long collapsed = handlers[i].reset();
+      // The human-facing reporter names the specific tag that triggered the block, so it records
+      // both collapse kinds under the tag's own name.
+      long blocked = collapsed + oversized;
+      if (blocked > 0) {
+        reporter.record(names[i], blocked);
       }
+      totalCollapsed += collapsed;
+      totalOversized += oversized;
+    }
+    // The health metric is reported at the additional_metric_tags field granularity (not per tag
+    // name), with cardinality-collapses and length-collapses ("oversized") tagged distinctly per
+    // the approved Cardinality Limits RFC.
+    if (totalCollapsed > 0) {
+      healthMetrics.onTagCardinalityBlocked(COLLAPSED_STATSD_TAG, totalCollapsed);
+    }
+    if (totalOversized > 0) {
+      healthMetrics.onTagCardinalityBlocked(OVERSIZED_STATSD_TAG, totalOversized);
     }
   }
 }

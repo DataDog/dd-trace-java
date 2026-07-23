@@ -85,20 +85,63 @@ class AdditionalTagsSchemaTest {
   }
 
   @Test
-  void resetHandlersReportsBlockedCountToHealthMetrics() {
-    // Blocked values on an additional-tag key must surface as a health metric (statsD tag
-    // "collapsed:<key>") and be recorded to the rate-limited reporter at each reset.
+  void resetHandlersReportsCardinalityCollapseUnderFieldName() {
+    // Cardinality-collapsed values surface as the health-metric tag
+    // "collapsed:additional_metric_tags"
+    // -- the lowercased protobuf field name, not the individual tag key -- per the approved
+    // Cardinality Limits RFC.
     AdditionalTagsSchema schema =
         AdditionalTagsSchema.from(Collections.singleton("region"), 1, true);
     int region = indexOf(schema, "region");
     schema.register(region, "us-east-1"); // within budget
-    schema.register(region, "eu-west-1"); // blocked
-    schema.register(region, "ap-south-1"); // blocked
+    schema.register(region, "eu-west-1"); // collapsed (cardinality)
+    schema.register(region, "ap-south-1"); // collapsed (cardinality)
 
     HealthMetrics metrics = mock(HealthMetrics.class);
     schema.resetHandlers(metrics, new CardinalityLimitReporter());
 
-    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:region"}, 2L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:additional_metric_tags"}, 2L);
+    verifyNoMoreInteractions(metrics);
+  }
+
+  @Test
+  void resetHandlersAggregatesCardinalityCollapseAcrossKeysUnderOneFieldTag() {
+    // Two keys each collapse: the field-level health metric sums both under a single
+    // "collapsed:additional_metric_tags" tag rather than emitting per key name.
+    AdditionalTagsSchema schema =
+        AdditionalTagsSchema.from(
+            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), 1, true);
+    int region = indexOf(schema, "region");
+    int tenant = indexOf(schema, "tenant_id");
+    schema.register(region, "us-east-1"); // within budget
+    schema.register(region, "eu-west-1"); // collapsed
+    schema.register(tenant, "acme-corp"); // within budget
+    schema.register(tenant, "globex"); // collapsed
+
+    HealthMetrics metrics = mock(HealthMetrics.class);
+    schema.resetHandlers(metrics, new CardinalityLimitReporter());
+
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:additional_metric_tags"}, 2L);
+    verifyNoMoreInteractions(metrics);
+  }
+
+  @Test
+  void resetHandlersReportsLengthAndCardinalityCollapsesUnderDistinctTags() {
+    // A single cycle with both a length collapse (oversized) and a cardinality collapse must emit
+    // two distinct health-metric tags: oversized:additional_metric_tags and
+    // collapsed:additional_metric_tags.
+    AdditionalTagsSchema schema =
+        AdditionalTagsSchema.from(Collections.singleton("region"), 1, true);
+    int region = indexOf(schema, "region");
+    schema.register(region, "us-east-1"); // within budget
+    schema.register(region, "eu-west-1"); // collapsed (cardinality)
+    schema.register(region, stringOfLength(201)); // oversized (length)
+
+    HealthMetrics metrics = mock(HealthMetrics.class);
+    schema.resetHandlers(metrics, new CardinalityLimitReporter());
+
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:additional_metric_tags"}, 1L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"oversized:additional_metric_tags"}, 1L);
     verifyNoMoreInteractions(metrics);
   }
 
@@ -131,13 +174,13 @@ class AdditionalTagsSchemaTest {
     String overCap = stringOfLength(cap + 1);
 
     assertEquals("region:" + atCap, schema.register(region, atCap).toString());
-    assertEquals(
-        "region:tracer_blocked_value", schema.register(region, overCap).toString());
+    assertEquals("region:tracer_blocked_value", schema.register(region, overCap).toString());
 
-    // Only the over-cap value was blocked; it surfaces as a single block on reset.
+    // The over-cap value is a length collapse: it surfaces as oversized:additional_metric_tags,
+    // not the cardinality collapsed: tag.
     HealthMetrics metrics = mock(HealthMetrics.class);
     schema.resetHandlers(metrics, new CardinalityLimitReporter());
-    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:region"}, 1L);
+    verify(metrics).onTagCardinalityBlocked(new String[] {"oversized:additional_metric_tags"}, 1L);
     verifyNoMoreInteractions(metrics);
   }
 
