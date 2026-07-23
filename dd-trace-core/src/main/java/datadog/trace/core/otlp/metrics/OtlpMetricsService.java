@@ -4,7 +4,9 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXP
 
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
+import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.util.AgentTaskScheduler;
@@ -29,7 +31,6 @@ public final class OtlpMetricsService {
 
   OtlpMetricsService(Config config) {
     this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
-
     this.sender = OtlpMetricsSenderFactory.create(config);
     if (this.sender == null) {
       LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
@@ -91,7 +92,13 @@ public final class OtlpMetricsService {
   private void export() {
     OtlpPayload payload = collector.collectMetrics();
     if (payload != OtlpPayload.EMPTY) {
-      sender.send(payload);
+      OtlpTelemetry.getInstance().onMetricsExportAttempt();
+      RemoteApi.Response response = sender.send(payload);
+      if (response.success()) {
+        OtlpTelemetry.getInstance().onMetricsExportSuccess();
+      } else {
+        OtlpTelemetry.getInstance().onMetricsExportFailure();
+      }
     }
   }
 }

@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_AT
 import datadog.metrics.api.Histogram;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
+import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
@@ -16,6 +17,7 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.common.metrics.AggregateEntry;
 import datadog.trace.common.metrics.MetricWriter;
+import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpResourceJson;
 import datadog.trace.core.otlp.common.OtlpResourceProto;
@@ -167,7 +169,13 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
       }
       OtlpPayload payload = collector.collectMetrics(this::emit, startNanos, endNanos);
       if (payload != OtlpPayload.EMPTY) {
-        sender.send(payload);
+        OtlpTelemetry.getInstance().onMetricsExportAttempt();
+        RemoteApi.Response response = sender.send(payload);
+        if (response.success()) {
+          OtlpTelemetry.getInstance().onMetricsExportSuccess();
+        } else {
+          OtlpTelemetry.getInstance().onMetricsExportFailure();
+        }
       }
     } finally {
       pending.clear();
