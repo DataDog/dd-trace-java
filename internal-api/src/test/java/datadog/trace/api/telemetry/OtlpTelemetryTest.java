@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -13,6 +15,38 @@ class OtlpTelemetryTest {
   @BeforeEach
   void drainStaleMetrics() {
     collector.drain();
+  }
+
+  @Test
+  void onTracesExportAttemptQueuesCountMetricWithTags() {
+    collector.onTracesExportAttempt();
+
+    Collection<OtlpTelemetry.OtlpMetric> metrics = collector.drain();
+
+    assertEquals(1, metrics.size());
+    OtlpTelemetry.OtlpMetric metric = metrics.iterator().next();
+    assertEquals("tracers", metric.namespace);
+    assertEquals("otel.traces_export_attempts", metric.metricName);
+    assertEquals("count", metric.type);
+    assertEquals(1L, metric.value);
+    assertEquals(2, metric.tags.size());
+    assertTrue(metric.tags.contains("protocol:http"));
+    assertTrue(metric.tags.contains("encoding:protobuf"));
+  }
+
+  @Test
+  void tracesExportMetricsUseExpectedNames() {
+    collector.onTracesExportAttempt();
+    collector.onTracesExportAttempt();
+    collector.onTracesExportSuccess();
+    collector.onTracesExportFailure();
+
+    Map<String, Number> valuesByName = drainToMap();
+
+    assertEquals(3, valuesByName.size());
+    assertEquals(2L, valuesByName.get("otel.traces_export_attempts"));
+    assertEquals(1L, valuesByName.get("otel.traces_export_successes"));
+    assertEquals(1L, valuesByName.get("otel.traces_export_failures"));
   }
 
   @Test
@@ -35,16 +69,16 @@ class OtlpTelemetryTest {
   @Test
   void metricsExportMetricsUseExpectedNames() {
     collector.onMetricsExportAttempt();
+    collector.onMetricsExportAttempt();
     collector.onMetricsExportSuccess();
     collector.onMetricsExportFailure();
 
-    Collection<OtlpTelemetry.OtlpMetric> metrics = collector.drain();
+    Map<String, Number> valuesByName = drainToMap();
 
-    assertEquals(3, metrics.size());
-    assertTrue(metrics.stream().anyMatch(m -> m.metricName.equals("otel.metrics_export_attempts")));
-    assertTrue(
-        metrics.stream().anyMatch(m -> m.metricName.equals("otel.metrics_export_successes")));
-    assertTrue(metrics.stream().anyMatch(m -> m.metricName.equals("otel.metrics_export_failures")));
+    assertEquals(3, valuesByName.size());
+    assertEquals(2L, valuesByName.get("otel.metrics_export_attempts"));
+    assertEquals(1L, valuesByName.get("otel.metrics_export_successes"));
+    assertEquals(1L, valuesByName.get("otel.metrics_export_failures"));
   }
 
   @Test
@@ -72,5 +106,13 @@ class OtlpTelemetryTest {
   @Test
   void drainReturnsEmptyCollectionWhenNoMetricsQueued() {
     assertTrue(collector.drain().isEmpty());
+  }
+
+  private Map<String, Number> drainToMap() {
+    Map<String, Number> valuesByName = new HashMap<>();
+    for (OtlpTelemetry.OtlpMetric metric : collector.drain()) {
+      valuesByName.put(metric.metricName, metric.value);
+    }
+    return valuesByName;
   }
 }

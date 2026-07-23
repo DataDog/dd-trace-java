@@ -17,13 +17,27 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
     return INSTANCE;
   }
 
+  private final String[] tracesTags = tagsFor(Config.get().getOtlpTracesProtocol());
   private final String[] metricsTags = tagsFor(Config.get().getOtlpMetricsProtocol());
   private final String[] logsTags = tagsFor(Config.get().getOtlpLogsProtocol());
 
+  private final ExportCounters tracesExport = new ExportCounters("traces");
   private final ExportCounters metricsExport = new ExportCounters("metrics");
   private final LongAdder logRecords = new LongAdder();
 
   private OtlpTelemetry() {}
+
+  public void onTracesExportAttempt() {
+    tracesExport.attempts.increment();
+  }
+
+  public void onTracesExportSuccess() {
+    tracesExport.successes.increment();
+  }
+
+  public void onTracesExportFailure() {
+    tracesExport.failures.increment();
+  }
 
   public void onMetricsExportAttempt() {
     metricsExport.attempts.increment();
@@ -57,6 +71,7 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
   @Override
   public Collection<OtlpMetric> drain() {
     List<OtlpMetric> drained = new ArrayList<>();
+    tracesExport.drainInto(drained, tracesTags);
     metricsExport.drainInto(drained, metricsTags);
     long logRecordCount = logRecords.sumThenReset();
     if (logRecordCount > 0) {

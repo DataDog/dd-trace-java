@@ -1,7 +1,7 @@
 package datadog.trace.common.writer;
 
+import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.core.CoreSpan;
-import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.core.otlp.trace.OtlpTraceCollector;
@@ -18,17 +18,10 @@ final class OtlpPayloadDispatcher implements PayloadDispatcher {
 
   private final OtlpTraceCollector collector;
   private final OtlpSender sender;
-  private final HealthMetrics healthMetrics;
 
   OtlpPayloadDispatcher(OtlpSender sender, OtlpTraceCollector collector) {
-    this(sender, collector, HealthMetrics.NO_OP);
-  }
-
-  OtlpPayloadDispatcher(
-      OtlpSender sender, OtlpTraceCollector collector, HealthMetrics healthMetrics) {
     this.sender = sender;
     this.collector = collector;
-    this.healthMetrics = healthMetrics;
   }
 
   @Override
@@ -44,15 +37,13 @@ final class OtlpPayloadDispatcher implements PayloadDispatcher {
   public void flush() {
     try {
       OtlpPayload payload = collector.collectTraces();
-      int traceCount = collector.getTraceCount();
       if (payload != OtlpPayload.EMPTY) {
-        int sizeInBytes = payload.getContentLength();
-        healthMetrics.onSerialize(sizeInBytes);
+        OtlpTelemetry.getInstance().onTracesExportAttempt();
         RemoteApi.Response response = sender.send(payload);
         if (response.success()) {
-          healthMetrics.onSend(traceCount, sizeInBytes, response);
+          OtlpTelemetry.getInstance().onTracesExportSuccess();
         } else {
-          healthMetrics.onFailedSend(traceCount, sizeInBytes, response);
+          OtlpTelemetry.getInstance().onTracesExportFailure();
         }
       }
     } catch (RuntimeException e) { // don't catch severe Errors
@@ -62,7 +53,7 @@ final class OtlpPayloadDispatcher implements PayloadDispatcher {
 
   @Override
   public void onDroppedTrace(int spanCount) {
-    // RemoteWriter already updated healthMetrics, no further action required
+    // no telemetry currently tracked for dropped traces
   }
 
   @Override
