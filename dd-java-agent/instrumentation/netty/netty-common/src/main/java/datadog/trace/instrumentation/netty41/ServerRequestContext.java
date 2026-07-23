@@ -99,22 +99,27 @@ public final class ServerRequestContext {
       if (isPoisoned(contexts)) {
         return;
       }
+      final boolean removed;
       if (contexts.peekFirst() == serverContext) {
         // Response completion consumes the queue head.
         contexts.pollFirst();
+        removed = true;
       } else {
         // Request-side failures normally remove the tail. Remove by value to cover later cleanup
         // after additional pipelined requests were queued.
-        contexts.remove(serverContext);
+        removed = contexts.remove(serverContext);
       }
       final ServerRequestContext currentContext = contexts.peekLast();
       if (currentContext == null) {
         attributes.attr(CONTEXT_ATTRIBUTE_KEY).remove();
-        // No request-matching state remains. Drop the empty per-channel queue so idle
-        // keep-alive or upgraded channels do not retain it after the last HTTP request;
-        // getOrCreate will recreate it lazily if another request arrives.
-        attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).remove();
       } else {
+        if (removed && contexts.size() == 1) {
+          // An expanded pipeline must drain through one pending request. Replace its potentially
+          // large backing array while retaining a compact queue for later keep-alive requests.
+          final Deque<ServerRequestContext> compactContexts = new ArrayDeque<>(1);
+          compactContexts.addLast(currentContext);
+          attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).set(compactContexts);
+        }
         // Keep the context mirror pointed at the current inbound request after removing an older
         // response context. It may still be copied to a new HTTP/2 stream channel.
         attributes.attr(CONTEXT_ATTRIBUTE_KEY).set(currentContext.tracingContext());
@@ -155,7 +160,9 @@ public final class ServerRequestContext {
     if (contexts == null) {
       // Netty serializes handler callbacks for a channel on its EventLoop, so this queue does not
       // need the allocation and atomic overhead of a concurrent collection.
-      contexts = new ArrayDeque<>();
+      // Most keep-alive traffic is sequential, so retain a queue sized for one request until the
+      // channel closes rather than reallocating it for every request.
+      contexts = new ArrayDeque<>(1);
       attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).set(contexts);
     }
     return contexts;
