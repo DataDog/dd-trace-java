@@ -9,11 +9,11 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import datadog.trace.core.monitor.HealthMetrics;
 import org.junit.jupiter.api.Test;
 
-class PropertyHandlersTest {
+class CoreHandlersTest {
 
   @Test
   void resetReportsBlockedCountForExhaustedHandler() {
-    PropertyHandlers handlers = new PropertyHandlers();
+    CoreHandlers handlers = new CoreHandlers();
     // Exhaust span_kind (limit = 8) and record 2 blocked values.
     for (int i = 0; i < MetricCardinalityLimits.SPAN_KIND; i++) {
       handlers.spanKind.register("kind-" + i);
@@ -30,7 +30,7 @@ class PropertyHandlersTest {
 
   @Test
   void resetReportsBlockedCountForAllNineHandlers() {
-    PropertyHandlers handlers = new PropertyHandlers();
+    CoreHandlers handlers = new CoreHandlers();
     exhaustAndBlock(handlers.resource, MetricCardinalityLimits.RESOURCE);
     exhaustAndBlock(handlers.service, MetricCardinalityLimits.SERVICE);
     exhaustAndBlock(handlers.operation, MetricCardinalityLimits.OPERATION);
@@ -58,7 +58,7 @@ class PropertyHandlersTest {
 
   @Test
   void resetRefreshesCapacityForNextCycle() {
-    PropertyHandlers handlers = new PropertyHandlers();
+    CoreHandlers handlers = new CoreHandlers();
     for (int i = 0; i < MetricCardinalityLimits.SPAN_KIND; i++) {
       handlers.spanKind.register("kind-" + i);
     }
@@ -73,7 +73,7 @@ class PropertyHandlersTest {
 
   @Test
   void resetWithNoBlockedValuesDoesNotCallHealthMetrics() {
-    PropertyHandlers handlers = new PropertyHandlers();
+    CoreHandlers handlers = new CoreHandlers();
     handlers.resource.register("r1");
     handlers.service.register("svc");
 

@@ -110,16 +110,17 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private volatile PeerTagSchema cachedPeerTagSchema;
 
   /**
-   * The peer-tag schema retired by the most recent tag-set change, held for exactly one more reset
-   * cycle. A producer can read the old {@link #cachedPeerTagSchema} just before a swap and enqueue
-   * its {@link SpanSnapshot} behind this cycle's {@code REPORT} signal; that straggler is drained
-   * next cycle and bumps the retired schema's block counters after it was already flushed.
-   * Resetting the retired schema once more (in {@link #resetCardinalityHandlers()}) captures those
-   * straggler counts before releasing it, so a schema change doesn't silently under-report blocked
-   * values.
+   * Previous peer-tag schema, kept until the next reporting cycle.
    *
-   * <p>Aggregator-thread confined (like {@link PeerTagSchema#state}); never read by producers, so
-   * plain (non-volatile).
+   * <p>A producer may read the current schema just before the aggregator replaces it. If that
+   * producer queues its {@link SpanSnapshot} after the current {@code REPORT} signal, the snapshot
+   * will be processed during the next cycle and will still update the old schema's blocked-value
+   * counters.
+   *
+   * <p>Keeping the old schema here allows the next reset to report those late counter updates
+   * before the schema is discarded.
+   *
+   * <p>This field is accessed only by the aggregator thread, so it does not need to be volatile.
    */
   private PeerTagSchema previousPeerTagSchema;
 
@@ -136,7 +137,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             config.getTraceStatsAdditionalTags(),
             config.getTraceStatsCardinalityLimit(
                 "additional_tags", MetricCardinalityLimits.ADDITIONAL_TAG_VALUE),
-            true),
+            MetricCardinalityLimits.USE_BLOCKED_SENTINEL),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(
@@ -557,21 +558,12 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   /**
    * Single reset hook invoked on the aggregator thread at the end of each report cycle. Reconciles
    * the cached peer-tag schema against the latest feature discovery, then resets all cardinality
-   * state in lockstep: the property handlers, both peer-tag schemas, and the additional tags
-   * schema. New handlers added anywhere in this pipeline should be reset from here.
+   * state together: the property handlers, both peer-tag schemas, and the additional tags schema.
+   * New handlers added anywhere in this pipeline should be reset from here.
    */
   private void resetCardinalityHandlers() {
-    // Drain a schema retired last cycle first: any straggler snapshot that captured it was consumed
-    // during this cycle's drain (it lands within the next interval, well before this REPORT), so
-    // its
-    // post-swap block counts are now on the retired handlers. Flush them, then release the schema.
-    // Done before reconcile so a fresh retirement this cycle isn't drained until next cycle.
-    if (previousPeerTagSchema != null) {
-      previousPeerTagSchema.resetHandlers(healthMetrics, cardinalityLimitReporter);
-      previousPeerTagSchema = null;
-    }
     reconcilePeerTagSchema();
-    aggregator.resetPropertyHandlers(healthMetrics, cardinalityLimitReporter);
+    aggregator.resetCoreHandlers(healthMetrics, cardinalityLimitReporter);
     PeerTagSchema.INTERNAL.resetHandlers(healthMetrics, cardinalityLimitReporter);
     PeerTagSchema schema = cachedPeerTagSchema;
     if (schema != null) {
@@ -592,6 +584,15 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * reference).
    */
   private void reconcilePeerTagSchema() {
+    // Report and discard the schema retired during the previous cycle. Snapshots queued after the
+    // previous REPORT may still reference that schema and may have updated its blocked-value
+    // counters during this cycle. Do this before the swap below, which may retire the current
+    // schema
+    // and keep it here until the next cycle.
+    if (previousPeerTagSchema != null) {
+      previousPeerTagSchema.resetHandlers(healthMetrics, cardinalityLimitReporter);
+      previousPeerTagSchema = null;
+    }
     PeerTagSchema cached = cachedPeerTagSchema;
     if (cached == null) {
       // First reset before the first publish -- producer-side bootstrap hasn't run yet.
@@ -612,8 +613,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       // surviving tag's new handler resumes adding to the same reporter entry, so no per-tag
       // transfer or handler reuse is needed.
       cached.resetHandlers(healthMetrics, cardinalityLimitReporter);
-      // Retain the outgoing schema for one more reset cycle so straggler snapshots that captured it
-      // just before this swap still have their post-swap block counts flushed (see the field doc).
+      // Retain the outgoing schema for one more reset cycle so snapshots that captured it just
+      // before this swap still have their post-swap block counts flushed (see the field doc).
       previousPeerTagSchema = cached;
       cachedPeerTagSchema = PeerTagSchema.of(normalized, latestState);
     }

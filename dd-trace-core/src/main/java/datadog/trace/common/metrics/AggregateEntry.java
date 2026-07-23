@@ -44,7 +44,10 @@ public final class AggregateEntry extends Hashtable.Entry {
   // Schema-ordered "key:value" strings; "key:" prefix makes packing unambiguous without null slots.
   final UTF8BytesString[] additionalTags;
 
-  // Recording state. Mutated only on the aggregator thread. Not thread-safe.
+  // Recording state (this field through errorDuration below) is thread-confined: the entry is
+  // mutated only on the aggregator thread, so these fields are intentionally unsynchronized and not
+  // thread-safe. Producers hand off immutable SpanSnapshots; only the aggregator thread records
+  // into the entry.
   private final Histogram okLatencies;
 
   // Null until first error; SerializingMetricWriter writes empty histogram form when null.
@@ -53,8 +56,7 @@ public final class AggregateEntry extends Hashtable.Entry {
   private int errorCount;
   private int hitCount;
   private int topLevelCount;
-  // OK and error durations are tracked separately so the OTLP writer can emit per-outcome
-  // histogram sums; getDuration() returns their sum for the native msgpack path.
+  // Tracked separately for per-outcome OTLP histogram sums; getDuration() returns the sum.
   private long okDuration;
   private long errorDuration;
 
@@ -251,6 +253,11 @@ public final class AggregateEntry extends Hashtable.Entry {
     return topLevelCount;
   }
 
+  /**
+   * Total recorded duration for the native msgpack path -- the sum of {@link #getOkDuration()} and
+   * {@link #getErrorDuration()}. OK and error durations are tracked separately so the OTLP writer
+   * can emit per-outcome histogram sums.
+   */
   public long getDuration() {
     return okDuration + errorDuration;
   }
@@ -296,16 +303,16 @@ public final class AggregateEntry extends Hashtable.Entry {
           "Single-writer by design: recording counters are mutated only on the aggregator thread"
               + " (see class javadoc); no cross-thread atomicity guarantee is needed.")
   AggregateEntry recordOneDuration(long tagAndDuration) {
-    ++hitCount;
+    hitCount++;
     if ((tagAndDuration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
       tagAndDuration ^= TOP_LEVEL_TAG;
-      ++topLevelCount;
+      topLevelCount++;
     }
     if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
       tagAndDuration ^= ERROR_TAG;
       errorLatenciesForWrite().accept(tagAndDuration);
       errorDuration += tagAndDuration;
-      ++errorCount;
+      errorCount++;
     } else {
       okLatencies.accept(tagAndDuration);
       okDuration += tagAndDuration;
@@ -328,13 +335,13 @@ public final class AggregateEntry extends Hashtable.Entry {
       long d = durations.getAndSet(i, 0);
       if ((d & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
         d ^= TOP_LEVEL_TAG;
-        ++topLevelCount;
+        topLevelCount++;
       }
       if ((d & ERROR_TAG) == ERROR_TAG) {
         d ^= ERROR_TAG;
         errorLatenciesForWrite().accept(d);
         this.errorDuration += d;
-        ++errorCount;
+        errorCount++;
       } else {
         okLatencies.accept(d);
         this.okDuration += d;
@@ -396,11 +403,11 @@ public final class AggregateEntry extends Hashtable.Entry {
 
     int peerTagsSize = 0;
 
+    /** Core per-field cardinality handlers; owned by the enclosing {@link AggregateTable}. */
+    final CoreHandlers handlers;
+
     /** Schema + per-key blocked sentinels for additional metric tags. Immutable. */
     final AdditionalTagsSchema additionalTagsSchema;
-
-    /** Per-field property cardinality handlers; owned by the enclosing {@link AggregateTable}. */
-    final PropertyHandlers handlers;
 
     /**
      * Reusable scratch for canonicalized additional-tag values, sized to the schema. Present values
@@ -416,14 +423,14 @@ public final class AggregateEntry extends Hashtable.Entry {
 
     long keyHash;
 
-    Canonical(AdditionalTagsSchema additionalTagsSchema, PropertyHandlers handlers) {
-      this.additionalTagsSchema = additionalTagsSchema;
+    Canonical(CoreHandlers handlers, AdditionalTagsSchema additionalTagsSchema) {
       this.handlers = handlers;
+      this.additionalTagsSchema = additionalTagsSchema;
       this.additionalTagsBuffer = new UTF8BytesString[additionalTagsSchema.size()];
     }
 
     /** Canonicalize all fields from {@code s} through the handlers into this buffer. */
-    void populate(SpanSnapshot s) {
+    void populateFrom(SpanSnapshot s) {
       this.resource = handlers.resource.register(s.resourceName);
       this.service = handlers.service.register(s.serviceName);
       this.operationName = handlers.operation.register(s.operationName);

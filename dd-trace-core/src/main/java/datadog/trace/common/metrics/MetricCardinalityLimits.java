@@ -13,6 +13,15 @@ final class MetricCardinalityLimits {
   private MetricCardinalityLimits() {}
 
   /**
+   * Whether over-cap values collapse into the {@code tracer_blocked_value} sentinel (cardinality
+   * capping). Always {@code true} in shipped builds. Retained as a compile-time flip back to the
+   * pre-capping behavior -- handlers without a sentinel -- that shipped in an earlier release, in
+   * case capping needs to be disabled during the internal rollout. This is not a runtime config
+   * knob; flipping it requires a rebuild.
+   */
+  static final boolean USE_BLOCKED_SENTINEL = true;
+
+  /**
    * Distinct {@code resource.name} values per cycle. Highest-cardinality field by far: DB-query
    * obfuscations, HTTP route templates, custom resources. Typical service: 30-200 unique; 1024
    * leaves headroom for high-cardinality SQL/HTTP workloads without risking premature collapse.
@@ -76,8 +85,9 @@ final class MetricCardinalityLimits {
    * Distinct values per additional-tag key (e.g. distinct values of a span-derived primary tag).
    * Each configured additional tag gets its own {@link TagCardinalityHandler} at this limit.
    *
-   * <p>{@code 100} is the default of {@code DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT} in
-   * the approved Cardinality Limits RFC. The RFC leaves the limiting unit and eviction strategy to
+   * <p>{@code 100} matches the default the approved Cardinality Limits RFC specifies for {@code
+   * DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT}. dd-trace-java does not expose that limit as
+   * a config knob -- it is fixed here. The RFC leaves the limiting unit and eviction strategy to
    * the SDK ("mechanism in the spec, policy in the SDK"); we apply the limit per key.
    */
   static final int ADDITIONAL_TAG_VALUE = 100;

@@ -42,7 +42,10 @@ final class AdditionalTagsSchema {
 
   /** Test convenience: limits enabled. */
   static AdditionalTagsSchema from(Set<String> configured) {
-    return from(configured, MetricCardinalityLimits.ADDITIONAL_TAG_VALUE, true);
+    return from(
+        configured,
+        MetricCardinalityLimits.ADDITIONAL_TAG_VALUE,
+        MetricCardinalityLimits.USE_BLOCKED_SENTINEL);
   }
 
   static AdditionalTagsSchema from(Set<String> configured, int limit, boolean useBlockedSentinel) {

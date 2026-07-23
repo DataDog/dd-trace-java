@@ -312,11 +312,10 @@ class AggregateTableTest {
   }
 
   @Test
-  void resetHandlersClearsBlockedCountsAndRefreshesCapacity() {
-    // Use limits-enabled handlers injected via the 3-arg constructor to test resetHandlers()
-    // without relying on the Config flag being set.
-    PropertyHandlers handlers = new PropertyHandlers();
-    AggregateTable table = new AggregateTable(512, AdditionalTagsSchema.EMPTY, handlers);
+  void resetCoreHandlersClearsBlockedCountsAndRefreshesCapacity() {
+    // Inject the core handlers via the 3-arg constructor to test resetCoreHandlers() directly.
+    CoreHandlers handlers = new CoreHandlers();
+    AggregateTable table = new AggregateTable(512, handlers, AdditionalTagsSchema.EMPTY);
 
     // Fill the service cardinality budget and push one value over the limit.
     for (int i = 0; i < MetricCardinalityLimits.SERVICE; i++) {
@@ -328,7 +327,7 @@ class AggregateTableTest {
     assertSame(blocked, blocked2);
 
     HealthMetrics metrics = mock(HealthMetrics.class);
-    table.resetHandlers(metrics, new CardinalityLimitReporter());
+    table.resetCoreHandlers(metrics, new CardinalityLimitReporter());
 
     verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:service"}, 2L);
     verifyNoMoreInteractions(metrics);
