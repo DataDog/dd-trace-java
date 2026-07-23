@@ -108,6 +108,24 @@ allprojects {
     }
   }
 
+  System.getProperty("datadog.forkedAsyncProfiler")?.let { raw ->
+    val options = if (raw.isBlank() || raw == "true") "all" else raw.removePrefix("start,")
+    val lib =
+      System.getProperty("datadog.forkedAsyncProfilerLib", "/opt/homebrew/lib/libasyncProfiler.dylib")
+    val libFile = file(lib)
+    if (!libFile.exists()) {
+      logger.warn("async-profiler library not found at: $lib")
+      logger.warn("To install async-profiler on macOS, run: 'brew install async-profiler'")
+      logger.warn("Skipping async-profiler configuration for tests")
+    } else {
+      val outDir = System.getProperty("datadog.forkedAsyncProfilerDir", "/tmp")
+      tasks.withType<Test>().configureEach {
+        // %p keeps one recording per worker JVM (maxParallelForks / forkEvery may spawn several).
+        jvmArgs("-agentpath:$lib=start,$options,file=$outDir/async-${project.name}-%p.jfr")
+      }
+    }
+  }
+
   // Disable CDS to avoid SIGSEGVs on Linux arm64.
   if (isLinuxArm64) {
     tasks.withType<JavaCompile>().configureEach {
