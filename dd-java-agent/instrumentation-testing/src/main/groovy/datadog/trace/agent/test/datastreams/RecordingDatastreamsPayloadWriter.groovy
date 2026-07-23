@@ -87,7 +87,22 @@ class RecordingDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
     waitFor(count, timeout, this.@schemaRegistryUsages)
   }
 
-  private static void waitFor(int count, long timeout, Collection collection) {
+  StatsGroup waitForGroup(Closure<Boolean> predicate, long timeout = TimeUnit.SECONDS.toMillis(3)) {
+    long deadline = System.currentTimeMillis() + timeout
+    while (System.currentTimeMillis() < deadline) {
+      synchronized (this) {
+        StatsGroup group = this.@groups.find(predicate)
+        if (group != null) {
+          return group
+        }
+      }
+      Thread.sleep(100)
+    }
+
+    assert false: "Expected a matching stats group within ${timeout}ms"
+  }
+
+  private void waitFor(int count, long timeout, Collection collection) {
     long deadline = System.currentTimeMillis() + timeout
     while (System.currentTimeMillis() < deadline) {
       synchronized (this) {
