@@ -1,0 +1,93 @@
+# Folded tag set per type (extends + include + applies, de-duped), with group:field-decls.
+# field: g<grp>f<n>=dense group:field-decl  trace ...=trace-level layer  bkt=bucketed  trace-bkt=trace-level bucketed  I=intercepted
+
+db.client  (21 tags):
+  g1f0         _dd.parent_id              
+  g1f1         component                  
+  g1f2         span.kind                  I
+  g1f3         _dd.integration            
+  bkt          _dd.svc_src                
+  g1f4         error.type                 
+  g1f5         error.message              
+  g1f6         error.stack                
+  g2f0         db.type                    
+  g2f1         db.instance                
+  g2f2         db.operation               
+  g2f3         db.user                    
+  bkt          db.pool.name               
+  g2f4         db.statement               I
+  g8f0         peer.service               I
+  g8f1         _dd.peer.service.source    
+  g8f2         _dd.peer.service.remapped_from 
+  g8f3         peer.hostname              
+  bkt          peer.ipv4                  
+  bkt          peer.ipv6                  
+  bkt          peer.port                  
+
+http.client  (20 tags):
+  g1f0         _dd.parent_id              
+  g1f1         component                  
+  g1f2         span.kind                  I
+  g1f3         _dd.integration            
+  bkt          _dd.svc_src                
+  g1f4         error.type                 
+  g1f5         error.message              
+  g1f6         error.stack                
+  g3f0         http.method                I
+  g3f1         http.status_code           
+  g3f2         network.protocol.version   
+  g4f0         http.url                   I
+  g4f1         http.resend_count          
+  g8f0         peer.service               I
+  g8f1         _dd.peer.service.source    
+  g8f2         _dd.peer.service.remapped_from 
+  g8f3         peer.hostname              
+  bkt          peer.ipv4                  
+  bkt          peer.ipv6                  
+  bkt          peer.port                  
+
+http.server  (18 tags):
+  g1f0         _dd.parent_id              
+  g1f1         component                  
+  g1f2         span.kind                  I
+  g1f3         _dd.integration            
+  bkt          _dd.svc_src                
+  g1f4         error.type                 
+  g1f5         error.message              
+  g1f6         error.stack                
+  g3f0         http.method                I
+  g3f1         http.status_code           
+  g3f2         network.protocol.version   
+  g4f0         http.url                   I
+  g5f0         http.route                 
+  g5f1         http.hostname              
+  g5f2         http.useragent             
+  g5f3         http.query.string          
+  bkt          servlet.path               
+  bkt          servlet.context            I
+
+view.render  (9 tags):
+  g1f0         _dd.parent_id              
+  g1f1         component                  
+  g1f2         span.kind                  I
+  g1f3         _dd.integration            
+  bkt          _dd.svc_src                
+  g1f4         error.type                 
+  g1f5         error.message              
+  g1f6         error.stack                
+  g6f0         view.name                  
+
+<trace>  (13 tags):
+  trace g0f0   _dd.base_service           
+  trace g0f1   version                    
+  trace g0f2   env                        
+  trace g0f3   language                   
+  trace g0f4   runtime-id                 
+  trace g0f5   _dd.tracer_host            
+  trace g0f6   _dd.git.commit.sha         
+  trace g0f7   _dd.git.repository_url     
+  trace g0f8   _dd.profiling.enabled      
+  trace g0f9   _dd.dsm.enabled            
+  trace g0f10  _dd.appsec.enabled         
+  trace g0f11  _dd.djm.enabled            
+  trace g0f12  _dd.civisibility.enabled   

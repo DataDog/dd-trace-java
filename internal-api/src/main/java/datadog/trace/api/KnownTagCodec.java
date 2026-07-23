@@ -34,7 +34,7 @@ public final class KnownTagCodec {
    * group-decl/field-decl split later. Unknown (string-only) custom tags are NOT known ids — they
    * key off {@code TagMap.Entry#_hash(name)} in their own bucket path and never enter here.
    */
-  public static int globalSerial(long tagId) {
+  public static int serialNum(long tagId) {
     return (int) ((tagId >>> 48) & 0x7FFF);
   }
 
@@ -107,13 +107,13 @@ public final class KnownTagCodec {
 
   /** True if the tagId names a reserved (structural/directive) tag — handled, not stored. */
   public static boolean isReserved(long tagId) {
-    int globalSerial = globalSerial(tagId);
-    return globalSerial > 0 && globalSerial < FIRST_STORED_SERIAL;
+    int serialNum = serialNum(tagId);
+    return serialNum > 0 && serialNum < FIRST_STORED_SERIAL;
   }
 
   /** True if the tagId names a generated, map-stored (slotted/bucketed) tag. */
   public static boolean isStored(long tagId) {
-    return globalSerial(tagId) >= FIRST_STORED_SERIAL;
+    return serialNum(tagId) >= FIRST_STORED_SERIAL;
   }
 
   /**
@@ -140,21 +140,23 @@ public final class KnownTagCodec {
   }
 
   /**
-   * Builds a tagId from all three parts: {@code globalSerial} (globally unique per known tag),
-   * {@code groupDecl} (its declaration group), and {@code fieldDecl} (its ordinal within that
-   * group). The low 32 bits are zero, so the id is fully determined by these parts — the generator
-   * emits it as a literal. Inverse of {@link #globalSerial}/{@link #groupDecl}/{@link #fieldDecl}.
-   * Intended for the code generator and tests.
+   * Builds a tagId from all three parts: {@code serialNum} (globally unique per known tag), {@code
+   * groupDecl} (its declaration group), and {@code fieldDecl} (its ordinal within that group). The
+   * low 32 bits are zero, so the id is fully determined by these parts — the generator emits it as
+   * a literal. Inverse of {@link #serialNum}/{@link #groupDecl}/{@link #fieldDecl}. Intended for
+   * the code generator and tests.
    */
-  public static long tagId(int globalSerial, int groupDecl, int fieldDecl) {
-    return ((long) globalSerial << 48)
+  public static long makeTagId(int serialNum, int groupDecl, int fieldDecl) {
+    return ((long) serialNum << 48)
         | ((long) (groupDecl & GROUP_DECL_MASK) << GROUP_DECL_SHIFT)
         | ((long) (fieldDecl & FIELD_DECL_MASK) << FIELD_DECL_SHIFT);
   }
 
-  /** Builds a tagId in group 0 — shorthand for {@link #tagId(int, int, int)} with group-decl 0. */
-  public static long tagId(int globalSerial, int fieldDecl) {
-    return tagId(globalSerial, 0, fieldDecl);
+  /**
+   * Builds a tagId in group 0 — shorthand for {@link #makeTagId(int, int, int)} with group-decl 0.
+   */
+  public static long makeTagId(int serialNum, int fieldDecl) {
+    return makeTagId(serialNum, 0, fieldDecl);
   }
 
   /**
@@ -162,8 +164,8 @@ public final class KnownTagCodec {
    * reserved tags and for "low-priority" stored tags that get a stable id but are intentionally
    * kept out of the fast slot array (they route to the hash buckets). See {@link #NO_SLOT}.
    */
-  public static long tagId(int globalSerial) {
-    return tagId(globalSerial, NO_SLOT);
+  public static long makeTagId(int serialNum) {
+    return makeTagId(serialNum, NO_SLOT);
   }
 
   // Number of positional slots in the global layout = (max stored fieldPos) + 1, declared by the

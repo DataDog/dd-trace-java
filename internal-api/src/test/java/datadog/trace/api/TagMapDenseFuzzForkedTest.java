@@ -58,14 +58,14 @@ class TagMapDenseFuzzForkedTest {
         public long keyOf(String name) {
           if (name.startsWith("known-")) {
             int n = Integer.parseInt(name.substring("known-".length()));
-            return KnownTagCodec.tagId(KnownTagCodec.FIRST_STORED_SERIAL + n, n);
+            return KnownTagCodec.makeTagId(KnownTagCodec.FIRST_STORED_SERIAL + n, n);
           }
           return 0L;
         }
 
         @Override
         public String nameOf(long tagId) {
-          int serial = KnownTagCodec.globalSerial(tagId);
+          int serial = KnownTagCodec.serialNum(tagId);
           return serial >= KnownTagCodec.FIRST_STORED_SERIAL
               ? "known-" + (serial - KnownTagCodec.FIRST_STORED_SERIAL)
               : null;
