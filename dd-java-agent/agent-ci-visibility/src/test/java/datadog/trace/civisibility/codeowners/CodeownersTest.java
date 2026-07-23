@@ -58,6 +58,8 @@ class CodeownersTest {
         // --- GitLab sections: a path's owners combine the winning match from every section,
         // including the unnamed section (the leading "* @global-owner") ---
         arguments(GITLAB_SAMPLE, "random/file.txt", singletonList("@global-owner")),
+        // exclusions also apply to the unnamed section
+        arguments(GITLAB_SAMPLE, "unowned.txt", emptyList()),
         // section default owners are inherited and combined with the global owner
         arguments(GITLAB_SAMPLE, "docs/guide.md", asList("@global-owner", "@docs-team")),
         arguments(GITLAB_SAMPLE, "README.md", asList("@global-owner", "@docs-team")),
@@ -84,7 +86,20 @@ class CodeownersTest {
         // entries in both blocks resolves to the last matching entry's owners, not both
         arguments(GITLAB_SAMPLE, "service/util.go", asList("@global-owner", "@backend-team-a")),
         arguments(
-            GITLAB_SAMPLE, "service/api/handler.go", asList("@global-owner", "@backend-team-b")));
+            GITLAB_SAMPLE, "service/api/handler.go", asList("@global-owner", "@backend-team-b")),
+        // exclusions suppress only their section and cannot be overridden by a later entry
+        arguments(
+            GITLAB_SAMPLE,
+            "generated-assets/output.txt",
+            asList("@global-owner", "@generated-files-team")),
+        arguments(
+            GITLAB_SAMPLE,
+            "generated-assets/excluded/output.txt",
+            asList("@global-owner", "@other-generated-files-team")),
+        arguments(
+            GITLAB_SAMPLE,
+            "generated-assets/excluded/special.txt",
+            asList("@global-owner", "@other-generated-files-team")));
   }
 
   private static Codeowners parse(String resource) throws IOException {

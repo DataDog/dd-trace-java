@@ -183,6 +183,9 @@ public class Tags {
   /** AI Guard force tracer to keep the trace */
   public static final String AI_GUARD_KEEP = "ai_guard.keep";
 
+  /** Marks a span as originating from an AI Guard evaluation */
+  public static final String AI_GUARD_EVENT = "ai_guard.event";
+
   public static final String PROPAGATED_TRACE_SOURCE = "_dd.p.ts";
   public static final String PROPAGATED_DEBUG = "_dd.p.debug";
 
