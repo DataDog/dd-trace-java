@@ -137,7 +137,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       }
     }
 
-    // Inferred helpers = our classes referenced from the advice, minus the advice roots.
+    // Inferred helpers = our classes referenced from the advice minus the advice roots.
     Set<String> inferredHelpers = new LinkedHashSet<>();
     for (Reference reference : allReferences) {
       if (!adviceClasses.contains(reference.className)
@@ -146,7 +146,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       }
     }
 
-    // Manual additions cover helpers the crawl can't see (reflection, SPI, advice-less injectors).
+    // Manual additions cover helpers the crawl can't see.
     Set<String> manualHelpers = new LinkedHashSet<>(asList(module.helperClassNames()));
     Set<String> seedHelpers = new LinkedHashSet<>(inferredHelpers);
     seedHelpers.addAll(manualHelpers);
@@ -165,7 +165,8 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
 
     writeInferenceReport(module, adviceClasses.isEmpty(), inferredHelpers, orderedHelpers);
 
-    // Injected helpers are our own classes, so they must not be asserted as library references.
+    // Injected helpers are our own classes, so they don't need to be asserted as library
+    // references.
     Set<String> ignoredClassNames = new HashSet<>(asList(orderedHelpers));
     Collections.addAll(ignoredClassNames, module.muzzleIgnoredClassNames());
     List<Reference> references = new ArrayList<>();
