@@ -45,13 +45,6 @@ public final class HttpServletInstrumentation extends InstrumenterModule.Tracing
     return extendsClass(named(hierarchyMarkerType()));
   }
 
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.servlet.SpanNameCache", packageName + ".HttpServletDecorator",
-    };
-  }
-
   /**
    * Here we are instrumenting the protected method for HttpServlet. This should ensure that this
    * advice is always called after Servlet3Instrumentation which is instrumenting the public method.
