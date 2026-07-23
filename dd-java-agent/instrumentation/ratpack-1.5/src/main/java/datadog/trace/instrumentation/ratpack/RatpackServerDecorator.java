@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import javax.annotation.Nonnull;
 import ratpack.handling.Context;
 import ratpack.http.Request;
 import ratpack.http.Response;
@@ -90,12 +91,13 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
   }
 
   @Override
-  public void onError(final AgentSpan span, Throwable throwable) {
+  protected void doOnError(
+      @Nonnull final AgentSpan span, @Nonnull Throwable throwable, byte errorPriority) {
     // Attempt to unwrap ratpack.handling.internal.HandlerException without direct reference.
     if (throwable instanceof Error && throwable.getCause() != null) {
-      super.onError(span, throwable.getCause());
+      super.doOnError(span, throwable.getCause(), errorPriority);
     } else {
-      super.onError(span, throwable);
+      super.doOnError(span, throwable, errorPriority);
     }
   }
 }
