@@ -77,10 +77,8 @@ final class MetricCardinalityLimits {
    * Each configured additional tag gets its own {@link TagCardinalityHandler} at this limit.
    *
    * <p>{@code 100} is the default of {@code DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT} in
-   * the approved Cardinality Limits RFC. dd-trace-dotnet uses the same magnitude but counts it over
-   * distinct value <em>combinations</em>; we count distinct values <em>per key</em>. The RFC leaves
-   * the limiting unit and eviction strategy to the SDK ("mechanism in the spec, policy in the
-   * SDK"), so both are conformant.
+   * the approved Cardinality Limits RFC. The RFC leaves the limiting unit and eviction strategy to
+   * the SDK ("mechanism in the spec, policy in the SDK"); we apply the limit per key.
    */
   static final int ADDITIONAL_TAG_VALUE = 100;
 
@@ -90,9 +88,8 @@ final class MetricCardinalityLimits {
    * with a stack trace, SQL statement, or JSON blob, which would bloat every MetricKey and msgpack
    * payload until the bucket flushes.
    *
-   * <p>{@code 200} matches the RFC's "collapsed due to exceeding 200 chars" and dd-trace-dotnet's
-   * {@code AdditionalTagMaxValueLength}. The cap is measured in characters (via {@code
-   * String.length()}), matching the .NET boundary.
+   * <p>{@code 200} matches the RFC's "collapsed due to exceeding 200 chars". The cap is measured in
+   * characters (via {@code String.length()}).
    */
   static final int ADDITIONAL_TAG_MAX_VALUE_LENGTH = 200;
 }
