@@ -3901,9 +3901,23 @@ public class Config {
    * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
    * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
    * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
+   *
+   * <p>A non-positive configured value is invalid -- each limit sizes a fixed-capacity handler
+   * table that requires a positive size -- so it falls back to {@code defaultLimit}, logged at
+   * debug.
    */
   public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
-    return configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+    int limit =
+        configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+    if (limit <= 0) {
+      log.debug(
+          "Invalid trace.stats.{}.cardinality.limit={}; must be positive. Using default {}.",
+          tagName,
+          limit,
+          defaultLimit);
+      return defaultLimit;
+    }
+    return limit;
   }
 
   public boolean isLogsInjectionEnabled() {

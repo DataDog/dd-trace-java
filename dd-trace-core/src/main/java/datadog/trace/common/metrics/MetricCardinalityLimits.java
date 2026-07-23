@@ -85,10 +85,11 @@ final class MetricCardinalityLimits {
    * Distinct values per additional-tag key (e.g. distinct values of a span-derived primary tag).
    * Each configured additional tag gets its own {@link TagCardinalityHandler} at this limit.
    *
-   * <p>{@code 100} matches the default the approved Cardinality Limits RFC specifies for {@code
-   * DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT}. dd-trace-java does not expose that limit as
-   * a config knob -- it is fixed here. The RFC leaves the limiting unit and eviction strategy to
-   * the SDK ("mechanism in the spec, policy in the SDK"); we apply the limit per key.
+   * <p>{@code 100} is the default; the value is configurable via {@code
+   * DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT} (resolved in {@link ClientStatsAggregator}
+   * through {@code Config#getTraceStatsCardinalityLimit}), matching the default and env-var name
+   * the approved Cardinality Limits RFC specifies. The RFC leaves the limiting unit and eviction
+   * strategy to the SDK ("mechanism in the spec, policy in the SDK"); we apply the limit per key.
    */
   static final int ADDITIONAL_TAG_VALUE = 100;
 
