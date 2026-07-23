@@ -113,13 +113,31 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /**
-   * @return Class names of helpers to inject into the user's classloader.
-   *     <p><b>NOTE:</b> The order of the returned helper classes matters. If a muzzle check fails
-   *     with a NoClassDefFoundError, as logged in build/reports/muzzle-*.txt, it is likely that one
-   *     helper class depends on another that appears later in the list. In this case, the returned
-   *     list must be reordered so that the referred helper class appears before the one that refers
-   *     to it.
+   * @return the full, load-ordered set of helper classes to inject into the user's classloader: the
+   *     helpers inferred at build time from the advice/helper byte-code, unioned with any {@link
+   *     #helperClassNames() manually-declared} additions. Falls back to {@link #helperClassNames()}
+   *     when no generated {@code $Muzzle} is available.
    */
+  public final String[] getAllHelperClassNames() {
+    String[] generated =
+        loadStaticMuzzleHelperClassNames(getClass().getClassLoader(), getClass().getName());
+    return null != generated ? generated : helperClassNames();
+  }
+
+  static String[] loadStaticMuzzleHelperClassNames(
+      ClassLoader classLoader, String instrumentationClass) {
+    String muzzleClass = instrumentationClass + "$Muzzle";
+    try {
+      // helper class names captured at build-time; see MuzzleGenerator
+      return (String[])
+          classLoader.loadClass(muzzleClass).getMethod("helperClassNames").invoke(null);
+    } catch (Throwable e) {
+      // no generated helper list: caller falls back to helperClassNames()
+      return null;
+    }
+  }
+
+  /** Optional manual additions to the injected helper set. */
   public String[] helperClassNames() {
     return NO_HELPERS;
   }

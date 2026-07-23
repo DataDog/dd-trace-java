@@ -130,7 +130,7 @@ public final class CombiningTransformerBuilder
 
     adviceShader = AdviceShader.with(module);
 
-    String[] helperClassNames = module.helperClassNames();
+    String[] helperClassNames = module.getAllHelperClassNames();
     if (module.injectHelperDependencies()) {
       helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
     }
