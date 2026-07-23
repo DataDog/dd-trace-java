@@ -14,7 +14,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.function.Predicate;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.FieldVisitor;
@@ -39,10 +38,6 @@ public class ReferenceCreator extends ClassVisitor {
    */
   private static final String REFERENCE_CREATION_PACKAGE = "datadog.trace.instrumentation.";
 
-  /** Default recursion rule; callers that identify helpers by other means pass their own. */
-  private static final Predicate<String> DEFAULT_SHOULD_RECURSE =
-      name -> name.startsWith(REFERENCE_CREATION_PACKAGE);
-
   private static final int UNDEFINED_LINE = -1;
 
   /** Set containing name+descriptor signatures of Object methods. */
@@ -63,30 +58,9 @@ public class ReferenceCreator extends ClassVisitor {
    * @return Map of [referenceClassName -> Reference]
    * @throws IllegalStateException if class is not found or unable to be loaded.
    */
-  public static Map<String, Reference> createReferencesFrom(
-      final String entryPointClassName, final AdviceShader adviceShader, final ClassLoader loader)
-      throws IllegalStateException {
-    return createReferencesFrom(entryPointClassName, adviceShader, loader, DEFAULT_SHOULD_RECURSE);
-  }
-
-  /**
-   * Generate all references reachable from a given class, following references into classes
-   * accepted by {@code shouldRecurse}.
-   *
-   * @param entryPointClassName Starting point for generating references.
-   * @param adviceShader Optional shading to apply to the advice.
-   * @param loader Classloader used to read class bytes.
-   * @param shouldRecurse Decides whether a referenced class is one of ours to keep crawling into
-   *     (vs. a library/bootstrap leaf that is merely recorded).
-   * @return Map of [referenceClassName -> Reference]
-   * @throws IllegalStateException if class is not found or unable to be loaded.
-   */
   @SuppressForbidden
   public static Map<String, Reference> createReferencesFrom(
-      final String entryPointClassName,
-      final AdviceShader adviceShader,
-      final ClassLoader loader,
-      final Predicate<String> shouldRecurse)
+      final String entryPointClassName, final AdviceShader adviceShader, final ClassLoader loader)
       throws IllegalStateException {
     final Set<String> visitedSources = new HashSet<>();
     final Map<String, Reference> references = new LinkedHashMap<>();
@@ -113,8 +87,9 @@ public class ReferenceCreator extends ClassVisitor {
 
         final Map<String, Reference> instrumentationReferences = cv.getReferences();
         for (final Map.Entry<String, Reference> entry : instrumentationReferences.entrySet()) {
-          // Only keep crawling into classes that are ours
-          if (!visitedSources.contains(entry.getKey()) && shouldRecurse.test(entry.getKey())) {
+          // Don't generate references created outside of the datadog instrumentation package.
+          if (!visitedSources.contains(entry.getKey())
+              && entry.getKey().startsWith(REFERENCE_CREATION_PACKAGE)) {
             instrumentationQueue.add(entry.getKey());
           }
           Reference toMerge = references.get(entry.getKey());
