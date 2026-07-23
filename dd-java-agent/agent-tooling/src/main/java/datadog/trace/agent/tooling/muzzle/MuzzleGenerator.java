@@ -3,23 +3,28 @@ package datadog.trace.agent.tooling.muzzle;
 import static java.util.Arrays.asList;
 
 import datadog.trace.agent.tooling.AdviceShader;
+import datadog.trace.agent.tooling.HelperScanner;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
 import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.ClassWriter;
@@ -81,7 +86,10 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   }
 
   private static Reference[] generateReferences(
-      Instrumenter.HasMethodAdvice instrumenter, AdviceShader adviceShader) {
+      Instrumenter.HasMethodAdvice instrumenter,
+      AdviceShader adviceShader,
+      Set<String> allAdviceClasses,
+      Predicate<String> shouldRecurse) {
     // track sources we've generated references from to avoid recursion
     final Set<String> referenceSources = new HashSet<>();
     final Map<String, Reference> references = new LinkedHashMap<>();
@@ -93,11 +101,14 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
             adviceClasses.addAll(asList(additionalClasses));
           }
         });
+    // remember the advice roots so callers can exclude them from the injected helper set
+    allAdviceClasses.addAll(adviceClasses);
     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
     for (String adviceClass : adviceClasses) {
       if (referenceSources.add(adviceClass)) {
         for (Map.Entry<String, Reference> entry :
-            ReferenceCreator.createReferencesFrom(adviceClass, adviceShader, contextClassLoader)
+            ReferenceCreator.createReferencesFrom(
+                    adviceClass, adviceShader, contextClassLoader, shouldRecurse)
                 .entrySet()) {
           Reference toMerge = references.get(entry.getKey());
           if (null == toMerge) {
@@ -112,21 +123,56 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   }
 
   /** This code is generated in a separate side-class. */
-  private static byte[] generateMuzzleClass(InstrumenterModule module) {
+  private byte[] generateMuzzleClass(InstrumenterModule module) {
 
-    Set<String> ignoredClassNames = new HashSet<>(asList(module.muzzleIgnoredClassNames()));
     AdviceShader adviceShader = AdviceShader.with(module.adviceShading());
+    HelperClassPredicate helperPredicate = new HelperClassPredicate(this::isOwnOutput);
 
-    List<Reference> references = new ArrayList<>();
+    // Crawl advice, following references into our own helper classes (even in library packages).
+    Set<String> adviceClasses = new HashSet<>();
+    List<Reference> allReferences = new ArrayList<>();
     for (Instrumenter instrumenter : module.typeInstrumentations()) {
       if (instrumenter instanceof Instrumenter.HasMethodAdvice) {
-        for (Reference reference :
-            generateReferences((Instrumenter.HasMethodAdvice) instrumenter, adviceShader)) {
-          // ignore helper classes, they will be injected by the instrumentation's HelperInjector.
-          if (!ignoredClassNames.contains(reference.className)) {
-            references.add(reference);
-          }
-        }
+        Collections.addAll(
+            allReferences,
+            generateReferences(
+                (Instrumenter.HasMethodAdvice) instrumenter,
+                adviceShader,
+                adviceClasses,
+                helperPredicate::isHelperClass));
+      }
+    }
+
+    // Advice roots are inlined into the target method, not injected, so they aren't helpers.
+    Set<String> inferredHelpers = new LinkedHashSet<>();
+    for (Reference reference : allReferences) {
+      if (!adviceClasses.contains(reference.className)
+          && helperPredicate.isHelperClass(reference.className)) {
+        inferredHelpers.add(reference.className);
+      }
+    }
+
+    // Manual additions cover helpers the crawl can't see (reflection, SPI, advice-less injectors).
+    Set<String> helperClasses = new LinkedHashSet<>(inferredHelpers);
+    Collections.addAll(helperClasses, module.helperClassNames());
+    for (String helper : new ArrayList<>(helperClasses)) {
+      if (isOwnOutput(helper)) {
+        addNestedClasses(helper, helperClasses);
+      }
+    }
+
+    String[] orderedHelpers =
+        orderHelpers(helperClasses, Thread.currentThread().getContextClassLoader());
+
+    writeInferenceReport(module, adviceClasses.isEmpty(), inferredHelpers, helperClasses);
+
+    // Injected helpers are our own classes, so they must not be asserted as library references.
+    Set<String> ignoredClassNames = new HashSet<>(helperClasses);
+    Collections.addAll(ignoredClassNames, module.muzzleIgnoredClassNames());
+    List<Reference> references = new ArrayList<>();
+    for (Reference reference : allReferences) {
+      if (!ignoredClassNames.contains(reference.className)) {
+        references.add(reference);
       }
     }
     Reference[] additionalReferences = module.additionalMuzzleReferences();
@@ -179,7 +225,124 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     mv.visitMaxs(0, 0);
     mv.visitEnd();
 
+    // Generated: public static String[] helperClassNames()
+    MethodVisitor hv =
+        cw.visitMethod(
+            Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+            "helperClassNames",
+            "()[Ljava/lang/String;",
+            null,
+            null);
+    hv.visitCode();
+    writeStrings(hv, orderedHelpers);
+    hv.visitInsn(Opcodes.ARETURN);
+    hv.visitMaxs(0, 0);
+    hv.visitEnd();
+
     return cw.toByteArray();
+  }
+
+  /** {@code true} if the class was compiled from this instrumentation subproject's own output. */
+  private boolean isOwnOutput(String className) {
+    return new File(targetDir, className.replace('.', '/') + ".class").isFile();
+  }
+
+  /** Adds the nested classes ({@code Foo$Bar}, {@code Foo$1}, ...) of an own-output helper. */
+  private void addNestedClasses(String className, Set<String> helperClasses) {
+    File classFile = new File(targetDir, className.replace('.', '/') + ".class");
+    File dir = classFile.getParentFile();
+    if (dir == null || !dir.isDirectory()) {
+      return;
+    }
+    int lastDot = className.lastIndexOf('.');
+    String pkg = lastDot < 0 ? "" : className.substring(0, lastDot + 1);
+    String prefix = (lastDot < 0 ? className : className.substring(lastDot + 1)) + "$";
+    File[] siblings = dir.listFiles();
+    if (siblings == null) {
+      return;
+    }
+    for (File sibling : siblings) {
+      String fileName = sibling.getName();
+      if (fileName.startsWith(prefix) && fileName.endsWith(".class")) {
+        helperClasses.add(pkg + fileName.substring(0, fileName.length() - ".class".length()));
+      }
+    }
+  }
+
+  /**
+   * Load-orders helpers (dependencies first) via {@link HelperScanner}, keeping only our helpers
+   * (the scanner may pull in library classes) and retaining any helper it could not locate.
+   */
+  private static String[] orderHelpers(Set<String> helpers, ClassLoader loader) {
+    if (helpers.isEmpty()) {
+      return new String[0];
+    }
+    List<String> ordered = new ArrayList<>(helpers.size());
+    try {
+      for (String name :
+          HelperScanner.withClassDependencies(
+              ClassFileLocator.ForClassLoader.of(loader), helpers.toArray(new String[0]))) {
+        if (helpers.contains(name) && !ordered.contains(name)) {
+          ordered.add(name);
+        }
+      }
+    } catch (Throwable ignore) {
+      // best-effort ordering; unordered helpers are appended below
+    }
+    for (String name : helpers) {
+      if (!ordered.contains(name)) {
+        ordered.add(name);
+      }
+    }
+    return ordered.toArray(new String[0]);
+  }
+
+  /**
+   * Writes an advisory report classifying each declared helper as inferred vs. manual-only, to
+   * guide migration. Best-effort — never fails the build.
+   */
+  private void writeInferenceReport(
+      InstrumenterModule module,
+      boolean adviceLess,
+      Set<String> inferredHelpers,
+      Set<String> allHelpers) {
+    try {
+      Set<String> declared = new LinkedHashSet<>(asList(module.helperClassNames()));
+      if (declared.isEmpty() && inferredHelpers.isEmpty()) {
+        return;
+      }
+      File buildDir = targetDir;
+      while (buildDir != null && !"build".equals(buildDir.getName())) {
+        buildDir = buildDir.getParentFile();
+      }
+      if (buildDir == null) {
+        return;
+      }
+      File reportDir = new File(buildDir, "reports/helper-inference");
+      reportDir.mkdirs();
+      StringBuilder sb = new StringBuilder();
+      sb.append("module: ").append(module.getClass().getName()).append('\n');
+      sb.append("has-advice: ").append(!adviceLess).append('\n');
+      sb.append("injected-helpers: ").append(allHelpers.size()).append('\n');
+      if (adviceLess && !declared.isEmpty()) {
+        sb.append("crawl-cannot-cover: advice-less module; declared helpers are all manual-only\n");
+      }
+      for (String name : declared) {
+        sb.append(inferredHelpers.contains(name) ? "  inferred     " : "  manual-only  ")
+            .append(name)
+            .append('\n');
+      }
+      for (String name : inferredHelpers) {
+        if (!declared.contains(name)) {
+          sb.append("  inferred-only ").append(name).append('\n');
+        }
+      }
+      Files.write(
+          new File(reportDir, module.getClass().getName() + ".txt").toPath(),
+          sb.toString().getBytes(StandardCharsets.UTF_8));
+    } catch (Throwable ignore) {
+      // report is advisory; never fail the build over it
+    }
   }
 
   private static void writeReference(MethodVisitor mv, Reference reference) {
