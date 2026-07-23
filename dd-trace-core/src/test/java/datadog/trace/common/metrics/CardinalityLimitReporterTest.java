@@ -2,14 +2,22 @@ package datadog.trace.common.metrics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import datadog.logging.RatelimitedLogger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.slf4j.LoggerFactory;
 
 class CardinalityLimitReporterTest {
@@ -74,6 +82,32 @@ class CardinalityLimitReporterTest {
     reporter.reportIfDue();
 
     assertEquals(1, appender.list.size());
+  }
+
+  @Test
+  void retainsCountsUntilAWarningIsActuallyEmitted() {
+    // Drive the rate limiter directly: suppress the first attempt, permit the second. Counts
+    // recorded while suppressed must survive and appear -- summed with later counts -- in the line
+    // that is eventually emitted, and only then be cleared.
+    RatelimitedLogger rlLog = mock(RatelimitedLogger.class);
+    when(rlLog.warn(anyString(), any())).thenReturn(false, true);
+    CardinalityLimitReporter reporter = new CardinalityLimitReporter(rlLog);
+
+    reporter.record("resource", 3);
+    reporter.reportIfDue(); // suppressed: nothing cleared
+    reporter.record("resource", 4);
+    reporter.reportIfDue(); // permitted: emits the retained 3 + new 4
+
+    ArgumentCaptor<Object> summary = ArgumentCaptor.forClass(Object.class);
+    verify(rlLog, times(2)).warn(anyString(), summary.capture());
+    // First (suppressed) attempt still saw only 3; the emitting attempt carries the full 7.
+    assertEquals("resource=3", summary.getAllValues().get(0));
+    assertEquals("resource=7", summary.getAllValues().get(1));
+
+    // A successful emit cleared the store: with nothing recorded since, the next due-check
+    // short-circuits and never touches the logger again.
+    reporter.reportIfDue();
+    verify(rlLog, times(2)).warn(anyString(), any());
   }
 
   @Test

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 class CardinalityHandlerTest {
@@ -138,6 +139,32 @@ class CardinalityHandlerTest {
   }
 
   @Test
+  void tagValueAtLengthCapPassesAndOverCapCollapses() {
+    // Length cap is enforced independently of the cardinality budget: give a generous budget (10)
+    // so only the length branch can block. A value of exactly maxValueLength passes; one character
+    // longer collapses to the blocked sentinel. The 200-char cap here is the shipped
+    // MetricCardinalityLimits.ADDITIONAL_TAG_MAX_VALUE_LENGTH.
+    TagCardinalityHandler h = new TagCardinalityHandler("k", 10, true, 200);
+    String atCap = stringOfLength(200);
+    String overCap = stringOfLength(201);
+
+    assertEquals("k:" + atCap, h.register(atCap).toString());
+    assertEquals("k:tracer_blocked_value", h.register(overCap).toString());
+    // Only the over-cap value was blocked; the at-cap value flowed through as its real value.
+    assertEquals(1, h.reset());
+  }
+
+  @Test
+  void tagValueLengthCapNotEnforcedWhenSentinelDisabled() {
+    // With the blocked sentinel disabled the length branch is skipped: an oversized value flows
+    // through verbatim (limits-disabled mode never masks values).
+    TagCardinalityHandler h = new TagCardinalityHandler("k", 10, false, 200);
+    String overCap = stringOfLength(201);
+    assertEquals("k:" + overCap, h.register(overCap).toString());
+    assertEquals(0, h.reset());
+  }
+
+  @Test
   void propertyRegisterOfNullReturnsEmpty() {
     PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 4);
     // Null input short-circuits to UTF8BytesString.EMPTY -- the universal "absent" sentinel that
@@ -254,5 +281,11 @@ class CardinalityHandlerTest {
     h.register("svc-1");
     UTF8BytesString overCap = h.register("svc-2");
     assertEquals("peer.service:svc-2", overCap.toString());
+  }
+
+  private static String stringOfLength(int length) {
+    char[] chars = new char[length];
+    Arrays.fill(chars, 'x');
+    return new String(chars);
   }
 }
