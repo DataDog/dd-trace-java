@@ -42,7 +42,8 @@ public class SpanInstrumenter extends Instrumenter {
       return addRangeSpan(classFileLines);
     }
     spanVar = newVar(DEBUGGER_SPAN_TYPE);
-    Map<AbstractInsnNode, Frame<BasicValue>> frames = computeFrames(classNode.name, methodNode);
+    Map<AbstractInsnNode, Frame<BasicValue>> frames =
+        ASMHelper.computeFrames(classNode.name, methodNode);
     processInstructions(frames);
     LabelNode initSpanLabel = new LabelNode();
     InsnList insnList = createSpan(initSpanLabel);

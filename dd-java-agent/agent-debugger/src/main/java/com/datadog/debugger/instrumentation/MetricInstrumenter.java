@@ -112,7 +112,7 @@ public class MetricInstrumenter extends Instrumenter {
       case EXIT:
         {
           Map<AbstractInsnNode, Frame<BasicValue>> frames =
-              computeFrames(classNode.name, methodNode);
+              ASMHelper.computeFrames(classNode.name, methodNode);
           processInstructions(frames);
           addFinallyHandler(returnHandlerLabel);
           installFinallyBlocks();

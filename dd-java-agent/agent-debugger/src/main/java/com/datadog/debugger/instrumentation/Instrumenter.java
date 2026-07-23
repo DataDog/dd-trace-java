@@ -13,7 +13,6 @@ import com.datadog.debugger.util.JvmLanguage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import org.objectweb.asm.Opcodes;
@@ -29,17 +28,11 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
-import org.objectweb.asm.tree.analysis.Analyzer;
-import org.objectweb.asm.tree.analysis.AnalyzerException;
-import org.objectweb.asm.tree.analysis.BasicInterpreter;
 import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Frame;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Common class for generating instrumentation */
 public abstract class Instrumenter {
-  private static final Logger LOGGER = LoggerFactory.getLogger(Instrumenter.class);
   protected static final String CONSTRUCTOR_NAME = "<init>";
   protected static final String PROBEID_TAG_NAME = "debugger.probeid";
 
@@ -191,41 +184,6 @@ public abstract class Instrumenter {
       result.add(new InsnNode(value.getSize() == 2 ? Opcodes.POP2 : Opcodes.POP));
     }
     return result;
-  }
-
-  protected static Map<AbstractInsnNode, Frame<BasicValue>> computeFrames(
-      String owner, MethodNode methodNode) {
-    Map<AbstractInsnNode, Frame<BasicValue>> frames = new IdentityHashMap<>();
-    // Probes already applied to this method may have inserted bytecode that requires more
-    // stack than originally declared, without updating methodNode.maxStack (only maxLocals is
-    // tracked, see newVar()). The ASM analyzer sizes its Frame objects from the declared
-    // maxStack, so a stale/too-small value makes the analysis fail with
-    // "Insufficient maximum stack size" even though the class itself is valid. Widen it to a
-    // safe upper bound (no single instruction pushes more than 2 stack slots) before analyzing;
-    // this is only used for this internal frame computation, the real maxStack is recomputed
-    // by the ClassWriter's COMPUTE_FRAMES pass when the class is finally written.
-    methodNode.maxStack = Math.max(methodNode.maxStack, methodNode.instructions.size() * 2);
-    try {
-      Frame<BasicValue>[] frameArray =
-          new Analyzer<>(new BasicInterpreter()).analyze(owner, methodNode);
-      AbstractInsnNode current = methodNode.instructions.getFirst();
-      int idx = 0;
-      while (current != null) {
-        frames.put(current, frameArray[idx++]);
-        current = current.getNext();
-      }
-    } catch (AnalyzerException ex) {
-      LOGGER.debug(
-          "Failed to analyze method[{}::{}{}] instructions",
-          owner,
-          methodNode.name,
-          methodNode.desc,
-          ex);
-      // when running tests, fails if an exception is thrown during analysis
-      // Gradle is running tests with assertions enbabled
-      assert false;
-    }
-    return frames;
   }
 
   protected AbstractInsnNode processInstruction(
