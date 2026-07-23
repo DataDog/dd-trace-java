@@ -5,6 +5,10 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -12,6 +16,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.CoreSpan;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.core.otlp.trace.OtlpTraceCollector;
@@ -19,6 +24,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -28,8 +34,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class OtlpPayloadDispatcherTest {
   @Mock OtlpSender sender;
+  @Mock HealthMetrics healthMetrics;
 
   TestCollector collector = new TestCollector();
+
+  @BeforeEach
+  void stubSuccessfulSend() {
+    lenient().when(sender.send(any())).thenReturn(RemoteApi.Response.success(200));
+  }
 
   @Test
   void sampledTraceForwardsAllSpans() {
@@ -96,6 +108,32 @@ class OtlpPayloadDispatcherTest {
   }
 
   @Test
+  void flushRecordsSerializedSizeBeforeSending() {
+    RemoteApi.Response response = RemoteApi.Response.success(200);
+    when(sender.send(any())).thenReturn(response);
+    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector, healthMetrics);
+
+    dispatcher.addTrace(Arrays.asList(sampledSpan(), sampledSpan()));
+    dispatcher.flush();
+
+    verify(healthMetrics).onSerialize(2 /*spans*/);
+    verify(healthMetrics).onSend(eq(1) /*trace*/, eq(2) /*spans*/, same(response));
+  }
+
+  @Test
+  void flushRecordsFailedSendHealthMetric() {
+    RemoteApi.Response response = RemoteApi.Response.failed(500);
+    when(sender.send(any())).thenReturn(response);
+    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector, healthMetrics);
+
+    dispatcher.addTrace(Arrays.asList(sampledSpan(), sampledSpan()));
+    dispatcher.flush();
+
+    verify(healthMetrics).onSerialize(2 /*spans*/);
+    verify(healthMetrics).onFailedSend(eq(1) /*trace*/, eq(2) /*spans*/, same(response));
+  }
+
+  @Test
   void getApisIsEmpty() {
     OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
 
@@ -142,13 +180,23 @@ class OtlpPayloadDispatcherTest {
   /** Test collector that creates payloads whose size equals the number of exported spans. */
   private static class TestCollector extends OtlpTraceCollector {
     final List<CoreSpan<?>> spansToExport = new ArrayList<>();
+    int traceCount;
 
     @Override
     public void addTrace(List<? extends CoreSpan<?>> spans) {
+      if (spansToExport.isEmpty()) {
+        // starting a new batch - reset the count left over from the last collection
+        traceCount = 0;
+      }
+      boolean exported = false;
       for (CoreSpan<?> span : spans) {
         if (shouldExport(span)) {
           spansToExport.add(span);
+          exported = true;
         }
+      }
+      if (exported) {
+        traceCount++;
       }
     }
 
@@ -164,6 +212,11 @@ class OtlpPayloadDispatcherTest {
       } finally {
         spansToExport.clear();
       }
+    }
+
+    @Override
+    public int getTraceCount() {
+      return traceCount;
     }
   }
 }

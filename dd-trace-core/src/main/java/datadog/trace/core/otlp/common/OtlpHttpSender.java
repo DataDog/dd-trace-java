@@ -2,18 +2,16 @@ package datadog.trace.core.otlp.common;
 
 import static datadog.communication.http.OkHttpUtils.buildHttpClient;
 import static datadog.communication.http.OkHttpUtils.isPlainHttp;
-import static datadog.communication.http.OkHttpUtils.sendWithRetries;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.config.OtlpConfig.Compression;
-import java.io.IOException;
+import datadog.trace.common.writer.RemoteApi;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,20 +57,8 @@ public final class OtlpHttpSender implements OtlpSender {
   }
 
   @Override
-  public void send(OtlpPayload payload) {
-    Request request = makeRequest(payload);
-    try (Response response = sendWithRetries(client, retryPolicy, request)) {
-      if (!response.isSuccessful()) {
-        RATELIMITED_LOGGER.warn(
-            "OTLP export to {} failed with status {}: {}",
-            request.url(),
-            response.code(),
-            response.message());
-      }
-    } catch (IOException e) {
-      RATELIMITED_LOGGER.warn(
-          "OTLP export to {} failed with exception: {}", request.url(), e.toString());
-    }
+  public RemoteApi.Response send(OtlpPayload payload) {
+    return OtlpSenderSupport.send(client, retryPolicy, makeRequest(payload), RATELIMITED_LOGGER);
   }
 
   @Override

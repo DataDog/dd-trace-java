@@ -41,6 +41,7 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
   private boolean payloadStarted;
   private boolean anySpanWritten;
   private boolean firstSpanInScope;
+  private int traceCount;
 
   private OtelInstrumentationScope currentScope;
   private DDSpan currentSpan;
@@ -54,8 +55,12 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
       payloadStarted = true;
     }
 
+    boolean exported = false;
     for (CoreSpan<?> span : spans) {
-      visitSpan(span);
+      exported |= visitSpan(span);
+    }
+    if (exported) {
+      traceCount++;
     }
   }
 
@@ -78,6 +83,8 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
 
   /** Prepare temporary elements to collect trace data. */
   private void start() {
+    traceCount = 0;
+
     writer = new JsonWriter();
     metaWriter = new OtlpTraceJson.MetaWriter(writer);
 
@@ -104,6 +111,11 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     currentSpanLinks = Collections.emptyList();
   }
 
+  @Override
+  public int getTraceCount() {
+    return traceCount;
+  }
+
   private void visitScopedSpans(OtelInstrumentationScope scope) {
     if (currentScope != null) {
       completeScope();
@@ -116,18 +128,20 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     writer.name("spans").beginArray();
   }
 
-  private void visitSpan(CoreSpan<?> span) {
-    if (shouldExport(span)) {
-      if (currentSpan != null) {
-        // ensure last span written at trace boundary includes sampling tags
-        if (!span.getTraceId().equals(currentSpan.getTraceId())) {
-          metaWriter.includeSamplingTags();
-        }
-        completeSpan();
-      }
-      currentSpan = (DDSpan) span;
-      currentSpanLinks = currentSpan.getLinks();
+  private boolean visitSpan(CoreSpan<?> span) {
+    if (!shouldExport(span)) {
+      return false;
     }
+    if (currentSpan != null) {
+      // ensure last span written at trace boundary includes sampling tags
+      if (!span.getTraceId().equals(currentSpan.getTraceId())) {
+        metaWriter.includeSamplingTags();
+      }
+      completeSpan();
+    }
+    currentSpan = (DDSpan) span;
+    currentSpanLinks = currentSpan.getLinks();
+    return true;
   }
 
   // called once we've processed all scopes and span messages

@@ -147,7 +147,8 @@ public class OtlpWriter extends RemoteWriter {
           protocol == OtlpConfig.Protocol.HTTP_JSON
               ? new OtlpTraceJsonCollector()
               : new OtlpTraceProtoCollector();
-      final OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+      final OtlpPayloadDispatcher dispatcher =
+          new OtlpPayloadDispatcher(sender, collector, healthMetrics);
       final TraceProcessingWorker worker =
           new TraceProcessingWorker(
               traceBufferSize,
