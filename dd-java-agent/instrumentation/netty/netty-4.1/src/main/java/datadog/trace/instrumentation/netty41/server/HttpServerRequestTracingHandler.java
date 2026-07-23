@@ -14,7 +14,6 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 
 @ChannelHandler.Sharable
@@ -49,8 +48,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
         storedParentContext != null ? storedParentContext : DECORATE.extract(headers);
     final Context context = DECORATE.startSpan(headers, parentContext);
     final ServerRequestContext serverContext =
-        ServerRequestContext.add(
-            channel, context, headers.get("accept"), HttpMethod.HEAD.equals(request.method()));
+        ServerRequestContext.add(channel, context, headers.get("accept"));
 
     try (final ContextScope ignored = context.attach()) {
       final AgentSpan span = AgentSpan.fromContext(context);

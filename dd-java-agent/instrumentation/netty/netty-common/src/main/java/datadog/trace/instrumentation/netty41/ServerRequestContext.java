@@ -26,21 +26,11 @@ public final class ServerRequestContext {
   /** Adds a request context to the queue tail. */
   public static ServerRequestContext add(
       final AttributeMap attributes, final Context context, final String acceptHeader) {
-    return add(attributes, context, acceptHeader, false);
-  }
-
-  /** Adds a request context to the queue tail. */
-  public static ServerRequestContext add(
-      final AttributeMap attributes,
-      final Context context,
-      final String acceptHeader,
-      final boolean headRequest) {
     final Deque<ServerRequestContext> contexts = getOrCreate(attributes);
     if (!canAdd(attributes, contexts)) {
       return null;
     }
-    final ServerRequestContext serverContext =
-        new ServerRequestContext(context, acceptHeader, headRequest);
+    final ServerRequestContext serverContext = new ServerRequestContext(context, acceptHeader);
     contexts.addLast(serverContext);
     // The deque is authoritative for server request/response matching. CONTEXT_ATTRIBUTE_KEY is a
     // context mirror of the current inbound request used by
@@ -192,7 +182,6 @@ public final class ServerRequestContext {
 
   private final Context tracingContext;
   private final String acceptHeader;
-  private final boolean headRequest;
   private boolean responseStarted;
   private boolean responseAnalyzed;
   private Object deferredBlockResponse;
@@ -203,10 +192,6 @@ public final class ServerRequestContext {
 
   public String acceptHeader() {
     return acceptHeader;
-  }
-
-  public boolean isHeadRequest() {
-    return headRequest;
   }
 
   public boolean isResponseStarted() {
@@ -233,10 +218,8 @@ public final class ServerRequestContext {
     this.deferredBlockResponse = deferredBlockResponse;
   }
 
-  private ServerRequestContext(
-      final Context tracingContext, final String acceptHeader, final boolean headRequest) {
+  private ServerRequestContext(final Context tracingContext, final String acceptHeader) {
     this.tracingContext = tracingContext;
     this.acceptHeader = acceptHeader;
-    this.headRequest = headRequest;
   }
 }

@@ -58,6 +58,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -68,6 +69,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import reactor.core.publisher.Mono;
+import reactor.netty.DisposableServer;
+import reactor.netty.http.server.HttpServer;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
@@ -145,6 +149,42 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
         serverTrace(FIRST_PATH),
         serverTrace(SECOND_PATH),
         serverTrace(THIRD_PATH));
+  }
+
+  @Test
+  void reactorNettyCompletesPipelinedFixedLengthResponses() throws Exception {
+    DisposableServer reactorServer =
+        HttpServer.create()
+            .host("localhost")
+            .port(0)
+            .handle(
+                (request, response) -> {
+                  String body = "response " + request.uri();
+                  response.header(CONTENT_LENGTH, Integer.toString(body.getBytes(UTF_8).length));
+                  return Mono.delay(Duration.ofMillis(100))
+                      .then(Mono.defer(() -> response.sendString(Mono.just(body)).then()));
+                })
+            .bindNow();
+
+    try {
+      try (Socket socket = new Socket("localhost", reactorServer.port())) {
+        socket.setSoTimeout(5000);
+        socket.getOutputStream().write(pipelinedRequests().getBytes(US_ASCII));
+        socket.getOutputStream().flush();
+
+        assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
+        assertEquals("response " + SECOND_PATH, readHttpResponseBody(socket.getInputStream()));
+        assertEquals("response " + THIRD_PATH, readHttpResponseBody(socket.getInputStream()));
+      }
+
+      assertTraces(
+          SORT_BY_START_TIME,
+          serverTrace(FIRST_PATH),
+          serverTrace(SECOND_PATH),
+          serverTrace(THIRD_PATH));
+    } finally {
+      reactorServer.disposeNow();
+    }
   }
 
   @Test
@@ -632,6 +672,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
                 DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, NO_CONTENT);
                 response.headers().set(CONNECTION, KEEP_ALIVE);
                 responseContext.write(response);
+                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
                 responseContext.flush();
               });
     }
@@ -653,6 +694,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
                 DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
                 response.headers().set(CONTENT_LENGTH, body.length);
                 responseContext.write(response);
+                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
                 responseContext.flush();
               });
     }
