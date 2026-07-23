@@ -39,6 +39,12 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     }
 
     final HttpRequest request = (HttpRequest) msg;
+    if (ServerRequestContext.isRequestBlocked(channel)) {
+      // A deferred block keeps its handler in the pipeline while an earlier response completes.
+      // Forward later pipelined requests to that handler instead of adding another one.
+      ctx.fireChannelRead(msg);
+      return;
+    }
     if (!ServerRequestContext.canTrackRequest(channel)) {
       channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).remove();
       ctx.fireChannelRead(msg);
@@ -63,7 +69,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
         ctx.pipeline()
             .addAfter(
                 ctx.name(),
-                "blocking_handler",
+                BlockingResponseHandler.HANDLER_NAME,
                 new BlockingResponseHandler(
                     span.getRequestContext().getTraceSegment(), rba, serverContext));
       }

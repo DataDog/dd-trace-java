@@ -89,6 +89,27 @@ public final class ServerRequestContext {
     return contexts == null || isPoisoned(contexts) ? null : contexts.peekLast();
   }
 
+  /** Returns whether the request context is still awaiting a response on this channel. */
+  public static boolean isPending(
+      final AttributeMap attributes, final ServerRequestContext serverContext) {
+    if (serverContext == null) {
+      return false;
+    }
+    final Deque<ServerRequestContext> contexts =
+        attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).get();
+    return contexts != null && !isPoisoned(contexts) && contexts.contains(serverContext);
+  }
+
+  /** Returns whether a request block is closing the channel. */
+  public static boolean isRequestBlocked(final AttributeMap attributes) {
+    return attributes.attr(BLOCKED_REQUEST_ATTRIBUTE_KEY).get() != null;
+  }
+
+  /** Marks the channel as closing after an AppSec request block. */
+  public static void markRequestBlocked(final AttributeMap attributes) {
+    attributes.attr(BLOCKED_REQUEST_ATTRIBUTE_KEY).set(Boolean.TRUE);
+  }
+
   /** Returns whether the channel is closing after an AppSec response block. */
   public static boolean isResponseBlocked(final AttributeMap attributes) {
     return attributes.attr(BLOCKED_RESPONSE_ATTRIBUTE_KEY).get() != null;
@@ -111,22 +132,27 @@ public final class ServerRequestContext {
       if (isPoisoned(contexts)) {
         return;
       }
+      final boolean removed;
       if (contexts.peekFirst() == serverContext) {
         // Response completion consumes the queue head.
         contexts.pollFirst();
+        removed = true;
       } else {
         // Request-side failures normally remove the tail. Remove by value to cover later cleanup
         // after additional pipelined requests were queued.
-        contexts.remove(serverContext);
+        removed = contexts.remove(serverContext);
       }
       final ServerRequestContext currentContext = contexts.peekLast();
       if (currentContext == null) {
         attributes.attr(CONTEXT_ATTRIBUTE_KEY).remove();
-        // No request-matching state remains. Drop the empty per-channel queue so idle
-        // keep-alive or upgraded channels do not retain it after the last HTTP request;
-        // getOrCreate will recreate it lazily if another request arrives.
-        attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).remove();
       } else {
+        if (removed && contexts.size() == 1) {
+          // An expanded pipeline must drain through one pending request. Replace its potentially
+          // large backing array while retaining a compact queue for later keep-alive requests.
+          final Deque<ServerRequestContext> compactContexts = new ArrayDeque<>(1);
+          compactContexts.addLast(currentContext);
+          attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).set(compactContexts);
+        }
         // Keep the context mirror pointed at the current inbound request after removing an older
         // response context. It may still be copied to a new HTTP/2 stream channel.
         attributes.attr(CONTEXT_ATTRIBUTE_KEY).set(currentContext.tracingContext());
@@ -144,6 +170,8 @@ public final class ServerRequestContext {
   public static Deque<ServerRequestContext> removeAll(final AttributeMap attributes) {
     // The context mirror must not outlive the authoritative request queue.
     attributes.attr(CONTEXT_ATTRIBUTE_KEY).remove();
+    attributes.attr(BLOCKED_REQUEST_ATTRIBUTE_KEY).remove();
+    attributes.attr(BLOCKED_RESPONSE_ATTRIBUTE_KEY).remove();
     return attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).getAndRemove();
   }
 
@@ -159,6 +187,9 @@ public final class ServerRequestContext {
   private static final AttributeKey<Boolean> BLOCKED_RESPONSE_ATTRIBUTE_KEY =
       AttributeKeys.attributeKey("datadog.server.blocked_response");
 
+  private static final AttributeKey<Boolean> BLOCKED_REQUEST_ATTRIBUTE_KEY =
+      AttributeKeys.attributeKey("datadog.server.blocked_request");
+
   private static final Deque<ServerRequestContext> POISONED_CONTEXTS = new ArrayDeque<>(0);
 
   /** Creates the per-channel server request context queue. */
@@ -168,7 +199,9 @@ public final class ServerRequestContext {
     if (contexts == null) {
       // Netty serializes handler callbacks for a channel on its EventLoop, so this queue does not
       // need the allocation and atomic overhead of a concurrent collection.
-      contexts = new ArrayDeque<>();
+      // Most keep-alive traffic is sequential, so retain a queue sized for one request until the
+      // channel closes rather than reallocating it for every request.
+      contexts = new ArrayDeque<>(1);
       attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).set(contexts);
     }
     return contexts;

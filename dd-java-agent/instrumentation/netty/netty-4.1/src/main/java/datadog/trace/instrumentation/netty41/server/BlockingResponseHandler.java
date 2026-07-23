@@ -24,6 +24,8 @@ import org.slf4j.LoggerFactory;
 
 public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   public static final Logger log = LoggerFactory.getLogger(BlockingResponseHandler.class);
+  static final String BEFORE_BLOCKING_HANDLER_NAME = "before_blocking_handler";
+  static final String HANDLER_NAME = "blocking_handler";
   private static final String IGNORE_ALL_WRITES_HANDLER = "ignore_all_writes_handler";
   private static final String MISSING_RESPONSE_TRACING_HANDLER_MESSAGE =
       "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline";
@@ -77,21 +79,35 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
       return;
     }
 
+    HttpRequest request = (HttpRequest) msg;
+    if (!commitBlockingResponse(ctx, request.protocolVersion(), request.headers().get("accept"))) {
+      // Do not let a failed block intercept later requests on this keep-alive connection.
+      if (ctx.pipeline().get(BEFORE_BLOCKING_HANDLER_NAME) != null) {
+        ctx.pipeline().remove(BEFORE_BLOCKING_HANDLER_NAME);
+      }
+      ctx.pipeline().remove(this);
+      ctx.fireChannelRead(msg);
+      return;
+    }
+
+    ReferenceCountUtil.release(msg);
+  }
+
+  boolean commitBlockingResponse(
+      final ChannelHandlerContext ctx,
+      final HttpVersion protocolVersion,
+      final String acceptHeader) {
     ChannelHandlerContext ctxForDownstream =
         ctx.pipeline().context(HttpServerResponseTracingHandler.class);
     if (ctxForDownstream == null) {
       ctxForDownstream = ctx.pipeline().context(HttpServerTracingHandler.class);
     }
-
     if (ctxForDownstream == null) {
       logMissingResponseTracingHandler();
-      ctx.fireChannelRead(msg);
-      return;
+      return false;
     }
-
-    HttpRequest request = (HttpRequest) msg;
-
     this.hasBlockedAlready = true;
+    ServerRequestContext.markRequestBlocked(ctx.channel());
 
     PendingBlockResponse pendingBlockResponse =
         new PendingBlockResponse(
@@ -100,17 +116,17 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
             bct,
             extraHeaders,
             securityResponseId,
-            request.protocolVersion(),
-            request.headers().get("accept"));
-    ReferenceCountUtil.release(msg);
+            protocolVersion,
+            acceptHeader);
 
     if (serverContext != null
         && ServerRequestContext.nextResponse(ctx.channel()) != serverContext) {
       serverContext.deferBlockResponse(pendingBlockResponse);
-      return;
+      return true;
     }
 
     writeBlockResponse(ctxForDownstream, pendingBlockResponse);
+    return true;
   }
 
   private static void logMissingResponseTracingHandler() {

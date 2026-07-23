@@ -18,6 +18,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.appsec.api.blocking.BlockingContentType;
@@ -36,6 +37,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpContent;
@@ -43,11 +45,14 @@ import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.util.ReferenceCountUtil;
 import java.net.Socket;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Supplier;
@@ -55,6 +60,9 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import reactor.core.publisher.Mono;
+import reactor.netty.DisposableServer;
+import reactor.netty.http.server.HttpServer;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
@@ -64,13 +72,20 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
   private static final String THIRD_PATH = "/pipelined/third";
   private static final HttpResponseStatus EARLY_HINTS = new HttpResponseStatus(103, "Early Hints");
 
+  private final DecodedRequestObserver decodedRequestObserver = new DecodedRequestObserver();
   private final PipeliningHandler handler = new PipeliningHandler();
   private Object appSecSubscriptions;
   private boolean originalAppSecActive;
 
   @Override
   protected void configurePipeline(Channel ch) {
-    ch.pipeline().addLast(new HttpServerCodec());
+    HttpServerCodec codec = new HttpServerCodec();
+    ch.pipeline().addLast(codec);
+    ch.pipeline()
+        .addAfter(
+            ch.pipeline().context(codec).name(),
+            "decoded-request-observer",
+            decodedRequestObserver);
     ch.pipeline().addLast(new HttpObjectAggregator(65536));
     ch.pipeline().addLast(handler);
   }
@@ -111,6 +126,42 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
   }
 
   @Test
+  void reactorNettyCompletesPipelinedFixedLengthResponses() throws Exception {
+    DisposableServer reactorServer =
+        HttpServer.create()
+            .host("localhost")
+            .port(0)
+            .handle(
+                (request, response) -> {
+                  String body = "response " + request.uri();
+                  response.header(CONTENT_LENGTH, Integer.toString(body.getBytes(UTF_8).length));
+                  return Mono.delay(Duration.ofMillis(100))
+                      .then(Mono.defer(() -> response.sendString(Mono.just(body)).then()));
+                })
+            .bindNow();
+
+    try {
+      try (Socket socket = new Socket("localhost", reactorServer.port())) {
+        socket.setSoTimeout(5000);
+        socket.getOutputStream().write(pipelinedRequests().getBytes(US_ASCII));
+        socket.getOutputStream().flush();
+
+        assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
+        assertEquals("response " + SECOND_PATH, readHttpResponseBody(socket.getInputStream()));
+        assertEquals("response " + THIRD_PATH, readHttpResponseBody(socket.getInputStream()));
+      }
+
+      assertTraces(
+          SORT_BY_START_TIME,
+          serverTrace(FIRST_PATH),
+          serverTrace(SECOND_PATH),
+          serverTrace(THIRD_PATH));
+    } finally {
+      reactorServer.disposeNow();
+    }
+  }
+
+  @Test
   void requestBlockOnLaterPipelinedRequestDoesNotOvertakeEarlierResponse() throws Exception {
     handler.expectRequests(1);
 
@@ -133,6 +184,41 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
+    }
+  }
+
+  @Test
+  void additionalPipelinedRequestsBehindDeferredBlockAreIgnored() throws Exception {
+    decodedRequestObserver.expectRequests(3);
+    handler.expectRequests(1);
+
+    try (Socket socket = connect()) {
+      socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(handler.awaitAllRequestsReceived(), "server did not receive first request");
+
+      CountDownLatch blockedRequestSeen = enableAppSecRequestBlockingFor(SECOND_PATH, THIRD_PATH);
+      socket
+          .getOutputStream()
+          .write((request(SECOND_PATH) + request(THIRD_PATH)).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(
+          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+      assertTrue(
+          decodedRequestObserver.awaitAllRequests(),
+          "server did not decode all three pipelined requests before responding");
+
+      handler.writeResponses();
+
+      assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
+      assertTrue(
+          readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          "second response should be the deferred blocking response");
+      assertNull(
+          handler.inboundException,
+          "additional pipelined requests should be swallowed by the existing blocking handler");
     }
   }
 
@@ -316,7 +402,7 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
     return "HEAD " + path + " HTTP/1.1\r\nHost: localhost\r\n\r\n";
   }
 
-  private CountDownLatch enableAppSecRequestBlockingFor(String blockedPath) {
+  private CountDownLatch enableAppSecRequestBlockingFor(String... blockedPaths) {
     SubscriptionService subscriptions = (SubscriptionService) enableAppSec();
     CountDownLatch blockedRequestSeen = new CountDownLatch(1);
 
@@ -326,7 +412,7 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
           @Override
           public Flow<Void> apply(
               RequestContext requestContext, String method, URIDataAdapter uri) {
-            if (!blockedPath.equals(uri.path())) {
+            if (!Arrays.asList(blockedPaths).contains(uri.path())) {
               return Flow.ResultFlow.empty();
             }
             blockedRequestSeen.countDown();
@@ -369,6 +455,27 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
   }
 
   @ChannelHandler.Sharable
+  private static final class DecodedRequestObserver extends ChannelInboundHandlerAdapter {
+    private volatile CountDownLatch receivedRequests = new CountDownLatch(0);
+
+    private void expectRequests(int expectedRequests) {
+      receivedRequests = new CountDownLatch(expectedRequests);
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+      if (msg instanceof HttpRequest) {
+        receivedRequests.countDown();
+      }
+      ctx.fireChannelRead(msg);
+    }
+
+    private boolean awaitAllRequests() throws InterruptedException {
+      return receivedRequests.await(5, SECONDS);
+    }
+  }
+
+  @ChannelHandler.Sharable
   private static final class PipeliningHandler
       extends SimpleChannelInboundHandler<FullHttpRequest> {
     private volatile CountDownLatch receivedRequests;
@@ -376,6 +483,7 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
     private volatile ChannelHandlerContext context;
     private volatile String blockResponseFunctionPath;
     private volatile CountDownLatch blockResponseFunctionRequestSeen;
+    private volatile Throwable inboundException;
 
     private PipeliningHandler() {
       super(false);
@@ -385,6 +493,7 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
     private void expectRequests(int expectedRequests) {
       receivedRequests = new CountDownLatch(expectedRequests);
       context = null;
+      inboundException = null;
       synchronized (paths) {
         paths.clear();
       }
@@ -430,6 +539,11 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       if (!blockingResponseCommitted) {
         ReferenceCountUtil.release(request);
       }
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+      inboundException = cause;
     }
 
     private boolean awaitAllRequestsReceived() throws InterruptedException {
@@ -495,6 +609,7 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
                 DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, NO_CONTENT);
                 response.headers().set(CONNECTION, KEEP_ALIVE);
                 responseContext.write(response);
+                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
                 responseContext.flush();
               });
     }
@@ -516,6 +631,7 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
                 DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
                 response.headers().set(CONTENT_LENGTH, body.length);
                 responseContext.write(response);
+                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
                 responseContext.flush();
               });
     }

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.Context;
@@ -42,13 +43,41 @@ class ServerRequestContextTest {
   }
 
   @Test
-  void capturesHeadRequest() {
+  void reportsOnlyQueuedContextsAsPending() {
     DefaultAttributeMap attributes = new DefaultAttributeMap();
+    ServerRequestContext serverContext = ServerRequestContext.add(attributes, Context.root(), null);
 
-    ServerRequestContext serverContext =
-        ServerRequestContext.add(attributes, Context.root(), null, true);
+    assertTrue(ServerRequestContext.isPending(attributes, serverContext));
 
-    assertTrue(serverContext.isHeadRequest());
+    ServerRequestContext.remove(attributes, serverContext);
+
+    assertFalse(ServerRequestContext.isPending(attributes, serverContext));
+  }
+
+  @Test
+  void preservesPipelinedContextWhenCompactingQueue() {
+    DefaultAttributeMap attributes = new DefaultAttributeMap();
+    ServerRequestContext first = ServerRequestContext.add(attributes, Context.root(), null);
+    ServerRequestContext second = ServerRequestContext.add(attributes, Context.root(), null);
+
+    ServerRequestContext.remove(attributes, first);
+
+    assertSame(second, ServerRequestContext.nextResponse(attributes));
+    ServerRequestContext.remove(attributes, second);
+
+    ServerRequestContext next = ServerRequestContext.add(attributes, Context.root(), null);
+    assertSame(next, ServerRequestContext.nextResponse(attributes));
+  }
+
+  @Test
+  void preservesFirstContextWhenCompactingAfterRequestFailure() {
+    DefaultAttributeMap attributes = new DefaultAttributeMap();
+    ServerRequestContext first = ServerRequestContext.add(attributes, Context.root(), null);
+    ServerRequestContext failed = ServerRequestContext.add(attributes, Context.root(), null);
+
+    ServerRequestContext.remove(attributes, failed);
+
+    assertSame(first, ServerRequestContext.nextResponse(attributes));
   }
 
   @Test
@@ -65,5 +94,20 @@ class ServerRequestContextTest {
     ServerRequestContext.closeAll(attributes);
 
     assertFalse(ServerRequestContext.isResponseBlocked(attributes));
+  }
+
+  @Test
+  void tracksBlockedRequestUntilChannelClose() {
+    DefaultAttributeMap attributes = new DefaultAttributeMap();
+
+    assertFalse(ServerRequestContext.isRequestBlocked(attributes));
+
+    ServerRequestContext.markRequestBlocked(attributes);
+
+    assertTrue(ServerRequestContext.isRequestBlocked(attributes));
+
+    ServerRequestContext.closeAll(attributes);
+
+    assertFalse(ServerRequestContext.isRequestBlocked(attributes));
   }
 }

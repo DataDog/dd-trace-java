@@ -60,13 +60,14 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
 
     try (final ContextScope ignored = storedContext.attach()) {
       final boolean terminalResponse = isTerminalResponse(ctx, span, serverContext, msg);
-      final boolean writeSyntheticLastContent =
-          msg instanceof HttpResponse
-              && !(msg instanceof LastHttpContent)
-              && isHeaderOnly((HttpResponse) msg, serverContext)
-              && !isWebsocketUpgrade((HttpResponse) msg);
       final boolean knownLengthResponseComplete =
           !terminalResponse && serverContext.recordResponseBodyBytes(responseBodyBytes(msg));
+      final boolean writeSyntheticLastContent =
+          !(msg instanceof LastHttpContent)
+              && (knownLengthResponseComplete
+                  || (msg instanceof HttpResponse
+                      && isHeaderOnly((HttpResponse) msg, serverContext)
+                      && !isWebsocketUpgrade((HttpResponse) msg)));
       final boolean finishResponseOnWrite = terminalResponse || knownLengthResponseComplete;
       final ChannelPromise writePromise =
           finishResponseOnWrite && prm.isVoid() ? ctx.newPromise() : prm;
