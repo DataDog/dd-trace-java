@@ -12,6 +12,23 @@ public class LLMObs {
   protected static LLMObsSpanFactory SPAN_FACTORY = NoOpLLMObsSpanFactory.INSTANCE;
   protected static LLMObsEvalProcessor EVAL_PROCESSOR = NoOpLLMObsEvalProcessor.INSTANCE;
 
+  /**
+   * Returns {@code true} when LLM Observability is active, i.e. the agent has registered a real
+   * span factory. Returns {@code false} when LLMObs is not configured, in which case all {@code
+   * startXxxSpan} calls are no-ops and no data is collected or exported.
+   *
+   * <p>Use this check to avoid constructing inputs that would be discarded:
+   *
+   * <pre>
+   *   if (LLMObs.isEnabled()) {
+   *     LLMObsSpan span = LLMObs.startLLMSpan(...);
+   *   }
+   * </pre>
+   */
+  public static boolean isEnabled() {
+    return !(SPAN_FACTORY instanceof NoOpLLMObsSpanFactory);
+  }
+
   public static LLMObsSpan startLLMSpan(
       String spanName,
       String modelName,
