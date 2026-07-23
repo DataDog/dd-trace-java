@@ -37,8 +37,14 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   private StatusCode statusCode;
   private boolean recording;
 
-  /** Span events ({@code null} until an event is added). */
-  private List<OtelSpanEvent> events;
+  /**
+   * Span events ({@code null} until an event is added). Mutations are guarded by synchronizing on
+   * {@code this}: events can be recorded from application threads while the span is finished (and
+   * its events serialized) from a different thread, so unsynchronized access would corrupt the
+   * backing list. Declared {@code volatile} so {@link #onSpanFinished()} can take a lock-free fast
+   * path for the common case of a span with no events.
+   */
+  private volatile List<OtelSpanEvent> events;
 
   public OtelSpan(AgentSpan delegate) {
     this.delegate = delegate;
@@ -85,10 +91,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public Span addEvent(String name, Attributes attributes) {
     if (this.recording) {
-      if (this.events == null) {
-        this.events = new ArrayList<>();
-      }
-      this.events.add(new OtelSpanEvent(name, attributes));
+      addEvent(new OtelSpanEvent(name, attributes));
     }
     return this;
   }
@@ -96,12 +99,16 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public Span addEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
     if (this.recording) {
-      if (this.events == null) {
-        this.events = new ArrayList<>();
-      }
-      this.events.add(new OtelSpanEvent(name, attributes, timestamp, unit));
+      addEvent(new OtelSpanEvent(name, attributes, timestamp, unit));
     }
     return this;
+  }
+
+  private synchronized void addEvent(OtelSpanEvent event) {
+    if (this.events == null) {
+      this.events = new ArrayList<>();
+    }
+    this.events.add(event);
   }
 
   @Override
@@ -123,12 +130,9 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public Span recordException(Throwable exception, Attributes additionalAttributes) {
     if (this.recording) {
-      if (this.events == null) {
-        this.events = new ArrayList<>();
-      }
       additionalAttributes = initializeExceptionAttributes(exception, additionalAttributes);
       applySpanEventExceptionAttributesAsTags(this.delegate, additionalAttributes);
-      this.events.add(new OtelSpanEvent(EXCEPTION_SPAN_EVENT_NAME, additionalAttributes));
+      addEvent(new OtelSpanEvent(EXCEPTION_SPAN_EVENT_NAME, additionalAttributes));
     }
     return this;
   }
@@ -179,7 +183,17 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   @Override
   public void onSpanFinished() {
     applyNamingConvention(this.delegate);
-    setEventsAsTag(this.delegate, this.events);
+    // Fast path: most spans have no events, so avoid taking the lock entirely (single volatile
+    // read).
+    List<OtelSpanEvent> eventsSnapshot = this.events;
+    if (eventsSnapshot != null) {
+      // Copy under lock so serialization iterates a private snapshot that cannot be mutated
+      // concurrently by an application thread still recording events.
+      synchronized (this) {
+        eventsSnapshot = new ArrayList<>(this.events);
+      }
+    }
+    setEventsAsTag(this.delegate, eventsSnapshot);
   }
 
   private static class NoopSpan implements Span {
