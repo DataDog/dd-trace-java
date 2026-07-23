@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -130,18 +131,20 @@ public final class CombiningTransformerBuilder
 
     adviceShader = AdviceShader.with(module);
 
-    String[] helperClassNames = module.getAllHelperClassNames();
-    if (module.injectHelperDependencies()) {
-      helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
-    }
+    // Resolve helper names lazily, so agent install doesn't load every module's generated $Muzzle
+    // class.
     helperTransformer =
-        helperClassNames.length > 0
-            ? new HelperTransformer(
-                module.useAgentCodeSource(),
-                adviceShader,
-                module.getClass().getSimpleName(),
-                helperClassNames)
-            : null;
+        new HelperTransformer(
+            module.useAgentCodeSource(),
+            adviceShader,
+            module.getClass().getSimpleName(),
+            () -> {
+              String[] helperClassNames = module.getAllHelperClassNames();
+              if (module.injectHelperDependencies()) {
+                helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
+              }
+              return helperClassNames;
+            });
 
     postProcessor = module.postProcessor();
 
@@ -385,7 +388,7 @@ public final class CombiningTransformerBuilder
         boolean useAgentCodeSource,
         AdviceShader adviceShader,
         String requestingName,
-        String... helperClassNames) {
+        Supplier<String[]> helperClassNames) {
       super(useAgentCodeSource, adviceShader, requestingName, helperClassNames);
     }
   }
