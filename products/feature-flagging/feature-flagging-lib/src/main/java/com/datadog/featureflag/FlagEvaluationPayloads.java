@@ -13,6 +13,15 @@ final class FlagEvaluationPayloads {
 
   private static final byte[] PAYLOAD_SUFFIX = FeatureFlagEvpPublisher.utf8Bytes("]}");
   private static final byte[] JSON_COMMA = FeatureFlagEvpPublisher.utf8Bytes(",");
+
+  /**
+   * Wire prefix identifying a privacy-preserving, hashed targeting key. Emitted for full-tier rows
+   * when {@code observeFullEvaluationData} is off. The suffix is the lower-case hex SHA-256 of the
+   * UTF-8 targeting key (see {@link ULeb128Encoder#hashTargetingKey}). This is a cross-SDK wire
+   * contract - keep it in sync with the other server SDKs and the UFC/EVP spec.
+   */
+  private static final String HASHED_TARGETING_KEY_PREFIX = "sha256_";
+
   private static final JsonAdapter<FlagEvaluationEvent> EVENT_JSON_ADAPTER;
   private static final JsonAdapter<Map<String, String>> CONTEXT_JSON_ADAPTER;
 
@@ -221,7 +230,7 @@ final class FlagEvaluationPayloads {
       if (observeFullEvaluationData) {
         return rawTargetingKey;
       }
-      return "sha256_" + ULeb128Encoder.hashTargetingKey(rawTargetingKey);
+      return HASHED_TARGETING_KEY_PREFIX + ULeb128Encoder.hashTargetingKey(rawTargetingKey);
     }
 
     FlagEvaluationEvent withoutTargetingKeyAndContext() {
