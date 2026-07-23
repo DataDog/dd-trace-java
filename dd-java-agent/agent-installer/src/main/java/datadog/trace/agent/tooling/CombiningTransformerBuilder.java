@@ -131,16 +131,25 @@ public final class CombiningTransformerBuilder
 
     adviceShader = AdviceShader.with(module);
 
-    // Resolve helper names lazily, so agent install doesn't load every module's generated $Muzzle
-    // class.
+    // Resolve helper names lazily, and capture only GC-neutral values (not the module instance)
+    // so that the instrumenter can still be unloaded after setup, and load $Muzzle via the
+    // extended class loader like the muzzle check does.
+    final String instrumentationClass = module.getClass().getName();
+    final String[] declaredHelperClassNames = module.helperClassNames();
+    final boolean injectHelperDependencies = module.injectHelperDependencies();
     helperTransformer =
         new HelperTransformer(
             module.useAgentCodeSource(),
             adviceShader,
             module.getClass().getSimpleName(),
             () -> {
-              String[] helperClassNames = module.getAllHelperClassNames();
-              if (module.injectHelperDependencies()) {
+              String[] helperClassNames =
+                  InstrumenterModule.loadStaticMuzzleHelperClassNames(
+                      Utils.getExtendedClassLoader(), instrumentationClass);
+              if (null == helperClassNames) {
+                helperClassNames = declaredHelperClassNames;
+              }
+              if (injectHelperDependencies) {
                 helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
               }
               return helperClassNames;
