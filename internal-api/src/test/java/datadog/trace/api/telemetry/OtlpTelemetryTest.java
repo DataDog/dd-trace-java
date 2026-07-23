@@ -14,12 +14,14 @@ class OtlpTelemetryTest {
 
   @BeforeEach
   void drainStaleMetrics() {
+    collector.prepareMetrics();
     collector.drain();
   }
 
   @Test
   void onTracesExportAttemptQueuesCountMetricWithTags() {
     collector.onTracesExportAttempt();
+    collector.prepareMetrics();
 
     Collection<OtlpTelemetry.OtlpMetric> metrics = collector.drain();
 
@@ -40,6 +42,7 @@ class OtlpTelemetryTest {
     collector.onTracesExportAttempt();
     collector.onTracesExportComplete(true);
     collector.onTracesExportComplete(false);
+    collector.prepareMetrics();
 
     Map<String, Number> valuesByName = drainToMap();
 
@@ -52,6 +55,7 @@ class OtlpTelemetryTest {
   @Test
   void onMetricsExportAttemptQueuesCountMetricWithTags() {
     collector.onMetricsExportAttempt();
+    collector.prepareMetrics();
 
     Collection<OtlpTelemetry.OtlpMetric> metrics = collector.drain();
 
@@ -72,6 +76,7 @@ class OtlpTelemetryTest {
     collector.onMetricsExportAttempt();
     collector.onMetricsExportComplete(true);
     collector.onMetricsExportComplete(false);
+    collector.prepareMetrics();
 
     Map<String, Number> valuesByName = drainToMap();
 
@@ -84,6 +89,7 @@ class OtlpTelemetryTest {
   @Test
   void onLogRecordsSubmittedQueuesCountWithGivenValue() {
     collector.onLogRecordsSubmitted(5);
+    collector.prepareMetrics();
 
     Collection<OtlpTelemetry.OtlpMetric> metrics = collector.drain();
 
