@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Supplier;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.DynamicType;
@@ -42,7 +43,10 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
   private final AdviceShader adviceShader;
   private final String requestingName;
 
-  private final Set<String> helperClassNames;
+  // Helper names are resolved lazily: when a supplier is provided, resolution is deferred to the
+  // first transform() so that we don't load the generated $Muzzle class at agent install.
+  private final Supplier<String[]> helperClassNamesSupplier;
+  private volatile Set<String> helperClassNames;
   private final Map<String, byte[]> dynamicTypeMap = new LinkedHashMap<>();
 
   private final Map<ClassLoader, Boolean> injectedClassLoaders =
@@ -77,7 +81,25 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
     this.requestingName = requestingName;
     this.adviceShader = adviceShader;
 
+    this.helperClassNamesSupplier = null;
     this.helperClassNames = new LinkedHashSet<>(asList(helperClassNames));
+  }
+
+  /**
+   * Construct HelperInjector whose helper names are resolved lazily on first {@link #transform}, to
+   * avoid resolving them (which may load the generated {@code $Muzzle} class) at agent install.
+   */
+  public HelperInjector(
+      final boolean useAgentCodeSource,
+      final AdviceShader adviceShader,
+      final String requestingName,
+      final Supplier<String[]> helperClassNamesSupplier) {
+    this.useAgentCodeSource = useAgentCodeSource;
+    this.requestingName = requestingName;
+    this.adviceShader = adviceShader;
+
+    this.helperClassNamesSupplier = helperClassNamesSupplier;
+    this.helperClassNames = null;
   }
 
   public HelperInjector(
@@ -88,11 +110,27 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
     this.requestingName = requestingName;
     this.adviceShader = null;
 
+    this.helperClassNamesSupplier = null;
     helperClassNames = helperMap.keySet();
     dynamicTypeMap.putAll(helperMap);
   }
 
-  private Map<String, byte[]> getHelperMap() throws IOException {
+  /** Resolves helper class names, deferring to the supplier when one's provided. */
+  private Set<String> resolveHelperClassNames() {
+    Set<String> names = helperClassNames;
+    if (names == null) {
+      synchronized (this) {
+        names = helperClassNames;
+        if (names == null) {
+          names = new LinkedHashSet<>(asList(helperClassNamesSupplier.get()));
+          helperClassNames = names;
+        }
+      }
+    }
+    return names;
+  }
+
+  private Map<String, byte[]> getHelperMap(final Set<String> helperClassNames) throws IOException {
     if (dynamicTypeMap.isEmpty()) {
       final Map<String, byte[]> classnameToBytes = new LinkedHashMap<>();
       for (String helperName : helperClassNames) {
@@ -117,6 +155,7 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
       ClassLoader classLoader,
       final JavaModule module,
       final ProtectionDomain pd) {
+    final Set<String> helperClassNames = resolveHelperClassNames();
     if (!helperClassNames.isEmpty()) {
       if (classLoader == null) {
         throw new UnsupportedOperationException(
@@ -135,7 +174,7 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
                 String.join(",", helperClassNames));
           }
 
-          final Map<String, byte[]> classnameToBytes = getHelperMap();
+          final Map<String, byte[]> classnameToBytes = getHelperMap(helperClassNames);
           final Collection<Class<?>> classes = injectClassLoader(classLoader, classnameToBytes);
 
           // all datadog helper classes are in the unnamed module
