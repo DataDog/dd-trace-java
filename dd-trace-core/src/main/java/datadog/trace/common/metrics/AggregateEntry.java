@@ -22,7 +22,7 @@ import javax.annotation.Nullable;
  * static); tests using {@link PeerTagSchema} must also call {@code PeerTagSchema#resetHandlers} on
  * the schema instance.
  */
-final class AggregateEntry extends Hashtable.Entry {
+public final class AggregateEntry extends Hashtable.Entry {
 
   static final long ERROR_TAG = 0x8000000000000000L;
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
@@ -163,31 +163,31 @@ final class AggregateEntry extends Hashtable.Entry {
     return this;
   }
 
-  int getErrorCount() {
+  public int getErrorCount() {
     return errorCount;
   }
 
-  int getHitCount() {
+  public int getHitCount() {
     return hitCount;
   }
 
-  int getTopLevelCount() {
+  public int getTopLevelCount() {
     return topLevelCount;
   }
 
-  long getDuration() {
+  public long getDuration() {
     return okDuration + errorDuration;
   }
 
-  long getOkDuration() {
+  public long getOkDuration() {
     return okDuration;
   }
 
-  long getErrorDuration() {
+  public long getErrorDuration() {
     return errorDuration;
   }
 
-  Histogram getOkLatencies() {
+  public Histogram getOkLatencies() {
     return okLatencies;
   }
 
@@ -197,7 +197,7 @@ final class AggregateEntry extends Hashtable.Entry {
    * {@link SerializingMetricWriter}.
    */
   @Nullable
-  Histogram getErrorLatencies() {
+  public Histogram getErrorLatencies() {
     return errorLatencies;
   }
 
@@ -284,19 +284,19 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   // Accessors for SerializingMetricWriter.
-  UTF8BytesString getResource() {
+  public UTF8BytesString getResource() {
     return resource;
   }
 
-  UTF8BytesString getService() {
+  public UTF8BytesString getService() {
     return service;
   }
 
-  UTF8BytesString getOperationName() {
+  public UTF8BytesString getOperationName() {
     return operationName;
   }
 
-  UTF8BytesString getServiceSource() {
+  public UTF8BytesString getServiceSource() {
     return serviceSource;
   }
 
@@ -306,41 +306,41 @@ final class AggregateEntry extends Hashtable.Entry {
    * captured" (see field comment) -- callers that need a presence check should go through this
    * predicate rather than comparing against {@code EMPTY} directly.
    */
-  boolean hasServiceSource() {
+  public boolean hasServiceSource() {
     return serviceSource.length() > 0;
   }
 
-  UTF8BytesString getType() {
+  public UTF8BytesString getType() {
     return type;
   }
 
-  UTF8BytesString getSpanKind() {
+  public UTF8BytesString getSpanKind() {
     return spanKind;
   }
 
-  UTF8BytesString getHttpMethod() {
+  public UTF8BytesString getHttpMethod() {
     return httpMethod;
   }
 
   /**
    * Whether the snapshot carried an HTTP method. See {@link #hasServiceSource} for the contract.
    */
-  boolean hasHttpMethod() {
+  public boolean hasHttpMethod() {
     return httpMethod.length() > 0;
   }
 
-  UTF8BytesString getHttpEndpoint() {
+  public UTF8BytesString getHttpEndpoint() {
     return httpEndpoint;
   }
 
   /**
    * Whether the snapshot carried an HTTP endpoint. See {@link #hasServiceSource} for the contract.
    */
-  boolean hasHttpEndpoint() {
+  public boolean hasHttpEndpoint() {
     return httpEndpoint.length() > 0;
   }
 
-  UTF8BytesString getGrpcStatusCode() {
+  public UTF8BytesString getGrpcStatusCode() {
     return grpcStatusCode;
   }
 
@@ -348,23 +348,23 @@ final class AggregateEntry extends Hashtable.Entry {
    * Whether the snapshot carried a gRPC status code. See {@link #hasServiceSource} for the
    * contract.
    */
-  boolean hasGrpcStatusCode() {
+  public boolean hasGrpcStatusCode() {
     return grpcStatusCode.length() > 0;
   }
 
-  int getHttpStatusCode() {
+  public int getHttpStatusCode() {
     return httpStatusCode;
   }
 
-  boolean isSynthetics() {
+  public boolean isSynthetics() {
     return synthetic;
   }
 
-  boolean isTraceRoot() {
+  public boolean isTraceRoot() {
     return traceRoot;
   }
 
-  List<UTF8BytesString> getPeerTags() {
+  public List<UTF8BytesString> getPeerTags() {
     return peerTags;
   }
 

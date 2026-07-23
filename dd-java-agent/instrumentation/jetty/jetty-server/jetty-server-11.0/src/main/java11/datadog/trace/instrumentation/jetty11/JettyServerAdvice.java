@@ -34,7 +34,7 @@ public class JettyServerAdvice {
       parentScope = parentContext.attach();
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
       if (parentScope != null) {
         parentScope.close();
@@ -70,7 +70,7 @@ public class JettyServerAdvice {
       return scope;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Enter final ContextScope scope) {
       scope.close();
     }

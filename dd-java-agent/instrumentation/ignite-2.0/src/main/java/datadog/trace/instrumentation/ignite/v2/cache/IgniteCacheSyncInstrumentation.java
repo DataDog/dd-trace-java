@@ -98,14 +98,12 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
         return;
       }
 
-      try {
-        DECORATE.onError(scope.span(), throwable);
-        DECORATE.beforeFinish(scope.span());
-      } finally {
-        scope.close();
-        scope.span().finish();
-        CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
-      }
+      AgentSpan span = scope.span();
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
+      CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
     }
   }
 
@@ -138,14 +136,11 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
         return;
       }
 
-      try {
-        DECORATE.onError(scope.span(), throwable);
-        DECORATE.beforeFinish(scope.span());
-      } finally {
-        scope.close();
-        scope.span().finish();
-        CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
-      }
+      DECORATE.onError(scope.span(), throwable);
+      DECORATE.beforeFinish(scope.span());
+      scope.close();
+      scope.span().finish();
+      CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
     }
   }
 
@@ -178,14 +173,11 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
         return;
       }
 
-      try {
-        DECORATE.onError(scope.span(), throwable);
-        DECORATE.beforeFinish(scope.span());
-      } finally {
-        scope.close();
-        scope.span().finish();
-        CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
-      }
+      DECORATE.onError(scope.span(), throwable);
+      DECORATE.beforeFinish(scope.span());
+      scope.close();
+      scope.span().finish();
+      CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
     }
   }
 }

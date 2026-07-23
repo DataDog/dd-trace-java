@@ -5,6 +5,7 @@ import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.datastreams.DataStreamsContext.forHttpServer;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
@@ -237,7 +238,21 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             }
           };
 
-  public void onRequest(
+  public final void onRequest(
+      final AgentSpan span,
+      final CONNECTION connection,
+      final REQUEST request,
+      final Context parentContext) {
+    try {
+      doOnRequest(span, connection, request, parentContext);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on request", t);
+    }
+  }
+
+  protected void doOnRequest(
       final AgentSpan span,
       final CONNECTION connection,
       final REQUEST request,
@@ -431,7 +446,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   protected static AgentSpanContext.Extracted getExtractedSpanContext(Context parentContext) {
-    AgentSpan extractedSpan = AgentSpan.fromContext(parentContext);
+    AgentSpan extractedSpan = fromContext(parentContext);
     if (extractedSpan != null) {
       AgentSpanContext extractedSpanContext = extractedSpan.spanContext();
       if (extractedSpanContext instanceof AgentSpanContext.Extracted) {
@@ -448,7 +463,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return null;
   }
 
-  public void onResponseStatus(final AgentSpan span, final int status) {
+  public final void onResponseStatus(final AgentSpan span, final int status) {
+    try {
+      doOnResponseStatus(span, status);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on response status", t);
+    }
+  }
+
+  protected void doOnResponseStatus(final AgentSpan span, final int status) {
     if (status > UNSET_STATUS) {
       span.setHttpStatusCode(status);
       // explicitly set here because some other decorators might already set an error without
@@ -481,10 +506,20 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return false;
   }
 
-  public void onResponse(final AgentSpan span, final RESPONSE response) {
+  public final void onResponse(final AgentSpan span, final RESPONSE response) {
+    try {
+      doOnResponse(span, response);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on response", t);
+    }
+  }
+
+  protected void doOnResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);
-      onResponseStatus(span, status);
+      doOnResponseStatus(span, status);
 
       AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
       if (getter != null) {
@@ -533,7 +568,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  public void onError(final AgentSpan span, final Throwable throwable) {
+  protected void doOnError(
+      @Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
     if (throwable != null) {
       span.addThrowable(
           throwable instanceof ExecutionException ? throwable.getCause() : throwable,
@@ -635,8 +671,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  public void beforeFinish(Context context) {
-    AgentSpan span = AgentSpan.fromContext(context);
+  protected void doBeforeFinish(@Nonnull Context context) {
+    AgentSpan span = fromContext(context);
     if (span != null) {
       onRequestEndForInstrumentationGateway(span);
     }
@@ -644,7 +680,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     // Close Serverless Gateway Inferred Span if any
     finishInferredProxySpan(context);
 
-    super.beforeFinish(context);
+    super.doBeforeFinish(context);
   }
 
   protected void finishInferredProxySpan(Context context) {

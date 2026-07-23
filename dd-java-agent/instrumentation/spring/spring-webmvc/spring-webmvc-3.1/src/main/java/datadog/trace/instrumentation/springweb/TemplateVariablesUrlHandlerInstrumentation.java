@@ -86,7 +86,7 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
         "org.springframework.web.servlet.HandlerMapping.uriTemplateVariables";
 
     @SuppressWarnings("Duplicates")
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PATH_PARAMETER)
     public static void after(
         @Advice.Argument(0) final HttpServletRequest req,

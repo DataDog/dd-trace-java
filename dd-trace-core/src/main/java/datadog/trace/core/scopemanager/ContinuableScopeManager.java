@@ -24,11 +24,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.NoopContinuation;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +50,9 @@ public final class ContinuableScopeManager {
 
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
   static final RatelimitedLogger ratelimitedLog = new RatelimitedLogger(log, 1, MINUTES);
+
+  private static final NoopContinuation ROOT_CONTINUATION = NoopContinuation.INSTANCE;
+
   static final long iterationKeepAlive =
       SECONDS.toMillis(Config.get().getScopeIterationKeepAlive());
   volatile ConcurrentMap<ScopeStack, ContinuableScope> rootIterationScopes;
@@ -112,7 +116,7 @@ public final class ContinuableScopeManager {
         return captureSpan(activeScope.context, activeScope.source(), span);
       }
     }
-    return AgentTracer.noopContinuation();
+    return ROOT_CONTINUATION;
   }
 
   public ContextContinuation captureSpan(final AgentSpan span) {
@@ -373,11 +377,11 @@ public final class ContinuableScopeManager {
     return active == null ? Context.root() : active.context;
   }
 
-  public ContextScope attach(@NonNull Context context) {
+  public ContextScope attach(@Nonnull Context context) {
     return activate(context);
   }
 
-  public Context swap(@NonNull Context context) {
+  public Context swap(@Nonnull Context context) {
     ScopeStack oldStack = tlsScopeStack.get();
     ContinuableScope oldScope = oldStack.top;
 
@@ -407,13 +411,17 @@ public final class ContinuableScopeManager {
     return new ScopeContext(oldStack);
   }
 
-  public ContextContinuation capture(@NonNull Context context) {
+  public ContextContinuation capture(@Nonnull Context context) {
+    if (context == Context.root()) {
+      return ROOT_CONTINUATION;
+    }
+
     // respect async propagation flag for Context.current().capture()
     ContinuableScope activeScope = scopeStack().active();
     if (activeScope != null
-        && activeScope.context == context
-        && !activeScope.isAsyncPropagating()) {
-      return AgentTracer.noopContinuation();
+        && !activeScope.isAsyncPropagating()
+        && activeScope.context == context) {
+      return ROOT_CONTINUATION;
     }
     AgentSpan span = AgentSpan.fromContext(context);
     AgentTraceCollector traceCollector;
