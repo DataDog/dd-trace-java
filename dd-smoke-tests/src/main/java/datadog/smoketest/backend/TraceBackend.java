@@ -53,7 +53,8 @@ public interface TraceBackend
 
   /**
    * Whether this backend manages its own lifecycle as a separate {@code @RegisterExtension} shared
-   * across apps (S6). When {@code false} (default), the owning {@code SmokeApp} starts/stops it.
+   * across apps (S6). When {@code false} (default), the owning {@code AbstractSmokeApp}
+   * starts/stops it.
    */
   default boolean isShared() {
     return false;
@@ -70,9 +71,9 @@ public interface TraceBackend
   }
 
   // JUnit lifecycle: a backend declared as its own `@RegisterExtension` field (shared across apps,
-  // S6/Q8) drives its own start/clear/close. An inline backend passed to `SmokeApp.backend(...)` is
-  // not registered as an extension, so `SmokeApp` drives it instead. start() is idempotent, so a
-  // shared backend that an app also (defensively) starts is unaffected.
+  // S6/Q8) drives its own start/clear/close. An inline backend passed to `backend(...)` on an app
+  // builder is not registered as an extension, so the app drives it instead. start() is idempotent,
+  // so a shared backend that an app also (defensively) starts is unaffected.
 
   @Override
   default void beforeAll(ExtensionContext context) {

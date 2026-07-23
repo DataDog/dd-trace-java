@@ -11,16 +11,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
- * Exercises {@link SmokeApp}'s launch mechanics end-to-end against a trivial JVM app ({@link
+ * Exercises {@link SmokeServerApp}'s launch mechanics end-to-end against a trivial JVM app ({@link
  * TestServerApp}): port allocation + {@code ${app.httpPort}} substitution, process launch, HTTP
  * reachability, stdout capture, owned-backend lifecycle, and parameter injection. Runs without the
  * agent (mechanics only); a real agent + instrumented app + trace assertions land in the S8 pilot.
  */
-class SmokeAppTest {
+class SmokeServerAppTest {
 
   @RegisterExtension
-  static final SmokeApp app =
-      SmokeApp.named("test-server")
+  static final SmokeServerApp app =
+      SmokeServerApp.named("test-server")
           .mainClass("datadog.smoketest.TestServerApp")
           .placeholder("marker", () -> "resolved-at-launch")
           .args("--server.port=${app.httpPort}", "--marker=${marker}")
@@ -60,8 +60,8 @@ class SmokeAppTest {
   }
 
   @Test
-  void injectsHandlesByType(SmokeApp injected, Traces traces) {
-    assertSame(app, injected, "SmokeApp resolved by type");
+  void injectsHandlesByType(SmokeServerApp injected, Traces traces) {
+    assertSame(app, injected, "SmokeServerApp resolved by type");
     assertNotNull(traces, "Traces resolved by type");
   }
 }

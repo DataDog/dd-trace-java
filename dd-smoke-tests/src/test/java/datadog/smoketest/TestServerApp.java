@@ -7,11 +7,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * Minimal HTTP server launched by {@link SmokeAppTest} to exercise {@link SmokeApp}'s
+ * Minimal HTTP server launched by {@link SmokeServerAppTest} to exercise {@link SmokeServerApp}'s
  * launch/log-capture/lifecycle mechanics without needing the agent or a full sample app. Reads
- * {@code --server.port=<port>} (substituted by {@code SmokeApp} from {@code ${app.httpPort}}),
- * echoes each request to stdout so log capture can be asserted, and blocks until the process is
- * destroyed.
+ * {@code --server.port=<port>} (substituted by {@code SmokeServerApp} from {@code
+ * ${app.httpPort}}), echoes each request to stdout so log capture can be asserted, and blocks until
+ * the process is destroyed.
  */
 public final class TestServerApp {
   private TestServerApp() {}
@@ -48,7 +48,7 @@ public final class TestServerApp {
     server.start();
     System.out.println("TestServerApp listening on " + port);
 
-    // Block forever; SmokeApp destroys the process at teardown.
+    // Block forever; SmokeServerApp destroys the process at teardown.
     new CountDownLatch(1).await();
   }
 }

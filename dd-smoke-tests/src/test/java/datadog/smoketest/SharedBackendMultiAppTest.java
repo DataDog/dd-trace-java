@@ -13,10 +13,10 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
  * Multi-app composition with a shared backend (Q8): a single {@code @RegisterExtension} backend
- * declared before two {@link SmokeApp} fields, each launching its own JVM. The shared backend is
- * started/reset/closed by <em>its own</em> extension — the apps reference it (via field access) but
- * don't own its lifecycle. Start-up is order-independent because {@code SmokeApp} starts the
- * backend idempotently.
+ * declared before two {@link SmokeServerApp} fields, each launching its own JVM. The shared backend
+ * is started/reset/closed by <em>its own</em> extension — the apps reference it (via field access)
+ * but don't own its lifecycle. Start-up is order-independent because {@code SmokeServerApp} starts
+ * the backend idempotently.
  *
  * <p>Runs without the agent, so it asserts the composition wiring (distinct app ports, one shared
  * backend instance) rather than trace flow — cross-app trace assertions against a shared agent land
@@ -27,8 +27,8 @@ class SharedBackendMultiAppTest {
   @RegisterExtension static final MockAgentBackend agent = TraceBackend.mockAgent().shared();
 
   @RegisterExtension
-  static final SmokeApp producer =
-      SmokeApp.named("producer")
+  static final SmokeServerApp producer =
+      SmokeServerApp.named("producer")
           .mainClass("datadog.smoketest.TestServerApp")
           .args("--server.port=${app.httpPort}")
           .backend(agent)
@@ -36,8 +36,8 @@ class SharedBackendMultiAppTest {
           .build();
 
   @RegisterExtension
-  static final SmokeApp consumer =
-      SmokeApp.named("consumer")
+  static final SmokeServerApp consumer =
+      SmokeServerApp.named("consumer")
           .mainClass("datadog.smoketest.TestServerApp")
           .args("--server.port=${app.httpPort}")
           .backend(agent)

@@ -1,16 +1,12 @@
 package datadog.smoketest;
 
-import static datadog.trace.agent.test.utils.PortUtils.waitForPortToOpen;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.smoketest.backend.TraceBackend;
 import datadog.smoketest.backend.Traces;
-import datadog.trace.agent.test.utils.PortUtils;
-import datadog.trace.api.internal.VisibleForTesting;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -22,14 +18,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -40,26 +32,31 @@ import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 
 /**
- * A smoke-test application launched in its own JVM, managed as a JUnit 5 extension. Declare it as a
- * {@code static @RegisterExtension} field: its {@link #beforeAll} launches the app (and its owned
- * {@link TraceBackend}) once per class, {@link #beforeEach} resets per method, and {@link
- * #afterAll} tears everything down — no {@code @TestInstance(PER_CLASS)} required (Q7). Access the
- * handle either through the field ({@code app.get(...)}, {@code app.traces()}) or via {@link
- * ParameterResolver} injection of {@link SmokeApp}/{@link Traces} into a test method (Q7).
+ * Base for a smoke-test application launched in its own JVM and managed as a JUnit 5 extension.
+ * Declare a concrete {@link SmokeServerApp} or {@link SmokeCliApp} as a {@code static
+ * &#64;RegisterExtension} field: {@link #beforeAll} launches the app (and its owned {@link
+ * TraceBackend}) once per class, {@link #beforeEach} resets per method, and {@link #afterAll} tears
+ * everything down — no {@code @TestInstance(PER_CLASS)} required (Q7). Access the handle through
+ * the field or via {@link ParameterResolver} injection of the app / {@link Traces} / {@link
+ * TraceBackend} into a test method (Q7).
  *
- * <pre>{@code
- * @RegisterExtension
- * static final SmokeApp app = SmokeApp.named("springboot")
- *     .jar(System.getProperty("datadog.smoketest.springboot.shadowJar.path"))
- *     .args("--server.port=${app.httpPort}")
- *     .backend(TraceBackend.mockAgent())
- *     .build();
- * }</pre>
+ * <p>This base owns everything common to both app shapes — process launch, log capture, the
+ * no-error-logs and telemetry teardown checks, backend wiring, and the fluent {@link Builder}. The
+ * two subclasses differ only in start-up readiness and per-method reset ({@link #onStarted()} /
+ * {@link #onBeforeEach()}) and in their shape-specific API:
+ *
+ * <ul>
+ *   <li>{@link SmokeServerApp} — a long-running HTTP server: adds {@code httpPort()}/{@code
+ *       url()}/{@code get(...)}, waits for its port on start-up, and resets the backend between
+ *       methods.
+ *   <li>{@link SmokeCliApp} — a batch/CLI app that runs to completion: adds {@code
+ *       assertCompletesWithValue(...)}.
+ * </ul>
  *
  * <p>Core launch capabilities are reproduced here (Q6); several are deliberately deferred and
- * marked with explicit {@code // TODO}s below so the gaps are discoverable rather than silent.
+ * marked with explicit {@code // TODO}s so the gaps are discoverable rather than silent.
  */
-public final class SmokeApp
+public abstract class AbstractSmokeApp
     implements BeforeAllCallback,
         AfterAllCallback,
         BeforeEachCallback,
@@ -75,7 +72,6 @@ public final class SmokeApp
       new HashSet<>(Arrays.asList("CI_COMMIT_TITLE", "CI_COMMIT_MESSAGE", "CI_COMMIT_DESCRIPTION"));
   private static final String AGENT_JAR_PROPERTY = "datadog.smoketest.agent.shadowJar.path";
   private static final String BUILD_DIR_PROPERTY = "datadog.smoketest.builddir";
-  private static final String HTTP_PORT_PLACEHOLDER = "${app.httpPort}";
 
   private final String name;
   private final String jar;
@@ -89,20 +85,17 @@ public final class SmokeApp
   private final TraceBackend backend;
   private final boolean ownsBackend;
   private final String agentJar; // null => launch without -javaagent
-  private final boolean server; // wait for the HTTP port to open on start
   private final long startupTimeoutSeconds;
-  private final int httpPort;
   private final Predicate<String> errorLogFilter;
   private final boolean checkErrorLogs;
   private final boolean checkTelemetry;
 
-  private final OkHttpClient httpClient = new OkHttpClient();
   private final OutputThreads outputThreads = new OutputThreads();
   private Process process;
   private File logFile;
   private boolean telemetryChecked;
 
-  private SmokeApp(Builder builder) {
+  protected AbstractSmokeApp(Builder<?, ?> builder) {
     this.name = builder.name;
     this.jar = builder.jar;
     this.mainClass = builder.mainClass;
@@ -116,9 +109,7 @@ public final class SmokeApp
     this.backend = builder.backend;
     this.ownsBackend = !builder.backend.isShared();
     this.agentJar = builder.resolveAgentJar();
-    this.server = builder.server;
     this.startupTimeoutSeconds = builder.startupTimeoutSeconds;
-    this.httpPort = PortUtils.randomOpenPort();
     this.checkErrorLogs = builder.checkErrorLogs;
     this.checkTelemetry = builder.checkTelemetry;
     this.errorLogFilter =
@@ -127,39 +118,7 @@ public final class SmokeApp
             : defaultErrorLogFilter(builder.allowedErrorLogs);
   }
 
-  /** Starts a fluent builder for an app with the given (log/diagnostic) name. */
-  public static Builder named(String name) {
-    return new Builder(name);
-  }
-
   // --- Handle API (field access) ---
-
-  /**
-   * The randomly-allocated port a server app should bind (substituted for {@value
-   * #HTTP_PORT_PLACEHOLDER}).
-   */
-  public int httpPort() {
-    return this.httpPort;
-  }
-
-  /** Base URL of the app's HTTP server. */
-  public URI url() {
-    return URI.create("http://localhost:" + this.httpPort);
-  }
-
-  /**
-   * Issues a GET to the app and returns the HTTP status code (the response is drained and closed).
-   */
-  @VisibleForTesting
-  int get(String path) {
-    String full = url() + (path.startsWith("/") ? path : "/" + path);
-    Request request = new Request.Builder().url(full).get().build();
-    try (Response response = this.httpClient.newCall(request).execute()) {
-      return response.code();
-    } catch (IOException e) {
-      throw new IllegalStateException("GET " + full + " failed", e);
-    }
-  }
 
   /** The trace query/assert facade of this app's backend. */
   public Traces traces() {
@@ -183,71 +142,52 @@ public final class SmokeApp
     }
   }
 
+  // --- Shared state exposed to subclasses (start-up / per-method hooks) ---
+
+  /** The app's (log/diagnostic) name. */
+  protected final String name() {
+    return this.name;
+  }
+
+  /** The launched process, or {@code null} before {@link #beforeAll}. */
+  protected final Process process() {
+    return this.process;
+  }
+
+  /** How long start-up may wait for the app to become ready. */
+  protected final long startupTimeoutSeconds() {
+    return this.startupTimeoutSeconds;
+  }
+
+  /** Whether this app owns its backend's lifecycle (i.e. the backend is not shared, S6). */
+  protected final boolean ownsBackend() {
+    return this.ownsBackend;
+  }
+
   /**
-   * Asserts a non-server (batch) app runs to completion within the timeout and exits with {@code
-   * expectedExitValue}. Fails with an {@link AssertionError} if it doesn't terminate in time or
-   * exits with a different code. Pass a non-zero value for apps expected to fail (e.g. a tool the
-   * agent aborts).
+   * Registers an additional launch-time placeholder (e.g. a subclass's {@code ${app.httpPort}}).
    */
-  public void assertCompletesWithValue(long timeout, TimeUnit unit, int expectedExitValue) {
-    boolean exited;
-    try {
-      exited = this.process.waitFor(timeout, unit);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new AssertionError(
-          "Interrupted while waiting for app '" + this.name + "' to complete", e);
-    }
-    if (!exited) {
-      throw new AssertionError(
-          "App '" + this.name + "' did not complete within " + timeout + " " + unit);
-    }
-    int actual = this.process.exitValue();
-    if (actual != expectedExitValue) {
-      throw new AssertionError(
-          "App '" + this.name + "' exited with " + actual + " but expected " + expectedExitValue);
-    }
+  protected final void registerPlaceholder(String token, Supplier<String> value) {
+    this.placeholders.put(token, value);
   }
 
   // --- Lifecycle (per-class start, per-method reset, teardown) ---
 
   @Override
-  public void beforeAll(ExtensionContext context) throws Exception {
+  public final void beforeAll(ExtensionContext context) throws Exception {
     this.backend.start();
     launch();
-    if (this.server) {
-      waitForPortToOpen(this.httpPort, this.startupTimeoutSeconds, SECONDS, this.process);
-    } else if (!this.process.isAlive() && this.process.exitValue() != 0) {
-      throw new IllegalStateException(
-          "App '"
-              + this.name
-              + "' exited abnormally on start (exit "
-              + this.process.exitValue()
-              + ")");
-    }
+    onStarted();
   }
 
   @Override
-  public void beforeEach(ExtensionContext context) {
-    // A server app must stay up across methods, and its per-test traces are produced during the
-    // test body — so assert it's alive and reset the backend between methods. A batch app
-    // (notAServer) may have already run to completion and produced its traces at start-up, so
-    // neither applies: requiring it alive would spuriously fail, and clearing would wipe its
-    // traces.
-    if (this.server) {
-      if (this.process == null || !this.process.isAlive()) {
-        throw new IllegalStateException(
-            "App '" + this.name + "' is not alive at the start of a test");
-      }
-      if (this.ownsBackend) {
-        this.backend.clear();
-      }
-    }
+  public final void beforeEach(ExtensionContext context) {
+    onBeforeEach();
     this.outputThreads.clearMessages();
   }
 
   @Override
-  public void afterEach(ExtensionContext context) {
+  public final void afterEach(ExtensionContext context) {
     // Check telemetry once, here, while the app and backend are still up — afterAll is too late
     // (the
     // app is killed, and the per-method session clear may have wiped a once-only app-started). Only
@@ -259,7 +199,7 @@ public final class SmokeApp
   }
 
   @Override
-  public void afterAll(ExtensionContext context) {
+  public final void afterAll(ExtensionContext context) {
     try {
       stopProcess();
     } finally {
@@ -276,6 +216,19 @@ public final class SmokeApp
       }
     }
   }
+
+  /**
+   * Invoked once right after the app process is launched (in {@link #beforeAll}). Subclasses assert
+   * their notion of "ready": a server waits for its port, a batch app fails fast on abnormal exit.
+   */
+  protected abstract void onStarted() throws Exception;
+
+  /**
+   * Invoked before each test method (in {@link #beforeEach}), before the captured log is reset. The
+   * default is a no-op (a batch app may already have completed); a server asserts it's alive and
+   * resets the backend.
+   */
+  protected void onBeforeEach() {}
 
   private void launch() throws IOException {
     List<String> command = new ArrayList<>();
@@ -349,7 +302,7 @@ public final class SmokeApp
   }
 
   private String substitute(String value) {
-    String result = value.replace(HTTP_PORT_PLACEHOLDER, Integer.toString(this.httpPort));
+    String result = value;
     for (Map.Entry<String, Supplier<String>> placeholder : this.placeholders.entrySet()) {
       String token = placeholder.getKey();
       if (result.contains(token)) {
@@ -417,7 +370,7 @@ public final class SmokeApp
    * up) unless {@link Builder#skipTelemetryCheck()}. It intentionally asserts "telemetry is
    * flowing" rather than a specific event: the once-only {@code app-started} is fragile under the
    * per-method session clear, whereas heartbeats keep arriving; a test wanting a specific event can
-   * assert it with {@link #traces() backend}.{@code telemetry().waitForFlat(...)}.
+   * assert it with {@code backend().telemetry().waitForFlat(...)}.
    */
   public void assertTelemetryReceived() {
     this.backend.telemetry().waitForCount(1, this.startupTimeoutSeconds);
@@ -426,8 +379,8 @@ public final class SmokeApp
   /**
    * The default error-log predicate: a line is an error if it contains {@code ERROR}, {@code
    * ASSERTION FAILED}, or {@code Failed to handle exception in instrumentation} — unless it
-   * contains one of the {@code allowed} substrings (the FIXME-allowlist escape hatch).
-   * Package-private for testing.
+   * contains one of the {@code allowed} substrings (the allowlist escape hatch). Package-private
+   * for testing.
    */
   static Predicate<String> defaultErrorLogFilter(List<String> allowed) {
     List<String> allowlist = new ArrayList<>(allowed);
@@ -452,13 +405,13 @@ public final class SmokeApp
   @Override
   public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext context) {
     Class<?> type = parameterContext.getParameter().getType();
-    return type == SmokeApp.class || type == Traces.class || type == TraceBackend.class;
+    return type.isInstance(this) || type == Traces.class || type == TraceBackend.class;
   }
 
   @Override
   public Object resolveParameter(ParameterContext parameterContext, ExtensionContext context) {
     Class<?> type = parameterContext.getParameter().getType();
-    if (type == SmokeApp.class) {
+    if (type.isInstance(this)) {
       return this;
     }
     if (type == Traces.class) {
@@ -472,8 +425,12 @@ public final class SmokeApp
     //  annotation (e.g. @App("producer")) when a multi-app test needs parameter injection (S6).
   }
 
-  /** Fluent builder for a {@link SmokeApp}. */
-  public static final class Builder {
+  /**
+   * Fluent builder shared by the concrete apps. Self-typed ({@code B}) so every setter returns the
+   * concrete builder for chaining; {@code build()} returns the concrete app ({@code A}). Obtain one
+   * via {@link SmokeServerApp#named(String)} or {@link SmokeCliApp#named(String)}.
+   */
+  public abstract static class Builder<A extends AbstractSmokeApp, B extends Builder<A, B>> {
     private final String name;
     private String jar;
     private String mainClass;
@@ -486,51 +443,57 @@ public final class SmokeApp
     private TraceBackend backend;
     private String explicitAgentJar;
     private boolean noAgent;
-    private boolean server = true;
     private long startupTimeoutSeconds = 120;
     private Predicate<String> errorLogFilter;
     private final List<String> allowedErrorLogs = new ArrayList<>();
     private boolean checkErrorLogs = true;
     private boolean checkTelemetry = true;
 
-    private Builder(String name) {
+    protected Builder(String name) {
       this.name = name;
     }
 
+    /** Returns {@code this} as the concrete builder type, for fluent chaining. */
+    protected abstract B self();
+
+    /** Builds the concrete app. Implementations must call {@link #validate()} first. */
+    public abstract A build();
+
     /** Runs {@code java -jar <jarPath>}. Mutually exclusive with {@link #mainClass(String)}. */
-    public Builder jar(String jarPath) {
+    public B jar(String jarPath) {
       this.jar = jarPath;
-      return this;
+      return self();
     }
 
     /** Runs {@code java -cp <classpath> <mainClass>} (classpath defaults to the current one). */
-    public Builder mainClass(String mainClass) {
+    public B mainClass(String mainClass) {
       this.mainClass = mainClass;
-      return this;
+      return self();
     }
 
     /** Classpath for {@link #mainClass(String)} mode; defaults to the launching JVM's classpath. */
-    public Builder classpath(String classpath) {
+    public B classpath(String classpath) {
       this.classpath = classpath;
-      return this;
+      return self();
     }
 
     /**
-     * Program arguments (after the jar/main class). Supports the {@value #HTTP_PORT_PLACEHOLDER}
-     * placeholder.
+     * Program arguments (after the jar/main class). Supports launch-time {@code ${...}}
+     * placeholders (see {@link #placeholder(String, Supplier)}); {@link SmokeServerApp} also
+     * provides {@code ${app.httpPort}}.
      */
-    public Builder args(String... args) {
+    public B args(String... args) {
       this.programArgs.addAll(Arrays.asList(args));
-      return this;
+      return self();
     }
 
     /**
-     * Extra JVM arguments (before the jar/main class). Supports the {@value #HTTP_PORT_PLACEHOLDER}
-     * placeholder.
+     * Extra JVM arguments (before the jar/main class). Supports the same launch-time {@code ${...}}
+     * placeholders as {@link #args(String...)}.
      */
-    public Builder jvmArgs(String... jvmArgs) {
+    public B jvmArgs(String... jvmArgs) {
       this.jvmArgs.addAll(Arrays.asList(jvmArgs));
-      return this;
+      return self();
     }
 
     /**
@@ -542,90 +505,84 @@ public final class SmokeApp
      * initialize:
      *
      * <pre>{@code
-     * .placeholder("rabbit.port", () -> String.valueOf(RABBIT.container().getMappedPort(5672)))
+     * .placeholder("rabbit.port", () -> String.valueOf(RABBIT.getMappedPort(5672)))
      * .args("--spring.rabbitmq.port=${rabbit.port}")
      * }</pre>
      */
-    public Builder placeholder(String name, Supplier<String> value) {
+    public B placeholder(String name, Supplier<String> value) {
       this.placeholders.put("${" + name + "}", value);
-      return this;
+      return self();
     }
 
     /** Sets an environment variable for the launched process (applied after the defaults). */
-    public Builder env(String key, String value) {
+    public B env(String key, String value) {
       this.extraEnv.put(key, value);
-      return this;
+      return self();
     }
 
     /** Working directory for the launched process. */
-    public Builder workingDirectory(File workingDirectory) {
+    public B workingDirectory(File workingDirectory) {
       this.workingDirectory = workingDirectory;
-      return this;
+      return self();
     }
 
     /**
      * The backend the app sends traces to; started/stopped by this app unless it is shared (S6).
      */
-    public Builder backend(TraceBackend backend) {
+    public B backend(TraceBackend backend) {
       this.backend = backend;
-      return this;
+      return self();
     }
 
     /**
      * Overrides the agent jar (default: the {@code datadog.smoketest.agent.shadowJar.path}
      * property).
      */
-    public Builder javaAgent(String agentJarPath) {
+    public B javaAgent(String agentJarPath) {
       this.explicitAgentJar = agentJarPath;
-      return this;
+      return self();
     }
 
     /** Launches the app without {@code -javaagent} (e.g. for launch-mechanics tests). */
-    public Builder noAgent() {
+    public B noAgent() {
       this.noAgent = true;
-      return this;
+      return self();
     }
 
-    /** Declares the app is not an HTTP server, so start-up won't wait for a port to open. */
-    public Builder notAServer() {
-      this.server = false;
-      return this;
-    }
-
-    /** How long start-up waits for a server app's port to open (default 120s). */
-    public Builder startupTimeoutSeconds(long seconds) {
+    /** How long start-up waits for the app to become ready (default 120s). */
+    public B startupTimeoutSeconds(long seconds) {
       this.startupTimeoutSeconds = seconds;
-      return this;
+      return self();
     }
 
     /**
      * Overrides how a captured log line is judged an error (default: contains {@code ERROR} /
      * {@code ASSERTION FAILED} / an instrumentation-exception marker). Replaces the allowlist.
      */
-    public Builder errorLogFilter(Predicate<String> isError) {
+    public B errorLogFilter(Predicate<String> isError) {
       this.errorLogFilter = isError;
-      return this;
+      return self();
     }
 
     /** Allowlists log lines containing any of these substrings from the default error-log check. */
-    public Builder allowedErrorLogs(String... substrings) {
+    public B allowedErrorLogs(String... substrings) {
       this.allowedErrorLogs.addAll(Arrays.asList(substrings));
-      return this;
+      return self();
     }
 
     /** Disables the automatic no-error-logs check at teardown (e.g. for error-case tests). */
-    public Builder skipErrorLogCheck() {
+    public B skipErrorLogCheck() {
       this.checkErrorLogs = false;
-      return this;
+      return self();
     }
 
     /**
      * Disables the automatic app-started telemetry check at teardown (for agent apps that run with
      * telemetry disabled, e.g. {@code dd.instrumentation.telemetry.enabled=false}).
      */
-    public Builder skipTelemetryCheck() {
+    public B skipTelemetryCheck() {
       this.checkTelemetry = false;
-      return this;
+      return self();
     }
 
     private String resolveAgentJar() {
@@ -637,7 +594,8 @@ public final class SmokeApp
           : System.getProperty(AGENT_JAR_PROPERTY);
     }
 
-    public SmokeApp build() {
+    /** Validates common invariants; concrete {@link #build()} implementations must call this. */
+    protected void validate() {
       if (this.backend == null) {
         throw new IllegalStateException("A TraceBackend is required — call backend(...)");
       }
@@ -648,7 +606,6 @@ public final class SmokeApp
       //  profiling args; crash-tracking args (-XX:OnError=...dd_crash_uploader.sh); memory tuning
       //  (ForkedTestUtils); retry log-file timestamping. Add as explicit opt-ins when a ported test
       //  needs them.
-      return new SmokeApp(this);
     }
   }
 }

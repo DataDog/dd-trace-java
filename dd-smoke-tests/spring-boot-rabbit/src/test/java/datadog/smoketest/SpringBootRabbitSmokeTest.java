@@ -100,11 +100,12 @@ class SpringBootRabbitSmokeTest {
 
   @Order(2)
   @RegisterExtension
-  static final SmokeApp sender = rabbitApp(0).args("--rabbit.sender.queue=otherqueue").build();
+  static final SmokeServerApp sender =
+      rabbitApp(0).args("--rabbit.sender.queue=otherqueue").build();
 
   @Order(3)
   @RegisterExtension
-  static final SmokeApp receiver =
+  static final SmokeServerApp receiver =
       rabbitApp(1)
           .args("--rabbit.receiver.queue=otherqueue", "--rabbit.receiver.forward=true")
           .build();
@@ -176,8 +177,8 @@ class SpringBootRabbitSmokeTest {
     return span().service(service).operationName(operation).resourceName(resource);
   }
 
-  private static SmokeApp.Builder rabbitApp(int index) {
-    return SmokeApp.named("spring-rabbit-" + index)
+  private static SmokeServerApp.Builder rabbitApp(int index) {
+    return SmokeServerApp.named("spring-rabbit-" + index)
         .jar(System.getProperty("datadog.smoketest.springboot.shadowJar.path"))
         .backend(agent)
         .jvmArgs(

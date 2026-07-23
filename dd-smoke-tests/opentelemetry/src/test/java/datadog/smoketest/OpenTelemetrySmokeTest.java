@@ -17,12 +17,11 @@ class OpenTelemetrySmokeTest {
       System.getProperty("datadog.smoketest.shadowJar.path");
 
   @RegisterExtension
-  static final SmokeApp app =
-      SmokeApp.named("opentelemetry")
+  static final SmokeCliApp app =
+      SmokeCliApp.named("opentelemetry")
           .jar(APPLICATION_JAR)
           .jvmArgs("-Ddd.trace.otel.enabled=true")
           .workingDirectory(WORKING_DIRECTORY)
-          .notAServer()
           .backend(testAgent())
           .build();
 

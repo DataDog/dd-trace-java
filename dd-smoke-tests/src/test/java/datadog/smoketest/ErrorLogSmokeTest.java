@@ -8,15 +8,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
- * Verifies {@link SmokeApp#assertNoErrorLogs()} against a real launched app: it reads the captured
- * log and flags error lines. {@code skipErrorLogCheck()} disables the automatic teardown check so
- * the deliberately-logged error doesn't fail the class — the assertion is exercised explicitly.
+ * Verifies {@link AbstractSmokeApp#assertNoErrorLogs()} against a real launched app: it reads the
+ * captured log and flags error lines. {@code skipErrorLogCheck()} disables the automatic teardown
+ * check so the deliberately-logged error doesn't fail the class — the assertion is exercised
+ * explicitly.
  */
 class ErrorLogSmokeTest {
 
   @RegisterExtension
-  static final SmokeApp app =
-      SmokeApp.named("error-logger")
+  static final SmokeServerApp app =
+      SmokeServerApp.named("error-logger")
           .mainClass("datadog.smoketest.TestServerApp")
           .args("--server.port=${app.httpPort}")
           .backend(TraceBackend.mockAgent())
