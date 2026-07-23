@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.context.Context;
@@ -51,6 +52,32 @@ class ServerRequestContextTest {
     ServerRequestContext.remove(attributes, serverContext);
 
     assertFalse(ServerRequestContext.isPending(attributes, serverContext));
+  }
+
+  @Test
+  void preservesPipelinedContextWhenCompactingQueue() {
+    DefaultAttributeMap attributes = new DefaultAttributeMap();
+    ServerRequestContext first = ServerRequestContext.add(attributes, Context.root(), null);
+    ServerRequestContext second = ServerRequestContext.add(attributes, Context.root(), null);
+
+    ServerRequestContext.remove(attributes, first);
+
+    assertSame(second, ServerRequestContext.nextResponse(attributes));
+    ServerRequestContext.remove(attributes, second);
+
+    ServerRequestContext next = ServerRequestContext.add(attributes, Context.root(), null);
+    assertSame(next, ServerRequestContext.nextResponse(attributes));
+  }
+
+  @Test
+  void preservesFirstContextWhenCompactingAfterRequestFailure() {
+    DefaultAttributeMap attributes = new DefaultAttributeMap();
+    ServerRequestContext first = ServerRequestContext.add(attributes, Context.root(), null);
+    ServerRequestContext failed = ServerRequestContext.add(attributes, Context.root(), null);
+
+    ServerRequestContext.remove(attributes, failed);
+
+    assertSame(first, ServerRequestContext.nextResponse(attributes));
   }
 
   @Test
