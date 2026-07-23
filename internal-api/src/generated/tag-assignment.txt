@@ -1,0 +1,73 @@
+# Tag id assignment.  slotCount=13  stored=50  reserved=10
+
+# STORED   serial group field int id                 required     name
+     256     0     0  -  0x0100000000000000 required     _dd.base_service
+     257     0     1  -  0x0101000100000000 recommended  version
+     258     0     2  -  0x0102000200000000 recommended  env
+     259     0     3  -  0x0103000300000000 required     language
+     260     0     4  -  0x0104000400000000 required     runtime-id
+     261     0     5  -  0x0105000500000000 recommended  _dd.tracer_host
+     262     0     6  -  0x0106000600000000 recommended  _dd.git.commit.sha
+     263     0     7  -  0x0107000700000000 recommended  _dd.git.repository_url
+     264     0     8  -  0x0108000800000000 recommended  _dd.profiling.enabled
+     265     0     9  -  0x0109000900000000 recommended  _dd.dsm.enabled
+     266     0    10  -  0x010A000A00000000 recommended  _dd.appsec.enabled
+     267     0    11  -  0x010B000B00000000 recommended  _dd.djm.enabled
+     268     0    12  -  0x010C000C00000000 recommended  _dd.civisibility.enabled
+     269     1     0  -  0x010D040000000000 required     _dd.parent_id
+     270     1     1  -  0x010E040100000000 required     component
+     271     1     2  I  0x810F040200000000 required     span.kind
+     272     1     3  -  0x0110040300000000 recommended  _dd.integration
+     273     1     -  -  0x011107FF00000000 optional     _dd.svc_src
+     274     1     4  -  0x0112040400000000 recommended  error.type
+     275     1     5  -  0x0113040500000000 recommended  error.message
+     276     1     6  -  0x0114040600000000 recommended  error.stack
+     277     2     0  -  0x0115080000000000 required     db.type
+     278     2     1  -  0x0116080100000000 recommended  db.instance
+     279     2     2  -  0x0117080200000000 recommended  db.operation
+     280     2     3  -  0x0118080300000000 recommended  db.user
+     281     2     -  -  0x01190BFF00000000 optional     db.pool.name
+     282     2     4  I  0x811A080400000000 recommended  db.statement
+     283     3     0  I  0x811B0C0000000000 required     http.method
+     284     3     1  -  0x011C0C0100000000 conditional  http.status_code
+     285     3     2  -  0x011D0C0200000000 recommended  network.protocol.version
+     286     4     0  I  0x811E100000000000 required     http.url
+     287     4     1  -  0x011F100100000000 recommended  http.resend_count
+     288     5     0  -  0x0120140000000000 conditional  http.route
+     289     5     1  -  0x0121140100000000 required     http.hostname
+     290     5     2  -  0x0122140200000000 recommended  http.useragent
+     291     5     3  -  0x0123140300000000 recommended  http.query.string
+     292     5     -  -  0x012417FF00000000 optional     servlet.path
+     293     5     -  I  0x812517FF00000000 optional     servlet.context
+     294     6     0  -  0x0126180000000000 recommended  view.name
+     295     7     0  -  0x01271C0000000000 recommended  test.name
+     296     7     1  -  0x01281C0100000000 recommended  test.suite
+     297     7     2  -  0x01291C0200000000 recommended  test.status
+     298     7     3  -  0x012A1C0300000000 recommended  test.framework
+     299     8     0  I  0x812B200000000000 recommended  peer.service
+     300     8     1  -  0x012C200100000000 recommended  _dd.peer.service.source
+     301     8     2  -  0x012D200200000000 recommended  _dd.peer.service.remapped_from
+     302     8     3  -  0x012E200300000000 recommended  peer.hostname
+     303     8     -  -  0x012F23FF00000000 optional     peer.ipv4
+     304     8     -  -  0x013023FF00000000 optional     peer.ipv6
+     305     8     -  -  0x013123FF00000000 optional     peer.port
+
+# RESERVED serial       id                 kind         name
+       1      0x800103FF00000000 structural   error -> error
+       2      0x800203FF00000000 structural   service -> service
+       3      0x800303FF00000000 structural   resource.name -> resource
+       4      0x800403FF00000000 structural   span.type -> type
+       5      0x800503FF00000000 structural   origin -> origin
+       6      0x800603FF00000000 directive    sampling.priority
+       7      0x800703FF00000000 directive    manual.keep
+       8      0x800803FF00000000 directive    manual.drop
+       9      0x800903FF00000000 directive    measured
+      10      0x800A03FF00000000 directive    analytics.sample_rate
+
+# PER-TYPE slotted coordinates as group:field. field-decl restarts per group, so the
+# group-decl tier disambiguates the shared field-bit word.  <trace> = trace-level layer.
+  db.client      count=16  coords=[1:0, 1:1, 1:2, 1:3, 1:4, 1:5, 1:6, 2:0, 2:1, 2:2, 2:3, 2:4, 8:0, 8:1, 8:2, 8:3]
+  http.client    count=16  coords=[1:0, 1:1, 1:2, 1:3, 1:4, 1:5, 1:6, 3:0, 3:1, 3:2, 4:0, 4:1, 8:0, 8:1, 8:2, 8:3]
+  http.server    count=15  coords=[1:0, 1:1, 1:2, 1:3, 1:4, 1:5, 1:6, 3:0, 3:1, 3:2, 4:0, 5:0, 5:1, 5:2, 5:3]
+  view.render    count=8   coords=[1:0, 1:1, 1:2, 1:3, 1:4, 1:5, 1:6, 6:0]
+  <trace>        count=13  coords=[0:0, 0:1, 0:2, 0:3, 0:4, 0:5, 0:6, 0:7, 0:8, 0:9, 0:10, 0:11, 0:12]
