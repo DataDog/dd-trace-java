@@ -60,7 +60,7 @@ pattern before writing new code. Use it as a template.
 
 Read [Context-Tracking Instrumentation](references/context-tracking.md) and decide whether the library needs `InstrumenterModule.Tracing` (I/O operations that create spans) or `InstrumenterModule.ContextTracking` (async-boundary bridging, no spans).
 
-**If you picked `ContextTracking`:** the same file's "Library-native context maps" section tells you whether the library needs a `*ContextBridge`-style helper (Reactor, Kotlin coroutines, JAX-RS, Vert.x all do) in addition to the subscriber-wrapping pattern — read it before moving to Step 5. Its "Wrap placement" section covers where to allocate wrappers and context-store entries to avoid per-operator overhead on hot reactive paths.
+**If you picked `ContextTracking`:** the same file's "Library-native context maps" section tells you whether the library needs a `*ContextBridge`-style helper (Reactor is the canonical example) in addition to the subscriber-wrapping pattern — read it before moving to Step 5. Its "Wrap placement" section covers where to allocate wrappers and context-store entries to avoid per-operator overhead on hot reactive paths.
 
 ## Step 5 – Write the InstrumenterModule
 

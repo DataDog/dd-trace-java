@@ -116,14 +116,14 @@ State the isolation reason in a comment on the `ForkedTest` class.
 
 ## Version-sensitive tests belong in a separate `latestDepTest` source set
 
-For libraries whose API surface changes across minor versions (Reactor deprecates and removes APIs; Netty changes handler signatures; gRPC's generated code evolves), route each test to the source set whose classpath actually satisfies its imports:
+For libraries whose API surface changes across minor versions (Reactor deprecates and removes APIs; Netty changes handler signatures; gRPC's generated code evolves), route each test to the source set whose classpath actually satisfies its imports. First check how the module wires `latestDepTest` in `build.gradle`:
 
-- **API only exists in the latest version** (added after your pinned min) → put the test in `src/latestDepTest/`, which compiles against `latestDepTestImplementation`. `src/test/` compiles against the pinned min and doesn't have the API.
-- **API only exists at the pinned min** (removed in a later version — e.g. Reactor's `Schedulers.elastic()`, removed in 3.5+) → put the test in `src/test/`, NOT `latestDepTest/`. Test the replacement API (`Schedulers.boundedElastic()`) in `latestDepTest/` instead.
+- **`addTestSuite('latestDepTest')`** — `latestDepTest` has its own sources at `src/latestDepTest/`, separate from `src/test/`. In this shape: put latest-only APIs (added after your pinned min) in `src/latestDepTest/`; put removed-in-latest APIs (e.g. Reactor's `Schedulers.elastic()`, removed in 3.5+) in `src/test/`, testing the replacement API (`Schedulers.boundedElastic()`) in `latestDepTest/` instead.
+- **`addTestSuiteForDir('latestDepTest', 'test')`** — `latestDepTest` reuses `src/test/`'s sources and compiles them against the latest classpath too. In this shape, `src/test/` is NOT a safe place for a removed-in-latest-API test — it still gets compiled against `latestDepTestImplementation` and will fail the same way. A test that exercises a removed API needs the module to declare a real separate `latestDepTest` source set instead (switch to `addTestSuite('latestDepTest')`), or the test needs to avoid the removed API entirely (e.g. call the replacement API and assert equivalent behavior).
 
 Common libraries where this split matters: Reactor, Netty, gRPC, Kafka clients (consumer API changed at 3.0), Cassandra driver (3.x vs 4.x largely incompatible).
 
-**Editing an existing module:** check for `src/latestDepTest/` and the `addTestSuite('latestDepTest')` / `addTestSuiteForDir('latestDepTest', ...)` declaration in `build.gradle` before touching tests, and preserve the split — collapsing it into `src/test/` produces a `latestDepTest` compile failure the moment a test uses a since-removed API.
+**Editing an existing module:** check for `src/latestDepTest/` and the exact `addTestSuite(...)`/`addTestSuiteForDir(...)` declaration in `build.gradle` before touching tests, and preserve whichever shape master uses.
 
 ## No banner/separator comments in test files
 
