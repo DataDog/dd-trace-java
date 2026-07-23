@@ -191,7 +191,6 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
           assert span.tags["error.type"] == "Spark Task Failed"
           // JDK 15+'s helpful NullPointerException messages (JEP 358) append extra detail after the exception class name.
           assert span.tags["error.message"] =~ /^java\.lang\.NullPointerException: .*$/
-          // JDK 15+'s helpful NullPointerException messages (JEP 358) append extra detail after the exception class name.
           assert span.tags["error.stack"] =~ /(?s)^java.lang.NullPointerException.*\n\tat datadog.trace.instrumentation.spark.TestSparkComputation.{500,}\$/
         }
       }

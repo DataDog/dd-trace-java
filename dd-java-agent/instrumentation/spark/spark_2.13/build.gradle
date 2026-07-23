@@ -80,17 +80,31 @@ tasks.named("test_spark4", Test) {
     maxJavaVersion = JavaVersion.VERSION_23
   }
 
-  // Kryo's FieldSerializer reflectively accesses fields of JDK-internal classes (e.g.
-  // java.nio.HeapByteBuffer, java.lang.invoke.SerializedLambda) when Spark registers its
-  // shuffle serializers; these packages aren't opened by default on JDK 16+.
+  // Spark itself only opens these modules when launched through its own scripts
+  // (org.apache.spark.launcher.JavaModuleOptions); since this suite starts a SparkSession
+  // directly in-process, mirror that same list so Spark's own reflective access (Kryo shuffle
+  // serializers, Tungsten unsafe memory, Hadoop UGI, etc.) doesn't fail under JDK 16+ module encapsulation.
   conditionalJvmArgs(
     it,
     JavaVersion.VERSION_16,
     [
+      "--add-opens=java.base/java.lang=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+      "--add-opens=java.base/java.io=ALL-UNNAMED",
+      "--add-opens=java.base/java.net=ALL-UNNAMED",
       "--add-opens=java.base/java.nio=ALL-UNNAMED",
-      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
+      "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+      "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED",
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED",
+      "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
+      "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
+      "--add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED"
     ]
-  )
+    )
 }
 
 // Spark 4.0.0 transitively pulls a newer protobuf-java that's binary-incompatible with the
