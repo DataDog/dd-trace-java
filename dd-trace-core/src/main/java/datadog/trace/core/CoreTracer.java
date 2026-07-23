@@ -42,6 +42,8 @@ import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.Pair;
+import datadog.trace.api.SizingHint;
+import datadog.trace.api.SizingHintTable;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.civisibility.config.BazelMode;
@@ -659,7 +661,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     // Dense known-tag store (experimental, OFF by default): registering the KnownTagCodec resolver
     // flips the dense store live so known tags store without a per-tag Entry. Gated by a system
-    // property for A/B benchmarking; when off, keyOf stays a no-op and tag storage is byte-identical
+    // property for A/B benchmarking; when off, keyOf stays a no-op and tag storage is
+    // byte-identical
     // to today. Promote to a Config flag if this becomes a permanent rollout.
     if (Boolean.getBoolean("dd.trace.dense.tags.enabled")) {
       KnownTags.init();
@@ -2189,6 +2192,14 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         requestContextDataIast = builderRequestContextDataIast;
       }
 
+      // Per-type dense-store sizing: an entry (local-root) span carries the trace-metadata /
+      // enriching tags a child doesn't, so pick the lane by whether we have a local parent. A
+      // resolved hint sizes the span's TagMap and self-tunes on finish; null (no/unkeyable
+      // operation
+      // name) falls back to the generic default capacity.
+      final boolean entrySpan = !(resolvedParentSpanContext instanceof DDSpanContext);
+      final SizingHint sizingHint = SizingHintTable.hintFor(operationName, entrySpan);
+
       // some attributes are inherited from the parent
       context =
           new DDSpanContext(
@@ -2217,7 +2228,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               tracer.profilingContextIntegration,
               tracer.injectBaggageAsTags,
               tracer.injectLinksAsTags,
-              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
+              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags,
+              sizingHint);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`

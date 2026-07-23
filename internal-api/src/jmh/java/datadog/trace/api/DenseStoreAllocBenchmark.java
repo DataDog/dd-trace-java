@@ -90,6 +90,9 @@ public class DenseStoreAllocBenchmark {
 
   private String[] keys;
   private String[] values;
+  // Per-operation sizing hint seeded to this scenario's known-tag count -- what SizingHintTable
+  // supplies.
+  private SizingHint sizingHint;
 
   @Setup(Level.Trial)
   public void setup() {
@@ -108,11 +111,24 @@ public class DenseStoreAllocBenchmark {
       this.keys[i] = i < knownCount ? KNOWN[i] : "custom.tag." + i;
       this.values[i] = "value-" + i;
     }
+    // Size the dense store to the known-tag count (the "end state" per-operation sizing).
+    this.sizingHint = new SizingHint("bench", 0, Math.max(knownCount, 1));
   }
 
+  /** Current: generic default dense capacity (KNOWN_INIT_CAP=12) -- over-provisions small types. */
   @Benchmark
   public TagMap buildMap() {
     TagMap m = TagMap.create(16);
+    for (int i = 0; i < tagCount; i++) {
+      m.set(keys[i], values[i]);
+    }
+    return m;
+  }
+
+  /** End state: dense store sized per-operation via a SizingHint -- no over-provision. */
+  @Benchmark
+  public TagMap buildMapSized() {
+    TagMap m = TagMap.create(sizingHint);
     for (int i = 0; i < tagCount; i++) {
       m.set(keys[i], values[i]);
     }

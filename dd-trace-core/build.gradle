@@ -134,6 +134,9 @@ jmh {
   if (project.hasProperty('jmh.profilers')) {
     profilers = project.property('jmh.profilers').tokenize(',')
   }
+  if (project.hasProperty('jmh.jvmArgs')) {
+    jvmArgsAppend = project.property('jmh.jvmArgs').tokenize(' ')
+  }
   if (project.hasProperty('testJvm')) {
     def testJvmSpec = new TestJvmSpec(project)
     jvm = testJvmSpec.javaTestLauncher.map { it.executablePath.asFile.absolutePath }
