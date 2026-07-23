@@ -255,9 +255,7 @@ public abstract class Instrumenter {
   }
 
   protected int newVar(Type type) {
-    int varId = methodNode.maxLocals;
-    methodNode.maxLocals += type.getSize();
-    return varId;
+    return newVar(type.getSize());
   }
 
   protected int newVar(int size) {
