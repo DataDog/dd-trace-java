@@ -1071,10 +1071,10 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * <ul>
    *   <li><b>Tier 1 — group mask:</b> one bit per declaration group ({@code 1L << group-decl}). A
    *       clear group bit proves EVERY tag of that group is absent, so seeding a fresh group (e.g.
-   *       a {@code SpanPrototype} bulk insert) skips the scan for the whole group — the bulk-insert
-   *       payoff. Disjoint groups across two maps ({@code (a.knownGroupMask & b.knownGroupMask) ==
-   *       0}) prove nothing shadows across them, which the read-through shadow check exploits (see
-   *       {@link #parentDenseVisible}).
+   *       a bulk insert) skips the scan for the whole group — the bulk-insert payoff. Disjoint
+   *       groups across two maps ({@code (a.knownGroupMask & b.knownGroupMask) == 0}) prove nothing
+   *       shadows across them, which the read-through shadow check exploits (see {@link
+   *       #parentDenseVisible}).
    *   <li><b>Tier 2 — field bloom:</b> when the group bit clashes, fall back to one shared word
    *       over {@code field-decl & 63}. A clear field bit still proves absence; a clash falls
    *       through to the authoritative scan.

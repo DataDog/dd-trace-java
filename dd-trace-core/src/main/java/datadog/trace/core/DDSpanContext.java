@@ -139,11 +139,10 @@ public class DDSpanContext
    */
   private final TagMap unsafeTags;
 
-  // Per-type sizing hint (e.g. a SpanPrototype) this span was created from, if any. Held so the
-  // span
-  // can feed its final dense-store size back on finish (recordSize) -- the self-tuning loop that
-  // lets
-  // the reused hint converge to the type's real known-tag high-water mark. Null when unsized.
+  // Per-operation sizing hint (from SizingHintTable, keyed by operation name) this span was sized
+  // from, if any. Held so the span can feed its final dense-store size back on finish (recordSize)
+  // -- the self-tuning loop that lets the reused hint converge to the operation's real known-tag
+  // high-water mark. Null when unsized.
   private final SizingHint sizingHint;
 
   /** The service name is required, otherwise the span are dropped by the agent */
@@ -977,10 +976,9 @@ public class DDSpanContext
   }
 
   /**
-   * Feeds this span's final dense-store size back into the sizing hint it was created from (if
-   * any). Called once at span finish; lets a reused hint (e.g. a per-type SpanPrototype) self-tune
-   * to the type's observed known-tag high-water mark, so subsequent spans of the type are sized
-   * correctly.
+   * Feeds this span's final dense-store size back into the sizingHint it was created from (if any).
+   * Called once at span finish; lets a reused hint self-tune to the operation's observed known-tag
+   * high-water mark, so subsequent spans of the operation are sized correctly.
    */
   void recordDenseSize() {
     if (sizingHint != null) {
