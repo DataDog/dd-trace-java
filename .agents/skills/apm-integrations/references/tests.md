@@ -119,7 +119,7 @@ State the isolation reason in a comment on the `ForkedTest` class.
 For libraries whose API surface changes across minor versions (Reactor deprecates and removes APIs; Netty changes handler signatures; gRPC's generated code evolves), route each test to the source set whose classpath actually satisfies its imports:
 
 - **API only exists in the latest version** (added after your pinned min) → put the test in `src/latestDepTest/`, which compiles against `latestDepTestImplementation`. `src/test/` compiles against the pinned min and doesn't have the API.
-- **API only exists at the pinned min** (removed in a later version — e.g. Reactor's `Schedulers.elastic()`, removed in 3.4+) → put the test in `src/test/`, NOT `latestDepTest/`. Test the replacement API (`Schedulers.boundedElastic()`) in `latestDepTest/` instead.
+- **API only exists at the pinned min** (removed in a later version — e.g. Reactor's `Schedulers.elastic()`, removed in 3.5+) → put the test in `src/test/`, NOT `latestDepTest/`. Test the replacement API (`Schedulers.boundedElastic()`) in `latestDepTest/` instead.
 
 Common libraries where this split matters: Reactor, Netty, gRPC, Kafka clients (consumer API changed at 3.0), Cassandra driver (3.x vs 4.x largely incompatible).
 
