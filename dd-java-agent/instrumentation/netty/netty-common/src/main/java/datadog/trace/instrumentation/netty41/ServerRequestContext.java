@@ -56,6 +56,17 @@ public final class ServerRequestContext {
     return contexts == null || isPoisoned(contexts) ? null : contexts.peekLast();
   }
 
+  /** Returns whether the request context is still awaiting a response on this channel. */
+  public static boolean isPending(
+      final AttributeMap attributes, final ServerRequestContext serverContext) {
+    if (serverContext == null) {
+      return false;
+    }
+    final Deque<ServerRequestContext> contexts =
+        attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).get();
+    return contexts != null && !isPoisoned(contexts) && contexts.contains(serverContext);
+  }
+
   /** Returns whether a request block is closing the channel. */
   public static boolean isRequestBlocked(final AttributeMap attributes) {
     return attributes.attr(BLOCKED_REQUEST_ATTRIBUTE_KEY).get() != null;

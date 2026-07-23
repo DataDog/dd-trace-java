@@ -19,6 +19,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpVersion;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Map;
@@ -118,7 +119,8 @@ public class NettyHttpServerDecorator
     public static final Logger log = LoggerFactory.getLogger(NettyBlockResponseFunction.class);
 
     private final ChannelPipeline pipeline;
-    private final HttpRequest httpRequestMessage;
+    private final HttpVersion protocolVersion;
+    private final String acceptHeader;
     private final ServerRequestContext serverContext;
 
     public NettyBlockResponseFunction(
@@ -126,7 +128,8 @@ public class NettyHttpServerDecorator
         HttpRequest httpRequestMessage,
         ServerRequestContext serverContext) {
       this.pipeline = pipeline;
-      this.httpRequestMessage = httpRequestMessage;
+      this.protocolVersion = httpRequestMessage.protocolVersion();
+      this.acceptHeader = httpRequestMessage.headers().get("accept");
       this.serverContext = serverContext;
     }
 
@@ -163,6 +166,11 @@ public class NettyHttpServerDecorator
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
         String securityResponseId) {
+      if (serverContext != null
+          && !ServerRequestContext.isPending(pipeline.channel(), serverContext)) {
+        return false;
+      }
+
       ChannelHandler handlerBefore = pipeline.get(HttpServerTracingHandler.class);
       if (handlerBefore == null) {
         handlerBefore = pipeline.get(HttpServerRequestTracingHandler.class);
@@ -194,11 +202,13 @@ public class NettyHttpServerDecorator
         return false;
       }
 
-      ChannelHandlerContext context =
-          pipeline.context(BlockingResponseHandler.BEFORE_BLOCKING_HANDLER_NAME);
-      context.fireChannelRead(httpRequestMessage);
-
-      return true;
+      ChannelHandlerContext context = pipeline.context(BlockingResponseHandler.HANDLER_NAME);
+      if (blockingHandler.commitBlockingResponse(context, protocolVersion, acceptHeader)) {
+        return true;
+      }
+      removeHandlerIfPresent(beforeBlockingHandler);
+      removeHandlerIfPresent(blockingHandler);
+      return false;
     }
 
     private void removeHandlerIfPresent(ChannelHandler handler) {

@@ -72,7 +72,7 @@ class BlockingResponseHandlerTest {
   }
 
   @Test
-  void serializesOffEventLoopHandlerInstallationAndRequestReplay() throws Exception {
+  void commitsOffEventLoopAfterOriginalRequestIsReleased() throws Exception {
     DefaultEventLoopGroup eventLoopGroup = new DefaultEventLoopGroup(1);
     LocalChannel channel = new LocalChannel();
     FullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, "/");
@@ -113,6 +113,7 @@ class BlockingResponseHandlerTest {
       assertTrue(
           responseFunction.tryCommitBlockingResponse(
               null, 403, BlockingContentType.NONE, emptyMap(), null));
+      request.release();
 
       assertNull(channel.pipeline().get(BEFORE_BLOCKING_HANDLER_NAME));
       assertNull(channel.pipeline().get(HANDLER_NAME));
@@ -124,6 +125,71 @@ class BlockingResponseHandlerTest {
       assertTrue(ServerRequestContext.isRequestBlocked(channel));
       assertNotNull(channel.pipeline().get(BEFORE_BLOCKING_HANDLER_NAME));
       assertNotNull(channel.pipeline().get(HANDLER_NAME));
+    } finally {
+      releaseEventLoop.countDown();
+      channel.close().sync();
+      eventLoopGroup.shutdownGracefully().sync();
+      if (request.refCnt() > 0) {
+        request.release();
+      }
+    }
+  }
+
+  @Test
+  void doesNotBlockChannelWhenScheduledRequestContextCompletesFirst() throws Exception {
+    DefaultEventLoopGroup eventLoopGroup = new DefaultEventLoopGroup(1);
+    LocalChannel channel = new LocalChannel();
+    FullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, "/");
+    CountDownLatch eventLoopTaskStarted = new CountDownLatch(1);
+    CountDownLatch releaseEventLoop = new CountDownLatch(1);
+
+    try {
+      eventLoopGroup.register(channel).sync();
+      AtomicReference<ServerRequestContext> serverContext = new AtomicReference<>();
+      channel
+          .eventLoop()
+          .submit(
+              () -> {
+                channel
+                    .pipeline()
+                    .addLast(HttpServerRequestTracingHandler.INSTANCE)
+                    .addLast(HttpServerResponseTracingHandler.INSTANCE);
+                serverContext.set(ServerRequestContext.add(channel, Context.root(), null));
+              })
+          .sync();
+
+      Future<?> blockingTask =
+          channel
+              .eventLoop()
+              .submit(
+                  () -> {
+                    eventLoopTaskStarted.countDown();
+                    if (!releaseEventLoop.await(5, SECONDS)) {
+                      throw new AssertionError("event loop was not released");
+                    }
+                    return null;
+                  });
+      assertTrue(eventLoopTaskStarted.await(5, SECONDS), "event loop task did not start");
+
+      Future<?> completionTask =
+          channel
+              .eventLoop()
+              .submit(() -> ServerRequestContext.remove(channel, serverContext.get()));
+      NettyBlockResponseFunction responseFunction =
+          new NettyBlockResponseFunction(channel.pipeline(), request, serverContext.get());
+      assertTrue(
+          responseFunction.tryCommitBlockingResponse(
+              null, 403, BlockingContentType.NONE, emptyMap(), null));
+      request.release();
+
+      releaseEventLoop.countDown();
+      blockingTask.sync();
+      completionTask.sync();
+      channel.eventLoop().submit(() -> {}).sync();
+
+      assertFalse(ServerRequestContext.isRequestBlocked(channel));
+      assertNull(channel.pipeline().get(BEFORE_BLOCKING_HANDLER_NAME));
+      assertNull(channel.pipeline().get(HANDLER_NAME));
     } finally {
       releaseEventLoop.countDown();
       channel.close().sync();

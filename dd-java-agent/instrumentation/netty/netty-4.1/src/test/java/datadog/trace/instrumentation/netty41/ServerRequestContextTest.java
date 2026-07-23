@@ -42,6 +42,18 @@ class ServerRequestContextTest {
   }
 
   @Test
+  void reportsOnlyQueuedContextsAsPending() {
+    DefaultAttributeMap attributes = new DefaultAttributeMap();
+    ServerRequestContext serverContext = ServerRequestContext.add(attributes, Context.root(), null);
+
+    assertTrue(ServerRequestContext.isPending(attributes, serverContext));
+
+    ServerRequestContext.remove(attributes, serverContext);
+
+    assertFalse(ServerRequestContext.isPending(attributes, serverContext));
+  }
+
+  @Test
   void tracksBlockedResponseUntilChannelClose() {
     DefaultAttributeMap attributes = new DefaultAttributeMap();
     ServerRequestContext serverContext = ServerRequestContext.add(attributes, Context.root(), null);

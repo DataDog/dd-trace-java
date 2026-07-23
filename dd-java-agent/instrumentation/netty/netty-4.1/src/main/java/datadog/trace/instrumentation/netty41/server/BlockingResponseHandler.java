@@ -79,14 +79,8 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
       return;
     }
 
-    ChannelHandlerContext ctxForDownstream =
-        ctx.pipeline().context(HttpServerResponseTracingHandler.class);
-    if (ctxForDownstream == null) {
-      ctxForDownstream = ctx.pipeline().context(HttpServerTracingHandler.class);
-    }
-
-    if (ctxForDownstream == null) {
-      logMissingResponseTracingHandler();
+    HttpRequest request = (HttpRequest) msg;
+    if (!commitBlockingResponse(ctx, request.protocolVersion(), request.headers().get("accept"))) {
       // Do not let a failed block intercept later requests on this keep-alive connection.
       if (ctx.pipeline().get(BEFORE_BLOCKING_HANDLER_NAME) != null) {
         ctx.pipeline().remove(BEFORE_BLOCKING_HANDLER_NAME);
@@ -96,8 +90,22 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
       return;
     }
 
-    HttpRequest request = (HttpRequest) msg;
+    ReferenceCountUtil.release(msg);
+  }
 
+  boolean commitBlockingResponse(
+      final ChannelHandlerContext ctx,
+      final HttpVersion protocolVersion,
+      final String acceptHeader) {
+    ChannelHandlerContext ctxForDownstream =
+        ctx.pipeline().context(HttpServerResponseTracingHandler.class);
+    if (ctxForDownstream == null) {
+      ctxForDownstream = ctx.pipeline().context(HttpServerTracingHandler.class);
+    }
+    if (ctxForDownstream == null) {
+      logMissingResponseTracingHandler();
+      return false;
+    }
     this.hasBlockedAlready = true;
     ServerRequestContext.markRequestBlocked(ctx.channel());
 
@@ -108,17 +116,17 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
             bct,
             extraHeaders,
             securityResponseId,
-            request.protocolVersion(),
-            request.headers().get("accept"));
-    ReferenceCountUtil.release(msg);
+            protocolVersion,
+            acceptHeader);
 
     if (serverContext != null
         && ServerRequestContext.nextResponse(ctx.channel()) != serverContext) {
       serverContext.deferBlockResponse(pendingBlockResponse);
-      return;
+      return true;
     }
 
     writeBlockResponse(ctxForDownstream, pendingBlockResponse);
+    return true;
   }
 
   private static void logMissingResponseTracingHandler() {
