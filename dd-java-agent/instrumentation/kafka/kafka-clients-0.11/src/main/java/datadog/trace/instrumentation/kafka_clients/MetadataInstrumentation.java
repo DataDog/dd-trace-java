@@ -80,6 +80,9 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
             .and(named("update"))
             .and(takesArgument(1, named("org.apache.kafka.common.requests.MetadataResponse"))),
         MetadataInstrumentation.class.getName() + "$MetadataUpdate22AndAfterAdvice");
+    transformer.applyAdvice(
+        isMethod().and(named("failedUpdate")),
+        MetadataInstrumentation.class.getName() + "$FailedUpdateAdvice");
   }
 
   public static class MetadataUpdateBefore22Advice {
@@ -99,6 +102,21 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
     public static void muzzleCheck(ConsumerRecord record) {
       // KafkaConsumerInstrumentation only applies for kafka versions with headers
       // Make an explicit call so MetadataInstrumentation does the same
+      record.headers();
+    }
+  }
+
+  public static class FailedUpdateAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.This final Metadata metadata) {
+      MetadataState state =
+          InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
+      if (state != null) {
+        KafkaConfigHelper.reportPendingConfigAsFailed(state);
+      }
+    }
+
+    public static void muzzleCheck(ConsumerRecord record) {
       record.headers();
     }
   }

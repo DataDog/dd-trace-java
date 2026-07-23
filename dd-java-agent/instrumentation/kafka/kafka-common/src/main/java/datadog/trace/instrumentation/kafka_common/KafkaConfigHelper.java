@@ -43,6 +43,15 @@ public class KafkaConfigHelper {
               "socket.connection.setup.timeout.ms",
               "socket.connection.setup.timeout.max.ms",
               "security.protocol",
+              "sasl.mechanism",
+              "sasl.kerberos.service.name",
+              "sasl.login.callback.handler.class",
+              "ssl.protocol",
+              "ssl.enabled.protocols",
+              "ssl.endpoint.identification.algorithm",
+              "ssl.truststore.type",
+              "ssl.keystore.type",
+              "ssl.cipher.suites",
               "metrics.sample.window.ms",
               "metrics.num.samples",
               "metrics.recording.level",
@@ -107,14 +116,38 @@ public class KafkaConfigHelper {
 
   /** Called from metadata update advice when the cluster ID becomes available. */
   public static void reportPendingConfig(MetadataState state, String clusterId) {
+    reportPendingConfig(state, clusterId, PendingConfig.STATUS_CONNECTED);
+  }
+
+  /**
+   * Called from failure advice when the client cannot reach / authenticate to the cluster. Peeks
+   * (does not consume) the pending config, so a later successful update can still emit "connected".
+   */
+  public static void reportPendingConfigAsFailed(MetadataState state) {
+    PendingConfig pending = state.peekPendingConfig();
+    if (pending != null) {
+      emitKafkaConfig(pending, state.clusterId, PendingConfig.STATUS_FAILED);
+    }
+  }
+
+  private static void reportPendingConfig(MetadataState state, String clusterId, String status) {
     PendingConfig pending = state.takePendingConfig();
     if (pending != null) {
-      log.debug("Received cluster ID, reporting {} config", pending.type);
-      if (Config.get().isDataStreamsEnabled()) {
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .reportKafkaConfig(pending.type, clusterId, pending.consumerGroup, pending.config);
-      }
+      emitKafkaConfig(pending, clusterId, status);
+    }
+  }
+
+  private static void emitKafkaConfig(PendingConfig pending, String clusterId, String status) {
+    log.debug("Reporting {} config with status={}", pending.type, status);
+    if (Config.get().isDataStreamsEnabled()) {
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .reportKafkaConfig(
+              pending.type,
+              clusterId != null ? clusterId : "",
+              pending.consumerGroup,
+              pending.config,
+              status);
     }
   }
 

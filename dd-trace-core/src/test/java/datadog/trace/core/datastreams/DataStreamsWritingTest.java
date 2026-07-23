@@ -296,13 +296,13 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     producerConfig.put("bootstrap.servers", "localhost:9092");
     producerConfig.put("acks", "all");
     producerConfig.put("linger.ms", "5");
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", producerConfig);
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", producerConfig, "connected");
 
     Map<String, String> consumerConfig = new HashMap<>();
     consumerConfig.put("bootstrap.servers", "localhost:9092");
     consumerConfig.put("group.id", "test-group");
     consumerConfig.put("auto.offset.reset", "earliest");
-    dataStreams.reportKafkaConfig("kafka_consumer", "", "test-group", consumerConfig);
+    dataStreams.reportKafkaConfig("kafka_consumer", "", "test-group", consumerConfig, "connected");
 
     // Also add a stats point so the bucket is not empty of stats
     dataStreams.add(
@@ -355,8 +355,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     Map<String, String> producerConfig = new HashMap<>();
     producerConfig.put("bootstrap.servers", "localhost:9092");
     producerConfig.put("acks", "all");
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", producerConfig);
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", producerConfig);
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", producerConfig, "connected");
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", producerConfig, "connected");
 
     // Also add a stats point so the bucket has content
     dataStreams.add(
@@ -407,13 +407,15 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
             // Collect configs in a map keyed by type
             Map<String, Map<String, String>> configsByType = new HashMap<>();
             for (int n = 0; n < numConfigs; n++) {
-              assertEquals(4, unpacker.unpackMapHeader());
+              assertEquals(5, unpacker.unpackMapHeader());
               assertEquals("Type", unpacker.unpackString());
               String type = unpacker.unpackString();
               assertEquals("KafkaClusterId", unpacker.unpackString());
               unpacker.unpackString(); // skip cluster id value
               assertEquals("ConsumerGroup", unpacker.unpackString());
               unpacker.unpackString(); // skip consumer group value
+              assertEquals("ConnectionStatus", unpacker.unpackString());
+              assertEquals("connected", unpacker.unpackString());
               assertEquals("Config", unpacker.unpackString());
               int configSize = unpacker.unpackMapHeader();
               Map<String, String> configEntries = new HashMap<>();
@@ -481,13 +483,15 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
             assertEquals(2, numConfigs);
 
             for (int n = 0; n < numConfigs; n++) {
-              assertEquals(4, unpacker.unpackMapHeader());
+              assertEquals(5, unpacker.unpackMapHeader());
               assertEquals("Type", unpacker.unpackString());
               assertEquals("kafka_producer", unpacker.unpackString());
               assertEquals("KafkaClusterId", unpacker.unpackString());
               unpacker.unpackString(); // skip cluster id value
               assertEquals("ConsumerGroup", unpacker.unpackString());
               unpacker.unpackString(); // skip consumer group value
+              assertEquals("ConnectionStatus", unpacker.unpackString());
+              assertEquals("connected", unpacker.unpackString());
               assertEquals("Config", unpacker.unpackString());
               int configSize = unpacker.unpackMapHeader();
               Map<String, String> configEntries = new HashMap<>();

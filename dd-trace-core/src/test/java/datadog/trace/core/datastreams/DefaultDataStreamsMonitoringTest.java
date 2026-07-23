@@ -1094,7 +1094,7 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Map<String, String> kafkaConfig = new HashMap<>();
     kafkaConfig.put("bootstrap.servers", "localhost:9092");
     kafkaConfig.put("acks", "all");
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig);
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig, "connected");
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
 
@@ -1107,6 +1107,48 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals("kafka_producer", report.getType());
     assertEquals("localhost:9092", report.getConfig().get("bootstrap.servers"));
     assertEquals("all", report.getConfig().get("acks"));
+    assertEquals("connected", report.getConnectionStatus());
+
+    // cleanup
+    payloadWriter.close();
+    dataStreams.close();
+  }
+
+  @Test
+  void kafkaProducerConfigWithFailedStatusIsReportedInBucket() throws InterruptedException {
+    DDAgentFeaturesDiscovery features = stubFeatures(true);
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    Sink sink = mock(Sink.class);
+    CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
+    TraceConfig traceConfig = stubTraceConfig(true);
+
+    DefaultDataStreamsMonitoring dataStreams =
+        new DefaultDataStreamsMonitoring(
+            sink,
+            features,
+            timeSource,
+            () -> traceConfig,
+            payloadWriter,
+            DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.start();
+    Map<String, String> kafkaConfig = new HashMap<>();
+    kafkaConfig.put("bootstrap.servers", "localhost:9092");
+    kafkaConfig.put("sasl.mechanism", "SCRAM-SHA-512");
+    // clusterId is empty when the client never reached the broker
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig, "failed");
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.report();
+
+    awaitBuckets(dataStreams, payloadWriter, 1);
+
+    StatsBucket bucket = payloadWriter.buckets.get(0);
+    List<KafkaConfigReport> kafkaConfigs = bucket.getKafkaConfigs();
+    assertEquals(1, kafkaConfigs.size());
+    KafkaConfigReport report = kafkaConfigs.get(0);
+    assertEquals("kafka_producer", report.getType());
+    assertEquals("", report.getKafkaClusterId());
+    assertEquals("failed", report.getConnectionStatus());
+    assertEquals("SCRAM-SHA-512", report.getConfig().get("sasl.mechanism"));
 
     // cleanup
     payloadWriter.close();
@@ -1134,7 +1176,7 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     kafkaConfig.put("bootstrap.servers", "localhost:9092");
     kafkaConfig.put("group.id", "test-group");
     kafkaConfig.put("auto.offset.reset", "earliest");
-    dataStreams.reportKafkaConfig("kafka_consumer", "", "test-group", kafkaConfig);
+    dataStreams.reportKafkaConfig("kafka_consumer", "", "test-group", kafkaConfig, "connected");
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
 
@@ -1178,8 +1220,8 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Map<String, String> config2 = new HashMap<>();
     config2.put("bootstrap.servers", "localhost:9092");
     config2.put("acks", "all");
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", config1);
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", config2);
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", config1, "connected");
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", config2, "connected");
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
 
@@ -1221,7 +1263,7 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Map<String, String> kafkaConfig = new HashMap<>();
     kafkaConfig.put("bootstrap.servers", "localhost:9092");
     kafkaConfig.put("acks", "all");
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig);
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig, "connected");
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
 
@@ -1231,7 +1273,7 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
 
     // reporting the same config again in a new bucket
     payloadWriter.buckets.clear();
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig);
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig, "connected");
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
 
@@ -1272,11 +1314,11 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Map<String, String> producerConfig = new HashMap<>();
     producerConfig.put("bootstrap.servers", "localhost:9092");
     producerConfig.put("acks", "all");
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", producerConfig);
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", producerConfig, "connected");
     Map<String, String> consumerConfig = new HashMap<>();
     consumerConfig.put("bootstrap.servers", "localhost:9092");
     consumerConfig.put("group.id", "my-group");
-    dataStreams.reportKafkaConfig("kafka_consumer", "", "my-group", consumerConfig);
+    dataStreams.reportKafkaConfig("kafka_consumer", "", "my-group", consumerConfig, "connected");
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
 
@@ -1332,11 +1374,11 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Map<String, String> config1 = new HashMap<>();
     config1.put("bootstrap.servers", "localhost:9092");
     config1.put("acks", "all");
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", config1);
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", config1, "connected");
     Map<String, String> config2 = new HashMap<>();
     config2.put("bootstrap.servers", "localhost:9093");
     config2.put("acks", "1");
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", config2);
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", config2, "connected");
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
 
@@ -1371,7 +1413,7 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     Map<String, String> kafkaConfig = new HashMap<>();
     kafkaConfig.put("bootstrap.servers", "localhost:9092");
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig);
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig, "connected");
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
 
@@ -1422,7 +1464,7 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.start();
     Map<String, String> kafkaConfig = new HashMap<>();
     kafkaConfig.put("bootstrap.servers", "localhost:9092");
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig);
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig, "connected");
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
 
@@ -1453,7 +1495,7 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.start();
     Map<String, String> kafkaConfig = new HashMap<>();
     kafkaConfig.put("bootstrap.servers", "localhost:9092");
-    dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig);
+    dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig, "connected");
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100L);
     dataStreams.close();
 
@@ -1483,19 +1525,20 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     differentConfig.put("bootstrap.servers", "localhost:9093");
 
     KafkaConfigReport config1 =
-        new KafkaConfigReport("kafka_producer", "", "", sameConfig, 1000L, null);
+        new KafkaConfigReport("kafka_producer", "", "", sameConfig, "connected", 1000L, null);
     // different timestamp
     KafkaConfigReport config2 =
-        new KafkaConfigReport("kafka_producer", "", "", sameConfig2, 2000L, null);
+        new KafkaConfigReport("kafka_producer", "", "", sameConfig2, "connected", 2000L, null);
     // different type
     KafkaConfigReport config3 =
-        new KafkaConfigReport("kafka_consumer", "", "", sameConfig, 1000L, null);
+        new KafkaConfigReport("kafka_consumer", "", "", sameConfig, "connected", 1000L, null);
     // different config values
     KafkaConfigReport config4 =
-        new KafkaConfigReport("kafka_producer", "", "", differentConfig, 1000L, null);
+        new KafkaConfigReport("kafka_producer", "", "", differentConfig, "connected", 1000L, null);
     // different serviceNameOverride
     KafkaConfigReport config5 =
-        new KafkaConfigReport("kafka_producer", "", "", sameConfig, 1000L, "other-service");
+        new KafkaConfigReport(
+            "kafka_producer", "", "", sameConfig, "connected", 1000L, "other-service");
 
     // Reflexive
     assertEquals(config1, config1);
@@ -1533,11 +1576,11 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Map<String, String> producerCfg = new HashMap<>();
     producerCfg.put("acks", "all");
     KafkaConfigReport config1 =
-        new KafkaConfigReport("kafka_producer", "", "", producerCfg, 1000L, null);
+        new KafkaConfigReport("kafka_producer", "", "", producerCfg, "connected", 1000L, null);
     Map<String, String> consumerCfg = new HashMap<>();
     consumerCfg.put("group.id", "test");
     KafkaConfigReport config2 =
-        new KafkaConfigReport("kafka_consumer", "", "test", consumerCfg, 2000L, null);
+        new KafkaConfigReport("kafka_consumer", "", "test", consumerCfg, "connected", 2000L, null);
 
     bucket.addKafkaConfig(config1);
     bucket.addKafkaConfig(config2);
