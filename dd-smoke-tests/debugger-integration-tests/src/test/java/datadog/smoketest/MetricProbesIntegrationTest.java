@@ -112,7 +112,7 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     String msgExpected = String.format(expectedMsgFormat, metricName, PROBE_ID.getId());
     assertNotNull(retrieveStatsdMessage(msgExpected));
-    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         statusResult::get, () -> String.format("timeout statusResult=%s", statusResult.get()));
   }
@@ -219,7 +219,7 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     String msgExpected = String.format(expectedMsgFormat, metricName, PROBE_ID.getId());
     assertNotNull(retrieveStatsdMessage(msgExpected));
-    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         statusResult::get, () -> String.format("timeout statusResult=%s", statusResult.get()));
   }

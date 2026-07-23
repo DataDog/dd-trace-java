@@ -21,6 +21,7 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.test.agent.decoder.DecodedMessage;
 import datadog.trace.test.agent.decoder.DecodedTrace;
@@ -332,23 +333,25 @@ public abstract class BaseIntegrationTest {
     probeStatusListeners.add(listener);
   }
 
-  protected AtomicBoolean registerCheckReceivedInstalledEmitting() {
+  protected AtomicBoolean registerCheckReceivedInstalledEmitting(ProbeId probeId) {
     AtomicBoolean received = new AtomicBoolean();
     AtomicBoolean installed = new AtomicBoolean();
     AtomicBoolean emitting = new AtomicBoolean();
     AtomicBoolean result = new AtomicBoolean();
     registerProbeStatusListener(
         probeStatus -> {
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-            received.set(true);
+          if (probeStatus.getDiagnostics().getProbeId().equals(probeId)) {
+            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+              received.set(true);
+            }
+            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
+              installed.set(true);
+            }
+            if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.EMITTING) {
+              emitting.set(true);
+            }
+            result.set(received.get() && installed.get() && emitting.get());
           }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.INSTALLED) {
-            installed.set(true);
-          }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.EMITTING) {
-            emitting.set(true);
-          }
-          result.set(received.get() && installed.get() && emitting.get());
         });
     return result;
   }

@@ -5,10 +5,11 @@
     "language": "java",
     "type": "LOG_PROBE",
     "where": {
-      "typeName": "java.lang.Object",
-      "methodName": "toString",
-      "signature": "java.lang.String ()"
-    }
+      "typeName": "ServerDebuggerTestApplication",
+      "methodName": "tracedMethod",
+      "signature": ""
+    },
+    "captureSnapshot": true
   },
   {
     "id": "100c9a5c-45ad-49dc-818b-c570d31e11d1",
@@ -31,12 +32,12 @@
     "language": "java",
     "type": "METRIC_PROBE",
     "where": {
-      "typeName": "VetController",
-      "methodName": "showVetList"
+      "typeName": "ServerDebuggerTestApplication",
+      "methodName": "tracedMethod"
     },
     "tags": ["version:v123", "env:staging"],
     "kind": "COUNT",
-    "metricName": "datadog.debugger.showVetList.calls",
+    "metricName": "datadog.debugger.fullMethod.calls",
     "value": {
       "dsl": "42",
       "json": 42
@@ -48,13 +49,13 @@
     "type": "SPAN_DECORATION_PROBE",
     "language": "java",
     "where": {
-      "typeName": "com.datadog.debugger.demomonitor.DemoRequestScheduledJob",
-      "methodName": "fireRequests",
-      "signature": "()"
+      "typeName": "ServerDebuggerTestApplication",
+      "methodName": "tracedMethod",
+      "signature": ""
     },
     "tags": [],
     "evaluateAt": "EXIT",
-    "targetSpan": "ROOT",
+    "targetSpan": "ACTIVE",
     "decorations": [
       {
         "tags": [
@@ -63,13 +64,13 @@
             "value": {
               "segments": [
                 {
-                  "dsl": "client",
+                  "dsl": "argStr",
                   "json": {
-                    "ref": "client"
+                    "ref": "argStr"
                   }
                 }
               ],
-              "template": "{client}"
+              "template": "{argStr}"
             }
           }
         ]
@@ -82,24 +83,10 @@
     "type": "SPAN_PROBE",
     "language": "java",
     "where": {
-      "typeName": "MetadataClientUtils",
-      "methodName": "listTableWithContinuation"
+      "typeName": "ServerDebuggerTestApplication",
+      "methodName": "tracedMethod"
     },
     "tags": [],
     "evaluateAt": "EXIT"
-  },
-  {
-    "id": "70b55d06-f9fa-403b-a329-4f2f960aed02",
-    "version": 0,
-    "type": "TRIGGER_PROBE",
-    "language": "java",
-    "where": {
-      "typeName": "MetadataClientUtils",
-      "methodName": "listTableWithContinuation"
-    },
-    "tags": [],
-    "evaluateAt": "EXIT",
-    "sessionId": "session",
-    "sampling": { "snapshotsPerSecond": 100 }
   }
 ]
