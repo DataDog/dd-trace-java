@@ -1155,6 +1155,46 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void kafkaConsumerGroupMemberIsReportedInBucket() throws InterruptedException {
+    DDAgentFeaturesDiscovery features = stubFeatures(true);
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    Sink sink = mock(Sink.class);
+    CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
+    TraceConfig traceConfig = stubTraceConfig(true);
+
+    DefaultDataStreamsMonitoring dataStreams =
+        new DefaultDataStreamsMonitoring(
+            sink,
+            features,
+            timeSource,
+            () -> traceConfig,
+            payloadWriter,
+            DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.start();
+    dataStreams.reportKafkaConsumerGroupMember(
+        "cluster-1", "test-group", "consumer-1-abc123", 7, "range");
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.report();
+
+    awaitBuckets(dataStreams, payloadWriter, 1);
+
+    StatsBucket bucket = payloadWriter.buckets.get(0);
+    List<KafkaConfigReport> kafkaConfigs = bucket.getKafkaConfigs();
+    assertEquals(1, kafkaConfigs.size());
+    KafkaConfigReport report = kafkaConfigs.get(0);
+    assertEquals("kafka_consumer", report.getType());
+    assertEquals("cluster-1", report.getKafkaClusterId());
+    assertEquals("test-group", report.getConsumerGroup());
+    assertEquals("consumer-1-abc123", report.getMemberId());
+    assertEquals(7, report.getGenerationId());
+    assertEquals("range", report.getMemberProtocol());
+    assertTrue(report.getConfig().isEmpty());
+
+    payloadWriter.close();
+    dataStreams.close();
+  }
+
+  @Test
   void duplicateKafkaConfigsAreEachReportedInTheBucket() throws InterruptedException {
     DDAgentFeaturesDiscovery features = stubFeatures(true);
     ControllableTimeSource timeSource = new ControllableTimeSource();

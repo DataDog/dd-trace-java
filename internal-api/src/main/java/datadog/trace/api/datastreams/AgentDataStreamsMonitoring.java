@@ -22,6 +22,13 @@ public interface AgentDataStreamsMonitoring
   void reportKafkaConfig(
       String type, String kafkaClusterId, String consumerGroup, Map<String, String> config);
 
+  void reportKafkaConsumerGroupMember(
+      String kafkaClusterId,
+      String consumerGroup,
+      String memberId,
+      int generationId,
+      String memberProtocol);
+
   /**
    * Tracks Schema Registry usage for Data Streams Monitoring.
    *
