@@ -196,6 +196,15 @@ public abstract class Instrumenter {
   protected static Map<AbstractInsnNode, Frame<BasicValue>> computeFrames(
       String owner, MethodNode methodNode) {
     Map<AbstractInsnNode, Frame<BasicValue>> frames = new IdentityHashMap<>();
+    // Probes already applied to this method may have inserted bytecode that requires more
+    // stack than originally declared, without updating methodNode.maxStack (only maxLocals is
+    // tracked, see newVar()). The ASM analyzer sizes its Frame objects from the declared
+    // maxStack, so a stale/too-small value makes the analysis fail with
+    // "Insufficient maximum stack size" even though the class itself is valid. Widen it to a
+    // safe upper bound (no single instruction pushes more than 2 stack slots) before analyzing;
+    // this is only used for this internal frame computation, the real maxStack is recomputed
+    // by the ClassWriter's COMPUTE_FRAMES pass when the class is finally written.
+    methodNode.maxStack = Math.max(methodNode.maxStack, methodNode.instructions.size() * 2);
     try {
       Frame<BasicValue>[] frameArray =
           new Analyzer<>(new BasicInterpreter()).analyze(owner, methodNode);
@@ -212,6 +221,9 @@ public abstract class Instrumenter {
           methodNode.name,
           methodNode.desc,
           ex);
+      // when running tests, fails if an exception is thrown during analysis
+      // Gradle is running tests with assertions enbabled
+      assert false;
     }
     return frames;
   }
@@ -285,13 +297,13 @@ public abstract class Instrumenter {
   }
 
   protected int newVar(Type type) {
-    int varId = methodNode.maxLocals + 1;
+    int varId = methodNode.maxLocals;
     methodNode.maxLocals += type.getSize();
     return varId;
   }
 
   protected int newVar(int size) {
-    int varId = methodNode.maxLocals + 1;
+    int varId = methodNode.maxLocals;
     methodNode.maxLocals += size;
     return varId;
   }
