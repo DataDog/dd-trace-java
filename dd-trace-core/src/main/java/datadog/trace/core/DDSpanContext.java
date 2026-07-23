@@ -22,6 +22,7 @@ import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -308,6 +309,7 @@ public class DDSpanContext
   }
 
   /** Back-compat ctor (no read-through parent); delegates with a null parent. */
+  @VisibleForTesting
   public DDSpanContext(
       final DDTraceId traceId,
       final long spanId,
