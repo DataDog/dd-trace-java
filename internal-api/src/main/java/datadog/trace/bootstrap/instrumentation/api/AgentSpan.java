@@ -222,6 +222,14 @@ public interface AgentSpan
     return this;
   }
 
+  /**
+   * @return {@code true} once this span has finished (its duration is set). Implementations that do
+   *     not track finish state always return {@code false}.
+   */
+  default boolean isFinished() {
+    return false;
+  }
+
   default void copyPropagationAndBaggage(final AgentSpan source) {
     // no op default
   }
