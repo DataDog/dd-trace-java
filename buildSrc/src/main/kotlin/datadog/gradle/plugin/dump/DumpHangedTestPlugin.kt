@@ -53,25 +53,24 @@ class DumpHangedTestPlugin : Plugin<Project> {
 
   override fun apply(project: Project) {
     if (project.rootProject != project) {
-      return
+      throw IllegalStateException("Only the root project can apply plugin")
     }
 
     val scheduler = project.gradle.sharedServices
       .registerIfAbsent("dumpHangedTestScheduler", DumpSchedulerService::class.java)
 
-    // Create plugin properties.
     val props = project.extensions.create("dumpHangedTest", DumpHangedTestProperties::class.java)
 
-    fun configure(p: Project) {
-      p.tasks.withType<Test>().configureEach {
-        doFirst { schedule(this, scheduler, props) }
-        doLast { cleanup(this) }
+    // Configure test tasks per project from the root plugin instance, only once the `java`
+    // plugin (which registers the `Test` tasks) has been applied to a given project.
+    project.allprojects {
+      pluginManager.withPlugin("java") {
+        tasks.withType<Test>().configureEach {
+          doFirst { schedule(this, scheduler, props) }
+          doLast { cleanup(this) }
+        }
       }
     }
-
-    configure(project)
-
-    project.subprojects(::configure)
   }
 
   private fun schedule(t: Task, scheduler: Provider<DumpSchedulerService>, props: DumpHangedTestProperties) {
