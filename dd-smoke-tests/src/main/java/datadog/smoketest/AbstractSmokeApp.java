@@ -243,7 +243,7 @@ public abstract class AbstractSmokeApp
       command.add("-Ddd.version=" + VERSION);
       String sessionToken = this.backend.sessionToken();
       if (sessionToken != null) {
-        command.add("-Ddd.trace.agent.test.session.token=" + sessionToken);
+        command.add("-Ddd.test.agent.session.token=" + sessionToken);
       }
       if (this.checkTelemetry) {
         // Emit telemetry promptly so app-started is captured before a (long-running server) app is

@@ -28,8 +28,8 @@ import org.testcontainers.utility.DockerImageName;
  * <p><strong>Per-test isolation (Q4a, Option B).</strong> A shared external agent serves every test
  * in a job, so traces are scoped by an {@code X-Datadog-Test-Session-Token}: the backend owns a
  * token (see {@link #sessionToken()}), the launched app emits it via {@code
- * dd.trace.agent.test.session.token} (S3a tracer change, wired by the S4 app launcher), {@link
- * #clear()} opens a fresh session with it, and {@link #traces()} reads only that session's traces.
+ * dd.test.agent.session.token} (S3a tracer change, wired by the S4 app launcher), {@link #clear()}
+ * opens a fresh session with it, and {@link #traces()} reads only that session's traces.
  *
  * <p>Testcontainers is a {@code compileOnly} dependency of the smoke base, so this class only loads
  * when a test actually selects a test-agent backend (mock-only tests stay Testcontainers-free).
@@ -84,7 +84,7 @@ public final class TestAgentBackend implements TraceBackend {
 
   /**
    * The session token this backend scopes its traces by. The launched app must emit it via {@code
-   * -Ddd.trace.agent.test.session.token=<token>} so its traces land in this backend's session.
+   * -Ddd.test.agent.session.token=<token>} so its traces land in this backend's session.
    */
   @Override
   public String sessionToken() {

@@ -43,9 +43,9 @@ public interface TraceBackend
   void close();
 
   /**
-   * The session token the launched app must emit (via {@code dd.trace.agent.test.session.token})
-   * for its traces to be attributed to this backend, or {@code null} if the backend does not scope
-   * by session (e.g. the in-process mock, which owns its own server). Overridden by the test agent.
+   * The session token the launched app must emit (via {@code dd.test.agent.session.token}) for its
+   * traces to be attributed to this backend, or {@code null} if the backend does not scope by
+   * session (e.g. the in-process mock, which owns its own server). Overridden by the test agent.
    */
   default String sessionToken() {
     return null;
