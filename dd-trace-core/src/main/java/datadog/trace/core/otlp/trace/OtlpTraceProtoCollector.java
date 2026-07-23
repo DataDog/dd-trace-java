@@ -44,7 +44,6 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
   private int payloadBytes;
   private int scopedBytes;
   private int spanBytes;
-  private int traceCount;
 
   private OtelInstrumentationScope currentScope;
   private DDSpan currentSpan;
@@ -57,13 +56,9 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
       payloadStarted = true;
     }
 
-    boolean exported = false;
     // OtlpProtoBuffer collects spans in reverse
     for (int i = spans.size() - 1; i >= 0; i--) {
-      exported |= visitSpan(spans.get(i));
-    }
-    if (exported) {
-      traceCount++;
+      visitSpan(spans.get(i));
     }
   }
 
@@ -83,18 +78,11 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
 
   /** Prepare temporary elements to collect trace data. */
   private void start() {
-    traceCount = 0;
-
     // remove stale entries from caches
     OtlpCommonProto.recalibrateCaches();
 
     // for now put all spans under the default scope
     visitScopedSpans(DEFAULT_TRACE_SCOPE);
-  }
-
-  @Override
-  public int getTraceCount() {
-    return traceCount;
   }
 
   /** Cleanup elements used to collect trace data. */
@@ -119,9 +107,9 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     currentScope = scope;
   }
 
-  private boolean visitSpan(CoreSpan<?> span) {
+  private void visitSpan(CoreSpan<?> span) {
     if (!shouldExport(span)) {
-      return false;
+      return;
     }
     if (currentSpan != null) {
       // ensure last span written at trace boundary includes sampling tags
@@ -133,7 +121,6 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     }
     currentSpan = (DDSpan) span;
     currentSpan.getLinks().forEach(this::visitSpanLink);
-    return true;
   }
 
   private void visitSpanLink(AgentSpanLink spanLink) {
