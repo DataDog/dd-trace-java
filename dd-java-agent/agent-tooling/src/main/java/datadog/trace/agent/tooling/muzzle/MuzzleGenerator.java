@@ -18,7 +18,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.field.FieldList;
@@ -88,8 +87,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   private static Reference[] generateReferences(
       Instrumenter.HasMethodAdvice instrumenter,
       AdviceShader adviceShader,
-      Set<String> allAdviceClasses,
-      Predicate<String> shouldRecurse) {
+      Set<String> allAdviceClasses) {
     // track sources we've generated references from to avoid recursion
     final Set<String> referenceSources = new HashSet<>();
     final Map<String, Reference> references = new LinkedHashMap<>();
@@ -107,8 +105,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     for (String adviceClass : adviceClasses) {
       if (referenceSources.add(adviceClass)) {
         for (Map.Entry<String, Reference> entry :
-            ReferenceCreator.createReferencesFrom(
-                    adviceClass, adviceShader, contextClassLoader, shouldRecurse)
+            ReferenceCreator.createReferencesFrom(adviceClass, adviceShader, contextClassLoader)
                 .entrySet()) {
           Reference toMerge = references.get(entry.getKey());
           if (null == toMerge) {
@@ -128,7 +125,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     AdviceShader adviceShader = AdviceShader.with(module.adviceShading());
     HelperClassPredicate helperPredicate = new HelperClassPredicate(this::isOwnOutput);
 
-    // Crawl advice, following references into our own helper classes (even in library packages).
+    // Crawl advice for muzzle references (only recursing into the instrumentation package).
     Set<String> adviceClasses = new HashSet<>();
     List<Reference> allReferences = new ArrayList<>();
     for (Instrumenter instrumenter : module.typeInstrumentations()) {
@@ -136,14 +133,11 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
         Collections.addAll(
             allReferences,
             generateReferences(
-                (Instrumenter.HasMethodAdvice) instrumenter,
-                adviceShader,
-                adviceClasses,
-                helperPredicate::isHelperClass));
+                (Instrumenter.HasMethodAdvice) instrumenter, adviceShader, adviceClasses));
       }
     }
 
-    // Advice roots are inlined into the target method, not injected, so they aren't helpers.
+    // Inferred helpers = our classes referenced from the advice, minus the advice roots.
     Set<String> inferredHelpers = new LinkedHashSet<>();
     for (Reference reference : allReferences) {
       if (!adviceClasses.contains(reference.className)
@@ -153,21 +147,26 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     }
 
     // Manual additions cover helpers the crawl can't see (reflection, SPI, advice-less injectors).
-    Set<String> helperClasses = new LinkedHashSet<>(inferredHelpers);
-    Collections.addAll(helperClasses, module.helperClassNames());
-    for (String helper : new ArrayList<>(helperClasses)) {
+    Set<String> manualHelpers = new LinkedHashSet<>(asList(module.helperClassNames()));
+    Set<String> seedHelpers = new LinkedHashSet<>(inferredHelpers);
+    seedHelpers.addAll(manualHelpers);
+    for (String helper : new ArrayList<>(seedHelpers)) {
       if (isOwnOutput(helper)) {
-        addNestedClasses(helper, helperClasses);
+        addNestedClasses(helper, seedHelpers);
       }
     }
 
     String[] orderedHelpers =
-        orderHelpers(helperClasses, Thread.currentThread().getContextClassLoader());
+        discoverAndOrderHelpers(
+            seedHelpers,
+            manualHelpers,
+            helperPredicate,
+            Thread.currentThread().getContextClassLoader());
 
-    writeInferenceReport(module, adviceClasses.isEmpty(), inferredHelpers, helperClasses);
+    writeInferenceReport(module, adviceClasses.isEmpty(), inferredHelpers, orderedHelpers);
 
     // Injected helpers are our own classes, so they must not be asserted as library references.
-    Set<String> ignoredClassNames = new HashSet<>(helperClasses);
+    Set<String> ignoredClassNames = new HashSet<>(asList(orderedHelpers));
     Collections.addAll(ignoredClassNames, module.muzzleIgnoredClassNames());
     List<Reference> references = new ArrayList<>();
     for (Reference reference : allReferences) {
@@ -225,19 +224,21 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     mv.visitMaxs(0, 0);
     mv.visitEnd();
 
-    // Generated: public static String[] helperClassNames()
-    MethodVisitor hv =
-        cw.visitMethod(
-            Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-            "helperClassNames",
-            "()[Ljava/lang/String;",
-            null,
-            null);
-    hv.visitCode();
-    writeStrings(hv, orderedHelpers);
-    hv.visitInsn(Opcodes.ARETURN);
-    hv.visitMaxs(0, 0);
-    hv.visitEnd();
+    // Generated: public static String[] helperClassNames() — omitted for helper-less modules.
+    if (orderedHelpers.length > 0) {
+      MethodVisitor hv =
+          cw.visitMethod(
+              Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+              "helperClassNames",
+              "()[Ljava/lang/String;",
+              null,
+              null);
+      hv.visitCode();
+      writeStrings(hv, orderedHelpers);
+      hv.visitInsn(Opcodes.ARETURN);
+      hv.visitMaxs(0, 0);
+      hv.visitEnd();
+    }
 
     return cw.toByteArray();
   }
@@ -270,28 +271,35 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   }
 
   /**
-   * Load-orders helpers (dependencies first) via {@link HelperScanner}, keeping only our helpers
-   * (the scanner may pull in library classes) and retaining any helper it could not locate.
+   * Runs {@link HelperScanner} over the seed helpers to both discover their transitive helper
+   * dependencies and load-order the result (dependencies first). Keeps only our own helpers (plus
+   * manual additions), dropping library classes the scanner pulls in, and retains every seed even
+   * if it could not be located.
    */
-  private static String[] orderHelpers(Set<String> helpers, ClassLoader loader) {
-    if (helpers.isEmpty()) {
+  private static String[] discoverAndOrderHelpers(
+      Set<String> seedHelpers,
+      Set<String> manualHelpers,
+      HelperClassPredicate helperPredicate,
+      ClassLoader loader) {
+    if (seedHelpers.isEmpty()) {
       return new String[0];
     }
-    List<String> ordered = new ArrayList<>(helpers.size());
+    List<String> ordered = new ArrayList<>();
     try {
       for (String name :
           HelperScanner.withClassDependencies(
-              ClassFileLocator.ForClassLoader.of(loader), helpers.toArray(new String[0]))) {
-        if (helpers.contains(name) && !ordered.contains(name)) {
+              ClassFileLocator.ForClassLoader.of(loader), seedHelpers.toArray(new String[0]))) {
+        if ((helperPredicate.isHelperClass(name) || manualHelpers.contains(name))
+            && !ordered.contains(name)) {
           ordered.add(name);
         }
       }
     } catch (Throwable ignore) {
-      // best-effort ordering; unordered helpers are appended below
+      // best-effort ordering; unordered seeds are appended below
     }
-    for (String name : helpers) {
-      if (!ordered.contains(name)) {
-        ordered.add(name);
+    for (String seed : seedHelpers) {
+      if (!ordered.contains(seed)) {
+        ordered.add(seed);
       }
     }
     return ordered.toArray(new String[0]);
@@ -305,7 +313,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       InstrumenterModule module,
       boolean adviceLess,
       Set<String> inferredHelpers,
-      Set<String> allHelpers) {
+      String[] injectedHelpers) {
     try {
       Set<String> declared = new LinkedHashSet<>(asList(module.helperClassNames()));
       if (declared.isEmpty() && inferredHelpers.isEmpty()) {
@@ -323,7 +331,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       StringBuilder sb = new StringBuilder();
       sb.append("module: ").append(module.getClass().getName()).append('\n');
       sb.append("has-advice: ").append(!adviceLess).append('\n');
-      sb.append("injected-helpers: ").append(allHelpers.size()).append('\n');
+      sb.append("injected-helpers: ").append(injectedHelpers.length).append('\n');
       if (adviceLess && !declared.isEmpty()) {
         sb.append("crawl-cannot-cover: advice-less module; declared helpers are all manual-only\n");
       }
