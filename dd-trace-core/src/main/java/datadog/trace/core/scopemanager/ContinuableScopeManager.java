@@ -2,7 +2,6 @@ package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.core.scopemanager.ContinuableScope.CONTEXT;
 import static datadog.trace.core.scopemanager.ContinuableScope.INSTRUMENTATION;
@@ -25,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTraceCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.NoopContinuation;
+import datadog.trace.bootstrap.instrumentation.api.NoopScope;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -52,6 +52,7 @@ public final class ContinuableScopeManager {
   static final RatelimitedLogger ratelimitedLog = new RatelimitedLogger(log, 1, MINUTES);
 
   private static final NoopContinuation ROOT_CONTINUATION = NoopContinuation.INSTANCE;
+  private static final NoopScope INVALID_SCOPE = NoopScope.INSTANCE;
 
   static final long iterationKeepAlive =
       SECONDS.toMillis(Config.get().getScopeIterationKeepAlive());
@@ -150,7 +151,7 @@ public final class ContinuableScopeManager {
       if (depthLimit <= currentDepth) {
         healthMetrics.onScopeStackOverflow();
         log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-        return noopScope();
+        return INVALID_SCOPE;
       }
     }
 
@@ -187,7 +188,7 @@ public final class ContinuableScopeManager {
       if (depthLimit <= currentDepth) {
         healthMetrics.onScopeStackOverflow();
         log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-        return noopScope();
+        return INVALID_SCOPE;
       }
     }
 
@@ -280,7 +281,7 @@ public final class ContinuableScopeManager {
     if (hasDepthLimit && depthLimit <= currentDepth) {
       healthMetrics.onScopeStackOverflow();
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-      return noopScope();
+      return INVALID_SCOPE;
     }
 
     assert span != null;
