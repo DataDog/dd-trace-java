@@ -175,11 +175,7 @@ When in doubt, **search adjacent module build.gradle files for `skipVersions`** 
 
 ## Namespace-isolation `fail` blocks for major-version siblings
 
-When a library has multiple major versions that must never be instrumented by the same advice — whether published under different `group:module` coordinates (e.g., `io.reactivex.rxjava2:rxjava` vs `io.reactivex.rxjava3:rxjava`) or under the same coordinates at incompatible major versions (e.g., `org.springframework:spring-webflux` at major 5 vs 6) — master modules explicitly assert namespace isolation with a `muzzle { fail { ... } }` block.
-
-The block is defense-in-depth: it catches accidental cross-version advice matching that would otherwise pass silently. When regenerating a module that has such a block, preserve it verbatim.
-
-**Concrete failure pattern (from dd-trace-java PR #11939, rxjava-3.0 regen):** master's `rxjava-3.0/build.gradle` has:
+When a library has multiple major versions that must never be instrumented by the same advice — whether published under different `group:module` coordinates (e.g., `io.reactivex.rxjava2:rxjava` vs `io.reactivex.rxjava3:rxjava`) or under the same coordinates at incompatible major versions (e.g., `org.springframework:spring-webflux` at major 5 vs 6) — assert namespace isolation with a `muzzle { fail { ... } }` block:
 
 ```groovy
 muzzle {
@@ -200,67 +196,10 @@ muzzle {
 }
 ```
 
-An eval regenerated this WITHOUT the `fail` block. Muzzle would still likely fail naturally on rxjava2 (the FQNs don't exist in that artifact), but the explicit assertion is what catches the failure at CI time with a specific error message rather than a generic muzzle mismatch.
+Muzzle would likely fail naturally on the sibling major anyway (the FQNs usually don't exist in that artifact), but the explicit assertion catches it at CI time with a specific error message instead of a generic muzzle mismatch. Add this block whenever a prior-major sibling module already exists in the repo — whether that sibling uses different Maven coordinates (`rxjava-2.0` vs `rxjava-3.0`, `javax-jms-*` vs `jakarta-jms-*`) or the same coordinates at an incompatible major (`okhttp-2.0` vs `okhttp-3.0`, `jedis-1.4`/`jedis-3.0`/`jedis-4.0`). **Editing an existing module that already has one: preserve it verbatim** — don't drop it as a side effect of regenerating the file.
 
-**Rule:** for any module whose brand has a prior major version — **whether published under different Maven coordinates or under the same coordinates at an incompatible major** — check master for a `muzzle { fail { name = "..." } }` block. If present, preserve verbatim on regen. When creating a new module for a library that has a prior-major sibling module in the repo, add such a fail block to assert non-overlap.
+## `compileOnly` and test-scope dependencies
 
-Common cases where this applies:
+`compileOnly` pins the API surface your advice compiles against; test scopes (`testImplementation`, `latestDepTestImplementation`, `forkedTestImplementation`, and their `*RuntimeOnly` counterparts) pin what your tests exercise. When writing a new module, choose these deliberately — the version constraint and dependency list are part of the instrumentation's contract, not incidental build config.
 
-- **Different Maven coordinates:** `rxjava-2.0` (`io.reactivex.rxjava2:rxjava`) ↔ `rxjava-3.0` (`io.reactivex.rxjava3:rxjava`); `javax-jms-*` ↔ `jakarta-jms-*`; `spring-webflux-5.0` (`org.springframework:spring-webflux`) ↔ `spring-webflux-6.0` (`org.springframework:spring-webflux`, but Jakarta EE 9+ package rename).
-- **Same Maven coordinates, incompatible majors:** `okhttp-2.0` ↔ `okhttp-3.0` (both `com.squareup.okhttp*`, package renamed at v3); `jedis-1.4` ↔ `jedis-3.0` ↔ `jedis-4.0` (all `redis.clients:jedis`, API changed across majors); `jetty-server-7.0` ↔ `jetty-server-9.0.4` ↔ `jetty-server-11.0` (all `org.eclipse.jetty:jetty-server`, `javax.servlet` → `jakarta.servlet` at 11+).
-
-For same-coordinate cases, the `fail` block still applies: it asserts the older major's version range does NOT match the newer module's advice, even though the coordinates are identical. Look for `versions = "[,3.0.0)"` bounded ranges in the master's `fail` block, not a coordinate difference.
-
-## Preserve `compileOnly` dependency versions on regen
-
-When regenerating an existing module, preserve the exact version of every `compileOnly` dependency in `build.gradle`. Silently narrowing a compileOnly version reduces the tested API surface without any warning — the module still compiles and tests still pass because the older version is a subset.
-
-**Concrete failure pattern (from dd-trace-java PR #11939, rxjava-3.0 regen):**
-
-```groovy
-// Master
-dependencies {
-  compileOnly group: 'org.reactivestreams', name: 'reactive-streams', version: '1.0.3'
-  compileOnly group: 'io.reactivex.rxjava3', name: 'rxjava', version: '3.0.0'
-}
-
-// Eval regenerated as
-dependencies {
-  compileOnly group: 'org.reactivestreams', name: 'reactive-streams', version: '1.0.0'  // ❌ regressed
-  compileOnly group: 'io.reactivex.rxjava3', name: 'rxjava', version: '3.0.0'
-}
-```
-
-`reactive-streams 1.0.3` adds APIs and behavioral clarifications over `1.0.0` that dd-trace-java's advice may rely on. Downgrading silently removes them from the tested surface.
-
-**Rule:** all `compileOnly` versions must match master verbatim on regen. This complements the existing `testImplementation` version parity rule — the same principle applies at the compile scope.
-
-## Preserve test-scope build.gradle dependencies on regen
-
-When regenerating an existing module, preserve every test-scope dependency verbatim — **including runtime-only scopes** — unless the corresponding test file is also being removed. The full set to preserve is:
-
-- `testImplementation`, `latestDepTestImplementation`, `forkedTestImplementation` (compile-scope test deps)
-- `testRuntimeOnly`, `latestDepTestRuntimeOnly`, `forkedTestRuntimeOnly` (runtime-only test deps — **these do NOT show up as compile failures if dropped**)
-
-Do not drop cross-module test dependencies — they back annotation-driven, cross-tracer interop, and cross-instrumentation-coexistence tests that silently fail to compile or run without them.
-
-**Why runtime-only scopes matter:** modules like `rxjava-3.0` declare `testRuntimeOnly project(':dd-java-agent:instrumentation:rxjava:rxjava-2.0')` to load the rxjava2 instrumenter into the test JVM. This is what verifies rxjava3 tests are NOT accidentally being served by rxjava2's advice (the mutual-exclusion coverage that pairs with the `muzzle { fail { ... } }` block above). Dropping the `testRuntimeOnly` dep still compiles cleanly — but the test JVM no longer has rxjava2's instrumenter loaded, so the mutual-exclusion coverage silently disappears with no CI signal.
-
-**Concrete failure pattern (from dd-trace-java PR #11940, reactor-core-3.1 regen):** the eval dropped these test dependencies:
-
-```groovy
-testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
-testImplementation project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
-testImplementation project(':dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4')
-testImplementation project(':dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.20')
-testImplementation project(':dd-java-agent:instrumentation:opentracing:opentracing-0.32')
-testImplementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '1.28.0'
-testImplementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
-latestDepTestImplementation group: 'io.micrometer', name: 'micrometer-core', version: '1.+'
-```
-
-These deps back annotation-driven tests (`@WithSpan`, `@Traced`), cross-module interop tests (`reactive-streams-1.0`), and version-drift workaround deps (`micrometer-core` required by newer Reactor versions). @mcculls flagged all of these as required.
-
-**Rule:** the set of `testImplementation` and `latestDepTestImplementation` entries in a regenerated `build.gradle` must be a superset of master's. If master has cross-module `project(':dd-java-agent:instrumentation:...')` deps, they must be present in the eval output. If master has `latestDepTestImplementation` workaround deps (e.g. `micrometer-core` for Reactor), they must be present.
-
-Source: @mcculls PR #11940 build.gradle review.
+**Editing an existing module: preserve every dependency version and entry unless you have a reason to change it.** This includes runtime-only scopes, which don't show up as compile failures if dropped — e.g. `rxjava-3.0` declares `testRuntimeOnly project(':dd-java-agent:instrumentation:rxjava:rxjava-2.0')` to load the sibling instrumenter into the test JVM and verify the two don't cross-fire (the coexistence coverage that pairs with the namespace-isolation `fail` block above). It also includes cross-module `project(...)` test deps that back annotation-driven tests (`@WithSpan`, `@Traced`) and version-drift workaround deps (e.g. a `latestDepTestImplementation` pin needed only because a newer library version requires it). None of these produce a compile error when silently dropped — they just remove coverage.

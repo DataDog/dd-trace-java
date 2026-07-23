@@ -77,7 +77,7 @@ When a library has a first-class context-map concept, the observer/subscriber wr
 
 **How to detect the pattern in an unfamiliar library:** search the library's public API for a `Context` type with `put`/`get`/`hasKey` methods that user code can write to (as opposed to a Datadog-internal context). If such a type exists, the library has a native context map and needs a `*ContextBridge` helper.
 
-**When regenerating an existing reactive module:** enumerate every `*Instrumentation.java` in the master module and account for each one. Dropping any without a documented reason is always a Rule #2 (regen-preservation) violation. Also preserve the master's `*ContextBridge`-style helper verbatim, or produce equivalent semantics — do not drop it in favor of the subscriber-wrapping pattern alone.
+**Editing an existing reactive module:** account for every `*Instrumentation.java` class already present, including the `*ContextBridge` helper — don't drop it in favor of the subscriber-wrapping pattern alone. A dropped bridge silently breaks any sibling module that depends on it (see `instrumenter-module.md`).
 
 ## Wrap placement and context-store lifecycle — memory considerations
 

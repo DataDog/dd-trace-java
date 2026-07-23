@@ -116,23 +116,14 @@ State the isolation reason in a comment on the `ForkedTest` class.
 
 ## Version-sensitive tests belong in a separate `latestDepTest` source set
 
-When regenerating an existing module, check if master has a `src/latestDepTest/` source set (declared via `addTestSuite('latestDepTest')` or `addTestSuiteForDir('latestDepTest', ...)` in `build.gradle`). If so, preserve that split — do NOT collapse latestDep-specific tests into the base `src/test/` directory.
+For libraries whose API surface changes across minor versions (Reactor deprecates and removes APIs; Netty changes handler signatures; gRPC's generated code evolves), route each test to the source set whose classpath actually satisfies its imports:
 
-**Why this matters:** for libraries whose API surface changes across minor versions (Reactor deprecates and removes APIs; Netty changes signatures; gRPC evolves generated code), tests in `src/test/` compile against both `testImplementation` (pinned to min) and `latestDepTestImplementation` (latest) when the module uses `addTestSuiteForDir('latestDepTest', 'test')` — the common pattern that reuses `src/test/` sources for both suites. For modules that use `addTestSuite('latestDepTest')` instead, the `latestDepTest` suite has its own sources at `src/latestDepTest/` and `src/test/` is not compiled against `latestDepTestImplementation`. In both cases: if a test uses an API removed in a later version, it will cause a `latestDepTest` compile failure.
+- **API only exists in the latest version** (added after your pinned min) → put the test in `src/latestDepTest/`, which compiles against `latestDepTestImplementation`. `src/test/` compiles against the pinned min and doesn't have the API.
+- **API only exists at the pinned min** (removed in a later version — e.g. Reactor's `Schedulers.elastic()`, removed in 3.4+) → put the test in `src/test/`, NOT `latestDepTest/`. Test the replacement API (`Schedulers.boundedElastic()`) in `latestDepTest/` instead.
 
-Master's solution: put version-sensitive tests in `src/latestDepTest/` where they only compile against `latestDepTestImplementation` and can freely use the current API. When the latest version removes an API, only the `latestDepTest` copy needs updating.
+Common libraries where this split matters: Reactor, Netty, gRPC, Kafka clients (consumer API changed at 3.0), Cassandra driver (3.x vs 4.x largely incompatible).
 
-**Concrete failure pattern (from dd-trace-java PR #11940, reactor-core-3.1 regen):** master has `src/latestDepTest/groovy/ReactorCoreTest.groovy` that uses `Schedulers.boundedElastic()` (the current API). The eval collapsed all tests into `src/test/java/` and used `Schedulers.elastic()` (removed in Reactor 3.4+). Result: `:latestDepTest` compilation failure blocking `:check` on every JVM shard.
-
-**Rule:**
-- Before generating tests, `ls src/latestDepTest/` in master's module. If it exists, the regen must include the equivalent source set.
-- If master's `build.gradle` has `addTestSuiteForDir('latestDepTest', ...)` or `addTestSuite('latestDepTest')`, preserve that declaration verbatim.
-- **Route each test to the source set whose classpath actually satisfies its imports.** Two distinct scenarios drive the split:
-  - **API is only in the latest version** (added after the pinned min) → the test uses that API, must go in `src/latestDepTest/`. `src/test/` compiles against `testImplementation` (pinned min), where the API is absent — the test would fail to compile there.
-  - **API is only in the pinned min** (removed in a later version, e.g. Reactor's `Schedulers.elastic()` removed in 3.4+) → the test uses the removed API, must go in `src/test/` and NOT in `latestDepTest/`. Placing it in `src/latestDepTest/` (where the classpath resolves to the latest release) would produce a compile failure like the concrete failure pattern above. Prefer testing the equivalent replacement API (`Schedulers.boundedElastic()`) in `latestDepTest/` instead.
-- Common libraries where this split matters: Reactor (`Schedulers.elastic()` removed in 3.4+), Netty (channel handler API changes across 4.x), gRPC (generated-code shape evolves), Kafka clients (consumer API changed 3.0), Cassandra driver (3.x vs 4.x are largely incompatible).
-
-Source: master's `dd-java-agent/instrumentation/reactor-core-3.1/src/latestDepTest/groovy/ReactorCoreTest.groovy`.
+**Editing an existing module:** check for `src/latestDepTest/` and the `addTestSuite('latestDepTest')` / `addTestSuiteForDir('latestDepTest', ...)` declaration in `build.gradle` before touching tests, and preserve the split — collapsing it into `src/test/` produces a `latestDepTest` compile failure the moment a test uses a since-removed API.
 
 ## No banner/separator comments in test files
 
