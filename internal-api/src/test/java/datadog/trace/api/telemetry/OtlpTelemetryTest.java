@@ -38,8 +38,8 @@ class OtlpTelemetryTest {
   void tracesExportMetricsUseExpectedNames() {
     collector.onTracesExportAttempt();
     collector.onTracesExportAttempt();
-    collector.onTracesExportSuccess();
-    collector.onTracesExportFailure();
+    collector.onTracesExportComplete(true);
+    collector.onTracesExportComplete(false);
 
     Map<String, Number> valuesByName = drainToMap();
 
@@ -70,8 +70,8 @@ class OtlpTelemetryTest {
   void metricsExportMetricsUseExpectedNames() {
     collector.onMetricsExportAttempt();
     collector.onMetricsExportAttempt();
-    collector.onMetricsExportSuccess();
-    collector.onMetricsExportFailure();
+    collector.onMetricsExportComplete(true);
+    collector.onMetricsExportComplete(false);
 
     Map<String, Number> valuesByName = drainToMap();
 

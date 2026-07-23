@@ -31,24 +31,16 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
     tracesExport.attempts.increment();
   }
 
-  public void onTracesExportSuccess() {
-    tracesExport.successes.increment();
-  }
-
-  public void onTracesExportFailure() {
-    tracesExport.failures.increment();
+  public void onTracesExportComplete(boolean success) {
+    tracesExport.complete(success);
   }
 
   public void onMetricsExportAttempt() {
     metricsExport.attempts.increment();
   }
 
-  public void onMetricsExportSuccess() {
-    metricsExport.successes.increment();
-  }
-
-  public void onMetricsExportFailure() {
-    metricsExport.failures.increment();
+  public void onMetricsExportComplete(boolean success) {
+    metricsExport.complete(success);
   }
 
   public void onLogRecordsSubmitted(long count) {
@@ -94,6 +86,10 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
       this.attemptsMetric = "otel." + signal + "_export_attempts";
       this.successesMetric = "otel." + signal + "_export_successes";
       this.failuresMetric = "otel." + signal + "_export_failures";
+    }
+
+    void complete(boolean success) {
+      (success ? successes : failures).increment();
     }
 
     void drainInto(List<OtlpMetric> out, String[] tags) {

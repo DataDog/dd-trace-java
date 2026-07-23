@@ -29,11 +29,7 @@ final class OtlpPayloadDispatcher implements PayloadDispatcher {
     if (payload != OtlpPayload.EMPTY) {
       OtlpTelemetry.getInstance().onTracesExportAttempt();
       RemoteApi.Response response = sender.send(payload);
-      if (response.success()) {
-        OtlpTelemetry.getInstance().onTracesExportSuccess();
-      } else {
-        OtlpTelemetry.getInstance().onTracesExportFailure();
-      }
+      OtlpTelemetry.getInstance().onTracesExportComplete(response.success());
     }
   }
 

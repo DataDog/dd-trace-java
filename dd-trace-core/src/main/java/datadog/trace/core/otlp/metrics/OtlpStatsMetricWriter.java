@@ -171,11 +171,7 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
       if (payload != OtlpPayload.EMPTY) {
         OtlpTelemetry.getInstance().onMetricsExportAttempt();
         RemoteApi.Response response = sender.send(payload);
-        if (response.success()) {
-          OtlpTelemetry.getInstance().onMetricsExportSuccess();
-        } else {
-          OtlpTelemetry.getInstance().onMetricsExportFailure();
-        }
+        OtlpTelemetry.getInstance().onMetricsExportComplete(response.success());
       }
     } finally {
       pending.clear();
