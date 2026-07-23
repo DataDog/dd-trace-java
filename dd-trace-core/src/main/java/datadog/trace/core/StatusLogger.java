@@ -158,6 +158,12 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.value(config.isDataStreamsEnabled());
     writer.name("data_streams_transaction_extractors");
     writer.value(config.getDataStreamsTransactionExtractors());
+    writer.name("otlp_traces_export_enabled");
+    writer.value(config.isTraceOtlpExporterEnabled());
+    writer.name("otlp_metrics_export_enabled");
+    writer.value(config.isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled());
+    writer.name("otlp_logs_export_enabled");
+    writer.value(config.isLogsOtelEnabled() && config.isLogsOtlpExporterEnabled());
 
     writer.name("app_logs_collection_enabled");
     writer.value(config.isAppLogsCollectionEnabled());
