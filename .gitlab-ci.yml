@@ -71,7 +71,7 @@ variables:
     value: "false"
   # Temporary cross-repository branch for the TaskBlock rollout. java-profiler is fetched from its
   # public GitHub repository because GitLab rejects cross-project CI_JOB_TOKEN authentication.
-  DDPROF_BRANCH: "paul.fournillon/wallclock-taskblock"
+  DDPROF_BRANCH: "paul.fournillon/taskblock-native-io"
   DDPROF_ARTIFACT_VERSION: "1.47.0-taskblock-native-io"
   DDPROF_BUILD_IMAGE_X64: "registry.ddbuild.io/ci/async-profiler-build:v107978918-x64-2.17-base@sha256:03fb65c5c7fb2866397ceaf18ccb5a0b91bb377a9f89c94264427b62d48cfffd"
   DDPROF_BUILD_IMAGE_X64_MUSL: "registry.ddbuild.io/ci/async-profiler-build:v107978918-x64-musl-base@sha256:0efe0c5fbd04e5647a53235d4c4942a2dd305b3d76bf5afdc052d64a7c0b9505"

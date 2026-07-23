@@ -35,8 +35,6 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
 
   public static final OtlpLogsProtoCollector INSTANCE = new OtlpLogsProtoCollector();
 
-  private static final String PROTOBUF_CONTENT_TYPE = "application/x-protobuf";
-
   private final GrowableBuffer buf = new GrowableBuffer(512);
   private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
 
