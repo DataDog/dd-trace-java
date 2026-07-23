@@ -1,4 +1,3 @@
-import datadog.gradle.plugin.testJvmConstraints.TestJvmSpec
 import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import groovy.lang.Closure
 
@@ -290,10 +289,5 @@ jmh {
 
   if (project.hasProperty("jmh.includes")) {
     includes.add(project.property("jmh.includes") as String)
-  }
-
-  if (project.hasProperty("testJvm")) {
-    val testJvmSpec = TestJvmSpec(project)
-    jvm.set(testJvmSpec.javaTestLauncher.map { it.executablePath.asFile.absolutePath })
   }
 }

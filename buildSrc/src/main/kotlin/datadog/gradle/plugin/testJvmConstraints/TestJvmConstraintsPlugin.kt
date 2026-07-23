@@ -6,6 +6,7 @@ import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.plugins.JavaPlugin
+import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.*
@@ -40,6 +41,16 @@ class TestJvmConstraintsPlugin : Plugin<Project> {
       extensions.add(TEST_JVM_CONSTRAINTS, taskExtension)
 
       configureTestJvm(testJvmSpec, taskExtension)
+    }
+
+    // JMH plugin is not applied on every project
+    project.pluginManager.withPlugin("me.champeau.jmh") {
+      val jmh = project.extensions.getByName("jmh")
+
+      // Avoid linking against JMH types, which are unavailable to the parent buildSrc classloader.
+      @Suppress("UNCHECKED_CAST")
+      val jvm = jmh.javaClass.getMethod("getJvm").invoke(jmh) as Property<String>
+      jvm.set(testJvmSpec.javaTestLauncher.map { it.executablePath.asFile.absolutePath })
     }
 
     // Jacoco plugin is not applied on every project
