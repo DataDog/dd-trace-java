@@ -1255,7 +1255,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     try {
       byte[] decoded = Base64.getDecoder().decode(scopeData);
-      int keyIdx = indexOf(decoded, JOB_RUN_ATTEMPT_NUM_KEY);
+      int keyIdx = indexOfDatabricksAttemptKey(decoded, JOB_RUN_ATTEMPT_NUM_KEY);
       if (keyIdx < 0) {
         return 0;
       }
@@ -1284,7 +1284,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return 0;
   }
 
-  private static int indexOf(byte[] haystack, byte[] needle) {
+  private static int indexOfDatabricksAttemptKey(byte[] haystack, byte[] needle) {
     outer:
     for (int i = 0; i <= haystack.length - needle.length; i++) {
       for (int j = 0; j < needle.length; j++) {
