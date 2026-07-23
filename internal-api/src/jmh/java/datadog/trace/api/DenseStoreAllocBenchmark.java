@@ -90,6 +90,9 @@ public class DenseStoreAllocBenchmark {
 
   private String[] keys;
   private String[] values;
+  // Per-type sizing hint seeded to this scenario's known-tag count -- what a SpanPrototype
+  // supplies.
+  private SizingHint prototype;
 
   @Setup(Level.Trial)
   public void setup() {
@@ -108,11 +111,26 @@ public class DenseStoreAllocBenchmark {
       this.keys[i] = i < knownCount ? KNOWN[i] : "custom.tag." + i;
       this.values[i] = "value-" + i;
     }
+    // Size the dense store to the known-tag count (the "end state" per-type sizing).
+    this.prototype = new SizingHint("bench", 0, Math.max(knownCount, 1));
   }
 
+  /** Current: generic default dense capacity (KNOWN_INIT_CAP=12) -- over-provisions small types. */
   @Benchmark
   public TagMap buildMap() {
     TagMap m = TagMap.create(16);
+    for (int i = 0; i < tagCount; i++) {
+      m.set(keys[i], values[i]);
+    }
+    return m;
+  }
+
+  /**
+   * End state: dense store sized per-type via a SpanPrototype (SizingHint) -- no over-provision.
+   */
+  @Benchmark
+  public TagMap buildMapSized() {
+    TagMap m = TagMap.create(prototype);
     for (int i = 0; i < tagCount; i++) {
       m.set(keys[i], values[i]);
     }

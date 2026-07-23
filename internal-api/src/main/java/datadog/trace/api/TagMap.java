@@ -75,6 +75,14 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     return new TagMap();
   }
 
+  /** Creates a mutable TagMap whose dense store is sized per-type from {@code hint}. */
+  public static final TagMap create(SizingHint hint) {
+    TagMap tagMap = new TagMap();
+    int n = hint.size;
+    tagMap.denseCapHint = n > 0 ? n : KNOWN_INIT_CAP;
+    return tagMap;
+  }
+
   /**
    * Creates a fresh, mutable TagMap that reads through to {@code parent} on local misses. The
    * parent must be frozen and is fixed for the life of the returned map (no re-parenting), so
@@ -1084,7 +1092,13 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
   private long knownFieldMask;
 
   private static final int KNOWN_INIT_CAP =
-      12; // generous per-type max stopgap; exact per-type sizing comes with the tag registry
+      12; // generous default when no SizingHint; per-type sizing comes via create(SizingHint)
+
+  // Initial dense-array capacity, set once from a SizingHint at create(SizingHint) (per-type
+  // sizing).
+  // Just the size (an int), NOT a hint reference -- the hint stays external (recordSize is
+  // explicit).
+  private int denseCapHint = KNOWN_INIT_CAP;
 
   /**
    * Optional frozen parent for read-through. When non-null, reads that miss the local buckets fall
@@ -1414,12 +1428,24 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
 
   private void ensureKnownCapacity() {
     if (this.knownIds == null) {
-      this.knownIds = new long[KNOWN_INIT_CAP];
-      this.knownValues = new Object[KNOWN_INIT_CAP];
+      this.knownIds = new long[this.denseCapHint];
+      this.knownValues = new Object[this.denseCapHint];
     } else if (this.knownCount == this.knownIds.length) {
       int newCap = this.knownIds.length << 1;
       this.knownIds = Arrays.copyOf(this.knownIds, newCap);
       this.knownValues = Arrays.copyOf(this.knownValues, newCap);
+    }
+  }
+
+  /**
+   * Feeds this map's final dense-entry count back to {@code hint} (call at a terminal point: freeze
+   * / span-finish). The hint self-tunes so future maps of the same type size correctly.
+   */
+  public void recordSize(SizingHint hint) {
+    // Capped hints (the heterogeneous shared default) are fixed -- don't let unlike sharers grow
+    // them.
+    if (!hint.capped && this.knownCount > hint.size) {
+      hint.size = this.knownCount; // monotonic-max; benign racy plain-int write
     }
   }
 
