@@ -17,6 +17,10 @@ public class KarateScenarioAdvice {
   public static class RetryAdvice {
     @Advice.OnMethodEnter
     public static void beforeExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
+      if (KarateTracingListener.skipTracking(scenarioRuntime)) {
+        return;
+      }
+
       ExecutionContext executionContext =
           InstrumentationContext.get(Scenario.class, ExecutionContext.class)
               .computeIfAbsent(scenarioRuntime.getScenario(), ExecutionContext::create);
@@ -31,6 +35,10 @@ public class KarateScenarioAdvice {
     public static void afterExecute(
         @Advice.This ScenarioRuntime scenarioRuntime,
         @Advice.Return(readOnly = false) ScenarioResult result) {
+      if (KarateTracingListener.skipTracking(scenarioRuntime)) {
+        return;
+      }
+
       if (CallDepthThreadLocalMap.incrementCallDepth(ScenarioRuntime.class) > 0) {
         // nested call (a retry invoked below, or a called scenario)
         return;

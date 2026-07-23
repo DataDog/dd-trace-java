@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.net.InetAddress;
+import javax.annotation.Nonnull;
 
 public class CicsDecorator extends ClientDecorator {
   public static final CharSequence CICS_CLIENT = UTF8BytesString.create("cics-client");
@@ -36,10 +37,10 @@ public class CicsDecorator extends ClientDecorator {
   }
 
   @Override
-  public void afterStart(AgentSpan span) {
+  protected void doAfterStart(@Nonnull AgentSpan span) {
     assert span != null;
     span.setTag("rpc.system", "cics");
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 
   /**
