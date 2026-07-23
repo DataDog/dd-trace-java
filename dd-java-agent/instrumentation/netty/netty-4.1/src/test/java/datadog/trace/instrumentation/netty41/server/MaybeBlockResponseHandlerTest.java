@@ -118,8 +118,7 @@ class MaybeBlockResponseHandlerTest extends AbstractInstrumentationTest {
   @Test
   void dropsWritesAfterBlockedContextHasBeenRemoved() {
     EmbeddedChannel channel = new EmbeddedChannel(MaybeBlockResponseHandler.INSTANCE);
-    ServerRequestContext serverContext =
-        ServerRequestContext.add(channel, Context.root(), new DefaultHttpHeaders());
+    ServerRequestContext serverContext = ServerRequestContext.add(channel, Context.root(), null);
     ServerRequestContext.markResponseBlocked(channel);
     ServerRequestContext.remove(channel, serverContext);
     ByteBuf lateResponseChunk = Unpooled.buffer().writeByte(1);

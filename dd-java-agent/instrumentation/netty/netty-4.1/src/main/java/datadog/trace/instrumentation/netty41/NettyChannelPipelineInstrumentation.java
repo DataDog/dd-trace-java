@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureAct
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY;
-import static datadog.trace.instrumentation.netty41.AttributeKeys.HTTP2_STREAM_CODEC_ATTRIBUTE_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -239,7 +238,6 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
               pipeline, handler, HttpClientResponseTracingHandler.INSTANCE);
         } else if (NettyHttp2Helper.isHttp2FrameCodec(handler)) {
           if (NettyHttp2Helper.isServer(handler)) {
-            pipeline.channel().attr(HTTP2_STREAM_CODEC_ATTRIBUTE_KEY).set(Boolean.TRUE);
             NettyPipelineHelper.addHandlerAfter(
                 pipeline,
                 handler,

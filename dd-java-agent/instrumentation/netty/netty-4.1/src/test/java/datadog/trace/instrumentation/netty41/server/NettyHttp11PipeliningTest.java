@@ -18,6 +18,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -266,11 +267,17 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       assertTrue(
           blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
 
-      handler.writeHeaderOnlyResponse();
+      handler.writeHeaderOnlyResponseHeaders();
 
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 204 "),
           "first response should be the header-only response");
+      assertFalse(
+          writer.waitForTracesMax(1, 1),
+          "header-only response should remain pending before LastHttpContent");
+
+      handler.writeLastContent();
+
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
@@ -597,7 +604,7 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
               });
     }
 
-    private void writeHeaderOnlyResponse() {
+    private void writeHeaderOnlyResponseHeaders() {
       ChannelHandlerContext responseContext = context;
       if (responseContext == null) {
         throw new IllegalStateException("no request context captured");
@@ -608,10 +615,20 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
               () -> {
                 DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, NO_CONTENT);
                 response.headers().set(CONNECTION, KEEP_ALIVE);
-                responseContext.write(response);
-                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
-                responseContext.flush();
+                responseContext.writeAndFlush(response);
               });
+    }
+
+    private void writeLastContent() {
+      ChannelHandlerContext responseContext = context;
+      if (responseContext == null) {
+        throw new IllegalStateException("no request context captured");
+      }
+      responseContext
+          .executor()
+          .execute(
+              () ->
+                  responseContext.writeAndFlush(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER)));
     }
 
     private void writeHeadResponse() {

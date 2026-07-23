@@ -40,16 +40,22 @@ import org.junit.jupiter.api.Test;
 class HttpServerResponseTracingHandlerTest extends AbstractInstrumentationTest {
 
   @Test
-  void finishesMirroredContextWhenRequestQueueIsAbsent() {
+  void finishesMirroredContextOnLastContentWhenRequestQueueIsAbsent() {
     EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
     AgentSpan span = startSpan("netty", "mirrored-http2-server");
     channel.attr(CONTEXT_ATTRIBUTE_KEY).set(span);
 
-    assertTrue(channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, OK)));
+    HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+    assertTrue(channel.writeOutbound(response));
 
-    FullHttpResponse response = channel.readOutbound();
-    assertNotNull(response);
-    response.release();
+    assertSame(span, channel.attr(CONTEXT_ATTRIBUTE_KEY).get());
+    HttpResponse forwarded = channel.readOutbound();
+    assertSame(response, forwarded);
+    ReferenceCountUtil.release(forwarded);
+
+    assertTrue(channel.writeOutbound(LastHttpContent.EMPTY_LAST_CONTENT));
+
+    ReferenceCountUtil.release(channel.readOutbound());
     assertNull(channel.attr(CONTEXT_ATTRIBUTE_KEY).get());
     channel.finishAndReleaseAll();
     assertTraces(trace(span().root().operationName("mirrored-http2-server")));
@@ -71,21 +77,21 @@ class HttpServerResponseTracingHandlerTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void headerOnlyResponseCompletesContextAndWritesSyntheticLastContent() {
+  void headerOnlyResponseWaitsForLastContent() {
     EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
     AgentSpan span = startSpan("netty", "header-only-server");
-    ServerRequestContext.add(channel, span, null);
+    ServerRequestContext serverContext = ServerRequestContext.add(channel, span, null);
     ServerRequestContext nextServerContext =
         ServerRequestContext.add(channel, Context.root(), null);
     HttpResponse response = new DefaultHttpResponse(HTTP_1_1, NO_CONTENT);
 
     assertTrue(channel.writeOutbound(response));
 
-    assertSame(nextServerContext, ServerRequestContext.nextResponse(channel));
+    assertSame(serverContext, ServerRequestContext.nextResponse(channel));
     HttpResponse forwarded = channel.readOutbound();
     assertSame(response, forwarded);
     ReferenceCountUtil.release(forwarded);
-    assertSyntheticLastContent(channel);
+    assertNull(channel.readOutbound());
 
     assertTrue(channel.writeOutbound(LastHttpContent.EMPTY_LAST_CONTENT));
 
@@ -97,10 +103,10 @@ class HttpServerResponseTracingHandlerTest extends AbstractInstrumentationTest {
   }
 
   @Test
-  void rawFixedLengthBodyCompletesContextAndWritesSyntheticLastContent() {
+  void rawFixedLengthBodyWaitsForLastContent() {
     EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
     AgentSpan span = startSpan("netty", "raw-body-server");
-    ServerRequestContext.add(channel, span, null);
+    ServerRequestContext serverContext = ServerRequestContext.add(channel, span, null);
     ServerRequestContext nextServerContext =
         ServerRequestContext.add(channel, Context.root(), null);
     HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
@@ -110,9 +116,9 @@ class HttpServerResponseTracingHandlerTest extends AbstractInstrumentationTest {
     ReferenceCountUtil.release(channel.readOutbound());
     assertTrue(channel.writeOutbound(Unpooled.wrappedBuffer(new byte[] {1, 2, 3, 4})));
 
-    assertSame(nextServerContext, ServerRequestContext.nextResponse(channel));
+    assertSame(serverContext, ServerRequestContext.nextResponse(channel));
     ReferenceCountUtil.release(channel.readOutbound());
-    assertSyntheticLastContent(channel);
+    assertNull(channel.readOutbound());
 
     assertTrue(channel.writeOutbound(LastHttpContent.EMPTY_LAST_CONTENT));
 
@@ -183,9 +189,26 @@ class HttpServerResponseTracingHandlerTest extends AbstractInstrumentationTest {
     assertTraces(trace(span().root().operationName("websocket-handshake-server")));
   }
 
-  private static void assertSyntheticLastContent(EmbeddedChannel channel) {
-    Object syntheticLastContent = channel.readOutbound();
-    assertTrue(syntheticLastContent instanceof LastHttpContent);
-    ReferenceCountUtil.release(syntheticLastContent);
+  @Test
+  void fullNonWebsocketUpgradeWaitsForFinalResponse() {
+    EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
+    AgentSpan span = startSpan("netty", "h2c-upgrade-server");
+    ServerRequestContext serverContext = ServerRequestContext.add(channel, span, null);
+    FullHttpResponse upgradeResponse = new DefaultFullHttpResponse(HTTP_1_1, SWITCHING_PROTOCOLS);
+    upgradeResponse.headers().set(UPGRADE, "h2c");
+
+    assertTrue(channel.writeOutbound(upgradeResponse));
+
+    assertSame(serverContext, ServerRequestContext.nextResponse(channel));
+    assertNull(channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).get());
+    ReferenceCountUtil.release(channel.readOutbound());
+
+    assertTrue(channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, OK)));
+
+    assertNull(ServerRequestContext.nextResponse(channel));
+    ReferenceCountUtil.release(channel.readOutbound());
+    channel.finishAndReleaseAll();
+
+    assertTraces(trace(span().root().operationName("h2c-upgrade-server")));
   }
 }

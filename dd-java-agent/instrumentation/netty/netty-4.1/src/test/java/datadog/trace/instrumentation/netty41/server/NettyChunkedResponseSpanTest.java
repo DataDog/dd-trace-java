@@ -19,6 +19,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.assertions.SpanMatcher;
@@ -32,6 +34,7 @@ import datadog.trace.api.gateway.Subscription;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -44,7 +47,6 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpContent;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -120,7 +122,7 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
   }
 
   @Test
-  void keepsServerSpanOpenUntilConnectionDrops() throws Exception {
+  void finishesServerSpanWithoutFramingErrorWhenConnectionDrops() throws Exception {
     boolean reportedBeforeConnectionDrop;
     try (Socket socket = connect()) {
       socket.getOutputStream().write(request().getBytes(US_ASCII));
@@ -134,7 +136,7 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
 
     assertFalse(
         reportedBeforeConnectionDrop, "server span should not be reported before connection drop");
-    assertTraces(trace(serverSpan(PATH).error()));
+    assertTraces(trace(serverSpan(PATH)));
   }
 
   @Test
@@ -159,7 +161,7 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
   }
 
   @Test
-  void waitsForChannelCloseForCloseDelimitedFullResponse() throws Exception {
+  void finishesCloseDelimitedFullResponseOnLastContent() throws Exception {
     boolean reportedBeforeConnectionClose;
     try (Socket socket = connect()) {
       socket
@@ -168,29 +170,33 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       socket.getOutputStream().flush();
 
       ChannelHandlerContext responseContext = handler.awaitCloseDelimitedFullResponseWritten();
-      reportedBeforeConnectionClose = writer.waitForTracesMax(1, 1);
+      reportedBeforeConnectionClose = writer.waitForTracesMax(1, 5);
 
       closeChannel(responseContext);
     }
 
-    assertFalse(
+    assertTrue(
         reportedBeforeConnectionClose,
-        "server span should not be reported before the connection closes");
+        "a FullHttpResponse should finish the server span before the connection closes");
     assertTraces(trace(serverSpan(CLOSE_DELIMITED_FULL_RESPONSE_PATH)));
   }
 
   @Test
-  void finishesServerSpanWithoutErrorForKnownLengthByteBufResponseClosedAfterBody()
-      throws Exception {
+  void knownLengthByteBufResponseWaitsForLastContent() throws Exception {
+    boolean reportedBeforeLastContent;
     try (Socket socket = connect()) {
       socket.getOutputStream().write(request(KNOWN_LENGTH_BYTE_BUF_PATH).getBytes(US_ASCII));
       socket.getOutputStream().flush();
 
       ChannelHandlerContext responseContext = handler.awaitKnownLengthByteBufWritten();
-      closeChannel(responseContext);
+      reportedBeforeLastContent = writer.waitForTracesMax(1, 1);
+      writeLastChunk(responseContext);
       assertEquals("first", readHttpResponseBody(socket.getInputStream()));
     }
 
+    assertFalse(
+        reportedBeforeLastContent,
+        "Content-Length body bytes should not finish the span before LastHttpContent");
     assertTraces(trace(serverSpan(KNOWN_LENGTH_BYTE_BUF_PATH)));
   }
 
@@ -300,7 +306,7 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
                 "netty",
                 "netty.request",
                 new TagContext().withRequestContextDataIast(iastRequestData));
-    ServerRequestContext.add(channel, span, new DefaultHttpHeaders());
+    ServerRequestContext.add(channel, span, null);
 
     try {
       DefaultFullHttpResponse response =
@@ -321,23 +327,83 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
   }
 
   @Test
-  void finishesServerSpanWithoutErrorForKnownLengthFileRegionResponseClosedAfterBody()
-      throws Exception {
+  void marksSpanErrorWhenWritePromiseFailsAfterWriteReturns() {
+    Object iastRequestData = new Object();
+    AtomicBoolean requestSpanActive = new AtomicBoolean();
+
+    Events<Object> events = Events.get();
+    Subscription requestEnd =
+        AgentTracer.get()
+            .getSubscriptionService(RequestContextSlot.IAST)
+            .registerCallback(
+                events.requestEnded(),
+                new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
+                  @Override
+                  public Flow<Void> apply(RequestContext context, IGSpanInfo span) {
+                    if (iastRequestData == context.getData(RequestContextSlot.IAST)) {
+                      AgentSpan activeSpan = AgentTracer.activeSpan();
+                      requestSpanActive.set(
+                          activeSpan != null && activeSpan.getRequestContext() == context);
+                    }
+                    return Flow.ResultFlow.empty();
+                  }
+                });
+
+    HoldingOutboundHandler holdingHandler = new HoldingOutboundHandler();
+    EmbeddedChannel channel =
+        new EmbeddedChannel(holdingHandler, HttpServerResponseTracingHandler.INSTANCE);
+    AgentSpan span =
+        AgentTracer.get()
+            .startSpan(
+                "netty",
+                "netty.request",
+                new TagContext().withRequestContextDataIast(iastRequestData));
+    ServerRequestContext.add(channel, span, null);
+    IOException writeFailure = new IOException("delayed write failure");
+
+    try {
+      DefaultFullHttpResponse response =
+          new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.copiedBuffer("ok", UTF_8));
+      response.headers().set(CONTENT_LENGTH, response.content().readableBytes());
+
+      channel.writeOutbound(response);
+      assertFalse(requestSpanActive.get(), "write promise completed synchronously");
+      assertNull(ServerRequestContext.nextResponse(channel));
+
+      holdingHandler.failWrite(writeFailure);
+      assertThrows(IOException.class, channel::checkException);
+
+      assertTrue(requestSpanActive.get(), "request span was not active during requestEnded");
+      assertEquals(500, span.getTag(Tags.HTTP_STATUS));
+      assertTraces(trace(span().root().operationName("netty.request").error()));
+    } finally {
+      holdingHandler.failWrite(writeFailure);
+      requestEnd.cancel();
+      channel.finishAndReleaseAll();
+    }
+  }
+
+  @Test
+  void knownLengthFileRegionResponseWaitsForLastContent() throws Exception {
+    boolean reportedBeforeLastContent;
     try (Socket socket = connect()) {
       socket.getOutputStream().write(request(KNOWN_LENGTH_FILE_REGION_PATH).getBytes(US_ASCII));
       socket.getOutputStream().flush();
 
       ChannelHandlerContext responseContext = handler.awaitKnownLengthFileRegionWritten();
-      closeChannel(responseContext);
+      reportedBeforeLastContent = writer.waitForTracesMax(1, 1);
+      writeLastChunk(responseContext);
       assertEquals("first", readHttpResponseBody(socket.getInputStream()));
     }
 
+    assertFalse(
+        reportedBeforeLastContent,
+        "Content-Length body bytes should not finish the span before LastHttpContent");
     assertTraces(trace(serverSpan(KNOWN_LENGTH_FILE_REGION_PATH)));
   }
 
   @Test
-  void marksKnownLengthResponseErrorWhenConnectionClosesBeforeDeclaredBodyComplete()
-      throws Exception {
+  void doesNotInferFramingErrorFromContentLengthWhenConnectionCloses() throws Exception {
     try (Socket socket = connect()) {
       socket.getOutputStream().write(request(INCOMPLETE_KNOWN_LENGTH_PATH).getBytes(US_ASCII));
       socket.getOutputStream().flush();
@@ -346,7 +412,7 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       closeChannel(responseContext);
     }
 
-    assertTraces(trace(serverSpan(INCOMPLETE_KNOWN_LENGTH_PATH).error()));
+    assertTraces(trace(serverSpan(INCOMPLETE_KNOWN_LENGTH_PATH)));
   }
 
   @Test
@@ -722,14 +788,17 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
 
     private void writeHeaderOnlyResponse(
         ChannelHandlerContext ctx, String path, HttpResponseStatus status) {
-      ctx.writeAndFlush(new DefaultHttpResponse(HTTP_1_1, status))
+      ctx.write(new DefaultHttpResponse(HTTP_1_1, status));
+      ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
           .addListener(future -> headerOnlyWrites.offer(path));
     }
 
     private void writeContentLengthZeroResponse(ChannelHandlerContext ctx, String path) {
       DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
       response.headers().set(CONTENT_LENGTH, 0);
-      ctx.writeAndFlush(response).addListener(future -> headerOnlyWrites.offer(path));
+      ctx.write(response);
+      ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
+          .addListener(future -> headerOnlyWrites.offer(path));
     }
 
     private void writeHeaderOnlyWebSocketUpgrade(
@@ -737,7 +806,9 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, status);
       response.headers().set(UPGRADE, "WebSocket");
       response.headers().set(CONNECTION, "Upgrade");
-      ctx.writeAndFlush(response).addListener(future -> headerOnlyWrites.offer(path));
+      ctx.write(response);
+      ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
+          .addListener(future -> headerOnlyWrites.offer(path));
     }
 
     private ChannelHandlerContext awaitFirstChunkWritten() throws InterruptedException {
@@ -839,11 +910,23 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
     }
 
     private void completeWrite() {
+      finishWrite(null);
+    }
+
+    private void failWrite(Throwable failure) {
+      finishWrite(failure);
+    }
+
+    private void finishWrite(Throwable failure) {
       if (promise == null || promise.isDone()) {
         return;
       }
       try {
-        promise.setSuccess();
+        if (failure == null) {
+          promise.setSuccess();
+        } else {
+          promise.setFailure(failure);
+        }
       } finally {
         ReferenceCountUtil.release(msg);
         msg = null;

@@ -20,13 +20,13 @@ class ServerRequestContextTest {
     DefaultAttributeMap attributes = new DefaultAttributeMap();
 
     for (int i = 0; i < PIPELINING_LIMIT; i++) {
-      assertNotNull(ServerRequestContext.add(attributes, Context.root(), new DefaultHttpHeaders()));
+      assertNotNull(ServerRequestContext.add(attributes, Context.root(), null));
     }
 
     assertFalse(ServerRequestContext.canTrackRequest(attributes));
     assertNull(ServerRequestContext.nextResponse(attributes));
     assertNull(attributes.attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).get());
-    assertNull(ServerRequestContext.add(attributes, Context.root(), new DefaultHttpHeaders()));
+    assertNull(ServerRequestContext.add(attributes, Context.root(), null));
   }
 
   @Test
@@ -36,7 +36,7 @@ class ServerRequestContextTest {
     headers.set("accept", "text/html");
 
     ServerRequestContext serverContext =
-        ServerRequestContext.add(attributes, Context.root(), headers);
+        ServerRequestContext.add(attributes, Context.root(), headers.get("accept"));
     headers.set("accept", "application/json");
 
     assertEquals("text/html", serverContext.acceptHeader());
@@ -83,8 +83,7 @@ class ServerRequestContextTest {
   @Test
   void tracksBlockedResponseUntilChannelClose() {
     DefaultAttributeMap attributes = new DefaultAttributeMap();
-    ServerRequestContext serverContext =
-        ServerRequestContext.add(attributes, Context.root(), new DefaultHttpHeaders());
+    ServerRequestContext serverContext = ServerRequestContext.add(attributes, Context.root(), null);
 
     ServerRequestContext.markResponseBlocked(attributes);
     ServerRequestContext.remove(attributes, serverContext);

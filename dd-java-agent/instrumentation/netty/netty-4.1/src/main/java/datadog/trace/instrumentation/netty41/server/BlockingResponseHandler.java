@@ -38,7 +38,9 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   private final String securityResponseId;
   private final ServerRequestContext serverContext;
 
-  private boolean hasBlockedAlready;
+  // Current callers are event-loop confined; volatile preserves visibility if
+  // commitBlockingResponse is invoked from another thread.
+  private volatile boolean hasBlockedAlready;
 
   public BlockingResponseHandler(
       TraceSegment segment,

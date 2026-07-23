@@ -20,8 +20,6 @@ import java.util.Deque;
 @ChannelHandler.Sharable
 public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapter {
   public static HttpServerRequestTracingHandler INSTANCE = new HttpServerRequestTracingHandler();
-  private static final String INCOMPLETE_RESPONSE_MESSAGE =
-      "Channel closed before response completed";
 
   @Override
   public void channelRead(final ChannelHandlerContext ctx, final Object msg) {
@@ -57,7 +55,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
         storedParentContext != null ? storedParentContext : DECORATE.extract(headers);
     final Context context = DECORATE.startSpan(headers, parentContext);
     final ServerRequestContext serverContext =
-        ServerRequestContext.add(channel, context, headers, request.method());
+        ServerRequestContext.add(channel, context, headers.get("accept"));
 
     try (final ContextScope ignored = context.attach()) {
       final AgentSpan span = AgentSpan.fromContext(context);
@@ -122,12 +120,6 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       return;
     }
     try (final ContextScope ignored = storedContext.attach()) {
-      if (!serverContext.isResponseCloseDelimited()) {
-        // The response declared a body via Content-Length or chunked encoding, but the channel
-        // closed before that body completed. Close-delimited responses, in contrast, end normally
-        // when the connection closes.
-        DECORATE.onError(span, new IllegalStateException(INCOMPLETE_RESPONSE_MESSAGE));
-      }
       if (!serverContext.isBeforeFinishCalled()) {
         serverContext.markBeforeFinishCalled();
         DECORATE.beforeFinish(storedContext);
