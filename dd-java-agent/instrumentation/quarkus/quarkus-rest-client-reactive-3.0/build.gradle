@@ -1,0 +1,33 @@
+muzzle {
+  pass {
+    group = "org.eclipse.microprofile.rest.client"
+    module = "microprofile-rest-client-api"
+    versions = "[3.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.eclipse.microprofile.rest.client', name: 'microprofile-rest-client-api', version: '3.0'
+  compileOnly group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
+  compileOnly group: 'jakarta.annotation', name: 'jakarta.annotation-api', version: '2.0.0'
+
+  testImplementation group: 'org.eclipse.microprofile.rest.client', name: 'microprofile-rest-client-api', version: '3.0'
+  testImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
+  testImplementation group: 'jakarta.annotation', name: 'jakarta.annotation-api', version: '2.0.0'
+  // RESTEasy Microprofile client 2.x uses jakarta namespace and works standalone without Quarkus.
+  testImplementation group: 'org.jboss.resteasy.microprofile', name: 'microprofile-rest-client', version: '2.0.0.Final'
+  testImplementation group: 'org.jboss.resteasy', name: 'resteasy-client', version: '6.0.0.Final'
+  testImplementation group: 'org.jboss.resteasy', name: 'resteasy-jackson2-provider', version: '6.0.0.Final'
+  // MicroProfile Config implementation required by RESTEasy MicroProfile exception mapper at runtime.
+  testImplementation group: 'io.smallrye.config', name: 'smallrye-config', version: '3.0.0'
+
+  latestDepTestImplementation group: 'org.eclipse.microprofile.rest.client', name: 'microprofile-rest-client-api', version: '3.+'
+  latestDepTestImplementation group: 'org.jboss.resteasy.microprofile', name: 'microprofile-rest-client', version: '2.+'
+  latestDepTestImplementation group: 'org.jboss.resteasy', name: 'resteasy-client', version: '6.+'
+  latestDepTestImplementation group: 'org.jboss.resteasy', name: 'resteasy-jackson2-provider', version: '6.+'
+}
