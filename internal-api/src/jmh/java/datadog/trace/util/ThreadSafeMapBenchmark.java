@@ -9,6 +9,8 @@ import java.util.function.Supplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
@@ -65,6 +67,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @Threads(8)
+@State(Scope.Thread)
 public class ThreadSafeMapBenchmark {
   static final String[] INSERTION_KEYS = {
     "foo", "bar", "baz", "quux", "foobar", "foobaz", "key0", "key1", "key2", "key3"
@@ -84,16 +87,20 @@ public class ThreadSafeMapBenchmark {
     return supplier.get();
   }
 
-  static int sharedLookupIndex = 0;
+  // Per-thread (@State(Scope.Thread)) so cycling the lookup key doesn't contend a shared counter.
+  // The maps below stay static/shared (the point — concurrent reads of one map); only the index is
+  // per-thread. A shared counter's cache-line ping-pong would otherwise floor the fastest reads
+  // (e.g. FlatHashtable's lock-free probe), hiding exactly the differences this benchmark compares.
+  int lookupIndex = 0;
 
-  static String nextLookupKey() {
+  String nextLookupKey() {
     return nextLookupKey(EQUAL_KEYS);
   }
 
-  static String nextLookupKey(String[] keys) {
-    int localIndex = ++sharedLookupIndex;
+  String nextLookupKey(String[] keys) {
+    int localIndex = ++lookupIndex;
     if (localIndex >= keys.length) {
-      sharedLookupIndex = localIndex = 0;
+      lookupIndex = localIndex = 0;
     }
     return keys[localIndex];
   }
