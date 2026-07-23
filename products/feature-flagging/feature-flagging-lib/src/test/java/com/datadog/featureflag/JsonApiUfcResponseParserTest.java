@@ -11,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class JsonApiUfcResponseParserTest {
 
@@ -81,20 +83,24 @@ class JsonApiUfcResponseParserTest {
     assertFalse(configuration.observeFullEvaluationData);
   }
 
-  @Test
-  void observeFullEvaluationDataParsesTrue() throws Exception {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void observeFullEvaluationDataParsesExplicitValue(final boolean value) throws Exception {
     final ServerConfiguration configuration =
-        parse(wrap(configWithObserveFullEvaluationData(true)));
+        parse(wrap(configWithObserveFullEvaluationData(value)));
     assertNotNull(configuration);
-    assertTrue(configuration.observeFullEvaluationData);
+    assertEquals(value, configuration.observeFullEvaluationData);
   }
 
   @Test
-  void observeFullEvaluationDataParsesFalse() throws Exception {
-    final ServerConfiguration configuration =
-        parse(wrap(configWithObserveFullEvaluationData(false)));
-    assertNotNull(configuration);
-    assertFalse(configuration.observeFullEvaluationData);
+  void observeFullEvaluationDataRejectsExplicitNull() {
+    // An explicit null for this boolean is malformed input. Parsing rejects the whole
+    // configuration, which is the fail-closed outcome we want: full evaluation data is never
+    // observed off the back of a malformed config. Callers (AgentlessConfigurationSource and the
+    // remote-config poller) swallow the failure and keep the last-known-good config, and the
+    // gateway defaults to the privacy-preserving behaviour when no valid config was dispatched.
+    // Servers send true/false or omit the field; null is not a value they emit.
+    assertThrows(Exception.class, () -> parse(wrap(configWithNullObserveFullEvaluationData())));
   }
 
   private static ServerConfiguration parse(final String json) throws Exception {
@@ -113,6 +119,15 @@ class JsonApiUfcResponseParserTest {
         + "\"observeFullEvaluationData\":"
         + value
         + ","
+        + "\"environment\":{\"name\":\"Test\"},"
+        + "\"flags\":{}"
+        + "}";
+  }
+
+  private static String configWithNullObserveFullEvaluationData() {
+    return "{"
+        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+        + "\"observeFullEvaluationData\":null,"
         + "\"environment\":{\"name\":\"Test\"},"
         + "\"flags\":{}"
         + "}";
