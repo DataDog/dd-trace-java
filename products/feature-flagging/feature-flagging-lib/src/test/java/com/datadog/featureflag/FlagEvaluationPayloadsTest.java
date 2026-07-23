@@ -58,7 +58,7 @@ class FlagEvaluationPayloadsTest {
   void eventFromFullBucketUsesFlushTimeAndEvaluationBounds() throws Exception {
     final FlagEvaluationAggregator.EvalBucket bucket =
         new FlagEvaluationAggregator.EvalBucket(
-            "ts-flag", "on", "alloc1", "user-1", null, EVAL_MS, false, emptyMap());
+            "ts-flag", "on", "alloc1", "user-1", null, EVAL_MS, false, emptyMap(), true);
     bucket.merge(EVAL_MS + 10, false);
     final long flushTimeMs = EVAL_MS + 5_000;
 
@@ -82,7 +82,7 @@ class FlagEvaluationPayloadsTest {
   void degradedTierEventOmitsTargetingKeyAndContext() throws Exception {
     final FlagEvaluationAggregator.EvalBucket bucket =
         new FlagEvaluationAggregator.EvalBucket(
-            "dg-flag", "on", "alloc1", null, null, EVAL_MS, false, null);
+            "dg-flag", "on", "alloc1", null, null, EVAL_MS, false, null, false);
 
     final Map<String, Object> json =
         firstPayload(
@@ -104,7 +104,15 @@ class FlagEvaluationPayloadsTest {
     attrs.put("region", "us-east-1");
     final FlagEvaluationAggregator.EvalBucket bucket =
         new FlagEvaluationAggregator.EvalBucket(
-            "pii-flag", "on", "alloc1", "jane.doe@datadoghq.com", null, EVAL_MS, false, attrs);
+            "pii-flag",
+            "on",
+            "alloc1",
+            "jane.doe@datadoghq.com",
+            null,
+            EVAL_MS,
+            false,
+            attrs,
+            true);
 
     final Map<String, Object> json =
         firstPayload(
@@ -131,7 +139,15 @@ class FlagEvaluationPayloadsTest {
     attrs.put("region", "us-east-1");
     final FlagEvaluationAggregator.EvalBucket bucket =
         new FlagEvaluationAggregator.EvalBucket(
-            "pii-flag", "on", "alloc1", "jane.doe@datadoghq.com", null, EVAL_MS, false, attrs);
+            "pii-flag",
+            "on",
+            "alloc1",
+            "jane.doe@datadoghq.com",
+            null,
+            EVAL_MS,
+            false,
+            attrs,
+            false);
 
     final FlagEvaluationPayloads.EncodedPayloads payloads =
         FlagEvaluationPayloads.buildPayloads(

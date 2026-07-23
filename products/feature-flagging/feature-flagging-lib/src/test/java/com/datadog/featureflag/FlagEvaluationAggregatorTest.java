@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -212,7 +214,7 @@ class FlagEvaluationAggregatorTest {
   void evalBucketTracksBoundsDefaultStateAndNullContextFieldCount() {
     final FlagEvaluationAggregator.EvalBucket bucket =
         new FlagEvaluationAggregator.EvalBucket(
-            "bucket-flag", "on", "alloc1", "user-1", null, 1000L, false, null);
+            "bucket-flag", "on", "alloc1", "user-1", null, 1000L, false, null, false);
 
     assertEquals(0, bucket.prunedContextFieldCount());
 
@@ -264,6 +266,52 @@ class FlagEvaluationAggregatorTest {
     assertNotEquals(base, degradedKey("flag", "on", "other", false, "error"));
     assertNotEquals(base, degradedKey("flag", "on", "alloc", true, "error"));
     assertNotEquals(base, degradedKey("flag", "on", "alloc", false, "other"));
+  }
+
+  @Test
+  void observeFullEvaluationDataFoldsToFalseWhenAnyMergedEvaluationLacksConsent() {
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    try {
+      FeatureFlaggingGateway.dispatch(observeConfig(true));
+      aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 1000L, emptyMap()));
+      // A later RC update turns consent off; the second evaluation folds into the same bucket.
+      FeatureFlaggingGateway.dispatch(observeConfig(false));
+      aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 2000L, emptyMap()));
+
+      final FlagEvaluationAggregator.EvalBucket bucket =
+          aggregator.snapshot().fullTier.values().iterator().next();
+      assertEquals(2, bucket.count);
+      // Conservative fold: one no-consent evaluation sinks the whole bucket to hashed/omitted.
+      assertFalse(bucket.observeFullEvaluationData);
+    } finally {
+      FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+    }
+  }
+
+  @Test
+  void observeFullEvaluationDataStaysTrueWhenEveryMergedEvaluationConsents() {
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    try {
+      FeatureFlaggingGateway.dispatch(observeConfig(true));
+      aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 1000L, emptyMap()));
+      aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 2000L, emptyMap()));
+
+      final FlagEvaluationAggregator.EvalBucket bucket =
+          aggregator.snapshot().fullTier.values().iterator().next();
+      assertEquals(2, bucket.count);
+      assertTrue(bucket.observeFullEvaluationData);
+    } finally {
+      FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+    }
+  }
+
+  private static ServerConfiguration observeConfig(final boolean observeFullEvaluationData) {
+    return new ServerConfiguration(
+        "2024-04-17T19:40:53.716Z",
+        "SERVER",
+        observeFullEvaluationData,
+        null,
+        java.util.Collections.emptyMap());
   }
 
   private static FlagEvalEvent event(

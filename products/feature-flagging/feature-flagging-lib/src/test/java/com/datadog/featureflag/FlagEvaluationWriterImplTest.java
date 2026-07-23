@@ -561,6 +561,38 @@ class FlagEvaluationWriterImplTest {
   }
 
   @Test
+  void observeFullEvaluationDataTrueFromParsedUfcEmitsRawTargetingKey() throws Exception {
+    // Exercises the config-source -> gateway -> writer seam that the hand-built dispatch skips:
+    // parse a UFC exactly as the (default) agentless source does, dispatch it, then flush. Guards
+    // against observeFullEvaluationData being lost between config parsing and the flush-time gate
+    // read. Field placement mirrors the system-test fixture (after "flags", with format SERVER).
+    final String attributes =
+        "{"
+            + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+            + "\"format\":\"SERVER\","
+            + "\"environment\":{\"name\":\"Test\"},"
+            + "\"flags\":{},"
+            + "\"observeFullEvaluationData\":true"
+            + "}";
+    final String wrapped =
+        "{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":" + attributes + "}}";
+    final ServerConfiguration parsed =
+        JsonApiUfcResponseParser.INSTANCE.parse(
+            wrapped.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    assertNotNull(parsed);
+    assertTrue(parsed.observeFullEvaluationData);
+    FeatureFlaggingGateway.dispatch(parsed);
+
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+    setup.handler.add(piiEvent());
+
+    final Map<String, Object> ev = eventForFlag(flushAndCapture(setup).parsed, "pii-flag");
+    assertNotNull(ev);
+    assertEquals("jane.doe@datadoghq.com", ev.get("targeting_key"));
+  }
+
+  @Test
   void observeFullEvaluationDataFalseHashesTargetingKeyAndOmitsContext() throws Exception {
     dispatchObserveFullEvaluationData(false);
     assertHashedTargetingKeyAndOmittedContext();
@@ -570,6 +602,41 @@ class FlagEvaluationWriterImplTest {
   void observeFullEvaluationDataAbsentDefaultsToHashedBehavior() throws Exception {
     // No UFC dispatched (default state) — must behave exactly like the explicit "false" case.
     assertHashedTargetingKeyAndOmittedContext();
+  }
+
+  @Test
+  void bucketCapturedUnderFalseStaysHashedEvenIfGatewayLaterReportsTrue() throws Exception {
+    // Regression guard for the flush-time TOCTOU bug: consent is captured when the evaluation is
+    // aggregated, not read from the gateway at flush. A bucket aggregated while consent was off
+    // must stay hashed even if a later RC update turns consent on before the flush drains.
+    dispatchObserveFullEvaluationData(false);
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+    setup.handler.add(piiEvent());
+    setup.handler.drainAndAggregate(); // captures consent=false into the bucket
+
+    // Simulate a later RC update flipping consent on; the already-aggregated bucket must not
+    // follow.
+    dispatchObserveFullEvaluationData(true);
+
+    final java.util.List<RequestBody> captured = new java.util.ArrayList<>();
+    when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
+        .thenAnswer(
+            inv -> {
+              captured.add(inv.getArgument(1));
+              return null;
+            });
+    setup.handler.flush();
+
+    assertEquals(1, captured.size());
+    final FlagEvaluationTestSupport.CapturedJson json =
+        FlagEvaluationTestSupport.readJson(captured.get(0));
+    final Map<String, Object> ev = eventForFlag(json.parsed, "pii-flag");
+    assertNotNull(ev);
+    assertEquals(HASHED_JANE_DOE, ev.get("targeting_key"));
+    assertFalse(ev.containsKey("context"));
+    assertTrue(json.raw.contains(HASHED_JANE_DOE));
+    assertFalse(json.raw.contains("jane.doe@datadoghq.com"));
   }
 
   private void assertHashedTargetingKeyAndOmittedContext() throws Exception {
