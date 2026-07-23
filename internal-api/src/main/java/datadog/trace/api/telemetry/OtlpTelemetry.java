@@ -4,7 +4,10 @@ import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.LongAdder;
 
 /** Collects telemetry metrics for the OTLP trace, metrics, and log exporters. */
@@ -24,6 +27,8 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
   private final ExportCounters tracesExport = new ExportCounters("traces");
   private final ExportCounters metricsExport = new ExportCounters("metrics");
   private final LongAdder logRecords = new LongAdder();
+
+  private final BlockingQueue<OtlpMetric> telemetryQueue = new ArrayBlockingQueue<>(RAW_QUEUE_SIZE);
 
   private OtlpTelemetry() {}
 
@@ -57,18 +62,21 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
 
   @Override
   public void prepareMetrics() {
-    // metrics are accumulated directly as they happen; nothing to prepare
+    tracesExport.stageInto(telemetryQueue, tracesTags);
+    metricsExport.stageInto(telemetryQueue, metricsTags);
+    long logRecordCount = logRecords.sumThenReset();
+    if (logRecordCount > 0) {
+      telemetryQueue.offer(new OtlpMetric("otel.log_records", logRecordCount, logsTags));
+    }
   }
 
   @Override
   public Collection<OtlpMetric> drain() {
-    List<OtlpMetric> drained = new ArrayList<>();
-    tracesExport.drainInto(drained, tracesTags);
-    metricsExport.drainInto(drained, metricsTags);
-    long logRecordCount = logRecords.sumThenReset();
-    if (logRecordCount > 0) {
-      drained.add(new OtlpMetric("otel.log_records", logRecordCount, logsTags));
+    if (telemetryQueue.isEmpty()) {
+      return Collections.emptyList();
     }
+    List<OtlpMetric> drained = new ArrayList<>(telemetryQueue.size());
+    telemetryQueue.drainTo(drained);
     return drained;
   }
 
@@ -92,17 +100,17 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
       (success ? successes : failures).increment();
     }
 
-    void drainInto(List<OtlpMetric> out, String[] tags) {
+    void stageInto(BlockingQueue<OtlpMetric> out, String[] tags) {
       addIfNonZero(out, attemptsMetric, attempts, tags);
       addIfNonZero(out, successesMetric, successes, tags);
       addIfNonZero(out, failuresMetric, failures, tags);
     }
 
     private static void addIfNonZero(
-        List<OtlpMetric> out, String metricName, LongAdder counter, String[] tags) {
+        BlockingQueue<OtlpMetric> out, String metricName, LongAdder counter, String[] tags) {
       long value = counter.sumThenReset();
       if (value > 0) {
-        out.add(new OtlpMetric(metricName, value, tags));
+        out.offer(new OtlpMetric(metricName, value, tags));
       }
     }
   }

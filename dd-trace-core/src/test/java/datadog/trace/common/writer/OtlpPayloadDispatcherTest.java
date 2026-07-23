@@ -40,6 +40,7 @@ class OtlpPayloadDispatcherTest {
   @BeforeEach
   void stubSuccessfulSend() {
     lenient().when(sender.send(any())).thenReturn(RemoteApi.Response.success(200));
+    OtlpTelemetry.getInstance().prepareMetrics();
     OtlpTelemetry.getInstance().drain();
   }
 
@@ -139,6 +140,7 @@ class OtlpPayloadDispatcherTest {
 
   private static Map<String, OtlpTelemetry.OtlpMetric> drainTracesTelemetry() {
     Map<String, OtlpTelemetry.OtlpMetric> byName = new HashMap<>();
+    OtlpTelemetry.getInstance().prepareMetrics();
     for (OtlpTelemetry.OtlpMetric metric : OtlpTelemetry.getInstance().drain()) {
       byName.put(metric.metricName, metric);
     }
