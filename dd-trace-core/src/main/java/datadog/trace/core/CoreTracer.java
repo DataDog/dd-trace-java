@@ -246,10 +246,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final boolean SPAN_BUILDER_REUSE_ENABLED =
       Config.get().isSpanBuilderReuseEnabled();
 
-  // static final so the JIT constant-folds it and dead-code-eliminates the unused tag-ordering
-  // branch in the (hot) span builder -- the flag is process-constant. See the tag-ordering block.
-  private static final boolean BUILDER_TAGS_PRECEDENCE =
-      Config.get().isTraceBuilderTagsPrecedenceEnabled();
+  // Instance field (not static final) so it honors per-tracer config, e.g. an embedded tracer
+  // built via CoreTracerBuilder#withProperties/#config rather than the global Config.get()
+  // singleton. See the tag-ordering block in buildSpanContext.
+  private final boolean builderTagsPrecedence;
 
   // Cache used by buildSpan - instance so it can capture the CoreTracer
   private final ReusableSingleSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
@@ -834,6 +834,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
 
     propagationTagsFactory = PropagationTags.factory(config);
+
+    builderTagsPrecedence = config.isTraceBuilderTagsPrecedenceEnabled();
 
     // Register context propagators
     HttpCodec.Extractor baseExtractor =
@@ -2225,7 +2227,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       // win, which is the logical precedence. Gated + default-off so it can be rolled out
       // gradually.
       context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
-      if (BUILDER_TAGS_PRECEDENCE) {
+      if (tracer.builderTagsPrecedence) {
         context.setAllTags(coreTags, coreTagsNeedsIntercept);
         context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
         context.setAllTags(contextualTags);
