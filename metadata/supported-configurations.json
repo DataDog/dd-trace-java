@@ -3889,6 +3889,14 @@
         "aliases": []
       }
     ],
+    "DD_SPARK_TASK_SPAN_ON_FAILURE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME": [
       {
         "version": "A",

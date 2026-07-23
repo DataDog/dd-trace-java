@@ -154,6 +154,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERV
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SPARK_APP_NAME_AS_SERVICE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SPARK_TASK_SPAN_ON_FAILURE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SSI_INJECTION_FORCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SYMBOL_DATABASE_COMPRESSED;
@@ -625,6 +626,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_PRINCI
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_APP_NAME_AS_SERVICE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_TASK_HISTOGRAM_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_TASK_SPAN_ON_FAILURE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SQS_BODY_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
@@ -1386,6 +1388,7 @@ public class Config {
   private final boolean elasticsearchParamsEnabled;
   private final boolean elasticsearchBodyAndParamsEnabled;
   private final boolean sparkTaskHistogramEnabled;
+  private final boolean sparkTaskSpanOnFailureEnabled;
   private final boolean sparkAppNameAsService;
   private final boolean jaxRsExceptionAsErrorsEnabled;
   private final boolean websocketMessagesInheritSampling;
@@ -3166,6 +3169,10 @@ public class Config {
     this.sparkTaskHistogramEnabled =
         configProvider.getBoolean(
             SPARK_TASK_HISTOGRAM_ENABLED, DEFAULT_SPARK_TASK_HISTOGRAM_ENABLED);
+
+    this.sparkTaskSpanOnFailureEnabled =
+        configProvider.getBoolean(
+            SPARK_TASK_SPAN_ON_FAILURE_ENABLED, DEFAULT_SPARK_TASK_SPAN_ON_FAILURE_ENABLED);
 
     this.sparkAppNameAsService =
         configProvider.getBoolean(SPARK_APP_NAME_AS_SERVICE, DEFAULT_SPARK_APP_NAME_AS_SERVICE);
@@ -5104,6 +5111,10 @@ public class Config {
     return sparkTaskHistogramEnabled;
   }
 
+  public boolean isSparkTaskSpanOnFailureEnabled() {
+    return sparkTaskSpanOnFailureEnabled;
+  }
+
   public boolean useSparkAppNameAsService() {
     return sparkAppNameAsService;
   }
@@ -6706,6 +6717,8 @@ public class Config {
         + appLogsCollectionEnabled
         + ", sparkTaskHistogramEnabled="
         + sparkTaskHistogramEnabled
+        + ", sparkTaskSpanOnFailureEnabled="
+        + sparkTaskSpanOnFailureEnabled
         + ", sparkAppNameAsService="
         + sparkAppNameAsService
         + ", jaxRsExceptionAsErrorsEnabled="
