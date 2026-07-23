@@ -87,7 +87,7 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
       return CallDepthThreadLocalMap.incrementCallDepth(Parameters.class);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(@Advice.Enter final int depth) {
       if (depth > 0) {
         return;
@@ -113,7 +113,7 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
       // if there is no request context, skips the body, returns 0 and will skip after()
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Local("origParamHashStringArray") Hashtable<String, String[]> origParamValues,
         @Advice.FieldValue(value = "paramHashStringArray", readOnly = false)

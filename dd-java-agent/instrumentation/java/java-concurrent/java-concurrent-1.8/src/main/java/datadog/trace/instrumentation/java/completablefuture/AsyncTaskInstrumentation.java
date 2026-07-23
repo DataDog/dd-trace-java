@@ -40,26 +40,26 @@ public final class AsyncTaskInstrumentation
   }
 
   public static class Construct {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static void construct(@Advice.This ForkJoinTask<?> task) {
       capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
   }
 
   public static class Run {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope before(@Advice.This ForkJoinTask<?> zis) {
       return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), zis);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }
 
   public static class Cancel {
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
       State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
       if (null != state) {

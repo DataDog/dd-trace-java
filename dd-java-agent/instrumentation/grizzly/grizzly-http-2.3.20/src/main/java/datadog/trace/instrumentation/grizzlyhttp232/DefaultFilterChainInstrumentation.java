@@ -53,7 +53,7 @@ public class DefaultFilterChainInstrumentation
       return null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();
