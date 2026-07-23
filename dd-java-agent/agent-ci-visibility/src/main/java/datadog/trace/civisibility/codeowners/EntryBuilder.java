@@ -73,12 +73,13 @@ public class EntryBuilder {
         offset++;
       }
 
+      String indexKey = parseIndexKey();
       Matcher matcher = parseMatcher();
       Collection<String> owners = exclusion ? Collections.emptyList() : parseOwners();
       if (!exclusion && owners.isEmpty()) {
         owners = sectionDefaultOwners;
       }
-      return new Entry(matcher, owners, exclusion);
+      return new Entry(matcher, owners, exclusion, indexKey);
 
     } catch (Exception e) {
       log.warn("Skipping malformed CODEOWNERS entry: {}", new String(c), e);
@@ -222,6 +223,38 @@ public class EntryBuilder {
     }
 
     return new CompositeMatcher(characterMatchers.toArray(new Matcher[0]));
+  }
+
+  private @Nullable String parseIndexKey() {
+    // Index by the first two fixed path segments; patterns without a safe prefix stay linear.
+    int position = offset;
+    boolean patternContainsSlashes = c[position] == '/';
+    if (patternContainsSlashes) {
+      position++;
+    }
+    int prefixStart = position;
+    int firstSeparator = -1;
+    for (; position < c.length && !isPatternTerminator(c[position]); position++) {
+      char character = c[position];
+      if (character == '*' || character == '?' || character == '[') {
+        return null;
+      }
+      if (character == '\\') {
+        return null;
+      }
+      if (character == '/') {
+        patternContainsSlashes = true;
+        if (firstSeparator >= 0) {
+          return new String(c, prefixStart, position - prefixStart);
+        }
+        firstSeparator = position;
+      }
+    }
+
+    if (!patternContainsSlashes || firstSeparator < 0 || firstSeparator == position - 1) {
+      return null;
+    }
+    return new String(c, prefixStart, position - prefixStart);
   }
 
   private boolean consumeDoubleAsterisk() {
