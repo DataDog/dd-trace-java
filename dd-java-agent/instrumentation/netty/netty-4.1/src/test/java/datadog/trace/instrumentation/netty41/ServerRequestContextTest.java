@@ -55,4 +55,19 @@ class ServerRequestContextTest {
 
     assertFalse(ServerRequestContext.isResponseBlocked(attributes));
   }
+
+  @Test
+  void tracksBlockedRequestUntilChannelClose() {
+    DefaultAttributeMap attributes = new DefaultAttributeMap();
+
+    assertFalse(ServerRequestContext.isRequestBlocked(attributes));
+
+    ServerRequestContext.markRequestBlocked(attributes);
+
+    assertTrue(ServerRequestContext.isRequestBlocked(attributes));
+
+    ServerRequestContext.closeAll(attributes);
+
+    assertFalse(ServerRequestContext.isRequestBlocked(attributes));
+  }
 }

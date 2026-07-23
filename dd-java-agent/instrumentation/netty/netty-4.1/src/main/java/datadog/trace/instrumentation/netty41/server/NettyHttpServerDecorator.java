@@ -137,6 +137,32 @@ public class NettyHttpServerDecorator
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
         String securityResponseId) {
+      if (pipeline.channel().eventLoop().inEventLoop()) {
+        return commitBlockingResponse(
+            segment, statusCode, templateType, extraHeaders, securityResponseId);
+      }
+
+      try {
+        pipeline
+            .channel()
+            .eventLoop()
+            .execute(
+                () ->
+                    commitBlockingResponse(
+                        segment, statusCode, templateType, extraHeaders, securityResponseId));
+        return true;
+      } catch (RuntimeException rte) {
+        log.warn("Failed scheduling blocking handler", rte);
+        return false;
+      }
+    }
+
+    private boolean commitBlockingResponse(
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType templateType,
+        Map<String, String> extraHeaders,
+        String securityResponseId) {
       ChannelHandler handlerBefore = pipeline.get(HttpServerTracingHandler.class);
       if (handlerBefore == null) {
         handlerBefore = pipeline.get(HttpServerRequestTracingHandler.class);
@@ -147,29 +173,38 @@ public class NettyHttpServerDecorator
         }
       }
 
+      BlockingResponseHandler blockingHandler =
+          new BlockingResponseHandler(
+              segment, statusCode, templateType, extraHeaders, securityResponseId, serverContext);
+      ChannelInboundHandlerAdapter beforeBlockingHandler = new ChannelInboundHandlerAdapter();
       try {
         pipeline
             .addAfter(
                 pipeline.context(handlerBefore).name(),
-                "blocking_handler",
-                new BlockingResponseHandler(
-                    segment,
-                    statusCode,
-                    templateType,
-                    extraHeaders,
-                    securityResponseId,
-                    serverContext))
-            .addBefore(
-                "blocking_handler", "before_blocking_handler", new ChannelInboundHandlerAdapter());
+                BlockingResponseHandler.BEFORE_BLOCKING_HANDLER_NAME,
+                beforeBlockingHandler)
+            .addAfter(
+                BlockingResponseHandler.BEFORE_BLOCKING_HANDLER_NAME,
+                BlockingResponseHandler.HANDLER_NAME,
+                blockingHandler);
       } catch (RuntimeException rte) {
+        removeHandlerIfPresent(beforeBlockingHandler);
+        removeHandlerIfPresent(blockingHandler);
         log.warn("Failed adding blocking handler", rte);
         return false;
       }
 
-      ChannelHandlerContext context = pipeline.context("before_blocking_handler");
+      ChannelHandlerContext context =
+          pipeline.context(BlockingResponseHandler.BEFORE_BLOCKING_HANDLER_NAME);
       context.fireChannelRead(httpRequestMessage);
 
       return true;
+    }
+
+    private void removeHandlerIfPresent(ChannelHandler handler) {
+      if (pipeline.context(handler) != null) {
+        pipeline.remove(handler);
+      }
     }
   }
 }

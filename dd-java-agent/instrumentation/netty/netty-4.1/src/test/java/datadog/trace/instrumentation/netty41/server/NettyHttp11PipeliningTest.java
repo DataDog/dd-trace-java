@@ -18,6 +18,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.appsec.api.blocking.BlockingContentType;
@@ -38,6 +39,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -49,6 +51,7 @@ import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.util.ReferenceCountUtil;
@@ -60,6 +63,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Supplier;
@@ -82,6 +86,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
   private static final HttpResponseStatus EARLY_HINTS = new HttpResponseStatus(103, "Early Hints");
 
   private EventLoopGroup eventLoopGroup;
+  private DecodedRequestObserver decodedRequestObserver;
   private PipeliningHandler handler;
   private int port;
   private Object appSecSubscriptions;
@@ -90,6 +95,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
   @BeforeAll
   void startServer() throws Exception {
     eventLoopGroup = new NioEventLoopGroup();
+    decodedRequestObserver = new DecodedRequestObserver();
     handler = new PipeliningHandler();
     ServerBootstrap bootstrap =
         new ServerBootstrap()
@@ -99,7 +105,13 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
                 new ChannelInitializer<Channel>() {
                   @Override
                   protected void initChannel(Channel ch) {
-                    ch.pipeline().addLast(new HttpServerCodec());
+                    HttpServerCodec codec = new HttpServerCodec();
+                    ch.pipeline().addLast(codec);
+                    ch.pipeline()
+                        .addAfter(
+                            ch.pipeline().context(codec).name(),
+                            "decoded-request-observer",
+                            decodedRequestObserver);
                     ch.pipeline().addLast(new HttpObjectAggregator(65536));
                     ch.pipeline().addLast(handler);
                   }
@@ -211,6 +223,42 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
       assertTrue(
           readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
+    }
+  }
+
+  @Test
+  void additionalPipelinedRequestsBehindDeferredBlockAreIgnored() throws Exception {
+    decodedRequestObserver.expectRequests(3);
+    handler.expectRequests(1);
+
+    try (Socket socket = new Socket("localhost", port)) {
+      socket.setSoTimeout(5000);
+      socket.getOutputStream().write(request(FIRST_PATH).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(handler.awaitAllRequestsReceived(), "server did not receive first request");
+
+      CountDownLatch blockedRequestSeen = enableAppSecRequestBlockingFor(SECOND_PATH, THIRD_PATH);
+      socket
+          .getOutputStream()
+          .write((request(SECOND_PATH) + request(THIRD_PATH)).getBytes(US_ASCII));
+      socket.getOutputStream().flush();
+
+      assertTrue(
+          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+      assertTrue(
+          decodedRequestObserver.awaitAllRequests(),
+          "server did not decode all three pipelined requests before responding");
+
+      handler.writeResponses();
+
+      assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
+      assertTrue(
+          readHttpResponseHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
+          "second response should be the deferred blocking response");
+      assertNull(
+          handler.inboundException,
+          "additional pipelined requests should be swallowed by the existing blocking handler");
     }
   }
 
@@ -400,7 +448,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
     return "HEAD " + path + " HTTP/1.1\r\nHost: localhost\r\n\r\n";
   }
 
-  private CountDownLatch enableAppSecRequestBlockingFor(String blockedPath) {
+  private CountDownLatch enableAppSecRequestBlockingFor(String... blockedPaths) {
     SubscriptionService subscriptions = (SubscriptionService) enableAppSec();
     CountDownLatch blockedRequestSeen = new CountDownLatch(1);
 
@@ -410,7 +458,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
           @Override
           public Flow<Void> apply(
               RequestContext requestContext, String method, URIDataAdapter uri) {
-            if (!blockedPath.equals(uri.path())) {
+            if (!Arrays.asList(blockedPaths).contains(uri.path())) {
               return Flow.ResultFlow.empty();
             }
             blockedRequestSeen.countDown();
@@ -546,6 +594,27 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
   }
 
   @ChannelHandler.Sharable
+  private static final class DecodedRequestObserver extends ChannelInboundHandlerAdapter {
+    private volatile CountDownLatch receivedRequests = new CountDownLatch(0);
+
+    private void expectRequests(int expectedRequests) {
+      receivedRequests = new CountDownLatch(expectedRequests);
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+      if (msg instanceof HttpRequest) {
+        receivedRequests.countDown();
+      }
+      ctx.fireChannelRead(msg);
+    }
+
+    private boolean awaitAllRequests() throws InterruptedException {
+      return receivedRequests.await(5, SECONDS);
+    }
+  }
+
+  @ChannelHandler.Sharable
   private static final class PipeliningHandler
       extends SimpleChannelInboundHandler<FullHttpRequest> {
     private volatile CountDownLatch receivedRequests;
@@ -553,6 +622,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
     private volatile ChannelHandlerContext context;
     private volatile String blockResponseFunctionPath;
     private volatile CountDownLatch blockResponseFunctionRequestSeen;
+    private volatile Throwable inboundException;
 
     private PipeliningHandler() {
       super(false);
@@ -562,6 +632,7 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
     private void expectRequests(int expectedRequests) {
       receivedRequests = new CountDownLatch(expectedRequests);
       context = null;
+      inboundException = null;
       synchronized (paths) {
         paths.clear();
       }
@@ -607,6 +678,11 @@ public class NettyHttp11PipeliningTest extends AbstractInstrumentationTest {
       if (!blockingResponseCommitted) {
         ReferenceCountUtil.release(request);
       }
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+      inboundException = cause;
     }
 
     private boolean awaitAllRequestsReceived() throws InterruptedException {

@@ -24,6 +24,8 @@ import org.slf4j.LoggerFactory;
 
 public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   public static final Logger log = LoggerFactory.getLogger(BlockingResponseHandler.class);
+  static final String BEFORE_BLOCKING_HANDLER_NAME = "before_blocking_handler";
+  static final String HANDLER_NAME = "blocking_handler";
   private static final String IGNORE_ALL_WRITES_HANDLER = "ignore_all_writes_handler";
   private static final String MISSING_RESPONSE_TRACING_HANDLER_MESSAGE =
       "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline";
@@ -85,6 +87,11 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
 
     if (ctxForDownstream == null) {
       logMissingResponseTracingHandler();
+      // Do not let a failed block intercept later requests on this keep-alive connection.
+      if (ctx.pipeline().get(BEFORE_BLOCKING_HANDLER_NAME) != null) {
+        ctx.pipeline().remove(BEFORE_BLOCKING_HANDLER_NAME);
+      }
+      ctx.pipeline().remove(this);
       ctx.fireChannelRead(msg);
       return;
     }
@@ -92,6 +99,7 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     HttpRequest request = (HttpRequest) msg;
 
     this.hasBlockedAlready = true;
+    ServerRequestContext.markRequestBlocked(ctx.channel());
 
     PendingBlockResponse pendingBlockResponse =
         new PendingBlockResponse(
