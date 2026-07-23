@@ -24,8 +24,7 @@ import net.bytebuddy.jar.asm.Type;
 public final class HelperScanner extends ClassVisitor {
   static final int READER_OPTIONS = ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES;
 
-  static final ClassFileLocator locator =
-      ClassFileLocator.ForClassLoader.of(Utils.getAgentClassLoader());
+  final ClassFileLocator locator;
 
   final MethodScanner methodScanner = new MethodScanner();
 
@@ -41,12 +40,28 @@ public final class HelperScanner extends ClassVisitor {
   Set<String> uses;
 
   HelperScanner() {
-    super(Opcodes.ASM7, null);
+    this(ClassFileLocator.ForClassLoader.of(Utils.getAgentClassLoader()));
   }
 
-  /** Expands helper class names to include any non-bootstrap classes they depend on. */
+  HelperScanner(ClassFileLocator locator) {
+    super(Opcodes.ASM7, null);
+    this.locator = locator;
+  }
+
+  /**
+   * Expands helper class names with their non-bootstrap dependencies, via the agent class loader.
+   */
   public static String[] withClassDependencies(String... helperClassNames) {
     return new HelperScanner().simulateClassLoading(helperClassNames);
+  }
+
+  /**
+   * Same as above, but reads bytecode via the given locator (e.g. during build time where the agent
+   * loader is absent).
+   */
+  public static String[] withClassDependencies(
+      ClassFileLocator locator, String... helperClassNames) {
+    return new HelperScanner(locator).simulateClassLoading(helperClassNames);
   }
 
   /**
