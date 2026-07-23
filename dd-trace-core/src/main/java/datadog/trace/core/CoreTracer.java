@@ -196,8 +196,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final boolean localRootSpanTagsNeedIntercept;
 
   /**
-   * When APM tracing is disabled, every exported trace chunk must carry the {@code
-   * _dd.apm.enabled:0} billing marker so the intake does not bill APM host usage.
+   * When {@code false}, every exported span is stamped with the {@code _dd.apm.enabled:0} billing
+   * marker — see {@link #write(SpanList)}.
    */
   private final boolean apmTracingEnabled;
 

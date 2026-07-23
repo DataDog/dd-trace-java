@@ -68,8 +68,8 @@ abstract class ApmTracingDisabledSmokeTest extends AbstractApmTracingDisabledSmo
     assert outboundChunk != null
     assert outboundChunk.spans.every { it.resource != 'GET /rest-api/late-outbound' }
 
-    then: 'the delayed child chunk must still carry the billing marker'
-    hasApmDisabledTag(outboundChunk)
+    then: 'every span of the delayed child chunk must carry the billing marker'
+    hasApmDisabledTagOnEverySpan(outboundChunk)
   }
 
   void 'When APM is disabled, libraries must completely disable the generation of APM trace metrics'(){

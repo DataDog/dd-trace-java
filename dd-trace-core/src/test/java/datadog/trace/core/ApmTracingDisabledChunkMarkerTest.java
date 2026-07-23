@@ -16,9 +16,8 @@ import org.junit.jupiter.api.Test;
 /**
  * When APM tracing is disabled ({@code DD_APM_TRACING_ENABLED=false}), the intake bills APM host
  * usage for every exported trace <em>chunk</em> that does not carry the {@code _dd.apm.enabled:0}
- * marker.
- * To make sure no chunk gets flushed without the correct billing tag, it gets added to every
- * single span. These tests lock that in.
+ * marker. To make sure no chunk gets flushed without the correct billing tag, it gets added to
+ * every single span. These tests lock that in.
  */
 @WithConfig(key = "apm.tracing.enabled", value = "false")
 class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
