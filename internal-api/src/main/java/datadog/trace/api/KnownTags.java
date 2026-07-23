@@ -1,225 +1,336 @@
 package datadog.trace.api;
 
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.StringIndex;
 
-/**
- * Hand-assigned tag-id constants for well-known tags, plus the {@link KnownTagCodec.Resolver} that
- * resolves them. This is the single registry shared by the tracer core and by instrumentation
- * (decorators) — it lives in {@code internal-api} so both layers can reference the ids; the
- * eventual code generator will replace the hand assignment here.
- *
- * <p>Reserved serials {@code [1, KnownTagCodec.FIRST_STORED_SERIAL)} name "virtual" tags handled by
- * the tag interceptor / span fields and are NOT stored in the {@code TagMap}; their {@code
- * fieldPos} is the {@link KnownTagCodec#NO_SLOT} sentinel that is out of slot range, so any
- * incidental store routes to the hash buckets rather than a positional slot. Serials {@code >=
- * FIRST_STORED_SERIAL} name stored tags that slot/bucket normally (or, with {@code NO_SLOT}, are
- * stored bucket-only).
- *
- * <p>The resolver registers on class initialization, so simply referencing any constant here makes
- * tag-id resolution live before the first span is built.
- *
- * <p><b>Slice-1 note (keyOf substrate):</b> the {@code fieldPos} assignments below (and {@link
- * #SLOT_COUNT}) describe a single <i>universal</i> positional layout (slots 0..25). That layout is
- * currently dormant — no dense store consumes {@code fieldPos} yet — and is <b>provisional</b>: the
- * dense-store slice replaces the universal layout with per-role / per-type sizing (see the
- * over-provision finding in {@code dense-tagmap-design.md}). {@code keyOf}/{@code nameOf} depend
- * only on {@code globalSerial} + name, not {@code fieldPos}, so the ids themselves are stable
- * across any layout scheme.
- */
+// Interim hand-maintained known-tag table with coordinate-assigned ids (globalSerial + group-decl
+// + field-decl). The tag-registry code generator replaces this with a generated equivalent
+// (byte-for-byte-equal ids) in a follow-up change; kept hand-written here so the two-tier presence
+// bloom has a coordinate substrate to build on independently of the generator.
 public final class KnownTags {
-  // slot count = (max stored fieldPos) + 1. Stored tags use fieldPos 0..25. PROVISIONAL universal
-  // layout — see the slice-1 note above; the dense-store slice supersedes this with role/type
-  // sizing.
-  static final int SLOT_COUNT = 26;
+  static final int SLOT_COUNT = 13;
 
-  // ---- reserved / virtual (tag-interceptor handled, not stored) ----
-  // Reserved tags are always intercepted -> set the INTERCEPTED flag.
-  public static final int ERROR_SERIAL = 1;
-  public static final long ERROR_ID =
-      KnownTagCodec.intercepted(KnownTagCodec.tagId(ERROR_SERIAL, Tags.ERROR));
+  // ---- reserved (routed to span fields or directives; not stored) ----
+  static final int ERROR_SERIAL = 1;
+  // tagId(serial=1, intercepted=true, group=0, field=NO_SLOT)  [structural -> error]  "error"
+  public static final long ERROR = 0x800103FF00000000L;
+  static final int SERVICE_SERIAL = 2;
+  // tagId(serial=2, intercepted=true, group=0, field=NO_SLOT)  [structural -> service]  "service"
+  public static final long SERVICE = 0x800203FF00000000L;
+  static final int RESOURCE_NAME_SERIAL = 3;
+  // tagId(serial=3, intercepted=true, group=0, field=NO_SLOT)  [structural -> resource]
+  // "resource.name"
+  public static final long RESOURCE_NAME = 0x800303FF00000000L;
+  static final int SPAN_TYPE_SERIAL = 4;
+  // tagId(serial=4, intercepted=true, group=0, field=NO_SLOT)  [structural -> type]  "span.type"
+  public static final long SPAN_TYPE = 0x800403FF00000000L;
+  static final int ORIGIN_SERIAL = 5;
+  // tagId(serial=5, intercepted=true, group=0, field=NO_SLOT)  [structural -> origin]  "origin"
+  public static final long ORIGIN = 0x800503FF00000000L;
+  static final int SAMPLING_PRIORITY_SERIAL = 6;
+  // tagId(serial=6, intercepted=true, group=0, field=NO_SLOT)  [directive]  "sampling.priority"
+  public static final long SAMPLING_PRIORITY = 0x800603FF00000000L;
+  static final int MANUAL_KEEP_SERIAL = 7;
+  // tagId(serial=7, intercepted=true, group=0, field=NO_SLOT)  [directive]  "manual.keep"
+  public static final long MANUAL_KEEP = 0x800703FF00000000L;
+  static final int MANUAL_DROP_SERIAL = 8;
+  // tagId(serial=8, intercepted=true, group=0, field=NO_SLOT)  [directive]  "manual.drop"
+  public static final long MANUAL_DROP = 0x800803FF00000000L;
+  static final int MEASURED_SERIAL = 9;
+  // tagId(serial=9, intercepted=true, group=0, field=NO_SLOT)  [directive]  "measured"
+  public static final long MEASURED = 0x800903FF00000000L;
+  static final int ANALYTICS_SAMPLE_RATE_SERIAL = 10;
+  // tagId(serial=10, intercepted=true, group=0, field=NO_SLOT)  [directive]
+  // "analytics.sample_rate"
+  public static final long ANALYTICS_SAMPLE_RATE = 0x800A03FF00000000L;
 
-  // ---- stored (slotted / bucketed) ----
-  public static final int PARENT_ID_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL;
-  public static final long PARENT_ID = KnownTagCodec.tagId(PARENT_ID_SERIAL, 0, DDTags.PARENT_ID);
+  // ---- stored (dense field-decl, or bucketed when field=NO_SLOT) ----
+  static final int DD_BASE_SERVICE_SERIAL = 256;
+  // tagId(serial=256, intercepted=false, group=0, field=0)  <required, trace-level>
+  // "_dd.base_service"
+  public static final long DD_BASE_SERVICE = 0x0100000000000000L;
+  static final int VERSION_SERIAL = 257;
+  // tagId(serial=257, intercepted=false, group=0, field=1)  <recommended, trace-level>  "version"
+  public static final long VERSION = 0x0101000100000000L;
+  static final int ENV_SERIAL = 258;
+  // tagId(serial=258, intercepted=false, group=0, field=2)  <recommended, trace-level>  "env"
+  public static final long ENV = 0x0102000200000000L;
+  static final int LANGUAGE_SERIAL = 259;
+  // tagId(serial=259, intercepted=false, group=0, field=3)  <required, trace-level>  "language"
+  public static final long LANGUAGE = 0x0103000300000000L;
+  static final int RUNTIME_ID_SERIAL = 260;
+  // tagId(serial=260, intercepted=false, group=0, field=4)  <required, trace-level>  "runtime-id"
+  public static final long RUNTIME_ID = 0x0104000400000000L;
+  static final int DD_TRACER_HOST_SERIAL = 261;
+  // tagId(serial=261, intercepted=false, group=0, field=5)  <recommended, trace-level>
+  // "_dd.tracer_host"
+  public static final long DD_TRACER_HOST = 0x0105000500000000L;
+  static final int DD_GIT_COMMIT_SHA_SERIAL = 262;
+  // tagId(serial=262, intercepted=false, group=0, field=6)  <recommended, trace-level>
+  // "_dd.git.commit.sha"
+  public static final long DD_GIT_COMMIT_SHA = 0x0106000600000000L;
+  static final int DD_GIT_REPOSITORY_URL_SERIAL = 263;
+  // tagId(serial=263, intercepted=false, group=0, field=7)  <recommended, trace-level>
+  // "_dd.git.repository_url"
+  public static final long DD_GIT_REPOSITORY_URL = 0x0107000700000000L;
+  static final int DD_PROFILING_ENABLED_SERIAL = 264;
+  // tagId(serial=264, intercepted=false, group=0, field=8)  <recommended, trace-level>
+  // "_dd.profiling.enabled"
+  public static final long DD_PROFILING_ENABLED = 0x0108000800000000L;
+  static final int DD_DSM_ENABLED_SERIAL = 265;
+  // tagId(serial=265, intercepted=false, group=0, field=9)  <recommended, trace-level>
+  // "_dd.dsm.enabled"
+  public static final long DD_DSM_ENABLED = 0x0109000900000000L;
+  static final int DD_APPSEC_ENABLED_SERIAL = 266;
+  // tagId(serial=266, intercepted=false, group=0, field=10)  <recommended, trace-level>
+  // "_dd.appsec.enabled"
+  public static final long DD_APPSEC_ENABLED = 0x010A000A00000000L;
+  static final int DD_DJM_ENABLED_SERIAL = 267;
+  // tagId(serial=267, intercepted=false, group=0, field=11)  <recommended, trace-level>
+  // "_dd.djm.enabled"
+  public static final long DD_DJM_ENABLED = 0x010B000B00000000L;
+  static final int DD_CIVISIBILITY_ENABLED_SERIAL = 268;
+  // tagId(serial=268, intercepted=false, group=0, field=12)  <recommended, trace-level>
+  // "_dd.civisibility.enabled"
+  public static final long DD_CIVISIBILITY_ENABLED = 0x010C000C00000000L;
+  static final int DD_PARENT_ID_SERIAL = 269;
+  // tagId(serial=269, intercepted=false, group=1, field=0)  <required>  "_dd.parent_id"
+  public static final long DD_PARENT_ID = 0x010D040000000000L;
+  static final int COMPONENT_SERIAL = 270;
+  // tagId(serial=270, intercepted=false, group=1, field=1)  <required>  "component"
+  public static final long COMPONENT = 0x010E040100000000L;
+  static final int SPAN_KIND_SERIAL = 271;
+  // tagId(serial=271, intercepted=true, group=1, field=2)  <required>  "span.kind"
+  public static final long SPAN_KIND = 0x810F040200000000L;
+  static final int DD_INTEGRATION_SERIAL = 272;
+  // tagId(serial=272, intercepted=false, group=1, field=3)  <recommended>  "_dd.integration"
+  public static final long DD_INTEGRATION = 0x0110040300000000L;
+  static final int DD_SVC_SRC_SERIAL = 273;
+  // tagId(serial=273, intercepted=false, group=1, field=NO_SLOT)  <optional>  "_dd.svc_src"
+  public static final long DD_SVC_SRC = 0x011107FF00000000L;
+  static final int ERROR_TYPE_SERIAL = 274;
+  // tagId(serial=274, intercepted=false, group=1, field=4)  <recommended>  "error.type"
+  public static final long ERROR_TYPE = 0x0112040400000000L;
+  static final int ERROR_MESSAGE_SERIAL = 275;
+  // tagId(serial=275, intercepted=false, group=1, field=5)  <recommended>  "error.message"
+  public static final long ERROR_MESSAGE = 0x0113040500000000L;
+  static final int ERROR_STACK_SERIAL = 276;
+  // tagId(serial=276, intercepted=false, group=1, field=6)  <recommended>  "error.stack"
+  public static final long ERROR_STACK = 0x0114040600000000L;
+  static final int DB_TYPE_SERIAL = 277;
+  // tagId(serial=277, intercepted=false, group=2, field=0)  <required>  "db.type"
+  public static final long DB_TYPE = 0x0115080000000000L;
+  static final int DB_INSTANCE_SERIAL = 278;
+  // tagId(serial=278, intercepted=false, group=2, field=1)  <recommended>  "db.instance"
+  public static final long DB_INSTANCE = 0x0116080100000000L;
+  static final int DB_OPERATION_SERIAL = 279;
+  // tagId(serial=279, intercepted=false, group=2, field=2)  <recommended>  "db.operation"
+  public static final long DB_OPERATION = 0x0117080200000000L;
+  static final int DB_USER_SERIAL = 280;
+  // tagId(serial=280, intercepted=false, group=2, field=3)  <recommended>  "db.user"
+  public static final long DB_USER = 0x0118080300000000L;
+  static final int DB_POOL_NAME_SERIAL = 281;
+  // tagId(serial=281, intercepted=false, group=2, field=NO_SLOT)  <optional>  "db.pool.name"
+  public static final long DB_POOL_NAME = 0x01190BFF00000000L;
+  static final int DB_STATEMENT_SERIAL = 282;
+  // tagId(serial=282, intercepted=true, group=2, field=4)  <recommended>  "db.statement"
+  public static final long DB_STATEMENT = 0x811A080400000000L;
+  static final int HTTP_METHOD_SERIAL = 283;
+  // tagId(serial=283, intercepted=true, group=3, field=0)  <required>  "http.method"
+  public static final long HTTP_METHOD = 0x811B0C0000000000L;
+  static final int HTTP_STATUS_CODE_SERIAL = 284;
+  // tagId(serial=284, intercepted=false, group=3, field=1)  <conditional>  "http.status_code"
+  public static final long HTTP_STATUS_CODE = 0x011C0C0100000000L;
+  static final int NETWORK_PROTOCOL_VERSION_SERIAL = 285;
+  // tagId(serial=285, intercepted=false, group=3, field=2)  <recommended>
+  // "network.protocol.version"
+  public static final long NETWORK_PROTOCOL_VERSION = 0x011D0C0200000000L;
+  static final int HTTP_URL_SERIAL = 286;
+  // tagId(serial=286, intercepted=true, group=4, field=0)  <required>  "http.url"
+  public static final long HTTP_URL = 0x811E100000000000L;
+  static final int HTTP_RESEND_COUNT_SERIAL = 287;
+  // tagId(serial=287, intercepted=false, group=4, field=1)  <recommended>  "http.resend_count"
+  public static final long HTTP_RESEND_COUNT = 0x011F100100000000L;
+  static final int HTTP_ROUTE_SERIAL = 288;
+  // tagId(serial=288, intercepted=false, group=5, field=0)  <conditional>  "http.route"
+  public static final long HTTP_ROUTE = 0x0120140000000000L;
+  static final int HTTP_HOSTNAME_SERIAL = 289;
+  // tagId(serial=289, intercepted=false, group=5, field=1)  <required>  "http.hostname"
+  public static final long HTTP_HOSTNAME = 0x0121140100000000L;
+  static final int HTTP_USERAGENT_SERIAL = 290;
+  // tagId(serial=290, intercepted=false, group=5, field=2)  <recommended>  "http.useragent"
+  public static final long HTTP_USERAGENT = 0x0122140200000000L;
+  static final int HTTP_QUERY_STRING_SERIAL = 291;
+  // tagId(serial=291, intercepted=false, group=5, field=3)  <recommended>  "http.query.string"
+  public static final long HTTP_QUERY_STRING = 0x0123140300000000L;
+  static final int SERVLET_PATH_SERIAL = 292;
+  // tagId(serial=292, intercepted=false, group=5, field=NO_SLOT)  <optional>  "servlet.path"
+  public static final long SERVLET_PATH = 0x012417FF00000000L;
+  static final int SERVLET_CONTEXT_SERIAL = 293;
+  // tagId(serial=293, intercepted=true, group=5, field=NO_SLOT)  <optional>  "servlet.context"
+  public static final long SERVLET_CONTEXT = 0x812517FF00000000L;
+  static final int VIEW_NAME_SERIAL = 294;
+  // tagId(serial=294, intercepted=false, group=6, field=0)  <recommended>  "view.name"
+  public static final long VIEW_NAME = 0x0126180000000000L;
+  static final int TEST_NAME_SERIAL = 295;
+  // tagId(serial=295, intercepted=false, group=7, field=0)  <recommended>  "test.name"
+  public static final long TEST_NAME = 0x01271C0000000000L;
+  static final int TEST_SUITE_SERIAL = 296;
+  // tagId(serial=296, intercepted=false, group=7, field=1)  <recommended>  "test.suite"
+  public static final long TEST_SUITE = 0x01281C0100000000L;
+  static final int TEST_STATUS_SERIAL = 297;
+  // tagId(serial=297, intercepted=false, group=7, field=2)  <recommended>  "test.status"
+  public static final long TEST_STATUS = 0x01291C0200000000L;
+  static final int TEST_FRAMEWORK_SERIAL = 298;
+  // tagId(serial=298, intercepted=false, group=7, field=3)  <recommended>  "test.framework"
+  public static final long TEST_FRAMEWORK = 0x012A1C0300000000L;
+  static final int PEER_SERVICE_SERIAL = 299;
+  // tagId(serial=299, intercepted=true, group=8, field=0)  <recommended>  "peer.service"
+  public static final long PEER_SERVICE = 0x812B200000000000L;
+  static final int DD_PEER_SERVICE_SOURCE_SERIAL = 300;
+  // tagId(serial=300, intercepted=false, group=8, field=1)  <recommended>
+  // "_dd.peer.service.source"
+  public static final long DD_PEER_SERVICE_SOURCE = 0x012C200100000000L;
+  static final int DD_PEER_SERVICE_REMAPPED_FROM_SERIAL = 301;
+  // tagId(serial=301, intercepted=false, group=8, field=2)  <recommended>
+  // "_dd.peer.service.remapped_from"
+  public static final long DD_PEER_SERVICE_REMAPPED_FROM = 0x012D200200000000L;
+  static final int PEER_HOSTNAME_SERIAL = 302;
+  // tagId(serial=302, intercepted=false, group=8, field=3)  <recommended>  "peer.hostname"
+  public static final long PEER_HOSTNAME = 0x012E200300000000L;
+  static final int PEER_IPV4_SERIAL = 303;
+  // tagId(serial=303, intercepted=false, group=8, field=NO_SLOT)  <optional>  "peer.ipv4"
+  public static final long PEER_IPV4 = 0x012F23FF00000000L;
+  static final int PEER_IPV6_SERIAL = 304;
+  // tagId(serial=304, intercepted=false, group=8, field=NO_SLOT)  <optional>  "peer.ipv6"
+  public static final long PEER_IPV6 = 0x013023FF00000000L;
+  static final int PEER_PORT_SERIAL = 305;
+  // tagId(serial=305, intercepted=false, group=8, field=NO_SLOT)  <optional>  "peer.port"
+  public static final long PEER_PORT = 0x013123FF00000000L;
 
-  // common (process-constant) tags added by InternalTagsAdder to ~every span
-  public static final int BASE_SERVICE_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 1;
-  public static final long BASE_SERVICE_ID =
-      KnownTagCodec.tagId(BASE_SERVICE_SERIAL, 1, DDTags.BASE_SERVICE);
-
-  public static final int VERSION_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 2;
-  public static final long VERSION_ID = KnownTagCodec.tagId(VERSION_SERIAL, 2, Tags.VERSION);
-
-  // build-time-known constant tags merged into defaultSpanTags (see CoreTracer.withTracerTags).
-  // "env" is a base-mixin tag; the *_ENABLED flags are product-mixin tags. Hand-assigned for now.
-  public static final String ENV = "env";
-  public static final int ENV_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 3;
-  public static final long ENV_ID = KnownTagCodec.tagId(ENV_SERIAL, 3, ENV);
-
-  public static final int DJM_ENABLED_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 4;
-  public static final long DJM_ENABLED_ID =
-      KnownTagCodec.tagId(DJM_ENABLED_SERIAL, 4, DDTags.DJM_ENABLED);
-
-  public static final int DSM_ENABLED_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 5;
-  public static final long DSM_ENABLED_ID =
-      KnownTagCodec.tagId(DSM_ENABLED_SERIAL, 5, DDTags.DSM_ENABLED);
-
-  // common tags added by the tag post-processors (RemoteHostnameAdder / IntegrationAdder /
-  // ServiceNameSourceAdder). Not intercepted; stored.
-  public static final int TRACER_HOST_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 6;
-  public static final long TRACER_HOST_ID =
-      KnownTagCodec.tagId(TRACER_HOST_SERIAL, 6, DDTags.TRACER_HOST);
-
-  public static final int INTEGRATION_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 7;
-  public static final long INTEGRATION_ID =
-      KnownTagCodec.tagId(INTEGRATION_SERIAL, 7, DDTags.DD_INTEGRATION);
-
-  public static final int SVC_SRC_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 8;
-  public static final long SVC_SRC_ID = KnownTagCodec.tagId(SVC_SRC_SERIAL, 8, DDTags.DD_SVC_SRC);
-
-  // peer.service tags, read/written by PeerServiceCalculator (post-processor; uses Map put/get that
-  // bypass the interceptor). peer.service is intercepted on the set-path but STORED, so it slots.
-  public static final int PEER_SERVICE_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 9;
-  public static final long PEER_SERVICE_ID =
-      KnownTagCodec.intercepted(KnownTagCodec.tagId(PEER_SERVICE_SERIAL, 9, Tags.PEER_SERVICE));
-
-  public static final int PEER_SERVICE_REMAPPED_FROM_SERIAL =
-      KnownTagCodec.FIRST_STORED_SERIAL + 10;
-  public static final long PEER_SERVICE_REMAPPED_FROM_ID =
-      KnownTagCodec.tagId(PEER_SERVICE_REMAPPED_FROM_SERIAL, 10, DDTags.PEER_SERVICE_REMAPPED_FROM);
-
-  // HTTP tags read by HttpEndpointPostProcessor. http.method/http.url are intercepted-but-stored
-  // (interceptTag side-effects then returns false → stored); http.route is not intercepted. All
-  // stored, so the string set-path slots them via keyOf and the id reads here find them.
-  public static final int HTTP_METHOD_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 11;
-  public static final long HTTP_METHOD_ID =
-      KnownTagCodec.intercepted(KnownTagCodec.tagId(HTTP_METHOD_SERIAL, 11, Tags.HTTP_METHOD));
-
-  public static final int HTTP_ROUTE_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 12;
-  public static final long HTTP_ROUTE_ID =
-      KnownTagCodec.tagId(HTTP_ROUTE_SERIAL, 12, Tags.HTTP_ROUTE);
-
-  public static final int HTTP_URL_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 13;
-  public static final long HTTP_URL_ID =
-      KnownTagCodec.intercepted(KnownTagCodec.tagId(HTTP_URL_SERIAL, 13, Tags.HTTP_URL));
-
-  // peer connection tags set by BaseDecorator.onPeerConnection on ~every client/producer span.
-  // Not intercepted; stored. Slotted (common across client instrumentations).
-  public static final int PEER_HOSTNAME_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 14;
-  public static final long PEER_HOSTNAME_ID =
-      KnownTagCodec.tagId(PEER_HOSTNAME_SERIAL, 14, Tags.PEER_HOSTNAME);
-
-  public static final int PEER_HOST_IPV4_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 15;
-  public static final long PEER_HOST_IPV4_ID =
-      KnownTagCodec.tagId(PEER_HOST_IPV4_SERIAL, 15, Tags.PEER_HOST_IPV4);
-
-  public static final int PEER_HOST_IPV6_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 16;
-  public static final long PEER_HOST_IPV6_ID =
-      KnownTagCodec.tagId(PEER_HOST_IPV6_SERIAL, 16, Tags.PEER_HOST_IPV6);
-
-  public static final int PEER_PORT_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 17;
-  public static final long PEER_PORT_ID = KnownTagCodec.tagId(PEER_PORT_SERIAL, 17, Tags.PEER_PORT);
-
-  // Universal decorator tags — set on ~every span (component/span.kind via Base/Server/Client
-  // decorators, language via ServerDecorator). span.kind is intercepted (setSpanKindOrdinal).
-  public static final int COMPONENT_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 18;
-  public static final long COMPONENT_ID = KnownTagCodec.tagId(COMPONENT_SERIAL, 18, Tags.COMPONENT);
-
-  public static final int SPAN_KIND_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 19;
-  public static final long SPAN_KIND_ID =
-      KnownTagCodec.intercepted(KnownTagCodec.tagId(SPAN_KIND_SERIAL, 19, Tags.SPAN_KIND));
-
-  public static final int LANGUAGE_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 20;
-  public static final long LANGUAGE_ID =
-      KnownTagCodec.tagId(LANGUAGE_SERIAL, 20, DDTags.LANGUAGE_TAG_KEY);
-
-  // JDBC / database-client tags — set on every db span (58% of petclinic spans). Not intercepted
-  // (only db.statement is, and that's handled separately).
-  public static final int DB_TYPE_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 21;
-  public static final long DB_TYPE_ID = KnownTagCodec.tagId(DB_TYPE_SERIAL, 21, Tags.DB_TYPE);
-
-  public static final int DB_INSTANCE_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 22;
-  public static final long DB_INSTANCE_ID =
-      KnownTagCodec.tagId(DB_INSTANCE_SERIAL, 22, Tags.DB_INSTANCE);
-
-  public static final int DB_USER_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 23;
-  public static final long DB_USER_ID = KnownTagCodec.tagId(DB_USER_SERIAL, 23, Tags.DB_USER);
-
-  public static final int DB_OPERATION_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 24;
-  public static final long DB_OPERATION_ID =
-      KnownTagCodec.tagId(DB_OPERATION_SERIAL, 24, Tags.DB_OPERATION);
-
-  public static final int DB_POOL_NAME_SERIAL = KnownTagCodec.FIRST_STORED_SERIAL + 25;
-  public static final long DB_POOL_NAME_ID =
-      KnownTagCodec.tagId(DB_POOL_NAME_SERIAL, 25, Tags.DB_POOL_NAME);
-
-  // Open-addressed name -> id table backing keyOf (data, not a switch): scales flat as the known
-  // set grows, where a generated switch eventually falls off the inline threshold. KEYOF_NAMES and
-  // KEYOF_VALUES are parallel; the table places names by hash and a parallel ids[] by slot.
   private static final String[] KEYOF_NAMES = {
-    Tags.ERROR,
-    DDTags.PARENT_ID,
-    DDTags.BASE_SERVICE,
-    Tags.VERSION,
-    ENV,
-    DDTags.DJM_ENABLED,
-    DDTags.DSM_ENABLED,
-    DDTags.TRACER_HOST,
-    DDTags.DD_INTEGRATION,
-    DDTags.DD_SVC_SRC,
-    Tags.PEER_SERVICE,
-    DDTags.PEER_SERVICE_REMAPPED_FROM,
-    Tags.HTTP_METHOD,
-    Tags.HTTP_ROUTE,
-    Tags.HTTP_URL,
-    Tags.PEER_HOSTNAME,
-    Tags.PEER_HOST_IPV4,
-    Tags.PEER_HOST_IPV6,
-    Tags.PEER_PORT,
-    Tags.COMPONENT,
-    Tags.SPAN_KIND,
-    DDTags.LANGUAGE_TAG_KEY,
-    Tags.DB_TYPE,
-    Tags.DB_INSTANCE,
-    Tags.DB_USER,
-    Tags.DB_OPERATION,
-    Tags.DB_POOL_NAME,
+    "error",
+    "service",
+    "resource.name",
+    "span.type",
+    "origin",
+    "sampling.priority",
+    "manual.keep",
+    "manual.drop",
+    "measured",
+    "analytics.sample_rate",
+    "_dd.base_service",
+    "version",
+    "env",
+    "language",
+    "runtime-id",
+    "_dd.tracer_host",
+    "_dd.git.commit.sha",
+    "_dd.git.repository_url",
+    "_dd.profiling.enabled",
+    "_dd.dsm.enabled",
+    "_dd.appsec.enabled",
+    "_dd.djm.enabled",
+    "_dd.civisibility.enabled",
+    "_dd.parent_id",
+    "component",
+    "span.kind",
+    "_dd.integration",
+    "_dd.svc_src",
+    "error.type",
+    "error.message",
+    "error.stack",
+    "db.type",
+    "db.instance",
+    "db.operation",
+    "db.user",
+    "db.pool.name",
+    "db.statement",
+    "http.method",
+    "http.status_code",
+    "network.protocol.version",
+    "http.url",
+    "http.resend_count",
+    "http.route",
+    "http.hostname",
+    "http.useragent",
+    "http.query.string",
+    "servlet.path",
+    "servlet.context",
+    "view.name",
+    "test.name",
+    "test.suite",
+    "test.status",
+    "test.framework",
+    "peer.service",
+    "_dd.peer.service.source",
+    "_dd.peer.service.remapped_from",
+    "peer.hostname",
+    "peer.ipv4",
+    "peer.ipv6",
+    "peer.port",
   };
-
   private static final long[] KEYOF_VALUES = {
-    ERROR_ID,
-    PARENT_ID,
-    BASE_SERVICE_ID,
-    VERSION_ID,
-    ENV_ID,
-    DJM_ENABLED_ID,
-    DSM_ENABLED_ID,
-    TRACER_HOST_ID,
-    INTEGRATION_ID,
-    SVC_SRC_ID,
-    PEER_SERVICE_ID,
-    PEER_SERVICE_REMAPPED_FROM_ID,
-    HTTP_METHOD_ID,
-    HTTP_ROUTE_ID,
-    HTTP_URL_ID,
-    PEER_HOSTNAME_ID,
-    PEER_HOST_IPV4_ID,
-    PEER_HOST_IPV6_ID,
-    PEER_PORT_ID,
-    COMPONENT_ID,
-    SPAN_KIND_ID,
-    LANGUAGE_ID,
-    DB_TYPE_ID,
-    DB_INSTANCE_ID,
-    DB_USER_ID,
-    DB_OPERATION_ID,
-    DB_POOL_NAME_ID,
+    ERROR,
+    SERVICE,
+    RESOURCE_NAME,
+    SPAN_TYPE,
+    ORIGIN,
+    SAMPLING_PRIORITY,
+    MANUAL_KEEP,
+    MANUAL_DROP,
+    MEASURED,
+    ANALYTICS_SAMPLE_RATE,
+    DD_BASE_SERVICE,
+    VERSION,
+    ENV,
+    LANGUAGE,
+    RUNTIME_ID,
+    DD_TRACER_HOST,
+    DD_GIT_COMMIT_SHA,
+    DD_GIT_REPOSITORY_URL,
+    DD_PROFILING_ENABLED,
+    DD_DSM_ENABLED,
+    DD_APPSEC_ENABLED,
+    DD_DJM_ENABLED,
+    DD_CIVISIBILITY_ENABLED,
+    DD_PARENT_ID,
+    COMPONENT,
+    SPAN_KIND,
+    DD_INTEGRATION,
+    DD_SVC_SRC,
+    ERROR_TYPE,
+    ERROR_MESSAGE,
+    ERROR_STACK,
+    DB_TYPE,
+    DB_INSTANCE,
+    DB_OPERATION,
+    DB_USER,
+    DB_POOL_NAME,
+    DB_STATEMENT,
+    HTTP_METHOD,
+    HTTP_STATUS_CODE,
+    NETWORK_PROTOCOL_VERSION,
+    HTTP_URL,
+    HTTP_RESEND_COUNT,
+    HTTP_ROUTE,
+    HTTP_HOSTNAME,
+    HTTP_USERAGENT,
+    HTTP_QUERY_STRING,
+    SERVLET_PATH,
+    SERVLET_CONTEXT,
+    VIEW_NAME,
+    TEST_NAME,
+    TEST_SUITE,
+    TEST_STATUS,
+    TEST_FRAMEWORK,
+    PEER_SERVICE,
+    DD_PEER_SERVICE_SOURCE,
+    DD_PEER_SERVICE_REMAPPED_FROM,
+    PEER_HOSTNAME,
+    PEER_IPV4,
+    PEER_IPV6,
+    PEER_PORT,
   };
-
-  // Static-final raw arrays placed by StringIndex.EmbeddingSupport: the JIT folds these refs to
-  // constants on
-  // the keyOf hot path (the fastest of StringIndex's three usage modes — no instance dereference).
   private static final int[] KEYOF_HASHES;
   private static final String[] KEYOF_KEYS;
   private static final long[] KEYOF_IDS;
@@ -242,59 +353,125 @@ public final class KnownTags {
         public String nameOf(long tagId) {
           switch (KnownTagCodec.globalSerial(tagId)) {
             case ERROR_SERIAL:
-              return Tags.ERROR;
-            case PARENT_ID_SERIAL:
-              return DDTags.PARENT_ID;
-            case BASE_SERVICE_SERIAL:
-              return DDTags.BASE_SERVICE;
+              return "error";
+            case SERVICE_SERIAL:
+              return "service";
+            case RESOURCE_NAME_SERIAL:
+              return "resource.name";
+            case SPAN_TYPE_SERIAL:
+              return "span.type";
+            case ORIGIN_SERIAL:
+              return "origin";
+            case SAMPLING_PRIORITY_SERIAL:
+              return "sampling.priority";
+            case MANUAL_KEEP_SERIAL:
+              return "manual.keep";
+            case MANUAL_DROP_SERIAL:
+              return "manual.drop";
+            case MEASURED_SERIAL:
+              return "measured";
+            case ANALYTICS_SAMPLE_RATE_SERIAL:
+              return "analytics.sample_rate";
+            case DD_BASE_SERVICE_SERIAL:
+              return "_dd.base_service";
             case VERSION_SERIAL:
-              return Tags.VERSION;
+              return "version";
             case ENV_SERIAL:
-              return ENV;
-            case DJM_ENABLED_SERIAL:
-              return DDTags.DJM_ENABLED;
-            case DSM_ENABLED_SERIAL:
-              return DDTags.DSM_ENABLED;
-            case TRACER_HOST_SERIAL:
-              return DDTags.TRACER_HOST;
-            case INTEGRATION_SERIAL:
-              return DDTags.DD_INTEGRATION;
-            case SVC_SRC_SERIAL:
-              return DDTags.DD_SVC_SRC;
-            case PEER_SERVICE_SERIAL:
-              return Tags.PEER_SERVICE;
-            case PEER_SERVICE_REMAPPED_FROM_SERIAL:
-              return DDTags.PEER_SERVICE_REMAPPED_FROM;
-            case HTTP_METHOD_SERIAL:
-              return Tags.HTTP_METHOD;
-            case HTTP_ROUTE_SERIAL:
-              return Tags.HTTP_ROUTE;
-            case HTTP_URL_SERIAL:
-              return Tags.HTTP_URL;
-            case PEER_HOSTNAME_SERIAL:
-              return Tags.PEER_HOSTNAME;
-            case PEER_HOST_IPV4_SERIAL:
-              return Tags.PEER_HOST_IPV4;
-            case PEER_HOST_IPV6_SERIAL:
-              return Tags.PEER_HOST_IPV6;
-            case PEER_PORT_SERIAL:
-              return Tags.PEER_PORT;
-            case COMPONENT_SERIAL:
-              return Tags.COMPONENT;
-            case SPAN_KIND_SERIAL:
-              return Tags.SPAN_KIND;
+              return "env";
             case LANGUAGE_SERIAL:
-              return DDTags.LANGUAGE_TAG_KEY;
+              return "language";
+            case RUNTIME_ID_SERIAL:
+              return "runtime-id";
+            case DD_TRACER_HOST_SERIAL:
+              return "_dd.tracer_host";
+            case DD_GIT_COMMIT_SHA_SERIAL:
+              return "_dd.git.commit.sha";
+            case DD_GIT_REPOSITORY_URL_SERIAL:
+              return "_dd.git.repository_url";
+            case DD_PROFILING_ENABLED_SERIAL:
+              return "_dd.profiling.enabled";
+            case DD_DSM_ENABLED_SERIAL:
+              return "_dd.dsm.enabled";
+            case DD_APPSEC_ENABLED_SERIAL:
+              return "_dd.appsec.enabled";
+            case DD_DJM_ENABLED_SERIAL:
+              return "_dd.djm.enabled";
+            case DD_CIVISIBILITY_ENABLED_SERIAL:
+              return "_dd.civisibility.enabled";
+            case DD_PARENT_ID_SERIAL:
+              return "_dd.parent_id";
+            case COMPONENT_SERIAL:
+              return "component";
+            case SPAN_KIND_SERIAL:
+              return "span.kind";
+            case DD_INTEGRATION_SERIAL:
+              return "_dd.integration";
+            case DD_SVC_SRC_SERIAL:
+              return "_dd.svc_src";
+            case ERROR_TYPE_SERIAL:
+              return "error.type";
+            case ERROR_MESSAGE_SERIAL:
+              return "error.message";
+            case ERROR_STACK_SERIAL:
+              return "error.stack";
             case DB_TYPE_SERIAL:
-              return Tags.DB_TYPE;
+              return "db.type";
             case DB_INSTANCE_SERIAL:
-              return Tags.DB_INSTANCE;
-            case DB_USER_SERIAL:
-              return Tags.DB_USER;
+              return "db.instance";
             case DB_OPERATION_SERIAL:
-              return Tags.DB_OPERATION;
+              return "db.operation";
+            case DB_USER_SERIAL:
+              return "db.user";
             case DB_POOL_NAME_SERIAL:
-              return Tags.DB_POOL_NAME;
+              return "db.pool.name";
+            case DB_STATEMENT_SERIAL:
+              return "db.statement";
+            case HTTP_METHOD_SERIAL:
+              return "http.method";
+            case HTTP_STATUS_CODE_SERIAL:
+              return "http.status_code";
+            case NETWORK_PROTOCOL_VERSION_SERIAL:
+              return "network.protocol.version";
+            case HTTP_URL_SERIAL:
+              return "http.url";
+            case HTTP_RESEND_COUNT_SERIAL:
+              return "http.resend_count";
+            case HTTP_ROUTE_SERIAL:
+              return "http.route";
+            case HTTP_HOSTNAME_SERIAL:
+              return "http.hostname";
+            case HTTP_USERAGENT_SERIAL:
+              return "http.useragent";
+            case HTTP_QUERY_STRING_SERIAL:
+              return "http.query.string";
+            case SERVLET_PATH_SERIAL:
+              return "servlet.path";
+            case SERVLET_CONTEXT_SERIAL:
+              return "servlet.context";
+            case VIEW_NAME_SERIAL:
+              return "view.name";
+            case TEST_NAME_SERIAL:
+              return "test.name";
+            case TEST_SUITE_SERIAL:
+              return "test.suite";
+            case TEST_STATUS_SERIAL:
+              return "test.status";
+            case TEST_FRAMEWORK_SERIAL:
+              return "test.framework";
+            case PEER_SERVICE_SERIAL:
+              return "peer.service";
+            case DD_PEER_SERVICE_SOURCE_SERIAL:
+              return "_dd.peer.service.source";
+            case DD_PEER_SERVICE_REMAPPED_FROM_SERIAL:
+              return "_dd.peer.service.remapped_from";
+            case PEER_HOSTNAME_SERIAL:
+              return "peer.hostname";
+            case PEER_IPV4_SERIAL:
+              return "peer.ipv4";
+            case PEER_IPV6_SERIAL:
+              return "peer.ipv6";
+            case PEER_PORT_SERIAL:
+              return "peer.port";
             default:
               return null;
           }
@@ -316,12 +493,7 @@ public final class KnownTags {
     KnownTagCodec.register(RESOLVER);
   }
 
-  /**
-   * Forces resolver registration. Merely invoking this static method runs {@code <clinit>} (which
-   * registers {@link #RESOLVER}), so calling it once at tracer init flips the dense store live;
-   * idempotent. Until something references this class the registry stays dormant and {@code keyOf}
-   * returns 0, so tag storage is byte-identical to the bucket-only behavior.
-   */
+  /** Forces resolver registration by triggering <clinit>. Idempotent. */
   public static void init() {}
 
   private KnownTags() {}
