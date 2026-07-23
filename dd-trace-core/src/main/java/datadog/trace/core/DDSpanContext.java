@@ -206,6 +206,8 @@ public class DDSpanContext
    */
   private volatile Map<String, Object> metaStruct = EMPTY_META_STRUCT;
 
+  @Deprecated
+  @VisibleForTesting
   public DDSpanContext(
       final DDTraceId traceId,
       final long spanId,
@@ -256,6 +258,8 @@ public class DDSpanContext
         null);
   }
 
+  @Deprecated
+  @VisibleForTesting
   public DDSpanContext(
       final DDTraceId traceId,
       final long spanId,
@@ -309,6 +313,7 @@ public class DDSpanContext
   }
 
   /** Back-compat ctor (no read-through parent); delegates with a null parent. */
+  @Deprecated
   @VisibleForTesting
   public DDSpanContext(
       final DDTraceId traceId,
