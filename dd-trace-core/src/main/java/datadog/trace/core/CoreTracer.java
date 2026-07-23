@@ -120,7 +120,6 @@ import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -1312,11 +1311,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     boolean published = forceKeep || traceCollector.sample(spanToSample);
     if (published) {
       if (!apmTracingEnabled) {
-        // Stamp the billing marker on the root-most span(s) of each exported chunk so the intake
-        // does not bill APM host usage. Doing this at export rather than only on the local root
-        // span at creation guarantees that chunks flushed without their local root (e.g. a late
-        // child span) still opt out of billing.
-        markChunkRoots(writtenTrace, rootSpan);
+        // Stamp the billing marker on every span of each exported chunk so the intake does not bill
+        // APM host usage.
+        for (int i = 0; i < writtenTrace.size(); i++) {
+          writtenTrace.get(i).setTag(APM_ENABLED, 0);
+        }
       }
       writer.write(writtenTrace);
     } else {
@@ -1328,53 +1327,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
     if (null != rootSpan) {
       onRootSpanFinished(rootSpan, rootSpan.getEndpointTracker());
-    }
-  }
-
-  /**
-   * Stamps the {@code _dd.apm.enabled:0} billing marker on the root-most span(s) of an exported
-   * chunk — those whose parent is not itself part of the chunk. In the common case that is the
-   * trace's local root (the service-entry span, i.e. the one carrying {@code _dd.top_level:1}); in
-   * a chunk flushed without its local root it is the orphaned child that tops the chunk. This
-   * mirrors the old behavior of marking the local root span, generalized so root-less chunks stay
-   * marked, and avoids relying on span ordering (the local root is not necessarily the first span
-   * in finish order for asynchronous frameworks).
-   *
-   * @param chunk the spans being exported together
-   * @param rootSpan the trace's local root as resolved by {@code write()}, or {@code null}
-   */
-  private static void markChunkRoots(final List<DDSpan> chunk, final DDSpan rootSpan) {
-    final int size = chunk.size();
-    if (size == 1) {
-      // Single-span chunk (e.g. an orphaned late child): it is trivially the chunk root.
-      chunk.get(0).setTag(APM_ENABLED, 0);
-      return;
-    }
-    // Fast path: the trace's local root is part of this chunk (the common case). It is the
-    // service-entry span, so mark it directly
-    if (rootSpan != null) {
-      for (int i = 0; i < size; i++) {
-        if (chunk.get(i) == rootSpan) {
-          rootSpan.setTag(APM_ENABLED, 0);
-          return;
-        }
-      }
-    }
-    // Fallback: a root-less chunk (a partial flush, or an orphaned multi-span subtree). Mark every
-    // span whose parent is absent from the chunk.
-    // Cold path: the array allocation and sort below only run when APM tracing is disabled and a
-    // multi-span chunk is exported without its local root, so the extra cost is not on the hot
-    // path.
-    final long[] ids = new long[size];
-    for (int i = 0; i < size; i++) {
-      ids[i] = chunk.get(i).getSpanId();
-    }
-    Arrays.sort(ids);
-    for (int i = 0; i < size; i++) {
-      final DDSpan span = chunk.get(i);
-      if (Arrays.binarySearch(ids, span.getParentId()) < 0) {
-        span.setTag(APM_ENABLED, 0);
-      }
     }
   }
 
