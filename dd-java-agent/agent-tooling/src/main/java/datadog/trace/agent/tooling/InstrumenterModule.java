@@ -113,18 +113,11 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /**
-   * @return the full, load-ordered set of helper classes to inject into the user's classloader: the
-   *     helpers inferred at build time from the advice/helper byte-code, unioned with any {@link
-   *     #helperClassNames() manually-declared} additions. Falls back to {@link #helperClassNames()}
-   *     when no generated {@code $Muzzle} is available.
+   * @return the build-time inferred and manually-declared helper class names captured by {@code
+   *     $Muzzle}, or {@code null} when none are available and fall back to {@link
+   *     #helperClassNames()}.
    */
-  public final String[] getAllHelperClassNames() {
-    String[] generated =
-        loadStaticMuzzleHelperClassNames(getClass().getClassLoader(), getClass().getName());
-    return null != generated ? generated : helperClassNames();
-  }
-
-  static String[] loadStaticMuzzleHelperClassNames(
+  public static String[] loadStaticMuzzleHelperClassNames(
       ClassLoader classLoader, String instrumentationClass) {
     String muzzleClass = instrumentationClass + "$Muzzle";
     try {
@@ -132,7 +125,6 @@ public abstract class InstrumenterModule implements Instrumenter {
       return (String[])
           classLoader.loadClass(muzzleClass).getMethod("helperClassNames").invoke(null);
     } catch (Throwable e) {
-      // no generated helper list: caller falls back to helperClassNames()
       return null;
     }
   }
