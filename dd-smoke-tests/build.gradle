@@ -54,6 +54,13 @@ subprojects { Project subProj ->
 
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
+    // Forward an optional test-agent image override to the test JVM, so TraceBackend.testAgent()
+    // runs locally without internal-registry access, e.g.
+    // -Ddatadog.smoketest(.testagent.image=ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.44.0
+    def testAgentImage = System.getProperty("datadog.smoketest.testagent.image")
+    if (testAgentImage != null) {
+      jvmArgs "-Ddatadog.smoketest.testagent.image=${testAgentImage}"
+    }
     jvmArgumentProviders.add(new CommandLineArgumentProvider() {
         @Override
         Iterable<String> asArguments() {

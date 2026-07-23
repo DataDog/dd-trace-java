@@ -14,6 +14,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.Test;
  */
 class MockAgentBackendTest {
   private static final MediaType MSGPACK = MediaType.parse("application/msgpack");
+  private static final MediaType JSON = MediaType.parse("application/json");
   private static final OkHttpClient CLIENT = new OkHttpClient();
 
   // Recorded /v0.4/traces payload: 1 trace, 2 spans (netty.request -> WebController.hello),
@@ -122,6 +124,32 @@ class MockAgentBackendTest {
   }
 
   @Test
+  void capturesTelemetry() throws IOException {
+    postTelemetry("{\"request_type\":\"app-started\",\"api_version\":\"v2\"}");
+    postTelemetry(
+        "{\"request_type\":\"message-batch\",\"payload\":["
+            + "{\"request_type\":\"app-dependencies-loaded\"},"
+            + "{\"request_type\":\"generate-metrics\"}]}");
+
+    Telemetry telemetry = backend.telemetry();
+    telemetry.waitForCount(2);
+    assertEquals(2, telemetry.getMessages().size(), "raw messages: app-started + message-batch");
+
+    // getFlatMessages expands the batch into its two entries: 1 + 2 = 3.
+    List<Map<String, Object>> flat = telemetry.getFlatMessages();
+    assertEquals(3, flat.size(), "message-batch expanded into its entries");
+    assertTrue(
+        flat.stream().anyMatch(m -> "app-started".equals(m.get("request_type"))),
+        "app-started present");
+    assertTrue(
+        flat.stream().anyMatch(m -> "app-dependencies-loaded".equals(m.get("request_type"))),
+        "batch entry present");
+
+    backend.clear();
+    assertTrue(backend.telemetry().getMessages().isEmpty(), "clear() drops telemetry too");
+  }
+
+  @Test
   void infoAdvertisesTraceEndpoints() throws IOException {
     Request request = new Request.Builder().url(backend.url() + "/info").get().build();
     try (Response response = CLIENT.newCall(request).execute()) {
@@ -142,6 +170,17 @@ class MockAgentBackendTest {
   void exposesBoundPort() {
     assertTrue(backend.port() > 0, "port is bound");
     assertEquals(backend.url().getPort(), backend.port(), "port matches url");
+  }
+
+  private static void postTelemetry(String json) throws IOException {
+    Request request =
+        new Request.Builder()
+            .url(backend.url() + "/telemetry/proxy/api/v2/apmtelemetry")
+            .post(RequestBody.create(JSON, json))
+            .build();
+    try (Response response = CLIENT.newCall(request).execute()) {
+      assertTrue(response.isSuccessful(), "mock agent should accept telemetry: " + response.code());
+    }
   }
 
   private static void putTraces(String path, byte[] payload) throws IOException {

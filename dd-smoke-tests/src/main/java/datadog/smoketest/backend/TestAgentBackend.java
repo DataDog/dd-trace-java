@@ -6,6 +6,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -137,6 +138,11 @@ public final class TestAgentBackend implements TraceBackend {
   }
 
   @Override
+  public Telemetry telemetry() {
+    return new Telemetry(this::fetchTelemetry);
+  }
+
+  @Override
   public void clear() {
     // GET /test/session/start begins (and clears) a session identified by the token. The
     // dd-apm-test-agent session endpoints are GET (verified against v1.44.0: POST returns 405).
@@ -208,6 +214,20 @@ public final class TestAgentBackend implements TraceBackend {
     return TestAgentTraceDecoder.decode(execute(request, "read test-agent session traces"));
   }
 
+  private List<Map<String, Object>> fetchTelemetry() {
+    // Session-scoped, like traces: the tracer's telemetry client now emits the
+    // X-Datadog-Test-Session-Token header (TelemetryClient), so a shared external agent attributes
+    // telemetry to this test's session and it stays isolated per test.
+    HttpUrl url =
+        requireStarted()
+            .newBuilder()
+            .addPathSegments("test/session/apmtelemetry")
+            .addQueryParameter("test_session_token", sessionToken)
+            .build();
+    Request request = new Request.Builder().url(url).get().build();
+    return TelemetryDecoder.decodeMessages(execute(request, "read test-agent session telemetry"));
+  }
+
   private String execute(Request request, String action) {
     try (Response response = client.newCall(request).execute()) {
       if (!response.isSuccessful()) {
@@ -228,7 +248,7 @@ public final class TestAgentBackend implements TraceBackend {
     return url;
   }
 
-  /** Fluent builder for a {@link TestAgentBackend}; obtain via {@code TraceBackend.testAgent()}. */
+  /** Fluent builder; obtain via {@code TraceBackend.testAgentBuilder()}. */
   public static final class Builder {
     private String image = DEFAULT_IMAGE;
     private String externalHost;

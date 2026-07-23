@@ -153,6 +153,31 @@ public final class SmokeApp
     }
   }
 
+  /**
+   * Asserts a non-server (batch) app runs to completion within the timeout and exits with {@code
+   * expectedExitValue}. Fails with an {@link AssertionError} if it doesn't terminate in time or
+   * exits with a different code. Pass a non-zero value for apps expected to fail (e.g. a tool the
+   * agent aborts).
+   */
+  public void assertCompletesWithValue(long timeout, TimeUnit unit, int expectedExitValue) {
+    boolean exited;
+    try {
+      exited = process.waitFor(timeout, unit);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new AssertionError("Interrupted while waiting for app '" + name + "' to complete", e);
+    }
+    if (!exited) {
+      throw new AssertionError(
+          "App '" + name + "' did not complete within " + timeout + " " + unit);
+    }
+    int actual = process.exitValue();
+    if (actual != expectedExitValue) {
+      throw new AssertionError(
+          "App '" + name + "' exited with " + actual + " but expected " + expectedExitValue);
+    }
+  }
+
   // --- Lifecycle (per-class start, per-method reset, teardown) ---
 
   @Override
@@ -173,13 +198,20 @@ public final class SmokeApp
 
   @Override
   public void beforeEach(ExtensionContext context) {
-    if (process == null || !process.isAlive()) {
-      throw new IllegalStateException("App '" + name + "' is not alive at the start of a test");
+    // A server app must stay up across methods, and its per-test traces are produced during the
+    // test body — so assert it's alive and reset the backend between methods. A batch app
+    // (notAServer) may have already run to completion and produced its traces at start-up, so
+    // neither applies: requiring it alive would spuriously fail, and clearing would wipe its
+    // traces.
+    if (server) {
+      if (process == null || !process.isAlive()) {
+        throw new IllegalStateException("App '" + name + "' is not alive at the start of a test");
+      }
+      if (ownsBackend) {
+        backend.clear();
+      }
     }
     outputThreads.clearMessages();
-    if (ownsBackend) {
-      backend.clear();
-    }
   }
 
   @Override

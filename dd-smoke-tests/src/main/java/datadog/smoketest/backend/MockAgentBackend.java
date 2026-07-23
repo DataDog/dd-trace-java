@@ -8,6 +8,7 @@ import datadog.trace.test.agent.decoder.Decoder;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -27,6 +28,7 @@ public final class MockAgentBackend implements TraceBackend {
   private static final String JSON = "application/json";
 
   private final List<DecodedTrace> traces = new CopyOnWriteArrayList<>();
+  private final List<Map<String, Object>> telemetry = new CopyOnWriteArrayList<>();
   private volatile JavaTestHttpServer server;
   private boolean shared;
 
@@ -63,7 +65,8 @@ public final class MockAgentBackend implements TraceBackend {
                       h.prefix("/v1.0/traces", api -> collect(api, TraceFormat.V1));
                       h.prefix("/v0.5/traces", api -> collect(api, TraceFormat.V05));
                       h.prefix("/v0.4/traces", api -> collect(api, TraceFormat.V04));
-                      // Everything else (telemetry, remote-config, ...) just succeeds.
+                      h.prefix("/telemetry/proxy", this::collectTelemetry);
+                      // Everything else (remote-config, ...) just succeeds.
                       h.all(api -> api.getResponse().status(200).send());
                     }));
   }
@@ -76,6 +79,14 @@ public final class MockAgentBackend implements TraceBackend {
     DecodedMessage message = format.decode(api.getRequest().getBody());
     traces.addAll(message.getTraces());
     api.getResponse().status(200).sendWithType(JSON, "{}");
+  }
+
+  private void collectTelemetry(HandlerApi api) {
+    byte[] body = api.getRequest().getBody();
+    if (body != null && body.length > 0) {
+      telemetry.add(TelemetryDecoder.decodeMessage(body));
+    }
+    api.getResponse().status(202).send();
   }
 
   @Override
@@ -98,8 +109,14 @@ public final class MockAgentBackend implements TraceBackend {
   }
 
   @Override
+  public Telemetry telemetry() {
+    return new Telemetry(() -> new ArrayList<>(telemetry));
+  }
+
+  @Override
   public void clear() {
     traces.clear();
+    telemetry.clear();
   }
 
   @Override

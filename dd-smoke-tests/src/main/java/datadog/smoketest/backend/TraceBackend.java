@@ -33,6 +33,9 @@ public interface TraceBackend
   /** Query/assert facade over the traces this backend has received. */
   Traces traces();
 
+  /** Query facade over the app-telemetry messages this backend has received (S9). */
+  Telemetry telemetry();
+
   /** Discards all traces received so far — call between test methods to isolate them. */
   void clear();
 
@@ -82,26 +85,25 @@ public interface TraceBackend
   }
 
   /** Fluent builder for a {@link TestAgentBackend} (dd-apm-test-agent container or external). */
-  static TestAgentBackend.Builder testAgent() {
+  static TestAgentBackend.Builder testAgentBuilder() {
     return TestAgentBackend.builder();
   }
 
   /**
-   * Resolves the environment's default test-agent backend (Q4): reuse the external CI sidecar when
-   * {@code CI_AGENT_HOST} is set, else a Testcontainers-managed container when Docker is available,
-   * else skip loudly (a {@link TestAbortedException} marks the test as aborted rather than failed —
-   * a dev not running smoke tests isn't blocked). The mock backend is never an automatic fallback;
-   * select it explicitly with {@link #mockAgent()}.
-   *
-   * <p>The reusable conditional-execution annotation over this policy is S7.
+   * Resolves the environment's default test-agent backend (Q4): the external CI sidecar when {@code
+   * CI_AGENT_HOST} is set, else a Testcontainers-managed container when Docker is available, else a
+   * loud skip (a {@link TestAbortedException} marks the test aborted rather than failed, so a dev
+   * not running smoke tests isn't blocked). The mock backend is never an automatic fallback —
+   * select it explicitly with {@link #mockAgent()}. The reusable conditional-execution gate over
+   * this policy is {@link EnabledIfDockerAvailable} (S7).
    */
-  static TraceBackend testAgentFromEnv() {
+  static TraceBackend testAgent() {
     String ciAgentHost = System.getenv("CI_AGENT_HOST");
     if (ciAgentHost != null && !ciAgentHost.isEmpty()) {
-      return testAgent().external(ciAgentHost, 8126).build();
+      return testAgentBuilder().external(ciAgentHost, 8126).build();
     }
     if (DockerClientFactory.instance().isDockerAvailable()) {
-      return testAgent().build();
+      return testAgentBuilder().build();
     }
     throw new TestAbortedException(
         "No test-agent backend available: set CI_AGENT_HOST for an external agent, or start Docker "

@@ -13,9 +13,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * blocked (Q4/S7/G7). Apply it to tests that require a Testcontainers-managed test-agent {@code
  * .container()} backend.
  *
- * <p>Tests that select their backend from the environment via {@code
- * TraceBackend.testAgentFromEnv()} don't need this annotation — that resolver already reuses an
- * external CI agent when {@code CI_AGENT_HOST} is set, and aborts loudly otherwise.
+ * <p>Tests that select their backend from the environment via {@code TraceBackend.testAgent()}
+ * don't need this annotation — that resolver already reuses an external CI agent when {@code
+ * CI_AGENT_HOST} is set, and aborts loudly otherwise.
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)

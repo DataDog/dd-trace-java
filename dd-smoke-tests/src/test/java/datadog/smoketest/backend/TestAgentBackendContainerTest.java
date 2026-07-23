@@ -46,7 +46,7 @@ class TestAgentBackendContainerTest {
   @BeforeAll
   static void setUp() throws IOException {
     v04Payload = readResource("/datadog/smoketest/backend/webflux.04.msgpack");
-    backend = TraceBackend.testAgent().image(PUBLIC_IMAGE).build();
+    backend = TraceBackend.testAgentBuilder().image(PUBLIC_IMAGE).build();
     backend.start();
   }
 
@@ -99,7 +99,7 @@ class TestAgentBackendContainerTest {
     // Point an .external() backend at the same running container: exercises the external code path
     // (no container of its own) and, via its own fresh token, that sessions are isolated.
     TestAgentBackend external =
-        TraceBackend.testAgent().external(backend.url().getHost(), backend.port()).build();
+        TraceBackend.testAgentBuilder().external(backend.url().getHost(), backend.port()).build();
     external.start();
     try {
       submitAppTraces(external.url(), external.sessionToken(), v04Payload);
@@ -109,6 +109,38 @@ class TestAgentBackendContainerTest {
     } finally {
       external.close();
     }
+  }
+
+  @Test
+  void capturesTelemetry() throws IOException {
+    // Post a telemetry app-started message; the backend reads it back from /test/apmtelemetry.
+    HttpUrl url =
+        HttpUrl.get(backend.url())
+            .newBuilder()
+            .addPathSegments("telemetry/proxy/api/v2/apmtelemetry")
+            .build();
+    Request request =
+        new Request.Builder()
+            .url(url)
+            .header("DD-Telemetry-API-Version", "v2")
+            .header("DD-Telemetry-Request-Type", "app-started")
+            .header("X-Datadog-Test-Session-Token", backend.sessionToken())
+            .post(
+                RequestBody.create(
+                    MediaType.parse("application/json"),
+                    "{\"request_type\":\"app-started\",\"api_version\":\"v2\","
+                        + "\"runtime_id\":\"r1\",\"seq_id\":1,\"payload\":{}}"))
+            .build();
+    try (Response response = CLIENT.newCall(request).execute()) {
+      assertTrue(response.isSuccessful(), "telemetry accepted: HTTP " + response.code());
+    }
+
+    Telemetry telemetry = backend.telemetry();
+    telemetry.waitForCount(1);
+    assertTrue(
+        telemetry.getFlatMessages().stream()
+            .anyMatch(message -> "app-started".equals(message.get("request_type"))),
+        "app-started telemetry captured");
   }
 
   private static void submitAppTraces(URI agentUrl, String token, byte[] payload)

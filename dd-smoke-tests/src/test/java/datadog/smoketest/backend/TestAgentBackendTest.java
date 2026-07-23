@@ -18,7 +18,7 @@ class TestAgentBackendTest {
 
   @Test
   void sessionTokenIsStableAndNonEmpty() {
-    TestAgentBackend backend = TraceBackend.testAgent().build();
+    TestAgentBackend backend = TraceBackend.testAgentBuilder().build();
     String token = backend.sessionToken();
     assertNotNull(token);
     assertFalse(token.isEmpty());
@@ -29,19 +29,19 @@ class TestAgentBackendTest {
   void sessionTokenCanBeOverridden() {
     assertEquals(
         "fixed-token",
-        TraceBackend.testAgent().sessionToken("fixed-token").build().sessionToken(),
+        TraceBackend.testAgentBuilder().sessionToken("fixed-token").build().sessionToken(),
         "explicit token wins over the auto-generated one");
   }
 
   @Test
   void sharedFlagDefaultsFalseAndIsSettable() {
-    assertFalse(TraceBackend.testAgent().build().isShared(), "not shared by default");
-    assertTrue(TraceBackend.testAgent().shared().build().isShared(), "shared() opts in");
+    assertFalse(TraceBackend.testAgentBuilder().build().isShared(), "not shared by default");
+    assertTrue(TraceBackend.testAgentBuilder().shared().build().isShared(), "shared() opts in");
   }
 
   @Test
   void accessBeforeStartFails() {
-    TestAgentBackend backend = TraceBackend.testAgent().build();
+    TestAgentBackend backend = TraceBackend.testAgentBuilder().build();
     assertThrows(IllegalStateException.class, backend::url, "url() before start()");
     assertThrows(IllegalStateException.class, backend::port, "port() before start()");
   }
@@ -52,7 +52,7 @@ class TestAgentBackendTest {
     // without Docker; HTTP 200 from the failures endpoint means all checks passed.
     try (JavaTestHttpServer agent = stubAgent(200, "")) {
       TestAgentBackend backend =
-          TraceBackend.testAgent()
+          TraceBackend.testAgentBuilder()
               .external(agent.getAddress().getHost(), agent.getAddress().getPort())
               .build();
       backend.start();
@@ -68,7 +68,7 @@ class TestAgentBackendTest {
   void assertNoInvariantFailuresThrowsWhenAgentReportsFailures() {
     try (JavaTestHttpServer agent = stubAgent(400, "span_count check failed")) {
       TestAgentBackend backend =
-          TraceBackend.testAgent()
+          TraceBackend.testAgentBuilder()
               .external(agent.getAddress().getHost(), agent.getAddress().getPort())
               .build();
       backend.start();
