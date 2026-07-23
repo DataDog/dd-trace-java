@@ -71,7 +71,10 @@ public class ProcessSupervisor implements Closeable {
     try {
       while (!stopping) {
         if (currentHealth == FAULTED && ++faults >= MAX_FAULTS) {
-          log.warn("Failed to start process [{}] after {} attempts", imageName, faults);
+          log.warn(
+              "[aas-repro] [{}] Terminal: failed to start after {} faults — supervisor exiting",
+              imageName,
+              faults);
           break;
         }
         try {
@@ -79,14 +82,23 @@ public class ProcessSupervisor implements Closeable {
           if (delayMillis > 0) {
             Thread.sleep(delayMillis);
           }
+          Health prevHealth = currentHealth;
           currentHealth = healthCheck.run(currentHealth);
+          if (currentHealth != prevHealth) {
+            log.info(
+                "[aas-repro] [{}] Health {} → {} (faults={})",
+                imageName,
+                prevHealth,
+                currentHealth,
+                faults);
+          }
           if (currentHealth == READY_TO_START) {
             startProcessAndWait();
           }
         } catch (InterruptedException e) {
           currentHealth = INTERRUPTED;
         } catch (Throwable e) {
-          log.warn("Exception starting process: [{}]", imageName, e);
+          log.warn("[aas-repro] [{}] Exception in supervisor loop", imageName, e);
           currentHealth = FAULTED;
         }
         scheduleNextHealthCheck();
@@ -109,18 +121,29 @@ public class ProcessSupervisor implements Closeable {
 
   private void startProcessAndWait() throws Exception {
     if (currentProcess == null) {
-      log.debug("Starting process: [{}]", imageName);
+      log.info(
+          "[aas-repro] [{}] Spawning — jvm_pid={}",
+          imageName,
+          ProcessHandle.current().pid());
       try (TraceScope ignored = AgentTracer.get().muteTracing()) {
         currentProcess = processBuilder.start();
       }
       currentHealth = HEALTHY;
       faults = 0;
+      log.info(
+          "[aas-repro] [{}] Started — child_pid={} faults_reset_to_0",
+          imageName,
+          currentProcess.pid());
     }
 
     // Block until the process exits
     int code = currentProcess.waitFor();
-    log.debug("Process [{}] has exited with code {}", imageName, code);
     currentHealth = code == 0 ? INTERRUPTED : FAULTED;
+    log.info(
+        "[aas-repro] [{}] Exited — code={} → health={}",
+        imageName,
+        code,
+        currentHealth);
 
     // Process is dead, no longer needs to be tracked
     currentProcess = null;
@@ -128,7 +151,7 @@ public class ProcessSupervisor implements Closeable {
 
   private void stopProcess() {
     if (currentProcess != null) {
-      log.debug("Stopping process: [{}]", imageName);
+      log.info("[aas-repro] [{}] Stopping (supervisor closing)", imageName);
       currentProcess.destroy();
       if (currentProcess.isAlive()) {
         currentProcess.destroyForcibly();
