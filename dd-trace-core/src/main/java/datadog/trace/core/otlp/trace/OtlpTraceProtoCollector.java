@@ -1,6 +1,6 @@
 package datadog.trace.core.otlp.trace;
 
-import static datadog.trace.core.otlp.common.OtlpResourceProto.RESOURCE_MESSAGE;
+import static datadog.trace.core.otlp.common.OtlpResourceProto.TRACE_RESOURCE_MESSAGE;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordScopedSpansMessage;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordSpanLinkMessage;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordSpanMessage;
@@ -138,7 +138,7 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     }
 
     // prepend the canned resource chunk
-    payloadBytes += protobuf.recordMessage(RESOURCE_MESSAGE);
+    payloadBytes += protobuf.recordMessage(TRACE_RESOURCE_MESSAGE);
 
     // finally prepend the total length of all collected chunks
     protobuf.recordMessage(buf, 1, payloadBytes);

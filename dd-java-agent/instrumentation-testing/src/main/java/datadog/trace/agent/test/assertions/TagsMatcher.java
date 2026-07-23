@@ -1,8 +1,5 @@
 package datadog.trace.agent.test.assertions;
 
-import static datadog.trace.agent.test.assertions.Matchers.any;
-import static datadog.trace.agent.test.assertions.Matchers.is;
-import static datadog.trace.agent.test.assertions.Matchers.isNonNull;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.api.DDTags.DD_INTEGRATION;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
@@ -24,7 +21,13 @@ import static datadog.trace.api.DDTags.THREAD_NAME;
 import static datadog.trace.api.DDTags.TRACER_HOST;
 import static datadog.trace.common.sampling.RateByServiceTraceSampler.SAMPLING_AGENT_RATE;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
+import static datadog.trace.core.DDSpanContext.SAMPLE_RATE_KEY;
+import static datadog.trace.test.junit.utils.assertions.Matchers.any;
+import static datadog.trace.test.junit.utils.assertions.Matchers.is;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isNonNull;
 
+import datadog.trace.test.junit.utils.assertions.Matcher;
+import datadog.trace.test.junit.utils.assertions.Matchers;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,7 +46,7 @@ public final class TagsMatcher {
     tagMatchers.put(LANGUAGE_TAG_KEY, any());
     tagMatchers.put(SAMPLING_AGENT_RATE, any());
     tagMatchers.put(SAMPLING_PRIORITY_KEY.toString(), any());
-    tagMatchers.put("_sample_rate", any());
+    tagMatchers.put(SAMPLE_RATE_KEY, any());
     tagMatchers.put(PID_TAG, any());
     tagMatchers.put(SCHEMA_VERSION_TAG_KEY, any());
     tagMatchers.put(PROFILING_ENABLED, any());

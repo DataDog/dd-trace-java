@@ -63,6 +63,16 @@ For IntelliJ IDEA, we suggest the following settings and plugin.
 * To run test in a specific JDK use the `testJvm` property, e.g. `-PtestJvm=11`
 * Install the [Google Java Format](https://plugins.jetbrains.com/plugin/8527-google-java-format) plugin
 
+### Static imports
+
+Prefer static imports over class-qualified calls for call-style helpers — JUnit `Assertions`, Mockito (`mock`,
+`when`, `verify`, `anyString`, `RETURNS_DEFAULTS`, ...), Hamcrest/AssertJ matchers, internal test DSLs, and similar.
+
+Same goes for production code: `Collections.emptyList()` is fine, but if you find yourself repeatedly writing
+`Foo.bar(...)` where `Foo` adds no information at the call site, static-import `bar`.
+
+Wildcard imports (`import x.*` or `import static x.*`) are disallowed — see the IntelliJ IDEA settings above.
+
 ### Troubleshooting
 
 * Gradle fails with a "too many open files" error.
@@ -118,7 +128,7 @@ Both pull requests and issues should be labelled with at least a component or an
 
 Labels are used to not only categorize but also alter the continuous integration behavior:
 
-* `tag: no release note` to exclude a pull request from the next release changelog. Use it when changes are not relevant to the users like:
+* `tag: no release notes` to exclude a pull request from the next release changelog. Use it when changes are not relevant to the users like:
   * Internal features changes
   * Refactoring pull requests
   * CI and build tools improvements

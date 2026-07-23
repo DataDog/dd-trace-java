@@ -286,8 +286,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       if (!(throwable instanceof WakeupException)) {
         span.addThrowable(throwable);
       }
-      span.finish();
       scope.close();
+      span.finish();
     }
   }
 }

@@ -113,7 +113,7 @@ public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
       return null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
         @Advice.Enter final ContextScope scope,
         @Advice.Local("request") Request req,
@@ -144,9 +144,11 @@ public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
         // finish will be handled by the async listener
         // Use the full context from the scope for beforeFinish
         DECORATE.beforeFinish(scope.context());
+        scope.close();
         span.finish();
+      } else {
+        scope.close();
       }
-      scope.close();
     }
   }
 }

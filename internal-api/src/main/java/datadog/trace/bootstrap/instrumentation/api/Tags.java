@@ -90,6 +90,8 @@ public class Tags {
   public static final String TEST_ANDROID_CODENAME = "test.android.codename";
   public static final String TEST_ANDROID_ROBOLECTRIC_VERSION = "test.android.robolectric.version";
 
+  public static final String TEST_IS_ANDROID = "test.is_android";
+
   public static final String TEST_SESSION_ID = "test_session_id";
   public static final String TEST_MODULE_ID = "test_module_id";
   public static final String TEST_SUITE_ID = "test_suite_id";
@@ -180,6 +182,9 @@ public class Tags {
 
   /** AI Guard force tracer to keep the trace */
   public static final String AI_GUARD_KEEP = "ai_guard.keep";
+
+  /** Marks a span as originating from an AI Guard evaluation */
+  public static final String AI_GUARD_EVENT = "ai_guard.event";
 
   public static final String PROPAGATED_TRACE_SOURCE = "_dd.p.ts";
   public static final String PROPAGATED_DEBUG = "_dd.p.debug";

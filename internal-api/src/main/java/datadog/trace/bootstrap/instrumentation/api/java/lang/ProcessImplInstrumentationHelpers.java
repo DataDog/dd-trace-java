@@ -2,10 +2,11 @@ package datadog.trace.bootstrap.instrumentation.api.java.lang;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -13,7 +14,6 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.ActiveSubsystems;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.lang.invoke.MethodHandle;
@@ -172,7 +172,7 @@ public class ProcessImplInstrumentationHelpers {
         }
       }
 
-      final AgentScope.Continuation continuation = captureActiveSpan();
+      final ContextContinuation continuation = captureActiveSpan();
       future.whenComplete(
           (process, thr) -> {
             if (thr != null) {
@@ -183,7 +183,7 @@ public class ProcessImplInstrumentationHelpers {
             finishSpan(continuation, span);
           });
     } else if (EXECUTOR != null) {
-      final AgentScope.Continuation continuation = captureActiveSpan();
+      final ContextContinuation continuation = captureActiveSpan();
       EXECUTOR.execute(
           () -> {
             try {
@@ -309,12 +309,12 @@ public class ProcessImplInstrumentationHelpers {
   }
 
   private static void finishSpan(
-      final AgentScope.Continuation parentContinuation, final AgentSpan span) {
-    if (parentContinuation == noopContinuation()) {
+      final ContextContinuation parentContinuation, final AgentSpan span) {
+    if (parentContinuation.context() == Context.root()) {
       span.finish();
       return;
     }
-    try (final ContextScope scope = parentContinuation.activate()) {
+    try (final ContextScope scope = parentContinuation.resume()) {
       span.finish();
     }
   }

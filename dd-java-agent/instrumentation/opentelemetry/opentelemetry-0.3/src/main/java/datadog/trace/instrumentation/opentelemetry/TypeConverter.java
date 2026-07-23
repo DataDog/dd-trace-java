@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.opentelemetry;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext;
 
@@ -16,12 +15,10 @@ import io.opentelemetry.trace.SpanContext;
 public class TypeConverter {
   private final Span noopSpanWrapper;
   private final SpanContext noopContextWrapper;
-  private final OtelScope noopScopeWrapper;
 
   public TypeConverter() {
     noopSpanWrapper = new OtelSpan(noopSpan(), this);
     noopContextWrapper = new OtelSpanContext(noopSpanContext());
-    noopScopeWrapper = new OtelScope(noopScope());
   }
 
   public AgentSpan toAgentSpan(final Span span) {
@@ -54,9 +51,6 @@ public class TypeConverter {
   public Scope toScope(final AgentScope scope) {
     if (scope == null) {
       return null;
-    }
-    if (scope == noopScope()) {
-      return noopScopeWrapper;
     }
     return new OtelScope(scope);
   }
