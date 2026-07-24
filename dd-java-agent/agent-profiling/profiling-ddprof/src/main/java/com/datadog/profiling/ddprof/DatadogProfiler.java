@@ -524,7 +524,11 @@ public final class DatadogProfiler {
     } catch (Throwable e) {
       log.debug("Failed to set trace context", e);
     }
-    reapplyAppContext();
+    // Skip operationOffset/resourceOffset: setTraceContext just wrote the span-derived values
+    // there natively. If profiling.context.attributes also names _dd.trace.operation/resource,
+    // that offset is app-owned too (see isAppOffset); reapplying it here would immediately
+    // overwrite the fresh span-derived value with a stale app-recorded one.
+    reapplyAppContext(operationOffset, resourceOffset);
   }
 
   /** Per-deactivation clear; reapplies app-managed attributes afterwards (see setTraceContext). */
@@ -555,6 +559,10 @@ public final class DatadogProfiler {
           recordAppContextValue(offset, value);
           return true;
         }
+        // Rejected (e.g. >255-byte UTF-8, dictionary full): the native call already cleared this
+        // slot. Restore it from the still-current Java snapshot so a rejected write doesn't blank
+        // the attribute until the next span boundary.
+        reapplyAppContext();
       } catch (Throwable e) {
         log.debug("Failed to set context value", e);
       }
@@ -615,6 +623,16 @@ public final class DatadogProfiler {
    * (java-profiler PROF-15361); per-slot is adequate for the typical small app-attribute count.
    */
   public void reapplyAppContext() {
+    reapplyAppContext(-1, -1);
+  }
+
+  /**
+   * Same as {@link #reapplyAppContext()}, but leaves {@code skipOffset1}/{@code skipOffset2} alone.
+   * Used by {@link #setTraceContext} to avoid clobbering the operation/resource offsets it just
+   * wrote natively, in the edge case where those offsets are also app-owned (see {@link
+   * #isAppOffset}). Pass -1 for either argument to skip nothing.
+   */
+  private void reapplyAppContext(int skipOffset1, int skipOffset2) {
     if (!hasAppContext) {
       return;
     }
@@ -625,6 +643,9 @@ public final class DatadogProfiler {
     try {
       int remaining = snapshot.nonZeroCount();
       for (int i = 0; i < isAppOffset.length && remaining > 0; i++) {
+        if (i == skipOffset1 || i == skipOffset2) {
+          continue;
+        }
         String s = snapshot.stringAt(i);
         if (s != null) {
           profiler.setContextValue(i, s);
