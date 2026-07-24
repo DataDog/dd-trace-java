@@ -1,3 +1,7 @@
+import static org.gradle.api.JavaVersion.VERSION_25
+import static org.gradle.api.JavaVersion.VERSION_26
+import static org.gradle.api.JavaVersion.VERSION_27
+
 plugins {
   id 'idea'
 }
@@ -5,6 +9,11 @@ plugins {
 apply from: "$rootDir/gradle/java.gradle"
 // Use slf4j-simple as default; logback has a high chance of getting stuck in a deadlock on CI.
 apply from: "$rootDir/gradle/slf4j-simple.gradle"
+
+testJvmConstraints {
+  // The new StructuredTaskScope API (JEP 505) only exists from Java 25
+  minJavaVersion = VERSION_25
+}
 
 muzzle {
   pass {
@@ -17,3 +26,65 @@ idea {
     jdkName = '25'
   }
 }
+
+/*
+ * Declare previewTest, a test suite that requires the Javac/Java --enable-preview feature flag.
+ * --enable-preview class files are version-locked to the compiling JDK, so the suite is compiled with
+ * the SAME JDK that runs it (the selected test JVM, clamped to >= 25).
+ */
+addTestSuite('previewTest')
+
+def previewTestJvm = tasks.named("previewTest", Test)
+  .flatMap { it.javaLauncher }
+  .map { Math.max(25, it.metadata.languageVersion.asInt()) }
+  .orElse(25)
+
+tasks.named("compilePreviewTestJava", JavaCompile) {
+  javaCompiler = javaToolchains.compilerFor {
+    languageVersion = previewTestJvm.map {
+      JavaLanguageVersion.of(it)
+    }
+  }
+  options.release = previewTestJvm
+  options.compilerArgs.add("--enable-preview")
+}
+tasks.named("previewTest", Test) {
+  jvmArgs = ['--enable-preview']
+}
+
+/*
+ * Per-JDK suites test:
+ * Each suite has its own source set, is compiled for one JDK,
+ * and is pinned to it (preview class files are version-locked).
+ */
+def previewCheckSuites = ['previewTest']
+def addJoinerLeakSuite = { int jdk, JavaVersion version ->
+  String suite = "previewTestJdk$jdk"
+  addTestSuite(suite)
+  tasks.named("compile${suite.capitalize()}Java", JavaCompile) {
+    configureCompiler(it, jdk)
+    options.compilerArgs.add("--enable-preview")
+  }
+  tasks.named(suite, Test) {
+    jvmArgs = ['--enable-preview']
+    testJvmConstraints {
+      minJavaVersion = version
+      maxJavaVersion = version
+    }
+  }
+  previewCheckSuites << suite
+}
+
+addJoinerLeakSuite(25, VERSION_25)
+if (System.getenv('JAVA_26_HOME') != null) {
+  addJoinerLeakSuite(26, VERSION_26)
+}
+if (System.getenv('JAVA_27_HOME') != null) {
+  addJoinerLeakSuite(27, VERSION_27)
+}
+
+// Require the preview test suites to run as part of module check
+tasks.named("check") {
+  dependsOn previewCheckSuites
+}
+

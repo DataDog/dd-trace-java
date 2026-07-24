@@ -1,3 +1,6 @@
+import static org.gradle.api.JavaVersion.VERSION_1_8
+import static org.gradle.api.JavaVersion.VERSION_24
+
 plugins {
   id 'idea'
 }
@@ -31,13 +34,13 @@ tasks.named("previewTest").configure {
   testJvmConstraints {
     // Structured concurrency is a preview feature in Java 21. Methods (e.g. ShutdownOnFailure) used in this instrumentation test are no longer available in Java 25, so we set the max version to 24.
     // See: https://download.java.net/java/early_access/loom/docs/api/java.base/java/util/concurrent/StructuredTaskScope.html
-    maxJavaVersion = JavaVersion.VERSION_24
+    maxJavaVersion = VERSION_24
   }
 }
 
 // Set all compile tasks to use JDK21 but let instrumentation code targets 1.8 compatibility
 tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(it, 21, JavaVersion.VERSION_1_8)
+  configureCompiler(it, 21, VERSION_1_8)
 }
 
 // Configure groovy test file compilation

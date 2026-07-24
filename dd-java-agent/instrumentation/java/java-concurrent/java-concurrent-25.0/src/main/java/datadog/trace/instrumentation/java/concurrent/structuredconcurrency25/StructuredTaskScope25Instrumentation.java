@@ -1,66 +1,60 @@
 package datadog.trace.instrumentation.java.concurrent.structuredconcurrency25;
 
-import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.InstrumentationContext.get;
-import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.StructuredTaskScopeHelper;
+import java.util.concurrent.Callable;
 import net.bytebuddy.asm.Advice.OnMethodExit;
+import net.bytebuddy.asm.Advice.Return;
 import net.bytebuddy.asm.Advice.This;
 
-// WARNING:
-// This instrumentation is tested using smoke tests as instrumented tests cannot run using Java 25.
-// Instrumented tests rely on Spock / Groovy which cannot run using Java 25 due to byte-code
-// compatibility. Check
-// dd-java-agent/instrumentation/java/java-concurrent/java-concurrent-25.0 for this
-// instrumentation test suite.
-
 /**
- * This instrumentation captures the active span scope at StructuredTaskScope task creation
- * (SubtaskImpl). The scope is then activate and close through the {@link Runnable} instrumentation
- * (SubtaskImpl implementing {@link Runnable}).
+ * This instrumentation cancels the continuation captured by {@link
+ * StructuredTaskScope25TaskInstrumentation} for a subtask forked into an already-canceled scope.
+ *
+ * <p>In that case, the subtask's thread is never started, so {@code SubtaskImpl.run()} never runs,
+ * and the {@link Runnable} instrumentation never activates/closes the captured continuation. It
+ * leads to continuation leak. This instrumentation verifies the subtask was canceled and releases
+ * the related continuation.
  */
 @SuppressWarnings("unused")
-@AutoService(InstrumenterModule.class)
-public class StructuredTaskScope25Instrumentation extends InstrumenterModule.ContextTracking
+public class StructuredTaskScope25Instrumentation
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public StructuredTaskScope25Instrumentation() {
-    super("java_concurrent", "structured-task-scope", "structured-task-scope-25");
-  }
 
   @Override
   public String instrumentedType() {
-    return "java.util.concurrent.StructuredTaskScopeImpl$SubtaskImpl";
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return isJavaVersionAtLeast(25) && super.isEnabled();
+    return "java.util.concurrent.StructuredTaskScopeImpl";
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$ConstructorAdvice");
+    transformer.applyAdvice(
+        named("fork").and(takesArgument(0, Callable.class)), getClass().getName() + "$ForkAdvice");
   }
 
-  public static final class ConstructorAdvice {
+  public static final class ForkAdvice {
     /**
-     * Captures task scope to be restored at the start of VirtualThread.run() method by {@link
-     * Runnable} instrumentation.
+     * Cancels the task scope continuation captured at task creation when the subtask is forked into
+     * an already-canceled scope: its thread never starts, so the {@link Runnable} instrumentation
+     * never releases the continuation.
      *
-     * @param subTaskImpl The StructuredTaskScopeImpl.SubtaskImpl object (the advice are compile
-     *     against Java 8 so the type from JDK25 can't be referred, using {@link Object} instead
+     * @param scope The StructuredTaskScopeImpl object (the advice is compiled against Java 8 so the
+     *     type from JDK25 can't be referred, using {@link Object} instead).
+     * @param subtask The StructuredTaskScopeImpl.SubtaskImpl object (the advice is compiled against
+     *     Java 8 so the type from JDK25 can't be referred, using {@link Object} instead).
      */
     @OnMethodExit(suppress = Throwable.class)
-    public static void captureScope(@This Object subTaskImpl) {
-      ContextStore<Runnable, State> contextStore = get(Runnable.class, State.class);
-      capture(contextStore, (Runnable) subTaskImpl);
+    public static void afterFork(@This Object scope, @Return Object subtask) {
+      if (subtask instanceof Runnable && StructuredTaskScopeHelper.isCancelled(scope)) {
+        ContextStore<Runnable, State> contextStore = get(Runnable.class, State.class);
+        cancelTask(contextStore, (Runnable) subtask);
+      }
     }
   }
 }
