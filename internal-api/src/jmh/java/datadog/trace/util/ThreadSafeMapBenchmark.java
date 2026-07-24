@@ -9,6 +9,8 @@ import java.util.function.Supplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
@@ -21,6 +23,8 @@ import org.openjdk.jmh.annotations.Warmup;
  *   <li>ConcurrentMap - only when there are simultaneously readers & writers in multiple threads
  *   <li>HashMap via volatile - preferred for background thread updates
  *   <li>synchronized HashMap - when simultaneous readers & writers are uncommon (e.g. tags)
+ *   <li>FlatHashtable - lock-free reads (no lock, no volatile; benign-race) of a fixed, once-built
+ *       keyed set; a find-or-create table, not a general concurrent Map (no arbitrary put/remove)
  * </ul>
  *
  * <p>
@@ -65,6 +69,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @Threads(8)
+@State(Scope.Thread)
 public class ThreadSafeMapBenchmark {
   static final String[] INSERTION_KEYS = {
     "foo", "bar", "baz", "quux", "foobar", "foobaz", "key0", "key1", "key2", "key3"
@@ -84,16 +89,20 @@ public class ThreadSafeMapBenchmark {
     return supplier.get();
   }
 
-  static int sharedLookupIndex = 0;
+  // Per-thread (@State(Scope.Thread)) so cycling the lookup key doesn't contend a shared counter.
+  // The maps below stay static/shared (the point — concurrent reads of one map); only the index is
+  // per-thread. A shared counter's cache-line ping-pong would otherwise floor the fastest reads
+  // (e.g. FlatHashtable's lock-free probe), hiding exactly the differences this benchmark compares.
+  int lookupIndex = 0;
 
-  static String nextLookupKey() {
+  String nextLookupKey() {
     return nextLookupKey(EQUAL_KEYS);
   }
 
-  static String nextLookupKey(String[] keys) {
-    int localIndex = ++sharedLookupIndex;
+  String nextLookupKey(String[] keys) {
+    int localIndex = ++lookupIndex;
     if (localIndex >= keys.length) {
-      sharedLookupIndex = localIndex = 0;
+      lookupIndex = localIndex = 0;
     }
     return keys[localIndex];
   }
@@ -102,6 +111,99 @@ public class ThreadSafeMapBenchmark {
     for (int i = 0; i < INSERTION_KEYS.length; ++i) {
       map.put(INSERTION_KEYS[i], i);
     }
+  }
+
+  // FlatHashtable's contribution here is the lock-free concurrent read: get() is a plain array
+  // probe
+  // with no lock and no volatile — safe under concurrency because the table is published once (a
+  // final static field) and each entry's identity fields are final. (Fixture mirrors the one in
+  // SingleThreadedMapBenchmark; the benchmarks are self-contained.)
+  static final class IntEntry {
+    final String key;
+    final int value;
+
+    IntEntry(String key, int value) {
+      this.key = key;
+      this.value = value;
+    }
+  }
+
+  static final class IntEntryKeyStrategy extends FlatHashtable.EntryStrategy<IntEntry, String> {
+    static final IntEntryKeyStrategy INSTANCE = new IntEntryKeyStrategy();
+
+    private IntEntryKeyStrategy() {}
+
+    @Override
+    public boolean matches(IntEntry entry, String key) {
+      return key.equals(entry.key);
+    }
+
+    @Override
+    public long hashOf(IntEntry entry) {
+      return entry.key.hashCode(); // consistent with the default hashKey
+    }
+  }
+
+  // --- CHA-defeat decoys ---------------------------------------------------------------------
+  // These are never used to build a table; they exist only to be *loaded* (see CHA_DEFEAT), so
+  // MatchingStrategy.matches and .hashKey each have >=2 concrete implementors. That denies C2 the
+  // single-implementor CHA devirtualization of matchStrat.hashKey/matches inside get(). If the
+  // strategy calls still inline afterward, the win is structural (the constant INSTANCE's exact
+  // type propagated through the inlined get), not a CHA bet that would deopt on a second subclass.
+
+  // Second matches impl -> MatchingStrategy.matches is polymorphic.
+  static final class DecoyMatchStrategy extends FlatHashtable.EntryStrategy<IntEntry, String> {
+    static final DecoyMatchStrategy INSTANCE = new DecoyMatchStrategy();
+
+    private DecoyMatchStrategy() {}
+
+    @Override
+    public boolean matches(IntEntry entry, String key) {
+      return key == entry.key; // deliberately different body from IntEntryKeyStrategy
+    }
+
+    @Override
+    public long hashOf(IntEntry entry) {
+      return entry.key.hashCode();
+    }
+  }
+
+  // Overrides hashKey -> MatchingStrategy.hashKey is polymorphic too (default + this override).
+  static final class DecoyHashKeyStrategy extends FlatHashtable.EntryStrategy<IntEntry, String> {
+    static final DecoyHashKeyStrategy INSTANCE = new DecoyHashKeyStrategy();
+
+    private DecoyHashKeyStrategy() {}
+
+    @Override
+    public long hashKey(String key) {
+      return key.length();
+    }
+
+    @Override
+    public boolean matches(IntEntry entry, String key) {
+      return key.equals(entry.key);
+    }
+
+    @Override
+    public long hashOf(IntEntry entry) {
+      return entry.key.length();
+    }
+  }
+
+  // Referenced only so these three concrete implementors load at benchmark class-init, before the
+  // hot method compiles — see the CHA-defeat note above.
+  @SuppressWarnings("unused")
+  static final Object[] CHA_DEFEAT = {
+    IntEntryKeyStrategy.INSTANCE, DecoyMatchStrategy.INSTANCE, DecoyHashKeyStrategy.INSTANCE
+  };
+
+  static IntEntry[] _create_flat() {
+    // Sized to the key count (FlatHashtable is fixed-capacity, no resize): load factor <= 0.5.
+    IntEntry[] table = FlatHashtable.create(IntEntry.class, INSERTION_KEYS.length);
+    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
+      FlatHashtable.insert(table, new IntEntry(INSERTION_KEYS[i], i), IntEntryKeyStrategy.INSTANCE);
+    }
+    return table;
   }
 
   static final HashMap<String, Integer> _create_hashMap() {
@@ -176,5 +278,18 @@ public class ThreadSafeMapBenchmark {
   @Benchmark
   public Integer get_concSkipListMap() {
     return CONC_SKIP_LIST_MAP.get(nextLookupKey());
+  }
+
+  @Benchmark
+  public IntEntry[] create_flatHashtable() {
+    return _create_flat();
+  }
+
+  static final IntEntry[] FLAT_TABLE = _create_flat();
+
+  @Benchmark
+  public IntEntry get_flatHashtable() {
+    // Lock-free concurrent read of the shared, once-published table.
+    return FlatHashtable.get(FLAT_TABLE, nextLookupKey(), IntEntryKeyStrategy.INSTANCE);
   }
 }
