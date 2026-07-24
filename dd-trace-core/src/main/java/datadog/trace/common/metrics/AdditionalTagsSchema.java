@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
@@ -124,9 +125,11 @@ final class AdditionalTagsSchema {
     // the approved Cardinality Limits RFC.
     if (totalCollapsed > 0) {
       healthMetrics.onTagCardinalityBlocked(COLLAPSED_STATSD_TAG, totalCollapsed);
+      StatsMetrics.getInstance().onCollapsedSpans(COLLAPSED_STATSD_TAG[0], totalCollapsed);
     }
     if (totalOversized > 0) {
       healthMetrics.onTagCardinalityBlocked(OVERSIZED_STATSD_TAG, totalOversized);
+      StatsMetrics.getInstance().onCollapsedSpans(OVERSIZED_STATSD_TAG[0], totalOversized);
     }
   }
 }
