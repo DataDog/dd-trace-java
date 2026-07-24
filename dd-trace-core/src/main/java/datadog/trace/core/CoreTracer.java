@@ -1043,6 +1043,50 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return computedNanoTime + counterDrift;
   }
 
+  /**
+   * AWS Lambda SnapStart checkpoints the JVM at snapshot-creation time and later restores it,
+   * potentially much later (a restored snapshot can go {@code Inactive} and be restored again after
+   * 14 days of no invocations). {@link System#nanoTime()} does not account for the frozen duration
+   * across that restore, so {@link #startTimeNano}/{@link #startNanoTicks} - captured once at
+   * construction time, i.e. at snapshot-creation time - go stale, and the periodic self-correction
+   * in {@link #getTimeWithNanoTicks} may never trigger to fix it: that correction is gated on
+   * {@code nanoTicks - lastSyncTicks >= clockSyncPeriod} (monotonic ticks elapsed), which a
+   * short-lived restore-then-invoke sequence can easily never reach even though wall-clock time has
+   * moved on by hours or days. Left uncorrected, every span timestamp computed via {@link
+   * #getTimeWithNanoTicks} stays anchored near the original snapshot-creation instant instead of
+   * the real restore/invocation time.
+   *
+   * <p>Rather than reset {@link #startTimeNano}/{@link #startNanoTicks} themselves - which would
+   * require making those fields {@code volatile}, since they're read on every {@link
+   * #getTimeWithNanoTicks} call from arbitrary tracing threads - this folds the entire observed
+   * drift into {@link #counterDrift} directly, the same field (already {@code volatile}) that the
+   * periodic self-correction in {@link #getTimeWithNanoTicks} uses, just without that correction's
+   * 1ms drift threshold, since here the drift can be hours or days.
+   *
+   * <p>Rather than reacting to the restore event itself (which would need a JVM-level
+   * checkpoint/restore hook), this is called from {@link #notifyLambdaStart} - already invoked once
+   * per Lambda invocation, before any span for that invocation is created. Any real restore is
+   * always followed by an invocation, so resyncing there catches it with no extra dependency. Doing
+   * this on every invocation (not just ones following a restore) is deliberate: outside SnapStart,
+   * {@link System#nanoTime()} correctly tracks elapsed time across a warm container's normal
+   * freeze/thaw between invocations (same continuously-executing process, unlike SnapStart's
+   * restore-into-a-new-context), so this is a correct no-op there - just a couple of field reads
+   * and a subtraction, negligible next to the HTTP round-trip {@link #notifyLambdaStart} already
+   * makes.
+   *
+   * <p>Gated on {@link Config#isLambdaSnapStartClockResyncEnabled()} as an escape hatch.
+   */
+  @VisibleForTesting
+  void maybeResyncClockForLambdaInvocation() {
+    if (!initialConfig.isLambdaSnapStartClockResyncEnabled()) {
+      return;
+    }
+    long nanoTicks = timeSource.getNanoTicks();
+    long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
+    counterDrift = timeSource.getCurrentTimeNanos() - computedNanoTime;
+    lastSyncTicks = nanoTicks;
+  }
+
   @Override
   public CoreSpanBuilder buildSpan(
       final String instrumentationName, final CharSequence operationName) {
@@ -1250,6 +1294,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
+    maybeResyncClockForLambdaInvocation();
+
     // Get context from AppSec
     AgentSpanContext appSecContext = LambdaAppSecHandler.processRequestStart(event);
 

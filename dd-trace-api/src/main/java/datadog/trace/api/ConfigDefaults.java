@@ -95,6 +95,8 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
 
+  static final boolean DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED = false;
+
   static final TracePropagationBehaviorExtract DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT =
       TracePropagationBehaviorExtract.CONTINUE;
   static final boolean DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST = false;
