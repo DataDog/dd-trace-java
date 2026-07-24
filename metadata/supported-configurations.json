@@ -6905,6 +6905,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_JAVAX_WEBSOCKET_ENABLED", "DD_INTEGRATION_JAVAX_WEBSOCKET_ENABLED"]
       }
     ],
+    "DD_TRACE_JAVA_WEBSOCKET_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_JAVA_WEBSOCKET_ENABLED", "DD_INTEGRATION_JAVA_WEBSOCKET_ENABLED"]
+      }
+    ],
     "DD_TRACE_JAVA_COMPLETABLEFUTURE_ENABLED": [
       {
         "version": "A",
