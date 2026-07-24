@@ -48,7 +48,6 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
-      packageName + ".AvroSchemaExtractor",
       packageName + ".ProducerContextPropagationAdvice",
     };
   }

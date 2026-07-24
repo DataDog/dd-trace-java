@@ -2,8 +2,6 @@ package datadog.trace.api.datastreams;
 
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Schema;
-import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
 import java.util.Map;
 
 public interface AgentDataStreamsMonitoring
@@ -51,19 +49,6 @@ public interface AgentDataStreamsMonitoring
   PathwayContext newPathwayContext();
 
   void add(StatsPoint statsPoint);
-
-  /**
-   * trySampleSchema is used to determine if we should extract schema from the message or not.
-   *
-   * @param topic Kafka topic
-   * @return the weight of the schema, indicating how many messages have been sent to the topic
-   *     without having been sampled.
-   */
-  int trySampleSchema(String topic);
-
-  boolean canSampleSchema(String topic);
-
-  Schema getSchema(String schemaName, SchemaIterator iterator);
 
   void setProduceCheckpoint(String type, String target);
 

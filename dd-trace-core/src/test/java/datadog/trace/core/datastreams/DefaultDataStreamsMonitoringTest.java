@@ -5,7 +5,6 @@ import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBri
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.isInboxEmpty;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -142,42 +141,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
 
     // cleanup
     dataStreams.close();
-  }
-
-  @Test
-  void schemaSamplerSamplesWithCorrectWeights() {
-    DDAgentFeaturesDiscovery features = stubFeatures(true);
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(1000000000000L);
-    DatastreamsPayloadWriter payloadWriter = mock(DatastreamsPayloadWriter.class);
-    Sink sink = mock(Sink.class);
-    TraceConfig traceConfig = stubTraceConfig(true);
-
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
-
-    // the first received schema is sampled, with a weight of one.
-    assertTrue(dataStreams.canSampleSchema("schema1"));
-    assertEquals(1, dataStreams.trySampleSchema("schema1"));
-    // the sampling is done by topic, so a schema on a different topic will also be sampled at once,
-    // also with a weight of one.
-    assertTrue(dataStreams.canSampleSchema("schema2"));
-    assertEquals(1, dataStreams.trySampleSchema("schema2"));
-    // no time has passed from the last sampling, so the same schema is not sampled again (two times
-    // in a row).
-    assertFalse(dataStreams.canSampleSchema("schema1"));
-    assertFalse(dataStreams.canSampleSchema("schema1"));
-    timeSource.advance((long) (30 * 1e9));
-    // now, 30 seconds have passed, so the schema is sampled again, with a weight of 3 (so it
-    // includes the two times the schema was not sampled).
-    assertTrue(dataStreams.canSampleSchema("schema1"));
-    assertEquals(3, dataStreams.trySampleSchema("schema1"));
   }
 
   @Test
