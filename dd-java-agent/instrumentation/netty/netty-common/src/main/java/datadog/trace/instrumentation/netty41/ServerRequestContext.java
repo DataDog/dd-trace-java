@@ -129,11 +129,16 @@ public final class ServerRequestContext {
 
   /** Closes all pending request contexts on channel close. */
   public static void closeAll(final AttributeMap attributes) {
+    close(removeAll(attributes));
+  }
+
+  /** Removes all pending request contexts. */
+  public static Deque<ServerRequestContext> removeAll(final AttributeMap attributes) {
     // The context mirror must not outlive the authoritative request queue.
     attributes.attr(CONTEXT_ATTRIBUTE_KEY).remove();
     attributes.attr(BLOCKED_REQUEST_ATTRIBUTE_KEY).remove();
     attributes.attr(BLOCKED_RESPONSE_ATTRIBUTE_KEY).remove();
-    close(attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).getAndRemove());
+    return attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).getAndRemove();
   }
 
   private static final int PIPELINING_LIMIT = 1000;
@@ -215,6 +220,7 @@ public final class ServerRequestContext {
   private final Context tracingContext;
   private final String acceptHeader;
   private boolean responseStarted;
+  private boolean beforeFinishCalled;
   private boolean responseAnalyzed;
   private Object deferredBlockResponse;
 
@@ -232,6 +238,14 @@ public final class ServerRequestContext {
 
   public void markResponseStarted() {
     responseStarted = true;
+  }
+
+  public boolean isBeforeFinishCalled() {
+    return beforeFinishCalled;
+  }
+
+  public void markBeforeFinishCalled() {
+    beforeFinishCalled = true;
   }
 
   public boolean isResponseAnalyzed() {
