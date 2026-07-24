@@ -16,7 +16,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
@@ -29,6 +32,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.common.writer.LoggingWriter;
+import datadog.trace.core.CoreSpan;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
@@ -626,6 +630,30 @@ class OtlpTraceProtoTest {
         expectedTraceIds.size(),
         parsedTraceIds.size(),
         "payload must contain spans with all three distinct trace IDs");
+  }
+
+  @Test
+  void poisonedSpanResetsCollectorForNextTrace() {
+    // mid-trace exception (e.g. from a malformed span) must not leave partial state behind
+    DDSpan realSpan = buildSpans(asList(span("first.span", "op.first", "web"))).get(0);
+
+    CoreSpan<?> poison = mock(CoreSpan.class);
+    when(poison.samplingPriority()).thenReturn(1);
+    when(poison.getTraceId()).thenThrow(new RuntimeException("boom"));
+
+    List<CoreSpan<?>> poisonedTrace = new ArrayList<>();
+    poisonedTrace.add(poison);
+    poisonedTrace.add(realSpan);
+
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    assertThrows(RuntimeException.class, () -> collector.addTrace(poisonedTrace));
+
+    // a normal trace collected afterwards must not see any leftover state from the poisoned one
+    List<DDSpan> normalTrace = buildSpans(asList(span("normal.op", "op.normal", "web")));
+    collector.addTrace(normalTrace);
+    OtlpPayload payload = collector.collectTraces();
+
+    assertTrue(payload.getContentLength() > 0, "normal trace after reset must still export");
   }
 
   @Test

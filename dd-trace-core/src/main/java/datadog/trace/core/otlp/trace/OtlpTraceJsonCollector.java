@@ -2,6 +2,7 @@ package datadog.trace.core.otlp.trace;
 
 import static datadog.trace.core.otlp.common.OtlpCommonJson.writeScopeAndSchema;
 import static datadog.trace.core.otlp.common.OtlpPayload.JSON_CONTENT_TYPE;
+import static datadog.trace.core.otlp.common.OtlpProtoBuffer.MAX_CAPACITY_BYTES;
 import static datadog.trace.core.otlp.common.OtlpResourceJson.TRACE_RESOURCE_FRAGMENT;
 import static datadog.trace.core.otlp.trace.OtlpTraceJson.writeSpan;
 
@@ -54,9 +55,20 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
       payloadStarted = true;
     }
 
-    for (CoreSpan<?> span : spans) {
-      visitSpan(span);
+    try {
+      for (CoreSpan<?> span : spans) {
+        visitSpan(span);
+      }
+    } catch (Throwable e) {
+      // reset the buffer for subsequent traces
+      stop();
+      throw e;
     }
+  }
+
+  @Override
+  public int sizeInBytes() {
+    return writer == null ? 0 : writer.sizeInBytes();
   }
 
   /**
@@ -178,5 +190,10 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     // reset temporary elements for next span
     currentSpan = null;
     currentSpanLinks = Collections.emptyList();
+
+    if (writer.sizeInBytes() > MAX_CAPACITY_BYTES) {
+      throw new IllegalStateException(
+          "OTLP payload exceeds maximum buffer size of " + MAX_CAPACITY_BYTES + " bytes");
+    }
   }
 }
