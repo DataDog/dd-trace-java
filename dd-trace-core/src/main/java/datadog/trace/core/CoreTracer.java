@@ -246,6 +246,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final boolean SPAN_BUILDER_REUSE_ENABLED =
       Config.get().isSpanBuilderReuseEnabled();
 
+  // Instance field (not static final) so it honors per-tracer config, e.g. an embedded tracer
+  // built via CoreTracerBuilder#withProperties/#config rather than the global Config.get()
+  // singleton. See the tag-ordering block in buildSpanContext.
+  private final boolean builderTagsPrecedence;
+
   // Cache used by buildSpan - instance so it can capture the CoreTracer
   private final ReusableSingleSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
       SPAN_BUILDER_REUSE_ENABLED ? new ReusableSingleSpanBuilderThreadLocalCache(this) : null;
@@ -829,6 +834,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
 
     propagationTagsFactory = PropagationTags.factory(config);
+
+    builderTagsPrecedence = config.isTraceBuilderTagsPrecedenceEnabled();
 
     // Register context propagators
     HttpCodec.Extractor baseExtractor =
@@ -2210,13 +2217,27 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               tracer.injectLinksAsTags);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
-      // the builder. This is the order that the tags were added previously, but maybe the `tags`
-      // set in the builder should come last, so that they override other tags.
+      // the builder. The `mergedTracerTags` are always applied first (the precedence floor:
+      // everything overrides them). The remaining contributors are applied last-wins.
+      //
+      // Historically the builder/`tagLedger` tags were applied 2nd, so `coreTags` (inbound header
+      // tags), `rootSpanTags` and `contextualTags` would silently OVERRIDE explicit per-span tags
+      // set via the builder -- the long-standing "maybe the builder tags should come last" wart.
+      // With `builderTagsPrecedence` enabled, the ledger is applied LAST so explicit builder tags
+      // win, which is the logical precedence. Gated + default-off so it can be rolled out
+      // gradually.
       context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
-      context.setAllTags(tagLedger);
-      context.setAllTags(coreTags, coreTagsNeedsIntercept);
-      context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
-      context.setAllTags(contextualTags);
+      if (tracer.builderTagsPrecedence) {
+        context.setAllTags(coreTags, coreTagsNeedsIntercept);
+        context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
+        context.setAllTags(contextualTags);
+        context.setAllTags(tagLedger);
+      } else {
+        context.setAllTags(tagLedger);
+        context.setAllTags(coreTags, coreTagsNeedsIntercept);
+        context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
+        context.setAllTags(contextualTags);
+      }
       // remove version here since will be done later on the postProcessor.
       // it will allow knowing if it will be set manually or not
       context.removeTag(Tags.VERSION);

@@ -679,6 +679,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
+import static datadog.trace.api.config.TracerConfig.TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_CLOUD_PAYLOAD_TAGGING_MAX_DEPTH;
@@ -892,6 +893,7 @@ public class Config {
   private final boolean integrationSynapseLegacyOperationName;
   private final String writerType;
   private final boolean injectBaggageAsTagsEnabled;
+  private final boolean traceBuilderTagsPrecedenceEnabled;
   private final boolean injectLinksAsTagsEnabled;
   private final boolean agentConfiguredUsingDefault;
   private final String agentUrl;
@@ -1522,6 +1524,8 @@ public class Config {
     injectBaggageAsTagsEnabled =
         configProvider.getBoolean(WRITER_BAGGAGE_INJECT, isDatadogTraceWriter);
     injectLinksAsTagsEnabled = configProvider.getBoolean(WRITER_LINKS_INJECT, isDatadogTraceWriter);
+    traceBuilderTagsPrecedenceEnabled =
+        configProvider.getBoolean(TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED, false);
     String lambdaInitType = getEnv("AWS_LAMBDA_INITIALIZATION_TYPE");
     String lambdaMicrovmImageArn = ConfigHelper.env("AWS_LAMBDA_MICROVM_IMAGE_ARN");
     if ((lambdaInitType != null && lambdaInitType.equals("snap-start"))
@@ -3490,6 +3494,10 @@ public class Config {
 
   public boolean isInjectBaggageAsTagsEnabled() {
     return injectBaggageAsTagsEnabled;
+  }
+
+  public boolean isTraceBuilderTagsPrecedenceEnabled() {
+    return traceBuilderTagsPrecedenceEnabled;
   }
 
   public boolean isInjectLinksAsTagsEnabled() {
@@ -6698,6 +6706,8 @@ public class Config {
         + traceFlushIntervalSeconds
         + ", injectBaggageAsTagsEnabled="
         + injectBaggageAsTagsEnabled
+        + ", traceBuilderTagsPrecedenceEnabled="
+        + traceBuilderTagsPrecedenceEnabled
         + ", injectLinksAsTagsEnabled="
         + injectLinksAsTagsEnabled
         + ", logsInjectionEnabled="

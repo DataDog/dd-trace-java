@@ -4977,6 +4977,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_BUILDER_TAGS_PRECEDENCE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_CAFFEINE_ENABLED": [
       {
         "version": "A",
