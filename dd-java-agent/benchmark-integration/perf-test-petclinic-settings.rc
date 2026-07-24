@@ -1,0 +1,33 @@
+# Settings for running the perf test against Spring PetClinic.
+# Sourced by run-perf-test.sh (copy to perf-test-settings.rc, or point PERF_SETTINGS at it).
+
+# wrk settings
+test_warmup_seconds=60     # reach C2 steady state before measuring
+test_time_seconds=120      # stable throughput + ample JFR samples per endpoint
+test_num_connections=8
+test_num_threads=4
+
+# Quiet gap between version runs, so thermals/GC/OS settle and one run's tail does not
+# bleed into the next JVM. Only honored by run-perf-test.sh when set (>0).
+test_cooldown_seconds=60
+
+# Repeats per endpoint (one warmup, then N back-to-back measurement windows, no server restart).
+# Default 1 (single sample, same as before this knob existed). Override with PERF_REPEATS, or
+# PETCLINIC_REPEATS when driving via run-petclinic.sh. The CSV then reports throughput mean + stdev
+# per endpoint instead of a single noisy sample.
+test_repeats=1
+
+# Server heap, fixed Xms=Xmx (default 256m). A single run's regime. For a heap SWEEP use
+# run-petclinic.sh with PETCLINIC_HEAPS="64m 256m 512m"; PERF_HEAP overrides this per run.
+server_heap=256m
+
+# PetClinic endpoints -- a read-heavy mix spanning view rendering, a form, a DB-backed query,
+# a detail page, and the error path. PetClinic's default profile is in-memory H2 (no external DB).
+declare -A endpoints
+endpoints['home']='http://localhost:8080/'
+endpoints['vets']='http://localhost:8080/vets.html'
+endpoints['find-owners']='http://localhost:8080/owners/find'
+endpoints['owners-query']='http://localhost:8080/owners?lastName='
+endpoints['owner-detail']='http://localhost:8080/owners/1'
+endpoints['error']='http://localhost:8080/oups'
+test_order=( 'home' 'vets' 'find-owners' 'owners-query' 'owner-detail' 'error' )
