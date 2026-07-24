@@ -94,9 +94,10 @@ public class DebuggerTransformer implements ClassFileTransformer {
           SpanDecorationProbe.class,
           SpanProbe.class);
   private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
-  private static final boolean JAVA_AT_LEAST_19 = JavaVirtualMachine.isJavaVersionAtLeast(19);
   private static final boolean JAVA_AT_LEAST_25_0_4 =
       JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4);
+  private static final boolean JAVA_AT_LEAST_17_0_20 =
+      JavaVirtualMachine.isJavaVersionAtLeast(17, 0, 20);
   public static Path DUMP_PATH = Paths.get(SystemProperties.get(JAVA_IO_TMPDIR), "debugger");
   private static final String[] SKIPPED_PACKAGES =
       new String[] {
@@ -311,8 +312,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
    */
   private boolean checkMethodParameters(
       ClassNode classNode, List<ProbeDefinition> definitions, String fullyQualifiedClassName) {
-    if (JAVA_AT_LEAST_19) {
-      // bug is fixed since JDK19, no need to perform check
+    if (JAVA_AT_LEAST_17_0_20) {
+      // bug is fixed since JDK 19 and 17.0.20, no need to perform check
       return true;
     }
     boolean isRecord = ASMHelper.isRecord(classNode);
