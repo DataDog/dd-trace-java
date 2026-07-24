@@ -249,9 +249,12 @@ public interface AgentSpan
               }
             });
 
-    final CharSequence integrationName = prototype.integrationName();
-    if (integrationName != null) {
-      spanContext().setIntegrationName(integrationName);
+    // Never-clobber: only stamp the integration name when the context reports none.
+    if (spanContext().getIntegrationName() == null) {
+      final CharSequence integrationName = prototype.integrationName();
+      if (integrationName != null) {
+        spanContext().setIntegrationName(integrationName);
+      }
     }
   }
 
