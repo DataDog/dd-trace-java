@@ -72,6 +72,7 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".AttributeKeys",
+      packageName + ".ServerRequestContext",
       // client helpers
       packageName + ".client.NettyHttpClientDecorator",
       packageName + ".client.NettyResponseInjectAdapter",
@@ -84,6 +85,7 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
       packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
       packageName + ".server.BlockingResponseHandler",
       packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
+      packageName + ".server.BlockingResponseHandler$PendingBlockResponse",
       packageName + ".server.HttpServerContextTrackingHandler",
       packageName + ".server.HttpServerRequestTracingHandler",
       packageName + ".server.HttpServerResponseTracingHandler",
