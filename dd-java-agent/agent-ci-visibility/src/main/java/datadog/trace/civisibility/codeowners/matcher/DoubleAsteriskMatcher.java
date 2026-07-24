@@ -7,13 +7,13 @@ public class DoubleAsteriskMatcher implements Matcher {
   private DoubleAsteriskMatcher() {}
 
   @Override
-  public int consume(char[] line, int offset) {
-    if (offset == line.length) {
+  public int consume(String line, int offset) {
+    if (offset == line.length()) {
       return -1;
     }
 
     int position = offset;
-    while (position < line.length && line[position++] != '/') {}
+    while (position < line.length() && line.charAt(position++) != '/') {}
     return position - offset;
   }
 

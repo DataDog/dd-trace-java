@@ -4,11 +4,9 @@ import datadog.trace.civisibility.codeowners.matcher.CharacterMatcher;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,9 +18,9 @@ import javax.annotation.Nullable;
 
 public class CodeownersImpl implements Codeowners {
 
-  private final Collection<Section> sections;
+  private final List<Section> sections;
 
-  private CodeownersImpl(Collection<Section> sections) {
+  private CodeownersImpl(List<Section> sections) {
     this.sections = sections;
   }
 
@@ -32,17 +30,25 @@ public class CodeownersImpl implements Codeowners {
    */
   @Override
   public @Nullable Collection<String> getOwners(@Nonnull String path) {
-    char[] pathCharacters = path.toCharArray();
+    if (sections.size() == 1) {
+      Section section = sections.get(0);
+      if (section.isExcluded(path)) {
+        return new ArrayList<>();
+      }
+      Entry entry = section.findMatchingEntry(path);
+      return entry != null ? new ArrayList<>(entry.getOwners()) : null;
+    }
+
     Set<String> owners = null;
     for (Section section : sections) {
-      if (section.isExcluded(pathCharacters)) {
+      if (section.isExcluded(path)) {
         if (owners == null) {
           owners = new LinkedHashSet<>();
         }
         continue;
       }
 
-      Entry entry = section.findMatchingEntry(pathCharacters);
+      Entry entry = section.findMatchingEntry(path);
       if (entry != null) {
         if (owners == null) {
           owners = new LinkedHashSet<>();
@@ -89,37 +95,5 @@ public class CodeownersImpl implements Codeowners {
     sections.add(defaultSection);
     sections.addAll(namedSections.values());
     return new CodeownersImpl(sections);
-  }
-
-  private static final class Section {
-
-    private final Deque<Entry> entries = new ArrayDeque<>();
-    private final Collection<Entry> exclusions = new ArrayList<>();
-
-    private void add(Entry entry) {
-      if (entry.isExclusion()) {
-        exclusions.add(entry);
-      } else {
-        entries.offerFirst(entry);
-      }
-    }
-
-    private boolean isExcluded(char[] path) {
-      for (Entry exclusion : exclusions) {
-        if (exclusion.getMatcher().consume(path, 0) >= 0) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    private @Nullable Entry findMatchingEntry(char[] path) {
-      for (Entry entry : entries) {
-        if (entry.getMatcher().consume(path, 0) >= 0) {
-          return entry;
-        }
-      }
-      return null;
-    }
   }
 }
