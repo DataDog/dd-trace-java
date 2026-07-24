@@ -5,6 +5,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Field;
 import java.util.Map;
 import org.apache.spark.launcher.SparkAppHandle;
@@ -30,6 +31,10 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
   private static long submittedTimeMs = 0L;
   private static long runningTimeMs = 0L;
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Listener class not exposed to application code; locking on its Class is safe")
   public static synchronized void createLauncherSpan(Object launcher) {
     if (launcherSpan != null) {
       return;
@@ -70,6 +75,10 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
     }
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Listener class not exposed to application code; locking on its Class is safe")
   public static synchronized void finishSpan(boolean isError, String errorMessage) {
     AgentSpan span = launcherSpan;
     if (span == null) {
@@ -85,6 +94,10 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
     launcherSpan = null;
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Listener class not exposed to application code; locking on its Class is safe")
   public static synchronized void finishSpanWithThrowable(Throwable throwable) {
     AgentSpan span = launcherSpan;
     if (span == null) {

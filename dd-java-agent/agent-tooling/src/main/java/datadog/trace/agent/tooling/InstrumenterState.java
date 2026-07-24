@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import datadog.instrument.utils.ClassLoaderValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLongArray;
 import org.slf4j.Logger;
@@ -121,6 +122,15 @@ public final class InstrumenterState {
   }
 
   /** Records that the instrumentation is blocked by default. */
+  // Claude: SpotBugs USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION: should be reviewed by team.
+  // The lock object is the non-final 'defaultState' array, which is reassigned in
+  // resetDefaultState(); a reset racing with this method could leave threads synchronizing on
+  // different array instances, and reads in currentState/updateState are unsynchronized. The field
+  // is private so app code can't lock it, but the reassignable-lock smell warrants a look.
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION",
+      justification =
+          "Locks the reassignable 'defaultState' array; private to the agent but lock-object identity can change on reset, so flagged for team review.")
   public static void blockInstrumentation(int instrumentationId) {
     int bitIndex = instrumentationId << 1;
     int wordIndex = bitIndex >> ADDRESS_BITS_PER_WORD;

@@ -24,6 +24,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.context.TraceScope;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -244,12 +245,18 @@ public class AgentTracer {
     return provider != NOOP_TRACER;
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Agent-internal static holder; class lock guards private static provider")
   public static synchronized void registerIfAbsent(final TracerAPI tracer) {
     if (tracer != null && tracer != NOOP_TRACER) {
       provider = tracer;
     }
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Agent-internal static holder; class lock guards private static provider")
   public static synchronized void forceRegister(TracerAPI tracer) {
     if (tracer == null) {
       throw new IllegalArgumentException("tracer must not be null, use NOOP_TRACER instead");

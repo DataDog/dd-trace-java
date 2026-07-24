@@ -537,6 +537,9 @@ public class Agent {
     }
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Agent-internal class; Class lock does not escape to application code")
   public static synchronized Class<?> installAgentCLI() throws Exception {
     if (null == AGENT_CLASSLOADER) {
       // in CLI mode we skip installation of instrumentation because we're not running as an agent

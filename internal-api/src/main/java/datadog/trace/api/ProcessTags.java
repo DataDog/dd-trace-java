@@ -6,6 +6,7 @@ import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.TraceUtils;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -191,6 +192,13 @@ public class ProcessTags {
       return false;
     }
 
+    // Claude: SpotBugs USO_UNSAFE_OBJECT_SYNCHRONIZATION: should be reviewed by team.
+    // The lock object is the package-private static-final TAGS collection, which is visible to
+    // other code in the package and is itself concurrently mutated (put/clear elsewhere also
+    // synchronize on it). A dedicated private lock object would be cleaner and clearly correct.
+    @SuppressFBWarnings(
+        value = "USO_UNSAFE_OBJECT_SYNCHRONIZATION",
+        justification = "Lock is a package-private static collection; consider a dedicated lock")
     static void calculate() {
       if (serializedForm != null || TAGS.isEmpty()) {
         return;
