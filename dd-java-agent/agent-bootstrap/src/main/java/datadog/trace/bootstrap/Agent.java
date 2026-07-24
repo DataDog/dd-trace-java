@@ -135,8 +135,7 @@ public class Agent {
     AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false),
     APP_LOGS_COLLECTION(GeneralConfig.APP_LOGS_COLLECTION_ENABLED, false),
     LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
-    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false),
-    FEATURE_FLAGGING(FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED, true);
+    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false);
 
     private final String configKey;
     private final String systemProp;
