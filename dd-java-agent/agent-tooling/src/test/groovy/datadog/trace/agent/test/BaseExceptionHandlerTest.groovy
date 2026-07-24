@@ -8,7 +8,6 @@ import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers
 import datadog.trace.bootstrap.ExceptionLogger
 import datadog.trace.bootstrap.InstrumentationErrors
-import datadog.trace.bootstrap.blocking.BlockingExceptionHandler
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
@@ -128,18 +127,7 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
       SomeClass.getProtectionDomain().getCodeSource().getLocation(),
       GroovyObject.getProtectionDomain().getCodeSource().getLocation(),
     ]
-    URLClassLoader loader = new URLClassLoader(classpath, null, null) {
-        @Override
-        Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-          if (name == BlockingExceptionHandler.name) {
-            return BlockingExceptionHandler
-          }
-          if (name == BlockingException.name) {
-            return BlockingException
-          }
-          return super.loadClass(name, resolve)
-        }
-      }
+    URLClassLoader loader = new NonDelegatingExceptionClassLoader(classpath)
 
     when:
     loader.loadClass(InstrumentationErrors.getName())
