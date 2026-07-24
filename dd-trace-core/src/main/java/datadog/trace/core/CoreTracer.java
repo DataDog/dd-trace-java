@@ -2035,7 +2035,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           requestContextDataIast = null;
           ciVisibilityContextData = null;
         }
-        propagationTags = tracer.propagationTagsFactory.empty();
+        // Local children share the parent's PropagationTags (trace-level state; reads route to the
+        // root) instead of allocating an unused empty() per span.
+        propagationTags = ddsc.getPropagationTags();
       } else {
         long endToEndStartTime;
 

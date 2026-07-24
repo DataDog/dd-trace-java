@@ -1238,14 +1238,22 @@ public class DDSpanContext
 
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
+      // Trace-level propagation tags (_dd.p.*, including the _dd.p.dm decision-maker) belong only
+      // on the local root. Local children now share the root's PropagationTags instance, so gate
+      // the emit on span position; otherwise the trace-level tags would be duplicated onto every
+      // child span.
+      final boolean isLocalRoot = getRootSpanContextIfDifferent() == null;
       if (injectBaggageAsTags) {
         baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
         if (w3cBaggage != null) {
           injectW3CBaggageTags(baggageItemsWithPropagationTags);
         }
-        propagationTags.fillTagMap(baggageItemsWithPropagationTags);
+        if (isLocalRoot) {
+          propagationTags.fillTagMap(baggageItemsWithPropagationTags);
+        }
       } else {
-        baggageItemsWithPropagationTags = propagationTags.createTagMap();
+        baggageItemsWithPropagationTags =
+            isLocalRoot ? propagationTags.createTagMap() : new HashMap<>();
       }
 
       consumer.accept(
