@@ -24,6 +24,13 @@ public interface LLMObsSpan {
   void annotateIO(String inputData, String outputData);
 
   /**
+   * Annotate the span with the definitions of tools available to the LLM.
+   *
+   * @param toolDefinitions The tool definitions supplied to the LLM
+   */
+  void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions);
+
+  /**
    * Annotate the span with metadata
    *
    * @param metadata A map of JSON serializable key-value pairs that contains metadata information

@@ -72,6 +72,58 @@ class LLMObsTest {
   }
 
   @Test
+  void testToolDefinitionFromName() {
+    LLMObs.ToolDefinition toolDefinition = LLMObs.ToolDefinition.from("get_weather");
+
+    assertEquals("get_weather", toolDefinition.getName());
+    assertNull(toolDefinition.getDescription());
+    assertNull(toolDefinition.getSchema());
+    assertNull(toolDefinition.getVersion());
+  }
+
+  @Test
+  void testToolDefinitionFromNameAndDescription() {
+    LLMObs.ToolDefinition toolDefinition =
+        LLMObs.ToolDefinition.from("get_weather", "Get the weather by location");
+
+    assertEquals("get_weather", toolDefinition.getName());
+    assertEquals("Get the weather by location", toolDefinition.getDescription());
+    assertNull(toolDefinition.getSchema());
+    assertNull(toolDefinition.getVersion());
+  }
+
+  @Test
+  void testToolDefinitionFromNameDescriptionAndSchema() {
+    Map<String, Object> schema = new HashMap<>();
+    schema.put("type", "object");
+    schema.put(
+        "properties",
+        Collections.singletonMap("location", Collections.singletonMap("type", "string")));
+
+    LLMObs.ToolDefinition toolDefinition =
+        LLMObs.ToolDefinition.from("get_weather", "Get the weather by location", schema);
+
+    assertEquals("get_weather", toolDefinition.getName());
+    assertEquals("Get the weather by location", toolDefinition.getDescription());
+    assertEquals(schema, toolDefinition.getSchema());
+    assertNull(toolDefinition.getVersion());
+  }
+
+  @Test
+  void testToolDefinitionFromAllFields() {
+    Map<String, Object> schema = new HashMap<>();
+    schema.put("type", "object");
+
+    LLMObs.ToolDefinition toolDefinition =
+        LLMObs.ToolDefinition.from("get_weather", "Get the weather by location", schema, "1.2.3");
+
+    assertEquals("get_weather", toolDefinition.getName());
+    assertEquals("Get the weather by location", toolDefinition.getDescription());
+    assertEquals(schema, toolDefinition.getSchema());
+    assertEquals("1.2.3", toolDefinition.getVersion());
+  }
+
+  @Test
   void testLLMMessageCreationWithToolCalls() {
     Map<String, Object> args = new HashMap<>();
     args.put("location", "Paris");
