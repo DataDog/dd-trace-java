@@ -195,7 +195,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_INHERI
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_TAG_SESSION_ID;
 import static datadog.trace.api.ConfigSetting.NON_DEFAULT_SEQ_ID;
-import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
@@ -5198,9 +5197,10 @@ public class Config {
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
-    if (!isApmTracingEnabled()) {
-      result.put(APM_ENABLED, 0);
-    }
+    // The _dd.apm.enabled:0 billing marker is intentionally NOT set here. When APM tracing is
+    // disabled it is stamped on every span of each exported chunk (see CoreTracer.write), so that
+    // chunks flushed without their local root span (e.g. a late child span) still opt out of APM
+    // host billing.
 
     if (reportHostName) {
       final String hostName = getHostName();
