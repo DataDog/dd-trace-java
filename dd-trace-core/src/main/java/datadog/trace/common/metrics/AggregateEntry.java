@@ -1,26 +1,21 @@
 package datadog.trace.common.metrics;
 
 import datadog.metrics.api.Histogram;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLongArray;
 import javax.annotation.Nullable;
 
 /**
- * {@link datadog.trace.util.Hashtable} entry used by the aggregator thread.
+ * Aggregator hashtable entry: UTF8 label fields + counter/histogram state.
  *
- * <p>Stores the canonical UTF8 label values that identify one aggregate row, plus the mutable
- * counter and histogram state for that row. Labels are canonicalized before hashing, so overflow
- * values replaced with the sentinel use the same hash and map to the same row.
- *
- * <p>Not thread-safe — all mutation is on the aggregator thread. Tests must call {@link
- * #resetCardinalityHandlers()} in setup to avoid cross-test handler pollution (handlers are
- * static); tests using {@link PeerTagSchema} must also call {@code PeerTagSchema#resetHandlers} on
- * the schema instance.
+ * <p>Public so the cross-package OTLP writer ({@code datadog.trace.core.otlp.metrics}) can read the
+ * per-entry accessors.
  */
 public final class AggregateEntry extends Hashtable.Entry {
 
@@ -28,49 +23,6 @@ public final class AggregateEntry extends Hashtable.Entry {
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
   private static final UTF8BytesString[] EMPTY_TAGS = new UTF8BytesString[0];
-
-  // Configurable per-field cardinality handlers — tunable via env var.
-  static final PropertyCardinalityHandler RESOURCE_HANDLER =
-      new PropertyCardinalityHandler(
-          "resource",
-          Config.get().getTraceStatsCardinalityLimit("resource", MetricCardinalityLimits.RESOURCE));
-  static final PropertyCardinalityHandler HTTP_ENDPOINT_HANDLER =
-      new PropertyCardinalityHandler(
-          "http_endpoint",
-          Config.get()
-              .getTraceStatsCardinalityLimit(
-                  "http_endpoint", MetricCardinalityLimits.HTTP_ENDPOINT));
-
-  // Fixed per-field cardinality handlers — hardcoded, not user-configurable.
-  static final PropertyCardinalityHandler SERVICE_HANDLER =
-      new PropertyCardinalityHandler("service", MetricCardinalityLimits.SERVICE);
-  static final PropertyCardinalityHandler OPERATION_HANDLER =
-      new PropertyCardinalityHandler("operation", MetricCardinalityLimits.OPERATION);
-  static final PropertyCardinalityHandler SERVICE_SOURCE_HANDLER =
-      new PropertyCardinalityHandler("service_source", MetricCardinalityLimits.SERVICE_SOURCE);
-  static final PropertyCardinalityHandler TYPE_HANDLER =
-      new PropertyCardinalityHandler("type", MetricCardinalityLimits.TYPE);
-  static final PropertyCardinalityHandler SPAN_KIND_HANDLER =
-      new PropertyCardinalityHandler("span_kind", MetricCardinalityLimits.SPAN_KIND);
-  static final PropertyCardinalityHandler HTTP_METHOD_HANDLER =
-      new PropertyCardinalityHandler("http_method", MetricCardinalityLimits.HTTP_METHOD);
-  static final PropertyCardinalityHandler GRPC_STATUS_CODE_HANDLER =
-      new PropertyCardinalityHandler("grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE);
-
-  // Single authoritative list used by resetCardinalityHandlers(). populateFrom() and hashOf() keep
-  // named access for readability and to avoid per-span iteration overhead; this array ensures the
-  // reset site stays in sync even if a new field is added without updating the loop by name.
-  static final PropertyCardinalityHandler[] FIELD_HANDLERS = {
-    RESOURCE_HANDLER,
-    SERVICE_HANDLER,
-    OPERATION_HANDLER,
-    SERVICE_SOURCE_HANDLER,
-    TYPE_HANDLER,
-    SPAN_KIND_HANDLER,
-    HTTP_METHOD_HANDLER,
-    HTTP_ENDPOINT_HANDLER,
-    GRPC_STATUS_CODE_HANDLER,
-  };
 
   final UTF8BytesString resource;
   final UTF8BytesString service;
@@ -89,20 +41,23 @@ public final class AggregateEntry extends Hashtable.Entry {
   final boolean traceRoot;
   final List<UTF8BytesString> peerTags;
 
-  // Mutable aggregate state -- single-thread (aggregator) writer.
-  private final Histogram okLatencies = Histogram.newHistogram();
+  // Schema-ordered "key:value" strings; "key:" prefix makes packing unambiguous without null slots.
+  final UTF8BytesString[] additionalTags;
 
-  /**
-   * Lazily allocated on the first recorded error. Most entries never see an error and keep this
-   * null for life; {@link SerializingMetricWriter} writes a cached empty-histogram form when null
-   * to keep the wire payload identical. Once allocated, it survives {@link #clear()} (cleared, not
-   * nulled) since an entry that errored once tends to error again.
-   */
+  // Recording state (this field through errorDuration below) is thread-confined: the entry is
+  // mutated only on the aggregator thread, so these fields are intentionally unsynchronized and not
+  // thread-safe. Producers hand off immutable SpanSnapshots; only the aggregator thread records
+  // into the entry.
+  private final Histogram okLatencies;
+
+  // Null until first error; SerializingMetricWriter writes empty histogram form when null. Not
+  // thread-safe as well.
   @Nullable private Histogram errorLatencies;
 
   private int errorCount;
   private int hitCount;
   private int topLevelCount;
+  // Tracked separately for per-outcome OTLP histogram sums; getDuration() returns the sum.
   private long okDuration;
   private long errorDuration;
 
@@ -124,7 +79,8 @@ public final class AggregateEntry extends Hashtable.Entry {
       short httpStatusCode,
       boolean synthetic,
       boolean traceRoot,
-      List<UTF8BytesString> peerTags) {
+      List<UTF8BytesString> peerTags,
+      UTF8BytesString[] additionalTags) {
     super(keyHash);
     this.resource = resource;
     this.service = service;
@@ -139,103 +95,8 @@ public final class AggregateEntry extends Hashtable.Entry {
     this.synthetic = synthetic;
     this.traceRoot = traceRoot;
     this.peerTags = peerTags;
-  }
-
-  /**
-   * Records a single hit. {@code tagAndDuration} carries the duration nanos with optional {@link
-   * #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits OR-ed in.
-   */
-  AggregateEntry recordOneDuration(long tagAndDuration) {
-    ++hitCount;
-    if ((tagAndDuration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
-      tagAndDuration ^= TOP_LEVEL_TAG;
-      ++topLevelCount;
-    }
-    if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
-      tagAndDuration ^= ERROR_TAG;
-      errorLatenciesForWrite().accept(tagAndDuration);
-      errorDuration += tagAndDuration;
-      ++errorCount;
-    } else {
-      okLatencies.accept(tagAndDuration);
-      okDuration += tagAndDuration;
-    }
-    return this;
-  }
-
-  public int getErrorCount() {
-    return errorCount;
-  }
-
-  public int getHitCount() {
-    return hitCount;
-  }
-
-  public int getTopLevelCount() {
-    return topLevelCount;
-  }
-
-  public long getDuration() {
-    return okDuration + errorDuration;
-  }
-
-  public long getOkDuration() {
-    return okDuration;
-  }
-
-  public long getErrorDuration() {
-    return errorDuration;
-  }
-
-  public Histogram getOkLatencies() {
-    return okLatencies;
-  }
-
-  /**
-   * Returns the entry's error-latency histogram, or {@code null} if no error has been recorded.
-   * Callers serializing this should treat {@code null} as "emit a cached empty histogram"; see
-   * {@link SerializingMetricWriter}.
-   */
-  @Nullable
-  public Histogram getErrorLatencies() {
-    return errorLatencies;
-  }
-
-  /** Lazy-allocates {@link #errorLatencies} on the first error. */
-  private Histogram errorLatenciesForWrite() {
-    Histogram h = errorLatencies;
-    if (h == null) {
-      h = Histogram.newHistogram();
-      errorLatencies = h;
-    }
-    return h;
-  }
-
-  /**
-   * Resets the per-cycle counters and histograms. Label fields ({@code resource}, {@code service},
-   * ..., {@code peerTags}) are deliberately left intact -- they're the entry's bucket identity and
-   * must persist so a subsequent snapshot with the same key reuses this entry instead of allocating
-   * a fresh one. Entries that stay at {@code hitCount == 0} across a cycle are reaped by {@link
-   * AggregateTable#expungeStaleAggregates}.
-   */
-  void clear() {
-    this.errorCount = 0;
-    this.hitCount = 0;
-    this.topLevelCount = 0;
-    this.okDuration = 0;
-    this.errorDuration = 0;
-    this.okLatencies.clear();
-    // errorLatencies stays null on entries that never errored. Only clear if it was allocated.
-    if (this.errorLatencies != null) {
-      this.errorLatencies.clear();
-    }
-  }
-
-  /** Resets the static per-field cardinality handlers. Does not cover {@link PeerTagSchema}. */
-  static void resetCardinalityHandlers() {
-    for (PropertyCardinalityHandler handler : FIELD_HANDLERS) {
-      handler.reset();
-    }
+    this.additionalTags = additionalTags;
+    this.okLatencies = Histogram.newHistogram();
   }
 
   /**
@@ -263,7 +124,9 @@ public final class AggregateEntry extends Hashtable.Entry {
       boolean synthetic,
       boolean traceRoot,
       UTF8BytesString[] peerTags,
-      int peerTagCount) {
+      int peerTagCount,
+      UTF8BytesString[] additionalTags,
+      int additionalTagCount) {
     long h = 0;
     h = LongHashingUtils.addToHash(h, resource);
     h = LongHashingUtils.addToHash(h, service);
@@ -274,16 +137,15 @@ public final class AggregateEntry extends Hashtable.Entry {
     h = LongHashingUtils.addToHash(h, httpMethod);
     h = LongHashingUtils.addToHash(h, httpEndpoint);
     h = LongHashingUtils.addToHash(h, grpcStatusCode);
-    for (int i = 0; i < peerTagCount; i++) {
-      h = LongHashingUtils.addToHash(h, peerTags[i]);
-    }
+    h = LongHashingUtils.addToHash(h, peerTags, peerTagCount);
+    h = LongHashingUtils.addToHash(h, additionalTags, additionalTagCount);
     h = LongHashingUtils.addToHash(h, httpStatusCode);
     h = LongHashingUtils.addToHash(h, synthetic);
     h = LongHashingUtils.addToHash(h, traceRoot);
     return h;
   }
 
-  // Accessors for SerializingMetricWriter.
+  // Accessors for SerializingMetricWriter and the cross-package OTLP writer.
   public UTF8BytesString getResource() {
     return resource;
   }
@@ -368,9 +230,147 @@ public final class AggregateEntry extends Hashtable.Entry {
     return peerTags;
   }
 
-  // Production AggregateEntry intentionally has no equals/hashCode override -- AggregateTable
-  // bucketing uses keyHash + Canonical.matches and never invokes Object.equals. For tests that
-  // need value-equality (Spock argument matchers), use AggregateEntryTestUtils in src/test.
+  /**
+   * @return the packed additional-tag values this entry recorded, as canonical {@code "key:value"}
+   *     UTF8BytesStrings in schema (alphabetical-by-key) order. Only tags the span actually set are
+   *     present (no null slots), so the length is the count of present tags -- empty when the span
+   *     set none or no additional tags are configured.
+   */
+  public UTF8BytesString[] getAdditionalTags() {
+    return additionalTags;
+  }
+
+  // ----- recording state accessors -----
+
+  public int getHitCount() {
+    return hitCount;
+  }
+
+  public int getErrorCount() {
+    return errorCount;
+  }
+
+  public int getTopLevelCount() {
+    return topLevelCount;
+  }
+
+  /**
+   * Total recorded duration for the native msgpack path -- the sum of {@link #getOkDuration()} and
+   * {@link #getErrorDuration()}. OK and error durations are tracked separately so the OTLP writer
+   * can emit per-outcome histogram sums.
+   */
+  public long getDuration() {
+    return okDuration + errorDuration;
+  }
+
+  public long getOkDuration() {
+    return okDuration;
+  }
+
+  public long getErrorDuration() {
+    return errorDuration;
+  }
+
+  public Histogram getOkLatencies() {
+    return okLatencies;
+  }
+
+  /**
+   * Returns the entry's error latency histogram, or {@code null} if no error has been recorded yet.
+   * Callers should treat null as "serialize as an empty histogram" (see {@link
+   * SerializingMetricWriter}).
+   */
+  public Histogram getErrorLatencies() {
+    return errorLatencies;
+  }
+
+  /** Lazy-allocates {@link #errorLatencies} on the first error. */
+  private Histogram errorLatenciesForWrite() {
+    Histogram h = errorLatencies;
+    if (h == null) {
+      h = Histogram.newHistogram();
+      errorLatencies = h;
+    }
+    return h;
+  }
+
+  /**
+   * Records a single hit. {@code tagAndDuration} carries the duration nanos with optional {@link
+   * #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits OR-ed in.
+   */
+  @SuppressFBWarnings(
+      value = "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE",
+      justification =
+          "Single-writer by design: recording counters are mutated only on the aggregator thread"
+              + " (see class javadoc); no cross-thread atomicity guarantee is needed.")
+  AggregateEntry recordOneDuration(long tagAndDuration) {
+    hitCount++;
+    if ((tagAndDuration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
+      tagAndDuration ^= TOP_LEVEL_TAG;
+      topLevelCount++;
+    }
+    if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
+      tagAndDuration ^= ERROR_TAG;
+      errorLatenciesForWrite().accept(tagAndDuration);
+      errorDuration += tagAndDuration;
+      errorCount++;
+    } else {
+      okLatencies.accept(tagAndDuration);
+      okDuration += tagAndDuration;
+    }
+    return this;
+  }
+
+  /**
+   * Records {@code count} durations from {@code durations} (positions 0..count-1). Used by
+   * integration tests; production code uses {@link #recordOneDuration}.
+   */
+  @SuppressFBWarnings(
+      value = "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE",
+      justification =
+          "Single-writer by design: recording counters are mutated only on the aggregator thread"
+              + " (see class javadoc); no cross-thread atomicity guarantee is needed.")
+  AggregateEntry recordDurations(int count, AtomicLongArray durations) {
+    this.hitCount += count;
+    for (int i = 0; i < count && i < durations.length(); ++i) {
+      long d = durations.getAndSet(i, 0);
+      if ((d & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
+        d ^= TOP_LEVEL_TAG;
+        topLevelCount++;
+      }
+      if ((d & ERROR_TAG) == ERROR_TAG) {
+        d ^= ERROR_TAG;
+        errorLatenciesForWrite().accept(d);
+        this.errorDuration += d;
+        errorCount++;
+      } else {
+        okLatencies.accept(d);
+        this.okDuration += d;
+      }
+    }
+    return this;
+  }
+
+  /**
+   * Clears the recording state. The OK histogram is reused; the error histogram (if allocated) is
+   * reused too, but entries that never saw an error keep their {@code errorLatencies} field null.
+   */
+  @SuppressFBWarnings(
+      value = {"AT_NONATOMIC_64BIT_PRIMITIVE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
+      justification =
+          "Single-writer by design: recording counters are reset only on the aggregator thread"
+              + " (see class javadoc); no cross-thread visibility guarantee is needed.")
+  void clearAggregate() {
+    this.errorCount = 0;
+    this.hitCount = 0;
+    this.topLevelCount = 0;
+    this.okDuration = 0;
+    this.errorDuration = 0;
+    this.okLatencies.clear();
+    if (this.errorLatencies != null) {
+      this.errorLatencies.clear();
+    }
+  }
 
   /**
    * Reusable scratch buffer for canonicalizing a {@link SpanSnapshot} into UTF8 fields, computing
@@ -404,39 +404,69 @@ public final class AggregateEntry extends Hashtable.Entry {
 
     int peerTagsSize = 0;
 
+    /** Core per-field cardinality handlers; owned by the enclosing {@link AggregateTable}. */
+    final CoreHandlers handlers;
+
+    /** Schema + per-key blocked sentinels for additional metric tags. Immutable. */
+    final AdditionalTagsSchema additionalTagsSchema;
+
+    /**
+     * Reusable scratch for canonicalized additional-tag values, sized to the schema. Present values
+     * are packed at the front in schema order (alphabetical by key); {@link #additionalTagsSize}
+     * gives the count. Each entry is a {@code "key:value"} UTF8BytesString, so packing loses no
+     * information -- the key prefix disambiguates which key a value belongs to. Mirrors the {@code
+     * peerTagsBuffer + peerTagsSize} pattern. {@link #createEntry} copies the populated prefix into
+     * the new entry.
+     */
+    final UTF8BytesString[] additionalTagsBuffer;
+
+    int additionalTagsSize;
+
     long keyHash;
+
+    Canonical(CoreHandlers handlers, AdditionalTagsSchema additionalTagsSchema) {
+      this.handlers = handlers;
+      this.additionalTagsSchema = additionalTagsSchema;
+      this.additionalTagsBuffer = new UTF8BytesString[additionalTagsSchema.size()];
+    }
 
     /** Canonicalize all fields from {@code s} through the handlers into this buffer. */
     void populateFrom(SpanSnapshot s) {
-      this.resource = RESOURCE_HANDLER.register(s.resourceName);
-      this.service = SERVICE_HANDLER.register(s.serviceName);
-      this.operationName = OPERATION_HANDLER.register(s.operationName);
-      this.serviceSource = SERVICE_SOURCE_HANDLER.register(s.serviceNameSource);
-      this.type = TYPE_HANDLER.register(s.spanType);
-      this.spanKind = SPAN_KIND_HANDLER.register(s.spanKind);
-      this.httpMethod = HTTP_METHOD_HANDLER.register(s.httpMethod);
-      this.httpEndpoint = HTTP_ENDPOINT_HANDLER.register(s.httpEndpoint);
-      this.grpcStatusCode = GRPC_STATUS_CODE_HANDLER.register(s.grpcStatusCode);
+      this.resource = handlers.resource.register(s.resourceName);
+      this.service = handlers.service.register(s.serviceName);
+      this.operationName = handlers.operation.register(s.operationName);
+      this.serviceSource = handlers.serviceSource.register(s.serviceNameSource);
+      this.type = handlers.type.register(s.spanType);
+      this.spanKind = handlers.spanKind.register(s.spanKind);
+      this.httpMethod = handlers.httpMethod.register(s.httpMethod);
+      this.httpEndpoint = handlers.httpEndpoint.register(s.httpEndpoint);
+      this.grpcStatusCode = handlers.grpcStatusCode.register(s.grpcStatusCode);
       this.httpStatusCode = s.httpStatusCode;
       this.synthetic = s.synthetic;
       this.traceRoot = s.traceRoot;
       populatePeerTags(s.peerTagSchema, s.peerTagValues);
-      this.keyHash =
-          hashOf(
-              resource,
-              service,
-              operationName,
-              serviceSource,
-              type,
-              spanKind,
-              httpMethod,
-              httpEndpoint,
-              grpcStatusCode,
-              httpStatusCode,
-              synthetic,
-              traceRoot,
-              peerTagsBuffer,
-              peerTagsSize);
+      populateAdditionalTags(s.additionalTagValues);
+      this.keyHash = computeKeyHash();
+    }
+
+    private long computeKeyHash() {
+      return hashOf(
+          resource,
+          service,
+          operationName,
+          serviceSource,
+          type,
+          spanKind,
+          httpMethod,
+          httpEndpoint,
+          grpcStatusCode,
+          httpStatusCode,
+          synthetic,
+          traceRoot,
+          peerTagsBuffer,
+          peerTagsSize,
+          additionalTagsBuffer,
+          additionalTagsSize);
     }
 
     /**
@@ -448,7 +478,7 @@ public final class AggregateEntry extends Hashtable.Entry {
      * filtered out anyway. Producer-side {@code capturePeerTagValues} produces sparse-null arrays,
      * so the skip pays off whenever a span carries only a subset of the configured peer tags.
      */
-    private void populatePeerTags(PeerTagSchema schema, String[] values) {
+    private void populatePeerTags(@Nullable PeerTagSchema schema, @Nullable String[] values) {
       peerTagsSize = 0;
       if (schema == null || values == null) {
         return;
@@ -463,6 +493,29 @@ public final class AggregateEntry extends Hashtable.Entry {
           continue;
         }
         peerTagsBuffer[peerTagsSize++] = schema.register(i, value);
+      }
+    }
+
+    /**
+     * Packs canonical {@code "key:value"} UTF8BytesStrings for each present slot of {@code values}
+     * into the front of {@link #additionalTagsBuffer} (schema order), via {@link
+     * AdditionalTagsSchema#register}, and sets {@link #additionalTagsSize}. The handler returns the
+     * per-key blocked sentinel when the per-cycle value budget is exhausted.
+     */
+    private void populateAdditionalTags(@Nullable String[] values) {
+      additionalTagsSize = 0;
+      // values is captured against the same additionalTagsSchema, so it is either null or exactly
+      // schema.size() long (== additionalTagsBuffer.length); guard the array we actually index.
+      if (values == null || values.length == 0) {
+        return;
+      }
+      int n = additionalTagsBuffer.length;
+      for (int i = 0; i < n; i++) {
+        String v = values[i];
+        if (v == null) {
+          continue;
+        }
+        additionalTagsBuffer[additionalTagsSize++] = additionalTagsSchema.register(i, v);
       }
     }
 
@@ -489,7 +542,22 @@ public final class AggregateEntry extends Hashtable.Entry {
           && peerTagsEqual(peerTagsBuffer, peerTagsSize, e.peerTags)
           && httpStatusCode == e.httpStatusCode
           && synthetic == e.synthetic
-          && traceRoot == e.traceRoot;
+          && traceRoot == e.traceRoot
+          && additionalTagsEqual(additionalTagsBuffer, additionalTagsSize, e.additionalTags);
+    }
+
+    /** Compact compare: first {@code aSize} slots of {@code a} against the entry's packed array. */
+    private static boolean additionalTagsEqual(
+        UTF8BytesString[] a, int aSize, UTF8BytesString[] b) {
+      if (aSize != b.length) {
+        return false;
+      }
+      for (int i = 0; i < aSize; i++) {
+        if (!a[i].equals(b[i])) {
+          return false;
+        }
+      }
+      return true;
     }
 
     private static boolean peerTagsEqual(UTF8BytesString[] a, int aSize, List<UTF8BytesString> b) {
@@ -519,6 +587,10 @@ public final class AggregateEntry extends Hashtable.Entry {
       } else {
         snapshottedPeerTags = Arrays.asList(Arrays.copyOf(peerTagsBuffer, n));
       }
+      UTF8BytesString[] snapshottedAdditionalTags =
+          additionalTagsSize == 0
+              ? EMPTY_TAGS
+              : Arrays.copyOf(additionalTagsBuffer, additionalTagsSize);
       return new AggregateEntry(
           keyHash,
           resource,
@@ -533,7 +605,8 @@ public final class AggregateEntry extends Hashtable.Entry {
           httpStatusCode,
           synthetic,
           traceRoot,
-          snapshottedPeerTags);
+          snapshottedPeerTags,
+          snapshottedAdditionalTags);
     }
   }
 
