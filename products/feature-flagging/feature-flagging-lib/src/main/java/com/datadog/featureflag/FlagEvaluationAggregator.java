@@ -1,6 +1,5 @@
 package com.datadog.featureflag;
 
-import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,11 +44,12 @@ final class FlagEvaluationAggregator {
 
   void aggregate(final FlagEvalEvent event) {
     final boolean isDefault = event.variant == null;
-    // Capture consent now, when the evaluation is folded into a bucket, so it reflects the
-    // configuration active at evaluation time rather than whatever CURRENT_CONFIG happens to be at
-    // flush. Existing buckets fold with AND: one no-consent evaluation sinks the bucket to hashed.
-    final boolean observeFullEvaluationData =
-        FeatureFlaggingGateway.isObserveFullEvaluationDataEnabled();
+    // Consent is read from the event, where it was snapshotted on the evaluation thread at
+    // evaluation time. We deliberately do NOT read the gateway here: aggregation runs later, on the
+    // serializer thread, by which point a subsequent RC update may have changed CURRENT_CONFIG, and
+    // that must not retroactively alter the hashed-vs-raw decision for an already-evaluated flag.
+    // Existing buckets fold with AND: one no-consent evaluation sinks the bucket to hashed.
+    final boolean observeFullEvaluationData = event.observeFullEvaluationData;
     final Map<String, Object> prunedAttrs = pruneContext(event.contextAttributes());
     final String ctxKey = canonicalContextKey(prunedAttrs);
     final FullKey fullKey = buildFullKey(event, ctxKey);
@@ -283,9 +283,8 @@ final class FlagEvaluationAggregator {
     String targetingKey;
     String errorMessage;
     Map<String, Object> prunedAttrs;
-    // Consent to emit raw PII (targeting key + context) captured when this bucket was created, not
-    // read at flush time. CURRENT_CONFIG can be overwritten by a later RC update between capture
-    // and flush, so reading the gateway at flush would apply the wrong environment's consent. On
+    // Consent to emit raw PII (targeting key + context), sourced from each event's evaluation-time
+    // snapshot (FlagEvalEvent.observeFullEvaluationData), never read from the gateway at flush. On
     // merge the value is folded with AND (see aggregate()): if any evaluation in the bucket's
     // lifetime saw consent off, the whole bucket falls back to hashed/omitted — fail-closed.
     boolean observeFullEvaluationData;

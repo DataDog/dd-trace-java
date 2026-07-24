@@ -16,6 +16,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
+import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
@@ -49,6 +50,9 @@ class FlagEvalLoggingHookTest {
   @AfterEach
   void resetFlagEvaluationEnqueue() {
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+    // Clear any dispatched UFC so an observeFullEvaluationData value can't leak into other tests
+    // that share the static gateway.
+    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
   }
 
   // ---- helpers ----
@@ -456,5 +460,55 @@ class FlagEvalLoggingHookTest {
     assertFalse(attrs.containsKey("late"));
     assertFalse(attrs.containsKey("profile.late"));
     assertFalse(attrs.containsKey("cohorts[1]"));
+  }
+
+  // ---- observeFullEvaluationData is snapshotted from the gateway at evaluation time ----
+
+  @Test
+  void snapshotsObserveFullEvaluationDataTrueFromGatewayAtEvaluationTime() {
+    FeatureFlaggingGateway.dispatch(observeConfig(true));
+    try {
+      assertTrue(enqueuedEvent().observeFullEvaluationData);
+    } finally {
+      FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+    }
+  }
+
+  @Test
+  void snapshotsObserveFullEvaluationDataFalseFromGatewayAtEvaluationTime() {
+    FeatureFlaggingGateway.dispatch(observeConfig(false));
+    try {
+      assertFalse(enqueuedEvent().observeFullEvaluationData);
+    } finally {
+      FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+    }
+  }
+
+  @Test
+  void observeFullEvaluationDataDefaultsToFalseWhenNoConfigDispatched() {
+    // No UFC dispatched: the gateway reports the privacy-preserving default and the hook stamps it.
+    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+    assertFalse(enqueuedEvent().observeFullEvaluationData);
+  }
+
+  /** Fires the hook once for a simple targeted evaluation and returns the enqueued event. */
+  private FlagEvalEvent enqueuedEvent() {
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+    hook.finallyAfter(
+        hookCtxWithTargetingKey("obs-flag", "user-1"),
+        details("obs-flag", "on", "on", Reason.TARGETING_MATCH.name(), null),
+        Collections.emptyMap());
+    assertNotNull(captured.get(), "writer.enqueue must be called once");
+    return captured.get();
+  }
+
+  private static ServerConfiguration observeConfig(final boolean observeFullEvaluationData) {
+    return new ServerConfiguration(
+        "2024-04-17T19:40:53.716Z",
+        "SERVER",
+        observeFullEvaluationData,
+        null,
+        Collections.emptyMap());
   }
 }

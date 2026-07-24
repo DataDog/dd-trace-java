@@ -543,10 +543,11 @@ class FlagEvaluationWriterImplTest {
 
   @Test
   void observeFullEvaluationDataTrueEmitsRawTargetingKeyAndContext() throws Exception {
-    dispatchObserveFullEvaluationData(true);
+    // Consent travels on the event (snapshotted by the hook at evaluation time); the writer honours
+    // it verbatim and never consults the gateway.
     final BackendApi mockEvp = mock(BackendApi.class);
     final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
-    setup.handler.add(piiEvent());
+    setup.handler.add(piiEvent(true));
 
     final Map<String, Object> json = flushAndCapture(setup).parsed;
 
@@ -561,63 +562,31 @@ class FlagEvaluationWriterImplTest {
   }
 
   @Test
-  void observeFullEvaluationDataTrueFromParsedUfcEmitsRawTargetingKey() throws Exception {
-    // Exercises the config-source -> gateway -> writer seam that the hand-built dispatch skips:
-    // parse a UFC exactly as the (default) agentless source does, dispatch it, then flush. Guards
-    // against observeFullEvaluationData being lost between config parsing and the flush-time gate
-    // read. Field placement mirrors the system-test fixture (after "flags", with format SERVER).
-    final String attributes =
-        "{"
-            + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-            + "\"format\":\"SERVER\","
-            + "\"environment\":{\"name\":\"Test\"},"
-            + "\"flags\":{},"
-            + "\"observeFullEvaluationData\":true"
-            + "}";
-    final String wrapped =
-        "{\"data\":{\"type\":\"universal-flag-configuration\",\"attributes\":" + attributes + "}}";
-    final ServerConfiguration parsed =
-        JsonApiUfcResponseParser.INSTANCE.parse(
-            wrapped.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-    assertNotNull(parsed);
-    assertTrue(parsed.observeFullEvaluationData);
-    FeatureFlaggingGateway.dispatch(parsed);
-
-    final BackendApi mockEvp = mock(BackendApi.class);
-    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
-    setup.handler.add(piiEvent());
-
-    final Map<String, Object> ev = eventForFlag(flushAndCapture(setup).parsed, "pii-flag");
-    assertNotNull(ev);
-    assertEquals("jane.doe@datadoghq.com", ev.get("targeting_key"));
-  }
-
-  @Test
   void observeFullEvaluationDataFalseHashesTargetingKeyAndOmitsContext() throws Exception {
-    dispatchObserveFullEvaluationData(false);
-    assertHashedTargetingKeyAndOmittedContext();
+    assertHashedTargetingKeyAndOmittedContext(piiEvent(false));
   }
 
   @Test
-  void observeFullEvaluationDataAbsentDefaultsToHashedBehavior() throws Exception {
-    // No UFC dispatched (default state) — must behave exactly like the explicit "false" case.
-    assertHashedTargetingKeyAndOmittedContext();
+  void flagEvalEventDefaultConsentHashesTargetingKeyAndOmitsContext() throws Exception {
+    // An event built without an explicit consent value defaults to the privacy-preserving false, so
+    // it must behave exactly like the explicit "false" case. This is the state the hook produces
+    // when no UFC has been dispatched (the gateway reports false).
+    assertHashedTargetingKeyAndOmittedContext(piiEventDefaultConsent());
   }
 
   @Test
-  void bucketCapturedUnderFalseStaysHashedEvenIfGatewayLaterReportsTrue() throws Exception {
-    // Regression guard for the flush-time TOCTOU bug: consent is captured when the evaluation is
-    // aggregated, not read from the gateway at flush. A bucket aggregated while consent was off
-    // must stay hashed even if a later RC update turns consent on before the flush drains.
-    dispatchObserveFullEvaluationData(false);
+  void eventConsentFalseStaysHashedEvenWhenGatewayLaterReportsTrue() throws Exception {
+    // Regression guard: consent is decided by the value the event carried at evaluation time, never
+    // re-read from the gateway at flush. An event evaluated under consent=false must stay hashed
+    // even if a later RC update turns the gateway's consent on before the flush drains.
     final BackendApi mockEvp = mock(BackendApi.class);
     final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
-    setup.handler.add(piiEvent());
-    setup.handler.drainAndAggregate(); // captures consent=false into the bucket
+    setup.handler.add(piiEvent(false));
 
-    // Simulate a later RC update flipping consent on; the already-aggregated bucket must not
-    // follow.
+    // Flip the gateway's consent on before both aggregation and flush; the event's evaluation-time
+    // snapshot (false) must win at every downstream step, so neither may consult the gateway.
     dispatchObserveFullEvaluationData(true);
+    setup.handler.drainAndAggregate();
 
     final java.util.List<RequestBody> captured = new java.util.ArrayList<>();
     when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
@@ -639,10 +608,43 @@ class FlagEvaluationWriterImplTest {
     assertFalse(json.raw.contains("jane.doe@datadoghq.com"));
   }
 
-  private void assertHashedTargetingKeyAndOmittedContext() throws Exception {
+  @Test
+  void eventConsentTrueStaysRawEvenWhenGatewayLaterReportsFalse() throws Exception {
+    // Symmetric guard: an event evaluated under consent=true must stay raw even if a later RC
+    // update
+    // turns the gateway's consent off before aggregation and flush. Together with the false-stays-
+    // hashed test this pins that neither aggregation nor flush ever consults the gateway.
     final BackendApi mockEvp = mock(BackendApi.class);
     final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
-    setup.handler.add(piiEvent());
+    setup.handler.add(piiEvent(true));
+
+    dispatchObserveFullEvaluationData(false);
+    setup.handler.drainAndAggregate();
+
+    final java.util.List<RequestBody> captured = new java.util.ArrayList<>();
+    when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
+        .thenAnswer(
+            inv -> {
+              captured.add(inv.getArgument(1));
+              return null;
+            });
+    setup.handler.flush();
+
+    assertEquals(1, captured.size());
+    final Map<String, Object> ev =
+        eventForFlag(FlagEvaluationTestSupport.readJson(captured.get(0)).parsed, "pii-flag");
+    assertNotNull(ev);
+    assertEquals("jane.doe@datadoghq.com", ev.get("targeting_key"));
+    final Map<?, ?> ctx = (Map<?, ?>) ev.get("context");
+    assertNotNull(ctx);
+    assertNotNull(ctx.get("evaluation"));
+  }
+
+  private void assertHashedTargetingKeyAndOmittedContext(final FlagEvalEvent piiEvent)
+      throws Exception {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+    setup.handler.add(piiEvent);
 
     final FlagEvaluationTestSupport.CapturedJson captured = flushAndCapture(setup);
 
@@ -658,10 +660,25 @@ class FlagEvaluationWriterImplTest {
     assertFalse(captured.raw.contains("\"evaluation\":"));
   }
 
-  private static FlagEvalEvent piiEvent() {
+  private static FlagEvalEvent piiEvent(final boolean observeFullEvaluationData) {
+    return event(
+        "pii-flag",
+        "on",
+        "alloc1",
+        "jane.doe@datadoghq.com",
+        1000L,
+        observeFullEvaluationData,
+        piiAttrs());
+  }
+
+  private static FlagEvalEvent piiEventDefaultConsent() {
+    return event("pii-flag", "on", "alloc1", "jane.doe@datadoghq.com", 1000L, piiAttrs());
+  }
+
+  private static Map<String, Object> piiAttrs() {
     final Map<String, Object> attrs = new HashMap<>();
     attrs.put("region", "us-east-1");
-    return event("pii-flag", "on", "alloc1", "jane.doe@datadoghq.com", 1000L, attrs);
+    return attrs;
   }
 
   private static void dispatchObserveFullEvaluationData(final boolean value) {

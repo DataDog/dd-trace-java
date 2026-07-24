@@ -109,6 +109,13 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
           ctx != null && ctx.getCtx() != null ? ctx.getCtx().getTargetingKey() : null;
       final Map<String, Value> attrs = snapshotAttrs(ctx);
 
+      // Snapshot the PII consent flag now, on the evaluation thread, so it is pinned to the
+      // configuration active at evaluation time. The event is drained and flushed later, by which
+      // point a subsequent RC update may have changed CURRENT_CONFIG; reading consent here (not at
+      // drain/flush) is what makes the hashed-vs-raw decision faithful to the evaluation.
+      final boolean observeFullEvaluationData =
+          FeatureFlaggingGateway.isObserveFullEvaluationDataEnabled();
+
       w.enqueue(
           new FlagEvalEvent(
               flagKey,
@@ -117,6 +124,7 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
               targetingKey,
               errorMessage,
               evalTimeMs,
+              observeFullEvaluationData,
               () -> extractAttrs(attrs)));
     } catch (LinkageError | Exception e) {
       // Never let EVP recording break flag evaluation

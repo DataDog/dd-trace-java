@@ -54,6 +54,25 @@ final class FlagEvaluationTestSupport {
     return new FlagEvalEvent(flagKey, variant, allocationKey, targetingKey, evalTimeMs, attrs);
   }
 
+  static FlagEvalEvent event(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final String targetingKey,
+      final long evalTimeMs,
+      final boolean observeFullEvaluationData,
+      final Map<String, Object> attrs) {
+    return new FlagEvalEvent(
+        flagKey,
+        variant,
+        allocationKey,
+        targetingKey,
+        null,
+        evalTimeMs,
+        observeFullEvaluationData,
+        attrs);
+  }
+
   static FlagEvalEvent errorEvent(
       final String flagKey, final String errorMessage, final long evalTimeMs) {
     return new FlagEvalEvent(

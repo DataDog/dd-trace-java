@@ -6,9 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
-import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -271,47 +269,49 @@ class FlagEvaluationAggregatorTest {
   @Test
   void observeFullEvaluationDataFoldsToFalseWhenAnyMergedEvaluationLacksConsent() {
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
-    try {
-      FeatureFlaggingGateway.dispatch(observeConfig(true));
-      aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 1000L, emptyMap()));
-      // A later RC update turns consent off; the second evaluation folds into the same bucket.
-      FeatureFlaggingGateway.dispatch(observeConfig(false));
-      aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 2000L, emptyMap()));
+    // Consent travels on the event (snapshotted at evaluation time). The first evaluation
+    // consented;
+    // a later one - e.g. after an RC update flipped consent off - folds into the same bucket
+    // carrying consent=false.
+    aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 1000L, true, emptyMap()));
+    aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 2000L, false, emptyMap()));
 
-      final FlagEvaluationAggregator.EvalBucket bucket =
-          aggregator.snapshot().fullTier.values().iterator().next();
-      assertEquals(2, bucket.count);
-      // Conservative fold: one no-consent evaluation sinks the whole bucket to hashed/omitted.
-      assertFalse(bucket.observeFullEvaluationData);
-    } finally {
-      FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
-    }
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        aggregator.snapshot().fullTier.values().iterator().next();
+    assertEquals(2, bucket.count);
+    // Conservative fold: one no-consent evaluation sinks the whole bucket to hashed/omitted.
+    assertFalse(bucket.observeFullEvaluationData);
   }
 
   @Test
   void observeFullEvaluationDataStaysTrueWhenEveryMergedEvaluationConsents() {
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
-    try {
-      FeatureFlaggingGateway.dispatch(observeConfig(true));
-      aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 1000L, emptyMap()));
-      aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 2000L, emptyMap()));
+    aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 1000L, true, emptyMap()));
+    aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 2000L, true, emptyMap()));
 
-      final FlagEvaluationAggregator.EvalBucket bucket =
-          aggregator.snapshot().fullTier.values().iterator().next();
-      assertEquals(2, bucket.count);
-      assertTrue(bucket.observeFullEvaluationData);
-    } finally {
-      FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
-    }
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        aggregator.snapshot().fullTier.values().iterator().next();
+    assertEquals(2, bucket.count);
+    assertTrue(bucket.observeFullEvaluationData);
   }
 
-  private static ServerConfiguration observeConfig(final boolean observeFullEvaluationData) {
-    return new ServerConfiguration(
-        "2024-04-17T19:40:53.716Z",
-        "SERVER",
-        observeFullEvaluationData,
+  private static FlagEvalEvent event(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final String targetingKey,
+      final long evalTimeMs,
+      final boolean observeFullEvaluationData,
+      final Map<String, Object> attrs) {
+    return new FlagEvalEvent(
+        flagKey,
+        variant,
+        allocationKey,
+        targetingKey,
         null,
-        java.util.Collections.emptyMap());
+        evalTimeMs,
+        observeFullEvaluationData,
+        attrs);
   }
 
   private static FlagEvalEvent event(
