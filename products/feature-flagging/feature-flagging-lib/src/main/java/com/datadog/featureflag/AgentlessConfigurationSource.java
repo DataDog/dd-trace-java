@@ -56,7 +56,9 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
   private final RatelimitedLogger ratelimitedLogger;
   private final Object lifecycleLock = new Object();
   private final AtomicBoolean polling = new AtomicBoolean();
+  private final AtomicReference<Thread> pollingThread = new AtomicReference<>();
   private volatile boolean closed;
+  private volatile boolean started;
   private volatile ScheduledFuture<?> scheduledPoll;
   private volatile String etag;
 
@@ -114,12 +116,26 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
   @Override
   public void init() {
     synchronized (lifecycleLock) {
-      if (closed || scheduledPoll != null) {
+      if (closed || started) {
         return;
       }
-      scheduledPoll =
-          executor.scheduleWithFixedDelay(
-              this::pollOnceSafely, 0, pollIntervalMillis, TimeUnit.MILLISECONDS);
+      started = true;
+    }
+
+    // Complete the first poll cycle on the activation thread. This lets OpenFeature provider
+    // initialization observe a successful retry before it checks whether configuration is ready.
+    // No request occurs before application code activates the provider.
+    pollOnceSafely();
+
+    synchronized (lifecycleLock) {
+      if (!closed) {
+        scheduledPoll =
+            executor.scheduleWithFixedDelay(
+                this::pollOnceSafely,
+                pollIntervalMillis,
+                pollIntervalMillis,
+                TimeUnit.MILLISECONDS);
+      }
     }
   }
 
@@ -127,9 +143,11 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     if (closed || !polling.compareAndSet(false, true)) {
       return false;
     }
+    pollingThread.set(Thread.currentThread());
     try {
       return fetchAndApply();
     } finally {
+      pollingThread.compareAndSet(Thread.currentThread(), null);
       polling.set(false);
     }
   }
@@ -142,6 +160,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         return;
       }
       closed = true;
+      started = false;
       poll = scheduledPoll;
       scheduledPoll = null;
     }
@@ -149,6 +168,10 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       poll.cancel(true);
     }
     client.cancel();
+    final Thread activePollingThread = pollingThread.get();
+    if (activePollingThread != null) {
+      activePollingThread.interrupt();
+    }
     executor.shutdownNow();
   }
 

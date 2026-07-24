@@ -847,7 +847,7 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
-  void initSchedulesPollAndCloseCancelsFuture() throws Exception {
+  void initCompletesFirstPollAndCloseCancelsScheduledFuture() throws Exception {
     final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
     final AgentlessConfigurationSource service =
         new AgentlessConfigurationSource(
@@ -859,10 +859,39 @@ class AgentlessConfigurationSourceTest {
     FeatureFlaggingGateway.addConfigListener(listener);
 
     service.init();
-    awaitCalls(client, 1);
+    assertEquals(1, client.calls.get());
     service.close();
 
     verify(listener).accept(any(ServerConfiguration.class));
+  }
+
+  @Test
+  void initCompletesInitialRetryCycleBeforeReturning() throws Exception {
+    final List<okhttp3.Request> requests = new ArrayList<>();
+    final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
+        scriptedClient(
+            requests,
+            delay -> {},
+            () -> 1.0,
+            response(500, null, null),
+            response(200, "etag-a", emptyConfig()));
+    final AgentlessConfigurationSource service =
+        new AgentlessConfigurationSource(
+            HttpUrl.get("http://localhost" + CONFIG_PATH),
+            config(),
+            60_000,
+            client,
+            Executors.newSingleThreadScheduledExecutor());
+    FeatureFlaggingGateway.addConfigListener(listener);
+
+    try {
+      service.init();
+
+      assertEquals(2, requests.size());
+      verify(listener).accept(any(ServerConfiguration.class));
+    } finally {
+      service.close();
+    }
   }
 
   @Test
@@ -979,14 +1008,20 @@ class AgentlessConfigurationSourceTest {
     final AgentlessConfigurationSource service =
         new AgentlessConfigurationSource(
             HttpUrl.get("http://localhost" + CONFIG_PATH), config(), 30_000, client, executor);
+    final ExecutorService runner = Executors.newSingleThreadExecutor();
 
-    service.init();
-    assertTrue(backoffStarted.await(1, TimeUnit.SECONDS));
+    try {
+      final Future<?> initialization = runner.submit(service::init);
+      assertTrue(backoffStarted.await(1, TimeUnit.SECONDS));
 
-    service.close();
+      service.close();
 
-    assertTrue(executor.awaitTermination(1, TimeUnit.SECONDS));
-    assertEquals(1, requests.size());
+      initialization.get(1, TimeUnit.SECONDS);
+      assertTrue(executor.awaitTermination(1, TimeUnit.SECONDS));
+      assertEquals(1, requests.size());
+    } finally {
+      runner.shutdownNow();
+    }
   }
 
   @Test
