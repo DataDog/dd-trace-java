@@ -11,8 +11,20 @@ dependencies {
 
   compileOnly(libs.junit.jupiter)
 
+  // Testcontainers backs the test-agent .container() backend (TestAgentBackend). Kept compileOnly
+  // so it is NOT forced onto the ~79 modules that depend on this base for the mock/.external()
+  // backends; modules using .container() opt in with their own testImplementation dependency.
+  compileOnly(libs.testcontainers)
+
   compileOnly(libs.bundles.groovy)
   compileOnly(libs.bundles.spock)
+
+  testImplementation(libs.testcontainers)
+}
+
+tasks.withType(Test).configureEach {
+  // Cap concurrent Testcontainers usage across the build (TestAgentBackend container tests).
+  usesService(testcontainersLimit)
 }
 
 tasks.withType(GroovyCompile).configureEach {
@@ -42,6 +54,13 @@ subprojects { Project subProj ->
 
     // Tests depend on this to know where to run things and what agent jar to use
     jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
+    // Forward an optional test-agent image override to the test JVM, so TraceBackend.testAgent()
+    // runs locally without internal-registry access, e.g.
+    // -Ddatadog.smoketest(.testagent.image=ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.44.0
+    def testAgentImage = System.getProperty("datadog.smoketest.testagent.image")
+    if (testAgentImage != null) {
+      jvmArgs "-Ddatadog.smoketest.testagent.image=${testAgentImage}"
+    }
     jvmArgumentProviders.add(new CommandLineArgumentProvider() {
         @Override
         Iterable<String> asArguments() {

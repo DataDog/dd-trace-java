@@ -15,9 +15,13 @@ dependencies {
   implementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.4.0'
   implementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '1.20.0'
   testImplementation project(':dd-smoke-tests')
+  // Needed to use TraceBackend.testAgent(): Testcontainers is compileOnly on the smoke-test base
+  // (so it isn't forced on every consumer), so a module using the container backend opts in here.
+  testImplementation libs.testcontainers
 }
 
 tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
   dependsOn 'shadowJar'
   def shadowJarTask = tasks.named('shadowJar', ShadowJar)
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {

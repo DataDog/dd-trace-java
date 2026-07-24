@@ -38,6 +38,8 @@ public class DDAgentApi extends RemoteApi {
   private static final String DATADOG_CLIENT_COMPUTED_TOP_LEVEL =
       "Datadog-Client-Computed-Top-Level";
   private static final String X_DATADOG_TRACE_COUNT = "X-Datadog-Trace-Count";
+  // Optional test-agent session
+  private static final String X_DATADOG_TEST_SESSION_TOKEN = "X-Datadog-Test-Session-Token";
   private static final String DATADOG_DROPPED_TRACE_COUNT = "Datadog-Client-Dropped-P0-Traces";
   private static final String DATADOG_DROPPED_SPAN_COUNT = "Datadog-Client-Dropped-P0-Spans";
   private static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
@@ -79,6 +81,10 @@ public class DDAgentApi extends RemoteApi {
     this.headers = new HashMap<>();
     this.headers.put(DATADOG_CLIENT_COMPUTED_TOP_LEVEL, "true");
     this.headers.put(DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
+    String testSessionToken = Config.get().getTestAgentSessionToken();
+    if (testSessionToken != null) {
+      this.headers.put(X_DATADOG_TEST_SESSION_TOKEN, testSessionToken);
+    }
   }
 
   public void addResponseListener(final RemoteResponseListener listener) {

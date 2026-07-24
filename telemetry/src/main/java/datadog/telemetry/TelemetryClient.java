@@ -65,11 +65,13 @@ public class TelemetryClient {
 
   private static final String AGENT_TELEMETRY_API_ENDPOINT = "telemetry/proxy/api/v2/apmtelemetry";
   private static final String DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
+  private static final String X_DATADOG_TEST_SESSION_TOKEN = "X-Datadog-Test-Session-Token";
 
   private final OkHttpClient okHttpClient;
   private final HttpRetryPolicy.Factory httpRetryPolicy;
   private final HttpUrl url;
   private final String apiKey;
+  private final String testSessionToken;
 
   public TelemetryClient(
       OkHttpClient okHttpClient,
@@ -80,6 +82,7 @@ public class TelemetryClient {
     this.httpRetryPolicy = httpRetryPolicy;
     this.url = url;
     this.apiKey = apiKey;
+    this.testSessionToken = Config.get().getTestAgentSessionToken();
   }
 
   public HttpUrl getUrl() {
@@ -90,6 +93,8 @@ public class TelemetryClient {
     httpRequestBuilder.url(url);
     if (apiKey != null) {
       httpRequestBuilder.addHeader("DD-API-KEY", apiKey);
+    } else if (testSessionToken != null && !testSessionToken.isEmpty()) {
+      httpRequestBuilder.addHeader(X_DATADOG_TEST_SESSION_TOKEN, testSessionToken);
     }
 
     Request httpRequest = httpRequestBuilder.build();

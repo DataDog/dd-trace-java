@@ -4065,6 +4065,14 @@
         "aliases": []
       }
     ],
+    "DD_TEST_AGENT_SESSION_TOKEN": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TEST_FAILED_TEST_REPLAY_ENABLED": [
       {
         "version": "A",
