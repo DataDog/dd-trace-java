@@ -1,121 +1,85 @@
 ---
 name: fix-latest-deps-pr
 description: >-
-  Triage and unblock the weekly "Update Gradle dependencies" PR when its GitLab
-  CI is red because updated latest dependencies broke `latestDepTest` builds.
-  Use when asked to "fix the latest deps PR", "unblock the gradle dependencies
-  PR", "fix update-gradle-dependencies", or when given a GitLab pipeline id + PR
-  number for a red dependency-update PR. The unblock step rolls back only the
-  conflicting module lockfiles (one commit per module, single push) to make CI green
-  again. An opt-in real-fix step then attempts a per-module code fix for the new
-  dependency version, tested locally, as a separate PR off master.
+  Triage and unblock the weekly "Update Gradle dependencies" PR when GitLab CI is red from `latestDepTest` breakages.
+  Use when asked to "fix the latest deps PR", "unblock the gradle dependencies PR", "fix update-gradle-dependencies", or
+  when given a GitLab pipeline id + PR number. Rolls back the conflicting module lockfiles to make CI green, then
+  optionally ships per-module real fixes as separate PRs.
 user-invocable: true
 ---
 
 # Fix "Update Gradle dependencies" PR
 
-The weekly GitHub Action `.github/workflows/update-gradle-dependencies.yaml` bumps
-all latest dependencies and opens up to two PRs (core + instrumentation). These PRs
-frequently go red on GitLab CI because a newly-updated *latest* dependency is
-incompatible with current `dd-trace-java` code — the failures surface as
-`latestDepTest` task failures.
+The weekly GitHub Action `.github/workflows/update-gradle-dependencies.yaml` bumps all latest dependencies and opens up
+to two PRs (core + instrumentation). These PRs can go red on GitLab CI because a newly-updated *latest* dependency is
+incompatible with current `dd-trace-java` code — the failures surface as `latestDepTest` task failures.
 
 This skill has two phases:
 
-1. **Unblock (always):** roll back only the `gradle.lockfile`s of modules whose
-   `latestDep*Test` failed, one commit per module, then push once. This restores
-   CI so the (still-valuable) lockfile updates for the other modules can merge.
-2. **Real fix (opt-in, per module):** actually make the code compatible with the
-   new dependency version, verified locally, shipped as a separate PR off `master`.
+1. **Unblock (always):** roll back only the `gradle.lockfile`s of modules whose `latestDep*Test` failed, one commit per
+   module, then push once. This restores CI so the (still-valuable) lockfile updates for the other modules can merge.
+2. **Real fix (opt-in, per module):** actually make the code compatible with the new dependency version, verified
+   locally, shipped as a separate PR off `master`.
 
-Only `latestDep*Test` failures are in scope. Ignore all other red jobs (flaky,
-infra, unrelated test failures) — do not touch them.
+Only failures of a module's **latest-dep source set** are in scope — its `latestDep*Test` suites *and* their
+compile/resolution tasks (e.g. `compileLatestDep*`). Ignore all other red jobs (flaky, infra, unrelated test failures)
+— do not touch them.
 
 ---
 
 ## Prerequisites
 
-Verify these before starting. If a required item is missing, stop and tell the user
-what to set up rather than working around it.
+Require `glab`, `gh`, and `jq`. If any is missing or unauthenticated, report exactly what's missing and stop — don't
+install it yourself or work around it; print the install command so the user can run it manually.
 
-- **`ddci-mcp-prod` MCP server — required.** Must be installed and authorized in this
-  session. Phases 1 and 3 depend on its tools (`getCIStatus`, `getJobErrorSummary`,
-  `getJobLogs`). Confirm it is reachable early (e.g. a `getCIStatus` call succeeds); if
-  the tools are absent or unauthorized, stop and ask the user to install/authorize it.
-- **GitHub CLI (`gh`) — required, authenticated.** Used to resolve, check out, and open
-  PRs (`gh pr view/checkout/create`). Run `gh auth status` if unsure.
-- **Git remote `origin` with `master` — required.** The rollback baseline and the
-  Phase 3 branch base come from `origin/master`.
-- **Push / PR permissions — required for the push steps.** You must be able to push to
-  the dependency PR branch (Phase 2) and create PRs off `master` (Phase 3).
-- **GitLab API access — optional, Phase 3 only.** A token (e.g. via `ddtool`) to fetch
-  untruncated job logs from the `/trace` endpoint and download `reports.tar` artifacts
-  when the ddci summary/logs are insufficient. If unavailable, fall back to ddci
-  `getJobLogs` pagination.
-- **Module-specific credentials — conditional.** Some optional instrumentations are
-  excluded from the Gradle build unless a property is set, so their project path is
-  unresolvable in Phase 3 without it. Notably `akka-http-10.6`
-  (`:dd-java-agent:instrumentation:akka:akka-http:akka-http-10.6`) is omitted from
-  `settings.gradle.kts` when `akkaRepositoryToken` is blank — export
-  `ORG_GRADLE_PROJECT_akkaRepositoryToken` (as the weekly workflow does) before
-  reproducing or verifying a fix for that module. If a failed module is missing/omitted
-  from the build, check for a required token before assuming the mapping is wrong.
+- **`glab` (GitLab CLI) — required, authenticated.** `glab auth status` must be green for `gitlab.ddbuild.io`. If it's
+  missing, tell the user to install it manually (`brew install glab`, or the platform package manager).
+- **GitHub CLI (`gh`) — required, authenticated.** Resolves, checks out, and opens PRs. Run `gh auth status` to verify.
+- **`jq` — required.** Every GitLab API call is parsed with it; confirm it is on `PATH`.
+- **Git remote `origin` with `master` — required.** The rollback baseline and the Phase 3 branch base come from the
+  latest `origin/master` — always `git fetch origin master` first so they aren't computed against a stale local ref.
+- **Module-specific credentials — conditional.** Some optional instrumentations are excluded from the Gradle build
+  unless a property is set, so their project path is unresolvable — e.g. `akka-http-10.6` needs
+  `ORG_GRADLE_PROJECT_akkaRepositoryToken`. Skip such a module with a note to the user rather than assuming the mapping
+  is wrong.
+
+Every `glab api` call below uses two fixed values: `--hostname gitlab.ddbuild.io` (the remote is GitHub, so `glab`
+can't infer the host) and the project path `DataDog%2Fapm-reliability%2Fdd-trace-java` (use exactly this — the shorter
+`DataDog/dd-trace-java` only 301-redirects and breaks `glab`).
 
 ---
 
 ## Phase 0 — Preflight
 
-1. **Collect inputs.** Ask the user for:
-   - the **GitLab pipeline id** (used for cross-checking and for direct GitLab API
-     log/artifact fetching in Phase 3), and
-   - the **PR number** (source of truth for the branch and head commit).
+1. **Collect inputs.** Ask the user for the **GitLab pipeline id** and the **PR number**.
 
 2. **Resolve the PR.**
    ```bash
    gh pr view <PR> --json number,headRefName,headRefOid,url,baseRefName,title
    ```
-   Capture `headRefName` (branch), `headRefOid` (head SHA).
+   Capture `headRefName` (branch) and `headRefOid` (head SHA). Sanity-check that `baseRefName` is `master` and the
+   title/branch looks like the weekly dependency-update PR; if not, STOP and tell the user this isn't the PR the skill
+   handles (the whole skill assumes an `origin/master` baseline and lockfile-only diffs).
 
-3. **Record the broken head SHA.** Remember the `headRefOid` value as session context —
-   refer to it below as `ORIG_PR_HEAD`. **Do not** rely on a shell variable to carry it:
-   each command may run in a separate shell, so substitute the literal 40-char SHA
-   directly into every command that needs it. Phase 3 needs this SHA to retrieve the
-   *broken* lockfiles after Phase 2 has rolled them back.
+3. **Record the broken head SHA** as session context — call it `ORIG_PR_HEAD`. Substitute the literal 40-char SHA into
+   every command below rather than a shell variable (each command may run in a separate shell). Phase 3 needs it to
+   retrieve the *broken* lockfiles after Phase 2 rolls them back.
 
-4. **Ensure the branch is checked out at the PR head.**
-   ```bash
-   git rev-parse --abbrev-ref HEAD
-   ```
-   If it is **not** the PR branch, ask the user whether to check it out. Only if they
-   say yes:
-   ```bash
-   gh pr checkout <PR>
-   ```
-   If they say no, stop — the skill needs the branch checked out to proceed.
+4. **Check out the PR branch at its head.**
 
-   Branch name alone is not enough: a local branch with the PR's name can be stale or
-   behind `headRefOid`. After the branch is checked out, verify `HEAD` matches the
-   captured PR head SHA:
-   ```bash
-   git rev-parse HEAD   # must equal ORIG_PR_HEAD
-   ```
-   If it does not match, sync to the exact PR head before continuing (with the user's
-   agreement, since this moves their branch):
-   ```bash
-   git fetch origin && git reset --hard <ORIG_PR_HEAD-sha>
-   ```
-   Do not triage or commit until `HEAD` equals the PR head — otherwise Phase 2 builds
-   rollback commits on the wrong tree and the push is rejected or reverts stale content.
+- If the worktree is **dirty**, STOP and ask the user to commit/stash/discard — this skill rewrites lockfiles in place
+  and a checkout could clobber uncommitted work.
+- If clean and not already on the PR branch, run `gh pr checkout <PR>` and tell the user you switched them.
+- Verify `HEAD`, and if it doesn't match, sync to the PR head (with the user's OK, since `reset --hard` moves the branch
+  and drops any local commits above it):
+  ```bash
+  git rev-parse HEAD   # must equal ORIG_PR_HEAD
+  git fetch origin && git reset --hard <ORIG_PR_HEAD-sha>   # only if HEAD != ORIG_PR_HEAD
+  ```
 
-5. **Require a clean worktree.** This skill rewrites `gradle.lockfile`s in place, so any
-   uncommitted local work could be silently discarded. Check first:
-   ```bash
-   git status --porcelain
-   ```
-   If the output is non-empty, **stop** and ask the user to commit, stash, or discard
-   their changes before continuing. Do not proceed with a dirty worktree.
+Do not triage or commit until `HEAD` equals the PR head — otherwise Phase 2 builds commits on the wrong tree.
 
-6. **Sync master reference** (needed for rollback + Phase 2 base):
+5. **Sync the master reference** (rollback + Phase 2/3 base):
    ```bash
    git fetch origin master
    ```
@@ -124,201 +88,175 @@ what to set up rather than working around it.
 
 ## Phase 1 — Triage failed latestDep modules
 
-1. **Get CI status** using the PR head SHA (per the confirmed mapping: PR → head SHA
-   → ddci):
-   - `getCIStatus(commit_sha=<ORIG_PR_HEAD>, include_metadata=true)`
-   - This returns the DDCI `request_id` and the `tasks` map. Sanity-check the
-     returned pipeline/request against the user-provided pipeline id and note any
-     mismatch out loud before continuing.
+1. **Enumerate the failed jobs** for the given pipeline. First confirm the pipeline is actually the PR's — its SHA must
+   equal `ORIG_PR_HEAD`, or a wrong/stale id would roll back unrelated lockfiles; STOP if it doesn't match. Then list
+   the failed jobs (quote the path — zsh globs the `?`; `--paginate` to span all pages):
+   ```bash
+   PROJ=DataDog%2Fapm-reliability%2Fdd-trace-java
+   PIPE=<pipeline-id>
+   glab api --hostname gitlab.ddbuild.io "projects/$PROJ/pipelines/$PIPE" | jq -er .sha   # must equal ORIG_PR_HEAD
+   glab api --hostname gitlab.ddbuild.io --paginate \
+     "projects/$PROJ/pipelines/$PIPE/jobs?scope=failed&per_page=100" \
+     | jq -r '.[] | "\(.id)\t\(.name)\t\(.status)"'
+   ```
 
-2. **Enumerate failed tasks** from the `tasks` map. For each failed task, capture its
-   full `task_id` (the map key, e.g. `gitlab-<pipeline>-<b64>`) and its
-   `latest_task_execution.native_id` (the GitLab job id = `task_execution_id`).
+2. **Extract failing Gradle tasks** from each failed job's full `/trace` (the `Execution failed for task '…'` line is
+   mid-log, not in the tail). Fetch into a scratch dir; abort if any trace can't be fetched, or a broken module goes
+   unidentified:
+   ```bash
+   PROJ=DataDog%2Fapm-reliability%2Fdd-trace-java
+   LOGDIR=$(mktemp -d); trap 'rm -rf "$LOGDIR"' EXIT   # don't leave internal CI logs lying around
+   JOBS=(<failed-job-id> <failed-job-id> ...)
+   for J in "${JOBS[@]}"; do
+     glab api --hostname gitlab.ddbuild.io "projects/$PROJ/jobs/$J/trace" > "$LOGDIR/$J.log" \
+       || { echo "ERROR: trace fetch failed for job $J — abort" >&2; exit 1; }
+   done
+   grep -hoE "Execution failed for task '[^']*'" "$LOGDIR"/*.log | sort -u
+   ```
 
-3. **Extract failing Gradle tasks** from each failed job:
-   - Start with `getJobErrorSummary(request_id, task_id, task_execution_id)`.
-   - If unclear, fall back to `getJobLogs(request_id, task_execution_id)`.
-   - Grep the output for lines of the form:
-     ```
-     Execution failed for task ':dd-java-agent:instrumentation:openai-java:openai-java-3.0:latestDepTest'.
-     ```
-   - **Collect only** Gradle task paths belonging to a module's **latest-dep** work.
-     A break can surface as either a test-execution failure or a *compile/resolution*
-     failure of the latest-dep source set (which fails before the test task runs), so
-     match any final segment that is:
-     - a latest-dep **test** task — `:latestDepTest`, `:latestDepForkedTest`, or any
-       `:latestDep*Test` variant; **or**
-     - a latest-dep **build** task — `:compileLatestDepTestJava`,
-       `:compileLatestDepTestGroovy`, or any `:*LatestDepTest*`/`:compileLatestDep*`
-       source-set task.
+- **Collect only** latest-dep tasks — a break surfaces as either a test-execution failure or a *compile/resolution*
+  failure of the latest-dep source set (which fails before the test runs). Match any failing task whose name contains
+  `latestDep` — e.g. `latestDepTest`, `latestDepForkedTest`, `compileLatestDepJava`. **Ignore** everything else
+  (`:test`, `:forkedTest`, muzzle, infra, …).
+- **Record the exact failing task name (s)** per module — don't assume `latestDepTest`; some modules define only
+  `latestDepForkedTest`, and Phase 3 reuses the real name to verify.
+- **Record the JVM** the job ran on (the job name encodes it, e.g. a `j17`/`jdk17` segment). Phase 3 reproduces with
+  `-PtestJvm=<jvm>`. If a module failed on more than one JVM, record each — verify them all.
+- A single job can contain multiple failing latest-dep tasks — collect them **all**, across all jobs, deduped by module.
 
-     **Ignore** everything else (`:test`, `:forkedTest`, `:compileTestJava`, muzzle,
-     infra, etc.).
-   - **Record the exact failing task name(s)** for each module — do not assume it is
-     `latestDepTest`. Phase 3 reuses the real task name(s) to verify the fix (some
-     modules define only `latestDepForkedTest`).
-   - A single job can contain multiple failing latest-dep tasks — collect them **all**,
-     across all failed jobs. Dedupe by module.
+3. **Map each Gradle task path → lockfile.** Strip the trailing `:<taskName>`, convert the remaining `:` to `/`, and
+   append `/gradle.lockfile` — e.g. `:<module-path>:latestDepTest` → `<module-path-with-slashes>/gradle.lockfile`.
+   Verify the derived path exists; if it doesn't (rare Gradle-path/dir mismatch), resolve it with
+   `./gradlew -q :<project-path>:properties | grep '^projectDir:'` rather than guessing by leaf name.
+   Then confirm the PR actually changed this lockfile; if it didn't, the failure is flaky/unrelated (rolling back would
+   be a no-op) — exclude the module and flag it to the user:
+   ```bash
+   BASE=$(git merge-base HEAD origin/master)   # HEAD == ORIG_PR_HEAD (verified in Phase 0)
+   git diff --quiet "$BASE" HEAD -- <module>/gradle.lockfile \
+     && echo "UNCHANGED — exclude (flaky/unrelated)" || echo "changed — in scope"
+   ```
 
-4. **Map each Gradle task path → module dir → lockfile.** Strip the trailing
-   `:<taskName>`, then convert `:` to `/`:
-   - `:dd-java-agent:instrumentation:openai-java:openai-java-3.0:latestDepTest`
-     → module `dd-java-agent/instrumentation/openai-java/openai-java-3.0`
-     → lockfile `dd-java-agent/instrumentation/openai-java/openai-java-3.0/gradle.lockfile`
-   - Verify the derived lockfile path exists; if it does, use it directly — do not search.
-   - Only if the derived path does **not** exist (rare Gradle-path/directory mismatch),
-     resolve the directory authoritatively from the Gradle project path rather than
-     guessing by name:
-     ```bash
-     ./gradlew -q :<project-path>:properties | grep '^projectDir:'
-     ```
-     then use `<projectDir>/gradle.lockfile`.
-   - Do **not** fall back to a bare leaf-name search: leaf names are not unique (e.g.
-     `grpc-1.5` exists under both `dd-java-agent/instrumentation/` and `dd-smoke-tests/`),
-     so a search can roll back the wrong module's lockfile. If you must search, it has to
-     resolve to **exactly one** lockfile; on zero or multiple matches, stop and ask the
-     user for the fully-qualified module path.
-
-5. **Report the triage** to the user: the list of failed latestDep modules, each with
-   its Gradle path and lockfile, before making any change.
+4. **Report the triage** to the user before making any change: each failed latestDep module with its Gradle path,
+   lockfile, failing task (s), and JVM (s).
 
 ---
 
 ## Phase 2 — Unblock (rollback lockfiles)
 
-For **each** failed module, create **one commit** rolling its lockfile back to the
-pre-update state. Do **not** push between commits.
+For **each** failed module, create **one commit** rolling its lockfile back to the pre-update state. Do **not** push
+between commits.
 
-1. Determine the pre-update baseline (the lockfile as it was before the update commit)
-   and restore that module's lockfile to it:
+**Approval model:** the rollback commits are local and fully reversible, so create them without prompting. The one
+action that needs the user's go-ahead is the **push** (step 4) — where changes leave the machine and re-trigger CI.
+
+1. Roll the module's lockfile back to the pre-update baseline. Run as **one block** — `BASE` must live in the same
+   shell:
    ```bash
    BASE=$(git merge-base HEAD origin/master)
-   ```
-   - **If the lockfile existed at `BASE`** (the common case — an update), restore it:
-     ```bash
-     git checkout "$BASE" -- <module>/gradle.lockfile
-     ```
-   - **If the lockfile did NOT exist at `BASE`** (the update workflow *created* a
-     brand-new lockfile for this module), there is nothing to check out — rolling back
-     means **deleting** it:
-     ```bash
-     git rm <module>/gradle.lockfile
-     ```
-   Detect which case applies with:
-   ```bash
-   git cat-file -e "$BASE:<module>/gradle.lockfile" 2>/dev/null && echo existed || echo new
+   M=<module>/gradle.lockfile
+   if git cat-file -e "$BASE:$M" 2>/dev/null; then
+     git checkout "$BASE" -- "$M"   # existed at BASE (common case — an update) → restore & stage
+   else
+     git rm "$M"                    # created by the update → rolling back means deleting it
+   fi
    ```
 
-2. Commit that single module's change (a reverted or a removed lockfile):
+2. Commit that single module's already-staged change (restore or deletion — no `git add` needed):
    ```bash
-   git add <module>/gradle.lockfile   # 'git rm' already stages a deletion
-   git commit -m "temporary fix: rolled back conflicting dependencies to unblock PR merging
-
-   Module: <gradle-task-path-without-task>"
+   git commit -m "temporary fix: rolled back conflicting latest dependencies for module: <gradle-task-path-without-task> to unblock PR merging"
    ```
 
 3. Repeat for every failed module — one commit each.
 
-4. **Push once, after all commits exist.** Confirm with the user, then:
+4. **Verify, then push once** (after all commits exist). One diff per module confirms the lockfile now matches the
+   baseline — this covers both cases (a restored file has no diff vs `BASE`; a correctly-deleted new file is absent in
+   both `BASE` and `HEAD`, so also no diff):
    ```bash
-   git push
+   BASE=$(git merge-base HEAD origin/master)
+   git diff --quiet "$BASE" HEAD -- <module>/gradle.lockfile \
+     && echo "matches baseline" || echo "DIFF — investigate before pushing"
    ```
-   Pushing once (not per commit) triggers a single CI run. Report the pushed commits
-   and remind the user CI will re-run on the PR.
+   Fix anything flagged. Then, with the user's go-ahead, push **explicitly** to the PR branch (`headRefName` from Phase
+   0) so a missing/incorrect upstream can't send commits elsewhere:
+   ```bash
+   git push origin HEAD:<headRefName>
+   ```
+
+One push (not per commit) triggers a single CI run. Report the pushed commits and remind the user CI will re-run.
 
 ---
 
 ## Phase 3 — Real fix (opt-in, per module)
 
-After unblocking, **ask** the user whether to create separate real-fix PRs (one per
-failed module). If no, stop and hand them the module list. If yes, work the modules
-**one at a time** — fully finish and verify a module before starting the next.
+After unblocking, **ask** the user whether to create separate real-fix PRs (one per failed module). If no, stop and hand
+them the module list. If yes, work modules **one at a time** — fully finish and verify one before starting the next.
 
 For each module:
 
-1. **Fresh branch off master:**
+1. **Fresh branch off master.** Name it from the **sanitized fully-qualified Gradle path** (strip the leading `:`,
+   replace every `:` with `-`), *not* the leaf — two modules can share a leaf (e.g. `grpc-1.5`) and collide:
    ```bash
    git fetch origin master
-   git checkout -b fix/latest-dep-<leaf-module> origin/master
+   git checkout -b fix/latest-dep-<sanitized-gradle-path> origin/master
    ```
 
-2. **Reproduce the failure** by restoring the *broken* lockfile from the recorded PR
-   head (the version with the new, breaking dependency). Substitute the literal
-   `ORIG_PR_HEAD` SHA you noted in Phase 0 — do not use a shell variable:
+2. **Reproduce the failure** by putting the module's lockfile into the *broken* PR-head state. Substitute the literal
+   `ORIG_PR_HEAD` SHA. The update regenerates every lockfile and can *delete* one, so mirror whichever state it has:
    ```bash
-   git checkout <ORIG_PR_HEAD-sha> -- <module>/gradle.lockfile
+   if git cat-file -e "<ORIG_PR_HEAD-sha>:<module>/gradle.lockfile" 2>/dev/null; then
+     git checkout <ORIG_PR_HEAD-sha> -- <module>/gradle.lockfile   # present at PR head → restore
+   else
+     git rm <module>/gradle.lockfile                               # absent at PR head → reproduce the deletion
+   fi
    ```
 
-3. **Research the breaking change** — gather what you need:
-   - Full CI logs via ddci `getJobLogs` (paginate with `offset`), or the GitLab API
-     `/trace` endpoint for the untruncated log; download `reports.tar` for
-     thread/heap dumps if the failure is a hang/crash.
-   - Read the failing module's source and tests.
-   - Diff the conflicting dependency's old vs new version: GitHub release notes,
-     changelog, tags/diffs, and decompile the new jar if needed to see the API/behavior
-     change. Use WebFetch/WebSearch for release notes and upstream docs.
+3. **Research the breaking change:**
 
-4. **Implement the fix** in the module's production/test source so it is compatible
-   with the new dependency version. Match surrounding code style; follow repo test
-   conventions.
+- Full CI logs via the `/trace` fetch in Phase 1 step 2; download `reports.tar` for thread/heap dumps if it's a
+  hang/crash.
+- Read the failing module's source and tests.
+- Diff the conflicting dependency old vs new: release notes, changelog, tags/diffs, decompile the new jar if needed. Use
+  web-fetch / web-search for release notes and upstream docs.
 
-5. **Verify locally — the fix must make the latest-dep suite green WITHOUT breaking the
-   base test set.** The latest-dep suite is a separate source/test set from `test`.
-   First discover what the module actually defines — do not assume `latestDepTest`
-   exists (some modules define only `latestDepForkedTest`):
+4. **Implement the fix** so the module is compatible with the new version. Usually production/test source, but often
+   also module-local `build.gradle` changes (constraints, forced versions, source-set config) or test
+   fixtures/resources — keep those too. If the fix genuinely requires changes **outside** the failing module (a shared
+   helper, a related version module), that's allowed with clear justification, but you must extend verification (step 5)
+   to every module you touched. Match surrounding code style; follow repo test conventions.
+
+5. **Verify locally — the latest-dep suite must go green WITHOUT breaking the base test set** (a separate source set).
+   Discover what the module defines (don't assume `latestDepTest`):
    ```bash
    ./gradlew :<gradle-path>:tasks --group=verification
    ```
-   Then run, and require all to pass:
-   - the **exact failing task(s) you recorded in triage** for this module (e.g.
-     `:<gradle-path>:latestDepForkedTest`) — this is the suite that was red;
-   - the base `:<gradle-path>:test` (and its forked variant if defined), to prove the
-     fix does not regress the base set;
-   - any other verification tasks the module defines.
-
+   Then, on the JVM (s) you recorded in triage (run each one that failed), require all to pass:
    ```bash
-   ./gradlew :<gradle-path>:<recorded-latestDep-task>
-   ./gradlew :<gradle-path>:test
+   ./gradlew :<gradle-path>:<recorded-latestDep-task> -PtestJvm=<recorded JVM>
+   ./gradlew :<gradle-path>:test -PtestJvm=<recorded JVM>
    ```
-   Do not proceed while anything is red.
+   Also run any other verification task the module defines, and the `test` (and latest-dep) tasks of any **other**
+   module you changed. Skipping `-PtestJvm` runs your default JVM and can falsely pass a JVM-specific break. Do not
+   proceed while anything is red.
 
-6. **Only when everything is green**, commit, push the branch, and open a **draft** PR
-   off `master`.
+6. **Only when everything is green**, commit, push the branch, and open a **draft** PR off `master`.
 
-   **Write a real, filled-in PR description — never a stub.** Author it yourself from
-   what you actually found and did in this run (the failing `latestDep` upgrade, the
-   API/behavior change you researched, the code you changed, the tests you ran). Keep it
-   **short** and use markdown to highlight coding stuff (backtick `identifiers` /
-   `ClassName#method`, code fences for snippets, links to release notes). The `<…>`
-   angle-bracket hints below are instructions for what to write — replace each one with
-   concrete content; do not leave placeholders, `...`, or the hints themselves in the
-   final body. Follow this template exactly:
+   **Write a real, filled-in PR description — never a stub.** Base it on `.github/pull_request_template.md` (read that
+   file, fill each section from what you found and did this run): **What Does This Do** (the change + dependency version
+   it targets), **Motivation** (which `latestDep` upgrade broke and the API/behavior change that caused it),
+   **Additional Notes** (tests run, links to release notes/upstream diff; omit if empty), and the **Contributor
+   Checklist**.
 
-   ```markdown
-   # What Does This Do
-
-   <1–3 sentences: the code change and the dependency version it targets>
-
-   # Motivation
-
-   <why: which `latestDep` upgrade broke, and the API/behavior change that caused it>
-
-   # Additional Notes
-
-   <optional: tests run, links to release notes/upstream diff, caveats — omit the
-   section entirely if there is nothing to add>
-   ```
-
-   Compose the finished body first, then pass it to `gh`. **Stage only the intended
-   files** — the restored `gradle.lockfile` plus the source/test files you changed —
-   never `git add -A`. Verify the staged diff before committing so nothing unrelated
-   sneaks in:
+   **Stage only the intended files** — never `git add -A`. The lockfile's step-2 state (restore *or* deletion) is
+   already staged, so stage just the files you changed here and re-add the lockfile **only if it still exists**
+   (re-adding a deleted path errors). **Confirm with the user before committing** — show the staged diff and the PR
+   title/body, and get an explicit go-ahead (this pushes a branch and opens an external PR). Then:
    ```bash
-   git add <module>/gradle.lockfile <changed source/test files>
-   git status            # confirm nothing unintended is staged or left unstaged
-   git diff --cached     # review exactly what will be committed
+   git add <changed files: module source/tests/build.gradle/fixtures + any justified cross-module files>
+   [ -e <module>/gradle.lockfile ] && git add -- <module>/gradle.lockfile   # deletion already staged from step 2
+   git status && git diff --cached   # review exactly what will be committed — show this to the user
+   # → get the user's go-ahead here, then:
    git commit -m "<imperative summary of the fix for the new <dep> version>"
-   git push -u origin fix/latest-dep-<leaf-module>
+   git push -u origin fix/latest-dep-<sanitized-gradle-path>
    gh pr create --draft --base master \
      --title "<imperative, user-visible summary>" \
      --label "tag: ai generated" \
@@ -326,29 +264,26 @@ For each module:
      --label "<one inst: or comp: label>" \
      --label "<one type: label>" \
      --body "$(cat <<'EOF'
-   <the completed, real description here — the three sections above with actual content>
+   <the completed, real description — all sections above, incl. Contributor Checklist, with actual content>
    EOF
    )"
    ```
-   Per repo PR conventions: open as draft first; always include `tag: ai generated`,
-   at least one `comp:`/`inst:` label, and one `type:` label.
+   Per repo PR conventions: draft first; always include `tag: ai generated`, at least one `comp:`/`inst:` label, and one
+   `type:` label.
 
 7. Return to a clean state for the next module:
    ```bash
    git checkout <PR-branch-or-master>
    ```
 
-Repeat for each remaining module. When done, summarize: unblock commits pushed, and
-for each module either the fix PR URL or that it was skipped/deferred.
+When done, summarize: unblock commits pushed, and for each module either the fix PR URL or that it was skipped.
 
 ---
 
 ## Guardrails
 
-- Touch only modules whose `latestDep*Test` failed. Never modify lockfiles or code for
-  unrelated red jobs.
-- Phase 2 (unblock) changes **only** `gradle.lockfile`s — never source code.
-- Never push per-commit in Phase 2; batch into a single push.
-- Never open a Phase 3 PR until `latestDepTest`, `test`, and all other module test
-  tasks pass locally.
+- **Scope:** only modules whose latest-dep source set failed. Phase 2 changes **only** those modules' `gradle.lockfile`s
+  — never source code, never another module. Phase 3 may extend beyond the failed module only with clear justification,
+  and verification must then cover every module you touched.
+- **Approvals:** get the user's go-ahead before the Phase 2 push and before committing/opening any Phase 3 PR.
 - Keep Gradle runs sequential.
