@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import static datadog.trace.api.Config.isDatadogProfilerEnablementOverridden;
 import static datadog.trace.api.Config.isDatadogProfilerSafeInCurrentEnvironment;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.squareup.moshi.JsonAdapter;
@@ -159,9 +160,17 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.name("data_streams_transaction_extractors");
     writer.value(config.getDataStreamsTransactionExtractors());
     writer.name("otlp_traces_export_enabled");
-    writer.value(config.isTraceOtlpExporterEnabled());
+    // Report the effective trace writer, not just the exporter selection: an explicit
+    // dd.writer.type override wins over dd.trace.otel.exporter=otlp in WriterFactory, so traces are
+    // only exported over OTLP when the resolved writer is actually the OtlpWriter.
+    writer.value(OTLP_WRITER_TYPE.equals(config.getWriterType()));
     writer.name("otlp_metrics_export_enabled");
-    writer.value(config.isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled());
+    // Client-side trace span-metrics are exported over OTLP whenever span metrics are enabled
+    // (MetricsAggregatorFactory routes them through OtlpStatsMetricWriter), independently of the
+    // OTel metrics signal, so OR that path in alongside OTel-API metrics export.
+    writer.value(
+        (config.isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled())
+            || config.isOtelTracesSpanMetricsEnabled());
     writer.name("otlp_logs_export_enabled");
     writer.value(config.isLogsOtelEnabled() && config.isLogsOtlpExporterEnabled());
 

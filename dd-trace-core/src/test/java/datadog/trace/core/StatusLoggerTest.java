@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
+import datadog.trace.api.config.TracerConfig;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.io.IOException;
 import java.util.Map;
@@ -50,6 +51,28 @@ public class StatusLoggerTest extends DDCoreJavaSpecification {
     assertEquals(true, startupLog.get("otlp_traces_export_enabled"));
     assertEquals(false, startupLog.get("otlp_metrics_export_enabled"));
     assertEquals(false, startupLog.get("otlp_logs_export_enabled"));
+  }
+
+  @Test
+  @WithConfig(key = OtlpConfig.TRACE_OTEL_EXPORTER, value = "otlp")
+  @WithConfig(key = TracerConfig.WRITER_TYPE, value = "DDAgentWriter")
+  void tracesNotExportedWhenWriterTypeOverridesOtlpExporter() throws IOException {
+    // The OTLP trace exporter is selected, but an explicit dd.writer.type override wins in
+    // WriterFactory, so the effective writer is the DDAgentWriter and traces are not exported over
+    // OTLP.
+    Map<String, Object> startupLog = startupLog(Config.get());
+
+    assertEquals(false, startupLog.get("otlp_traces_export_enabled"));
+  }
+
+  @Test
+  @WithConfig(key = OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED, value = "true")
+  void metricsExportedWhenSpanMetricsEnabled() throws IOException {
+    // Span metrics are exported over OTLP via OtlpStatsMetricWriter whenever span metrics are
+    // enabled, independently of the OTel metrics signal, so metrics export should be reported.
+    Map<String, Object> startupLog = startupLog(Config.get());
+
+    assertEquals(true, startupLog.get("otlp_metrics_export_enabled"));
   }
 
   @SuppressWarnings("unchecked")
