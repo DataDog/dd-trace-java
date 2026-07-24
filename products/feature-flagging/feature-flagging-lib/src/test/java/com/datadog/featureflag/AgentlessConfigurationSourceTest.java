@@ -920,9 +920,14 @@ class AgentlessConfigurationSourceTest {
             client,
             Executors.newSingleThreadScheduledExecutor());
     final AtomicInteger listenerCalls = new AtomicInteger();
+    // Wait on the listener rather than on FakeClient.calls: the call counter is incremented when
+    // a request starts, so it reaches 2 before the second configuration has been applied.
+    final CountDownLatch listenerNotified = new CountDownLatch(2);
     final FeatureFlaggingGateway.ConfigListener flakyListener =
         configuration -> {
-          if (listenerCalls.incrementAndGet() == 1) {
+          final int call = listenerCalls.incrementAndGet();
+          listenerNotified.countDown();
+          if (call == 1) {
             throw new IllegalStateException("listener rejected first configuration");
           }
         };
@@ -930,7 +935,7 @@ class AgentlessConfigurationSourceTest {
 
     try {
       service.init();
-      awaitCalls(client, 2);
+      assertTrue(listenerNotified.await(5, TimeUnit.SECONDS));
 
       assertEquals(2, listenerCalls.get());
       assertNull(client.requests.get(1).etag);
