@@ -79,12 +79,14 @@ public class Controller {
   @GetMapping("/late-outbound")
   public String lateOutbound(@RequestParam(name = "url") String url) {
     final Span span = GlobalTracer.get().activeSpan();
-    // Thread synchronization relies on waitForTraceCount rather than Thread completion, no race issue.
+    // Thread synchronization relies on waitForTraceCount rather than Thread completion, no race
+    // issue.
     Thread thread =
         new Thread(
             () -> {
               try {
-                // Sleep past PendingTraceBuffer's 500ms flush delay so the root chunk exports before this late child.
+                // Sleep past PendingTraceBuffer's 500ms flush delay so the root chunk exports
+                // before this late child.
                 Thread.sleep(3000);
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
