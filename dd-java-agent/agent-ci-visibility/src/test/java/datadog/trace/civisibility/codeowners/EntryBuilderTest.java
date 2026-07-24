@@ -4,7 +4,9 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.civisibility.codeowners.matcher.CharacterMatcher;
@@ -23,15 +25,18 @@ class EntryBuilderTest {
   void testEntryMatch(String pattern, List<String> owners, String path, boolean expectedResult) {
     CharacterMatcher.Factory matcherFactory = new CharacterMatcher.Factory();
     Entry entry = new EntryBuilder(matcherFactory, pattern + " " + ownersToString(owners)).parse();
-    Entry negatedEntry =
+    Entry exclusionEntry =
         new EntryBuilder(matcherFactory, "!" + pattern + " " + ownersToString(owners)).parse();
 
     boolean result = entry.getMatcher().consume(path.toCharArray(), 0) >= 0;
-    boolean negatedResult = negatedEntry.getMatcher().consume(path.toCharArray(), 0) >= 0;
+    boolean exclusionResult = exclusionEntry.getMatcher().consume(path.toCharArray(), 0) >= 0;
 
     assertEquals(owners, entry.getOwners());
+    assertFalse(entry.isExclusion());
+    assertEquals(emptyList(), exclusionEntry.getOwners());
+    assertTrue(exclusionEntry.isExclusion());
     assertEquals(expectedResult, result);
-    assertEquals(!expectedResult, negatedResult);
+    assertEquals(expectedResult, exclusionResult);
   }
 
   static Stream<Arguments> testEntryMatchArguments() {
@@ -273,5 +278,16 @@ class EntryBuilderTest {
     // with no section defaults, owners stay empty (GitHub "unset ownership" semantics)
     Entry noOwners = new EntryBuilder(matcherFactory, "generated/").parse(emptyList());
     assertEquals(emptyList(), noOwners.getOwners());
+  }
+
+  @Test
+  void testExclusionDoesNotInheritSectionDefaultOwners() {
+    CharacterMatcher.Factory matcherFactory = new CharacterMatcher.Factory();
+
+    Entry exclusion =
+        new EntryBuilder(matcherFactory, "!generated/").parse(singletonList("@docs-team"));
+
+    assertTrue(exclusion.isExclusion());
+    assertEquals(emptyList(), exclusion.getOwners());
   }
 }

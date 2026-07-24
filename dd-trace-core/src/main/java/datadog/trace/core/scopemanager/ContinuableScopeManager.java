@@ -29,7 +29,6 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -377,11 +377,11 @@ public final class ContinuableScopeManager {
     return active == null ? Context.root() : active.context;
   }
 
-  public ContextScope attach(@NonNull Context context) {
+  public ContextScope attach(@Nonnull Context context) {
     return activate(context);
   }
 
-  public Context swap(@NonNull Context context) {
+  public Context swap(@Nonnull Context context) {
     ScopeStack oldStack = tlsScopeStack.get();
     ContinuableScope oldScope = oldStack.top;
 
@@ -411,7 +411,7 @@ public final class ContinuableScopeManager {
     return new ScopeContext(oldStack);
   }
 
-  public ContextContinuation capture(@NonNull Context context) {
+  public ContextContinuation capture(@Nonnull Context context) {
     if (context == Context.root()) {
       return ROOT_CONTINUATION;
     }

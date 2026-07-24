@@ -1,7 +1,6 @@
 package datadog.json;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Locale.ROOT;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Flushable;
@@ -14,6 +13,7 @@ import java.io.OutputStreamWriter;
  */
 public final class JsonWriter implements Flushable, AutoCloseable {
   private static final int INITIAL_CAPACITY = 256;
+  private static final char[] HEX_DIGITS = "0123456789ABCDEF".toCharArray();
   private final ByteArrayOutputStream outputStream;
   private final OutputStreamWriter writer;
   private final JsonStructure structure;
@@ -282,14 +282,10 @@ public final class JsonWriter implements Flushable, AutoCloseable {
         if (c > 127) {
           this.writer.write('\\');
           this.writer.write('u');
-          String hexCharacter = Integer.toHexString(c).toUpperCase(ROOT);
-          if (c < 4096) {
-            this.writer.write('0');
-            if (c < 256) {
-              this.writer.write('0');
-            }
-          }
-          this.writer.append(hexCharacter);
+          this.writer.write(HEX_DIGITS[(c >>> 12) & 0xF]);
+          this.writer.write(HEX_DIGITS[(c >>> 8) & 0xF]);
+          this.writer.write(HEX_DIGITS[(c >>> 4) & 0xF]);
+          this.writer.write(HEX_DIGITS[c & 0xF]);
         } else {
           switch (c) {
             case '"': // Quotation mark
@@ -319,7 +315,16 @@ public final class JsonWriter implements Flushable, AutoCloseable {
               this.writer.write('t');
               break;
             default:
-              this.writer.write(c);
+              if (c < 0x20) {
+                this.writer.write('\\');
+                this.writer.write('u');
+                this.writer.write('0');
+                this.writer.write('0');
+                this.writer.write(HEX_DIGITS[(c >>> 4) & 0xF]);
+                this.writer.write(HEX_DIGITS[c & 0xF]);
+              } else {
+                this.writer.write(c);
+              }
               break;
           }
         }

@@ -114,7 +114,7 @@ public static void exit(@Advice.Return(readOnly = false) CompletableFuture<Respo
 
 // CORRECT — attach a named callback for its side-effect; keep the return read-only;
 // run on both normal and throwable exit so the caller-thrown case still cleans up.
-@Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+@Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
 public static void exit(@Advice.Return CompletableFuture<Response> future,
                         @Advice.Enter AgentSpan span,
                         @Advice.Thrown Throwable thrown) {

@@ -20,6 +20,7 @@ import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import java.util.BitSet;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 
 public class GrpcServerDecorator extends ServerDecorator {
 
@@ -80,9 +81,9 @@ public class GrpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  public void afterStart(final AgentSpan span) {
+  protected void doAfterStart(@Nonnull final AgentSpan span) {
     span.setMeasured(true);
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 
   public <RespT, ReqT> void onCall(final AgentSpan span, ServerCall<ReqT, RespT> call) {
@@ -112,8 +113,9 @@ public class GrpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  public void onError(AgentSpan span, Throwable throwable) {
-    super.onError(span, throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
+  protected void doOnError(
+      @Nonnull AgentSpan span, @Nonnull Throwable throwable, byte errorPriority) {
+    super.doOnError(span, throwable, ErrorPriorities.HTTP_SERVER_DECORATOR);
     if (throwable instanceof StatusRuntimeException) {
       onStatus(span, ((StatusRuntimeException) throwable).getStatus());
     } else if (throwable instanceof StatusException) {

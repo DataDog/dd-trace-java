@@ -79,13 +79,14 @@ public class NettyChannelHandlerContextInstrumentation extends InstrumenterModul
       return activateSpan(channelSpan);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void close(@Advice.Enter final AgentScope scope) {
       if (scope != null) {
         scope.close();
       }
     }
 
+    @SuppressWarnings("DataFlowIssue")
     private void muzzleCheck() {
       NettyHttpClientDecorator.DECORATE.afterStart(null);
       NettyHttpServerDecorator.DECORATE.afterStart(null);

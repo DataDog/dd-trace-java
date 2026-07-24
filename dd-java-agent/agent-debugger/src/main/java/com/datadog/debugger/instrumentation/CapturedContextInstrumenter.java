@@ -1,5 +1,6 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.computeFrames;
 import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeConstructor;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;
@@ -74,7 +75,7 @@ public class CapturedContextInstrumenter extends Instrumenter {
   private int exitContextVar = -1;
   private int timestampStartVar = -1;
   private int throwableListVar = -1;
-  private Collection<LocalVariableNode> hoistedLocalVars = Collections.emptyList();
+  protected Collection<LocalVariableNode> hoistedLocalVars = Collections.emptyList();
 
   public CapturedContextInstrumenter(
       ProbeDefinition definition,
@@ -470,7 +471,7 @@ public class CapturedContextInstrumenter extends Instrumenter {
 
   // Initialize and hoist local variables to the top of the method
   // if there is name/slot conflict, do nothing for the conflicting local variable
-  private Collection<LocalVariableNode> initAndHoistLocalVars(MethodNode methodNode) {
+  protected Collection<LocalVariableNode> initAndHoistLocalVars(MethodNode methodNode) {
     int hoistingLevel = Config.get().getDynamicInstrumentationLocalVarHoistingLevel();
     if (hoistingLevel == 0 || language != JvmLanguage.JAVA) {
       // for now, only hoist local vars for Java

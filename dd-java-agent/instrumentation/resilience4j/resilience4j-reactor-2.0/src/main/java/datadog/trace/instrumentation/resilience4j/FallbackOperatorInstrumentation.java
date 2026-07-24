@@ -34,7 +34,7 @@ public class FallbackOperatorInstrumentation
 
   public static class DecorateAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
         @Advice.Return(readOnly = false) Function<Publisher<?>, Publisher<?>> result) {
 
