@@ -58,6 +58,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 import com.datadog.profiling.controller.ProfilingSupport;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.profiling.TaskBlockInstrumentationConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
@@ -167,6 +168,10 @@ public class DatadogProfilerConfig {
         configProvider,
         PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER,
         PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT);
+  }
+
+  public static boolean getWallPrecheck(ConfigProvider configProvider) {
+    return TaskBlockInstrumentationConfig.isWallPrecheckEnabled(configProvider);
   }
 
   static boolean isJmethodIDSafe() {

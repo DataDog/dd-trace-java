@@ -67,7 +67,7 @@ final class SmokeTestUtils {
                     + ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE
                     + "="
                     + templateOverride));
-    if (System.getenv("TEST_LIBASYNC") != null) {
+    if (System.getenv("SMOKETEST_AGENT_JAR") == null && System.getenv("TEST_LIBASYNC") != null) {
       command.add(
           "-Ddd."
               + ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH

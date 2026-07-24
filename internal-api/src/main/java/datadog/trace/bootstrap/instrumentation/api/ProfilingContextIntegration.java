@@ -1,3 +1,4 @@
+// Copyright 2026 Datadog, Inc.
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.EndpointCheckpointer;
@@ -32,6 +33,41 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
 
   default int encodeResourceName(CharSequence constant) {
     return 0;
+  }
+
+  /**
+   * Called before the current thread enters {@code LockSupport.park*}.
+   *
+   * @return {@code true} when the integration accepted the entry dispatch and therefore requires a
+   *     matching {@link #parkExit(long, long)}, even if profiling stops before the park returns
+   */
+  default boolean parkEnter() {
+    return false;
+  }
+
+  /** Completes a {@code LockSupport.park*} dispatch accepted by {@link #parkEnter()}. */
+  default void parkExit(long blocker, long unblockingSpanId) {}
+
+  /**
+   * Starts a synchronous TaskBlock interval on the current platform thread.
+   *
+   * @return an opaque token for {@link #endTaskBlock(long, long, long)}, or {@code 0} when the
+   *     interval was not accepted
+   */
+  default long beginTaskBlock() {
+    return 0L;
+  }
+
+  /**
+   * Completes a TaskBlock interval accepted by {@link #beginTaskBlock()}.
+   *
+   * @param token nonzero token returned by {@code beginTaskBlock}
+   * @param blocker identity hash of the blocking object, or {@code 0} when absent
+   * @param unblockingSpanId span that ended the interval, or {@code 0} when unavailable
+   * @return whether the native interval was completed and emitted
+   */
+  default boolean endTaskBlock(long token, long blocker, long unblockingSpanId) {
+    return false;
   }
 
   String name();

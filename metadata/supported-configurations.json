@@ -2793,6 +2793,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_ASYNC_WALL_PRECHECK": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_AUXILIARY": [
       {
         "version": "A",
@@ -3014,6 +3022,14 @@
         "version": "A",
         "type": "boolean",
         "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_DDPROF_WALL_PRECHECK": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
         "aliases": []
       }
     ],
@@ -7833,6 +7849,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_KOTLIN_COROUTINE_ENABLED", "DD_INTEGRATION_KOTLIN_COROUTINE_ENABLED"]
       }
     ],
+    "DD_TRACE_LOCK_SUPPORT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_LOCK_SUPPORT_ENABLED", "DD_INTEGRATION_LOCK_SUPPORT_ENABLED"]
+      }
+    ],
     "DD_TRACE_LEGACY_E2E_DURATION_ENABLED": [
       {
         "version": "A",
@@ -10919,6 +10943,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_TEST_RETRY_ENABLED", "DD_INTEGRATION_TEST_RETRY_ENABLED"]
+      }
+    ],
+    "DD_TRACE_THREAD_SLEEP_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_THREAD_SLEEP_ENABLED", "DD_INTEGRATION_THREAD_SLEEP_ENABLED"]
       }
     ],
     "DD_TRACE_THREAD_POOL_EXECUTORS_EXCLUDE": [

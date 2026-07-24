@@ -38,6 +38,10 @@ dependencies {
 
 tasks.withType(Test).configureEach {
   dependsOn "shadowJar"
+  inputs.file(providers.environmentVariable("TEST_LIBASYNC"))
+    .withPropertyName("testLibAsync")
+    .withPathSensitivity(PathSensitivity.NONE)
+    .optional()
   def shadowJarTask = tasks.named('shadowJar', ShadowJar)
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override

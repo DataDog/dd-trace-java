@@ -66,6 +66,8 @@ public abstract class AbstractInstrumentationTest {
   static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20);
 
   protected static final InstrumentationTestConfig testConfig = new InstrumentationTestConfig();
+  protected static final TestProfilingContextIntegration testProfilingContextIntegration =
+      new TestProfilingContextIntegration();
 
   protected static TracerAPI tracer;
   protected static ListWriter writer;
@@ -87,6 +89,7 @@ public abstract class AbstractInstrumentationTest {
             .writer(writer)
             .idGenerationStrategy(IdGenerationStrategy.fromName(testConfig.idGenerationStrategy))
             .strictTraceWrites(testConfig.strictTraceWrites)
+            .profilingContextIntegration(testProfilingContextIntegration)
             .build();
     TracerInstaller.forceInstallGlobalTracer(coreTracer);
     tracer = coreTracer;
