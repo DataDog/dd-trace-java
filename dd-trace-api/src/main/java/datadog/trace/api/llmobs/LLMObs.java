@@ -173,6 +173,54 @@ public class LLMObs {
     }
   }
 
+  public static class ToolDefinition {
+    private String name;
+    private String description;
+    private Map<String, Object> schema;
+    private String version;
+
+    public static ToolDefinition from(String name) {
+      return new ToolDefinition(name, null, null, null);
+    }
+
+    public static ToolDefinition from(String name, String description) {
+      return new ToolDefinition(name, description, null, null);
+    }
+
+    public static ToolDefinition from(String name, String description, Map<String, Object> schema) {
+      return new ToolDefinition(name, description, schema, null);
+    }
+
+    public static ToolDefinition from(
+        String name, String description, Map<String, Object> schema, String version) {
+      return new ToolDefinition(name, description, schema, version);
+    }
+
+    private ToolDefinition(
+        String name, String description, Map<String, Object> schema, String version) {
+      this.name = name;
+      this.description = description;
+      this.schema = schema;
+      this.version = version;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public String getDescription() {
+      return description;
+    }
+
+    public Map<String, Object> getSchema() {
+      return schema;
+    }
+
+    public String getVersion() {
+      return version;
+    }
+  }
+
   public static class ToolResult {
     private String name;
     private String type;

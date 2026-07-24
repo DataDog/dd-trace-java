@@ -61,6 +61,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
   private static final String INPUT = LLMOBS_TAG_PREFIX + "input"
   private static final String OUTPUT = LLMOBS_TAG_PREFIX + "output"
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA
+  private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS
 
 
   def "test span simple"() {
@@ -335,6 +336,88 @@ class DDLLMObsSpanTest  extends DDSpecification{
     "v1" == tagVersion.toString()
 
     DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
+  }
+
+  def "test llm span with tool definitions"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    def schema = Maps.of(
+      "type", "object",
+      "properties", Maps.of("location", Maps.of("type", "string")))
+    def toolDefinition =
+      LLMObs.ToolDefinition.from("get_weather", "Get the weather by location", schema, "1.2.3")
+
+    when:
+    test.setToolDefinitions(Arrays.asList(
+      toolDefinition,
+      LLMObs.ToolDefinition.from("get_time"),
+      LLMObs.ToolDefinition.from(""),
+      LLMObs.ToolDefinition.from(null),
+      null))
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    def toolDefinitions = innerSpan.getTag(TOOL_DEFINITIONS)
+    toolDefinitions instanceof List
+    toolDefinitions.size() == 2
+    toolDefinitions.get(0).is(toolDefinition)
+    toolDefinitions.get(1).name == "get_time"
+    toolDefinitions.get(1).description == null
+    toolDefinitions.get(1).schema == null
+    toolDefinitions.get(1).version == null
+  }
+
+  def "tool definitions overwrite prior annotations and ignore invalid definitions"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    test.setToolDefinitions(Arrays.asList(LLMObs.ToolDefinition.from("first")))
+
+    when:
+    test.setToolDefinitions(Arrays.asList(
+      LLMObs.ToolDefinition.from("second")))
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(TOOL_DEFINITIONS)*.name == ["second"]
+
+    when:
+    test.setToolDefinitions(Arrays.asList(
+      LLMObs.ToolDefinition.from(""),
+      LLMObs.ToolDefinition.from(null),
+      null))
+
+    then:
+    innerSpan.getTag(TOOL_DEFINITIONS)*.name == ["second"]
+  }
+
+  def "null and empty tool definition lists do not overwrite prior annotations"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    test.setToolDefinitions(Arrays.asList(LLMObs.ToolDefinition.from("first")))
+
+    when:
+    test.setToolDefinitions(toolDefinitions)
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(TOOL_DEFINITIONS)*.name == ["first"]
+
+    where:
+    toolDefinitions << [null, Collections.emptyList()]
+  }
+
+  def "tool definitions cannot be annotated after the span finishes"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    test.setToolDefinitions(Arrays.asList(LLMObs.ToolDefinition.from("first")))
+    test.finish()
+
+    when:
+    test.setToolDefinitions(Arrays.asList(LLMObs.ToolDefinition.from("second")))
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(TOOL_DEFINITIONS)*.name == ["first"]
   }
 
   def "finish records span.finished telemetry when LLMObs enabled"() {
