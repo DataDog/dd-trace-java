@@ -19,8 +19,16 @@ public class TracingListIterator extends TracingIterator
       KafkaDecorator decorator,
       String group,
       String clusterId,
-      String bootstrapServers) {
-    super(delegateIterator, operationName, decorator, group, clusterId, bootstrapServers);
+      String bootstrapServers,
+      KafkaConsumerInfo kafkaConsumerInfo) {
+    super(
+        delegateIterator,
+        operationName,
+        decorator,
+        group,
+        clusterId,
+        bootstrapServers,
+        kafkaConsumerInfo);
     this.delegateIterator = delegateIterator;
   }
 
@@ -28,14 +36,19 @@ public class TracingListIterator extends TracingIterator
   public boolean hasPrevious() {
     boolean moreRecords = delegateIterator.hasPrevious();
     if (!moreRecords) {
-      // no more records, use this as a signal to close the last iteration scope
-      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
-      } else {
-        final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
-        if (previousSpan != null) {
-          previousSpan.finishWithEndToEnd();
+      if (!KafkaConsumerInstrumentationHelper.shouldDeferConsumerScope()) {
+        // no more records, use this as a signal to close the last iteration scope
+        if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+          closePrevious(true);
+        } else {
+          final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
+          if (previousSpan != null) {
+            previousSpan.finishWithEndToEnd();
+          }
         }
+      } else {
+        // deferring: leave the last record's scope active past the loop; record a handle to it
+        captureDeferredConsumeSpan();
       }
     }
     return moreRecords;

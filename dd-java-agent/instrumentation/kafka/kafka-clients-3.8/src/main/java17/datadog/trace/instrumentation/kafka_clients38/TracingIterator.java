@@ -43,6 +43,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   private final String group;
   private final String clusterId;
   private final String bootstrapServers;
+  private final KafkaConsumerInfo kafkaConsumerInfo;
 
   public TracingIterator(
       final Iterator<ConsumerRecord<?, ?>> delegateIterator,
@@ -50,30 +51,51 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
       final KafkaDecorator decorator,
       String group,
       String clusterId,
-      String bootstrapServers) {
+      String bootstrapServers,
+      KafkaConsumerInfo kafkaConsumerInfo) {
     this.delegateIterator = delegateIterator;
     this.operationName = operationName;
     this.decorator = decorator;
     this.group = group;
     this.clusterId = clusterId;
     this.bootstrapServers = bootstrapServers;
+    this.kafkaConsumerInfo = kafkaConsumerInfo;
   }
 
   @Override
   public boolean hasNext() {
     boolean moreRecords = delegateIterator.hasNext();
     if (!moreRecords) {
-      // no more records, use this as a signal to close the last iteration scope
-      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
-      } else {
-        final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
-        if (previousSpan != null) {
-          previousSpan.finishWithEndToEnd();
+      if (!KafkaConsumerInstrumentationHelper.shouldDeferConsumerScope()) {
+        // no more records, use this as a signal to close the last iteration scope
+        if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+          closePrevious(true);
+        } else {
+          final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
+          if (previousSpan != null) {
+            previousSpan.finishWithEndToEnd();
+          }
         }
+      } else {
+        // deferring: leave the last record's scope active past the loop; record a handle to it
+        captureDeferredConsumeSpan();
       }
     }
     return moreRecords;
+  }
+
+  /**
+   * Stashes the active {@code kafka.consume} span on the per-consumer {@link KafkaConsumerInfo} so
+   * a later poll()/close()/unsubscribe() can finish that precise span regardless of thread or
+   * stack.
+   */
+  protected void captureDeferredConsumeSpan() {
+    if (kafkaConsumerInfo != null) {
+      AgentSpan span = AgentTracer.activeSpan();
+      if (span != null && KafkaDecorator.KAFKA_CONSUME.equals(span.getOperationName())) {
+        kafkaConsumerInfo.setDeferredConsumeSpan(span);
+      }
+    }
   }
 
   @Override
@@ -86,7 +108,15 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
   protected void startNewRecordSpan(ConsumerRecord<?, ?> val) {
     try {
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
-        closePrevious(true);
+        // real records always close the previous scope; the terminal close is deferred when the
+        // flag is on -- see hasNext().
+        if (val != null || !KafkaConsumerInstrumentationHelper.shouldDeferConsumerScope()) {
+          closePrevious(true);
+        } else {
+          // terminal null record while deferring: leave the last consume span active, record a
+          // handle so a later poll()/close()/unsubscribe() finishes it
+          captureDeferredConsumeSpan();
+        }
       } else if (val == null) { // previous message span was the last
         final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
         if (previousSpan != null) {

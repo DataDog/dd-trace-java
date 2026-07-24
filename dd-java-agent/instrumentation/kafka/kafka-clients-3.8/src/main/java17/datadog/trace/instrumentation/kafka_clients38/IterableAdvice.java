@@ -29,7 +29,8 @@ public class IterableAdvice {
               KafkaDecorator.CONSUMER_DECORATE,
               group,
               clusterId,
-              bootstrapServers);
+              bootstrapServers,
+              kafkaConsumerInfo);
     }
   }
 }

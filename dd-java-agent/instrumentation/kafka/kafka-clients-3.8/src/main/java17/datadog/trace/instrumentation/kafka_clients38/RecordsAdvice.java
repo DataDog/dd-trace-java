@@ -27,9 +27,12 @@ import org.apache.kafka.common.errors.WakeupException;
 public class RecordsAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.This ConsumerDelegate consumer) {
-    // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
     KafkaConsumerInfo kafkaConsumerInfo =
         InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class).get(consumer);
+    // a poll() means any span deferred past the previous poll loop is done -- close it now (no-op
+    // unless consumer-scope deferral is enabled)
+    KafkaConsumerInstrumentationHelper.closeLingeringConsumeScope(kafkaConsumerInfo);
+    // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
     if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
       String clusterId =
           KafkaConsumerInstrumentationHelper.extractClusterId(

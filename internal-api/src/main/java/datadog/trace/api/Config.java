@@ -609,6 +609,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_PROPAGATIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JMS_UNACKNOWLEDGED_MAX_AGE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.KAFKA_CREATE_CONSUMER_SCOPE_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
@@ -1274,6 +1275,7 @@ public class Config {
   private final boolean kafkaClientPropagationEnabled;
   private final Set<String> kafkaClientPropagationDisabledTopics;
   private final boolean kafkaClientBase64DecodingEnabled;
+  private final boolean kafkaCreateConsumerScopeEnabled;
 
   private final boolean jmsPropagationEnabled;
   private final Set<String> jmsPropagationDisabledTopics;
@@ -2995,6 +2997,10 @@ public class Config {
         tryMakeImmutableSet(configProvider.getList(KAFKA_CLIENT_PROPAGATION_DISABLED_TOPICS));
     kafkaClientBase64DecodingEnabled =
         configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
+    kafkaCreateConsumerScopeEnabled =
+        configProvider.getBoolean(
+            KAFKA_CREATE_CONSUMER_SCOPE_ENABLED,
+            ConfigDefaults.DEFAULT_TRACE_KAFKA_CREATE_CONSUMER_SCOPE_ENABLED);
     jmsPropagationEnabled = isPropagationEnabled(true, "jms");
     jmsPropagationDisabledTopics =
         tryMakeImmutableSet(configProvider.getList(JMS_PROPAGATION_DISABLED_TOPICS));
@@ -4899,6 +4905,10 @@ public class Config {
     return kafkaClientBase64DecodingEnabled;
   }
 
+  public boolean isKafkaCreateConsumerScopeEnabled() {
+    return kafkaCreateConsumerScopeEnabled;
+  }
+
   public boolean isRabbitPropagationEnabled() {
     return rabbitPropagationEnabled;
   }
@@ -6598,6 +6608,8 @@ public class Config {
         + kafkaClientPropagationDisabledTopics
         + ", kafkaClientBase64DecodingEnabled="
         + kafkaClientBase64DecodingEnabled
+        + ", kafkaCreateConsumerScopeEnabled="
+        + kafkaCreateConsumerScopeEnabled
         + ", jmsPropagationEnabled="
         + jmsPropagationEnabled
         + ", jmsPropagationDisabledTopics="

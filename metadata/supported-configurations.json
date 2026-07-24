@@ -7745,6 +7745,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_KAFKA_CONNECT_ENABLED", "DD_INTEGRATION_KAFKA_CONNECT_ENABLED"]
       }
     ],
+    "DD_TRACE_KAFKA_CREATE_CONSUMER_SCOPE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_KAFKA_E2E_DURATION_ENABLED": [
       {
         "version": "A",

@@ -87,6 +87,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
     return new String[] {
       packageName + ".KafkaDecorator",
       packageName + ".KafkaConsumerInfo",
+      packageName + ".KafkaConsumerInstrumentationHelper",
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
@@ -120,6 +121,15 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
             .and(takesArguments(1))
             .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecords"))),
         KafkaConsumerInfoInstrumentation.class.getName() + "$RecordsAdvice");
+
+    // close()/unsubscribe() end the poll loop for good, so a consume span deferred past the last
+    // poll must be finished here rather than left dangling.
+    transformer.applyAdvice(
+        isMethod().and(isPublic()).and(named("close")),
+        KafkaConsumerInfoInstrumentation.class.getName() + "$CloseScopeAdvice");
+    transformer.applyAdvice(
+        isMethod().and(isPublic()).and(named("unsubscribe")).and(takesArguments(0)),
+        KafkaConsumerInfoInstrumentation.class.getName() + "$CloseScopeAdvice");
   }
 
   public static class ConstructorAdviceNot27 {
@@ -237,9 +247,14 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
   public static class RecordsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This KafkaConsumer consumer) {
-      // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
       KafkaConsumerInfo kafkaConsumerInfo =
           InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
+
+      // a poll() means any span deferred past the previous poll loop is done -- close it now (no-op
+      // unless consumer-scope deferral is enabled)
+      KafkaConsumerInstrumentationHelper.closeLingeringConsumeScope(kafkaConsumerInfo);
+
+      // Set cluster ID in ClusterIdHolder for Schema Registry instrumentation
       if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
         Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
         if (consumerMetadata != null) {
@@ -288,6 +303,21 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       }
       scope.close();
       span.finish();
+    }
+  }
+
+  /**
+   * Finishes a {@code kafka.consume} span left active past the last poll when {@code
+   * close()}/{@code unsubscribe()} ends the poll loop, in case no further poll() arrives.
+   */
+  public static class CloseScopeAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.This KafkaConsumer consumer) {
+      if (Config.get().isKafkaCreateConsumerScopeEnabled()) {
+        KafkaConsumerInfo kafkaConsumerInfo =
+            InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
+        KafkaConsumerInstrumentationHelper.closeLingeringConsumeScope(kafkaConsumerInfo);
+      }
     }
   }
 }

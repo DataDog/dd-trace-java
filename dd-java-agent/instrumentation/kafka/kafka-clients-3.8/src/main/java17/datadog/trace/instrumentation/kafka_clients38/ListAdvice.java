@@ -28,7 +28,13 @@ public class ListAdvice {
           KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
       iterable =
           new TracingList(
-              iterable, KAFKA_CONSUME, CONSUMER_DECORATE, group, clusterId, bootstrapServers);
+              iterable,
+              KAFKA_CONSUME,
+              CONSUMER_DECORATE,
+              group,
+              clusterId,
+              bootstrapServers,
+              kafkaConsumerInfo);
     }
   }
 }

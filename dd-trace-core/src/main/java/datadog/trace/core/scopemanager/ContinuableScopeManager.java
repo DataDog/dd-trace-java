@@ -273,6 +273,29 @@ public final class ContinuableScopeManager {
     }
   }
 
+  /**
+   * Silently closes a lingering iteration scope (same cleanup as {@link #closePrevious(boolean)}'s
+   * iteration branch), but a quiet no-op with no telemetry when the top of stack is not an
+   * iteration scope, since it is called speculatively on every poll.
+   */
+  public void closeLingeringIterationScope() {
+    ScopeStack scopeStack = scopeStack();
+
+    final ContinuableScope top = scopeStack.top;
+    if (top == null || top.source() != ITERATION) {
+      return;
+    }
+    if (iterationKeepAlive > 0) { // skip depth check because cancelling is cheap
+      cancelRootIterationScopeCleanup(scopeStack, top);
+    }
+    top.close();
+    scopeStack.cleanup();
+    AgentSpan span = top.span();
+    if (span != null) {
+      span.finishWithEndToEnd();
+    }
+  }
+
   public AgentScope activateNext(final AgentSpan span) {
     ScopeStack scopeStack = scopeStack();
 
