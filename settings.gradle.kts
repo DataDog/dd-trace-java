@@ -587,6 +587,7 @@ include(
   ":dd-java-agent:instrumentation:spark:spark_2.13",
   ":dd-java-agent:instrumentation:spark:spark-executor-common",
   ":dd-java-agent:instrumentation:spark:sparkjava-2.3",
+  ":dd-java-agent:instrumentation:spark:sparkjava-gen-2.3",
   ":dd-java-agent:instrumentation:spray-1.3",
   ":dd-java-agent:instrumentation:spring:spring-beans-3.1",
   ":dd-java-agent:instrumentation:spring:spring-boot-1.3",
