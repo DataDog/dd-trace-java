@@ -50,7 +50,8 @@ public final class AggregateEntry extends Hashtable.Entry {
   // into the entry.
   private final Histogram okLatencies;
 
-  // Null until first error; SerializingMetricWriter writes empty histogram form when null.
+  // Null until first error; SerializingMetricWriter writes empty histogram form when null. Not
+  // thread-safe as well.
   @Nullable private Histogram errorLatencies;
 
   private int errorCount;

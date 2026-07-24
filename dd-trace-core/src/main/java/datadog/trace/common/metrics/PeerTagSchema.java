@@ -119,11 +119,15 @@ final class PeerTagSchema {
   }
 
   /**
-   * Resets every {@link TagCardinalityHandler}'s working set and flushes this cycle's per-tag block
-   * counts to both {@link HealthMetrics} (as a per-cycle count) and {@code reporter} (accumulated
-   * by tag name for the rate-limited summary). Flushing by name here is what lets a peer-tag schema
-   * rebuild discard these handlers without losing counts. Must be called on the aggregator thread;
-   * handlers are not thread-safe.
+   * Resets cardinality tracking for each peer tag and reports how many values were blocked since
+   * the previous reset.
+   *
+   * <p>The counts are sent to {@link HealthMetrics} for the current reporting cycle. They are also
+   * added to {@code reporter}, which groups them by tag name for a rate-limited warning. Grouping
+   * counts by name ensures they are not lost when a schema rebuild replaces the handlers.
+   *
+   * <p>This method must be called only from the aggregator thread because the handlers are not
+   * thread-safe.
    */
   void resetHandlers(HealthMetrics healthMetrics, CardinalityLimitReporter reporter) {
     long totalCollapsed = 0;
