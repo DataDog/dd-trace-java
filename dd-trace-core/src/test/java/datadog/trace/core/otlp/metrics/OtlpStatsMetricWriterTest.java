@@ -12,6 +12,7 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.AggregateEntry;
 import datadog.trace.common.metrics.AggregateEntryTestUtils;
 import datadog.trace.core.otlp.common.OtlpPayload;
@@ -422,6 +423,100 @@ class OtlpStatsMetricWriterTest {
     assertFalse(bareAttrs.containsKey("http.response.status_code"));
     assertFalse(bareAttrs.containsKey("http.route"));
     assertFalse(bareAttrs.containsKey("rpc.response.status_code"));
+  }
+
+  @Test
+  void additionalMetricTagsEmittedAsStringAttributes() throws IOException {
+    // Additional tags arrive on the entry pre-packed as "key:value" UTF8 strings in schema order;
+    // the writer splits each at the first ':' and emits it as a plain OTLP string attribute keyed
+    // by the tag name, in both semantics modes.
+    AggregateEntry e =
+        AggregateEntryTestUtils.of(
+            "GET /users",
+            "web",
+            "servlet.request",
+            null,
+            "web",
+            0,
+            false,
+            true,
+            "server",
+            null,
+            null,
+            null,
+            null,
+            new UTF8BytesString[] {
+              UTF8BytesString.create("region:us-east-1"),
+              UTF8BytesString.create("tenant_id:acme:corp")
+            });
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+
+    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    assertEquals("us-east-1", attrs.get("region"));
+    // value may itself contain ':' — only the first ':' separates key from value
+    assertEquals("acme:corp", attrs.get("tenant_id"));
+  }
+
+  @Test
+  void additionalMetricTagsEmittedInOtelSemanticsMode() throws IOException {
+    // Unlike datadog.* attributes, additional tags are user-configured dimensions and are emitted
+    // in otel-semantics mode too.
+    AggregateEntry e =
+        AggregateEntryTestUtils.of(
+            "GET /users",
+            "web",
+            "servlet.request",
+            null,
+            "web",
+            0,
+            false,
+            true,
+            "server",
+            null,
+            null,
+            null,
+            null,
+            new UTF8BytesString[] {UTF8BytesString.create("region:us-east-1")});
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+
+    Map<String, Object> attrs = writeAndDecode(true, e).dataPoints.get(0).attributes;
+    assertEquals("us-east-1", attrs.get("region"));
+    assertFalse(
+        attrs.containsKey("datadog.operation.name"), "datadog.* still absent in otel-semantics");
+  }
+
+  @Test
+  void malformedAdditionalTagsAreSkipped() throws IOException {
+    // Defensive: a slot with no ':', an empty key, or an empty value is dropped rather than emitted
+    // as a malformed attribute.
+    AggregateEntry e =
+        AggregateEntryTestUtils.of(
+            "GET /users",
+            "web",
+            "servlet.request",
+            null,
+            "web",
+            0,
+            false,
+            true,
+            "server",
+            null,
+            null,
+            null,
+            null,
+            new UTF8BytesString[] {
+              UTF8BytesString.create("noseparator"),
+              UTF8BytesString.create(":emptykey"),
+              UTF8BytesString.create("emptyvalue:"),
+              UTF8BytesString.create("region:us-east-1")
+            });
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+
+    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    assertEquals("us-east-1", attrs.get("region"), "well-formed tag still emitted");
+    assertFalse(attrs.containsKey("noseparator"), "no-separator slot skipped");
+    assertFalse(attrs.containsKey(""), "empty-key slot skipped");
+    assertFalse(attrs.containsKey("emptyvalue"), "empty-value slot skipped");
   }
 
   @Test
