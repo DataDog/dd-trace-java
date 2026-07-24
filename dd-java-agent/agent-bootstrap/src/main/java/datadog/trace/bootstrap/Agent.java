@@ -135,8 +135,7 @@ public class Agent {
     AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false),
     APP_LOGS_COLLECTION(GeneralConfig.APP_LOGS_COLLECTION_ENABLED, false),
     LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
-    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false),
-    FEATURE_FLAGGING(FeatureFlaggingConfig.FLAGGING_PROVIDER_ENABLED, false);
+    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false);
 
     private final String configKey;
     private final String systemProp;
@@ -283,7 +282,7 @@ public class Agent {
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
     appLogsCollectionEnabled = isFeatureEnabled(AgentFeature.APP_LOGS_COLLECTION);
     llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
-    featureFlaggingEnabled = isFeatureEnabled(AgentFeature.FEATURE_FLAGGING);
+    featureFlaggingEnabled = isFeatureFlaggingEnabled();
 
     // setup writers when llmobs is enabled to accomodate apm and llmobs
     if (llmObsEnabled) {
@@ -530,6 +529,9 @@ public class Agent {
     }
     if (flareEnabled) {
       stopFlarePoller();
+    }
+    if (featureFlaggingEnabled) {
+      shutdownFeatureFlagging(AGENT_CLASSLOADER);
     }
 
     if (agentlessLogSubmissionEnabled) {
@@ -1287,6 +1289,20 @@ public class Agent {
     }
   }
 
+  static void shutdownFeatureFlagging(final ClassLoader agentClassLoader) {
+    if (agentClassLoader == null) {
+      return;
+    }
+    try {
+      final Class<?> ffSysClass =
+          agentClassLoader.loadClass("com.datadog.featureflag.FeatureFlaggingSystem");
+      final Method stopMethod = ffSysClass.getMethod("stop");
+      stopMethod.invoke(null);
+    } catch (final Throwable e) {
+      log.warn("Unable to stop Feature Flagging subsystem", e);
+    }
+  }
+
   private static void maybeInstallLogsIntake(Class<?> scoClass, Object sco) {
     if (agentlessLogSubmissionEnabled || appLogsCollectionEnabled) {
       StaticEventLogger.begin("Logs Intake");
@@ -1737,6 +1753,45 @@ public class Agent {
       // false unless it's explicitly set to "true"
       return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
     }
+  }
+
+  private static boolean isFeatureFlaggingEnabled() {
+    final Boolean providerEnabled =
+        featureFlaggingBooleanSetting(FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED);
+    final String configurationSource =
+        featureFlaggingSetting(FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE);
+    final Boolean legacyProviderEnabled =
+        featureFlaggingBooleanSetting(FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED);
+
+    return FeatureFlaggingConfig.resolveConfiguration(
+            providerEnabled, configurationSource, legacyProviderEnabled)
+        .isEnabled();
+  }
+
+  @SuppressFBWarnings(
+      value = "NP_BOOLEAN_RETURN_NULL",
+      justification = "A null value preserves the distinction between absent and explicitly false")
+  private static Boolean featureFlaggingBooleanSetting(final String configKey) {
+    final String value = featureFlaggingSetting(configKey);
+    if (value == null) {
+      return null;
+    }
+    return Boolean.parseBoolean(value) || "1".equals(value);
+  }
+
+  private static String featureFlaggingSetting(final String configKey) {
+    final String systemProperty = propertyNameToSystemPropertyName(configKey);
+    String value = SystemProperties.get(systemProperty);
+    if (value == null) {
+      value = getStableConfig(FLEET, configKey);
+    }
+    if (value == null) {
+      value = ddGetEnv(systemProperty);
+    }
+    if (value == null) {
+      value = getStableConfig(LOCAL, configKey);
+    }
+    return value;
   }
 
   /**

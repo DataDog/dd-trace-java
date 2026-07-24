@@ -48,6 +48,9 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_INJECT_DATADOG_ATTRIBUTE = true;
   static final String DEFAULT_SITE = "datadoghq.com";
+  static final String DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE = "agentless";
+  static final int DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS = 30;
+  static final int DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS = 5;
 
   static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT = false;
   static final int DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES = 8;

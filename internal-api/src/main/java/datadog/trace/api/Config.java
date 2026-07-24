@@ -87,6 +87,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_AND_PA
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_BODY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ELASTICSEARCH_PARAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_GRPC_SERVER_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
@@ -725,6 +727,14 @@ import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LEN
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.isSupportedConfigurationSource;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfiguration;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
@@ -741,6 +751,7 @@ import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.IastDetectionMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -1218,6 +1229,12 @@ public class Config {
   private final String remoteConfigTargetsKey;
 
   private final int remoteConfigMaxExtraServices;
+
+  private final boolean featureFlaggingProviderEnabled;
+  private final String featureFlaggingConfigurationSource;
+  private final String featureFlaggingConfigurationSourceAgentlessBaseUrl;
+  private final int featureFlaggingConfigurationSourcePollIntervalSeconds;
+  private final int featureFlaggingConfigurationSourceRequestTimeoutSeconds;
 
   private final boolean dbmInjectSqlBaseHash;
   private final String dbmPropagationMode;
@@ -2848,6 +2865,63 @@ public class Config {
     remoteConfigMaxExtraServices =
         configProvider.getInteger(
             REMOTE_CONFIG_MAX_EXTRA_SERVICES, DEFAULT_REMOTE_CONFIG_MAX_EXTRA_SERVICES);
+
+    final Boolean configuredFeatureFlaggingProviderEnabled =
+        configProvider.getBoolean(FEATURE_FLAGS_ENABLED);
+    final Boolean legacyFeatureFlaggingProviderEnabled =
+        configProvider.getBoolean(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED);
+    final String configuredFeatureFlaggingConfigurationSource =
+        configProvider.isSet(FEATURE_FLAGS_CONFIGURATION_SOURCE)
+            ? configProvider.getString(FEATURE_FLAGS_CONFIGURATION_SOURCE)
+            : null;
+    final FeatureFlaggingConfig.Resolution resolvedFeatureFlaggingConfiguration =
+        resolveConfiguration(
+            configuredFeatureFlaggingProviderEnabled,
+            configuredFeatureFlaggingConfigurationSource,
+            legacyFeatureFlaggingProviderEnabled);
+    if (legacyFeatureFlaggingProviderEnabled != null) {
+      log.warn(
+          "Setting {} is deprecated. Use {} and {} instead.",
+          EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED,
+          FEATURE_FLAGS_ENABLED,
+          FEATURE_FLAGS_CONFIGURATION_SOURCE);
+    }
+    if (!isSupportedConfigurationSource(configuredFeatureFlaggingConfigurationSource)) {
+      log.warn(
+          "Unsupported Feature Flagging configuration source; provider disabled: '{}'",
+          resolvedFeatureFlaggingConfiguration.getSource());
+    }
+    featureFlaggingProviderEnabled = resolvedFeatureFlaggingConfiguration.isEnabled();
+    featureFlaggingConfigurationSource = resolvedFeatureFlaggingConfiguration.getSource();
+    featureFlaggingConfigurationSourceAgentlessBaseUrl =
+        configProvider.getStringNotEmpty(
+            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, null);
+    int configuredFeatureFlaggingPollIntervalSeconds =
+        configProvider.getInteger(
+            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS,
+            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS);
+    if (configuredFeatureFlaggingPollIntervalSeconds <= 0) {
+      log.warn(
+          "Invalid Feature Flagging agentless poll interval: {}. The value must be positive",
+          configuredFeatureFlaggingPollIntervalSeconds);
+      configuredFeatureFlaggingPollIntervalSeconds =
+          DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS;
+    }
+    featureFlaggingConfigurationSourcePollIntervalSeconds =
+        configuredFeatureFlaggingPollIntervalSeconds;
+    int configuredFeatureFlaggingRequestTimeoutSeconds =
+        configProvider.getInteger(
+            FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS,
+            DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS);
+    if (configuredFeatureFlaggingRequestTimeoutSeconds <= 0) {
+      log.warn(
+          "Invalid Feature Flagging agentless request timeout: {}. The value must be positive",
+          configuredFeatureFlaggingRequestTimeoutSeconds);
+      configuredFeatureFlaggingRequestTimeoutSeconds =
+          DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS;
+    }
+    featureFlaggingConfigurationSourceRequestTimeoutSeconds =
+        configuredFeatureFlaggingRequestTimeoutSeconds;
 
     dynamicInstrumentationEnabled =
         configProvider.getBoolean(
@@ -4680,6 +4754,26 @@ public class Config {
 
   public int getRemoteConfigMaxExtraServices() {
     return remoteConfigMaxExtraServices;
+  }
+
+  public boolean isFeatureFlaggingProviderEnabled() {
+    return featureFlaggingProviderEnabled;
+  }
+
+  public String getFeatureFlaggingConfigurationSource() {
+    return featureFlaggingConfigurationSource;
+  }
+
+  public String getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() {
+    return featureFlaggingConfigurationSourceAgentlessBaseUrl;
+  }
+
+  public int getFeatureFlaggingConfigurationSourcePollIntervalSeconds() {
+    return featureFlaggingConfigurationSourcePollIntervalSeconds;
+  }
+
+  public int getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds() {
+    return featureFlaggingConfigurationSourceRequestTimeoutSeconds;
   }
 
   public boolean isDynamicInstrumentationEnabled() {
@@ -6540,6 +6634,16 @@ public class Config {
         + remoteConfigMaxPayloadSize
         + ", remoteConfigIntegrityCheckEnabled="
         + remoteConfigIntegrityCheckEnabled
+        + ", featureFlaggingProviderEnabled="
+        + featureFlaggingProviderEnabled
+        + ", featureFlaggingConfigurationSource="
+        + featureFlaggingConfigurationSource
+        + ", featureFlaggingConfigurationSourceAgentlessBaseUrl="
+        + featureFlaggingConfigurationSourceAgentlessBaseUrl
+        + ", featureFlaggingConfigurationSourcePollIntervalSeconds="
+        + featureFlaggingConfigurationSourcePollIntervalSeconds
+        + ", featureFlaggingConfigurationSourceRequestTimeoutSeconds="
+        + featureFlaggingConfigurationSourceRequestTimeoutSeconds
         + ", debuggerEnabled="
         + dynamicInstrumentationEnabled
         + ", debuggerUploadTimeout="
