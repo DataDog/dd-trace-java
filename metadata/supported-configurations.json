@@ -8417,6 +8417,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_OKHTTP_3_ENABLED", "DD_INTEGRATION_OKHTTP_3_ENABLED"]
       }
     ],
+    "DD_TRACE_OKHTTP_4_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_OKHTTP_4_ENABLED", "DD_INTEGRATION_OKHTTP_4_ENABLED"]
+      }
+    ],
     "DD_TRACE_OKHTTP_ANALYTICS_ENABLED": [
       {
         "version": "A",

@@ -1,0 +1,68 @@
+muzzle {
+  // No assertInverse: the advice references only java.lang.Runnable plus agent-bootstrap helpers,
+  // never an OkHttp type, so muzzle has nothing version-specific to fail on for pre-4.x. The real
+  // version gate is knownMatchingTypes — okhttp3.internal.connection.RealCall$AsyncCall only exists
+  // in 4.x+, so the instrumentation simply doesn't match on 3.x (which okhttp-3.0 handles instead).
+  pass {
+    group = "com.squareup.okhttp3"
+    module = "okhttp"
+    versions = "[4.0,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+// Use slf4j-simple for tests; logback's synchronized appenders can pin virtual-thread carriers
+// when many vthreads log concurrently, which deadlocks the virtual-thread suites.
+apply from: "$rootDir/gradle/slf4j-simple.gradle"
+
+// The only coverage here is the virtual-thread regression suite, which needs the JDK 21+ API. We
+// run the same test source against both OkHttp 4.x and 5.x:
+//   - 4.x lives at com.squareup.okhttp3:okhttp
+//   - 5.x became a Kotlin-Multiplatform library; com.squareup.okhttp3:okhttp is a metadata shell and
+//     the JVM classes ship in com.squareup.okhttp3:okhttp-jvm (Gradle resolves this automatically
+//     via variant metadata). The matched type okhttp3.internal.connection.RealCall$AsyncCall is at
+//     the same FQN in both, so a single instrumentation covers both majors.
+// Both suites share src/vthread21Test/java and are kept apart only to bind different OkHttp versions.
+addTestSuiteForDir('vthread21Test4', 'vthread21Test')
+addTestSuiteForDir('vthread21Test5', 'vthread21Test')
+
+['vthread21Test4', 'vthread21Test5'].each { suite ->
+  tasks.named("compile${suite.capitalize()}Java", JavaCompile) {
+    configureCompiler(it, 21)
+  }
+  tasks.named(suite, Test) {
+    testJvmConstraints {
+      minJavaVersion = JavaVersion.VERSION_21
+      // Cap at 24: suite fails on the JDK 25/tip CI shards (CI/test-stability, not an
+      // instrumentation limit — the vthread instrumentation works on 25; see okhttp-3.0). Lift
+      // once stable on 25+.
+      maxJavaVersion = JavaVersion.VERSION_24
+    }
+  }
+  tasks.named("check") {
+    dependsOn suite
+  }
+}
+
+dependencies {
+  compileOnly(group: 'com.squareup.okhttp3', name: 'okhttp', version: '4.0.0')
+
+  // OkHttp 4.x (Kotlin) pulls kotlin-stdlib and okio 2.x transitively.
+  vthread21Test4Implementation(group: 'com.squareup.okhttp3', name: 'okhttp', version: '4.12.0')
+  // OkHttp 5.x resolves to okhttp-jvm via Gradle variant metadata; pulls kotlin-stdlib 2.x + okio 3.x.
+  vthread21Test5Implementation(group: 'com.squareup.okhttp3', name: 'okhttp', version: '5.4.0')
+
+  // The core OkHttp tracing (OkHttp3Instrumentation -> TracingInterceptor, which creates the
+  // okhttp.request span) lives in the okhttp-3.0 module and applies to 4.x/5.x too. Pull it in so
+  // the tests exercise the full chain: core tracing + this module's AsyncCall scope capture.
+  vthread21Test4RuntimeOnly project(':dd-java-agent:instrumentation:okhttp:okhttp-3.0')
+  vthread21Test5RuntimeOnly project(':dd-java-agent:instrumentation:okhttp:okhttp-3.0')
+
+  // Pull in the JDK-21+ concurrent / lang instrumentations so the tests install the same
+  // TaskRunnerInstrumentation + VirtualThreadInstrumentation chain that profiling-backend
+  // exercises in production.
+  vthread21Test4RuntimeOnly project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-21.0')
+  vthread21Test4RuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-21.0')
+  vthread21Test5RuntimeOnly project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-21.0')
+  vthread21Test5RuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-21.0')
+}
