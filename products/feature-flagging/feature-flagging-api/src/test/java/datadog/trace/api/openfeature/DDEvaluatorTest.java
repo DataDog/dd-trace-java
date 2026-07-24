@@ -23,6 +23,7 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import dev.openfeature.sdk.ErrorCode;
@@ -63,6 +64,22 @@ public class DDEvaluatorTest {
       Types.newParameterizedType(List.class, FixtureCase.class);
   private static final JsonAdapter<List<FixtureCase>> FIXTURE_LIST_ADAPTER =
       MOSHI.adapter(FIXTURE_LIST_TYPE);
+
+  @Test
+  public void testInitializeSignalsApplicationProviderActivation() throws Exception {
+    final FeatureFlaggingGateway.ActivationListener listener =
+        mock(FeatureFlaggingGateway.ActivationListener.class);
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    FeatureFlaggingGateway.addActivationListener(listener);
+    try {
+      evaluator.initialize(1, MILLISECONDS, mock(EvaluationContext.class));
+
+      verify(listener).activate();
+    } finally {
+      evaluator.shutdown();
+      FeatureFlaggingGateway.removeActivationListener(listener);
+    }
+  }
 
   private static Arguments[] valueMappingTestCases() {
     return new Arguments[] {

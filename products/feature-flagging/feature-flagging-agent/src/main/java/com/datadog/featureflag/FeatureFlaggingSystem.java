@@ -1,7 +1,11 @@
 package com.datadog.featureflag;
 
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
+
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,17 +16,64 @@ public class FeatureFlaggingSystem {
   private static volatile ConfigurationSourceService CONFIG_SERVICE;
   private static volatile ExposureWriter EXPOSURE_WRITER;
   private static volatile SpanEnrichmentWriter SPAN_ENRICHMENT_WRITER;
+  private static volatile FeatureFlaggingGateway.ActivationListener ACTIVATION_LISTENER;
+  private static volatile boolean STARTED;
 
   private FeatureFlaggingSystem() {}
 
   public static synchronized void start(final SharedCommunicationObjects sco) {
-    if (CONFIG_SERVICE != null || EXPOSURE_WRITER != null) {
+    if (STARTED) {
       LOGGER.debug("Feature Flagging system already started");
       return;
     }
     LOGGER.debug("Feature Flagging system starting");
     final Config config = Config.get();
+    STARTED = true;
+
+    if (!config.isFeatureFlaggingProviderEnabled()) {
+      LOGGER.debug("Feature Flagging system disabled");
+      return;
+    }
+
+    if (CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())) {
+      final FeatureFlaggingGateway.ActivationListener activationListener =
+          () -> activateAgentless(sco, config);
+      ACTIVATION_LISTENER = activationListener;
+      FeatureFlaggingGateway.addActivationListener(activationListener);
+      LOGGER.debug("Feature Flagging system awaiting application provider activation");
+      return;
+    }
+
+    try {
+      initializeSystem(sco, config);
+    } catch (final RuntimeException | Error e) {
+      STARTED = false;
+      throw e;
+    }
+  }
+
+  private static synchronized void activateAgentless(
+      final SharedCommunicationObjects sco, final Config config) {
+    final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
+    if (!STARTED || activationListener == null) {
+      return;
+    }
+    ACTIVATION_LISTENER = null;
+    FeatureFlaggingGateway.removeActivationListener(activationListener);
+    try {
+      initializeSystem(sco, config);
+    } catch (final RuntimeException | Error e) {
+      STARTED = false;
+      throw e;
+    }
+  }
+
+  private static void initializeSystem(final SharedCommunicationObjects sco, final Config config) {
     final ConfigurationSourceService configService = createConfigurationSourceService(sco, config);
+    if (configService == null) {
+      LOGGER.debug("Feature Flagging system disabled by unsupported configuration source");
+      return;
+    }
     final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
     initialize(configService, exposureWriter);
 
@@ -60,30 +111,32 @@ public class FeatureFlaggingSystem {
 
   static ConfigurationSourceService createConfigurationSourceService(
       final SharedCommunicationObjects sco, final Config config) {
-    final ConfigurationSource configurationSource =
-        ConfigurationSource.from(config.getFeatureFlaggingConfigurationSource());
-
-    if (configurationSource == ConfigurationSource.REMOTE_CONFIG) {
+    final String configurationSource = config.getFeatureFlaggingConfigurationSource();
+    if (CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(configurationSource)) {
       if (!config.isRemoteConfigEnabled()) {
         throw new IllegalStateException("Feature Flagging system started without RC");
       }
       return new RemoteConfigServiceImpl(sco, config);
     }
-    if (configurationSource == ConfigurationSource.AGENTLESS) {
+    if (CONFIGURATION_SOURCE_AGENTLESS.equals(configurationSource)) {
       return new AgentlessConfigurationSource(config);
     }
-    LOGGER.debug(
-        "Feature Flagging offline configuration source selected; no config service started");
     return null;
   }
 
   public static synchronized void stop() {
+    final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
     final SpanEnrichmentWriter spanEnrichmentWriter = SPAN_ENRICHMENT_WRITER;
     final ExposureWriter exposureWriter = EXPOSURE_WRITER;
     final ConfigurationSourceService configService = CONFIG_SERVICE;
+    STARTED = false;
+    ACTIVATION_LISTENER = null;
     SPAN_ENRICHMENT_WRITER = null;
     EXPOSURE_WRITER = null;
     CONFIG_SERVICE = null;
+    if (activationListener != null) {
+      FeatureFlaggingGateway.removeActivationListener(activationListener);
+    }
     try {
       if (spanEnrichmentWriter != null) {
         spanEnrichmentWriter.close();
@@ -102,25 +155,7 @@ public class FeatureFlaggingSystem {
     LOGGER.debug("Feature Flagging system stopped");
   }
 
-  private enum ConfigurationSource {
-    AGENTLESS("agentless"),
-    REMOTE_CONFIG("remote_config"),
-    OFFLINE("offline");
-
-    private final String value;
-
-    ConfigurationSource(final String value) {
-      this.value = value;
-    }
-
-    private static ConfigurationSource from(final String value) {
-      for (final ConfigurationSource source : values()) {
-        if (source.value.equals(value)) {
-          return source;
-        }
-      }
-      throw new IllegalArgumentException(
-          "Unsupported Feature Flagging configuration source: " + value);
-    }
+  static boolean isAwaitingApplicationActivation() {
+    return ACTIVATION_LISTENER != null;
   }
 }
