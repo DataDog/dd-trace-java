@@ -61,6 +61,15 @@ public class KarateTracingListener implements RunListener {
     return true;
   }
 
+  private void afterScenario(ScenarioRunEvent event) {
+    ScenarioRuntime sr = event.source();
+    Scenario scenario = sr.getScenario();
+    // A context means call advice will finish the test after scenario post-processing.
+    if (scenarioContext.get(scenario) == null) {
+      afterScenario(sr, event.result(), null);
+    }
+  }
+
   private boolean beforeFeature(FeatureRunEvent event) {
     FeatureRuntime fr = event.source();
     if (skipTracking(fr)) {
@@ -149,20 +158,22 @@ public class KarateTracingListener implements RunListener {
     return true;
   }
 
-  private void afterScenario(ScenarioRunEvent event) {
-    ScenarioRuntime sr = event.source();
+  public static void afterScenario(
+      ScenarioRuntime sr, ScenarioResult result, ExecutionContext context) {
     if (skipTracking(sr)) {
       return;
     }
     Scenario scenario = sr.getScenario();
-    ScenarioResult result = event.result();
     TestDescriptor testDescriptor = KarateUtils.toTestDescriptor(sr);
 
-    ExecutionContext context = scenarioContext.get(scenario);
     Throwable suppressedError = context != null ? context.getAndClearSuppressedError() : null;
-    Throwable failedReason = getFailedReason(result, suppressedError);
+    // @fail retains the expected step error even when the final result passes, so only inspect
+    // failed results for an error
+    boolean resultFailed = result != null && result.isFailed();
+    Throwable failedReason =
+        resultFailed ? getFailedReason(result, suppressedError) : suppressedError;
 
-    if ((result != null && result.isFailed()) || failedReason != null) {
+    if (resultFailed || failedReason != null) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, failedReason);
     } else if (result == null || result.getStepResults().isEmpty()) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, null);

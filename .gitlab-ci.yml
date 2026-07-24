@@ -1491,6 +1491,9 @@ deploy_to_di_backend:manual:
     UPSTREAM_COMMIT_AUTHOR: $CI_COMMIT_AUTHOR
     UPSTREAM_COMMIT_SHORT_SHA: $CI_COMMIT_SHORT_SHA
 
+deploy_to_reliability_env:
+  needs: [ build ]
+
 # If the deploy_to_maven_central job is re-run, re-trigger the deploy_artifacts_to_github job as well so that the artifacts match.
 deploy_to_maven_central:
   extends: .gradle_build

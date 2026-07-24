@@ -106,7 +106,7 @@ x-request-id: req_40a85f5080bf4950a7a3f0767d0f5487
   "usage": {
     "input_tokens": 70,
     "input_tokens_details": {
-      "cached_tokens": 0
+      "cached_tokens": 0, "cache_write_tokens": 0
     },
     "output_tokens": 24,
     "output_tokens_details": {

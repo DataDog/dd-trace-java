@@ -25,7 +25,8 @@ public class ExceptionInstrumenter extends CapturedContextInstrumenter {
     // a try/catch that create a subscobe and even level method local vars are not accessible
     // in the catch clause for capture
     hoistedLocalVars = initAndHoistLocalVars(methodNode);
-    Map<AbstractInsnNode, Frame<BasicValue>> frames = computeFrames(classNode.name, methodNode);
+    Map<AbstractInsnNode, Frame<BasicValue>> frames =
+        ASMHelper.computeFrames(classNode.name, methodNode);
     processInstructions(frames); // fill returnHandlerLabel
     addFinallyHandler(methodEnterLabel, returnHandlerLabel);
     installFinallyBlocks();
