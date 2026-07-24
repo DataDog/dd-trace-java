@@ -1118,9 +1118,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return true;
     }
     if (this.removedFromParent == null) {
-      // no local entries and no tombstones -> empty iff the whole ancestor chain is empty (nothing
-      // shadows it). Ancestors are frozen (no tombstones), so exact == definite here.
-      return parent.isDefinitelyEmpty();
+      // A live parent is never definitely-empty: createFromParent drops an empty parent (and copy()
+      // only forwards an already-vetted parent), and the parent is frozen so it can't become empty.
+      // So with no local entries and no tombstones, the parent contributes at least one visible
+      // entry -> this map is non-empty.
+      return false;
     }
     // size == 0 with tombstones (rare): empty iff every visible ancestor entry is tombstoned
     return this.visibleParentCount() == 0;
