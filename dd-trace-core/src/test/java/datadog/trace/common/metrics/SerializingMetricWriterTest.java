@@ -489,8 +489,9 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
   }
 
   @Test
-  void additionalMetricTagsFieldOmittedWhenNoneSet() {
-    // Schema configured, but the span doesn't set any of the configured tags.
+  void additionalMetricTagsEmittedAsEmptyArrayWhenConfiguredButNoneSet() {
+    // Schema configured, but the span doesn't set any of the configured tags. Per the Span-Derived
+    // Primary Tags RFC the field is still present (as an empty array) whenever the feature is on.
     AdditionalTagsSchema schema =
         AdditionalTagsSchema.from(new LinkedHashSet<>(Arrays.asList("region")));
     AggregateTable table = newTable(schema);
@@ -499,10 +500,35 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
 
     List<AggregateEntry> content = contentOf(table);
     assertEquals(1, content.size());
-    // No slots populated -> empty packed array -> AdditionalMetricTags omitted from the payload.
+    // No slots populated -> empty packed array, but the field is still emitted since configured.
     assertEquals(0, content.get(0).getAdditionalTags().length);
 
     serializeAndValidate(content);
+  }
+
+  @Test
+  void additionalMetricTagsFieldOmittedWhenFeatureOff() {
+    // Feature off (no schema): the writer omits AdditionalMetricTags entirely so non-users pay no
+    // payload overhead.
+    long startTime = MILLISECONDS.toNanos(System.currentTimeMillis());
+    long duration = SECONDS.toNanos(10);
+    WellKnownTags wellKnownTags =
+        new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language");
+    AggregateTable table = newTable(AdditionalTagsSchema.EMPTY);
+    table.findOrInsert(snapshot(AdditionalTagsSchema.EMPTY)).recordOneDuration(1L);
+    List<AggregateEntry> content = contentOf(table);
+    assertEquals(1, content.size());
+    assertEquals(0, content.get(0).getAdditionalTags().length);
+
+    // Default (unconfigured) sink + writer: the field must be absent.
+    ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content);
+    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128);
+    writer.startBucket(content.size(), startTime, duration);
+    for (AggregateEntry entry : content) {
+      writer.add(entry);
+    }
+    writer.finishBucket();
+    assertTrue(sink.validatedInput());
   }
 
   @Test
@@ -579,8 +605,11 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
     long duration = SECONDS.toNanos(10);
     WellKnownTags wellKnownTags =
         new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language");
-    ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content);
-    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128);
+    // These helpers exercise the configured-feature path, so the writer is built configured and the
+    // sink expects the AdditionalMetricTags field present (possibly empty) on every entry.
+    ValidatingSink sink =
+        new ValidatingSink(wellKnownTags, startTime, duration, content, null, true);
+    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, true);
 
     writer.startBucket(content.size(), startTime, duration);
     for (AggregateEntry entry : content) {
@@ -599,6 +628,7 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
     private boolean validated = false;
     private final List<AggregateEntry> content;
     private final String expectedGitCommitSha;
+    private final boolean additionalTagsConfigured;
 
     ValidatingSink(
         WellKnownTags wellKnownTags,
@@ -614,11 +644,22 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
         long duration,
         List<AggregateEntry> content,
         String expectedGitCommitSha) {
+      this(wellKnownTags, startTimeNanos, duration, content, expectedGitCommitSha, false);
+    }
+
+    ValidatingSink(
+        WellKnownTags wellKnownTags,
+        long startTimeNanos,
+        long duration,
+        List<AggregateEntry> content,
+        String expectedGitCommitSha,
+        boolean additionalTagsConfigured) {
       this.wellKnownTags = wellKnownTags;
       this.startTimeNanos = startTimeNanos;
       this.duration = duration;
       this.content = content;
       this.expectedGitCommitSha = expectedGitCommitSha;
+      this.additionalTagsConfigured = additionalTagsConfigured;
     }
 
     @Override
@@ -684,14 +725,13 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
         boolean hasServiceSource = entry.hasServiceSource();
         boolean hasGrpcStatusCode = entry.hasGrpcStatusCode();
         UTF8BytesString[] additionalTags = entry.getAdditionalTags();
-        boolean hasAdditionalTags = additionalTags.length > 0;
         int expectedMapSize =
             15
                 + (hasServiceSource ? 1 : 0)
                 + (hasHttpMethod ? 1 : 0)
                 + (hasHttpEndpoint ? 1 : 0)
                 + (hasGrpcStatusCode ? 1 : 0)
-                + (hasAdditionalTags ? 1 : 0);
+                + (additionalTagsConfigured ? 1 : 0);
         assertEquals(expectedMapSize, metricMapSize);
         int elementCount = 0;
         assertEquals("Name", unpacker.unpackString());
@@ -729,9 +769,10 @@ class SerializingMetricWriterTest extends DDJavaSpecification {
         }
         ++elementCount;
         // AdditionalMetricTags is a packed array of pre-built "key:value" strings in schema
-        // (alphabetical-by-key) order. Emitted immediately after PeerTags and omitted entirely
-        // when the entry set none, mirroring the writer's optional-field handling above.
-        if (hasAdditionalTags) {
+        // (alphabetical-by-key) order. Emitted immediately after PeerTags whenever the feature is
+        // configured -- as an empty array for entries that matched no key -- and omitted entirely
+        // when the feature is off, mirroring the writer's field handling above.
+        if (additionalTagsConfigured) {
           assertEquals("AdditionalMetricTags", unpacker.unpackString());
           int additionalTagsLength = unpacker.unpackArrayHeader();
           assertEquals(additionalTags.length, additionalTagsLength);

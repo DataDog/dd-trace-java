@@ -218,7 +218,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         features,
         healthMetric,
         sink,
-        new SerializingMetricWriter(wellKnownTags, sink),
+        new SerializingMetricWriter(wellKnownTags, sink, additionalTagsSchema.size() > 0),
         maxAggregates,
         queueSize,
         reportingInterval,
