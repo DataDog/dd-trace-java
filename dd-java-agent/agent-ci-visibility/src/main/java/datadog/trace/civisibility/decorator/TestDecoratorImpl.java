@@ -6,11 +6,16 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Strings;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 
 public class TestDecoratorImpl implements TestDecorator {
 
   private static final UTF8BytesString CIAPP_TEST_ORIGIN = UTF8BytesString.create("ciapp-test");
+
+  // components whose tests represent benchmarks (test.type = "benchmark")
+  private static final Set<String> BENCHMARK_COMPONENTS = Collections.singleton("jmh");
 
   private final String component;
   private final String sessionName;
@@ -32,7 +37,7 @@ public class TestDecoratorImpl implements TestDecorator {
   }
 
   protected String testType() {
-    return TEST_TYPE;
+    return BENCHMARK_COMPONENTS.contains(component) ? TEST_TYPE_BENCHMARK : TEST_TYPE;
   }
 
   protected UTF8BytesString origin() {

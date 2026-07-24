@@ -92,6 +92,23 @@ public class Tags {
 
   public static final String TEST_IS_ANDROID = "test.is_android";
 
+  public static final String BENCHMARK_VALUE = "benchmark.value";
+  public static final String BENCHMARK_ERROR = "benchmark.error";
+  public static final String BENCHMARK_UNIT = "benchmark.unit";
+  public static final String BENCHMARK_MODE = "benchmark.run.mode";
+  public static final String BENCHMARK_ITERATIONS = "benchmark.run.iterations";
+  public static final String BENCHMARK_WARMUP_ITERATIONS = "benchmark.run.warmup_iterations";
+  public static final String BENCHMARK_FORKS = "benchmark.run.forks";
+  public static final String BENCHMARK_THREADS = "benchmark.run.threads";
+  public static final String BENCHMARK_TIME_UNIT = "benchmark.run.time_unit";
+  public static final String BENCHMARK_P50 = "benchmark.p50";
+  public static final String BENCHMARK_P90 = "benchmark.p90";
+  public static final String BENCHMARK_P95 = "benchmark.p95";
+  public static final String BENCHMARK_P99 = "benchmark.p99";
+  public static final String BENCHMARK_MIN = "benchmark.min";
+  public static final String BENCHMARK_MAX = "benchmark.max";
+  public static final String BENCHMARK_SAMPLE_COUNT = "benchmark.sample_count";
+
   public static final String TEST_SESSION_ID = "test_session_id";
   public static final String TEST_MODULE_ID = "test_module_id";
   public static final String TEST_SUITE_ID = "test_suite_id";

@@ -13,6 +13,7 @@ public enum TestFrameworkInstrumentation implements TagValue {
   SCALATEST,
   KARATE,
   WEAVER,
+  JMH,
   OTHER;
 
   private final String s;

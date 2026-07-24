@@ -7353,6 +7353,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_JETTY_WEBSOCKET_ENABLED", "DD_INTEGRATION_JETTY_WEBSOCKET_ENABLED"]
       }
     ],
+    "DD_TRACE_JMH_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_JMH_ENABLED", "DD_INTEGRATION_JMH_ENABLED"]
+      }
+    ],
     "DD_TRACE_JMS_1_ENABLED": [
       {
         "version": "A",
