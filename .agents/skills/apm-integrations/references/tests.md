@@ -113,3 +113,67 @@ State the isolation reason in a comment on the `ForkedTest` class.
 ### Do not add default jvmArgs to test tasks
 
 `dd.trace.enabled=true` is the default; adding `jvmArgs '-Ddd.trace.enabled=true'` to a `Test` task in `build.gradle` is noise. Only add jvmArgs that meaningfully diverge from defaults (e.g. enabling a specific integration that's off by default, or a debug flag). If you're tempted to copy a `jvmArgs` block from a sibling module, check whether each flag is actually needed for this module.
+
+## Version-sensitive tests belong in a separate `latestDepTest` source set
+
+For libraries whose API surface changes across minor versions (Reactor deprecates and removes APIs; Netty changes handler signatures; gRPC's generated code evolves), route each test to the source set whose classpath actually satisfies its imports. First check how the module wires `latestDepTest` in `build.gradle`:
+
+- **`addTestSuite('latestDepTest')`** — `latestDepTest` has its own sources at `src/latestDepTest/`, separate from `src/test/`. In this shape: put latest-only APIs (added after your pinned min) in `src/latestDepTest/`; put removed-in-latest APIs (e.g. Reactor's `Schedulers.elastic()`, removed in 3.5+) in `src/test/`, testing the replacement API (`Schedulers.boundedElastic()`) in `latestDepTest/` instead.
+- **`addTestSuiteForDir('latestDepTest', 'test')`** — `latestDepTest` reuses `src/test/`'s sources and compiles them against the latest classpath too. In this shape, `src/test/` is NOT a safe place for a removed-in-latest-API test — it still gets compiled against `latestDepTestImplementation` and will fail the same way. A test that exercises a removed API needs the module to declare a real separate `latestDepTest` source set instead (switch to `addTestSuite('latestDepTest')`), or the test needs to avoid the removed API entirely (e.g. call the replacement API and assert equivalent behavior).
+
+Common libraries where this split matters: Reactor, Netty, gRPC, Kafka clients (consumer API changed at 3.0), Cassandra driver (3.x vs 4.x largely incompatible).
+
+**Editing an existing module:** check for `src/latestDepTest/` and the exact `addTestSuite(...)`/`addTestSuiteForDir(...)` declaration in `build.gradle` before touching tests, and preserve whichever shape master uses.
+
+## No banner/separator comments in test files
+
+Do NOT insert banner-style separator comments (e.g. `// --------- Successful completion ---------`) inside test files to group related test methods. Banner comments have unclear scope, don't render usefully in IDEs, and add review burden without a benefit that justifies the noise.
+
+**If a group of related tests warrants its own heading**, extract them into a separate test class with a focused class-level Javadoc:
+
+```java
+// ❌ Banner comments
+class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
+  // ---------------------------------------------------------------------------
+  // Successful async completion: span finishes when reactive type completes
+  // ---------------------------------------------------------------------------
+  @ParameterizedTest
+  void successfulCompletion(...) { ... }
+
+  // ---------------------------------------------------------------------------
+  // Error paths: span records error and finishes
+  // ---------------------------------------------------------------------------
+  @ParameterizedTest
+  void errorPath(...) { ... }
+}
+
+// ✅ Either omit the banner
+class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
+  @ParameterizedTest
+  void successfulCompletion(...) { ... }
+
+  @ParameterizedTest
+  void errorPath(...) { ... }
+}
+
+// OR extract into focused classes with class Javadoc
+/**
+ * Successful async completion — verifies the extension finishes the span
+ * when the reactive type emits a terminal signal.
+ */
+class RxJava3ResultExtensionSuccessTest extends AbstractInstrumentationTest {
+  @ParameterizedTest
+  void successfulCompletion(...) { ... }
+}
+
+/**
+ * Error paths — verifies the extension records the error and finishes the span
+ * when the reactive type emits an onError signal.
+ */
+class RxJava3ResultExtensionErrorTest extends AbstractInstrumentationTest {
+  @ParameterizedTest
+  void errorPath(...) { ... }
+}
+```
+
+Source: @ygree review on PR #11939.
