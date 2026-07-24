@@ -26,8 +26,8 @@ import dev.openfeature.sdk.Value;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.AbstractMap;
-import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -124,7 +124,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         return error(defaultValue, ErrorCode.GENERAL, "Missing allocations for flag " + key);
       }
 
-      final Date now = new Date();
+      final Instant now = Instant.now();
       final String targetingKey = context.getTargetingKey();
 
       for (final Allocation allocation : flag.allocations) {
@@ -207,14 +207,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     return list == null || list.isEmpty();
   }
 
-  private static boolean isAllocationActive(final Allocation allocation, final Date now) {
-    final Date startDate = allocation.startAt;
-    if (startDate != null && now.before(startDate)) {
+  private static boolean isAllocationActive(final Allocation allocation, final Instant now) {
+    final Instant startDate = allocation.startAtInstant();
+    if (startDate != null && now.isBefore(startDate)) {
       return false;
     }
 
-    final Date endDate = allocation.endAt;
-    if (endDate != null && now.after(endDate)) {
+    final Instant endDate = allocation.endAtInstant();
+    if (endDate != null && now.isAfter(endDate)) {
       return false;
     }
 

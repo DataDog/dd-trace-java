@@ -1,5 +1,6 @@
 package datadog.trace.api.featureflag.ufc.v1;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 
@@ -24,5 +25,13 @@ public class Allocation {
     this.endAt = endAt;
     this.splits = splits;
     this.doLog = doLog;
+  }
+
+  public Instant startAtInstant() {
+    return startAt == null ? null : startAt.toInstant();
+  }
+
+  public Instant endAtInstant() {
+    return endAt == null ? null : endAt.toInstant();
   }
 }
