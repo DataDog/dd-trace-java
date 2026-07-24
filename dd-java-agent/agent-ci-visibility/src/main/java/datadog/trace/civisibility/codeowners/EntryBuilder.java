@@ -7,7 +7,6 @@ import datadog.trace.civisibility.codeowners.matcher.DoubleAsteriskMatcher;
 import datadog.trace.civisibility.codeowners.matcher.EndOfLineMatcher;
 import datadog.trace.civisibility.codeowners.matcher.EndOfSegmentMatcher;
 import datadog.trace.civisibility.codeowners.matcher.Matcher;
-import datadog.trace.civisibility.codeowners.matcher.NegatingMatcher;
 import datadog.trace.civisibility.codeowners.matcher.QuestionMarkMatcher;
 import datadog.trace.civisibility.codeowners.matcher.RangeMatcher;
 import java.util.ArrayDeque;
@@ -69,12 +68,17 @@ public class EntryBuilder {
         return null;
       }
 
+      boolean exclusion = c[offset] == '!';
+      if (exclusion) {
+        offset++;
+      }
+
       Matcher matcher = parseMatcher();
-      Collection<String> owners = parseOwners();
-      if (owners.isEmpty()) {
+      Collection<String> owners = exclusion ? Collections.emptyList() : parseOwners();
+      if (!exclusion && owners.isEmpty()) {
         owners = sectionDefaultOwners;
       }
-      return new Entry(matcher, owners);
+      return new Entry(matcher, owners, exclusion);
 
     } catch (Exception e) {
       log.warn("Skipping malformed CODEOWNERS entry: {}", new String(c), e);
@@ -159,11 +163,6 @@ public class EntryBuilder {
   }
 
   private Matcher parseMatcher() {
-    if (c[offset] == '!') {
-      offset++;
-      return new NegatingMatcher(parseMatcher());
-    }
-
     boolean patternContainsSlashes = false;
     if (c[offset] == '/') {
       // opening slash gets special treatment

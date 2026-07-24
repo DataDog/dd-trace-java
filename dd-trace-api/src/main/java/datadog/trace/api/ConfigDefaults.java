@@ -145,6 +145,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APP_LOGS_COLLECTION_ENABLED = false;
 
   static final String DEFAULT_APPSEC_ENABLED = "inactive";
+  static final String DEFAULT_APPSEC_AGENTIC_ONBOARDING = "";
   static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
