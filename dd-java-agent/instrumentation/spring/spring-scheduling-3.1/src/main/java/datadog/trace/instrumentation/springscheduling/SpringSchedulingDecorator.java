@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.springscheduling;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -24,6 +25,14 @@ public class SpringSchedulingDecorator extends BaseDecorator {
   @Override
   protected CharSequence component() {
     return "spring-scheduling";
+  }
+
+  @Override
+  public void afterStart(final AgentSpan span) {
+    super.afterStart(span);
+    if (Config.get().isSpringSchedulingMeasuredEnabled()) {
+      span.setMeasured(true);
+    }
   }
 
   public void onRun(final AgentSpan span, final Runnable runnable) {
