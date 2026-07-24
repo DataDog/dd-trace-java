@@ -310,7 +310,7 @@ public class AgentInstaller {
     EnumSet<InstrumenterModule.TargetSystem> enabledSystems =
         EnumSet.of(InstrumenterModule.TargetSystem.CONTEXT_TRACKING);
     InstrumenterConfig cfg = InstrumenterConfig.get();
-    if (cfg.isTraceEnabled()) {
+    if (cfg.isTraceEnabled() || cfg.isPropagateContextEnabled()) {
       enabledSystems.add(InstrumenterModule.TargetSystem.TRACING);
     }
     if (cfg.isProfilingEnabled()) {

@@ -52,6 +52,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT = false;
   static final int DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES = 8;
   static final boolean DEFAULT_TRACE_ENABLED = true;
+  static final boolean DEFAULT_PROPAGATE_CONTEXT = false;
   public static final boolean DEFAULT_TRACE_OTEL_ENABLED = false;
   static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
 

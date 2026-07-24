@@ -3465,6 +3465,14 @@
         "aliases": []
       }
     ],
+    "DD_PROPAGATE_CONTEXT": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED": [
       {
         "version": "A",

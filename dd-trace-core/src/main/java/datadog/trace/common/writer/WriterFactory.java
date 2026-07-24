@@ -17,6 +17,7 @@ import datadog.communication.ddagent.DroppingPolicy;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.BazelMode;
+import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
@@ -44,6 +45,12 @@ public class WriterFactory {
       final Sampler sampler,
       final SingleSpanSampler singleSpanSampler,
       final HealthMetrics healthMetrics) {
+    if (config.isContextPropagationOnly()) {
+      log.info(
+          "Tracing is disabled but context propagation is enabled ({}): traces will not be reported",
+          TraceInstrumentationConfig.PROPAGATE_CONTEXT);
+      return new NoOpWriter();
+    }
     return createWriter(
         config, commObjects, sampler, singleSpanSampler, healthMetrics, config.getWriterType());
   }

@@ -707,7 +707,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     this.dynamicConfig =
         DynamicConfig.create(ConfigSnapshot::new)
-            .setTracingEnabled(true) // implied by installation of CoreTracer
+            // tracing is implied by the installation of CoreTracer, unless the tracer is only
+            // installed to propagate context without reporting traces
+            .setTracingEnabled(!config.isContextPropagationOnly())
             .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
             .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
             .setDataStreamsEnabled(config.isDataStreamsEnabled())
@@ -841,8 +843,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
             this.healthMetrics);
     HttpCodec.Extractor tracingExtractor = orgGuard.decorateExtractor(baseExtractor);
     HttpCodec.Injector tracingInjector = orgGuard.decorateInjector(injector);
+    // Context propagation is also enabled when explicitly requested via propagate.context, so that
+    // context keeps flowing even when APM tracing is disabled.
+    boolean propagationEnabled =
+        config.isApmTracingEnabled() || config.isPropagateContextEnabled();
     TracingPropagator tracingPropagator =
-        new TracingPropagator(config.isApmTracingEnabled(), tracingInjector, tracingExtractor);
+        new TracingPropagator(propagationEnabled, tracingInjector, tracingExtractor);
     Propagators.register(TRACING_CONCERN, tracingPropagator);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
     if (config.isDataStreamsEnabled()) {

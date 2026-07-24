@@ -3456,6 +3456,19 @@ public class Config {
     return instrumenterConfig.isTraceEnabled();
   }
 
+  public boolean isPropagateContextEnabled() {
+    return instrumenterConfig.isPropagateContextEnabled();
+  }
+
+  /**
+   * Whether the tracer runs only to propagate context (DD_PROPAGATE_CONTEXT=true while tracing is
+   * disabled): spans are created and context is injected into downstream requests, but traces are
+   * never reported to Datadog.
+   */
+  public boolean isContextPropagationOnly() {
+    return isPropagateContextEnabled() && !isTraceEnabled() && !isCiVisibilityEnabled();
+  }
+
   public boolean isServiceDiscoveryEnabled() {
     return serviceDiscoveryEnabled;
   }
