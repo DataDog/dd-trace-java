@@ -3889,6 +3889,14 @@
         "aliases": []
       }
     ],
+    "DD_SPRING_SCHEDULING_MEASURED_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_STACK_TRACE_LENGTH_LIMIT": [
       {
         "version": "A",

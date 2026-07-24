@@ -157,6 +157,9 @@ public final class TraceInstrumentationConfig {
   public static final String SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME =
       "spring-data.repository.interface.resource-name";
 
+  public static final String SPRING_SCHEDULING_MEASURED_ENABLED =
+      "spring-scheduling.measured.enabled";
+
   public static final String INSTRUMENTATION_CONFIG_ID = "instrumentation_config_id";
 
   public static final String RESOLVER_CACHE_CONFIG = "resolver.cache.config";

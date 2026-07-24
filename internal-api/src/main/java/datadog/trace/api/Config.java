@@ -624,6 +624,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_C
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_APP_NAME_AS_SERVICE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_TASK_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_SCHEDULING_MEASURED_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SQS_BODY_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING;
@@ -1288,6 +1289,8 @@ public class Config {
 
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
+
+  private final boolean springSchedulingMeasuredEnabled;
 
   private final boolean resilience4jMeasuredEnabled;
   private final boolean resilience4jTagMetricsEnabled;
@@ -3037,6 +3040,9 @@ public class Config {
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
+
+    springSchedulingMeasuredEnabled =
+        configProvider.getBoolean(SPRING_SCHEDULING_MEASURED_ENABLED, false);
 
     resilience4jMeasuredEnabled = configProvider.getBoolean(RESILIENCE4J_MEASURED_ENABLED, false);
     resilience4jTagMetricsEnabled =
@@ -4923,6 +4929,10 @@ public class Config {
     return resilience4jMeasuredEnabled;
   }
 
+  public boolean isSpringSchedulingMeasuredEnabled() {
+    return springSchedulingMeasuredEnabled;
+  }
+
   public boolean isResilience4jTagMetricsEnabled() {
     return resilience4jTagMetricsEnabled;
   }
@@ -6609,6 +6619,8 @@ public class Config {
         + hystrixTagsEnabled
         + ", hystrixMeasuredEnabled="
         + hystrixMeasuredEnabled
+        + ", springSchedulingMeasuredEnabled="
+        + springSchedulingMeasuredEnabled
         + ", resilience4jMeasuredEnable="
         + resilience4jMeasuredEnabled
         + ", resilience4jTagMetricsEnabled="

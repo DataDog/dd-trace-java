@@ -50,8 +50,14 @@ public class SpannedMethodInvocation implements MethodInvocation {
 
   private Object invokeWithSpan(CharSequence spanName) throws Throwable {
     AgentSpan span = startSpan("spring-scheduling", spanName);
+    DECORATE.afterStart(span);
     try (ContextScope scope = activateSpan(span)) {
-      return delegate.proceed();
+      try {
+        return delegate.proceed();
+      } catch (Throwable throwable) {
+        DECORATE.onError(span, throwable);
+        throw throwable;
+      }
     } finally {
       span.finish();
     }
