@@ -12,6 +12,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.util.AgentThreadFactory;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.HttpURLConnection;
@@ -426,6 +427,10 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     }
   }
 
+  @SuppressFBWarnings(
+      value = "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE",
+      justification =
+          "Each retry policy belongs to one synchronous HTTP request and is confined to one thread")
   static final class AgentlessRetryPolicy extends HttpRetryPolicy {
     private final AtomicBoolean cancelled;
     private final long pollIntervalMillis;
