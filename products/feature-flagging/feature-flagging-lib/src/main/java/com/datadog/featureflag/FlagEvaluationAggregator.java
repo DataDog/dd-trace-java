@@ -44,6 +44,12 @@ final class FlagEvaluationAggregator {
 
   void aggregate(final FlagEvalEvent event) {
     final boolean isDefault = event.variant == null;
+    // Consent is read from the event, where it was snapshotted on the evaluation thread at
+    // evaluation time. We deliberately do NOT read the gateway here: aggregation runs later, on the
+    // serializer thread, by which point a subsequent RC update may have changed CURRENT_CONFIG, and
+    // that must not retroactively alter the hashed-vs-raw decision for an already-evaluated flag.
+    // Existing buckets fold with AND: one no-consent evaluation sinks the bucket to hashed.
+    final boolean observeFullEvaluationData = event.observeFullEvaluationData;
     final Map<String, Object> prunedAttrs = pruneContext(event.contextAttributes());
     final String ctxKey = canonicalContextKey(prunedAttrs);
     final FullKey fullKey = buildFullKey(event, ctxKey);
@@ -51,6 +57,7 @@ final class FlagEvaluationAggregator {
     EvalBucket bucket = fullTier.get(fullKey);
     if (bucket != null) {
       bucket.merge(event.evalTimeMs, isDefault);
+      bucket.observeFullEvaluationData &= observeFullEvaluationData;
       return;
     }
 
@@ -66,7 +73,8 @@ final class FlagEvaluationAggregator {
               event.errorMessage,
               event.evalTimeMs,
               isDefault,
-              prunedAttrs));
+              prunedAttrs,
+              observeFullEvaluationData));
       globalFullCount.incrementAndGet();
       perFlagCount.put(event.flagKey, flagCount + 1);
       return;
@@ -76,6 +84,7 @@ final class FlagEvaluationAggregator {
     bucket = degradedTier.get(degradedKey);
     if (bucket != null) {
       bucket.merge(event.evalTimeMs, isDefault);
+      bucket.observeFullEvaluationData &= observeFullEvaluationData;
       return;
     }
 
@@ -90,7 +99,8 @@ final class FlagEvaluationAggregator {
               event.errorMessage,
               event.evalTimeMs,
               isDefault,
-              null));
+              null,
+              observeFullEvaluationData));
       return;
     }
 
@@ -142,7 +152,7 @@ final class FlagEvaluationAggregator {
       final String key = "synthetic-full-" + i;
       fullTier.put(
           new FullKey(key, "on", "alloc", false, null, null, ""),
-          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null));
+          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null, false));
       globalFullCount.incrementAndGet();
       perFlagCount.merge(key, 1, Integer::sum);
     }
@@ -153,7 +163,7 @@ final class FlagEvaluationAggregator {
       final String key = "synthetic-dg-" + i;
       degradedTier.put(
           new DegradedKey(key, "on", "alloc", false, null),
-          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null));
+          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null, false));
     }
   }
 
@@ -173,7 +183,8 @@ final class FlagEvaluationAggregator {
             errorMessage,
             evalTimeMs,
             variant == null,
-            null));
+            null,
+            false));
   }
 
   private static FullKey buildFullKey(final FlagEvalEvent event, final String ctxKey) {
@@ -272,6 +283,11 @@ final class FlagEvaluationAggregator {
     String targetingKey;
     String errorMessage;
     Map<String, Object> prunedAttrs;
+    // Consent to emit raw PII (targeting key + context), sourced from each event's evaluation-time
+    // snapshot (FlagEvalEvent.observeFullEvaluationData), never read from the gateway at flush. On
+    // merge the value is folded with AND (see aggregate()): if any evaluation in the bucket's
+    // lifetime saw consent off, the whole bucket falls back to hashed/omitted — fail-closed.
+    boolean observeFullEvaluationData;
 
     EvalBucket(
         final String flagKey,
@@ -281,7 +297,8 @@ final class FlagEvaluationAggregator {
         final String errorMessage,
         final long evalTimeMs,
         final boolean runtimeDefaultUsed,
-        final Map<String, Object> prunedAttrs) {
+        final Map<String, Object> prunedAttrs,
+        final boolean observeFullEvaluationData) {
       this.flagKey = flagKey;
       this.variant = variant;
       this.allocationKey = allocationKey;
@@ -292,6 +309,7 @@ final class FlagEvaluationAggregator {
       this.count = 1;
       this.runtimeDefaultUsed = runtimeDefaultUsed;
       this.prunedAttrs = prunedAttrs;
+      this.observeFullEvaluationData = observeFullEvaluationData;
     }
 
     int prunedContextFieldCount() {

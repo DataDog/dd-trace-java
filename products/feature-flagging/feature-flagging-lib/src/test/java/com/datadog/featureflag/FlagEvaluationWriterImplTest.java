@@ -6,12 +6,14 @@ import static com.datadog.featureflag.FlagEvaluationTestSupport.cfg;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.clearCoreMetrics;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.event;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.eventForFlag;
+import static com.datadog.featureflag.FlagEvaluationTestSupport.flushAndCapture;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.flushAndCaptureJson;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.metricSum;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.repeat;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.simpleEvent;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,6 +34,7 @@ import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.intake.Intake;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import datadog.trace.api.telemetry.MetricCollector;
@@ -62,6 +65,8 @@ class FlagEvaluationWriterImplTest {
     clearCoreMetrics();
     FeatureFlaggingGateway.setFlagEvalWriter(null);
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+    // Reset the dispatched UFC state so observeFullEvaluationData can't leak into other tests.
+    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
   }
 
   @Test
@@ -531,6 +536,155 @@ class FlagEvaluationWriterImplTest {
     assertEquals(2, posts.get());
     setup.handler.flush();
     assertEquals(2, posts.get());
+  }
+
+  private static final String HASHED_JANE_DOE =
+      "sha256_b4698f9b6d186781fa8dc59e533578fa2d8379a46b1cf6db85cda6aa9c99e51b";
+
+  @Test
+  void observeFullEvaluationDataTrueEmitsRawTargetingKeyAndContext() throws Exception {
+    // Consent travels on the event (snapshotted by the hook at evaluation time); the writer honours
+    // it verbatim and never consults the gateway.
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+    setup.handler.add(piiEvent(true));
+
+    final Map<String, Object> json = flushAndCapture(setup).parsed;
+
+    final Map<String, Object> ev = eventForFlag(json, "pii-flag");
+    assertNotNull(ev);
+    assertEquals("jane.doe@datadoghq.com", ev.get("targeting_key"));
+    final Map<?, ?> ctx = (Map<?, ?>) ev.get("context");
+    assertNotNull(ctx);
+    final Map<?, ?> evalAttrs = (Map<?, ?>) ctx.get("evaluation");
+    assertNotNull(evalAttrs);
+    assertEquals("us-east-1", evalAttrs.get("region"));
+  }
+
+  @Test
+  void observeFullEvaluationDataFalseHashesTargetingKeyAndOmitsContext() throws Exception {
+    assertHashedTargetingKeyAndOmittedContext(piiEvent(false));
+  }
+
+  @Test
+  void flagEvalEventDefaultConsentHashesTargetingKeyAndOmitsContext() throws Exception {
+    // An event built without an explicit consent value defaults to the privacy-preserving false, so
+    // it must behave exactly like the explicit "false" case. This is the state the hook produces
+    // when no UFC has been dispatched (the gateway reports false).
+    assertHashedTargetingKeyAndOmittedContext(piiEventDefaultConsent());
+  }
+
+  @Test
+  void eventConsentFalseStaysHashedEvenWhenGatewayLaterReportsTrue() throws Exception {
+    // Regression guard: consent is decided by the value the event carried at evaluation time, never
+    // re-read from the gateway at flush. An event evaluated under consent=false must stay hashed
+    // even if a later RC update turns the gateway's consent on before the flush drains.
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+    setup.handler.add(piiEvent(false));
+
+    // Flip the gateway's consent on before both aggregation and flush; the event's evaluation-time
+    // snapshot (false) must win at every downstream step, so neither may consult the gateway.
+    dispatchObserveFullEvaluationData(true);
+    setup.handler.drainAndAggregate();
+
+    final java.util.List<RequestBody> captured = new java.util.ArrayList<>();
+    when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
+        .thenAnswer(
+            inv -> {
+              captured.add(inv.getArgument(1));
+              return null;
+            });
+    setup.handler.flush();
+
+    assertEquals(1, captured.size());
+    final FlagEvaluationTestSupport.CapturedJson json =
+        FlagEvaluationTestSupport.readJson(captured.get(0));
+    final Map<String, Object> ev = eventForFlag(json.parsed, "pii-flag");
+    assertNotNull(ev);
+    assertEquals(HASHED_JANE_DOE, ev.get("targeting_key"));
+    assertFalse(ev.containsKey("context"));
+    assertTrue(json.raw.contains(HASHED_JANE_DOE));
+    assertFalse(json.raw.contains("jane.doe@datadoghq.com"));
+  }
+
+  @Test
+  void eventConsentTrueStaysRawEvenWhenGatewayLaterReportsFalse() throws Exception {
+    // Symmetric guard: an event evaluated under consent=true must stay raw even if a later RC
+    // update
+    // turns the gateway's consent off before aggregation and flush. Together with the false-stays-
+    // hashed test this pins that neither aggregation nor flush ever consults the gateway.
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+    setup.handler.add(piiEvent(true));
+
+    dispatchObserveFullEvaluationData(false);
+    setup.handler.drainAndAggregate();
+
+    final java.util.List<RequestBody> captured = new java.util.ArrayList<>();
+    when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
+        .thenAnswer(
+            inv -> {
+              captured.add(inv.getArgument(1));
+              return null;
+            });
+    setup.handler.flush();
+
+    assertEquals(1, captured.size());
+    final Map<String, Object> ev =
+        eventForFlag(FlagEvaluationTestSupport.readJson(captured.get(0)).parsed, "pii-flag");
+    assertNotNull(ev);
+    assertEquals("jane.doe@datadoghq.com", ev.get("targeting_key"));
+    final Map<?, ?> ctx = (Map<?, ?>) ev.get("context");
+    assertNotNull(ctx);
+    assertNotNull(ctx.get("evaluation"));
+  }
+
+  private void assertHashedTargetingKeyAndOmittedContext(final FlagEvalEvent piiEvent)
+      throws Exception {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+    setup.handler.add(piiEvent);
+
+    final FlagEvaluationTestSupport.CapturedJson captured = flushAndCapture(setup);
+
+    final Map<String, Object> ev = eventForFlag(captured.parsed, "pii-flag");
+    assertNotNull(ev);
+    assertEquals(HASHED_JANE_DOE, ev.get("targeting_key"));
+    assertFalse(ev.containsKey("context"));
+    // The raw wire bytes must carry the hashed key and never leak the raw PII value or a per-event
+    // evaluation context (the batch envelope owns the top-level "context" key, so guard on the
+    // nested "evaluation" field instead).
+    assertTrue(captured.raw.contains(HASHED_JANE_DOE));
+    assertFalse(captured.raw.contains("jane.doe@datadoghq.com"));
+    assertFalse(captured.raw.contains("\"evaluation\":"));
+  }
+
+  private static FlagEvalEvent piiEvent(final boolean observeFullEvaluationData) {
+    return event(
+        "pii-flag",
+        "on",
+        "alloc1",
+        "jane.doe@datadoghq.com",
+        1000L,
+        observeFullEvaluationData,
+        piiAttrs());
+  }
+
+  private static FlagEvalEvent piiEventDefaultConsent() {
+    return event("pii-flag", "on", "alloc1", "jane.doe@datadoghq.com", 1000L, piiAttrs());
+  }
+
+  private static Map<String, Object> piiAttrs() {
+    final Map<String, Object> attrs = new HashMap<>();
+    attrs.put("region", "us-east-1");
+    return attrs;
+  }
+
+  private static void dispatchObserveFullEvaluationData(final boolean value) {
+    FeatureFlaggingGateway.dispatch(
+        new ServerConfiguration(
+            "2024-04-17T19:40:53.716Z", "SERVER", value, null, java.util.Collections.emptyMap()));
   }
 
   private static Object lifecycleLock(final FlagEvaluationWriterImpl writer) throws Exception {

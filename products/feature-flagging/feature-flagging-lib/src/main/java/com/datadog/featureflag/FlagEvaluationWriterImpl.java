@@ -471,15 +471,20 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
     private List<FlagEvaluationPayloads.FlagEvaluationEvent> buildEventList() {
       final long flushTimeMs = System.currentTimeMillis();
+      // Consent is read per bucket from the value each event snapshotted at evaluation time, not
+      // from the gateway here: CURRENT_CONFIG may have been overwritten by a later RC update since
+      // these evaluations happened, and reading it at flush would apply the wrong config's consent.
       final List<FlagEvaluationPayloads.FlagEvaluationEvent> events =
           new ArrayList<>(aggregator.bucketCount());
       for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.fullBuckets()) {
         events.add(
-            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, true, flushTimeMs));
+            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+                bucket, true, bucket.observeFullEvaluationData, flushTimeMs));
       }
       for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.degradedBuckets()) {
         events.add(
-            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(bucket, false, flushTimeMs));
+            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+                bucket, false, bucket.observeFullEvaluationData, flushTimeMs));
       }
       return events;
     }

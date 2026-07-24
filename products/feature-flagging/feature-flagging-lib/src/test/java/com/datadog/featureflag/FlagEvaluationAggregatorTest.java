@@ -212,7 +212,7 @@ class FlagEvaluationAggregatorTest {
   void evalBucketTracksBoundsDefaultStateAndNullContextFieldCount() {
     final FlagEvaluationAggregator.EvalBucket bucket =
         new FlagEvaluationAggregator.EvalBucket(
-            "bucket-flag", "on", "alloc1", "user-1", null, 1000L, false, null);
+            "bucket-flag", "on", "alloc1", "user-1", null, 1000L, false, null, false);
 
     assertEquals(0, bucket.prunedContextFieldCount());
 
@@ -264,6 +264,54 @@ class FlagEvaluationAggregatorTest {
     assertNotEquals(base, degradedKey("flag", "on", "other", false, "error"));
     assertNotEquals(base, degradedKey("flag", "on", "alloc", true, "error"));
     assertNotEquals(base, degradedKey("flag", "on", "alloc", false, "other"));
+  }
+
+  @Test
+  void observeFullEvaluationDataFoldsToFalseWhenAnyMergedEvaluationLacksConsent() {
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    // Consent travels on the event (snapshotted at evaluation time). The first evaluation
+    // consented;
+    // a later one - e.g. after an RC update flipped consent off - folds into the same bucket
+    // carrying consent=false.
+    aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 1000L, true, emptyMap()));
+    aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 2000L, false, emptyMap()));
+
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        aggregator.snapshot().fullTier.values().iterator().next();
+    assertEquals(2, bucket.count);
+    // Conservative fold: one no-consent evaluation sinks the whole bucket to hashed/omitted.
+    assertFalse(bucket.observeFullEvaluationData);
+  }
+
+  @Test
+  void observeFullEvaluationDataStaysTrueWhenEveryMergedEvaluationConsents() {
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 1000L, true, emptyMap()));
+    aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 2000L, true, emptyMap()));
+
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        aggregator.snapshot().fullTier.values().iterator().next();
+    assertEquals(2, bucket.count);
+    assertTrue(bucket.observeFullEvaluationData);
+  }
+
+  private static FlagEvalEvent event(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final String targetingKey,
+      final long evalTimeMs,
+      final boolean observeFullEvaluationData,
+      final Map<String, Object> attrs) {
+    return new FlagEvalEvent(
+        flagKey,
+        variant,
+        allocationKey,
+        targetingKey,
+        null,
+        evalTimeMs,
+        observeFullEvaluationData,
+        attrs);
   }
 
   private static FlagEvalEvent event(
