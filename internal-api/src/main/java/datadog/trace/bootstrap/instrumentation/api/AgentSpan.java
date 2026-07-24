@@ -214,6 +214,8 @@ public interface AgentSpan
 
   void addLink(AgentSpanLink link);
 
+  void addEvent(AgentSpanEvent event);
+
   AgentSpan setMetaStruct(final String field, final Object value);
 
   boolean isOutbound();

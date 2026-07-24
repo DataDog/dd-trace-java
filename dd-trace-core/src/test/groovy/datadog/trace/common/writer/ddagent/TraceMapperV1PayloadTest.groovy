@@ -22,6 +22,7 @@ import datadog.trace.api.DDSpanId
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes
 import datadog.trace.bootstrap.instrumentation.api.SpanLink
@@ -446,24 +447,17 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     assertTrue(links.isEmpty())
   }
 
-  def "test span events are encoded from events tag"() {
+  def "test span events are encoded from structured span events"() {
     setup:
-    List<Map<String, Object>> eventPayload = [
-      [
-        time_unix_nano: 1234567890L,
-        name          : "event.one",
-        attributes    : [
-          str   : "v",
-          int   : 42L,
-          double: 12.5d,
-          bool  : true,
-          arr   : ["x", 7L, 2.5d, false]
-        ]
-      ],
-      [
-        time_unix_nano: 1234567891L,
-        name          : "event.two"
-      ]
+    List<AgentSpanEvent> spanEvents = [
+      spanEvent(1234567890L, "event.one", [
+        str   : "v",
+        int   : 42L,
+        double: 12.5d,
+        bool  : true,
+        arr   : ["x", 7L, 2.5d, false]
+      ]),
+      spanEvent(1234567891L, "event.two", [:])
     ]
     def span = new TraceGenerator.PojoSpan(
       "service-a",
@@ -476,12 +470,14 @@ class TraceMapperV1PayloadTest extends DDSpecification {
       2000L,
       0,
       [:],
-      ["events": eventPayload],
+      [:],
       "web",
       false,
       PrioritySampling.SAMPLER_KEEP,
       200,
-      null)
+      null,
+      [],
+      spanEvents)
 
     TraceMapperV1 mapper = new TraceMapperV1()
     byte[] encoded = serializeMappedPayload(mapper, [[span]])
@@ -490,7 +486,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     stringTable.add("")
 
     when:
-    List<Map<String, Object>> events = readFirstSpan(unpacker, stringTable).events
+    def events = readFirstSpan(unpacker, stringTable).events
 
     then:
     assertEquals(2, events.size())
@@ -507,7 +503,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     assertEquals([:], events[1].attributes)
   }
 
-  def "test malformed span events fall back to empty events"() {
+  def "test missing span events encode empty events"() {
     setup:
     def span = new TraceGenerator.PojoSpan(
       "service-a",
@@ -520,7 +516,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
       2000L,
       0,
       [:],
-      ["events": [foo: "bar"]],
+      [:],
       "web",
       false,
       PrioritySampling.SAMPLER_KEEP,
@@ -534,10 +530,62 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     stringTable.add("")
 
     when:
-    List<Map<String, Object>> events = readFirstSpan(unpacker, stringTable).events
+    def events = readFirstSpan(unpacker, stringTable).events
 
     then:
     assertTrue(events.isEmpty())
+  }
+
+  def "test unsupported span event attribute values are skipped"() {
+    setup:
+    Map<String, Object> attributes = new LinkedHashMap<>()
+    attributes.put("keep.str", "v")
+    attributes.put("keep.bool", true)
+    attributes.put("drop.null", null)
+    attributes.put("drop.map", [nested: "x"])
+    attributes.put("arr.mixed", ["ok", null, [nested: "x"], 3L])
+    List<AgentSpanEvent> spanEvents = [spanEvent(5L, "event", attributes)]
+    def span = new TraceGenerator.PojoSpan(
+      "service-a",
+      "operation-a",
+      "resource-a",
+      DDTraceId.ONE,
+      123L,
+      0L,
+      1000L,
+      2000L,
+      0,
+      [:],
+      [:],
+      "web",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      200,
+      null,
+      [],
+      spanEvents)
+
+    TraceMapperV1 mapper = new TraceMapperV1()
+    byte[] encoded = serializeMappedPayload(mapper, [[span]])
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)
+    List<String> stringTable = new ArrayList<>()
+    stringTable.add("")
+
+    when:
+    def events = readFirstSpan(unpacker, stringTable).events
+
+    then:
+    assertEquals(1, events.size())
+    assertEquals(5L, events[0].timeUnixNano)
+    assertEquals("event", events[0].name)
+    // null and Map values are not encodable and are dropped
+    assertEquals(3, events[0].attributes.size())
+    assertEquals("v", events[0].attributes["keep.str"])
+    assertEquals(true, events[0].attributes["keep.bool"])
+    assertTrue(!events[0].attributes.containsKey("drop.null"))
+    assertTrue(!events[0].attributes.containsKey("drop.map"))
+    // unsupported array items (null, Map) are dropped, encodable ones kept in order
+    assertEquals(["ok", 3L], events[0].attributes["arr.mixed"])
   }
 
   def "test meta struct is encoded as bytes attribute"() {
@@ -1013,9 +1061,6 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     expectedAttributes.put(DDTags.THREAD_ID, expectedSpan.getTag(DDTags.THREAD_ID))
     expectedAttributes.put(DDTags.THREAD_NAME, expectedSpan.getTag(DDTags.THREAD_NAME))
     for (Map.Entry<String, Object> entry : expectedSpan.getTags().entrySet()) {
-      if (DDTags.SPAN_EVENTS == entry.getKey()) {
-        continue
-      }
       addFlattenedExpectedAttribute(expectedAttributes, entry.getKey(), entry.getValue())
     }
     if (shouldContainHttpStatus) {
@@ -1197,6 +1242,30 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     @Override
     void close() {
     }
+  }
+
+  private static AgentSpanEvent spanEvent(long timeNanos, String name, Map<String, Object> attributes) {
+    return new AgentSpanEvent() {
+        @Override
+        long timeNanos() {
+          return timeNanos
+        }
+
+        @Override
+        String name() {
+          return name
+        }
+
+        @Override
+        Map<String, Object> attributes() {
+          return attributes
+        }
+
+        @Override
+        CharSequence toJson() {
+          return ""
+        }
+      }
   }
 
   private static void assertEqualsWithNullAsEmpty(CharSequence expected, CharSequence actual) {
