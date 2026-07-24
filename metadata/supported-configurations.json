@@ -1513,6 +1513,14 @@
         "aliases": []
       }
     ],
+    "DD_FEATURE_FLAGS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE": [
       {
         "version": "A",
@@ -1541,7 +1549,7 @@
       {
         "version": "A",
         "type": "int",
-        "default": "2",
+        "default": "5",
         "aliases": []
       }
     ],
@@ -12002,5 +12010,7 @@
       }
     ]
   },
-  "deprecations": {}
+  "deprecations": {
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": "DD_FEATURE_FLAGS_ENABLED"
+  }
 }
