@@ -55,7 +55,8 @@ import org.slf4j.LoggerFactory;
 public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, ConfigurationAcceptor {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationUpdater.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
-  private static final boolean JAVA_AT_LEAST_19 = JavaVirtualMachine.isJavaVersionAtLeast(19);
+  private static final boolean JAVA_AT_LEAST_17_0_20 =
+      JavaVirtualMachine.isJavaVersionAtLeast(17, 0, 20);
   private static final boolean JAVA_AT_LEAST_16 = JavaVirtualMachine.isJavaVersionAtLeast(16);
   private static final boolean JAVA_AT_LEAST_25_0_4 =
       JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4);
@@ -423,8 +424,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
         Consumer<String> reportError,
         Instrumentation instrumentation,
         List<Class<?>> changedClasses) {
-      if (JAVA_AT_LEAST_19) {
-        // bug is fixed since JDK19, no need to perform detection
+      if (JAVA_AT_LEAST_17_0_20) {
+        // bug is fixed since JDK 19 and 17.0.20, no need to perform detection
         return changedClasses;
       }
       List<Class<?>> result = new ArrayList<>();
