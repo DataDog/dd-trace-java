@@ -572,6 +572,15 @@ public class AgentTracer {
     }
 
     @Override
+    public SpanBuilder buildSpan(
+        @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+      // Mirrors buildSpan(String,...): the noop tracer returns a null builder. Callers that need a
+      // noop-safe entry point use startSpan(...), which is overridden above. A chainable
+      // NoopSpanBuilder would fix the null-vs-NoopSpan asymmetry, but that is a separate PR.
+      return null;
+    }
+
+    @Override
     public SpanBuilder singleSpanBuilder(
         final String instrumentationName, final CharSequence spanName) {
       return null;
