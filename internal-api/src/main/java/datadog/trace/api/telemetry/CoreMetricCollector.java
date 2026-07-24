@@ -4,6 +4,7 @@ import datadog.trace.api.metrics.BaggageMetrics;
 import datadog.trace.api.metrics.CoreCounter;
 import datadog.trace.api.metrics.SpanMetricRegistryImpl;
 import datadog.trace.api.metrics.SpanMetricsImpl;
+import datadog.trace.api.metrics.StatsMetrics;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -18,6 +19,7 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
   private static final CoreMetricCollector INSTANCE = new CoreMetricCollector();
   private final SpanMetricRegistryImpl spanMetricRegistry = SpanMetricRegistryImpl.getInstance();
   private final BaggageMetrics baggageMetrics = BaggageMetrics.getInstance();
+  private final StatsMetrics statsMetrics = StatsMetrics.getInstance();
 
   private final BlockingQueue<CoreMetric> metricsQueue;
 
@@ -60,6 +62,22 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
       String tag = counter.getTag();
       CoreMetric metric =
           new CoreMetric(METRIC_NAMESPACE, true, counter.getName(), "count", value, tag);
+      if (!this.metricsQueue.offer(metric)) {
+        // Stop adding metrics if the queue is full
+        break;
+      }
+    }
+
+    // Collect client-side trace-stats span-collapse metrics, tagged by collapse reason.
+    for (StatsMetrics.TaggedCounter counter : this.statsMetrics.getTaggedCounters()) {
+      long value = counter.getValueAndReset();
+      if (value == 0) {
+        // Skip not updated counters
+        continue;
+      }
+      CoreMetric metric =
+          new CoreMetric(
+              METRIC_NAMESPACE, true, counter.getName(), "count", value, counter.getTag());
       if (!this.metricsQueue.offer(metric)) {
         // Stop adding metrics if the queue is full
         break;

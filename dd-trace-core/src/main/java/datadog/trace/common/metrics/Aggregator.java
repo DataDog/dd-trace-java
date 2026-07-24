@@ -2,6 +2,7 @@ package datadog.trace.common.metrics;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.common.metrics.SignalItem.ClearSignal;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -14,6 +15,10 @@ import org.slf4j.LoggerFactory;
 final class Aggregator implements Runnable {
 
   private static final long DEFAULT_SLEEP_MILLIS = 10;
+
+  // Telemetry collapse reason for a whole-key drop (aggregate table at cap, no evictable entry);
+  // mirrors the statsd "collapsed:whole_key" tag on datadog.tracer.stats.collapsed_spans.
+  private static final String COLLAPSED_WHOLE_KEY_TAG = "collapsed:whole_key";
 
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
@@ -156,6 +161,7 @@ final class Aggregator implements Runnable {
         } else {
           // table at cap with no stale entry available to evict
           healthMetrics.onStatsAggregateDropped();
+          StatsMetrics.getInstance().onCollapsedSpans(COLLAPSED_WHOLE_KEY_TAG, 1);
         }
       }
     }
