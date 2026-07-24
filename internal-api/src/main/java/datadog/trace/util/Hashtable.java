@@ -99,6 +99,11 @@ public final class Hashtable {
         this.key = key;
       }
 
+      /** The key this entry was created with. */
+      public K key() {
+        return this.key;
+      }
+
       public boolean matches(Object key) {
         return Objects.equals(this.key, key);
       }

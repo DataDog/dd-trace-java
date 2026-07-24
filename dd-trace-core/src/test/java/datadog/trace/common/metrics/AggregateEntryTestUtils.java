@@ -56,6 +56,7 @@ public final class AggregateEntryTestUtils {
     UTF8BytesString grpcUtf = AggregateEntry.createUtf8(grpcStatusCode);
     List<UTF8BytesString> peerTagsList = peerTags == null ? Collections.emptyList() : peerTags;
     UTF8BytesString[] peerTagsArr = peerTagsList.toArray(new UTF8BytesString[0]);
+    UTF8BytesString[] emptyAdditional = new UTF8BytesString[0];
     long keyHash =
         AggregateEntry.hashOf(
             resourceUtf,
@@ -71,7 +72,9 @@ public final class AggregateEntryTestUtils {
             synthetic,
             traceRoot,
             peerTagsArr,
-            peerTagsArr.length);
+            peerTagsArr.length,
+            emptyAdditional,
+            0);
     return new AggregateEntry(
         keyHash,
         resourceUtf,
@@ -86,7 +89,8 @@ public final class AggregateEntryTestUtils {
         (short) httpStatusCode,
         synthetic,
         traceRoot,
-        peerTagsList);
+        peerTagsList,
+        emptyAdditional);
   }
 
   /**
@@ -110,7 +114,7 @@ public final class AggregateEntryTestUtils {
 
   /** Clears the per-cycle counters and histograms on {@code e}. See {@link #recordOk}. */
   public static void clear(AggregateEntry e) {
-    e.clear();
+    e.clearAggregate();
   }
 
   /**
