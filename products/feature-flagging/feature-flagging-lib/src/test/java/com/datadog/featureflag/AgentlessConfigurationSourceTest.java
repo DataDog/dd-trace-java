@@ -23,6 +23,7 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
@@ -37,6 +38,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPOutputStream;
 import okhttp3.Call;
@@ -194,6 +196,18 @@ class AgentlessConfigurationSourceTest {
     final HttpUrl endpoint = HttpUrl.get("https://flags.example.test/custom/ufc");
 
     client.fetch(endpoint, config, null);
+
+    assertNull(requests.get(0).header("DD-API-KEY"));
+  }
+
+  @Test
+  void stripsApiKeyFromUnexpectedHttpsEndpoint() throws Exception {
+    final List<okhttp3.Request> requests = new ArrayList<>();
+    final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
+        scriptedClient(requests, delay -> {}, () -> 1.0, response(200, "etag-a", emptyConfig()));
+    final HttpUrl endpoint = HttpUrl.get("https://flags.example.test/custom/ufc");
+
+    client.fetch(endpoint, config(), null);
 
     assertNull(requests.get(0).header("DD-API-KEY"));
   }
@@ -811,6 +825,37 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
+  void retryPolicyRejectsNonIoAndInterruptedIoFailures() {
+    final AgentlessConfigurationSource.AgentlessRetryPolicy policy =
+        retryPolicy(new AtomicBoolean());
+
+    assertFalse(policy.shouldRetry(new IllegalStateException("not an I/O failure")));
+
+    Thread.currentThread().interrupt();
+    try {
+      assertFalse(policy.shouldRetry(new IOException("interrupted")));
+    } finally {
+      assertTrue(Thread.interrupted());
+    }
+  }
+
+  @Test
+  void retryPolicyRejectsMissingResponse() {
+    final AgentlessConfigurationSource.AgentlessRetryPolicy policy =
+        retryPolicy(new AtomicBoolean());
+
+    assertFalse(policy.shouldRetry((Response) null));
+  }
+
+  @Test
+  void cancelledRetryPolicyRejectsBackoff() {
+    final AgentlessConfigurationSource.AgentlessRetryPolicy policy =
+        retryPolicy(new AtomicBoolean(true));
+
+    assertThrows(InterruptedIOException.class, policy::backoff);
+  }
+
+  @Test
   void clampsAndJittersRetryBackoff() {
     assertEquals(2_000, AgentlessConfigurationSource.retryDelayMillis(1_000, 1, 1.0));
     assertEquals(5_000, AgentlessConfigurationSource.retryDelayMillis(1_000, 2, 1.0));
@@ -1134,6 +1179,12 @@ class AgentlessConfigurationSourceTest {
             });
     return new AgentlessConfigurationSource.OkHttpUfcHttpClient(
         httpClient, 30_000, retrySleeper, jitter);
+  }
+
+  private static AgentlessConfigurationSource.AgentlessRetryPolicy retryPolicy(
+      final AtomicBoolean cancelled) {
+    return new AgentlessConfigurationSource.AgentlessRetryPolicy(
+        cancelled, 30_000, delay -> {}, () -> 1.0);
   }
 
   private static Response okHttpResponse(

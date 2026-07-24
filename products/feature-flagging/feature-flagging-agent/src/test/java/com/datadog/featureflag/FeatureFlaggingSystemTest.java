@@ -59,6 +59,29 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  @WithConfig(
+      key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
+      value = "http://127.0.0.1:1")
+  void agentlessStopRemovesPendingApplicationProviderActivation() {
+    SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
+    clearInvocations(sharedCommunicationObjects);
+
+    try {
+      FeatureFlaggingSystem.start(sharedCommunicationObjects);
+      assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+
+      FeatureFlaggingSystem.stop();
+      FeatureFlaggingGateway.activate();
+
+      assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+      verifyNoInteractions(sharedCommunicationObjects);
+    } finally {
+      FeatureFlaggingSystem.stop();
+    }
+  }
+
+  @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "true")
   void testFeatureFlagSystemInitialization() {
