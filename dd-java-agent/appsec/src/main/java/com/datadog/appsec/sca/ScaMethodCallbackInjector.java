@@ -6,6 +6,7 @@ import java.util.Map;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.ClassWriter;
+import net.bytebuddy.jar.asm.Handle;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
@@ -98,6 +99,65 @@ final class ScaMethodCallbackInjector {
     public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
       ensureInjected();
       super.visitFieldInsn(opcode, owner, name, descriptor);
+    }
+
+    @Override
+    public void visitTypeInsn(int opcode, String type) {
+      ensureInjected();
+      super.visitTypeInsn(opcode, type);
+    }
+
+    @Override
+    public void visitIntInsn(int opcode, int operand) {
+      ensureInjected();
+      super.visitIntInsn(opcode, operand);
+    }
+
+    @Override
+    public void visitLdcInsn(Object value) {
+      ensureInjected();
+      super.visitLdcInsn(value);
+    }
+
+    @Override
+    public void visitJumpInsn(int opcode, Label label) {
+      ensureInjected();
+      super.visitJumpInsn(opcode, label);
+    }
+
+    @Override
+    public void visitIincInsn(int varIndex, int increment) {
+      ensureInjected();
+      super.visitIincInsn(varIndex, increment);
+    }
+
+    @Override
+    public void visitTableSwitchInsn(int min, int max, Label dflt, Label... labels) {
+      ensureInjected();
+      super.visitTableSwitchInsn(min, max, dflt, labels);
+    }
+
+    @Override
+    public void visitLookupSwitchInsn(Label dflt, int[] keys, Label[] labels) {
+      ensureInjected();
+      super.visitLookupSwitchInsn(dflt, keys, labels);
+    }
+
+    @Override
+    public void visitMultiANewArrayInsn(String descriptor, int numDimensions) {
+      ensureInjected();
+      super.visitMultiANewArrayInsn(descriptor, numDimensions);
+    }
+
+    @Override
+    public void visitInvokeDynamicInsn(
+        String name,
+        String descriptor,
+        Handle bootstrapMethodHandle,
+        Object... bootstrapMethodArguments) {
+      ensureInjected();
+      super.visitInvokeDynamicInsn(
+          name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
     }
 
     private void ensureInjected() {

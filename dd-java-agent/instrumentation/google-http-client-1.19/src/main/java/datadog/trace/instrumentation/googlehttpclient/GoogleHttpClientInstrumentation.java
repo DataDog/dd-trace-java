@@ -92,16 +92,13 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
         @Advice.Return final HttpResponse response,
         @Advice.Thrown final Throwable throwable) {
       AgentSpan span = scope != null ? scope.span() : inheritedSpan;
-      try {
-        DECORATE.onError(span, throwable);
-        DECORATE.onResponse(span, response);
-        DECORATE.beforeFinish(span);
-      } finally {
-        if (scope != null) {
-          scope.close();
-        }
-        span.finish();
+      DECORATE.onError(span, throwable);
+      DECORATE.onResponse(span, response);
+      DECORATE.beforeFinish(span);
+      if (scope != null) {
+        scope.close();
       }
+      span.finish();
     }
   }
 
@@ -118,16 +115,13 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
     public static void methodExit(
         @Advice.Enter AgentScope scope, @Advice.Thrown final Throwable throwable) {
       final AgentSpan span = scope.span();
-      try {
-        if (throwable != null) {
-          DECORATE.onError(span, throwable);
-          DECORATE.beforeFinish(span);
-        }
-      } finally {
+      if (throwable != null) {
+        DECORATE.onError(span, throwable);
+        DECORATE.beforeFinish(span);
         scope.close();
-        if (throwable != null) {
-          span.finish();
-        }
+        span.finish();
+      } else {
+        scope.close();
       }
     }
   }
