@@ -5,12 +5,15 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
@@ -18,7 +21,10 @@ import datadog.trace.core.otlp.trace.OtlpTraceCollector;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -30,6 +36,13 @@ class OtlpPayloadDispatcherTest {
   @Mock OtlpSender sender;
 
   TestCollector collector = new TestCollector();
+
+  @BeforeEach
+  void stubSuccessfulSend() {
+    lenient().when(sender.send(any())).thenReturn(RemoteApi.Response.success(200));
+    OtlpTelemetry.getInstance().prepareMetrics();
+    OtlpTelemetry.getInstance().drain();
+  }
 
   @Test
   void sampledTraceForwardsAllSpans() {
@@ -93,6 +106,45 @@ class OtlpPayloadDispatcherTest {
     dispatcher.flush();
 
     verifyNoInteractions(sender);
+  }
+
+  @Test
+  void flushRecordsSuccessfulExportTelemetry() {
+    RemoteApi.Response response = RemoteApi.Response.success(200);
+    when(sender.send(any())).thenReturn(response);
+    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+
+    dispatcher.addTrace(Arrays.asList(sampledSpan(), sampledSpan()));
+    dispatcher.flush();
+
+    Map<String, OtlpTelemetry.OtlpMetric> metrics = drainTracesTelemetry();
+    assertEquals(2, metrics.size());
+    assertEquals(1L, metrics.get("otel.traces_export_attempts").value);
+    assertEquals(1L, metrics.get("otel.traces_export_successes").value);
+  }
+
+  @Test
+  void flushRecordsFailedExportTelemetry() {
+    RemoteApi.Response response = RemoteApi.Response.failed(500);
+    when(sender.send(any())).thenReturn(response);
+    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+
+    dispatcher.addTrace(Arrays.asList(sampledSpan(), sampledSpan()));
+    dispatcher.flush();
+
+    Map<String, OtlpTelemetry.OtlpMetric> metrics = drainTracesTelemetry();
+    assertEquals(2, metrics.size());
+    assertEquals(1L, metrics.get("otel.traces_export_attempts").value);
+    assertEquals(1L, metrics.get("otel.traces_export_failures").value);
+  }
+
+  private static Map<String, OtlpTelemetry.OtlpMetric> drainTracesTelemetry() {
+    Map<String, OtlpTelemetry.OtlpMetric> byName = new HashMap<>();
+    OtlpTelemetry.getInstance().prepareMetrics();
+    for (OtlpTelemetry.OtlpMetric metric : OtlpTelemetry.getInstance().drain()) {
+      byName.put(metric.metricName, metric);
+    }
+    return byName;
   }
 
   @Test

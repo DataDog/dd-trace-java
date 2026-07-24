@@ -38,11 +38,10 @@ public class OtlpWriter extends RemoteWriter {
       TraceProcessingWorker worker,
       PayloadDispatcher dispatcher,
       OtlpSender sender,
-      HealthMetrics healthMetrics,
       int flushTimeout,
       TimeUnit flushTimeoutUnit,
       boolean alwaysFlush) {
-    super(worker, dispatcher, healthMetrics, flushTimeout, flushTimeoutUnit, alwaysFlush);
+    super(worker, dispatcher, HealthMetrics.NO_OP, flushTimeout, flushTimeoutUnit, alwaysFlush);
     this.sender = sender;
   }
 
@@ -64,7 +63,6 @@ public class OtlpWriter extends RemoteWriter {
     private OtlpConfig.Protocol protocol = OtlpConfig.Protocol.HTTP_PROTOBUF;
     private OtlpConfig.Compression compression = OtlpConfig.Compression.NONE;
     private int traceBufferSize = BUFFER_SIZE;
-    private HealthMetrics healthMetrics = HealthMetrics.NO_OP;
     private int flushIntervalMilliseconds = 1000;
     private int flushTimeout = 1;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
@@ -99,11 +97,6 @@ public class OtlpWriter extends RemoteWriter {
 
     public OtlpWriterBuilder traceBufferSize(int traceBufferSize) {
       this.traceBufferSize = traceBufferSize;
-      return this;
-    }
-
-    public OtlpWriterBuilder healthMetrics(HealthMetrics healthMetrics) {
-      this.healthMetrics = healthMetrics;
       return this;
     }
 
@@ -151,7 +144,7 @@ public class OtlpWriter extends RemoteWriter {
       final TraceProcessingWorker worker =
           new TraceProcessingWorker(
               traceBufferSize,
-              healthMetrics,
+              HealthMetrics.NO_OP,
               dispatcher,
               DroppingPolicy.DISABLED,
               Prioritization.FAST_LANE,
@@ -160,7 +153,7 @@ public class OtlpWriter extends RemoteWriter {
               singleSpanSampler);
 
       return new OtlpWriter(
-          worker, dispatcher, sender, healthMetrics, flushTimeout, flushTimeoutUnit, alwaysFlush);
+          worker, dispatcher, sender, flushTimeout, flushTimeoutUnit, alwaysFlush);
     }
   }
 }

@@ -117,17 +117,18 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
   }
 
   private void visitSpan(CoreSpan<?> span) {
-    if (shouldExport(span)) {
-      if (currentSpan != null) {
-        // ensure last span written at trace boundary includes sampling tags
-        if (!span.getTraceId().equals(currentSpan.getTraceId())) {
-          metaWriter.includeSamplingTags();
-        }
-        completeSpan();
-      }
-      currentSpan = (DDSpan) span;
-      currentSpanLinks = currentSpan.getLinks();
+    if (!shouldExport(span)) {
+      return;
     }
+    if (currentSpan != null) {
+      // ensure last span written at trace boundary includes sampling tags
+      if (!span.getTraceId().equals(currentSpan.getTraceId())) {
+        metaWriter.includeSamplingTags();
+      }
+      completeSpan();
+    }
+    currentSpan = (DDSpan) span;
+    currentSpanLinks = currentSpan.getLinks();
   }
 
   // called once we've processed all scopes and span messages

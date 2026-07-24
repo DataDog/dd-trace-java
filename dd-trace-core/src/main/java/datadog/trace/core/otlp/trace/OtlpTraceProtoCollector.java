@@ -78,7 +78,6 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
 
   /** Prepare temporary elements to collect trace data. */
   private void start() {
-
     // remove stale entries from caches
     OtlpCommonProto.recalibrateCaches();
 
@@ -109,18 +108,19 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
   }
 
   private void visitSpan(CoreSpan<?> span) {
-    if (shouldExport(span)) {
-      if (currentSpan != null) {
-        // ensure last span written at trace boundary includes sampling tags
-        // payload buffer is prepending, so last span written appears first!
-        if (!span.getTraceId().equals(currentSpan.getTraceId())) {
-          metaWriter.includeSamplingTags();
-        }
-        completeSpan();
-      }
-      currentSpan = (DDSpan) span;
-      currentSpan.getLinks().forEach(this::visitSpanLink);
+    if (!shouldExport(span)) {
+      return;
     }
+    if (currentSpan != null) {
+      // ensure last span written at trace boundary includes sampling tags
+      // payload buffer is prepending, so last span written appears first!
+      if (!span.getTraceId().equals(currentSpan.getTraceId())) {
+        metaWriter.includeSamplingTags();
+      }
+      completeSpan();
+    }
+    currentSpan = (DDSpan) span;
+    currentSpan.getLinks().forEach(this::visitSpanLink);
   }
 
   private void visitSpanLink(AgentSpanLink spanLink) {

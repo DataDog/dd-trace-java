@@ -1,5 +1,6 @@
 package datadog.trace.common.writer;
 
+import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
@@ -26,13 +27,15 @@ final class OtlpPayloadDispatcher implements PayloadDispatcher {
   public void flush() {
     OtlpPayload payload = collector.collectTraces();
     if (payload != OtlpPayload.EMPTY) {
-      sender.send(payload);
+      OtlpTelemetry.getInstance().onTracesExportAttempt();
+      RemoteApi.Response response = sender.send(payload);
+      OtlpTelemetry.getInstance().onTracesExportComplete(response.success());
     }
   }
 
   @Override
   public void onDroppedTrace(int spanCount) {
-    // TODO: surface drop counts via HealthMetrics
+    // no telemetry currently tracked for dropped traces
   }
 
   @Override
