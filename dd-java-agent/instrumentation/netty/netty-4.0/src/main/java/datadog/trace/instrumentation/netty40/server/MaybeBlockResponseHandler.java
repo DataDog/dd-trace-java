@@ -70,7 +70,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     if (isAnalyzedResponse(channel)) {
       if (isBlockedResponse(channel)) {
         // block further writes
-        log.debug("Write suppressed, msg {} dropped", msg);
+        log.debug("Write suppressed; dropped outbound message");
         ReferenceCountUtil.release(msg);
       } else {
         super.write(ctx, msg, prm);
