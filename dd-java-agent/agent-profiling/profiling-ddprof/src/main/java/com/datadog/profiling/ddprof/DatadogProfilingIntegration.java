@@ -32,24 +32,26 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
       new Stateful() {
         @Override
         public void close() {
-          DDPROF.clearSpanContext();
-          DDPROF.clearContextValue(SPAN_NAME_INDEX);
-          DDPROF.clearContextValue(RESOURCE_NAME_INDEX);
+          // clearTraceContext wipes all custom slots (incl. operation/resource) and reapplies
+          // app-managed context, so no separate clearContextValue calls are needed.
+          DDPROF.clearTraceContext();
         }
 
         @Override
         public void activate(Object context) {
           if (context instanceof ProfilerContext) {
             ProfilerContext profilerContext = (ProfilerContext) context;
-            // setSpanContext() calls reapplyAppContext() internally, so no explicit call is needed.
-            DDPROF.setSpanContext(
+            // One native call: trace/span context + operation and resource attributes, then
+            // reapply of app-managed context (setTraceContext resets custom slots).
+            DDPROF.setTraceContext(
                 profilerContext.getRootSpanId(),
                 profilerContext.getSpanId(),
                 profilerContext.getTraceIdHigh(),
-                profilerContext.getTraceIdLow());
-            DDPROF.setContextValue(SPAN_NAME_INDEX, profilerContext.getOperationName().toString());
-            DDPROF.setContextValue(
-                RESOURCE_NAME_INDEX, profilerContext.getResourceName().toString());
+                profilerContext.getTraceIdLow(),
+                SPAN_NAME_INDEX,
+                profilerContext.getOperationName(),
+                RESOURCE_NAME_INDEX,
+                profilerContext.getResourceName());
           }
         }
       };
@@ -79,9 +81,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   public void clearContext() {
-    DDPROF.clearSpanContext();
-    DDPROF.clearContextValue(SPAN_NAME_INDEX);
-    DDPROF.clearContextValue(RESOURCE_NAME_INDEX);
+    DDPROF.clearTraceContext();
   }
 
   @Override
