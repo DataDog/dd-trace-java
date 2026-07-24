@@ -49,6 +49,7 @@ final class Aggregator implements Runnable {
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
       HealthMetrics healthMetrics,
+      AdditionalTagsSchema additionalTagsSchema,
       Runnable onReportCycle) {
     this(
         writer,
@@ -58,6 +59,7 @@ final class Aggregator implements Runnable {
         reportingIntervalTimeUnit,
         DEFAULT_SLEEP_MILLIS,
         healthMetrics,
+        additionalTagsSchema,
         onReportCycle);
   }
 
@@ -69,14 +71,19 @@ final class Aggregator implements Runnable {
       TimeUnit reportingIntervalTimeUnit,
       long sleepMillis,
       HealthMetrics healthMetrics,
+      AdditionalTagsSchema additionalTagsSchema,
       Runnable onReportCycle) {
     this.writer = writer;
     this.inbox = inbox;
-    this.aggregates = new AggregateTable(maxAggregates);
+    this.aggregates = new AggregateTable(maxAggregates, additionalTagsSchema);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
     this.healthMetrics = healthMetrics;
     this.onReportCycle = onReportCycle;
+  }
+
+  void resetCoreHandlers(HealthMetrics healthMetrics, CardinalityLimitReporter reporter) {
+    aggregates.resetCoreHandlers(healthMetrics, reporter);
   }
 
   @Override
@@ -174,7 +181,7 @@ final class Aggregator implements Runnable {
               writer,
               (w, entry) -> {
                 w.add(entry);
-                entry.clear();
+                entry.clearAggregate();
               });
           // note that this may do IO and block
           writer.finishBucket();

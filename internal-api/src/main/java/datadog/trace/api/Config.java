@@ -428,6 +428,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_ADDITIONAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
@@ -3899,9 +3900,23 @@ public class Config {
    * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
    * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
    * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
+   *
+   * <p>A non-positive configured value is invalid -- each limit sizes a fixed-capacity handler
+   * table that requires a positive size -- so it falls back to {@code defaultLimit}, logged at
+   * debug.
    */
   public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
-    return configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+    int limit =
+        configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+    if (limit <= 0) {
+      log.debug(
+          "Invalid trace.stats.{}.cardinality.limit={}; must be positive. Using default {}.",
+          tagName,
+          limit,
+          defaultLimit);
+      return defaultLimit;
+    }
+    return limit;
   }
 
   public boolean isLogsInjectionEnabled() {
@@ -5248,6 +5263,14 @@ public class Config {
 
   public Set<String> getMetricsIgnoredResources() {
     return tryMakeImmutableSet(configProvider.getList(TRACER_METRICS_IGNORED_RESOURCES));
+  }
+
+  public Set<String> getTraceStatsAdditionalTags() {
+    if (!experimentalFeaturesEnabled.contains(
+        propertyNameToEnvironmentVariableName(TRACE_STATS_ADDITIONAL_TAGS))) {
+      return Collections.emptySet();
+    }
+    return tryMakeImmutableSet(configProvider.getList(TRACE_STATS_ADDITIONAL_TAGS));
   }
 
   public String getEnv() {

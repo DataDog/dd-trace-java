@@ -297,7 +297,11 @@ public final class ConfigDefaults {
 
   static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED =
       new HashSet<>(
-          asList("DD_TAGS", "DD_LOGS_INJECTION", "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED"));
+          asList(
+              "DD_TAGS",
+              "DD_LOGS_INJECTION",
+              "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED",
+              "DD_TRACE_STATS_ADDITIONAL_TAGS"));
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = true;
