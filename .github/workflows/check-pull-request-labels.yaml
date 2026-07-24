@@ -146,7 +146,8 @@ jobs:
               'mergequeue-status:',
               'team:',
               'performance:',  // To refactor to 'ci: ' in the future
-              'run-tests:'     // Unused since GitLab migration
+              'run-tests:',    // Unused since GitLab migration
+              'pr-shepherd:'   // Applied by the PR Shepherd automation
             ]
             // Exact-match labels that don't fit a category prefix (e.g. labels applied
             // by external automation tooling).
