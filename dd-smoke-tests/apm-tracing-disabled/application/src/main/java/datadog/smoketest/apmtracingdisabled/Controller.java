@@ -6,6 +6,8 @@ import io.opentracing.util.GlobalTracer;
 import java.io.IOException;
 import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +16,8 @@ import org.springframework.web.client.RestTemplate;
 @RestController
 @RequestMapping("/rest-api")
 public class Controller {
+
+  private static final Logger log = LoggerFactory.getLogger(Controller.class);
 
   @GetMapping("/greetings")
   public String greetings(
@@ -75,19 +79,21 @@ public class Controller {
   @GetMapping("/late-outbound")
   public String lateOutbound(@RequestParam(name = "url") String url) {
     final Span span = GlobalTracer.get().activeSpan();
+    // Thread synchronization relies on waitForTraceCount rather than Thread completion, no race issue.
     Thread thread =
         new Thread(
             () -> {
               try {
-                Thread.sleep(1000);
+                // Sleep past PendingTraceBuffer's 500ms flush delay so the root chunk exports before this late child.
+                Thread.sleep(3000);
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return;
               }
               try (Scope scope = GlobalTracer.get().activateSpan(span)) {
                 new RestTemplate().getForObject(url, String.class);
-              } catch (Exception ignored) {
-                // The outbound target response is irrelevant; we only need the client child span.
+              } catch (Exception e) {
+                log.debug("late outbound call to {} failed", url, e);
               }
             });
     thread.setDaemon(true);
