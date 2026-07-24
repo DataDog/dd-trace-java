@@ -192,6 +192,8 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       reportedBeforeLastContent = writer.waitForTracesMax(1, 1);
       writeLastChunk(responseContext);
       assertEquals("first", readHttpResponseBody(socket.getInputStream()));
+      assertTrue(
+          writer.waitForTracesMax(1, 5), "server span should be reported after LastHttpContent");
     }
 
     assertFalse(
@@ -394,6 +396,8 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
       reportedBeforeLastContent = writer.waitForTracesMax(1, 1);
       writeLastChunk(responseContext);
       assertEquals("first", readHttpResponseBody(socket.getInputStream()));
+      assertTrue(
+          writer.waitForTracesMax(1, 5), "server span should be reported after LastHttpContent");
     }
 
     assertFalse(
@@ -640,9 +644,7 @@ public class NettyChunkedResponseSpanTest extends NettyHttpServerTestSupport {
   }
 
   private static void writeLastChunk(ChannelHandlerContext responseContext) {
-    responseContext
-        .executor()
-        .execute(() -> responseContext.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT));
+    responseContext.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).syncUninterruptibly();
   }
 
   private static void closeChannel(ChannelHandlerContext responseContext) {
