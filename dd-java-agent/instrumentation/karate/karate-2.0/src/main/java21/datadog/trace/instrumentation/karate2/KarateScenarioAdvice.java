@@ -24,6 +24,7 @@ public class KarateScenarioAdvice {
       ExecutionContext executionContext =
           InstrumentationContext.get(Scenario.class, ExecutionContext.class)
               .computeIfAbsent(scenarioRuntime.getScenario(), ExecutionContext::create);
+      executionContext.setTestStarted(false);
 
       // Indicate beforehand whether failures should be suppressed. This aligns the ordering with
       // the rest of the frameworks.
@@ -42,7 +43,9 @@ public class KarateScenarioAdvice {
       Scenario scenario = scenarioRuntime.getScenario();
       ExecutionContext context =
           InstrumentationContext.get(Scenario.class, ExecutionContext.class).get(scenario);
-      if (context == null) {
+      if (context == null || !context.isTestStarted()) {
+        // avoid retrying an aborted scenario that did not start, as the execution policy will not
+        // advance and loop
         return;
       }
       KarateTracingListener.afterScenario(scenarioRuntime, result, context);
@@ -58,7 +61,11 @@ public class KarateScenarioAdvice {
         while (executionPolicy.applicable()) {
           ScenarioRuntime retry =
               new ScenarioRuntime(scenarioRuntime.getFeatureRuntime(), scenario);
-          finalResult = retry.call();
+          ScenarioResult retryResult = retry.call();
+          if (!context.isTestStarted()) {
+            break;
+          }
+          finalResult = retryResult;
         }
 
         // override the return value so the final attempt is the one recorded.

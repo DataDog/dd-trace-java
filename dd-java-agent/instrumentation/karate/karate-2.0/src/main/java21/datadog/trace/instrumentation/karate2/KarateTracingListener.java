@@ -155,6 +155,9 @@ public class KarateTracingListener implements RunListener {
         TestSourceData.UNKNOWN,
         null,
         executionTracker);
+    if (context != null) {
+      context.setTestStarted(true);
+    }
     return true;
   }
 
