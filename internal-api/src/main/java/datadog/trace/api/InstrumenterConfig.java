@@ -46,7 +46,8 @@ import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED_DEFAULT;
 import static datadog.trace.api.config.RumConfig.RUM_ENABLED;
@@ -321,7 +322,9 @@ public class InstrumenterConfig {
 
     directAllocationProfilingEnabled =
         configProvider.getBoolean(
-            PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT);
+            PROFILING_DIRECT_MEMORY_ENABLED,
+            PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT,
+            PROFILING_DIRECT_ALLOCATION_ENABLED);
 
     excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
     excludedClassesFile = configProvider.getString(TRACE_CLASSES_EXCLUDE_FILE);

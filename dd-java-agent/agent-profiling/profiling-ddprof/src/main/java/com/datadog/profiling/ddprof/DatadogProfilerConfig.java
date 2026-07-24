@@ -6,6 +6,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENAB
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CPU_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CPU_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL_DEFAULT;
@@ -46,6 +48,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LOCK_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LOCK_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
@@ -53,6 +57,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_E
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_WALLTIME_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_WALLTIME_ENABLED_DEFAULT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 
 import com.datadog.profiling.controller.ProfilingSupport;
@@ -69,6 +75,9 @@ public class DatadogProfilerConfig {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfilerConfig.class);
 
   public static boolean isCpuProfilerEnabled(ConfigProvider configProvider) {
+    if (!configProvider.getBoolean(PROFILING_CPU_ENABLED, PROFILING_CPU_ENABLED_DEFAULT)) {
+      return false;
+    }
     return getBoolean(
         configProvider,
         PROFILING_DATADOG_PROFILER_CPU_ENABLED,
@@ -119,6 +128,10 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isWallClockProfilerEnabled(ConfigProvider configProvider) {
+    if (!configProvider.getBoolean(
+        PROFILING_WALLTIME_ENABLED, PROFILING_WALLTIME_ENABLED_DEFAULT)) {
+      return false;
+    }
     boolean isUltraMinimal = getBoolean(configProvider, PROFILING_ULTRA_MINIMAL, false);
     boolean isTracingEnabled = configProvider.getBoolean(TRACE_ENABLED, true);
     boolean disableUnlessOptedIn = isUltraMinimal || !isTracingEnabled || isJ9();
@@ -242,6 +255,18 @@ public class DatadogProfilerConfig {
 
   public static boolean isMemoryLeakProfilingEnabled() {
     return isMemoryLeakProfilingEnabled(ConfigProvider.getInstance());
+  }
+
+  /**
+   * Returns whether lock profiling is enabled via the unified gate.
+   *
+   * <p><b>Note:</b> ddprof does not currently implement a native lock sampler. This method exists
+   * as an enforcement point so that a future ddprof lock profiler can simply call it rather than
+   * rediscovering the config key. The JFR controller already honors this gate for
+   * jdk.JavaMonitorEnter.
+   */
+  public static boolean isLockProfilerEnabled(ConfigProvider configProvider) {
+    return configProvider.getBoolean(PROFILING_LOCK_ENABLED, PROFILING_LOCK_ENABLED_DEFAULT);
   }
 
   public static boolean isLiveHeapSizeTrackingEnabled(ConfigProvider configProvider) {

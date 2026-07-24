@@ -2619,9 +2619,9 @@
     ],
     "DD_PROFILING_ALLOCATION_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
-        "default": "false",
+        "default": "true",
         "aliases": ["DD_PROFILING_DDPROF_ALLOC_ENABLED"]
       }
     ],
@@ -2826,6 +2826,14 @@
       }
     ],
     "DD_PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_CPU_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
@@ -3059,10 +3067,10 @@
     ],
     "DD_PROFILING_DIRECTALLOCATION_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "false",
-        "aliases": []
+        "aliases": ["DD_PROFILING_DIRECT_MEMORY_ENABLED"]
       }
     ],
     "DD_PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT": [
@@ -3098,6 +3106,14 @@
       }
     ],
     "DD_PROFILING_ENDPOINT_COLLECTION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXCEPTION_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
@@ -3219,7 +3235,7 @@
     ],
     "DD_PROFILING_HEAP_ENABLED": [
       {
-        "version": "A",
+        "version": "C",
         "type": "boolean",
         "default": "false",
         "aliases": []
@@ -3257,6 +3273,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_IO_ENABLED": [
+      {
+        "version": "B",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_JFR_REPOSITORY_BASE": [
       {
         "version": "A",
@@ -3278,6 +3302,14 @@
         "version": "A",
         "type": "string",
         "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_LOCK_ENABLED": [
+      {
+        "version": "B",
+        "type": "boolean",
+        "default": "true",
         "aliases": []
       }
     ],
@@ -3409,6 +3441,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_THREAD_ENABLED": [
+      {
+        "version": "B",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_TIMELINE_EVENTS_ENABLED": [
       {
         "version": "A",
@@ -3462,6 +3502,14 @@
         "version": "A",
         "type": "string",
         "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_WALLTIME_ENABLED": [
+      {
+        "version": "B",
+        "type": "boolean",
+        "default": "true",
         "aliases": []
       }
     ],
