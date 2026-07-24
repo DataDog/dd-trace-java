@@ -280,7 +280,7 @@ class WAFModuleSpecification extends DDSpecification {
       rba.statusCode == 403 &&
       rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -304,7 +304,7 @@ class WAFModuleSpecification extends DDSpecification {
       rba.statusCode == 403 &&
       rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -356,7 +356,7 @@ class WAFModuleSpecification extends DDSpecification {
       rba.statusCode == 403 &&
       rba.blockingContentType == BlockingContentType.AUTO
     })
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -376,7 +376,7 @@ class WAFModuleSpecification extends DDSpecification {
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
@@ -428,7 +428,7 @@ class WAFModuleSpecification extends DDSpecification {
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false)
+    1 * ctx.getOrCreateWafContext(_, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
@@ -450,7 +450,7 @@ class WAFModuleSpecification extends DDSpecification {
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false)
+    1 * ctx.getOrCreateWafContext(_, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
@@ -1074,6 +1074,7 @@ class WAFModuleSpecification extends DDSpecification {
   void 'reloading rules clears waf data and rule toggling'() {
     initialRuleAdd()
     ChangeableFlow flow = Mock()
+    WafContext wafContext
     def ipData = [
       rules_data :
       [
@@ -1116,10 +1117,12 @@ class WAFModuleSpecification extends DDSpecification {
     then: 'no match; rule is disabled'
     1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateWafContext(_, true, false)
+    1 * ctx.getOrCreateWafContext(_, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.closeWafContext()
+    1 * ctx.closeWafContext() >> {
+      wafContext.close()
+    }
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     0 * _
@@ -1132,11 +1135,13 @@ class WAFModuleSpecification extends DDSpecification {
     ctx.closeWafContext()
 
     then: 'no match; data was cleared (though rule is no longer disabled)'
-    1 * ctx.getOrCreateWafContext(_, true, false)
+    1 * ctx.getOrCreateWafContext(_, true, false) >> { wafContext = new WafContext(it[0]) }
     1 * ctx.isWafContextClosed() >> false
     1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
-    1 * ctx.closeWafContext()
+    1 * ctx.closeWafContext() >> {
+      wafContext.close()
+    }
     2 * ctx.getWafMetrics()
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
@@ -1151,13 +1156,15 @@ class WAFModuleSpecification extends DDSpecification {
     then: 'now we have match'
     1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateWafContext(_, true, false)
+    1 * ctx.getOrCreateWafContext(_, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * tracer.activeSpan()
     1 * ctx.reportEvents(_ as Collection<AppSecEvent>)
     2 * ctx.getWafMetrics()
     1 * flow.setAction({ it.blocking })
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.closeWafContext()
+    1 * ctx.closeWafContext() >> {
+      wafContext.close()
+    }
     1 * flow.isBlocking()
     1 * ctx.isThrottled(null)
     1 * ctx.setManuallyKept(true)
@@ -1174,10 +1181,12 @@ class WAFModuleSpecification extends DDSpecification {
     then: 'nothing again; we disabled the rule'
     1 * wafMetricCollector.wafUpdates(_, true)
     1 * reconf.reloadSubscriptions()
-    1 * ctx.getOrCreateWafContext(_, true, false)
+    1 * ctx.getOrCreateWafContext(_, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * ctx.getWafMetrics()
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.closeWafContext()
+    1 * ctx.closeWafContext() >> {
+      wafContext.close()
+    }
     _ * ctx.increaseWafTimeouts()
     _ * ctx.increaseRaspTimeouts()
     0 * _
@@ -1490,7 +1499,7 @@ class WAFModuleSpecification extends DDSpecification {
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * ctx.getWafMetrics()
     1 * ctx.isThrottled(null)
     1 * ctx.setManuallyKept(true)
@@ -1523,7 +1532,7 @@ class WAFModuleSpecification extends DDSpecification {
     })
     1 * flow.isBlocking()
     1 * ctx.isWafContextClosed() >> false
-    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false)
+    1 * ctx.getOrCreateWafContext(_ as WafHandle, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * ctx.getWafMetrics()
     1 * ctx.isThrottled(null)
     1 * ctx.setManuallyKept(true)
@@ -1538,7 +1547,6 @@ class WAFModuleSpecification extends DDSpecification {
     final flow = Mock(ChangeableFlow)
     final fingerprint = '_dd.appsec.fp.http.endpoint'
     initialRuleAdd 'fingerprint_config.json'
-    ctx.closeWafContext()
     final bundle = MapDataBundle.ofDelegate([
       (KnownAddresses.WAF_CONTEXT_PROCESSOR): [fingerprint: true],
       (KnownAddresses.REQUEST_METHOD): 'GET',
@@ -1567,7 +1575,6 @@ class WAFModuleSpecification extends DDSpecification {
     final sessionId = UUID.randomUUID().toString()
     initialRuleAdd 'fingerprint_config.json'
     wafModule.applyConfig(reconf)
-    ctx.closeWafContext()
     final bundle = MapDataBundle.ofDelegate([
       (KnownAddresses.WAF_CONTEXT_PROCESSOR): [fingerprint: true],
       (KnownAddresses.REQUEST_COOKIES): [JSESSIONID: [sessionId]],
@@ -1905,7 +1912,7 @@ class WAFModuleSpecification extends DDSpecification {
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false)
+    1 * ctx.getOrCreateWafContext(_, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * ctx.getWafMetrics() >> metrics
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
@@ -1923,7 +1930,7 @@ class WAFModuleSpecification extends DDSpecification {
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false)
+    1 * ctx.getOrCreateWafContext(_, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * ctx.getWafMetrics() >> metrics
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
@@ -1942,7 +1949,7 @@ class WAFModuleSpecification extends DDSpecification {
     ctx.closeWafContext()
 
     then:
-    1 * ctx.getOrCreateWafContext(_, true, false)
+    1 * ctx.getOrCreateWafContext(_, true, false) >> { wafContext = new WafContext(it[0]) }
     2 * ctx.getWafMetrics() >> metrics
     1 * ctx.isWafContextClosed() >> false
     1 * ctx.closeWafContext()
