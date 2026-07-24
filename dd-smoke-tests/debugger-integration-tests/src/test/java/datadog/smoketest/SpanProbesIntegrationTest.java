@@ -34,7 +34,7 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
 
-    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     AtomicBoolean traceReceived = new AtomicBoolean();
     registerTraceListener(
         decodedTrace -> {
@@ -64,7 +64,7 @@ public class SpanProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest 
             .build();
     setCurrentConfiguration(createSpanConfig(spanProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
-    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     AtomicBoolean traceReceived = new AtomicBoolean();
     registerTraceListener(
         decodedTrace -> {
