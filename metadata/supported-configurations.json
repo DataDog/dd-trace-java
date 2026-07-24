@@ -9073,6 +9073,30 @@
         "aliases": ["DD_TRACE_INTEGRATION_QUARTZ_ENABLED", "DD_INTEGRATION_QUARTZ_ENABLED"]
       }
     ],
+    "DD_TRACE_R2DBC_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_R2DBC_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_R2DBC_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_R2DBC_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
+    "DD_TRACE_R2DBC_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_R2DBC_ENABLED", "DD_INTEGRATION_R2DBC_ENABLED"]
+      }
+    ],
     "DD_TRACE_RABBITMQ_ANALYTICS_ENABLED": [
       {
         "version": "A",

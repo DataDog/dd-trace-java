@@ -537,6 +537,7 @@ include(
   ":dd-java-agent:instrumentation:play:play-appsec-common",
   ":dd-java-agent:instrumentation:protobuf-3.0",
   ":dd-java-agent:instrumentation:quartz-2.0",
+  ":dd-java-agent:instrumentation:r2dbc:r2dbc-1.0",
   ":dd-java-agent:instrumentation:rabbitmq-amqp-2.7",
   ":dd-java-agent:instrumentation:ratpack-1.5",
   ":dd-java-agent:instrumentation:reactive-streams-1.0",
