@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -131,29 +130,24 @@ public final class CombiningTransformerBuilder
 
     adviceShader = AdviceShader.with(module);
 
-    // Resolve helper names lazily, and capture only GC-neutral values (not the module instance)
-    // so that the instrumenter can still be unloaded after setup, and load $Muzzle via the
-    // extended class loader like the muzzle check does.
-    final String instrumentationClass = module.getClass().getName();
-    final String[] declaredHelperClassNames = module.helperClassNames();
-    final boolean injectHelperDependencies = module.injectHelperDependencies();
+    // Resolve helper names eagerly at install. Only the resolved String[] is captured.
+    String[] helperClassNames =
+        InstrumenterModule.loadStaticMuzzleHelperClassNames(
+            Utils.getExtendedClassLoader(), module.getClass().getName());
+    if (null == helperClassNames) {
+      helperClassNames = module.helperClassNames();
+    }
+    if (module.injectHelperDependencies()) {
+      helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
+    }
     helperTransformer =
-        new HelperTransformer(
-            module.useAgentCodeSource(),
-            adviceShader,
-            module.getClass().getSimpleName(),
-            () -> {
-              String[] helperClassNames =
-                  InstrumenterModule.loadStaticMuzzleHelperClassNames(
-                      Utils.getExtendedClassLoader(), instrumentationClass);
-              if (null == helperClassNames) {
-                helperClassNames = declaredHelperClassNames;
-              }
-              if (injectHelperDependencies) {
-                helperClassNames = HelperScanner.withClassDependencies(helperClassNames);
-              }
-              return helperClassNames;
-            });
+        helperClassNames.length > 0
+            ? new HelperTransformer(
+                module.useAgentCodeSource(),
+                adviceShader,
+                module.getClass().getSimpleName(),
+                helperClassNames)
+            : null;
 
     postProcessor = module.postProcessor();
 
@@ -397,7 +391,7 @@ public final class CombiningTransformerBuilder
         boolean useAgentCodeSource,
         AdviceShader adviceShader,
         String requestingName,
-        Supplier<String[]> helperClassNames) {
+        String... helperClassNames) {
       super(useAgentCodeSource, adviceShader, requestingName, helperClassNames);
     }
   }
