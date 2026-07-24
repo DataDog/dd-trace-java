@@ -56,6 +56,15 @@ public interface AgentSpanContext {
   default void setIntegrationName(CharSequence componentName) {}
 
   /**
+   * The integration name recorded on this context, or {@code null} if none. Default {@code null}
+   * mirrors {@link #setIntegrationName}'s no-op default: contexts that do not track an integration
+   * name report absence, which lets never-clobber callers guard before setting.
+   */
+  default CharSequence getIntegrationName() {
+    return null;
+  }
+
+  /**
    * Gets whether the span context used is part of the local trace or from another service
    *
    * @return boolean representing if the span context is part of the local trace

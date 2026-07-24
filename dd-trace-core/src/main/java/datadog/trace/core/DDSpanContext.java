@@ -1348,6 +1348,7 @@ public class DDSpanContext
     this.integrationName = integrationName;
   }
 
+  @Override
   public CharSequence getIntegrationName() {
     return integrationName;
   }
