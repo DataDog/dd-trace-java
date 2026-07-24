@@ -19,7 +19,6 @@ final class TagCardinalityHandler {
   private static final int MAX_CARDINALITY_LIMIT = 1 << 29;
 
   private final String tag;
-  private String[] statsDTag = null;
   private final int cardinalityLimit;
   private final int maxValueLength;
   private final int capacityMask;
@@ -165,13 +164,6 @@ final class TagCardinalityHandler {
 
     this.cacheBlocked = cacheBlocked = UTF8BytesString.create(this.tag + ":tracer_blocked_value");
     return cacheBlocked;
-  }
-
-  String[] statsDTag() {
-    if (statsDTag == null) {
-      statsDTag = new String[] {"collapsed:" + tag};
-    }
-    return statsDTag;
   }
 
   /**

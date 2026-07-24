@@ -43,9 +43,12 @@ final class CoreHandlers {
             "service",
             MetricCardinalityLimits.SERVICE,
             MetricCardinalityLimits.USE_BLOCKED_SENTINEL);
+    // operation is carried on the stats wire as the protobuf field "name", so its telemetry tag is
+    // collapsed:name (RFC section 5) while the human-facing reporter keeps the clearer "operation".
     this.operation =
         new PropertyCardinalityHandler(
             "operation",
+            "name",
             MetricCardinalityLimits.OPERATION,
             MetricCardinalityLimits.USE_BLOCKED_SENTINEL);
     this.serviceSource =

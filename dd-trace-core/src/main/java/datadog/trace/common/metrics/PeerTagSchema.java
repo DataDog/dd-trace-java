@@ -54,6 +54,11 @@ final class PeerTagSchema {
   /** Singleton schema for internal-kind spans -- only {@code base.service}. */
   static final PeerTagSchema INTERNAL = new PeerTagSchema(new String[] {BASE_SERVICE}, NO_STATE);
 
+  // Health/telemetry statsD tag per the approved Cardinality Limits RFC (section 5): peer-tag
+  // collapses are reported under the lowercased protobuf field name peer_tags, aggregated across
+  // every configured peer tag rather than per individual tag name.
+  private static final String[] COLLAPSED_STATSD_TAG = {"collapsed:peer_tags"};
+
   final String[] names;
   final TagCardinalityHandler[] handlers;
 
@@ -121,12 +126,19 @@ final class PeerTagSchema {
    * handlers are not thread-safe.
    */
   void resetHandlers(HealthMetrics healthMetrics, CardinalityLimitReporter reporter) {
+    long totalCollapsed = 0;
     for (int i = 0; i < handlers.length; i++) {
       long numBlocked = handlers[i].reset();
       if (numBlocked > 0) {
-        healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), numBlocked);
+        // The human-facing reporter names the specific peer tag that triggered the block.
         reporter.record(names[i], numBlocked);
       }
+      totalCollapsed += numBlocked;
+    }
+    // The health metric is reported at the peer_tags field granularity (not per tag name) per the
+    // approved Cardinality Limits RFC.
+    if (totalCollapsed > 0) {
+      healthMetrics.onTagCardinalityBlocked(COLLAPSED_STATSD_TAG, totalCollapsed);
     }
   }
 

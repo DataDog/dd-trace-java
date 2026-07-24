@@ -46,7 +46,9 @@ class CoreHandlersTest {
 
     verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:resource"}, 1L);
     verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:service"}, 1L);
-    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:operation"}, 1L);
+    // operation is carried on the wire as the protobuf field "name", so it reports as
+    // collapsed:name
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:name"}, 1L);
     verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:service_source"}, 1L);
     verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:type"}, 1L);
     verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:span_kind"}, 1L);
