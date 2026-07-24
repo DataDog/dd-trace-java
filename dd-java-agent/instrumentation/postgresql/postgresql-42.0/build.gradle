@@ -1,0 +1,26 @@
+muzzle {
+  pass {
+    group = "org.postgresql"
+    module = "postgresql"
+    versions = "[42.0.0,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.postgresql', name: 'postgresql', version: '42.0.0'
+
+  testImplementation group: 'org.postgresql', name: 'postgresql', version: '42.0.0'
+  testImplementation group: 'org.testcontainers', name: 'postgresql', version: libs.versions.testcontainers.get()
+
+  latestDepTestImplementation group: 'org.postgresql', name: 'postgresql', version: '42.+'
+}
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+  environment 'TESTCONTAINERS_RYUK_DISABLED', 'true'
+  jvmArgs '-Dtestcontainers.reuse.enable=false'
+}

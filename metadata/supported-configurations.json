@@ -8977,6 +8977,30 @@
         "aliases": ["DD_TRACE_INTEGRATION_PLAY_WS_ENABLED", "DD_INTEGRATION_PLAY_WS_ENABLED"]
       }
     ],
+    "DD_TRACE_POSTGRESQL_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_POSTGRESQL_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_POSTGRESQL_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_POSTGRESQL_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
+    "DD_TRACE_POSTGRESQL_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_POSTGRESQL_ENABLED", "DD_INTEGRATION_POSTGRESQL_ENABLED"]
+      }
+    ],
     "DD_TRACE_POST_PROCESSING_TIMEOUT": [
       {
         "version": "A",
