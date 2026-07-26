@@ -226,6 +226,11 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   @Override
   protected int appendPrefix(StringBuilder sb, PTags ptags) {
+    return appendPrefix(sb, ptags, null);
+  }
+
+  @Override
+  protected int appendPrefix(StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride) {
     sb.append(DATADOG_MEMBER_KEY);
     // Append sampling priority (s)
     if (ptags.getSamplingPriority() != PrioritySampling.UNSET) {
@@ -246,7 +251,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
     }
     // append last ParentId (p)
-    CharSequence lastParent = ptags.getLastParentId();
+    CharSequence lastParent =
+        lastParentIdOverride != null ? lastParentIdOverride : ptags.getLastParentId();
     if (lastParent != null) {
       if (sb.length() > EMPTY_SIZE) {
         sb.append(';');

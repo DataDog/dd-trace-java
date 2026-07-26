@@ -4,7 +4,6 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.core.otlp.trace.OtlpTraceCollector;
-import datadog.trace.core.otlp.trace.OtlpTraceProtoCollector;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -12,10 +11,6 @@ import java.util.List;
 final class OtlpPayloadDispatcher implements PayloadDispatcher {
   private final OtlpTraceCollector collector;
   private final OtlpSender sender;
-
-  OtlpPayloadDispatcher(OtlpSender sender) {
-    this(sender, new OtlpTraceProtoCollector());
-  }
 
   OtlpPayloadDispatcher(OtlpSender sender, OtlpTraceCollector collector) {
     this.sender = sender;

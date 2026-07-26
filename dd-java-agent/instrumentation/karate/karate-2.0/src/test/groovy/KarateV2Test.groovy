@@ -33,6 +33,8 @@ class KarateV2Test extends CiVisibilityInstrumentationTest {
     "test-with-setup"       | true    | [TestWithSetupKarate]
     "test-parameterized"    | true    | [TestParameterizedKarate]
     "test-failed"           | false   | [TestFailedKarate]
+    "test-fail-expected"    | true    | [TestFailedExpectedKarate]
+    "test-fail-unexpected"  | false   | [TestFailedUnexpectedKarate]
     "test-skipped-feature"  | true    | [TestSkippedFeatureKarate]
   }
 
@@ -67,6 +69,10 @@ class KarateV2Test extends CiVisibilityInstrumentationTest {
     "test-failed"              | false   | [TestFailedKarate]              | []
     "test-retry-failed"        | false   | [TestFailedKarate]              | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
     "test-failed-then-succeed" | true    | [TestFailedThenSucceedKarate]   | [new TestFQN("[org/example/test_failed_then_succeed] test failed", "flaky scenario")]
+    "test-retry-after-scenario-failed" | false | [TestFailedAfterScenarioKarate] | [
+      new TestFQN("[org/example/test_after_scenario_failed] test after scenario failed", "after scenario failed")
+    ]
+    "test-retry-fail-expected" | true | [TestFailedExpectedKarate] | [new TestFQN("[org/example/test_fail_expected] test fail expected", "expected failure")]
     "test-retry-parameterized" | false   | [TestFailedParameterizedKarate] | [
       new TestFQN("[org/example/test_failed_parameterized] test parameterized", "first scenario as an outline")
     ]
@@ -91,6 +97,8 @@ class KarateV2Test extends CiVisibilityInstrumentationTest {
     "test-efd-new-slow-test"            | [TestSucceedKarateSlow]            | [] // is executed only twice
     "test-efd-faulty-session-threshold" | [TestParameterizedMoreCasesKarate] | []
     "test-efd-skip-new-test"            | [TestSucceedKarateSkipEfd]         | []
+    "test-efd-setup"                    | [TestWithSetupKarate]              | []
+    "test-efd-called-feature"           | [TestSucceedCalledFeatureKarate]   | [new TestFQN("[org/example/test_called_feature] test called feature", "caller")]
   }
 
   def "test quarantined #testcaseName"() {

@@ -84,7 +84,7 @@ public class HttpInboundServiceContextImplInstrumentation extends InstrumenterMo
       return LibertyBlockingHelper.syncBufferEnter(thiz, buffers, (AgentSpan) o);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter BlockingException blockingException,
         @Advice.Thrown(readOnly = false) Throwable thrown) {

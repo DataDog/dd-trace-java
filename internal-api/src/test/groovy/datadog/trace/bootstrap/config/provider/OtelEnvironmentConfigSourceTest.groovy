@@ -9,7 +9,7 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.VERSION
-import static datadog.trace.api.config.OtlpConfig.TRACES_SPAN_METRICS_ENABLED
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED
@@ -268,7 +268,7 @@ class OtelEnvironmentConfigSourceTest extends DDSpecification {
     def source = new OtelEnvironmentConfigSource()
 
     then:
-    source.get(TRACES_SPAN_METRICS_ENABLED) == value
+    source.get(OTEL_TRACES_SPAN_METRICS_ENABLED) == value
 
     where:
     value << ['true', 'false']
@@ -283,7 +283,7 @@ class OtelEnvironmentConfigSourceTest extends DDSpecification {
     def source = new OtelEnvironmentConfigSource()
 
     then:
-    source.get(TRACES_SPAN_METRICS_ENABLED) == value
+    source.get(OTEL_TRACES_SPAN_METRICS_ENABLED) == value
 
     where:
     value << ['true', 'false']
@@ -298,7 +298,7 @@ class OtelEnvironmentConfigSourceTest extends DDSpecification {
     def source = new OtelEnvironmentConfigSource()
 
     then:
-    source.get(TRACES_SPAN_METRICS_ENABLED) == null
+    source.get(OTEL_TRACES_SPAN_METRICS_ENABLED) == null
   }
 
   def "otel traces exporter none still disables tracing"() {

@@ -1,7 +1,10 @@
 package datadog.trace.instrumentation.openai_java;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+
 import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
+import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceApiInfo;
@@ -16,6 +19,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nonnull;
 
 public class OpenAiDecorator extends ClientDecorator {
   public static final OpenAiDecorator DECORATE = new OpenAiDecorator();
@@ -61,14 +65,9 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   public void finishSpan(AgentSpan span, Throwable err) {
-    try {
-      if (err != null) {
-        onError(span, err);
-      }
-      DECORATE.beforeFinish(span);
-    } finally {
-      span.finish();
-    }
+    onError(span, err);
+    beforeFinish(span);
+    span.finish();
   }
 
   @Override
@@ -92,7 +91,7 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   @Override
-  public void afterStart(AgentSpan span) {
+  protected void doAfterStart(@Nonnull AgentSpan span) {
     if (llmObsEnabled) {
       // set global dd_tags as base layer so UST and span-level tags can override them
       for (Map.Entry<String, String> entry : Config.get().getGlobalTags().entrySet()) {
@@ -126,12 +125,13 @@ public class OpenAiDecorator extends ClientDecorator {
         span.setTag(CommonTags.SESSION_ID, sessionId);
       }
     }
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 
   @Override
-  public void beforeFinish(AgentSpan span) {
-    if (llmObsEnabled) {
+  protected void doBeforeFinish(@Nonnull Context context) {
+    AgentSpan span = fromContext(context);
+    if (llmObsEnabled && span != null) {
       span.setTag(CommonTags.ERROR, span.isError() ? 1 : 0);
       span.setTag(CommonTags.ERROR_TYPE, span.getTag(DDTags.ERROR_TYPE));
 
@@ -143,7 +143,7 @@ public class OpenAiDecorator extends ClientDecorator {
             .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError(), false);
       }
     }
-    super.beforeFinish(span);
+    super.doBeforeFinish(context);
   }
 
   public void withHttpResponse(AgentSpan span, Headers headers) {

@@ -944,7 +944,7 @@ public class TagMapTest {
   @ParameterizedTest
   @ValueSource(ints = {0, 5, 25, 125})
   public void _toInternalString(int size) {
-    OptimizedTagMap tagMap = new OptimizedTagMap();
+    TagMap tagMap = new TagMap();
     fillMap(tagMap, size);
 
     String str = tagMap.toInternalString();
@@ -1064,9 +1064,7 @@ public class TagMapTest {
   }
 
   static final void assertSize(int size, TagMap map) {
-    if (map instanceof OptimizedTagMap) {
-      assertEquals(size, ((OptimizedTagMap) map).computeSize());
-    }
+    assertEquals(size, map.computeSize());
     assertEquals(size, map.size());
 
     assertEquals(size, count(map));
@@ -1094,16 +1092,12 @@ public class TagMapTest {
   }
 
   static void assertNotEmpty(TagMap map) {
-    if (map instanceof OptimizedTagMap) {
-      assertFalse(((OptimizedTagMap) map).checkIfEmpty());
-    }
+    assertFalse(map.checkIfEmpty());
     assertFalse(map.isEmpty());
   }
 
   static void assertEmpty(TagMap map) {
-    if (map instanceof OptimizedTagMap) {
-      assertTrue(((OptimizedTagMap) map).checkIfEmpty());
-    }
+    assertTrue(map.checkIfEmpty());
     assertTrue(map.isEmpty());
   }
 
@@ -1128,9 +1122,6 @@ public class TagMapTest {
   }
 
   static void checkIntegrity(TagMap map) {
-    if (map instanceof OptimizedTagMap) {
-      OptimizedTagMap optMap = (OptimizedTagMap) map;
-      optMap.checkIntegrity();
-    }
+    map.checkIntegrity();
   }
 }

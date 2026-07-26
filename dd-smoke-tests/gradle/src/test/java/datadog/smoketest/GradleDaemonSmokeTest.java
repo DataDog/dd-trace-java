@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.GeneralConfig;
@@ -138,6 +139,9 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       throws IOException {
     Assumptions.assumeTrue(
         JavaVirtualMachine.isJavaVersionBetween(17, 22), "Robolectric 4.16 supports JDK 17-21");
+    Assumptions.assumeFalse(
+        OperatingSystem.architecture().isArm64(),
+        "Robolectric does not support arm64 (missing native runtime binaries, follow https://github.com/robolectric/robolectric/issues/9166)");
 
     gradleVersion = resolveVersion(gradleVersion);
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);

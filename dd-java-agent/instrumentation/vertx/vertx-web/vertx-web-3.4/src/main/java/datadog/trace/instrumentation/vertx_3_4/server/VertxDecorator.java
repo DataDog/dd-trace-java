@@ -54,7 +54,7 @@ public class VertxDecorator
   }
 
   @Override
-  public void onRequest(
+  protected void doOnRequest(
       final AgentSpan span,
       final RoutingContext connection,
       final RoutingContext routingContext,
