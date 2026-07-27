@@ -247,12 +247,14 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   }
 
   // Splits a packed "key:value" additional-tag string at the first ':' (keys cannot contain ':',
-  // values may) and emits it as an OTLP string attribute. Skips malformed slots (no ':', empty key
-  // or empty value) defensively.
+  // values may) and emits it as an OTLP string attribute. Skips only malformed slots with no ':' or
+  // an empty key. An empty value ("key:") is emitted as key="": the aggregation path treats an
+  // explicitly-empty tag as a distinct dimension from an absent one, so dropping it here would
+  // export two separately-aggregated rows with identical OTLP attribute sets.
   private static void emitAdditionalTag(OtlpMetricVisitor metric, UTF8BytesString additionalTag) {
     String packed = additionalTag.toString();
     int separator = packed.indexOf(':');
-    if (separator <= 0 || separator == packed.length() - 1) {
+    if (separator <= 0) {
       return;
     }
     metric.visitAttribute(
