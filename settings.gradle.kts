@@ -604,6 +604,7 @@ include(
   ":dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-3.1",
   ":dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-5.3",
   ":dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-6.0",
+  ":dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-7.0",
   ":dd-java-agent:instrumentation:spring:spring-ws-2.0",
   ":dd-java-agent:instrumentation:spymemcached-2.10",
   ":dd-java-agent:instrumentation:synapse-3.0",
