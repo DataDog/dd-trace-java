@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.REDIS_COMMAND;
 
+import datadog.context.ContextContinuation;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -29,7 +30,7 @@ public class RedisFutureSendAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope beforeSend(
       @Advice.Argument(value = 0, readOnly = false) Request request,
-      @Advice.Local("ddParentContinuation") AgentScope.Continuation parentContinuation)
+      @Advice.Local("ddParentContinuation") ContextContinuation parentContinuation)
       throws Throwable {
     ContextStore<Request, Boolean> ctxt = InstrumentationContext.get(Request.class, Boolean.class);
     Boolean handled = ctxt.get(request);
@@ -68,7 +69,7 @@ public class RedisFutureSendAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterSend(
       @Advice.Return(readOnly = false) Future<Response> responseFuture,
-      @Advice.Local("ddParentContinuation") AgentScope.Continuation parentContinuation,
+      @Advice.Local("ddParentContinuation") ContextContinuation parentContinuation,
       @Advice.Enter final AgentScope clientScope,
       @Advice.This final Object thiz) {
     if (thiz instanceof RedisConnection) {

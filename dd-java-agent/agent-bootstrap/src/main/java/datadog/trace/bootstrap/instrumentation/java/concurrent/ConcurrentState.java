@@ -4,8 +4,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpa
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
 
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.slf4j.Logger;
@@ -22,12 +23,12 @@ public final class ConcurrentState {
 
   public static ContextStore.Factory<ConcurrentState> FACTORY = ConcurrentState::new;
 
-  private volatile AgentScope.Continuation continuation = null;
+  private volatile ContextContinuation continuation = null;
 
-  private static final AtomicReferenceFieldUpdater<ConcurrentState, AgentScope.Continuation>
+  private static final AtomicReferenceFieldUpdater<ConcurrentState, ContextContinuation>
       CONTINUATION =
           AtomicReferenceFieldUpdater.newUpdater(
-              ConcurrentState.class, AgentScope.Continuation.class, "continuation");
+              ConcurrentState.class, ContextContinuation.class, "continuation");
 
   private ConcurrentState() {}
 
@@ -44,7 +45,7 @@ public final class ConcurrentState {
     return state;
   }
 
-  public static <K> AgentScope activateAndContinueContinuation(
+  public static <K> ContextScope activateAndContinueContinuation(
       ContextStore<K, ConcurrentState> contextStore, K key) {
     final ConcurrentState state = contextStore.get(key);
     if (state == null) {
@@ -54,7 +55,10 @@ public final class ConcurrentState {
   }
 
   public static <K> void closeScope(
-      ContextStore<K, ConcurrentState> contextStore, K key, AgentScope scope, Throwable throwable) {
+      ContextStore<K, ConcurrentState> contextStore,
+      K key,
+      ContextScope scope,
+      Throwable throwable) {
     final ConcurrentState state = contextStore.get(key);
     if (scope != null) {
       scope.close();
@@ -88,27 +92,27 @@ public final class ConcurrentState {
     return false;
   }
 
-  private AgentScope activateAndContinueContinuation() {
-    final AgentScope.Continuation continuation = CONTINUATION.get(this);
+  private ContextScope activateAndContinueContinuation() {
+    final ContextContinuation continuation = CONTINUATION.get(this);
     if (continuation != null && continuation != CLAIMED) {
-      return continuation.activate();
+      return continuation.resume();
     }
     return null;
   }
 
   private void cancelContinuation() {
-    final AgentScope.Continuation continuation = CONTINUATION.get(this);
+    final ContextContinuation continuation = CONTINUATION.get(this);
     if (continuation != null && continuation != CLAIMED) {
-      continuation.cancel();
+      continuation.release();
     }
   }
 
   private void cancelAndClearContinuation() {
-    final AgentScope.Continuation continuation = CONTINUATION.get(this);
+    final ContextContinuation continuation = CONTINUATION.get(this);
     if (continuation != null && continuation != CLAIMED) {
       // We should never be able to reuse this state
       CONTINUATION.compareAndSet(this, continuation, CLAIMED);
-      continuation.cancel();
+      continuation.release();
     }
   }
 }

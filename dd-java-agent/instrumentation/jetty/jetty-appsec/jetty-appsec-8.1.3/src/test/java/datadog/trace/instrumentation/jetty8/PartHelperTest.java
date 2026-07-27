@@ -14,6 +14,8 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -262,6 +264,77 @@ class PartHelperTest {
     }
     Map<String, List<String>> result = PartHelper.extractFormFields(asList(parts));
     assertEquals(maxFields, result.size());
+  }
+
+  // ── extractContents ─────────────────────────────────────────────────────────
+
+  @Test
+  void extractContentsReturnsEmptyListForNull() {
+    assertEquals(emptyList(), PartHelper.extractContents(null));
+  }
+
+  @Test
+  void extractContentsReturnsEmptyListForEmpty() {
+    assertEquals(emptyList(), PartHelper.extractContents(emptyList()));
+  }
+
+  @Test
+  void extractContentsSkipsFormFieldParts() {
+    List<Part> parts = asList(formField("a"), formField("b"));
+    assertEquals(emptyList(), PartHelper.extractContents(parts));
+  }
+
+  @Test
+  void extractContentsIncludesFileWithEmptyFilename() throws IOException {
+    List<Part> parts = singletonList(emptyFilenamePart("upload"));
+    Part p = parts.get(0);
+    when(p.getInputStream())
+        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+    when(p.getContentType()).thenReturn("text/plain; charset=UTF-8");
+    assertEquals(singletonList("data"), PartHelper.extractContents(parts));
+  }
+
+  @Test
+  void extractContentsReadsFileContent() throws IOException {
+    Part p = filePart("photo.jpg");
+    when(p.getInputStream())
+        .thenReturn(new ByteArrayInputStream("file-content".getBytes(StandardCharsets.UTF_8)));
+    when(p.getContentType()).thenReturn("text/plain; charset=UTF-8");
+    assertEquals(singletonList("file-content"), PartHelper.extractContents(singletonList(p)));
+  }
+
+  @Test
+  void extractContentsTruncatesAtMaxContentBytes() throws IOException {
+    byte[] large = new byte[PartHelper.MAX_CONTENT_BYTES + 1];
+    Arrays.fill(large, (byte) 'A');
+    Part p = filePart("big.bin");
+    when(p.getInputStream()).thenReturn(new ByteArrayInputStream(large));
+    when(p.getContentType()).thenReturn(null);
+    List<String> contents = PartHelper.extractContents(singletonList(p));
+    assertEquals(1, contents.size());
+    assertEquals(PartHelper.MAX_CONTENT_BYTES, contents.get(0).length());
+  }
+
+  @Test
+  void extractContentsReturnsEmptyStringOnIOException() throws IOException {
+    Part p = filePart("file.txt");
+    when(p.getInputStream()).thenThrow(new IOException("simulated"));
+    assertEquals(singletonList(""), PartHelper.extractContents(singletonList(p)));
+  }
+
+  @Test
+  void extractContentsCappsAtMaxFilesToInspect() throws IOException {
+    int count = PartHelper.MAX_FILES_TO_INSPECT + 1;
+    List<Part> parts = new ArrayList<>(count);
+    for (int i = 0; i < count; i++) {
+      Part p = filePart("file" + i + ".txt");
+      when(p.getInputStream())
+          .thenReturn(new ByteArrayInputStream("c".getBytes(StandardCharsets.UTF_8)));
+      when(p.getContentType()).thenReturn(null);
+      parts.add(p);
+    }
+    List<String> contents = PartHelper.extractContents(parts);
+    assertEquals(PartHelper.MAX_FILES_TO_INSPECT, contents.size());
   }
 
   // ── getAllParts ─────────────────────────────────────────────────────────────

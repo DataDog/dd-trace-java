@@ -80,8 +80,9 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
           return null;
         }
       }
-      return activateSpan(
-          DECORATE.prepareSpan(startSpan("google-http-client", HTTP_REQUEST), request));
+      AgentSpan span = startSpan("google-http-client", HTTP_REQUEST);
+      DECORATE.prepareSpan(span, request);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -90,18 +91,14 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
         @Advice.Local("inherited") AgentSpan inheritedSpan,
         @Advice.Return final HttpResponse response,
         @Advice.Thrown final Throwable throwable) {
-      try {
-        AgentSpan span = scope != null ? scope.span() : inheritedSpan;
-        DECORATE.onError(span, throwable);
-        DECORATE.onResponse(span, response);
-
-        DECORATE.beforeFinish(span);
-        span.finish();
-      } finally {
-        if (scope != null) {
-          scope.close();
-        }
+      AgentSpan span = scope != null ? scope.span() : inheritedSpan;
+      DECORATE.onError(span, throwable);
+      DECORATE.onResponse(span, response);
+      DECORATE.beforeFinish(span);
+      if (scope != null) {
+        scope.close();
       }
+      span.finish();
     }
   }
 
@@ -109,21 +106,21 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.This HttpRequest request) {
-      return activateSpan(
-          DECORATE.prepareSpan(startSpan("google-http-client", HTTP_REQUEST), request));
+      AgentSpan span = startSpan("google-http-client", HTTP_REQUEST);
+      DECORATE.prepareSpan(span, request);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
         @Advice.Enter AgentScope scope, @Advice.Thrown final Throwable throwable) {
-      try {
-        if (throwable != null) {
-          AgentSpan span = scope.span();
-          DECORATE.onError(span, throwable);
-          DECORATE.beforeFinish(span);
-          span.finish();
-        }
-      } finally {
+      final AgentSpan span = scope.span();
+      if (throwable != null) {
+        DECORATE.onError(span, throwable);
+        DECORATE.beforeFinish(span);
+        scope.close();
+        span.finish();
+      } else {
         scope.close();
       }
     }

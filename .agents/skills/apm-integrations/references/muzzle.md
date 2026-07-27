@@ -56,6 +56,43 @@ muzzle {
 }
 ```
 
+## Test dependencies should default to the module's declared minimum version
+
+**Default:** the base `testImplementation` dep version in `build.gradle` should match the module's declared minimum version (from the module directory suffix and the muzzle `versions = "[X.Y,)"` range). Pinning `testImplementation` to a newer version than the module claims to support silently exercises a version the module wasn't declared to work with, and `muzzle` won't catch it because muzzle checks classpath compatibility, not test behavior.
+
+```groovy
+// WRONG — module is jedis-3.0 (min = 3.0.0) but tests run against 4.0 with no justification
+muzzle {
+  pass { group = "redis.clients"; module = "jedis"; versions = "[3.0,)" }
+}
+dependencies {
+  testImplementation("redis.clients:jedis:4.0.0")   // ← breaks the min-version guarantee
+}
+
+// DEFAULT — testImplementation at the declared min; latestDepTestImplementation for the newest
+dependencies {
+  testImplementation("redis.clients:jedis:3.0.0")
+  latestDepTestImplementation("redis.clients:jedis:+")
+}
+```
+
+**Justified deviation:** a module may `compileOnly` against the declared minimum and `testImplementation` against a higher version when the test genuinely requires a class/API that only exists in the higher version. In that case:
+
+- Document the reason with a comment at the top of `build.gradle` (a reviewer must be able to see why immediately)
+- The `super(...)` alias should reflect the version the code exercises, not the compile-time minimum
+
+Example — `dd-java-agent/instrumentation/spark/sparkjava-2.3/build.gradle`:
+
+```groovy
+// building against 2.3 and testing against 2.4 because JettyHandler is available since 2.4 only
+dependencies {
+  compileOnly group: 'com.sparkjava', name: 'spark-core', version: '2.3'
+  testImplementation group: 'com.sparkjava', name: 'spark-core', version: '2.4'
+}
+```
+
+Without a written justification, prefer the default (test-at-min). This is a stricter form of the `latestDep` range rule (see Step 9.3 of the main SKILL.md) — it applies to the *base* test dependency too, not just latestDep.
+
 ## Do NOT use `assertInverse = true` unless the declared min is the actual minimum compatible version
 
 The `assertInverse = true` directive tells muzzle to auto-test versions below the declared minimum and assert they fail. If your instrumentation is actually compatible with versions below the declared minimum (a common case when only ONE of several instrumentation classes requires the new feature), this auto-assertion will fail with:
@@ -135,3 +172,34 @@ muzzle {
 **How to discover these**: when verify fails with a task name that has a doubled module name (e.g., `redis.clients-jedis-jedis-3.6.2`), check the existing production module for the same library at another version. If it has `skipVersions` entries, copy them. This is library-specific tribal knowledge that lives in the existing modules.
 
 When in doubt, **search adjacent module build.gradle files for `skipVersions`** before declaring a new version-bounded module's muzzle directives.
+
+## Namespace-isolation `fail` blocks for major-version siblings
+
+When a library has multiple major versions that must never be instrumented by the same advice — whether published under different `group:module` coordinates (e.g., `io.reactivex.rxjava2:rxjava` vs `io.reactivex.rxjava3:rxjava`) or under the same coordinates at incompatible major versions (e.g., `org.springframework:spring-webflux` at major 5 vs 6) — assert namespace isolation with a `muzzle { fail { ... } }` block:
+
+```groovy
+muzzle {
+  pass {
+    group = "io.reactivex.rxjava3"
+    module = "rxjava"
+    versions = "[3.0.0,)"
+  }
+  // Assert the rxjava3 advice never resolves against rxjava2 — the two namespaces
+  // must not overlap. rxjava3 references io.reactivex.rxjava3.core.*, absent from
+  // the rxjava2 artifact, so muzzle must fail to match it.
+  fail {
+    name = "rxjava2-must-not-match"
+    group = "io.reactivex.rxjava2"
+    module = "rxjava"
+    versions = "[2.0.0,)"
+  }
+}
+```
+
+Muzzle would likely fail naturally on the sibling major anyway (the FQNs usually don't exist in that artifact), but the explicit assertion catches it at CI time with a specific error message instead of a generic muzzle mismatch. Add this block whenever a prior-major sibling module already exists in the repo — whether that sibling uses different Maven coordinates (`rxjava-2.0` vs `rxjava-3.0`, `javax-jms-*` vs `jakarta-jms-*`) or the same coordinates at an incompatible major (`okhttp-2.0` vs `okhttp-3.0`, `jedis-1.4`/`jedis-3.0`/`jedis-4.0`). **Editing an existing module that already has one: preserve it verbatim** — don't drop it as a side effect of regenerating the file.
+
+## `compileOnly` and test-scope dependencies
+
+`compileOnly` pins the API surface your advice compiles against; test scopes (`testImplementation`, `latestDepTestImplementation`, `forkedTestImplementation`, and their `*RuntimeOnly` counterparts) pin what your tests exercise. When writing a new module, choose these deliberately — the version constraint and dependency list are part of the instrumentation's contract, not incidental build config.
+
+**Editing an existing module: preserve every dependency version and entry unless you have a reason to change it.** This includes runtime-only scopes, which don't show up as compile failures if dropped — e.g. `rxjava-3.0` declares `testRuntimeOnly project(':dd-java-agent:instrumentation:rxjava:rxjava-2.0')` to load the sibling instrumenter into the test JVM and verify the two don't cross-fire (the coexistence coverage that pairs with the namespace-isolation `fail` block above). It also includes cross-module `project(...)` test deps that back annotation-driven tests (`@WithSpan`, `@Traced`) and version-drift workaround deps (e.g. a `latestDepTestImplementation` pin needed only because a newer library version requires it). None of these produce a compile error when silently dropped — they just remove coverage.

@@ -1,11 +1,11 @@
 package testdog.trace.instrumentation.rxjava3;
 
-import static datadog.trace.agent.test.assertions.Matchers.validates;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
 import static datadog.trace.agent.test.assertions.TagsMatcher.error;
 import static datadog.trace.agent.test.assertions.TagsMatcher.tag;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -14,7 +14,7 @@ import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.SpanMatcher;
 import datadog.trace.agent.test.assertions.TagsMatcher;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.core.Maybe;

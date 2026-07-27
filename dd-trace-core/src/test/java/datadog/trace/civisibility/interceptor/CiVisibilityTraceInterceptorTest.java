@@ -9,7 +9,7 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
-import datadog.trace.junit.utils.converter.DDSpanTypesConverter;
+import datadog.trace.test.junit.utils.converter.DDSpanTypesConverter;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;

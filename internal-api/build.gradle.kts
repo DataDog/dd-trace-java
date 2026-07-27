@@ -91,6 +91,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.LegacyContextManager",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentHistogram",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTraceCollector",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",

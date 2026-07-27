@@ -62,6 +62,7 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
    */
   public static final String[] BOOTSTRAP_PACKAGE_PREFIXES_COPY = {
     "datadog.slf4j",
+    "datadog.common.filesystem",
     "datadog.context",
     "datadog.environment",
     "datadog.json",

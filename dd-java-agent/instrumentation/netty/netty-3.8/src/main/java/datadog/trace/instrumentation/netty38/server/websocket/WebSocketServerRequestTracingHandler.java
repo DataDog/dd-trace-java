@@ -53,7 +53,7 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
             TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
 
             final AgentSpan span =
-                DECORATE.onReceiveFrameStart(
+                DECORATE.startInboundFrameSpan(
                     receiverContext, textFrame.getText(), textFrame.isFinalFragment());
             try (final ContextScope scope = activateSpan(span)) {
               ctx.sendUpstream(event);
@@ -71,7 +71,7 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
             // WebSocket Read Binary Start
             BinaryWebSocketFrame binaryFrame = (BinaryWebSocketFrame) frame;
             final AgentSpan span =
-                DECORATE.onReceiveFrameStart(
+                DECORATE.startInboundFrameSpan(
                     receiverContext,
                     binaryFrame.getBinaryData().array(),
                     binaryFrame.isFinalFragment());
@@ -92,7 +92,7 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
             ContinuationWebSocketFrame continuationWebSocketFrame =
                 (ContinuationWebSocketFrame) frame;
             final AgentSpan span =
-                DECORATE.onReceiveFrameStart(
+                DECORATE.startInboundFrameSpan(
                     receiverContext,
                     MESSAGE_TYPE_TEXT.equals(receiverContext.getMessageType())
                         ? continuationWebSocketFrame.getText()
@@ -117,7 +117,7 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
             traceContext.setSenderHandlerContext(null);
             traceContext.setReceiverHandlerContext(null);
             final AgentSpan span =
-                DECORATE.onSessionCloseReceived(receiverContext, reasonText, statusCode);
+                DECORATE.startInboundCloseSpan(receiverContext, reasonText, statusCode);
             try (final ContextScope scope = activateSpan(span)) {
               ctx.sendUpstream(event);
               if (closeFrame.isFinalFragment()) {

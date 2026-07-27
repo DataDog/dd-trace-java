@@ -98,12 +98,13 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
 
       if (throwable == null) {
         responseFuture.onComplete(new OnCompleteHandler(span), thiz.system().dispatcher());
+        scope.close();
       } else {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
+        scope.close();
         span.finish();
       }
-      scope.close();
     }
   }
 

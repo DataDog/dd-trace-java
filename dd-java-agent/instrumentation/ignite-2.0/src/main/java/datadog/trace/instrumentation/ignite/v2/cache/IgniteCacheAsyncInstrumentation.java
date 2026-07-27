@@ -88,26 +88,23 @@ public final class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheIn
       if (scope == null) {
         return;
       }
-      // If we have a scope (i.e. we were the top-level Twilio SDK invocation),
-      try {
-        final AgentSpan span = scope.span();
-
-        if (throwable != null) {
-          // There was an synchronous error,
-          // which means we shouldn't wait for a callback to close the span.
-          IgniteCacheDecorator.DECORATE.onError(span, throwable);
-          IgniteCacheDecorator.DECORATE.beforeFinish(span);
-          span.finish();
-        } else {
-          // We're calling an async operation, we still need to finish the span when it's
-          // complete and report the results; set an appropriate callback
-          future.listen(new SpanFinishingCallback(span));
-        }
-      } finally {
+      // If we have a scope (i.e. we were the top-level Ignite SDK invocation),
+      final AgentSpan span = scope.span();
+      if (throwable != null) {
+        // There was a synchronous error,
+        // which means we shouldn't wait for a callback to close the span.
+        DECORATE.onError(span, throwable);
+        DECORATE.beforeFinish(span);
         scope.close();
-        // span finished in SpanFinishingCallback
-        CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
+        span.finish();
+      } else {
+        // We're calling an async operation, we still need to finish the span when it's
+        // complete and report the results; set an appropriate callback
+        future.listen(new SpanFinishingCallback(span));
+        scope.close();
       }
+      // else span finished in SpanFinishingCallback
+      CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
     }
   }
 
@@ -143,26 +140,22 @@ public final class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheIn
       if (scope == null) {
         return;
       }
-      // If we have a scope (i.e. we were the top-level Twilio SDK invocation),
-      try {
-        final AgentSpan span = scope.span();
-
-        if (throwable != null) {
-          // There was an synchronous error,
-          // which means we shouldn't wait for a callback to close the span.
-          IgniteCacheDecorator.DECORATE.onError(span, throwable);
-          IgniteCacheDecorator.DECORATE.beforeFinish(span);
-          span.finish();
-        } else {
-          // We're calling an async operation, we still need to finish the span when it's
-          // complete and report the results; set an appropriate callback
-          future.listen(new SpanFinishingCallback(span));
-        }
-      } finally {
+      // If we have a scope (i.e. we were the top-level Ignite SDK invocation),
+      final AgentSpan span = scope.span();
+      if (throwable != null) {
+        // There was a synchronous error,
+        // which means we shouldn't wait for a callback to close the span.
+        DECORATE.onError(span, throwable);
+        DECORATE.beforeFinish(span);
         scope.close();
-        // span finished in SpanFinishingCallback
-        CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
-      }
+        span.finish();
+      } else {
+        // We're calling an async operation, we still need to finish the span when it's
+        // complete and report the results; set an appropriate callback
+        future.listen(new SpanFinishingCallback(span));
+        scope.close();
+      } // else span finished in SpanFinishingCallback
+      CallDepthThreadLocalMap.reset(IgniteCache.class); // reset call depth count
     }
   }
 }

@@ -67,8 +67,8 @@ public final class MessagesAvailableInstrumentation
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter AgentScope scope) {
       if (null != scope) {
-        scope.span().finish();
         scope.close();
+        scope.span().finish();
       }
     }
   }

@@ -55,8 +55,11 @@ import org.slf4j.LoggerFactory;
 public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, ConfigurationAcceptor {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationUpdater.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
-  private static final boolean JAVA_AT_LEAST_19 = JavaVirtualMachine.isJavaVersionAtLeast(19);
+  private static final boolean JAVA_AT_LEAST_17_0_20 =
+      JavaVirtualMachine.isJavaVersionAtLeast(17, 0, 20);
   private static final boolean JAVA_AT_LEAST_16 = JavaVirtualMachine.isJavaVersionAtLeast(16);
+  private static final boolean JAVA_AT_LEAST_25_0_4 =
+      JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4);
   private static final Method GET_RECORD_COMPONENTS_METHOD;
   private static final Method GET_ANNOTATED_TYPES_METHOD;
 
@@ -95,6 +98,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   private volatile Configuration currentConfiguration;
   private DebuggerTransformer currentTransformer;
   private final ProbeMetadata probeMetadata = new ProbeMetadata();
+  private final Config config;
   private final DebuggerSink sink;
   private final ClassesToRetransformFinder finder;
   private final String serviceName;
@@ -112,6 +116,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     this.instrumentation = instrumentation;
     this.transformerSupplier = transformerSupplier;
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
+    this.config = config;
     this.sink = sink;
     this.finder = finder;
   }
@@ -255,11 +260,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     // install new probe definitions
     DebuggerTransformer newTransformer =
         transformerSupplier.supply(
-            Config.get(),
-            newConfiguration,
-            this::recordInstrumentationProgress,
-            probeMetadata,
-            sink);
+            config, newConfiguration, this::recordInstrumentationProgress, probeMetadata, sink);
     instrumentation.addTransformer(newTransformer, true);
     currentTransformer = newTransformer;
     LOGGER.debug("New transformer installed with probes: {}", newConfiguration.getDefinitions());
@@ -355,8 +356,9 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
     public static List<Class<?>> detectRecordWithTypeAnnotation(
         Consumer<String> reportError, List<Class<?>> changedClasses) {
-      if (!JAVA_AT_LEAST_16) {
+      if (!JAVA_AT_LEAST_16 || JAVA_AT_LEAST_25_0_4) {
         // records introduced in JDK 16 (final version)
+        // JDK-8376185 fixed since JDK 25.0.4
         return changedClasses;
       }
       List<Class<?>> result = new ArrayList<>();
@@ -422,8 +424,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
         Consumer<String> reportError,
         Instrumentation instrumentation,
         List<Class<?>> changedClasses) {
-      if (JAVA_AT_LEAST_19) {
-        // bug is fixed since JDK19, no need to perform detection
+      if (JAVA_AT_LEAST_17_0_20) {
+        // bug is fixed since JDK 19 and 17.0.20, no need to perform detection
         return changedClasses;
       }
       List<Class<?>> result = new ArrayList<>();

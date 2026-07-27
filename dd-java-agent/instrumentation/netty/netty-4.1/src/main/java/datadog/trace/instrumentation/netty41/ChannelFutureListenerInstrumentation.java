@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.netty41;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.NETTY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.NETTY_CONNECT;
@@ -11,10 +10,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator;
@@ -47,6 +46,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".AttributeKeys",
+      packageName + ".ServerRequestContext",
       // client helpers
       packageName + ".client.NettyHttpClientDecorator",
       packageName + ".client.NettyResponseInjectAdapter",
@@ -59,6 +59,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
       packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
       packageName + ".server.BlockingResponseHandler",
       packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
+      packageName + ".server.BlockingResponseHandler$PendingBlockResponse",
       packageName + ".server.HttpServerRequestTracingHandler",
       packageName + ".server.HttpServerResponseTracingHandler",
       packageName + ".server.HttpServerTracingHandler"
@@ -76,7 +77,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
 
   public static class OperationCompleteAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope activateScope(@Advice.Argument(0) final ChannelFuture future) {
+    public static ContextScope activateScope(@Advice.Argument(0) final ChannelFuture future) {
       /*
       Idea here is:
        - To return scope only if we have captured it.
@@ -86,16 +87,16 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
       if (cause == null) {
         return null;
       }
-      final AgentScope.Continuation continuation =
+      final ContextContinuation continuation =
           future.channel().attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY).getAndRemove();
       if (continuation == null) {
         return null;
       }
-      final AgentScope parentScope = continuation.activate();
+      final ContextScope parentScope = continuation.resume();
 
       final AgentSpan errorSpan = startSpan("netty", NETTY_CONNECT).setTag(Tags.COMPONENT, "netty");
       errorSpan.spanContext().setIntegrationName(NETTY);
-      try (final ContextScope scope = currentContext().with(errorSpan).attach()) {
+      try (final ContextScope scope = errorSpan.attachWithContext()) {
         NettyHttpServerDecorator.DECORATE.onError(errorSpan, cause);
         NettyHttpServerDecorator.DECORATE.beforeFinish(scope.context());
         errorSpan.finish();
@@ -105,7 +106,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void deactivateScope(@Advice.Enter final AgentScope scope) {
+    public static void deactivateScope(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();
       }

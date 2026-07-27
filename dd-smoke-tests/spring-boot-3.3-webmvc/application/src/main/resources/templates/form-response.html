@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Continue request</title>
+  <script th:inline="javascript">
+    const returnUrl = /*[[${returnUrl}]]*/ "https://app.example.test/flows/complete";
+    window.formResponse = { returnUrl: returnUrl };
+  </script>
+</head>
+<body onload="document.getElementById('response-form').submit()">
+  <form id="response-form" method="post" th:action="${formAction}">
+    <input type="hidden" name="requestId" th:value="${requestId}">
+  </form>
+</body>
+</html>

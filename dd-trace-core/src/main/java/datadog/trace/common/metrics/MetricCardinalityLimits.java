@@ -14,9 +14,10 @@ final class MetricCardinalityLimits {
 
   /**
    * Distinct {@code resource.name} values per cycle. Highest-cardinality field by far: DB-query
-   * obfuscations, HTTP route templates, custom resources. Typical service: 30-200 unique.
+   * obfuscations, HTTP route templates, custom resources. Typical service: 30-200 unique; 1024
+   * leaves headroom for high-cardinality SQL/HTTP workloads without risking premature collapse.
    */
-  static final int RESOURCE = 256;
+  static final int RESOURCE = 1024;
 
   /**
    * Distinct {@code service.name} values per cycle. Local service plus downstream peer-service
@@ -57,7 +58,7 @@ final class MetricCardinalityLimits {
    * Distinct {@code http.endpoint} values per cycle. Path templates -- same shape as {@code
    * RESOURCE} for HTTP-heavy services. Only used when {@code includeEndpointInMetrics} is enabled.
    */
-  static final int HTTP_ENDPOINT = 64;
+  static final int HTTP_ENDPOINT = 512;
 
   /**
    * Distinct gRPC status code values per cycle. gRPC spec defines exactly 17 codes (0-16); 24

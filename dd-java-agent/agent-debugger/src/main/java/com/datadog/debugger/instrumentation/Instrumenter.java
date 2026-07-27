@@ -13,7 +13,6 @@ import com.datadog.debugger.util.JvmLanguage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import org.objectweb.asm.Opcodes;
@@ -29,17 +28,11 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.TypeInsnNode;
-import org.objectweb.asm.tree.analysis.Analyzer;
-import org.objectweb.asm.tree.analysis.AnalyzerException;
-import org.objectweb.asm.tree.analysis.BasicInterpreter;
 import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Frame;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Common class for generating instrumentation */
 public abstract class Instrumenter {
-  private static final Logger LOGGER = LoggerFactory.getLogger(Instrumenter.class);
   protected static final String CONSTRUCTOR_NAME = "<init>";
   protected static final String PROBEID_TAG_NAME = "debugger.probeid";
 
@@ -159,9 +152,7 @@ public abstract class Instrumenter {
     return lastInvokeSpecial;
   }
 
-  protected void processInstructions() {
-    Map<AbstractInsnNode, Frame<BasicValue>> frames = new IdentityHashMap<>();
-    computeFrames(classNode.name, methodNode, frames);
+  protected void processInstructions(Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     AbstractInsnNode node = methodNode.instructions.getFirst();
     LabelNode sentinelNode = new LabelNode();
     methodNode.instructions.add(sentinelNode);
@@ -193,22 +184,6 @@ public abstract class Instrumenter {
       result.add(new InsnNode(value.getSize() == 2 ? Opcodes.POP2 : Opcodes.POP));
     }
     return result;
-  }
-
-  private static void computeFrames(
-      String owner, MethodNode methodNode, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
-    try {
-      Frame<BasicValue>[] frameArray =
-          new Analyzer<>(new BasicInterpreter()).analyze(owner, methodNode);
-      AbstractInsnNode current = methodNode.instructions.getFirst();
-      int idx = 0;
-      while (current != null) {
-        frames.put(current, frameArray[idx++]);
-        current = current.getNext();
-      }
-    } catch (AnalyzerException ex) {
-      LOGGER.debug("Failed to analyze method[{}::{}] instructions", owner, methodNode.name, ex);
-    }
   }
 
   protected AbstractInsnNode processInstruction(
@@ -280,13 +255,11 @@ public abstract class Instrumenter {
   }
 
   protected int newVar(Type type) {
-    int varId = methodNode.maxLocals + 1;
-    methodNode.maxLocals += type.getSize();
-    return varId;
+    return newVar(type.getSize());
   }
 
   protected int newVar(int size) {
-    int varId = methodNode.maxLocals + 1;
+    int varId = methodNode.maxLocals;
     methodNode.maxLocals += size;
     return varId;
   }

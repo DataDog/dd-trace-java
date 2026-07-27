@@ -73,6 +73,11 @@ gradlePlugin {
       id = "dd-trace-java.sca-enrichments"
       implementationClass = "datadog.gradle.plugin.sca.ScaEnrichmentsPlugin"
     }
+
+    create("jardiff-plugin") {
+      id = "dd-trace-java.jardiff"
+      implementationClass = "datadog.gradle.plugin.jardiff.JardiffPlugin"
+    }
   }
 }
 

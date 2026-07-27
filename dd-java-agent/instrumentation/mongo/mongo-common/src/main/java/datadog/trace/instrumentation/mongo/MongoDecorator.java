@@ -67,18 +67,17 @@ public abstract class MongoDecorator
     return null;
   }
 
-  public final AgentSpan onStatement(
+  public final void onStatement(
       @Nonnull final AgentSpan span, @Nonnull final BsonDocument statement) {
-    return onStatement(span, statement, null);
+    onStatement(span, statement, null);
   }
 
-  public final AgentSpan onStatement(
+  public final void onStatement(
       @Nonnull final AgentSpan span,
       @Nonnull final BsonDocument statement,
       @Nullable ContextStore<BsonDocument, ByteBuf> byteBufAccessor) {
     // scrub the Mongo command so that parameters are removed from the string
     span.setResourceName(scrub(statement, byteBufAccessor));
-    return span;
   }
 
   @Override

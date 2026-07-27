@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jetty8;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
@@ -9,6 +10,7 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.http.MultipartContentDecoder;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -38,6 +40,9 @@ import org.slf4j.LoggerFactory;
 public class PartHelper {
 
   private static final Logger log = LoggerFactory.getLogger(PartHelper.class);
+
+  public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
+  public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
 
   private PartHelper() {}
 
@@ -100,7 +105,7 @@ public class PartHelper {
           filenames.add(filename);
         }
       } catch (Exception e) {
-        log.debug("extractFilenames: skipping malformed part", e);
+        log.debug(EXCLUDE_TELEMETRY, "extractFilenames: skipping malformed part", e);
       }
     }
     return filenames;
@@ -109,20 +114,18 @@ public class PartHelper {
   /**
    * Returns a name→values map of form-field parts (those without a {@code filename=} parameter).
    * File-upload parts are skipped to avoid reading potentially large content. Reads up to {@link
-   * Config#getAppSecMaxFileContentBytes()} bytes per field, up to {@link
-   * Config#getAppSecMaxFileContentCount()} fields total — same knobs and cap pattern as {@code
-   * MultipartHelper#extractContents()} uses for file content (PR #11706), reused here since there
-   * is no dedicated "max form fields" config.
+   * #MAX_CONTENT_BYTES} bytes per field, up to {@link #MAX_FILES_TO_INSPECT} fields total — same
+   * knobs and cap pattern as {@link #extractContents} uses for file content, reused here since
+   * there is no dedicated "max form fields" config.
    */
   public static Map<String, List<String>> extractFormFields(Collection<?> parts) {
     if (parts == null || parts.isEmpty()) {
       return Collections.emptyMap();
     }
-    int maxFields = Config.get().getAppSecMaxFileContentCount();
     Map<String, List<String>> result = new LinkedHashMap<>();
     int count = 0;
     for (Object obj : parts) {
-      if (count >= maxFields) {
+      if (count >= MAX_FILES_TO_INSPECT) {
         break;
       }
       try {
@@ -141,7 +144,7 @@ public class PartHelper {
         result.computeIfAbsent(name, k -> new ArrayList<>()).add(value);
         count++;
       } catch (Exception e) {
-        log.debug("extractFormFields: skipping malformed part", e);
+        log.debug(EXCLUDE_TELEMETRY, "extractFormFields: skipping malformed part", e);
       }
     }
     return result;
@@ -268,26 +271,94 @@ public class PartHelper {
     return null;
   }
 
+  /**
+   * Extracts file content from a collection of multipart {@link Part}s. Form fields (those without
+   * a {@code filename} parameter in the {@code Content-Disposition} header) are skipped. Reads up
+   * to {@link #MAX_CONTENT_BYTES} bytes per part, up to {@link #MAX_FILES_TO_INSPECT} parts total.
+   *
+   * @return list of decoded content strings; never {@code null}, may be empty
+   */
+  public static List<String> extractContents(Collection<?> parts) {
+    if (parts == null || parts.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<String> contents = new ArrayList<>(Math.min(parts.size(), MAX_FILES_TO_INSPECT));
+    for (Object obj : parts) {
+      if (contents.size() >= MAX_FILES_TO_INSPECT) {
+        break;
+      }
+      try {
+        Part part = (Part) obj;
+        if (filenameFromPart(part) == null) {
+          continue; // form field — skip
+        }
+        contents.add(readFileContent(part));
+      } catch (Exception e) {
+        log.debug(EXCLUDE_TELEMETRY, "extractContents: skipping malformed part", e);
+      }
+    }
+    return contents;
+  }
+
+  private static String readFileContent(Part part) {
+    try (InputStream is = part.getInputStream()) {
+      return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, part.getContentType());
+    } catch (Exception e) {
+      log.debug(EXCLUDE_TELEMETRY, "readFileContent: stream read failed", e);
+      return "";
+    }
+  }
+
+  /**
+   * Fires the {@code requestFilesContent} IG event for file-upload parts in {@code parts} and
+   * returns a {@link BlockingException} if the WAF requests blocking, or {@code null} otherwise.
+   */
+  public static BlockingException fireFilesContentEvent(
+      Collection<?> parts, RequestContext reqCtx) {
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, List<String>, Flow<Void>> callback =
+        cbp.getCallback(EVENTS.requestFilesContent());
+    if (callback == null) {
+      return null;
+    }
+    List<String> contents = extractContents(parts);
+    if (contents.isEmpty()) {
+      return null;
+    }
+    Flow<Void> flow = callback.apply(reqCtx, contents);
+    Flow.Action action = flow.getAction();
+    if (action instanceof Flow.Action.RequestBlockingAction) {
+      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+      if (brf != null) {
+        if (brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
+          reqCtx.getTraceSegment().effectivelyBlocked();
+          return new BlockingException("Blocked request (multipart file content)");
+        }
+      }
+    }
+    return null;
+  }
+
   private static String readPartContent(Part part) {
     Charset charset = charsetFromContentType(part.getContentType());
     // Bound the buffered form-field text by the file-content byte cap. There is no dedicated
-    // "max form-field bytes" config, so we intentionally reuse getAppSecMaxFileContentBytes():
+    // "max form-field bytes" config, so we intentionally reuse MAX_CONTENT_BYTES:
     // this is the only framework that must manually buffer form-field text (Servlet 3.0 has no
     // container-side bound), and without a cap a single huge text field could exhaust the heap.
-    int maxBytes = Config.get().getAppSecMaxFileContentBytes();
     try (InputStream is = part.getInputStream()) {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       byte[] buf = new byte[4096];
       int total = 0;
       int read;
-      while (total < maxBytes
-          && (read = is.read(buf, 0, Math.min(buf.length, maxBytes - total))) != -1) {
+      while (total < MAX_CONTENT_BYTES
+          && (read = is.read(buf, 0, Math.min(buf.length, MAX_CONTENT_BYTES - total))) != -1) {
         baos.write(buf, 0, read);
         total += read;
       }
       return new String(baos.toByteArray(), charset);
     } catch (IOException e) {
-      log.debug("readPartContent: stream read failed", e);
+      log.debug(EXCLUDE_TELEMETRY, "readPartContent: stream read failed", e);
       return null;
     }
   }

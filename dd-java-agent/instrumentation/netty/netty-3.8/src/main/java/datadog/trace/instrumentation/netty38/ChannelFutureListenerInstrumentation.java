@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.netty38;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.NETTY;
 import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.NETTY_CONNECT;
@@ -11,12 +10,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Collections;
@@ -84,7 +83,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
 
   public static class OperationCompleteAdvice extends AbstractNettyAdvice {
     @Advice.OnMethodEnter
-    public static AgentScope activateScope(@Advice.Argument(0) final ChannelFuture future) {
+    public static ContextScope activateScope(@Advice.Argument(0) final ChannelFuture future) {
       /*
       Idea here is:
        - To return scope only if we have captured it.
@@ -98,7 +97,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
       final ContextStore<Channel, ChannelTraceContext> contextStore =
           InstrumentationContext.get(Channel.class, ChannelTraceContext.class);
 
-      final AgentScope.Continuation continuation =
+      final ContextContinuation continuation =
           contextStore
               .putIfAbsent(future.getChannel(), ChannelTraceContext.Factory.INSTANCE)
               .getConnectionContinuation();
@@ -106,11 +105,11 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
       if (continuation == null) {
         return null;
       }
-      final AgentScope parentScope = continuation.activate();
+      final ContextScope parentScope = continuation.resume();
 
       final AgentSpan errorSpan = startSpan("netty", NETTY_CONNECT).setTag(Tags.COMPONENT, "netty");
       errorSpan.spanContext().setIntegrationName(NETTY);
-      try (final ContextScope scope = currentContext().with(errorSpan).attach()) {
+      try (final ContextScope scope = errorSpan.attachWithContext()) {
         DECORATE.onError(errorSpan, cause);
         DECORATE.beforeFinish(scope.context());
         errorSpan.finish();
@@ -120,7 +119,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void deactivateScope(@Advice.Enter final AgentScope scope) {
+    public static void deactivateScope(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();
       }

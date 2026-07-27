@@ -10,9 +10,9 @@ import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecora
 import static datadog.trace.instrumentation.netty38.client.NettyResponseInjectAdapter.SETTER;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import java.net.InetSocketAddress;
@@ -44,9 +44,9 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
         contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
     ContextScope parentScope = null;
-    final AgentScope.Continuation continuation = channelTraceContext.getConnectionContinuation();
+    final ContextContinuation continuation = channelTraceContext.getConnectionContinuation();
     if (continuation != null) {
-      parentScope = continuation.activate();
+      parentScope = continuation.resume();
       channelTraceContext.setConnectionContinuation(null);
     }
 

@@ -9,7 +9,6 @@ import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.sink.XContentTypeModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Locale;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -38,7 +37,7 @@ public class XContentTypeModuleImpl extends SinkModuleBase implements XContentTy
         if (isIgnorableResponseCode((Integer) tags.get("http.status_code"))) {
           return;
         }
-        final AgentSpan span = AgentTracer.activeSpan();
+        final AgentSpan span = (AgentSpan) igSpanInfo;
         report(
             span,
             new Vulnerability(

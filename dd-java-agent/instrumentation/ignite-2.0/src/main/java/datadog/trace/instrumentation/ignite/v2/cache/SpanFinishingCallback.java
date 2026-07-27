@@ -22,9 +22,8 @@ public class SpanFinishingCallback implements IgniteInClosure<IgniteFuture<?>> {
     IgniteCacheDecorator.DECORATE.beforeFinish(span);
 
     try {
-      Object result = igniteFuture.get();
+      igniteFuture.get(); // propagates failure to the catch block below
       IgniteCacheDecorator.DECORATE.beforeFinish(span);
-      IgniteCacheDecorator.DECORATE.onResult(span, result);
     } catch (Exception e) {
       IgniteCacheDecorator.DECORATE.onError(span, e);
     } finally {

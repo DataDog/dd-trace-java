@@ -26,7 +26,7 @@ public class SpringSchedulingDecorator extends BaseDecorator {
     return "spring-scheduling";
   }
 
-  public AgentSpan onRun(final AgentSpan span, final Runnable runnable) {
+  public void onRun(final AgentSpan span, final Runnable runnable) {
     if (runnable != null) {
       CharSequence resourceName = "";
       if (runnable instanceof ScheduledMethodRunnable) {
@@ -37,6 +37,5 @@ public class SpringSchedulingDecorator extends BaseDecorator {
       }
       span.setResourceName(resourceName);
     }
-    return span;
   }
 }

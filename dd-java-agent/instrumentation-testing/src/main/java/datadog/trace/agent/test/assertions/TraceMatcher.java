@@ -1,10 +1,15 @@
 package datadog.trace.agent.test.assertions;
 
 import static java.util.Comparator.comparingLong;
+import static java.util.stream.Collectors.toSet;
 
 import datadog.trace.core.DDSpan;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 import org.opentest4j.AssertionFailedError;
 
@@ -15,17 +20,37 @@ import org.opentest4j.AssertionFailedError;
  * with the expected {@link SpanMatcher}s (one per expected span), or {@link #trace(UnaryOperator,
  * SpanMatcher...)} to configure the checks with a {@link Options} object.
  *
- * <p>{@link #SORT_BY_START_TIME} can be used as predefined configuration to sort spans by start
- * time.
+ * <p>The following predefined configurations:
+ *
+ * <ul>
+ *   <li>{@link #SORT_BY_START_TIME} sorts spans by start time,
+ *   <li>{@link #SORT_BY_ANCESTRY} sorts spans by ancestry, root spans (or which parents are not
+ *       present in the trace chunk) first, followed by their children by start time, depth-first *
+ * </ul>
  *
  * @see TraceAssertions
  * @see SpanMatcher
  */
 public final class TraceMatcher {
+  /*
+   * Span comparators.
+   */
+  /** Span comparator to sort by start time. */
   public static final Comparator<DDSpan> START_TIME_COMPARATOR =
-      comparingLong(DDSpan::getStartTime);
+      comparingLong(DDSpan::getStartTime).thenComparingLong(DDSpan::getSpanId);
+
+  /*
+   * Span assertion options.
+   */
+  /** Sorts spans by start time. */
   public static UnaryOperator<Options> SORT_BY_START_TIME =
-      options -> options.sorter(START_TIME_COMPARATOR);
+      options -> options.sort(START_TIME_COMPARATOR);
+
+  /**
+   * Sorts spans by ancestry, root spans (or which parents are absent from the trace chunk) first,
+   * followed by their children by start time, depth-first.
+   */
+  public static final UnaryOperator<Options> SORT_BY_ANCESTRY = Options::sortByAncestry;
 
   private final Options options;
   private final SpanMatcher[] matchers;
@@ -65,19 +90,58 @@ public final class TraceMatcher {
           this.matchers.length,
           spanCount);
     }
-    if (this.options.sorter != null) {
-      trace.sort(this.options.sorter);
+    if (this.options.sortByAncestry) {
+      trace = sortByAncestry(trace);
+    } else if (this.options.comparator != null) {
+      trace = new ArrayList<>(trace);
+      trace.sort(this.options.comparator);
     }
     for (int spanIndex = 0; spanIndex < spanCount; spanIndex++) {
       this.matchers[spanIndex].assertSpan(trace, spanIndex);
     }
   }
 
-  public static class Options {
-    Comparator<DDSpan> sorter = null;
+  private static List<DDSpan> sortByAncestry(List<DDSpan> spans) {
+    Set<Long> spanIds = spans.stream().map(DDSpan::getSpanId).collect(toSet());
+    Map<Long, List<DDSpan>> spansByParentId = new HashMap<>();
+    for (DDSpan span : spans) {
+      long parentId = span.getParentId();
+      if (parentId != 0 && !spanIds.contains(parentId)) {
+        parentId = 0;
+      }
+      spansByParentId.computeIfAbsent(parentId, k -> new ArrayList<>()).add(span);
+    }
+    spansByParentId.forEach((k, v) -> v.sort(START_TIME_COMPARATOR));
 
-    public Options sorter(Comparator<DDSpan> sorter) {
-      this.sorter = sorter;
+    List<DDSpan> ordered = new ArrayList<>(spans.size());
+    appendChildren(ordered, spansByParentId.get(0L), spansByParentId);
+    return ordered;
+  }
+
+  private static void appendChildren(
+      List<DDSpan> orderedSpan, List<DDSpan> children, Map<Long, List<DDSpan>> spansByParentId) {
+    for (DDSpan child : children) {
+      orderedSpan.add(child);
+      List<DDSpan> grandChildren = spansByParentId.get(child.getSpanId());
+      if (grandChildren != null) {
+        appendChildren(orderedSpan, grandChildren, spansByParentId);
+      }
+    }
+  }
+
+  public static final class Options {
+    private Comparator<DDSpan> comparator = null;
+    private boolean sortByAncestry = false;
+
+    public Options sort(Comparator<DDSpan> comparator) {
+      this.comparator = comparator;
+      this.sortByAncestry = false;
+      return this;
+    }
+
+    private Options sortByAncestry() {
+      this.comparator = null;
+      this.sortByAncestry = true;
       return this;
     }
   }

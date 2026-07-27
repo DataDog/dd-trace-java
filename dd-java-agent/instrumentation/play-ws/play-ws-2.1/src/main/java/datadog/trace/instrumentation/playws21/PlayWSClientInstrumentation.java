@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.playws21;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.PLAY_WS_REQUEST;
@@ -37,7 +36,7 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
         asyncHandler = new AsyncHandlerWrapper(asyncHandler, span);
       }
 
-      return currentContext().with(span).attach();
+      return span.attachWithContext();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -50,9 +49,11 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
         final AgentSpan span = spanFromContext(scope.context());
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
+        scope.close();
         span.finish();
+      } else {
+        scope.close();
       }
-      scope.close();
     }
   }
 }

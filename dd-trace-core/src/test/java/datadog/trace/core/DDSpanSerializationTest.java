@@ -28,7 +28,7 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5;
 import datadog.trace.common.writer.ddagent.TraceMapperV1;
 import datadog.trace.common.writer.ddagent.V1PayloadReader;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;

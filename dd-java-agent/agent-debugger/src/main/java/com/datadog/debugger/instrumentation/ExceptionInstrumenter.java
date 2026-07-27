@@ -21,7 +21,13 @@ public class ExceptionInstrumenter extends CapturedContextInstrumenter {
 
   @Override
   public InstrumentationResult.Status instrument() {
-    processInstructions(); // fill returnHandlerLabel
+    // hoisting is required because exception instrumentation is wrapping the whole method body in
+    // a try/catch that create a subscobe and even level method local vars are not accessible
+    // in the catch clause for capture
+    hoistedLocalVars = initAndHoistLocalVars(methodNode);
+    Map<AbstractInsnNode, Frame<BasicValue>> frames =
+        ASMHelper.computeFrames(classNode.name, methodNode);
+    processInstructions(frames); // fill returnHandlerLabel
     addFinallyHandler(methodEnterLabel, returnHandlerLabel);
     installFinallyBlocks();
     return InstrumentationResult.Status.INSTALLED;

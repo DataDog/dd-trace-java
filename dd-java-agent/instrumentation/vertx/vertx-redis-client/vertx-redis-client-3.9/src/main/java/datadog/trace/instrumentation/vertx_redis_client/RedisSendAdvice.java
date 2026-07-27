@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.REDIS_COMMAND;
 
+import datadog.context.ContextContinuation;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -60,7 +61,7 @@ public class RedisSendAdvice {
       return null;
     }
 
-    AgentScope.Continuation parentContinuation =
+    ContextContinuation parentContinuation =
         null == parentSpan ? captureSpan(noopSpan()) : captureSpan(parentSpan);
     final AgentSpan clientSpan =
         DECORATE.startAndDecorateSpan(

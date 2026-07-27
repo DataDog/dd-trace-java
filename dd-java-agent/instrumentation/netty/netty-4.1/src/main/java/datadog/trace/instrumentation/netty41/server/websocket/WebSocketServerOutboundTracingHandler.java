@@ -34,7 +34,7 @@ public class WebSocketServerOutboundTracingHandler extends ChannelOutboundHandle
           // WebSocket Write Text Start
           TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
           final AgentSpan span =
-              DECORATE.onSendFrameStart(
+              DECORATE.startOutboundFrameSpan(
                   handlerContext, MESSAGE_TYPE_TEXT, textFrame.text().length());
           try (final ContextScope scope = activateSpan(span)) {
             ctx.write(frame, promise);
@@ -51,7 +51,7 @@ public class WebSocketServerOutboundTracingHandler extends ChannelOutboundHandle
           // WebSocket Write Binary Start
           BinaryWebSocketFrame binaryFrame = (BinaryWebSocketFrame) frame;
           final AgentSpan span =
-              DECORATE.onSendFrameStart(
+              DECORATE.startOutboundFrameSpan(
                   handlerContext, MESSAGE_TYPE_BINARY, binaryFrame.content().readableBytes());
           try (final ContextScope scope = activateSpan(span)) {
             ctx.write(frame, promise);
@@ -68,7 +68,7 @@ public class WebSocketServerOutboundTracingHandler extends ChannelOutboundHandle
           ContinuationWebSocketFrame continuationWebSocketFrame =
               (ContinuationWebSocketFrame) frame;
           final AgentSpan span =
-              DECORATE.onSendFrameStart(
+              DECORATE.startOutboundFrameSpan(
                   handlerContext,
                   handlerContext.getMessageType(),
                   MESSAGE_TYPE_TEXT.equals(handlerContext.getMessageType())
@@ -92,7 +92,7 @@ public class WebSocketServerOutboundTracingHandler extends ChannelOutboundHandle
           String reasonText = closeFrame.reasonText();
           channel.attr(WEBSOCKET_SENDER_HANDLER_CONTEXT).remove();
           final AgentSpan span =
-              DECORATE.onSessionCloseIssued(handlerContext, reasonText, statusCode);
+              DECORATE.startOutboundCloseSpan(handlerContext, reasonText, statusCode);
           try (final ContextScope scope = activateSpan(span)) {
             ctx.write(frame, promise);
           } finally {

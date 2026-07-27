@@ -1,24 +1,26 @@
 package datadog.trace.instrumentation.redisson23;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 
 public class SpanFinishListener implements FutureListener<Object> {
-  private final AgentScope.Continuation continuation;
+  private final ContextContinuation continuation;
 
-  public SpanFinishListener(final AgentScope.Continuation continuation) {
+  public SpanFinishListener(final ContextContinuation continuation) {
     this.continuation = continuation;
   }
 
   @Override
   public void operationComplete(Future<Object> future) throws Exception {
-    try (final AgentScope scope = continuation.activate()) {
+    try (final ContextScope scope = continuation.resume()) {
       if (!future.isSuccess()) {
         RedissonClientDecorator.DECORATE.onError(scope, future.cause());
       }
       RedissonClientDecorator.DECORATE.beforeFinish(scope);
-      scope.span().finish();
+      AgentSpan.fromContext(scope.context()).finish();
     }
   }
 }
