@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 class FeatureFlaggingGatewayTest {
 
   private FeatureFlaggingGateway.ConfigListener configListener;
+  private FeatureFlaggingGateway.ActivationListener activationListener;
   private FeatureFlaggingGateway.ExposureListener exposureListener;
   private FeatureFlaggingGateway.SpanEnrichmentListener spanEnrichmentListener;
   private ServerConfiguration firstConfiguration;
@@ -26,6 +27,7 @@ class FeatureFlaggingGatewayTest {
   @BeforeEach
   void setUp() {
     configListener = mock(FeatureFlaggingGateway.ConfigListener.class);
+    activationListener = mock(FeatureFlaggingGateway.ActivationListener.class);
     exposureListener = mock(FeatureFlaggingGateway.ExposureListener.class);
     spanEnrichmentListener = mock(FeatureFlaggingGateway.SpanEnrichmentListener.class);
     firstConfiguration = mock(ServerConfiguration.class);
@@ -37,10 +39,21 @@ class FeatureFlaggingGatewayTest {
   @AfterEach
   void tearDown() {
     FeatureFlaggingGateway.removeConfigListener(configListener);
+    FeatureFlaggingGateway.removeActivationListener(activationListener);
     FeatureFlaggingGateway.removeExposureListener(exposureListener);
     FeatureFlaggingGateway.removeSpanEnrichmentListener(spanEnrichmentListener);
     FeatureFlaggingGateway.setFlagEvalWriter(null);
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+  }
+
+  @Test
+  void testProviderActivationListener() {
+    FeatureFlaggingGateway.addActivationListener(activationListener);
+
+    FeatureFlaggingGateway.activate();
+
+    verify(activationListener).activate();
+    verifyNoMoreInteractions(activationListener);
   }
 
   @Test

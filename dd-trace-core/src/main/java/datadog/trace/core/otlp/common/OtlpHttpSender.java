@@ -54,6 +54,10 @@ public final class OtlpHttpSender implements OtlpSender {
     this.client = buildHttpClient(isPlainHttp(url), unixDomainSocketPath, null, timeoutMillis);
   }
 
+  public HttpUrl url() {
+    return url;
+  }
+
   @Override
   public void send(OtlpPayload payload) {
     Request request = makeRequest(payload);

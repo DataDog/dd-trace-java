@@ -2,6 +2,7 @@ package com.datadog.featureflag;
 
 import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_ENABLED;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -11,9 +12,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
@@ -39,6 +42,54 @@ class FeatureFlaggingSystemTest {
     FeatureFlaggingSystem.stop();
     FeatureFlaggingGateway.setFlagEvalWriter(null);
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  @WithConfig(
+      key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
+      value = "http://127.0.0.1:1")
+  void agentlessStartWaitsForApplicationProviderActivation() {
+    SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
+    clearInvocations(sharedCommunicationObjects);
+
+    try {
+      FeatureFlaggingSystem.start(sharedCommunicationObjects);
+
+      assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+      verifyNoInteractions(sharedCommunicationObjects);
+
+      FeatureFlaggingGateway.activate();
+
+      assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+    } finally {
+      FeatureFlaggingSystem.stop();
+    }
+
+    assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  @WithConfig(
+      key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
+      value = "http://127.0.0.1:1")
+  void agentlessStopRemovesPendingApplicationProviderActivation() {
+    SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
+    clearInvocations(sharedCommunicationObjects);
+
+    try {
+      FeatureFlaggingSystem.start(sharedCommunicationObjects);
+      assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+
+      FeatureFlaggingSystem.stop();
+      FeatureFlaggingGateway.activate();
+
+      assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+      verifyNoInteractions(sharedCommunicationObjects);
+    } finally {
+      FeatureFlaggingSystem.stop();
+    }
   }
 
   @Test
@@ -79,7 +130,10 @@ class FeatureFlaggingSystemTest {
 
   @Test
   @WithConfig(key = FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, value = "false")
-  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
+  @WithConfig(
+      key = FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
+      value = "http://localhost:1/config")
   void testFlagEvaluationWriterCanBeDisabled() {
     SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
@@ -87,6 +141,9 @@ class FeatureFlaggingSystemTest {
 
     try {
       FeatureFlaggingSystem.start(sharedCommunicationObjects);
+      // Agentless defers initialization until the application provider activates.
+      FeatureFlaggingGateway.activate();
+
       assertFalse(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
       assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
     } finally {
@@ -143,6 +200,8 @@ class FeatureFlaggingSystemTest {
   void agentlessConfigurationSourceStartsTelemetryWritersWithoutRemoteConfig() {
     try {
       FeatureFlaggingSystem.start(sharedCommunicationObjects());
+      // Agentless defers initialization until the application provider activates.
+      FeatureFlaggingGateway.activate();
 
       assertTrue(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
       assertNotNull(FeatureFlaggingGateway.getFlagEvalWriter());
@@ -174,12 +233,31 @@ class FeatureFlaggingSystemTest {
   }
 
   @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "invalid")
+  void invalidConfigurationSourceDoesNotStartNetworkSource() {
+    assertNull(
+        FeatureFlaggingSystem.createConfigurationSourceService(
+            sharedCommunicationObjects(), Config.get()));
+  }
+
+  @Test
+  void unsupportedNormalizedConfigurationSourceDoesNotStartNetworkSource() {
+    Config config = mock(Config.class);
+    when(config.getFeatureFlaggingConfigurationSource()).thenReturn("invalid");
+
+    assertNull(
+        FeatureFlaggingSystem.createConfigurationSourceService(
+            sharedCommunicationObjects(), config));
+  }
+
+  @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
-  void startWithOfflineConfigurationSourceSkipsConfigService() {
+  void startWithOfflineConfigurationSourceDisablesSystem() {
+    SharedCommunicationObjects sharedCommunicationObjects = mock(SharedCommunicationObjects.class);
+
     try {
-      assertDoesNotThrow(() -> FeatureFlaggingSystem.start(sharedCommunicationObjects()));
-      assertTrue(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
-      assertNotNull(FeatureFlaggingGateway.getFlagEvalWriter());
+      assertDoesNotThrow(() -> FeatureFlaggingSystem.start(sharedCommunicationObjects));
+      verifyNoInteractions(sharedCommunicationObjects);
     } finally {
       FeatureFlaggingSystem.stop();
     }
@@ -187,23 +265,15 @@ class FeatureFlaggingSystemTest {
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "invalid")
-  void invalidConfigurationSourceUsesAgentlessDefault() {
-    assertInstanceOf(
-        AgentlessConfigurationSource.class,
-        FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects(), Config.get()));
-  }
+  void startWithInvalidConfigurationSourceDisablesSystem() {
+    SharedCommunicationObjects sharedCommunicationObjects = mock(SharedCommunicationObjects.class);
 
-  @Test
-  void rejectsUnsupportedNormalizedConfigurationSource() {
-    Config config = mock(Config.class);
-    when(config.getFeatureFlaggingConfigurationSource()).thenReturn("invalid");
-
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            FeatureFlaggingSystem.createConfigurationSourceService(
-                sharedCommunicationObjects(), config));
+    try {
+      assertDoesNotThrow(() -> FeatureFlaggingSystem.start(sharedCommunicationObjects));
+      verifyNoInteractions(sharedCommunicationObjects);
+    } finally {
+      FeatureFlaggingSystem.stop();
+    }
   }
 
   @Test

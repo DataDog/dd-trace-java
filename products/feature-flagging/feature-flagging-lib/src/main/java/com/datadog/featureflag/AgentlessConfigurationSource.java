@@ -1,16 +1,20 @@
 package com.datadog.featureflag;
 
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
+import static datadog.communication.http.OkHttpUtils.sendWithRetries;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_CONFIGURATION_POLLER;
 import static datadog.trace.util.Strings.isBlank;
 
+import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.util.AgentThreadFactory;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.HttpURLConnection;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,12 +54,12 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
   private final long pollIntervalMillis;
   private final UfcHttpClient client;
   private final ScheduledExecutorService executor;
-  private final RetrySleeper retrySleeper;
-  private final DoubleSupplier jitter;
   private final RatelimitedLogger ratelimitedLogger;
   private final Object lifecycleLock = new Object();
   private final AtomicBoolean polling = new AtomicBoolean();
+  private final AtomicReference<Thread> pollingThread = new AtomicReference<>();
   private volatile boolean closed;
+  private volatile boolean started;
   private volatile ScheduledFuture<?> scheduledPoll;
   private volatile String etag;
 
@@ -71,11 +75,12 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         new OkHttpUfcHttpClient(
             OkHttpUtils.buildHttpClient(
                 endpoint,
-                millis(config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds()))),
+                millis(config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds())),
+            millis(config.getFeatureFlaggingConfigurationSourcePollIntervalSeconds()),
+            TimeUnit.MILLISECONDS::sleep,
+            () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER)),
         Executors.newSingleThreadScheduledExecutor(
             new AgentThreadFactory(FEATURE_FLAG_CONFIGURATION_POLLER)),
-        TimeUnit.MILLISECONDS::sleep,
-        () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER),
         new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
   }
 
@@ -91,8 +96,6 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         pollIntervalMillis,
         client,
         executor,
-        TimeUnit.MILLISECONDS::sleep,
-        () -> 1.0,
         new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
   }
 
@@ -102,47 +105,38 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       final long pollIntervalMillis,
       final UfcHttpClient client,
       final ScheduledExecutorService executor,
-      final RetrySleeper retrySleeper,
-      final DoubleSupplier jitter) {
-    this(
-        endpoint,
-        config,
-        pollIntervalMillis,
-        client,
-        executor,
-        retrySleeper,
-        jitter,
-        new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_WARNINGS, TimeUnit.MINUTES));
-  }
-
-  AgentlessConfigurationSource(
-      final HttpUrl endpoint,
-      final Config config,
-      final long pollIntervalMillis,
-      final UfcHttpClient client,
-      final ScheduledExecutorService executor,
-      final RetrySleeper retrySleeper,
-      final DoubleSupplier jitter,
       final RatelimitedLogger ratelimitedLogger) {
     this.endpoint = endpoint;
     this.config = config;
     this.pollIntervalMillis = pollIntervalMillis;
     this.client = client;
     this.executor = executor;
-    this.retrySleeper = retrySleeper;
-    this.jitter = jitter;
     this.ratelimitedLogger = ratelimitedLogger;
   }
 
   @Override
   public void init() {
     synchronized (lifecycleLock) {
-      if (closed || scheduledPoll != null) {
+      if (closed || started) {
         return;
       }
-      scheduledPoll =
-          executor.scheduleWithFixedDelay(
-              this::pollOnceSafely, 0, pollIntervalMillis, TimeUnit.MILLISECONDS);
+      started = true;
+    }
+
+    // Complete the first poll cycle on the activation thread. This lets OpenFeature provider
+    // initialization observe a successful retry before it checks whether configuration is ready.
+    // No request occurs before application code activates the provider.
+    pollOnceSafely();
+
+    synchronized (lifecycleLock) {
+      if (!closed) {
+        scheduledPoll =
+            executor.scheduleWithFixedDelay(
+                this::pollOnceSafely,
+                pollIntervalMillis,
+                pollIntervalMillis,
+                TimeUnit.MILLISECONDS);
+      }
     }
   }
 
@@ -150,9 +144,11 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     if (closed || !polling.compareAndSet(false, true)) {
       return false;
     }
+    pollingThread.set(Thread.currentThread());
     try {
       return fetchAndApply();
     } finally {
+      pollingThread.compareAndSet(Thread.currentThread(), null);
       polling.set(false);
     }
   }
@@ -165,6 +161,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         return;
       }
       closed = true;
+      started = false;
       poll = scheduledPoll;
       scheduledPoll = null;
     }
@@ -172,6 +169,10 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       poll.cancel(true);
     }
     client.cancel();
+    final Thread activePollingThread = pollingThread.get();
+    if (activePollingThread != null) {
+      activePollingThread.interrupt();
+    }
     executor.shutdownNow();
   }
 
@@ -184,55 +185,28 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
   }
 
   private boolean fetchAndApply() {
-    for (int attempt = 1; ; attempt++) {
-      try {
-        final UfcHttpResponse response = client.fetch(endpoint, config, etag);
-        if (closed) {
-          return false;
-        }
-        if (isRetryableStatus(response.status)) {
-          if (attempt < MAX_ATTEMPTS) {
-            if (!waitBeforeRetry(attempt)) {
-              return false;
-            }
-            continue;
-          }
-          ratelimitedLogger.warn(
-              "Feature Flagging agentless endpoint failed after {} attempts with HTTP {}",
-              MAX_ATTEMPTS,
-              response.status);
-          return false;
-        }
-        synchronized (lifecycleLock) {
-          return !closed && apply(response);
-        }
-      } catch (final IOException e) {
-        if (closed) {
-          return false;
-        }
-        if (attempt == MAX_ATTEMPTS) {
-          ratelimitedLogger.warn(
-              "Feature Flagging agentless endpoint request failed after {} attempts",
-              MAX_ATTEMPTS,
-              e);
-          return false;
-        }
-        if (!waitBeforeRetry(attempt)) {
-          return false;
-        }
-      }
-    }
-  }
-
-  private boolean waitBeforeRetry(final int attempt) {
-    if (closed) {
-      return false;
-    }
     try {
-      retrySleeper.sleep(retryDelayMillis(pollIntervalMillis, attempt, jitter.getAsDouble()));
-      return !closed;
-    } catch (final InterruptedException e) {
-      Thread.currentThread().interrupt();
+      final UfcHttpResponse response = client.fetch(endpoint, config, etag);
+      if (closed) {
+        return false;
+      }
+      if (isRetryableStatus(response.status)) {
+        ratelimitedLogger.warn(
+            "Feature Flagging agentless endpoint failed after {} attempts with HTTP {}",
+            MAX_ATTEMPTS,
+            response.status);
+        return false;
+      }
+      synchronized (lifecycleLock) {
+        return !closed && apply(response);
+      }
+    } catch (final IOException e) {
+      if (!closed) {
+        ratelimitedLogger.warn(
+            "Feature Flagging agentless endpoint request failed after {} attempts",
+            MAX_ATTEMPTS,
+            e);
+      }
       return false;
     }
   }
@@ -244,7 +218,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     if (response.status == HttpURLConnection.HTTP_UNAUTHORIZED
         || response.status == HttpURLConnection.HTTP_FORBIDDEN) {
       ratelimitedLogger.warn(
-          "Feature Flagging agentless endpoint returned HTTP {}; verify DD_API_KEY is configured and valid",
+          "Feature Flagging agentless endpoint returned HTTP {}; verify endpoint authentication",
           response.status);
       return false;
     }
@@ -356,11 +330,30 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
 
   static final class OkHttpUfcHttpClient implements UfcHttpClient {
     private final OkHttpClient httpClient;
-    private final AtomicReference<Call> activeCall = new AtomicReference<>();
+    private final long pollIntervalMillis;
+    private final RetrySleeper retrySleeper;
+    private final DoubleSupplier jitter;
+    private final AtomicBoolean fetching = new AtomicBoolean();
     private final AtomicBoolean cancelled = new AtomicBoolean();
+    private final AtomicReference<Call> activeCall = new AtomicReference<>();
 
     OkHttpUfcHttpClient(final OkHttpClient httpClient) {
+      this(
+          httpClient,
+          TimeUnit.SECONDS.toMillis(30),
+          TimeUnit.MILLISECONDS::sleep,
+          () -> ThreadLocalRandom.current().nextDouble(1 - RETRY_JITTER, 1 + RETRY_JITTER));
+    }
+
+    OkHttpUfcHttpClient(
+        final OkHttpClient httpClient,
+        final long pollIntervalMillis,
+        final RetrySleeper retrySleeper,
+        final DoubleSupplier jitter) {
       this.httpClient = httpClient;
+      this.pollIntervalMillis = pollIntervalMillis;
+      this.retrySleeper = retrySleeper;
+      this.jitter = jitter;
     }
 
     @Override
@@ -371,22 +364,50 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
         headers.put("If-None-Match", etag);
       }
       // Leave Accept-Encoding unset so OkHttp negotiates gzip and transparently decompresses it.
-      final Request request = prepareRequest(endpoint, headers, config, true).get().build();
-      final Call call = httpClient.newCall(request);
-      if (!activeCall.compareAndSet(null, call)) {
+      final Request request =
+          prepareRequest(endpoint, headers, config, isDatadogManagedEndpoint(endpoint, config))
+              .get()
+              .build();
+      if (!fetching.compareAndSet(false, true)) {
         throw new IllegalStateException("Feature Flagging HTTP request already in flight");
       }
       if (cancelled.get()) {
-        call.cancel();
+        fetching.set(false);
+        throw new InterruptedIOException("Feature Flagging HTTP client is closed");
       }
       try {
-        final Response response = call.execute();
-        try (ResponseBody responseBody = response.body()) {
-          final byte[] body = responseBody != null ? responseBody.bytes() : null;
-          return new UfcHttpResponse(response.code(), response.header("ETag"), body);
-        }
+        final HttpRetryPolicy.Factory retryPolicyFactory =
+            new HttpRetryPolicy.Factory(0, 0, 0) {
+              @Override
+              public HttpRetryPolicy create() {
+                return new AgentlessRetryPolicy(
+                    cancelled, pollIntervalMillis, retrySleeper, jitter);
+              }
+            };
+        final Call.Factory callFactory =
+            retryRequest -> {
+              final Call call = httpClient.newCall(retryRequest);
+              activeCall.set(call);
+              if (cancelled.get()) {
+                call.cancel();
+              }
+              return call;
+            };
+        return sendWithRetries(
+            callFactory,
+            retryPolicyFactory,
+            request,
+            response -> {
+              final int status = response.code();
+              final String responseEtag = response.header("ETag");
+              try (ResponseBody responseBody = response.body()) {
+                final byte[] body = responseBody != null ? responseBody.bytes() : null;
+                return new UfcHttpResponse(status, responseEtag, body);
+              }
+            });
       } finally {
-        activeCall.compareAndSet(call, null);
+        activeCall.set(null);
+        fetching.set(false);
       }
     }
 
@@ -396,6 +417,72 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       final Call call = activeCall.get();
       if (call != null) {
         call.cancel();
+      }
+    }
+
+    private static boolean isDatadogManagedEndpoint(final HttpUrl endpoint, final Config config) {
+      return config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl() == null
+          && endpoint.isHttps()
+          && endpoint.host().equalsIgnoreCase("ufc-server.ff-cdn." + config.getSite());
+    }
+  }
+
+  @SuppressFBWarnings(
+      value = "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE",
+      justification =
+          "Each retry policy belongs to one synchronous HTTP request and is confined to one thread")
+  static final class AgentlessRetryPolicy extends HttpRetryPolicy {
+    private final AtomicBoolean cancelled;
+    private final long pollIntervalMillis;
+    private final RetrySleeper retrySleeper;
+    private final DoubleSupplier jitter;
+    private int retriesLeft = MAX_ATTEMPTS - 1;
+    private int retryAttempt;
+
+    AgentlessRetryPolicy(
+        final AtomicBoolean cancelled,
+        final long pollIntervalMillis,
+        final RetrySleeper retrySleeper,
+        final DoubleSupplier jitter) {
+      super(0, 0, 0, false);
+      this.cancelled = cancelled;
+      this.pollIntervalMillis = pollIntervalMillis;
+      this.retrySleeper = retrySleeper;
+      this.jitter = jitter;
+    }
+
+    @Override
+    public boolean shouldRetry(final Exception exception) {
+      return exception instanceof IOException
+          && !Thread.currentThread().isInterrupted()
+          && reserveRetry();
+    }
+
+    @Override
+    public boolean shouldRetry(@Nullable final Response response) {
+      return response != null && isRetryableStatus(response.code()) && reserveRetry();
+    }
+
+    private boolean reserveRetry() {
+      if (cancelled.get() || retriesLeft == 0) {
+        return false;
+      }
+      retriesLeft--;
+      retryAttempt++;
+      return true;
+    }
+
+    @Override
+    public void backoff() throws IOException {
+      if (cancelled.get()) {
+        throw new InterruptedIOException("Feature Flagging HTTP client is closed");
+      }
+      try {
+        retrySleeper.sleep(
+            retryDelayMillis(pollIntervalMillis, retryAttempt, jitter.getAsDouble()));
+      } catch (final InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new InterruptedIOException("Feature Flagging retry interrupted");
       }
     }
   }

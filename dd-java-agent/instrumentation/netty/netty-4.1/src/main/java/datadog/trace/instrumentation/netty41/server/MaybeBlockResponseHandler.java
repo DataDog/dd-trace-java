@@ -1,9 +1,6 @@
 package datadog.trace.instrumentation.netty41.server;
 
-import static datadog.trace.instrumentation.netty41.AttributeKeys.ANALYZED_RESPONSE_KEY;
-import static datadog.trace.instrumentation.netty41.AttributeKeys.BLOCKED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
-import static datadog.trace.instrumentation.netty41.AttributeKeys.REQUEST_HEADERS_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
 
@@ -13,6 +10,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -25,6 +23,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.util.ReferenceCountUtil;
+import java.nio.channels.ClosedChannelException;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,27 +35,23 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
 
   private MaybeBlockResponseHandler() {}
 
-  private static boolean isAnalyzedResponse(Channel ch) {
-    return ch.attr(ANALYZED_RESPONSE_KEY).get() != null;
-  }
-
-  private static void markAnalyzedResponse(Channel ch) {
-    ch.attr(ANALYZED_RESPONSE_KEY).set(Boolean.TRUE);
-  }
-
-  private static boolean isBlockedResponse(Channel ch) {
-    return ch.attr(BLOCKED_RESPONSE_KEY).get() != null;
-  }
-
-  private static void markBlockedResponse(Channel ch) {
-    ch.attr(BLOCKED_RESPONSE_KEY).set(Boolean.TRUE);
-  }
-
   @Override
   public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise prm) throws Exception {
     Channel channel = ctx.channel();
 
-    Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
+    if (ServerRequestContext.isResponseBlocked(channel)) {
+      // block further writes while the blocking response close is still asynchronous
+      log.debug("Write suppressed; dropped outbound message");
+      ReferenceCountUtil.release(msg);
+      prm.tryFailure(new ClosedChannelException());
+      return;
+    }
+
+    ServerRequestContext serverContext = ServerRequestContext.nextResponse(channel);
+    Context storedContext =
+        serverContext == null
+            ? channel.attr(CONTEXT_ATTRIBUTE_KEY).get()
+            : serverContext.tracingContext();
     AgentSpan span = AgentSpan.fromContext(storedContext);
     RequestContext requestContext;
     if (span == null || (requestContext = span.getRequestContext()) == null) {
@@ -64,14 +59,8 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       return;
     }
 
-    if (isAnalyzedResponse(channel)) {
-      if (isBlockedResponse(channel)) {
-        // block further writes
-        log.debug("Write suppressed, msg {} dropped", msg);
-        ReferenceCountUtil.release(msg);
-      } else {
-        super.write(ctx, msg, prm);
-      }
+    if (serverContext != null && serverContext.isResponseAnalyzed()) {
+      super.write(ctx, msg, prm);
       return;
     }
 
@@ -80,22 +69,27 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       return;
     }
     HttpResponse origResponse = (HttpResponse) msg;
-    if (origResponse.status().code() == HttpResponseStatus.CONTINUE.code()) {
+    int statusCode = origResponse.status().code();
+    if (statusCode >= 100
+        && statusCode < 200
+        && statusCode != HttpResponseStatus.SWITCHING_PROTOCOLS.code()) {
       super.write(ctx, msg, prm);
       return;
     }
 
     Flow<Void> flow =
         DECORATE.callIGCallbackResponseAndHeaders(
-            span, origResponse, origResponse.getStatus().code(), ResponseExtractAdapter.GETTER);
-    markAnalyzedResponse(channel);
+            span, origResponse, statusCode, ResponseExtractAdapter.GETTER);
+    if (serverContext != null) {
+      serverContext.markResponseAnalyzed();
+    }
     Flow.Action action = flow.getAction();
     if (!(action instanceof Flow.Action.RequestBlockingAction)) {
       super.write(ctx, msg, prm);
       return;
     }
 
-    markBlockedResponse(channel);
+    ServerRequestContext.markResponseBlocked(channel);
     Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
     int httpCode = BlockingActionHelper.getHttpCode(rba.getStatusCode());
     HttpResponseStatus httpResponseStatus = HttpResponseStatus.valueOf(httpCode);
@@ -112,10 +106,9 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
 
     BlockingContentType bct = rba.getBlockingContentType();
     if (bct != BlockingContentType.NONE) {
-      HttpHeaders reqHeaders = ctx.attr(REQUEST_HEADERS_ATTRIBUTE_KEY).get();
-      String acceptHeader = reqHeaders != null ? reqHeaders.get("accept") : null;
       BlockingActionHelper.TemplateType type =
-          BlockingActionHelper.determineTemplateType(bct, acceptHeader);
+          BlockingActionHelper.determineTemplateType(
+              bct, serverContext == null ? null : serverContext.acceptHeader());
       headers.set("Content-type", BlockingActionHelper.getContentType(type));
       byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
       setContentLength(response, template.length);

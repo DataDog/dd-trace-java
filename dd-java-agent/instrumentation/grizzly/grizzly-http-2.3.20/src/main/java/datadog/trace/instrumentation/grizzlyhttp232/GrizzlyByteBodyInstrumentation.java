@@ -109,7 +109,7 @@ public class GrizzlyByteBodyInstrumentation
   }
 
   static class NIOInputStreamReadByteArrayAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.This final NIOInputStream thiz,
         @Advice.Argument(0) byte[] byteArray,
@@ -137,7 +137,7 @@ public class GrizzlyByteBodyInstrumentation
   }
 
   static class NIOInputStreamReadByteArrayIntIntAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.This final NIOInputStream thiz,
         @Advice.Argument(0) byte[] byteArray,
@@ -183,7 +183,7 @@ public class GrizzlyByteBodyInstrumentation
   }
 
   static class NIOInputStreamIsFinishedAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.This final NIOInputStream thiz,
         @Advice.Return boolean ret,

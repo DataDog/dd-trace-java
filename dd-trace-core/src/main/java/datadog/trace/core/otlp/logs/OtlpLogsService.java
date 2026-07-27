@@ -23,7 +23,7 @@ public final class OtlpLogsService {
 
   private volatile Thread exporterThread;
 
-  private OtlpLogsService(Config config) {
+  OtlpLogsService(Config config) {
     intervalMillis = config.getLogsOtelInterval();
     switch (config.getOtlpLogsProtocol()) {
       case GRPC:
@@ -46,11 +46,29 @@ public final class OtlpLogsService {
                 config.getOtlpLogsTimeout(),
                 config.getOtlpLogsCompression());
         break;
+      case HTTP_JSON:
+        this.collector = OtlpLogsJsonCollector.INSTANCE;
+        this.sender =
+            new OtlpHttpSender(
+                config.getOtlpLogsEndpoint(),
+                "/v1/logs",
+                config.getOtlpLogsHeaders(),
+                config.getOtlpLogsTimeout(),
+                config.getOtlpLogsCompression());
+        break;
       default:
         LOGGER.debug("Unsupported OTLP logs protocol: {}", config.getOtlpLogsProtocol());
         this.collector = null;
         this.sender = null;
     }
+  }
+
+  OtlpSender getSender() {
+    return sender;
+  }
+
+  OtlpLogsCollector getCollector() {
+    return collector;
   }
 
   public void start() {

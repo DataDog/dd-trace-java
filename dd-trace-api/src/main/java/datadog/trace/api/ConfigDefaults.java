@@ -50,7 +50,7 @@ public final class ConfigDefaults {
   static final String DEFAULT_SITE = "datadoghq.com";
   static final String DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE = "agentless";
   static final int DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS = 30;
-  static final int DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS = 2;
+  static final int DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS = 5;
 
   static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT = false;
   static final int DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES = 8;
@@ -145,6 +145,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APP_LOGS_COLLECTION_ENABLED = false;
 
   static final String DEFAULT_APPSEC_ENABLED = "inactive";
+  static final String DEFAULT_APPSEC_AGENTIC_ONBOARDING = "";
   static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
@@ -299,7 +300,11 @@ public final class ConfigDefaults {
 
   static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED =
       new HashSet<>(
-          asList("DD_TAGS", "DD_LOGS_INJECTION", "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED"));
+          asList(
+              "DD_TAGS",
+              "DD_LOGS_INJECTION",
+              "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED",
+              "DD_TRACE_STATS_ADDITIONAL_TAGS"));
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = true;
