@@ -127,7 +127,7 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
       SomeClass.getProtectionDomain().getCodeSource().getLocation(),
       GroovyObject.getProtectionDomain().getCodeSource().getLocation(),
     ]
-    URLClassLoader loader = new NonDelegatingExceptionClassLoader(classpath)
+    URLClassLoader loader = new BlockingTestClassLoader(classpath)
 
     when:
     loader.loadClass(InstrumentationErrors.getName())
