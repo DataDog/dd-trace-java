@@ -3896,6 +3896,17 @@ public class Config {
   }
 
   /**
+   * Upper bound for a configured stats cardinality limit. Each limit sizes a {@code
+   * TagCardinalityHandler} that eagerly allocates four reference arrays of {@code nextPow2(limit *
+   * 2)} slots, so an unbounded value (e.g. a mis-set env var) can exhaust the heap while the
+   * aggregator is constructed, before the tracer finishes starting. {@code 1 << 16} caps a single
+   * handler near ~2 MB while staying far above any useful setting -- the highest built-in default
+   * is 1024, and the aggregate table itself caps at a few thousand rows, so a larger per-key budget
+   * cannot produce more aggregate rows anyway.
+   */
+  private static final int MAX_TRACE_STATS_CARDINALITY_LIMIT = 1 << 16;
+
+  /**
    * Returns the per-cycle cardinality limit for the named stats field, following the RFC naming
    * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
    * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
@@ -3903,7 +3914,9 @@ public class Config {
    *
    * <p>A non-positive configured value is invalid -- each limit sizes a fixed-capacity handler
    * table that requires a positive size -- so it falls back to {@code defaultLimit}, logged at
-   * debug.
+   * debug. A value above {@link #MAX_TRACE_STATS_CARDINALITY_LIMIT} would eagerly allocate handler
+   * tables large enough to exhaust the heap at startup, so it likewise falls back to {@code
+   * defaultLimit}, logged at warn.
    */
   public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
     int limit =
@@ -3913,6 +3926,15 @@ public class Config {
           "Invalid trace.stats.{}.cardinality.limit={}; must be positive. Using default {}.",
           tagName,
           limit,
+          defaultLimit);
+      return defaultLimit;
+    }
+    if (limit > MAX_TRACE_STATS_CARDINALITY_LIMIT) {
+      log.warn(
+          "trace.stats.{}.cardinality.limit={} exceeds the maximum of {}; using default {} to avoid excessive memory use.",
+          tagName,
+          limit,
+          MAX_TRACE_STATS_CARDINALITY_LIMIT,
           defaultLimit);
       return defaultLimit;
     }
