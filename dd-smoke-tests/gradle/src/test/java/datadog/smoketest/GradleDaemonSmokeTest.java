@@ -1,5 +1,6 @@
 package datadog.smoketest;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -191,12 +192,12 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       assertTrue(buildResult.getOutput().contains("Dependency verification failed"));
     } else {
       assertBuildSuccessful(buildResult);
-      assertTrue(
-          buildResult
-              .getOutput()
-              .contains(
-                  "Datadog Test Optimization disabled Gradle dependency verification for "
-                      + "configuration "));
+      String warning =
+          "Datadog Test Optimization disabled Gradle dependency verification for dependencies "
+              + "injected into this build.";
+      int firstWarning = buildResult.getOutput().indexOf(warning);
+      assertTrue(firstWarning >= 0);
+      assertEquals(firstWarning, buildResult.getOutput().lastIndexOf(warning));
     }
   }
 

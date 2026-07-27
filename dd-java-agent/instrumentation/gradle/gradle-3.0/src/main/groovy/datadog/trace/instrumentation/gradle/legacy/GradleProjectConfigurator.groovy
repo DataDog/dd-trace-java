@@ -45,6 +45,8 @@ class GradleProjectConfigurator {
   private static final String JACOCO_PLUGIN_ID = 'jacoco'
   private static final String JACOCO_AGENT_CONFIGURATION_NAME = 'jacocoAgent'
   private static final String JACOCO_ANT_CONFIGURATION_NAME = 'jacocoAnt'
+  private static final String DEPENDENCY_VERIFICATION_WARNING_EMITTED =
+  'datadog.civisibility.dependency-verification-warning-emitted'
 
   void configureTracer(Task task, Map<String, String> propagatedSystemProperties) {
     def config = Config.get()
@@ -226,13 +228,17 @@ class GradleProjectConfigurator {
     }
 
     if (project.rootProject.file('gradle/verification-metadata.xml').isFile()) {
-      project.logger.warn(
-        "Datadog Test Optimization disabled Gradle dependency verification for configuration "
-        + "${configuration.name}. To keep verification enabled, set "
-        + "DD_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED=true and add "
-        + "the Datadog compiler plugin and injected JaCoCo dependencies to "
-        + "gradle/verification-metadata.xml. If the metadata is not updated, Gradle will "
-        + "fail the build while resolving these dependencies.")
+      def extraProperties = project.rootProject.extensions.extraProperties
+      if (!extraProperties.has(DEPENDENCY_VERIFICATION_WARNING_EMITTED)) {
+        extraProperties.set(DEPENDENCY_VERIFICATION_WARNING_EMITTED, true)
+        project.logger.warn(
+          "Datadog Test Optimization disabled Gradle dependency verification for dependencies "
+          + "injected into this build. To keep verification enabled, set "
+          + "DD_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED=true and add "
+          + "the Datadog compiler plugin and injected JaCoCo dependencies to "
+          + "gradle/verification-metadata.xml. If the metadata is not updated, Gradle will "
+          + "fail the build while resolving these dependencies.")
+      }
     }
     configuration.resolutionStrategy.disableDependencyVerification()
   }

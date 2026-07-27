@@ -33,6 +33,8 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
   private static final String JACOCO_PLUGIN_ID = "jacoco";
   private static final String JACOCO_AGENT_CONFIGURATION_NAME = "jacocoAgent";
   private static final String JACOCO_ANT_CONFIGURATION_NAME = "jacocoAnt";
+  private static final String DEPENDENCY_VERIFICATION_WARNING_EMITTED =
+      "datadog.civisibility.dependency-verification-warning-emitted";
 
   private Project project;
 
@@ -124,14 +126,24 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
             .getProjectDir()
             .toPath()
             .resolve("gradle/verification-metadata.xml"))) {
-      LOGGER.warn(
-          "Datadog Test Optimization disabled Gradle dependency verification for configuration "
-              + "{}. To keep verification enabled, set "
-              + "DD_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED=true and add "
-              + "the Datadog compiler plugin and injected JaCoCo dependencies to "
-              + "gradle/verification-metadata.xml. If the metadata is not updated, Gradle will "
-              + "fail the build while resolving these dependencies.",
-          configuration.getName());
+      if (!project
+          .getRootProject()
+          .getExtensions()
+          .getExtraProperties()
+          .has(DEPENDENCY_VERIFICATION_WARNING_EMITTED)) {
+        project
+            .getRootProject()
+            .getExtensions()
+            .getExtraProperties()
+            .set(DEPENDENCY_VERIFICATION_WARNING_EMITTED, true);
+        LOGGER.warn(
+            "Datadog Test Optimization disabled Gradle dependency verification for dependencies "
+                + "injected into this build. To keep verification enabled, set "
+                + "DD_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED=true and add "
+                + "the Datadog compiler plugin and injected JaCoCo dependencies to "
+                + "gradle/verification-metadata.xml. If the metadata is not updated, Gradle will "
+                + "fail the build while resolving these dependencies.");
+      }
     }
     configuration.getResolutionStrategy().disableDependencyVerification();
   }
