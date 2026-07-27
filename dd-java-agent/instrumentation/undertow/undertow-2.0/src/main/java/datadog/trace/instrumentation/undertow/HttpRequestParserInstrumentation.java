@@ -60,7 +60,7 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class RequestParseFailureAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterRequestParse(
         @Advice.Argument(2) final HttpServerExchange exchange,
         @Advice.Thrown final Throwable throwable) {

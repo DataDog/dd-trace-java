@@ -670,7 +670,7 @@ public class AgentTracer {
 
     @Override
     public ContextScope attach(Context context) {
-      return noopScope();
+      return NoopScope.INSTANCE;
     }
 
     @Override

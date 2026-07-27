@@ -98,7 +98,7 @@ x-request-id: req_dcbdd1cbcd494ff793ee2e099de4554e
   "usage": {
     "input_tokens": 67,
     "input_tokens_details": {
-      "cached_tokens": 0
+      "cached_tokens": 0, "cache_write_tokens": 0
     },
     "output_tokens": 238,
     "output_tokens_details": {

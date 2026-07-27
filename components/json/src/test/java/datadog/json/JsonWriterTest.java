@@ -101,6 +101,16 @@ class JsonWriterTest {
   }
 
   @Test
+  void testControlCharacterEscaping() {
+    try (JsonWriter writer = new JsonWriter()) {
+      writer.beginArray().value("\u0001").value("\u001F").endArray();
+
+      assertEquals(
+          "[\"\\u0001\",\"\\u001F\"]", writer.toString(), "Check control character escaping");
+    }
+  }
+
+  @Test
   void testArrayObjectNesting() {
     try (JsonWriter writer = new JsonWriter()) {
       writer

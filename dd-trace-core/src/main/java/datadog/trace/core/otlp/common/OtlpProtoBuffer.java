@@ -3,6 +3,7 @@ package datadog.trace.core.otlp.common;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.sizeVarInt;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeVarInt;
+import static datadog.trace.core.otlp.common.OtlpPayload.PROTOBUF_CONTENT_TYPE;
 import static datadog.trace.util.BitUtils.nextPowerOfTwo;
 
 import datadog.communication.serialization.GrowableBuffer;
@@ -17,8 +18,6 @@ import java.nio.ByteBuffer;
  * @see GrowableBuffer
  */
 public final class OtlpProtoBuffer {
-  private static final String PROTOBUF_CONTENT_TYPE = "application/x-protobuf";
-
   private final int initialCapacity;
   private ByteBuffer buffer;
   private int remaining;

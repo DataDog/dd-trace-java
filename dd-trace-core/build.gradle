@@ -65,6 +65,7 @@ excludedClassesCoverage += [
   'datadog.trace.core.otlp.common.OtlpGrpcSender',
   // covered by OTLP system-tests
   'datadog.trace.core.otlp.logs.OtlpLogsService',
+  'datadog.trace.core.otlp.metrics.OtlpMetricsSenderFactory',
   'datadog.trace.core.otlp.metrics.OtlpMetricsService'
 ]
 

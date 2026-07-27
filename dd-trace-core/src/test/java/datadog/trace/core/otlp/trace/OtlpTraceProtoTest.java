@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUME
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_INTERNAL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
+import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.emptyList;
@@ -422,6 +423,11 @@ class OtlpTraceProtoTest {
             asList(
                 span("anchor.op", "anchor.op", "web"),
                 linkedSpanWithFlags("flags.linked", 0, (byte) 0x02))),
+        Arguments.of(
+            "span link with high-bit flags — flags written as unsigned byte, not sign-extended",
+            asList(
+                span("anchor.op", "anchor.op", "web"),
+                linkedSpanWithFlags("flags.highbit.linked", 0, (byte) 0x82))),
 
         // ── metadata paths ────────────────────────────────────────────────────
         Arguments.of(
@@ -966,7 +972,7 @@ class OtlpTraceProtoTest {
     // absent otherwise because the default sampler may still set a positive priority.
     if (spec.samplingPriority > 0) {
       assertTrue(
-          (parsedFlags & OtlpTraceProto.SAMPLED_TRACE_FLAG) != 0,
+          (parsedFlags & SAMPLED_TRACE_FLAG) != 0,
           "SAMPLED flag must be set in flags [" + caseName + "]");
     }
 
@@ -1082,6 +1088,8 @@ class OtlpTraceProtoTest {
     if (!linkSpec.traceState.isEmpty()) {
       assertEquals(
           linkSpec.traceState, parsedTraceState, "Link.trace_state mismatch [" + caseName + "]");
+    } else {
+      assertNull(parsedTraceState, "empty Link.trace_state should be omitted [" + caseName + "]");
     }
     // SpanLink.from() ORs in the SAMPLED_FLAG (0x01) when the target context has positive
     // sampling priority, which all test anchor spans have via the default tracer sampler.

@@ -3,8 +3,8 @@ package datadog.trace.core.otlp.metrics;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
 
 import datadog.trace.api.Config;
-import datadog.trace.core.otlp.common.OtlpGrpcSender;
-import datadog.trace.core.otlp.common.OtlpHttpSender;
+import datadog.trace.api.config.OtlpConfig;
+import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.util.AgentTaskScheduler;
@@ -27,37 +27,29 @@ public final class OtlpMetricsService {
 
   private AgentTaskScheduler.Scheduled<?> scheduledTask = null;
 
-  private OtlpMetricsService(Config config) {
+  OtlpMetricsService(Config config) {
     this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
 
-    switch (config.getOtlpMetricsProtocol()) {
-      case GRPC:
-        this.collector = OtlpMetricsProtoCollector.INSTANCE;
-        this.sender =
-            new OtlpGrpcSender(
-                config.getOtlpMetricsEndpoint(),
-                "/opentelemetry.proto.collector.metrics.v1.MetricsService/Export",
-                config.getOtlpMetricsHeaders(),
-                config.getOtlpMetricsTimeout(),
-                config.getOtlpMetricsCompression());
-        break;
-      case HTTP_PROTOBUF:
-        this.collector = OtlpMetricsProtoCollector.INSTANCE;
-        this.sender =
-            new OtlpHttpSender(
-                config.getOtlpMetricsEndpoint(),
-                "/v1/metrics",
-                config.getOtlpMetricsHeaders(),
-                config.getOtlpMetricsTimeout(),
-                config.getOtlpMetricsCompression());
-        break;
-      default:
-        LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
-        this.collector = null;
-        this.sender = null;
+    this.sender = OtlpMetricsSenderFactory.create(config);
+    if (this.sender == null) {
+      LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
+      this.collector = null;
+    } else {
+      this.collector =
+          config.getOtlpMetricsProtocol() == OtlpConfig.Protocol.HTTP_JSON
+              ? new OtlpMetricsJsonCollector(SystemTimeSource.INSTANCE)
+              : new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
     }
 
     this.intervalMillis = config.getMetricsOtelInterval();
+  }
+
+  OtlpSender getSender() {
+    return sender;
+  }
+
+  OtlpMetricsCollector getCollector() {
+    return collector;
   }
 
   public void start() {
