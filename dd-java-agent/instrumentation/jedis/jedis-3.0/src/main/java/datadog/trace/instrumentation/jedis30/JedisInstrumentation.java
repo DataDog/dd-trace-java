@@ -54,9 +54,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isMethod()
             .and(named("sendCommand"))
-            .and(
-                takesArgument(
-                    0, named("redis.clients.jedis.commands.ProtocolCommand"))),
+            .and(takesArgument(0, named("redis.clients.jedis.commands.ProtocolCommand"))),
         JedisInstrumentation.class.getName() + "$JedisAdvice");
   }
 
@@ -64,8 +62,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.Argument(0) final ProtocolCommand command,
-        @Advice.This final Connection thiz) {
+        @Advice.Argument(0) final ProtocolCommand command, @Advice.This final Connection thiz) {
       if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {
         return null;
       }
