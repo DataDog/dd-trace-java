@@ -1,16 +1,14 @@
 package datadog.trace.instrumentation.netty41.server;
 
-import static datadog.trace.instrumentation.netty41.AttributeKeys.ANALYZED_RESPONSE_KEY;
-import static datadog.trace.instrumentation.netty41.AttributeKeys.BLOCKED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.PARENT_CONTEXT_ATTRIBUTE_KEY;
-import static datadog.trace.instrumentation.netty41.AttributeKeys.REQUEST_HEADERS_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.netty41.ServerRequestContext;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -38,30 +36,39 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     }
 
     final HttpRequest request = (HttpRequest) msg;
+    if (ServerRequestContext.isRequestBlocked(channel)) {
+      // A deferred block keeps its handler in the pipeline while an earlier response completes.
+      // Forward later pipelined requests to that handler instead of adding another one.
+      ctx.fireChannelRead(msg);
+      return;
+    }
+    if (!ServerRequestContext.canTrackRequest(channel)) {
+      channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).remove();
+      ctx.fireChannelRead(msg);
+      return;
+    }
+
     final HttpHeaders headers = request.headers();
     final Context storedParentContext = channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).getAndRemove();
     final Context parentContext =
         storedParentContext != null ? storedParentContext : DECORATE.extract(headers);
     final Context context = DECORATE.startSpan(headers, parentContext);
+    final ServerRequestContext serverContext =
+        ServerRequestContext.add(channel, context, headers.get("accept"));
 
     try (final ContextScope ignored = context.attach()) {
       final AgentSpan span = AgentSpan.fromContext(context);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, channel, request, parentContext);
 
-      channel.attr(ANALYZED_RESPONSE_KEY).set(null);
-      channel.attr(BLOCKED_RESPONSE_KEY).set(null);
-
-      channel.attr(CONTEXT_ATTRIBUTE_KEY).set(context);
-      channel.attr(REQUEST_HEADERS_ATTRIBUTE_KEY).set(request.headers());
-
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
         ctx.pipeline()
             .addAfter(
                 ctx.name(),
-                "blocking_handler",
-                new BlockingResponseHandler(span.getRequestContext().getTraceSegment(), rba));
+                BlockingResponseHandler.HANDLER_NAME,
+                new BlockingResponseHandler(
+                    span.getRequestContext().getTraceSegment(), rba, serverContext));
       }
 
       try {
@@ -76,7 +83,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(ignored.context());
         span.finish(); // Finish the span manually since finishSpanOnClose was false
-        ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
+        ServerRequestContext.remove(ctx.channel(), serverContext);
         throw throwable;
       }
     }
@@ -88,12 +95,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       super.channelInactive(ctx);
     } finally {
       try {
-        final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).getAndRemove();
-        final AgentSpan span = AgentSpan.fromContext(storedContext);
-        if (span != null && span.phasedFinish()) {
-          // at this point we can just publish this span to avoid loosing the rest of the trace
-          span.publish();
-        }
+        ServerRequestContext.closeAll(ctx.channel());
       } catch (final Throwable ignored) {
       }
     }
