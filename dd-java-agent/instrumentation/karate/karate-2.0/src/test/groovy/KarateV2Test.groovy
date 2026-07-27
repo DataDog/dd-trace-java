@@ -68,6 +68,7 @@ class KarateV2Test extends CiVisibilityInstrumentationTest {
     testcaseName               | success | tests                           | retriedTests
     "test-failed"              | false   | [TestFailedKarate]              | []
     "test-retry-failed"        | false   | [TestFailedKarate]              | [new TestFQN("[org/example/test_failed] test failed", "second scenario")]
+    "test-retry-abort-suite"   | false   | [TestFailedAbortSuiteKarate]    | [new TestFQN("[org/example/test_abort_suite] test abort suite", "aborting scenario")]
     "test-failed-then-succeed" | true    | [TestFailedThenSucceedKarate]   | [new TestFQN("[org/example/test_failed_then_succeed] test failed", "flaky scenario")]
     "test-retry-after-scenario-failed" | false | [TestFailedAfterScenarioKarate] | [
       new TestFQN("[org/example/test_after_scenario_failed] test after scenario failed", "after scenario failed")
