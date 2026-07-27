@@ -627,12 +627,12 @@ public final class DatadogProfiler {
   }
 
   /**
-   * Same as {@link #reapplyAppContext()}, but leaves {@code skipOffset1}/{@code skipOffset2} alone.
-   * Used by {@link #setTraceContext} to avoid clobbering the operation/resource offsets it just
-   * wrote natively, in the edge case where those offsets are also app-owned (see {@link
+   * Same as {@link #reapplyAppContext()}, but leaves {@code operationOffset}/{@code resourceOffset}
+   * alone. Used by {@link #setTraceContext} to avoid clobbering the operation/resource offsets it
+   * just wrote natively, in the edge case where those offsets are also app-owned (see {@link
    * #isAppOffset}). Pass -1 for either argument to skip nothing.
    */
-  private void reapplyAppContext(int skipOffset1, int skipOffset2) {
+  private void reapplyAppContext(int operationOffset, int resourceOffset) {
     if (!hasAppContext) {
       return;
     }
@@ -643,7 +643,7 @@ public final class DatadogProfiler {
     try {
       int remaining = snapshot.nonZeroCount();
       for (int i = 0; i < isAppOffset.length && remaining > 0; i++) {
-        if (i == skipOffset1 || i == skipOffset2) {
+        if (i == operationOffset || i == resourceOffset) {
           continue;
         }
         String s = snapshot.stringAt(i);
