@@ -727,6 +727,7 @@ import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
@@ -828,6 +829,9 @@ public class Config {
   private static final int MAX_CODE_COVERAGE_FLAGS = 32;
 
   private static final Pattern COLON = Pattern.compile(":");
+  private static final Pattern COMMA = Pattern.compile(",");
+  private static final Pattern MULTI_WRITER_PREFIX =
+      Pattern.compile(MULTI_WRITER_TYPE + ":", Pattern.LITERAL);
 
   // Historical conflating-Batch size; used to translate TRACER_METRICS_MAX_PENDING (configured in
   // legacy batch units) into the new per-SpanSnapshot inbox capacity.
@@ -5577,6 +5581,10 @@ public class Config {
     return "otlp".equalsIgnoreCase(logsOtelExporter);
   }
 
+  public boolean isOtlpLogsExportEnabled() {
+    return isLogsOtelEnabled() && isLogsOtlpExporterEnabled();
+  }
+
   public int getLogsOtelInterval() {
     return logsOtelInterval;
   }
@@ -5619,6 +5627,11 @@ public class Config {
 
   public boolean isMetricsOtlpExporterEnabled() {
     return "otlp".equalsIgnoreCase(metricsOtelExporter);
+  }
+
+  public boolean isOtlpMetricsExportEnabled() {
+    return (isMetricsOtelEnabled() && isMetricsOtlpExporterEnabled())
+        || isOtelTracesSpanMetricsEnabled();
   }
 
   public boolean isMetricsOtelExperimentalEnabled() {
@@ -5675,6 +5688,19 @@ public class Config {
 
   public boolean isTraceOtlpExporterEnabled() {
     return "otlp".equalsIgnoreCase(traceOtelExporter);
+  }
+
+  public boolean isOtlpTracesExportEnabled() {
+    if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
+      return OTLP_WRITER_TYPE.equals(writerType);
+    }
+    String multiWriterConfig = MULTI_WRITER_PREFIX.matcher(writerType).replaceAll("");
+    for (String subWriterType : COMMA.split(multiWriterConfig)) {
+      if (OTLP_WRITER_TYPE.equals(subWriterType)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public String getOtlpTracesEndpoint() {
