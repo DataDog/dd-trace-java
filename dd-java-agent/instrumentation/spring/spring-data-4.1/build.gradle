@@ -1,0 +1,49 @@
+muzzle {
+  pass {
+    group = 'org.springframework.data'
+    module = 'spring-data-commons'
+    versions = "[3.0.0,)"
+    extraDependency "org.springframework:spring-aop:6.0.0"
+    assertInverse = true
+  }
+
+  pass {
+    group = 'org.springframework'
+    module = 'spring-aop'
+    versions = "[6.0.0,)"
+    extraDependency "org.springframework.data:spring-data-commons:3.0.0"
+    assertInverse = true
+    skipFromReport = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly(group: 'org.springframework.data', name: 'spring-data-commons', version: '3.0.0')
+  compileOnly(group: 'org.springframework', name: 'spring-aop', version: '6.0.0')
+  implementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
+
+  // Include the 1.8 module as testImplementation for mutual-exclusion tests
+  testImplementation project(':dd-java-agent:instrumentation:spring:spring-data-1.8')
+
+  // JDBC instrumentation needed so JDBC child spans appear under repository.operation spans
+  testImplementation project(':dd-java-agent:instrumentation:jdbc')
+
+  // Spring Data JPA 3.0+ uses Jakarta Persistence (jakarta.persistence.*) and requires
+  // Spring Framework 6.0+ and Hibernate 6.1+ (the first Hibernate version with Jakarta EE support).
+  testImplementation group: 'org.springframework.data', name: 'spring-data-jpa', version: '3.0.0'
+  testImplementation group: 'org.springframework', name: 'spring-context', version: '6.0.0'
+  testImplementation group: 'org.springframework', name: 'spring-test', version: '6.0.0'
+  testImplementation group: 'org.hibernate.orm', name: 'hibernate-core', version: '6.1.0.Final'
+  testImplementation group: 'org.hsqldb', name: 'hsqldb', version: '2.7.1'
+
+  // Spring Data 4.x requires Spring Framework 7.x and Hibernate 7.x (Spring Boot 4)
+  latestDepTestImplementation group: 'org.springframework.data', name: 'spring-data-commons', version: '4.+'
+  latestDepTestImplementation group: 'org.springframework.data', name: 'spring-data-jpa', version: '4.+'
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '7.+'
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-test', version: '7.+'
+  latestDepTestImplementation group: 'org.hibernate.orm', name: 'hibernate-core', version: '7.+'
+}
