@@ -55,8 +55,8 @@ public class SecurityConfig {
    * the skipped-authentication tests.
    */
   static class CustomSecurityConfigurer
-      extends org.springframework.security.config.annotation.web.configurers
-          .AbstractHttpConfigurer<CustomSecurityConfigurer, HttpSecurity> {
+      extends org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer<
+          CustomSecurityConfigurer, HttpSecurity> {
 
     @Override
     public void configure(HttpSecurity http) {

@@ -8,8 +8,7 @@ import org.springframework.security.core.AuthenticationException;
 public class FailingAuthenticationProvider implements AuthenticationProvider {
 
   @Override
-  public Authentication authenticate(Authentication authentication)
-      throws AuthenticationException {
+  public Authentication authenticate(Authentication authentication) throws AuthenticationException {
     throw new AuthenticationServiceException("I'm dumb");
   }
 
