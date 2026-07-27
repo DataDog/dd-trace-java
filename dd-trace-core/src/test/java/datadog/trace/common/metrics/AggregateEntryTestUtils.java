@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -174,7 +175,10 @@ public final class AggregateEntryTestUtils {
         && a.getPeerTags().equals(b.getPeerTags())
         && Objects.equals(a.getHttpMethod(), b.getHttpMethod())
         && Objects.equals(a.getHttpEndpoint(), b.getHttpEndpoint())
-        && Objects.equals(a.getGrpcStatusCode(), b.getGrpcStatusCode());
+        && Objects.equals(a.getGrpcStatusCode(), b.getGrpcStatusCode())
+        // Additional tags are part of the key (folded into keyHash in schema order), so entries
+        // that differ only in additional tags must not compare equal.
+        && Arrays.equals(a.getAdditionalTags(), b.getAdditionalTags());
   }
 
   /**
