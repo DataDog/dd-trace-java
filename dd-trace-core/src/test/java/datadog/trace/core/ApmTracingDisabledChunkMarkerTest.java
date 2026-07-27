@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.common.writer.ListWriter;
-import datadog.trace.test.junit.utils.config.WithConfig;
+import datadog.trace.junit.utils.config.WithConfig;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.AfterEach;
