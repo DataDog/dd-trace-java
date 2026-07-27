@@ -56,10 +56,21 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
       payloadStarted = true;
     }
 
-    // OtlpProtoBuffer collects spans in reverse
-    for (int i = spans.size() - 1; i >= 0; i--) {
-      visitSpan(spans.get(i));
+    try {
+      // OtlpProtoBuffer collects spans in reverse
+      for (int i = spans.size() - 1; i >= 0; i--) {
+        visitSpan(spans.get(i));
+      }
+    } catch (Throwable e) {
+      // reset the buffer for subsequent traces
+      stop();
+      throw e;
     }
+  }
+
+  @Override
+  public int sizeInBytes() {
+    return protobuf.sizeInBytes();
   }
 
   /**
