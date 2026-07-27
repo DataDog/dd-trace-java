@@ -489,9 +489,11 @@ class OtlpStatsMetricWriterTest {
   }
 
   @Test
-  void malformedAdditionalTagsAreSkipped() throws IOException {
-    // Defensive: a slot with no ':', an empty key, or an empty value is dropped rather than emitted
-    // as a malformed attribute.
+  void emptyValueEmittedButMalformedSlotsSkipped() throws IOException {
+    // A slot with no ':' or an empty key is dropped as malformed. An empty value ("key:") is NOT
+    // malformed -- aggregation treats an explicitly-empty tag as a distinct dimension from an
+    // absent
+    // one, so it is emitted as key="" to keep the OTLP attributes faithful to the aggregate key.
     AggregateEntry e =
         AggregateEntryTestUtils.of(
             "GET /users",
@@ -519,7 +521,8 @@ class OtlpStatsMetricWriterTest {
     assertEquals("us-east-1", attrs.get("region"), "well-formed tag still emitted");
     assertFalse(attrs.containsKey("noseparator"), "no-separator slot skipped");
     assertFalse(attrs.containsKey(""), "empty-key slot skipped");
-    assertFalse(attrs.containsKey("emptyvalue"), "empty-value slot skipped");
+    assertTrue(attrs.containsKey("emptyvalue"), "empty-value slot emitted");
+    assertEquals("", attrs.get("emptyvalue"), "empty value emitted as empty string");
   }
 
   @Test
