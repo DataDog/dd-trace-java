@@ -105,8 +105,7 @@ public class SpringWebFluxTestApplication {
               @Override
               public Mono<ServerResponse> handle(ServerRequest request) {
                 return greetingHandler.intResponse(
-                    Mono.just(
-                        tracedMethod(Integer.parseInt(request.pathVariable("id")))));
+                    Mono.just(tracedMethod(Integer.parseInt(request.pathVariable("id")))));
               }
             })
         .andRoute(
@@ -116,9 +115,7 @@ public class SpringWebFluxTestApplication {
               public Mono<ServerResponse> handle(ServerRequest request) {
                 return greetingHandler.intResponse(
                     Mono.fromCallable(
-                        () ->
-                            tracedMethod(
-                                Integer.parseInt(request.pathVariable("id")))));
+                        () -> tracedMethod(Integer.parseInt(request.pathVariable("id")))));
               }
             })
         .andRoute(
@@ -153,9 +150,7 @@ public class SpringWebFluxTestApplication {
     public Mono<ServerResponse> customGreet(ServerRequest request) {
       return ServerResponse.ok()
           .contentType(MediaType.TEXT_PLAIN)
-          .body(
-              BodyInserters.fromValue(
-                  DEFAULT_RESPONSE + " " + request.pathVariable("name")));
+          .body(BodyInserters.fromValue(DEFAULT_RESPONSE + " " + request.pathVariable("name")));
     }
 
     public Mono<ServerResponse> customGreetWithWord(ServerRequest request) {

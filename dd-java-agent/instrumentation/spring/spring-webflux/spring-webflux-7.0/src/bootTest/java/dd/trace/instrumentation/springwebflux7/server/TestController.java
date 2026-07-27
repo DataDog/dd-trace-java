@@ -1,13 +1,12 @@
 package dd.trace.instrumentation.springwebflux7.server;
 
 import datadog.trace.api.Trace;
+import java.time.Duration;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
-
-import java.time.Duration;
 
 @RestController
 public class TestController {
@@ -55,9 +54,7 @@ public class TestController {
 
   @GetMapping("/foo-delayed-mono/{id}")
   public Mono<FooModel> getFooDelayedMono(@PathVariable("id") long id) {
-    return Mono.just(id)
-        .delayElement(Duration.ofMillis(100))
-        .map(i -> tracedMethod(i));
+    return Mono.just(id).delayElement(Duration.ofMillis(100)).map(i -> tracedMethod(i));
   }
 
   @GetMapping("/very-delayed")
