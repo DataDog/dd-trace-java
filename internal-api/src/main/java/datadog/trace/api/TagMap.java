@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import datadog.trace.api.function.TriConsumer;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.AbstractCollection;
 import java.util.AbstractSet;
 import java.util.Arrays;
@@ -1030,7 +1031,7 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
    * final only so {@link #clear()} can detach it (to null); it is otherwise fixed at construction
    * and never re-pointed. Package-visible so same-package tests can assert attach/detach directly.
    */
-  TagMap parent;
+  @VisibleForTesting TagMap parent;
 
   /**
    * Parent keys removed locally (read-through tombstones). Lazily allocated on the first such
@@ -1117,9 +1118,11 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
       return true;
     }
     if (this.removedFromParent == null) {
-      // no local entries and no tombstones -> empty iff the whole ancestor chain is empty (nothing
-      // shadows it). Ancestors are frozen (no tombstones), so exact == definite here.
-      return parent.isDefinitelyEmpty();
+      // A live parent is never definitely-empty: createFromParent drops an empty parent (and copy()
+      // only forwards an already-vetted parent), and the parent is frozen so it can't become empty.
+      // So with no local entries and no tombstones, the parent contributes at least one visible
+      // entry -> this map is non-empty.
+      return false;
     }
     // size == 0 with tombstones (rare): empty iff every visible ancestor entry is tombstoned
     return this.visibleParentCount() == 0;
@@ -1728,7 +1731,9 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
         Entry parentEntry = parent.getEntry(tag);
         if (parentEntry != null) {
           if (this.removedFromParent == null) {
-            this.removedFromParent = new HashSet<>();
+            // Small initial capacity: this set is rare and almost always holds only a handful of
+            // tombstoned keys, so the default 16-bucket HashSet table would be wasteful.
+            this.removedFromParent = new HashSet<>(4);
           }
           this.removedFromParent.add(tag);
           return localRemoved != null ? localRemoved : parentEntry;
