@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.gradle;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
 import java.io.File;
 import java.nio.file.Files;
@@ -30,6 +31,8 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
 
   private static final String PLUGIN_EXTENSION_NAME = "dd-ci-visibility";
   private static final String JACOCO_PLUGIN_ID = "jacoco";
+  private static final String JACOCO_AGENT_CONFIGURATION_NAME = "jacocoAgent";
+  private static final String JACOCO_ANT_CONFIGURATION_NAME = "jacocoAnt";
 
   private Project project;
 
@@ -105,12 +108,32 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
                             "com.datadoghq:dd-javac-plugin-client:%s",
                             extension.getCompilerPluginVersion())));
 
-    // if instrumented project does dependency verification,
-    // we need to exclude the detached configurations that we're adding
-    // as corresponding entries are not in the project's verification-metadata.xml
-    configuration.getResolutionStrategy().disableDependencyVerification();
+    disableDependencyVerificationIfConfigured(configuration);
 
     extension.setCompilerPluginClasspath(configuration);
+  }
+
+  private void disableDependencyVerificationIfConfigured(Configuration configuration) {
+    if (Config.get().isCiVisibilityGradleDependencyVerificationEnabled()) {
+      return;
+    }
+
+    if (Files.isRegularFile(
+        project
+            .getRootProject()
+            .getProjectDir()
+            .toPath()
+            .resolve("gradle/verification-metadata.xml"))) {
+      LOGGER.warn(
+          "Datadog Test Optimization disabled Gradle dependency verification for configuration "
+              + "{}. To keep verification enabled, set "
+              + "DD_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED=true and add "
+              + "the Datadog compiler plugin and injected JaCoCo dependencies to "
+              + "gradle/verification-metadata.xml. If the metadata is not updated, Gradle will "
+              + "fail the build while resolving these dependencies.",
+          configuration.getName());
+    }
+    configuration.getResolutionStrategy().disableDependencyVerification();
   }
 
   private void addModuleName(CiVisibilityPluginExtension extension) {
@@ -156,13 +179,13 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
 
     List<Configuration> jacocoConfigurations =
         project.getConfigurations().stream()
-            .filter(c -> c.getName().startsWith("jacoco"))
+            .filter(
+                c ->
+                    JACOCO_AGENT_CONFIGURATION_NAME.equals(c.getName())
+                        || JACOCO_ANT_CONFIGURATION_NAME.equals(c.getName()))
             .collect(Collectors.toList());
     for (Configuration jacocoConfiguration : jacocoConfigurations) {
-      // if instrumented project does dependency verification,
-      // we need to exclude configurations added by Jacoco
-      // as corresponding entries are not in the project's verification-metadata.xml
-      jacocoConfiguration.getResolutionStrategy().disableDependencyVerification();
+      disableDependencyVerificationIfConfigured(jacocoConfiguration);
     }
   }
 
