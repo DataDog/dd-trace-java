@@ -76,6 +76,7 @@ org.slf4j:jul-to-slf4j:1.7.30=testCompileClasspath,testRuntimeClasspath
 org.slf4j:log4j-over-slf4j:1.7.30=testCompileClasspath,testRuntimeClasspath
 org.slf4j:slf4j-api:2.0.17=compileClasspath,runtimeClasspath,spotbugs,spotbugsSlf4j,testCompileClasspath,testRuntimeClasspath
 org.slf4j:slf4j-simple:2.0.17=spotbugsSlf4j
+org.snakeyaml:snakeyaml-engine:2.9=testRuntimeClasspath
 org.spockframework:spock-bom:2.4-groovy-3.0=testCompileClasspath,testRuntimeClasspath
 org.spockframework:spock-core:2.4-groovy-3.0=testCompileClasspath,testRuntimeClasspath
 org.tabletest:tabletest-junit:1.2.1=testCompileClasspath,testRuntimeClasspath

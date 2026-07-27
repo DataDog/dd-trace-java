@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_AT
 
 import datadog.metrics.api.Histogram;
 import datadog.trace.api.Config;
+import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
@@ -16,13 +17,12 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.common.metrics.AggregateEntry;
 import datadog.trace.common.metrics.MetricWriter;
 import datadog.trace.core.otlp.common.OtlpPayload;
+import datadog.trace.core.otlp.common.OtlpResourceJson;
 import datadog.trace.core.otlp.common.OtlpResourceProto;
 import datadog.trace.core.otlp.common.OtlpSender;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A {@link MetricWriter} that exports the client-side trace metrics as a delta-temporality OTLP
@@ -31,8 +31,6 @@ import org.slf4j.LoggerFactory;
  * OTLP histogram data point and pushes it through the shared {@link OtlpMetricsProtoCollector}.
  */
 public final class OtlpStatsMetricWriter implements MetricWriter {
-  private static final Logger log = LoggerFactory.getLogger(OtlpStatsMetricWriter.class);
-
   static final String METRIC_NAME = "traces.span.sdk.metrics.duration";
   static final String METRIC_UNIT = "s";
 
@@ -62,7 +60,7 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   @Nullable private final String defaultService;
 
   // own single-thread collector; forced to DELTA since trace-stats buckets are per-interval deltas.
-  private final OtlpMetricsProtoCollector collector;
+  private final OtlpMetricsCollector collector;
 
   // data points snapshotted during add(), replayed through the visitor in finishBucket()
   private final List<PendingPoint> pending = new ArrayList<>();
@@ -89,32 +87,42 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     // shared protocol-based sender selection so both OTLP metrics export paths agree
     this(
         OtlpMetricsSenderFactory.create(config),
+        config.getOtlpMetricsProtocol(),
         config.isTraceOtelSemanticsEnabled(),
         config.getServiceName());
-    if (this.sender == null) {
-      // HTTP_JSON has no protobuf-free encoder yet; JSON transport is deferred per the plan.
-      log.warn(
-          "OTLP trace metrics export disabled: unsupported metrics protocol {}. "
-              + "Set OTEL_EXPORTER_OTLP_METRICS_PROTOCOL to grpc or http/protobuf.",
-          config.getOtlpMetricsProtocol());
-    }
   }
 
-  // visible for testing: lets tests inject a capturing sender to decode the emitted protobuf and
+  // visible for testing: lets tests inject a capturing sender to decode the emitted payload and
   // control the semantics mode and default service
   OtlpStatsMetricWriter(
       @Nullable OtlpSender sender, boolean otelSemanticsMode, @Nullable String defaultService) {
+    this(sender, OtlpConfig.Protocol.HTTP_PROTOBUF, otelSemanticsMode, defaultService);
+  }
+
+  private OtlpStatsMetricWriter(
+      @Nullable OtlpSender sender,
+      OtlpConfig.Protocol protocol,
+      boolean otelSemanticsMode,
+      @Nullable String defaultService) {
     this.sender = sender;
     this.otelSemanticsMode = otelSemanticsMode;
     this.defaultService = defaultService;
     // Default mode carries datadog.runtime_id / process tags on the Resource; OTel-semantics mode
     // uses the plain vendor-neutral resource (no datadog.*).
-    byte[] resourceMessage =
-        otelSemanticsMode
-            ? OtlpResourceProto.RESOURCE_MESSAGE
-            : OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS;
     this.collector =
-        new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE, true, resourceMessage);
+        protocol == OtlpConfig.Protocol.HTTP_JSON
+            ? new OtlpMetricsJsonCollector(
+                SystemTimeSource.INSTANCE,
+                true,
+                otelSemanticsMode
+                    ? OtlpResourceJson.RESOURCE_FRAGMENT
+                    : OtlpResourceJson.RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS)
+            : new OtlpMetricsProtoCollector(
+                SystemTimeSource.INSTANCE,
+                true,
+                otelSemanticsMode
+                    ? OtlpResourceProto.RESOURCE_MESSAGE
+                    : OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS);
   }
 
   @Override

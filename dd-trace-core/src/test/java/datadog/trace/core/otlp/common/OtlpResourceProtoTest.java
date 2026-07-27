@@ -7,6 +7,8 @@ import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
+import static datadog.trace.core.otlp.common.OtlpResourceAttributes.datadogResourceAttributes;
+import static datadog.trace.core.otlp.common.OtlpResourceAttributes.traceResourceAttributes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -168,8 +170,7 @@ class OtlpResourceProtoTest {
 
     Map<String, String> withDatadog =
         parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(
-                config, OtlpResourceProto.datadogResourceAttributes(config)));
+            OtlpResourceProto.buildResourceMessage(config, datadogResourceAttributes(config)));
     Map<String, String> plain =
         parseResourceAttributes(
             OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap()));
@@ -193,11 +194,11 @@ class OtlpResourceProtoTest {
     Map<String, String> withMarker =
         parseResourceAttributes(
             OtlpResourceProto.buildResourceMessage(
-                withMetrics, OtlpResourceProto.traceResourceAttributes(withMetrics)));
+                withMetrics, traceResourceAttributes(withMetrics)));
     Map<String, String> without =
         parseResourceAttributes(
             OtlpResourceProto.buildResourceMessage(
-                withoutMetrics, OtlpResourceProto.traceResourceAttributes(withoutMetrics)));
+                withoutMetrics, traceResourceAttributes(withoutMetrics)));
 
     assertEquals(
         "true", withMarker.get("_dd.stats_computed"), "marker present when stats computed");

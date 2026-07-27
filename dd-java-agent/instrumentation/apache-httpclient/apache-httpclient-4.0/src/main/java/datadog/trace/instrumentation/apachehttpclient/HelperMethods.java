@@ -68,18 +68,15 @@ public class HelperMethods {
       return;
     }
     final AgentSpan span = scope.span();
-    try {
-      if (result instanceof HttpResponse) {
-        DECORATE.onResponse(span, (HttpResponse) result);
-      } // else they probably provided a ResponseHandler.
+    if (result instanceof HttpResponse) {
+      DECORATE.onResponse(span, (HttpResponse) result);
+    } // else they probably provided a ResponseHandler.
 
-      DECORATE.onError(span, throwable);
-      DECORATE.beforeFinish(span);
-    } finally {
-      scope.close();
-      span.finish();
-      CallDepthThreadLocalMap.reset(HttpClient.class);
-    }
+    DECORATE.onError(span, throwable);
+    DECORATE.beforeFinish(span);
+    scope.close();
+    span.finish();
+    CallDepthThreadLocalMap.reset(HttpClient.class);
   }
 
   public static void onBlockingRequest() {

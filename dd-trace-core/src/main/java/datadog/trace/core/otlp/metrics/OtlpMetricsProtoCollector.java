@@ -98,6 +98,7 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
     return run(registry);
   }
 
+  @Override
   OtlpPayload collectMetrics(
       Consumer<OtlpMetricsVisitor> registry, long startNanos, long endNanos) {
     startWithWindow(startNanos, endNanos);
@@ -116,10 +117,11 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
   /** Prepare temporary elements to collect metrics data. */
   private void start() {
     // shift interval to cover last collection to now
-    startNanos = endNanos;
-    endNanos = timeSource.getCurrentTimeNanos();
+    this.startNanos = endNanos;
+    this.endNanos = timeSource.getCurrentTimeNanos();
 
-    recalibrate();
+    // remove stale entries from caches
+    OtlpCommonProto.recalibrateCaches();
   }
 
   /** Prepare temporary elements to collect metrics over an explicit window. */
@@ -127,10 +129,6 @@ public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
     this.startNanos = startNanos;
     this.endNanos = endNanos;
 
-    recalibrate();
-  }
-
-  private void recalibrate() {
     // remove stale entries from caches
     OtlpCommonProto.recalibrateCaches();
   }

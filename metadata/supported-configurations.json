@@ -241,6 +241,14 @@
         "aliases": []
       }
     ],
+    "DD_APPSEC_AGENTIC_ONBOARDING": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "",
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING": [
       {
         "version": "C",
@@ -1505,6 +1513,14 @@
         "aliases": []
       }
     ],
+    "DD_FEATURE_FLAGS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE": [
       {
         "version": "A",
@@ -1533,7 +1549,7 @@
       {
         "version": "A",
         "type": "int",
-        "default": "2",
+        "default": "5",
         "aliases": []
       }
     ],
@@ -10785,6 +10801,22 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS": [
+      {
+        "version": "A",
+        "type": "array",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "100",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_STATUS404DECORATOR_ENABLED": [
       {
         "version": "A",
@@ -12002,5 +12034,7 @@
       }
     ]
   },
-  "deprecations": {}
+  "deprecations": {
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": "DD_FEATURE_FLAGS_ENABLED"
+  }
 }
