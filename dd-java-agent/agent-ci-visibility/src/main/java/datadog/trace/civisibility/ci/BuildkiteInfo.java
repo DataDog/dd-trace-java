@@ -23,8 +23,8 @@ class BuildkiteInfo implements CIProviderInfo {
   public static final String BUILDKITE = "BUILDKITE";
   public static final String BUILDKITE_PROVIDER_NAME = "buildkite";
   public static final String BUILDKITE_PIPELINE_ID = "BUILDKITE_BUILD_ID";
-  public static final String BUILDKITE_PIPELINE_SLUG_ENV_VAR = "BUILDKITE_PIPELINE_SLUG";
-  public static final String BUILDKITE_PIPELINE_DISPLAY_NAME_ENV_VAR = "BUILDKITE_PIPELINE_NAME";
+  public static final String BUILDKITE_PIPELINE_SLUG = "BUILDKITE_PIPELINE_SLUG";
+  public static final String BUILDKITE_PIPELINE_DISPLAY_NAME = "BUILDKITE_PIPELINE_NAME";
   public static final String BUILDKITE_PIPELINE_NUMBER = "BUILDKITE_BUILD_NUMBER";
   public static final String BUILDKITE_BUILD_URL = "BUILDKITE_BUILD_URL";
   public static final String BUILDKITE_JOB_ID = "BUILDKITE_JOB_ID";
