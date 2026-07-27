@@ -8,7 +8,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLongArray;
 import javax.annotation.Nullable;
 
 /**
@@ -317,36 +316,6 @@ public final class AggregateEntry extends Hashtable.Entry {
     } else {
       okLatencies.accept(tagAndDuration);
       okDuration += tagAndDuration;
-    }
-    return this;
-  }
-
-  /**
-   * Records {@code count} durations from {@code durations} (positions 0..count-1). Used by
-   * integration tests; production code uses {@link #recordOneDuration}.
-   */
-  @SuppressFBWarnings(
-      value = "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE",
-      justification =
-          "Single-writer by design: recording counters are mutated only on the aggregator thread"
-              + " (see class javadoc); no cross-thread atomicity guarantee is needed.")
-  AggregateEntry recordDurations(int count, AtomicLongArray durations) {
-    this.hitCount += count;
-    for (int i = 0; i < count && i < durations.length(); ++i) {
-      long d = durations.getAndSet(i, 0);
-      if ((d & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
-        d ^= TOP_LEVEL_TAG;
-        topLevelCount++;
-      }
-      if ((d & ERROR_TAG) == ERROR_TAG) {
-        d ^= ERROR_TAG;
-        errorLatenciesForWrite().accept(d);
-        this.errorDuration += d;
-        errorCount++;
-      } else {
-        okLatencies.accept(d);
-        this.okDuration += d;
-      }
     }
     return this;
   }
