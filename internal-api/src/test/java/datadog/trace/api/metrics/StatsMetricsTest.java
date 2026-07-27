@@ -74,6 +74,28 @@ class StatsMetricsTest {
   }
 
   @Test
+  void wholeKeyCollapseIncrementsPreCreatedCounter() {
+    StatsMetrics metrics = StatsMetrics.getInstance();
+
+    // The whole_key counter is pre-created at construction, so it is always present in the drain.
+    StatsMetrics.TaggedCounter counter = countersByTag().get(StatsMetrics.COLLAPSED_WHOLE_KEY);
+    assertEquals(StatsMetrics.COLLAPSED_SPANS, counter.getName());
+    assertEquals(StatsMetrics.COLLAPSED_WHOLE_KEY, counter.getTag());
+
+    long before = counter.getValue();
+    metrics.onWholeKeyCollapse();
+    metrics.onWholeKeyCollapse();
+    assertEquals(before + 2, counter.getValue(), "each call increments the counter by one");
+
+    // Routing the same tag through onCollapsedSpans hits the same pre-created counter instance.
+    assertTrue(
+        countersByTag().get(StatsMetrics.COLLAPSED_WHOLE_KEY) == counter,
+        "whole_key resolves to a single stable counter");
+    metrics.onCollapsedSpans(StatsMetrics.COLLAPSED_WHOLE_KEY, 3);
+    assertEquals(before + 5, counter.getValue());
+  }
+
+  @Test
   void reasonCounterIsStableAcrossLookups() {
     StatsMetrics metrics = StatsMetrics.getInstance();
     String reason = "collapsed:test_stable";
