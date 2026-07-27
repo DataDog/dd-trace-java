@@ -4,7 +4,6 @@ import datadog.metrics.api.Histogram;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -297,11 +296,6 @@ public final class AggregateEntry extends Hashtable.Entry {
    * Records a single hit. {@code tagAndDuration} carries the duration nanos with optional {@link
    * #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits OR-ed in.
    */
-  @SuppressFBWarnings(
-      value = "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE",
-      justification =
-          "Single-writer by design: recording counters are mutated only on the aggregator thread"
-              + " (see class javadoc); no cross-thread atomicity guarantee is needed.")
   AggregateEntry recordOneDuration(long tagAndDuration) {
     hitCount++;
     if ((tagAndDuration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
@@ -324,11 +318,6 @@ public final class AggregateEntry extends Hashtable.Entry {
    * Clears the recording state. The OK histogram is reused; the error histogram (if allocated) is
    * reused too, but entries that never saw an error keep their {@code errorLatencies} field null.
    */
-  @SuppressFBWarnings(
-      value = {"AT_NONATOMIC_64BIT_PRIMITIVE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
-      justification =
-          "Single-writer by design: recording counters are reset only on the aggregator thread"
-              + " (see class javadoc); no cross-thread visibility guarantee is needed.")
   void clearAggregate() {
     this.errorCount = 0;
     this.hitCount = 0;
