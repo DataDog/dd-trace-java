@@ -20,8 +20,11 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'redis.clients', name: 'jedis', version: '3.3.0'
 
-  testImplementation group: 'com.github.codemonstur', name: 'embedded-redis', version: '1.4.3'
-  testImplementation group: 'redis.clients', name: 'jedis', version: '3.3.0'
+  testImplementation group: 'redis.clients', name: 'jedis', version: '3.0.0'
+  testImplementation (group: 'com.github.codemonstur', name: 'embedded-redis', version: '1.4.3') {
+    // Excluding redis client to avoid conflicts in instrumentation code.
+    exclude group: 'redis.clients', module: 'jedis'
+  }
   // ensures jedis-1.4 instrumentation does not load with jedis 3.0+ by failing
   // the tests in the event it does. The tests will end up with double spans
   testImplementation project(':dd-java-agent:instrumentation:jedis:jedis-1.4')
