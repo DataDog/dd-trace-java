@@ -29,11 +29,18 @@ compile/resolution tasks (e.g. `compileLatestDep*`). Ignore all other red jobs (
 
 ## Prerequisites
 
-Require `glab`, `gh`, and `jq`. If any is missing or unauthenticated, report exactly what's missing and stop — don't
-install it yourself or work around it; print the install command so the user can run it manually.
+Require `glab`, `gh`, `jq`, and `ddtool`. If a **binary is missing**, report exactly which one and stop — don't install
+it yourself; print the installation command so the user can run it manually. Authentication is different: an
+expired/missing
+`glab` token is expected and **recoverable** — refresh it with the recipe below rather than stopping.
 
-- **`glab` (GitLab CLI) — required, authenticated.** `glab auth status` must be green for `gitlab.ddbuild.io`. If it's
-  missing, tell the user to install it manually (`brew install glab`, or the platform package manager).
+- **`glab` (GitLab CLI) — required.** If the binary is missing, tell the user to install it manually (`brew install
+  glab`, or the platform package manager). **Do not trust `glab auth status`** for `gitlab.ddbuild.io`: this repo
+  authenticates with a GitLab *project access token*, which cannot call the `/user` endpoint that `status` probes, so
+  `status` reports red 401 even when API access is fine. Instead, probe with a real project-scoped call (see readiness
+  probe below) and, if it 401s, run the auth-recovery recipe.
+- **`ddtool` — required (for GitLab auth).** Datadog-internal CLI that mints the GitLab project access token. If the
+  binary is missing, tell the user to install it manually and stop.
 - **GitHub CLI (`gh`) — required, authenticated.** Resolves, checks out, and opens PRs. Run `gh auth status` to verify.
 - **`jq` — required.** Every GitLab API call is parsed with it; confirm it is on `PATH`.
 - **Git remote `origin` with `master` — required.** The rollback baseline and the Phase 3 branch base come from the
@@ -47,13 +54,44 @@ Every `glab api` call below uses two fixed values: `--hostname gitlab.ddbuild.io
 can't infer the host) and the project path `DataDog%2Fapm-reliability%2Fdd-trace-java` (use exactly this — the shorter
 `DataDog/dd-trace-java` only 301-redirects and breaks `glab`).
 
+### GitLab auth readiness probe & recovery
+
+Before Phase 1, confirm `glab` can actually reach the API with a project-scoped call (works with a project access token;
+`glab auth status` does not):
+
+```bash
+glab api --hostname gitlab.ddbuild.io "projects/DataDog%2Fapm-reliability%2Fdd-trace-java" | jq -er .path_with_namespace
+```
+
+If it prints `DataDog/apm-reliability/dd-trace-java`, auth is good — proceed. If it 401s (or `glab` reports no token),
+refresh the token and retry the probe:
+
+```bash
+TOKEN=$(ddtool auth gitlab project-token DataDog dd-trace-java | tail -1)
+glab auth login --hostname gitlab.ddbuild.io --token "$TOKEN"
+```
+
+- If the `ddtool` command itself errors with an auth/login failure (not a GitLab 401), the developer's `ddtool` session
+  has expired — have them run `ddtool auth login` first, then re-run the recipe.
+- Use **`project-token`** — *not* `ddtool auth gitlab token` (the oauth token 401s against this REST API; dead end).
+- The `project-token` args are the **GitHub short name** `DataDog dd-trace-java`, even though every `glab api` path uses
+  the longer `DataDog%2Fapm-reliability%2Fdd-trace-java`.
+- These tokens are short-lived. If **any** `glab api` call later in the run starts returning 401, just re-run this
+  recovery recipe and continue — don't abort.
+- `glab auth login` may print a `gitlab.com` telemetry 401 warning; it's harmless — the probe above is the source of
+  truth.
+
 ---
 
 ## Phase 0 — Preflight
 
 1. **Collect inputs.** Ask the user for the **GitLab pipeline id** and the **PR number**.
 
-2. **Resolve the PR.**
+2. **Confirm GitLab auth** by running the readiness probe from
+   [GitLab auth readiness probe & recovery](#gitlab-auth-readiness-probe--recovery); if it 401s, run the recovery recipe
+   and re-probe before continuing. Do this before any `glab api` call.
+
+3. **Resolve the PR.**
    ```bash
    gh pr view <PR> --json number,headRefName,headRefOid,url,baseRefName,title
    ```
@@ -61,11 +99,11 @@ can't infer the host) and the project path `DataDog%2Fapm-reliability%2Fdd-trace
    title/branch looks like the weekly dependency-update PR; if not, STOP and tell the user this isn't the PR the skill
    handles (the whole skill assumes an `origin/master` baseline and lockfile-only diffs).
 
-3. **Record the broken head SHA** as session context — call it `ORIG_PR_HEAD`. Substitute the literal 40-char SHA into
+4. **Record the broken head SHA** as session context — call it `ORIG_PR_HEAD`. Substitute the literal 40-char SHA into
    every command below rather than a shell variable (each command may run in a separate shell). Phase 3 needs it to
    retrieve the *broken* lockfiles after Phase 2 rolls them back.
 
-4. **Check out the PR branch at its head.**
+5. **Check out the PR branch at its head.**
 
 - If the worktree is **dirty**, STOP and ask the user to commit/stash/discard — this skill rewrites lockfiles in place
   and a checkout could clobber uncommitted work.
@@ -79,7 +117,7 @@ can't infer the host) and the project path `DataDog%2Fapm-reliability%2Fdd-trace
 
 Do not triage or commit until `HEAD` equals the PR head — otherwise Phase 2 builds commits on the wrong tree.
 
-5. **Sync the master reference** (rollback + Phase 2/3 base):
+6. **Sync the master reference** (rollback + Phase 2/3 base):
    ```bash
    git fetch origin master
    ```
@@ -127,9 +165,9 @@ Do not triage or commit until `HEAD` equals the PR head — otherwise Phase 2 bu
 3. **Map each Gradle task path → lockfile.** Strip the trailing `:<taskName>`, convert the remaining `:` to `/`, and
    append `/gradle.lockfile` — e.g. `:<module-path>:latestDepTest` → `<module-path-with-slashes>/gradle.lockfile`.
    Verify the derived path exists; if it doesn't (rare Gradle-path/dir mismatch), resolve it with
-   `./gradlew -q :<project-path>:properties | grep '^projectDir:'` rather than guessing by leaf name.
-   Then confirm the PR actually changed this lockfile; if it didn't, the failure is flaky/unrelated (rolling back would
-   be a no-op) — exclude the module and flag it to the user:
+   `./gradlew -q :<project-path>:properties | grep '^projectDir:'` rather than guessing by leaf name. Then confirm the
+   PR actually changed this lockfile; if it didn't, the failure is flaky/unrelated (rolling back would be a no-op) —
+   exclude the module and flag it to the user:
    ```bash
    BASE=$(git merge-base HEAD origin/master)   # HEAD == ORIG_PR_HEAD (verified in Phase 0)
    git diff --quiet "$BASE" HEAD -- <module>/gradle.lockfile \
@@ -177,7 +215,9 @@ action that needs the user's go-ahead is the **push** (step 4) — where changes
      && echo "matches baseline" || echo "DIFF — investigate before pushing"
    ```
    Fix anything flagged. Then, with the user's go-ahead, push **explicitly** to the PR branch (`headRefName` from Phase
-   0) so a missing/incorrect upstream can't send commits elsewhere:
+
+0) so a missing/incorrect upstream can't send commits elsewhere:
+
    ```bash
    git push origin HEAD:<headRefName>
    ```
@@ -282,8 +322,8 @@ When done, summarize: unblock commits pushed, and for each module either the fix
 
 ## Guardrails
 
-- **Scope:** only modules whose latest-dep source set failed. Phase 2 changes **only** those modules' `gradle.lockfile`s
-  — never source code, never another module. Phase 3 may extend beyond the failed module only with clear justification,
-  and verification must then cover every module you touched.
+- **Scope:** only modules whose latest-dep source set failed. Phase 2 changes **only** those modules' `gradle.lockfile`
+  s — never source code, never another module. Phase 3 may extend beyond the failed module only with clear
+  justification, and verification must then cover every module you touched.
 - **Approvals:** get the user's go-ahead before the Phase 2 push and before committing/opening any Phase 3 PR.
 - Keep Gradle runs sequential.
