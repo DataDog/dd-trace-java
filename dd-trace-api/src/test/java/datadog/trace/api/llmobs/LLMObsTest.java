@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -121,6 +122,11 @@ class LLMObsTest {
     assertEquals("Get the weather by location", toolDefinition.getDescription());
     assertEquals(schema, toolDefinition.getSchema());
     assertEquals("1.2.3", toolDefinition.getVersion());
+  }
+
+  @Test
+  void testSetToolDefinitionsIsCompatibilityPreservingDefaultMethod() throws Exception {
+    assertTrue(LLMObsSpan.class.getMethod("setToolDefinitions", List.class).isDefault());
   }
 
   @Test

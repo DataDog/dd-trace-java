@@ -28,7 +28,7 @@ public interface LLMObsSpan {
    *
    * @param toolDefinitions The tool definitions supplied to the LLM
    */
-  void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions);
+  default void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions) {}
 
   /**
    * Annotate the span with metadata
