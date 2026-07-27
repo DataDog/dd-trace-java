@@ -31,6 +31,8 @@ class CodeownersTest {
       throws IOException {
     Codeowners codeowners = parse(resource);
     assertEquals(expectedOwners, codeowners.getOwners(path));
+    Codeowners indexedCodeowners = parseWithActivatedIndexes(resource);
+    assertEquals(expectedOwners, indexedCodeowners.getOwners(path));
   }
 
   @Test
@@ -73,6 +75,7 @@ class CodeownersTest {
         arguments(GITHUB_SAMPLE, "scripts/inner/script.js", asList("@doctocat", "@octocat")),
         arguments(GITHUB_SAMPLE, "build/logs/current.log", singletonList("@doctocat")),
         arguments(GITHUB_SAMPLE, "build/logs/inner/current.log", singletonList("@doctocat")),
+        arguments(GITHUB_SAMPLE, "build/logs-v2/current.log", singletonList("@doctocat")),
         arguments(GITHUB_SAMPLE, "module/build/logs/current.log", globalOwners),
         arguments(GITHUB_SAMPLE, "apps/app1.exe", singletonList("@octocat")),
         arguments(GITHUB_SAMPLE, "apps/inner/app2.exe", singletonList("@octocat")),
@@ -129,14 +132,40 @@ class CodeownersTest {
             asList("@global-owner", "@other-generated-files-team")),
         arguments(
             GITLAB_SAMPLE,
+            "generated-assets/excluded-v2/output.txt",
+            asList("@global-owner", "@other-generated-files-team")),
+        arguments(
+            GITLAB_SAMPLE,
             "generated-assets/excluded/special.txt",
             asList("@global-owner", "@other-generated-files-team")));
   }
 
   private static Codeowners parse(String resource) throws IOException {
+    return CodeownersImpl.parse(new StringReader(read(resource)));
+  }
+
+  private static Codeowners parseWithActivatedIndexes(String resource) throws IOException {
+    StringBuilder content = new StringBuilder(read(resource));
+    if (GITLAB_SAMPLE.equals(resource)) {
+      content.append("\n[Generated Files]\n");
+    }
+    for (int i = 0; i < 512; i++) {
+      content.append("/__owned").append(i).append("/file @dummy\n");
+      content.append("!/__excluded").append(i).append("/file\n");
+    }
+    return CodeownersImpl.parse(new StringReader(content.toString()));
+  }
+
+  private static String read(String resource) throws IOException {
     try (InputStream stream = CodeownersTest.class.getClassLoader().getResourceAsStream(resource);
         Reader reader = new InputStreamReader(stream, UTF_8)) {
-      return CodeownersImpl.parse(reader);
+      StringBuilder content = new StringBuilder();
+      char[] buffer = new char[1024];
+      int read;
+      while ((read = reader.read(buffer)) >= 0) {
+        content.append(buffer, 0, read);
+      }
+      return content.toString();
     }
   }
 }

@@ -228,6 +228,14 @@ public class EntryBuilder {
   private @Nullable String parseIndexKey() {
     // Index by the first two fixed path segments; patterns without a safe prefix stay linear.
     int position = offset;
+    int patternEnd = position;
+    while (patternEnd < c.length && !isPatternTerminator(c[patternEnd])) {
+      patternEnd++;
+    }
+    // Trailing-slash matchers can match beyond a segment boundary, making their prefix unsafe.
+    if (patternEnd > position && c[patternEnd - 1] == '/') {
+      return null;
+    }
     boolean patternContainsSlashes = c[position] == '/';
     if (patternContainsSlashes) {
       position++;
