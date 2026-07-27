@@ -599,6 +599,7 @@ include(
   ":dd-java-agent:instrumentation:spring:spring-scheduling-3.1",
   ":dd-java-agent:instrumentation:spring:spring-security:spring-security-5.0",
   ":dd-java-agent:instrumentation:spring:spring-security:spring-security-6.0",
+  ":dd-java-agent:instrumentation:spring:spring-security:spring-security-7.0",
   ":dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0",
   ":dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-6.0",
   ":dd-java-agent:instrumentation:spring:spring-webmvc:spring-webmvc-3.1",

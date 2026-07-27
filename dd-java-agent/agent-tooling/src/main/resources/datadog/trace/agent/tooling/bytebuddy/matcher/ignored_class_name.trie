@@ -290,8 +290,16 @@
 0 org.springframework.boot.web.embedded.netty.NettyWebServer$*
 0 org.springframework.boot.web.embedded.tomcat.TomcatEmbeddedWebappClassLoader
 0 org.springframework.boot.web.embedded.tomcat.TomcatWebServer$1
+# Spring Boot 4 moved tomcat classes to org.springframework.boot.tomcat
+0 org.springframework.boot.tomcat.TomcatEmbeddedWebappClassLoader
+0 org.springframework.boot.tomcat.TomcatWebServer$1
+# Spring Boot 4 moved BackgroundPreinitializer to preinitialize package
+0 org.springframework.boot.autoconfigure.preinitialize.BackgroundPreinitializingApplicationListener$*
 0 org.springframework.boot.web.servlet.context.AnnotationConfigServletWebServerApplicationContext
 0 org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
+# Spring Boot 4 moved servlet context classes
+0 org.springframework.boot.web.server.servlet.context.AnnotationConfigServletWebServerApplicationContext
+0 org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext
 0 org.springframework.boot.web.servlet.support.SpringBootServletInitializer
 0 org.springframework.boot.web.support.SpringBootServletInitializer
 2 org.springframework.cache.*

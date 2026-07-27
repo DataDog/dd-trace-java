@@ -1,0 +1,45 @@
+muzzle {
+  pass {
+    group = 'org.springframework.security'
+    module = 'spring-security-core'
+    versions = "[7.0.0,)"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+final springBootVersion = '4.0.0'
+final springSecurityVersion = '7.1.0'
+
+tasks.withType(AbstractCompile).configureEach {
+  configureCompiler(it, 17)
+}
+
+tasks.withType(GroovyCompile).configureEach {
+  configureCompiler(it, 17)
+}
+
+dependencies {
+  compileOnly group: 'org.springframework.security', name: 'spring-security-core', version: springSecurityVersion
+
+  // Reuse the shared decorator from spring-security-5.0
+  implementation project(':dd-java-agent:instrumentation:spring:spring-security:spring-security-5.0')
+
+  testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: springBootVersion
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: springBootVersion
+  testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: springBootVersion
+
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '4.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '4.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '4.+'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-5.5')
+}
