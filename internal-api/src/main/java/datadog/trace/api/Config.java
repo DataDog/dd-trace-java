@@ -941,6 +941,7 @@ public class Config {
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
   private final Set<String> splitByTags;
+  private final Set<String> traceStatsAdditionalTags;
   private final boolean jeeSplitByDeployment;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
@@ -1826,6 +1827,12 @@ public class Config {
             || DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmPropagationMode);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
+
+    traceStatsAdditionalTags =
+        experimentalFeaturesEnabled.contains(
+                propertyNameToEnvironmentVariableName(TRACE_STATS_ADDITIONAL_TAGS))
+            ? tryMakeImmutableSet(configProvider.getList(TRACE_STATS_ADDITIONAL_TAGS))
+            : Collections.emptySet();
 
     jeeSplitByDeployment =
         configProvider.getBoolean(
@@ -5288,11 +5295,7 @@ public class Config {
   }
 
   public Set<String> getTraceStatsAdditionalTags() {
-    if (!experimentalFeaturesEnabled.contains(
-        propertyNameToEnvironmentVariableName(TRACE_STATS_ADDITIONAL_TAGS))) {
-      return Collections.emptySet();
-    }
-    return tryMakeImmutableSet(configProvider.getList(TRACE_STATS_ADDITIONAL_TAGS));
+    return traceStatsAdditionalTags;
   }
 
   public String getEnv() {
@@ -6435,6 +6438,8 @@ public class Config {
         + dbmTracePreparedStatements
         + ", splitByTags="
         + splitByTags
+        + ", traceStatsAdditionalTags="
+        + traceStatsAdditionalTags
         + ", jeeSplitByDeployment="
         + jeeSplitByDeployment
         + ", scopeDepthLimit="
