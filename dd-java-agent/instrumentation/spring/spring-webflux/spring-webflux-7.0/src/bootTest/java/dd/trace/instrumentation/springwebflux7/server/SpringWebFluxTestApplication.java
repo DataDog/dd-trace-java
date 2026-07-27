@@ -1,0 +1,186 @@
+package dd.trace.instrumentation.springwebflux7.server;
+
+import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
+import static org.springframework.web.reactive.function.server.RequestPredicates.POST;
+import static org.springframework.web.reactive.function.server.RouterFunctions.route;
+
+import datadog.trace.api.Trace;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.HandlerMapping;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.server.HandlerFunction;
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.ServerRequest;
+import org.springframework.web.reactive.function.server.ServerResponse;
+import org.springframework.web.reactive.handler.SimpleUrlHandlerMapping;
+import org.springframework.web.reactive.socket.WebSocketHandler;
+import reactor.core.publisher.Mono;
+
+@SpringBootApplication
+public class SpringWebFluxTestApplication {
+
+  @Bean
+  public HandlerMapping wsHandlerMapping(WsHandler wsHandler) {
+    Map<String, WebSocketHandler> map = new HashMap<>();
+    map.put("/websocket", wsHandler);
+
+    SimpleUrlHandlerMapping handlerMapping = new SimpleUrlHandlerMapping();
+    handlerMapping.setOrder(1);
+    handlerMapping.setUrlMap(map);
+    return handlerMapping;
+  }
+
+  @Bean
+  public RouterFunction<ServerResponse> echoRouterFunction(EchoHandler echoHandler) {
+    return route(POST("/echo"), new EchoHandlerFunction(echoHandler));
+  }
+
+  @Bean
+  public RouterFunction<ServerResponse> greetRouterFunction(GreetingHandler greetingHandler) {
+    return route(
+            GET("/greet"),
+            new HandlerFunction<ServerResponse>() {
+              @Override
+              public Mono<ServerResponse> handle(ServerRequest request) {
+                return greetingHandler.defaultGreet();
+              }
+            })
+        .andRoute(
+            GET("/greet/{name}"),
+            new HandlerFunction<ServerResponse>() {
+              @Override
+              public Mono<ServerResponse> handle(ServerRequest request) {
+                return greetingHandler.customGreet(request);
+              }
+            })
+        .andRoute(
+            GET("/greet/{name}/{word}"),
+            new HandlerFunction<ServerResponse>() {
+              @Override
+              public Mono<ServerResponse> handle(ServerRequest request) {
+                return greetingHandler.customGreetWithWord(request);
+              }
+            })
+        .andRoute(
+            GET("/double-greet"),
+            new HandlerFunction<ServerResponse>() {
+              @Override
+              public Mono<ServerResponse> handle(ServerRequest request) {
+                return greetingHandler.doubleGreet();
+              }
+            })
+        .andRoute(
+            GET("/greet-delayed"),
+            new HandlerFunction<ServerResponse>() {
+              @Override
+              public Mono<ServerResponse> handle(ServerRequest request) {
+                return greetingHandler.defaultGreet().delayElement(Duration.ofMillis(100));
+              }
+            })
+        .andRoute(
+            GET("/greet-failfast/{id}"),
+            new HandlerFunction<ServerResponse>() {
+              @Override
+              public Mono<ServerResponse> handle(ServerRequest request) {
+                throw new RuntimeException("bad things happen");
+              }
+            })
+        .andRoute(
+            GET("/greet-failmono/{id}"),
+            new HandlerFunction<ServerResponse>() {
+              @Override
+              public Mono<ServerResponse> handle(ServerRequest request) {
+                return Mono.error(new RuntimeException("bad things happen"));
+              }
+            })
+        .andRoute(
+            GET("/greet-traced-method/{id}"),
+            new HandlerFunction<ServerResponse>() {
+              @Override
+              public Mono<ServerResponse> handle(ServerRequest request) {
+                return greetingHandler.intResponse(
+                    Mono.just(
+                        tracedMethod(Integer.parseInt(request.pathVariable("id")))));
+              }
+            })
+        .andRoute(
+            GET("/greet-mono-from-callable/{id}"),
+            new HandlerFunction<ServerResponse>() {
+              @Override
+              public Mono<ServerResponse> handle(ServerRequest request) {
+                return greetingHandler.intResponse(
+                    Mono.fromCallable(
+                        () ->
+                            tracedMethod(
+                                Integer.parseInt(request.pathVariable("id")))));
+              }
+            })
+        .andRoute(
+            GET("/greet-delayed-mono/{id}"),
+            new HandlerFunction<ServerResponse>() {
+              @Override
+              public Mono<ServerResponse> handle(ServerRequest request) {
+                return greetingHandler.intResponse(
+                    Mono.just(Integer.parseInt(request.pathVariable("id")))
+                        .delayElement(Duration.ofMillis(100))
+                        .map(i -> tracedMethod(i)));
+              }
+            });
+  }
+
+  @Component
+  public static class GreetingHandler {
+    public static final String DEFAULT_RESPONSE = "HELLO";
+
+    public Mono<ServerResponse> defaultGreet() {
+      return ServerResponse.ok()
+          .contentType(MediaType.TEXT_PLAIN)
+          .body(BodyInserters.fromValue(DEFAULT_RESPONSE));
+    }
+
+    public Mono<ServerResponse> doubleGreet() {
+      return ServerResponse.ok()
+          .contentType(MediaType.TEXT_PLAIN)
+          .body(BodyInserters.fromValue(DEFAULT_RESPONSE + DEFAULT_RESPONSE));
+    }
+
+    public Mono<ServerResponse> customGreet(ServerRequest request) {
+      return ServerResponse.ok()
+          .contentType(MediaType.TEXT_PLAIN)
+          .body(
+              BodyInserters.fromValue(
+                  DEFAULT_RESPONSE + " " + request.pathVariable("name")));
+    }
+
+    public Mono<ServerResponse> customGreetWithWord(ServerRequest request) {
+      return ServerResponse.ok()
+          .contentType(MediaType.TEXT_PLAIN)
+          .body(
+              BodyInserters.fromValue(
+                  DEFAULT_RESPONSE
+                      + " "
+                      + request.pathVariable("name")
+                      + " "
+                      + request.pathVariable("word")));
+    }
+
+    public Mono<ServerResponse> intResponse(Mono<FooModel> mono) {
+      return ServerResponse.ok()
+          .contentType(MediaType.TEXT_PLAIN)
+          .body(
+              BodyInserters.fromPublisher(
+                  mono.map(i -> DEFAULT_RESPONSE + " " + i.id), String.class));
+    }
+  }
+
+  @Trace
+  private static FooModel tracedMethod(long id) {
+    return new FooModel(id, "tracedMethod");
+  }
+}

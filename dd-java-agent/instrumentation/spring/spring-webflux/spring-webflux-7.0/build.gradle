@@ -1,0 +1,52 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_21
+}
+
+// test that webflux5 instrumentation works for webflux7 too
+addTestSuite('bootTest')
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepBootTest', 'latestDepTest', 'bootTest')
+
+tasks.withType(JavaCompile).configureEach {
+  configureCompiler(it, 21, JavaVersion.VERSION_1_8)
+}
+
+tasks.withType(GroovyCompile).configureEach {
+  configureCompiler(it, 21)
+}
+
+dependencies {
+  testImplementation project(':dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
+  testImplementation project(':dd-java-agent:instrumentation:netty:netty-promise-4.0')
+  testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
+  testImplementation project(':dd-java-agent:instrumentation:reactor-netty-1.0')
+
+  testImplementation group: 'org.springframework', name: 'spring-webflux', version: '7.0.0'
+  testImplementation group: 'org.springframework', name: 'spring-context', version: '7.0.0'
+  testImplementation group: 'io.projectreactor.netty', name: 'reactor-netty', version: '1.2.0'
+  testImplementation group: 'org.springframework', name: 'spring-test', version: '7.0.0'
+
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-webflux', version: '7.+'
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '7.+'
+  latestDepTestImplementation group: 'io.projectreactor.netty', name: 'reactor-netty', version: '1.+'
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-test', version: '7.+'
+
+  bootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '4.0.0'
+  bootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '4.0.0'
+  bootTestImplementation project(':dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0')
+  bootTestImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+
+  latestDepBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '4.+'
+  latestDepBootTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '4.+'
+  latestDepBootTestImplementation project(':dd-java-agent:instrumentation:spring:spring-webflux:spring-webflux-5.0')
+
+  testImplementation(libs.spock.spring)
+  bootTestImplementation(libs.spock.spring)
+  latestDepBootTestImplementation(libs.spock.spring)
+}
