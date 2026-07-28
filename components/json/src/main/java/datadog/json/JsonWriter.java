@@ -247,6 +247,7 @@ public final class JsonWriter implements Flushable, AutoCloseable {
 
   /**
    * Returns the current JSON size in bytes.
+   *
    * @return The JSON size in bytes.
    * @see #toByteArray()
    */
