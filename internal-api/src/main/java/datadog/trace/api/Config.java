@@ -829,9 +829,6 @@ public class Config {
   private static final int MAX_CODE_COVERAGE_FLAGS = 32;
 
   private static final Pattern COLON = Pattern.compile(":");
-  private static final Pattern COMMA = Pattern.compile(",");
-  private static final Pattern MULTI_WRITER_PREFIX =
-      Pattern.compile(MULTI_WRITER_TYPE + ":", Pattern.LITERAL);
 
   // Historical conflating-Batch size; used to translate TRACER_METRICS_MAX_PENDING (configured in
   // legacy batch units) into the new per-SpanSnapshot inbox capacity.
@@ -5694,8 +5691,8 @@ public class Config {
     if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
       return OTLP_WRITER_TYPE.equals(writerType);
     }
-    String multiWriterConfig = MULTI_WRITER_PREFIX.matcher(writerType).replaceAll("");
-    for (String subWriterType : COMMA.split(multiWriterConfig)) {
+    String multiWriterConfig = Strings.replace(writerType, MULTI_WRITER_TYPE + ":", "");
+    for (String subWriterType : multiWriterConfig.split(",")) {
       if (OTLP_WRITER_TYPE.equals(subWriterType)) {
         return true;
       }
