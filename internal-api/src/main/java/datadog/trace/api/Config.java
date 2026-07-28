@@ -428,6 +428,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_ADDITIONAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
@@ -625,6 +626,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_C
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_APP_NAME_AS_SERVICE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_TASK_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_SCHEDULING_MEASURED_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SQS_BODY_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING;
@@ -940,6 +942,7 @@ public class Config {
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
   private final Set<String> splitByTags;
+  private final Set<String> traceStatsAdditionalTags;
   private final boolean jeeSplitByDeployment;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
@@ -1290,6 +1293,8 @@ public class Config {
 
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
+
+  private final boolean springSchedulingMeasuredEnabled;
 
   private final boolean resilience4jMeasuredEnabled;
   private final boolean resilience4jTagMetricsEnabled;
@@ -1825,6 +1830,12 @@ public class Config {
             || DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmPropagationMode);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
+
+    traceStatsAdditionalTags =
+        experimentalFeaturesEnabled.contains(
+                propertyNameToEnvironmentVariableName(TRACE_STATS_ADDITIONAL_TAGS))
+            ? tryMakeImmutableSet(configProvider.getList(TRACE_STATS_ADDITIONAL_TAGS))
+            : Collections.emptySet();
 
     jeeSplitByDeployment =
         configProvider.getBoolean(
@@ -3044,6 +3055,9 @@ public class Config {
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
 
+    springSchedulingMeasuredEnabled =
+        configProvider.getBoolean(SPRING_SCHEDULING_MEASURED_ENABLED, false);
+
     resilience4jMeasuredEnabled = configProvider.getBoolean(RESILIENCE4J_MEASURED_ENABLED, false);
     resilience4jTagMetricsEnabled =
         configProvider.getBoolean(RESILIENCE4J_TAG_METRICS_ENABLED, false);
@@ -3895,13 +3909,49 @@ public class Config {
   }
 
   /**
+   * Upper bound for a configured stats cardinality limit. Each limit sizes a {@code
+   * TagCardinalityHandler} that eagerly allocates four reference arrays of {@code nextPow2(limit *
+   * 2)} slots, so an unbounded value (e.g. a mis-set env var) can exhaust the heap while the
+   * aggregator is constructed, before the tracer finishes starting. {@code 1 << 16} caps a single
+   * handler near ~2 MB while staying far above any useful setting -- the highest built-in default
+   * is 1024, and the aggregate table itself caps at a few thousand rows, so a larger per-key budget
+   * cannot produce more aggregate rows anyway.
+   */
+  private static final int MAX_TRACE_STATS_CARDINALITY_LIMIT = 1 << 16;
+
+  /**
    * Returns the per-cycle cardinality limit for the named stats field, following the RFC naming
    * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
    * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
    * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
+   *
+   * <p>A non-positive configured value is invalid -- each limit sizes a fixed-capacity handler
+   * table that requires a positive size -- so it falls back to {@code defaultLimit}, logged at
+   * debug. A value above {@link #MAX_TRACE_STATS_CARDINALITY_LIMIT} would eagerly allocate handler
+   * tables large enough to exhaust the heap at startup, so it likewise falls back to {@code
+   * defaultLimit}, logged at warn.
    */
   public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
-    return configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+    int limit =
+        configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+    if (limit <= 0) {
+      log.debug(
+          "Invalid trace.stats.{}.cardinality.limit={}; must be positive. Using default {}.",
+          tagName,
+          limit,
+          defaultLimit);
+      return defaultLimit;
+    }
+    if (limit > MAX_TRACE_STATS_CARDINALITY_LIMIT) {
+      log.warn(
+          "trace.stats.{}.cardinality.limit={} exceeds the maximum of {}; using default {} to avoid excessive memory use.",
+          tagName,
+          limit,
+          MAX_TRACE_STATS_CARDINALITY_LIMIT,
+          defaultLimit);
+      return defaultLimit;
+    }
+    return limit;
   }
 
   public boolean isLogsInjectionEnabled() {
@@ -4929,6 +4979,10 @@ public class Config {
     return resilience4jMeasuredEnabled;
   }
 
+  public boolean isSpringSchedulingMeasuredEnabled() {
+    return springSchedulingMeasuredEnabled;
+  }
+
   public boolean isResilience4jTagMetricsEnabled() {
     return resilience4jTagMetricsEnabled;
   }
@@ -5248,6 +5302,10 @@ public class Config {
 
   public Set<String> getMetricsIgnoredResources() {
     return tryMakeImmutableSet(configProvider.getList(TRACER_METRICS_IGNORED_RESOURCES));
+  }
+
+  public Set<String> getTraceStatsAdditionalTags() {
+    return traceStatsAdditionalTags;
   }
 
   public String getEnv() {
@@ -6390,6 +6448,8 @@ public class Config {
         + dbmTracePreparedStatements
         + ", splitByTags="
         + splitByTags
+        + ", traceStatsAdditionalTags="
+        + traceStatsAdditionalTags
         + ", jeeSplitByDeployment="
         + jeeSplitByDeployment
         + ", scopeDepthLimit="
@@ -6616,6 +6676,8 @@ public class Config {
         + hystrixTagsEnabled
         + ", hystrixMeasuredEnabled="
         + hystrixMeasuredEnabled
+        + ", springSchedulingMeasuredEnabled="
+        + springSchedulingMeasuredEnabled
         + ", resilience4jMeasuredEnable="
         + resilience4jMeasuredEnabled
         + ", resilience4jTagMetricsEnabled="

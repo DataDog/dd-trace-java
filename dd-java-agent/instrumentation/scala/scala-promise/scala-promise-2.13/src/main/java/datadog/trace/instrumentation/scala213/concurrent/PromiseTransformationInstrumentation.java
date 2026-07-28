@@ -51,7 +51,7 @@ public final class PromiseTransformationInstrumentation
   public static final class Run {
     @Advice.OnMethodEnter
     public static <F, T> ContextScope before(@Advice.This Transformation<F, T> task) {
-      return PromiseHelper.runActivateSpan(
+      return PromiseHelper.runWithContext(
           InstrumentationContext.get(Transformation.class, State.class).get(task));
     }
 
@@ -81,7 +81,7 @@ public final class PromiseTransformationInstrumentation
       State state = contextStore.get(task);
       if (PromiseHelper.completionPriority) {
         state =
-            PromiseHelper.executeCaptureSpan(
+            PromiseHelper.executeCaptureContext(
                 InstrumentationContext.get(Try.class, Context.class),
                 resolved,
                 contextStore,
