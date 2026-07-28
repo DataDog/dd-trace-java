@@ -23,7 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.TraceGenerator.PojoSpan;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.junit.utils.config.WithConfigExtension;
+import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;

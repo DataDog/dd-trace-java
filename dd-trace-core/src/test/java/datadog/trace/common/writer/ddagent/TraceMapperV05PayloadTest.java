@@ -25,8 +25,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.TraceGenerator.PojoSpan;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.junit.utils.config.WithConfig;
-import datadog.trace.junit.utils.config.WithConfigExtension;
+import datadog.trace.test.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,6 +54,15 @@ class TraceMapperV05PayloadTest {
   // did for the original Spock tests. Runs after WithConfigExtension has rebuilt Config.
   @BeforeEach
   void syncProcessTags() {
+    ProcessTags.reset(Config.get());
+  }
+
+  // A method-level @WithConfig below disables process tags, but WithConfigExtension only rebuilds
+  // Config after each test -- it does not reset the ProcessTags static. Reset it once the class is
+  // done so a disabled state can't leak into other tests sharing this Gradle JVM. By afterAll the
+  // extension has already restored Config to its defaults.
+  @AfterAll
+  static void resetProcessTags() {
     ProcessTags.reset(Config.get());
   }
 
