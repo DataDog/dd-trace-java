@@ -10,24 +10,29 @@
  * <h2>At a glance</h2>
  *
  * <pre>{@code
- * App / producer threads                        Single aggregator thread
- * ----------------------                        ------------------------
- *
- * span finishes                                 (1) drain inbox
- *      |                                              |
- *      v                     MPSC inbox               v
- * build immutable       (lock-free hand-off)     (2) canonicalize each label through its
- * SpanSnapshot        ----------------------->       cardinality handler (Core / PeerTag /
- *      |                                              AdditionalTags); overflow -> sentinel
- *      v                                              |
- * (no locks, no                                       v
- *  mutable state)                               (3) fold into AggregateTable, keyed by the
- *                                                    canonical labels (counts + histograms)
- *                                                     |
- *                                                     v  every ~10s (reporting interval)
- *                                                (4) flush via MetricWriter -- msgpack to the
- *                                                    agent, OTLP to the OTLP endpoint -- then
- *                                                    reset entries for the next interval
+ * App / Producer threads              Control threads
+ * ----------------------              ------------------------------
+ * eligible completed span             report schedule, tracer close,
+ *          |                          clear needed
+ * capture values and create                     |
+ * immutable SpanSnapshot                        |
+ *          |                                    |
+ *          +----------------+-------------------+
+ *                           v
+ *                   lock-free MPSC inbox
+ *                           |
+ *                           v
+ *                    Aggregator thread
+ *               (sole writer of aggregate state)
+ *                      /              \
+ *            SpanSnapshot              SignalItem
+ *                 |                        |
+ * canonicalize bounded fields   ReportSignal: reconcile peer schema,
+ * and tags; find/create entry                 expunge stale entries,
+ *                 |                           write interval deltas,
+ * update counts and histograms                reset active entries
+ *                                ClearSignal: clear the table
+ *                                 StopSignal: final report, then stop
  * }</pre>
  *
  * <h2>Threading model (the load-bearing rule)</h2>
