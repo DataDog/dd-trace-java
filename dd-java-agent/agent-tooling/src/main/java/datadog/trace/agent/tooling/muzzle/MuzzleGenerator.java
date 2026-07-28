@@ -163,12 +163,19 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       }
     }
 
+    ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
     String[] orderedHelpers =
-        discoverAndOrderHelpers(
-            seedHelpers,
-            manualHelpers,
-            helperPredicate,
-            Thread.currentThread().getContextClassLoader());
+        discoverAndOrderHelpers(seedHelpers, manualHelpers, helperPredicate, contextClassLoader);
+
+    // Drop build-time-only muzzle providers
+    ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(contextClassLoader);
+    List<String> injectableHelpers = new ArrayList<>(orderedHelpers.length);
+    for (String helper : orderedHelpers) {
+      if (!isBuildTimeOnly(helper, locator)) {
+        injectableHelpers.add(helper);
+      }
+    }
+    orderedHelpers = injectableHelpers.toArray(new String[0]);
 
     writeInferenceReport(module, adviceClasses.isEmpty(), inferredHelpers, orderedHelpers);
 
@@ -275,6 +282,26 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       if (fileName.startsWith(prefix) && fileName.endsWith(".class")) {
         helperClasses.add(pkg + fileName.substring(0, fileName.length() - ".class".length()));
       }
+    }
+  }
+
+  private static final String MUZZLE_REFERENCE_API = "datadog/trace/agent/tooling/muzzle/Reference";
+
+  /**
+   * {@code true} if the class uses the muzzle {@link Reference} API (as a {@link ReferenceProvider}
+   * or via {@code compileReferences}). Use this method to avoid injecting build-time-only classes.
+   */
+  private static boolean isBuildTimeOnly(String className, ClassFileLocator locator) {
+    try {
+      ClassFileLocator.Resolution resolution = locator.locate(className);
+      if (!resolution.isResolved()) {
+        return false;
+      }
+      // The muzzle type appears as a constant-pool entry when the class references it.
+      return new String(resolution.resolve(), StandardCharsets.ISO_8859_1)
+          .contains(MUZZLE_REFERENCE_API);
+    } catch (IOException e) {
+      return false;
     }
   }
 
