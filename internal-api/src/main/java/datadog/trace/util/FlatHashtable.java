@@ -3,8 +3,10 @@ package datadog.trace.util;
 import datadog.trace.api.function.Strategy;
 import datadog.trace.api.function.StrategyConsumer;
 import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -79,6 +81,394 @@ public final class FlatHashtable {
     protected Entry(long hash) {
       this.hash = hash;
     }
+  }
+
+  /**
+   * Single-key, {@code HashMap}-style convenience over the {@linkplain FlatHashtable static core}:
+   * {@link #get} / {@link #getOrCreate} / {@link #insert} / {@link #forEach} without writing a
+   * {@link MatchingStrategy}. Reach for it when you want something quick that beats {@code
+   * HashMap<K, V>} — the entry carries its own value fields, so updating an existing value is
+   * allocation-free (look up once, then write the returned entry).
+   *
+   * <p><b>Fixed or growable, chosen at construction.</b> {@link #createFixed} keeps the raw core's
+   * bounded posture — the table holds up to {@code maxCapacity} entries, then {@link #getOrCreate}
+   * caps and returns {@code null} (the caller supplies the overflow default). {@link
+   * #createGrowable} trades that for {@code HashMap}-like ergonomics — its {@code initialCapacity}
+   * is a sizing hint, not a cap, the table doubles when it fills past its load factor, and {@code
+   * getOrCreate} never returns {@code null}. The distinct factory names make the choice explicit at
+   * the call site (there's no ambiguous {@code (Class, int)} constructor); {@code Capacity} always
+   * counts <i>entries</i> — contrast the chained {@code Hashtable.D1}, whose factory counts
+   * <i>buckets</i>.
+   *
+   * <p><b>Entry-centric, not strategy-based.</b> Supply a {@link D1.Entry} subclass carrying the
+   * key and value fields; key equality is {@link Object#equals} by default (override {@link
+   * Entry#matches(Object)} for e.g. reference equality on interned keys). The strategy-based core
+   * is untouched and remains the expert path.
+   *
+   * <p><b>No {@code remove}.</b> The open-addressed core has no tombstones (an empty slot
+   * terminates a probe), so deletion isn't supported — this layer is for accumulate / interner /
+   * counter workloads, not churn.
+   *
+   * <p><b>Not thread-safe.</b>
+   *
+   * @param <K> the key type
+   * @param <TEntry> the user's {@link D1.Entry D1.Entry&lt;K&gt;} subclass
+   */
+  public static final class D1<K, TEntry extends D1.Entry<K>> {
+    /**
+     * Abstract base for {@link D1} entries. Subclass to add value fields you wish to mutate in
+     * place after retrieving the entry via {@link D1#get}. The key is captured at construction and
+     * stored alongside its precomputed hash (via {@link FlatHashtable.Entry}).
+     *
+     * @param <K> the key type
+     */
+    public abstract static class Entry<K> extends FlatHashtable.Entry {
+      final K key;
+
+      protected Entry(K key) {
+        super(hash(key));
+        this.key = key;
+      }
+
+      public final K key() {
+        return key;
+      }
+
+      public boolean matches(Object key) {
+        return Objects.equals(this.key, key);
+      }
+
+      /**
+       * Returns the lookup hash for {@code key}. Null keys map to {@link Long#MIN_VALUE} so they
+       * don't collide with a real key that hashes to 0; real-key collisions are resolved by {@link
+       * #matches(Object)}.
+       */
+      public static long hash(Object key) {
+        return (key == null) ? Long.MIN_VALUE : key.hashCode();
+      }
+    }
+
+    private final boolean growable;
+    private final float loadFactor;
+    private TEntry[] table;
+    private int size;
+    private int limit; // grow trigger when growable; hard cap when fixed
+
+    private D1(TEntry[] table, float loadFactor, boolean growable, int limit) {
+      this.growable = growable;
+      this.loadFactor = loadFactor;
+      this.table = table;
+      this.size = 0;
+      this.limit = limit;
+    }
+
+    /**
+     * A bounded {@link D1} holding up to {@code maxCapacity} entries at the {@link
+     * #DEFAULT_LOAD_FACTOR}, then capping ({@link #getOrCreate} returns {@code null}).
+     */
+    public static <K, E extends D1.Entry<K>> D1<K, E> createFixed(Class<E> type, int maxCapacity) {
+      return createFixed(type, maxCapacity, DEFAULT_LOAD_FACTOR);
+    }
+
+    public static <K, E extends D1.Entry<K>> D1<K, E> createFixed(
+        Class<E> type, int maxCapacity, float loadFactor) {
+      return new D1<>(create(type, maxCapacity, loadFactor), loadFactor, false, maxCapacity);
+    }
+
+    /**
+     * A growable {@link D1} sized initially for {@code initialCapacity} entries at the {@link
+     * #DEFAULT_LOAD_FACTOR}; doubles on demand, so it never caps.
+     */
+    public static <K, E extends D1.Entry<K>> D1<K, E> createGrowable(
+        Class<E> type, int initialCapacity) {
+      return createGrowable(type, initialCapacity, DEFAULT_LOAD_FACTOR);
+    }
+
+    public static <K, E extends D1.Entry<K>> D1<K, E> createGrowable(
+        Class<E> type, int initialCapacity, float loadFactor) {
+      E[] table = create(type, initialCapacity, loadFactor);
+      return new D1<>(table, loadFactor, true, (int) (table.length * loadFactor));
+    }
+
+    public int size() {
+      return size;
+    }
+
+    /** Existing entry for {@code key}, or {@code null}. Read-only — never creates. */
+    public TEntry get(K key) {
+      final long keyHash = Entry.hash(key);
+      final TEntry[] table = this.table;
+      final int mask = table.length - 1;
+      final int start = home(keyHash, mask);
+      int i = start;
+      for (; ; ) {
+        final TEntry e = table[i];
+        if (e == null) {
+          return null; // empty slot terminates the probe (no tombstones)
+        }
+        if (e.hash == keyHash && e.matches(key)) {
+          return e;
+        }
+        i = (i + 1) & mask;
+        if (i == start) {
+          return null; // wrapped ⇒ absent (can't happen once growth keeps a free slot)
+        }
+      }
+    }
+
+    /**
+     * Existing entry for {@code key}, or a freshly {@link CreateStrategy#create created} + inserted
+     * one. A growable table never returns {@code null}; a fixed one returns {@code null} when full
+     * and {@code key} is absent (the caller supplies the overflow default). A hit is always
+     * returned even at capacity — the cap blocks only creation, not lookup.
+     */
+    public TEntry getOrCreate(K key, CreateStrategy<TEntry, K> createStrat) {
+      final TEntry existing = get(key);
+      if (existing != null) {
+        return existing;
+      }
+      if (size >= limit) {
+        if (!growable) {
+          return null; // fixed table full ⇒ caller supplies the overflow default
+        }
+        grow();
+      }
+      final TEntry created = createStrat.create(key);
+      FlatHashtable.insert(table, created); // fits: cap/growth keeps a free slot
+      size++;
+      return created;
+    }
+
+    /**
+     * Unconditionally adds {@code entry} ({@code true}), or {@code false} if a fixed table is full.
+     * Comparison-free and caller-responsible (same contract as {@link FlatHashtable#insert}): the
+     * caller must ensure {@code entry}'s key is absent, else it lands shadowed.
+     */
+    public boolean insert(TEntry entry) {
+      if (size >= limit) {
+        if (!growable) {
+          return false; // fixed table full
+        }
+        grow();
+      }
+      FlatHashtable.insert(table, entry);
+      size++;
+      return true;
+    }
+
+    private void grow() {
+      table = resize(table);
+      limit = (int) (table.length * loadFactor);
+    }
+
+    public void clear() {
+      Arrays.fill(table, null);
+      size = 0;
+    }
+
+    public void forEach(Consumer<? super TEntry> consumer) {
+      FlatHashtable.forEach(table, consumer);
+    }
+
+    /**
+     * Context-passing {@link #forEach(Consumer)}: pair a non-capturing {@link BiConsumer} with
+     * side-band {@code context} to avoid a per-call closure.
+     */
+    public <C> void forEach(C context, BiConsumer<? super C, ? super TEntry> consumer) {
+      FlatHashtable.forEach(table, context, consumer);
+    }
+  }
+
+  /**
+   * Two-key (composite-key) analogue of {@link D1}. Both key parts pass directly through {@link
+   * #get} / {@link #getOrCreate}, so a lookup allocates no {@code Pair} — the win over {@code
+   * HashMap<Pair, V>}. Same fixed-or-growable ({@link #createFixed} / {@link #createGrowable}),
+   * entry-centric, no-{@code remove}, not-thread-safe contract as {@link D1}.
+   *
+   * @param <K1> first key type
+   * @param <K2> second key type
+   * @param <TEntry> the user's {@link D2.Entry D2.Entry&lt;K1, K2&gt;} subclass
+   */
+  public static final class D2<K1, K2, TEntry extends D2.Entry<K1, K2>> {
+    /**
+     * Abstract base for {@link D2} entries. Subclass to add value fields you wish to mutate in
+     * place. Both key parts are captured at construction alongside their combined hash.
+     *
+     * @param <K1> first key type
+     * @param <K2> second key type
+     */
+    public abstract static class Entry<K1, K2> extends FlatHashtable.Entry {
+      final K1 key1;
+      final K2 key2;
+
+      protected Entry(K1 key1, K2 key2) {
+        super(hash(key1, key2));
+        this.key1 = key1;
+        this.key2 = key2;
+      }
+
+      public final K1 key1() {
+        return key1;
+      }
+
+      public final K2 key2() {
+        return key2;
+      }
+
+      public boolean matches(K1 key1, K2 key2) {
+        return Objects.equals(this.key1, key1) && Objects.equals(this.key2, key2);
+      }
+
+      /**
+       * Returns the combined lookup hash for both key parts via {@link
+       * LongHashingUtils#hash(Object, Object)}. Null parts contribute {@code 0} (not a sentinel,
+       * unlike {@link D1.Entry}); {@link #matches(Object, Object)} resolves any collision.
+       */
+      public static long hash(Object key1, Object key2) {
+        return LongHashingUtils.hash(key1, key2);
+      }
+    }
+
+    private final boolean growable;
+    private final float loadFactor;
+    private TEntry[] table;
+    private int size;
+    private int limit; // grow trigger when growable; hard cap when fixed
+
+    private D2(TEntry[] table, float loadFactor, boolean growable, int limit) {
+      this.growable = growable;
+      this.loadFactor = loadFactor;
+      this.table = table;
+      this.size = 0;
+      this.limit = limit;
+    }
+
+    /**
+     * A bounded {@link D2} holding up to {@code maxCapacity} entries at the {@link
+     * #DEFAULT_LOAD_FACTOR}, then capping ({@link #getOrCreate} returns {@code null}).
+     */
+    public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createFixed(
+        Class<E> type, int maxCapacity) {
+      return createFixed(type, maxCapacity, DEFAULT_LOAD_FACTOR);
+    }
+
+    public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createFixed(
+        Class<E> type, int maxCapacity, float loadFactor) {
+      return new D2<>(create(type, maxCapacity, loadFactor), loadFactor, false, maxCapacity);
+    }
+
+    /**
+     * A growable {@link D2} sized initially for {@code initialCapacity} entries at the {@link
+     * #DEFAULT_LOAD_FACTOR}; doubles on demand, so it never caps.
+     */
+    public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createGrowable(
+        Class<E> type, int initialCapacity) {
+      return createGrowable(type, initialCapacity, DEFAULT_LOAD_FACTOR);
+    }
+
+    public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createGrowable(
+        Class<E> type, int initialCapacity, float loadFactor) {
+      E[] table = create(type, initialCapacity, loadFactor);
+      return new D2<>(table, loadFactor, true, (int) (table.length * loadFactor));
+    }
+
+    public int size() {
+      return size;
+    }
+
+    /** Existing entry for {@code (key1, key2)}, or {@code null}. Read-only — never creates. */
+    public TEntry get(K1 key1, K2 key2) {
+      final long keyHash = Entry.hash(key1, key2);
+      final TEntry[] table = this.table;
+      final int mask = table.length - 1;
+      final int start = home(keyHash, mask);
+      int i = start;
+      for (; ; ) {
+        final TEntry e = table[i];
+        if (e == null) {
+          return null;
+        }
+        if (e.hash == keyHash && e.matches(key1, key2)) {
+          return e;
+        }
+        i = (i + 1) & mask;
+        if (i == start) {
+          return null;
+        }
+      }
+    }
+
+    /**
+     * Two-key analogue of {@link D1#getOrCreate}: growable never returns {@code null}; fixed
+     * returns {@code null} when full and {@code (key1, key2)} is absent.
+     */
+    public TEntry getOrCreate(K1 key1, K2 key2, CreateStrategy2<TEntry, K1, K2> createStrat) {
+      final TEntry existing = get(key1, key2);
+      if (existing != null) {
+        return existing;
+      }
+      if (size >= limit) {
+        if (!growable) {
+          return null; // fixed table full ⇒ caller supplies the overflow default
+        }
+        grow();
+      }
+      final TEntry created = createStrat.create(key1, key2);
+      FlatHashtable.insert(table, created);
+      size++;
+      return created;
+    }
+
+    /**
+     * Unconditionally adds {@code entry} ({@code true}), or {@code false} if a fixed table is full.
+     * Comparison-free and caller-responsible: the caller must ensure {@code (key1, key2)} is
+     * absent.
+     */
+    public boolean insert(TEntry entry) {
+      if (size >= limit) {
+        if (!growable) {
+          return false; // fixed table full
+        }
+        grow();
+      }
+      FlatHashtable.insert(table, entry);
+      size++;
+      return true;
+    }
+
+    private void grow() {
+      table = resize(table);
+      limit = (int) (table.length * loadFactor);
+    }
+
+    public void clear() {
+      Arrays.fill(table, null);
+      size = 0;
+    }
+
+    public void forEach(Consumer<? super TEntry> consumer) {
+      FlatHashtable.forEach(table, consumer);
+    }
+
+    public <C> void forEach(C context, BiConsumer<? super C, ? super TEntry> consumer) {
+      FlatHashtable.forEach(table, context, consumer);
+    }
+  }
+
+  /**
+   * Two-key creation strategy for {@link D2#getOrCreate}: mint a new entry for {@code (key1,
+   * key2)}. Like {@link CreateStrategy}, supply a {@code static final} constant or a
+   * <i>non-capturing</i> lambda (e.g. {@code MyEntry::new}) so it stays a single monomorphic,
+   * allocation-free instance.
+   *
+   * @param <E> stored entry to create
+   * @param <K1> first key type
+   * @param <K2> second key type
+   */
+  @Strategy
+  @FunctionalInterface
+  public interface CreateStrategy2<E, K1, K2> {
+    E create(K1 key1, K2 key2);
   }
 
   /**
