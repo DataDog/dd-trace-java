@@ -25,10 +25,16 @@ public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
     HierarchyMatchers.registerIfAbsent(HierarchyMatchers.simpleChecks());
   }
 
+  private final File sourceDir;
   private final File targetDir;
 
-  public MuzzleGradlePlugin(File targetDir) {
+  /**
+   * @param sourceDir the engine's source folder, used to decide which helpers this subproject owns
+   * @param targetDir the engine's target folder, where {@code $Muzzle} classes are written
+   */
+  public MuzzleGradlePlugin(File sourceDir, File targetDir) {
     super(concreteClass().and(extendsClass(named(InstrumenterModule.class.getName()))));
+    this.sourceDir = sourceDir;
     this.targetDir = targetDir;
   }
 
@@ -37,7 +43,7 @@ public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
       final DynamicType.Builder<?> builder,
       final TypeDescription typeDescription,
       final ClassFileLocator classFileLocator) {
-    return builder.visit(new MuzzleGenerator(targetDir));
+    return builder.visit(new MuzzleGenerator(sourceDir, targetDir));
   }
 
   @Override

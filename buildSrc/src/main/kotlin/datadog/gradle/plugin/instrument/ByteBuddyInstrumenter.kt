@@ -33,7 +33,13 @@ object ByteBuddyInstrumenter {
       val factories = plugins.map {
         try {
           val pluginClass = instrumentingLoader.loadClass(it).asSubclass(Plugin::class.java)
-          val loadedPlugin = pluginClass.getConstructor(File::class.java).newInstance(targetDirectory)
+          // Prefer a (source, target) constructor; fall back to the single target-directory one.
+          val loadedPlugin = try {
+            pluginClass.getConstructor(File::class.java, File::class.java)
+              .newInstance(sourceDirectory, targetDirectory)
+          } catch (_: NoSuchMethodException) {
+            pluginClass.getConstructor(File::class.java).newInstance(targetDirectory)
+          }
           Plugin.Factory.Simple(loadedPlugin)
         } catch (throwable: Throwable) {
           throw IllegalStateException("Cannot resolve plugin: $it", throwable)

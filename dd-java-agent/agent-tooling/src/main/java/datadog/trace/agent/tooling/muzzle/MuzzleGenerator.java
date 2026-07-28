@@ -34,9 +34,16 @@ import net.bytebuddy.pool.TypePool;
 
 /** Generates a 'Muzzle' side-class for each {@link InstrumenterModule}. */
 public class MuzzleGenerator implements AsmVisitorWrapper {
+  /**
+   * The engine's source folder, fully populated before processing. OwnOutput is decided against it
+   * rather than the target folder, which is written incrementally as classes are processed.
+   */
+  private final File sourceDir;
+
   private final File targetDir;
 
-  public MuzzleGenerator(File targetDir) {
+  public MuzzleGenerator(File sourceDir, File targetDir) {
+    this.sourceDir = sourceDir;
     this.targetDir = targetDir;
   }
 
@@ -246,12 +253,12 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
 
   /** {@code true} if the class was compiled from this instrumentation subproject's own output. */
   private boolean isOwnOutput(String className) {
-    return new File(targetDir, className.replace('.', '/') + ".class").isFile();
+    return new File(sourceDir, className.replace('.', '/') + ".class").isFile();
   }
 
   /** Adds the nested classes ({@code Foo$Bar}, {@code Foo$1}, ...) of an own-output helper. */
   private void addNestedClasses(String className, Set<String> helperClasses) {
-    File classFile = new File(targetDir, className.replace('.', '/') + ".class");
+    File classFile = new File(sourceDir, className.replace('.', '/') + ".class");
     File dir = classFile.getParentFile();
     if (dir == null || !dir.isDirectory()) {
       return;
