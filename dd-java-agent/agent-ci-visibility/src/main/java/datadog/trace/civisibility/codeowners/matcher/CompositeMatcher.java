@@ -9,11 +9,11 @@ public class CompositeMatcher implements Matcher {
   }
 
   @Override
-  public int consume(char[] line, int offset) {
+  public int consume(String line, int offset) {
     return consume(line, offset, 0);
   }
 
-  private int consume(char[] line, int offset, int matcherOffset) {
+  private int consume(String line, int offset, int matcherOffset) {
     int position = offset;
     while (matcherOffset < delegates.length) {
       Matcher delegate = delegates[matcherOffset];

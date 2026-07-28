@@ -18,6 +18,7 @@ import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import java.io.StringReader;
 import java.lang.instrument.Instrumentation;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -50,6 +51,11 @@ import org.junit.jupiter.api.condition.JRE;
  * and cannot be reached from this method.
  */
 class ScaReachabilityTransformerJava9Test {
+
+  /** Second dummy vulnerable class, distinct from {@code TargetClass}, used to test batching. */
+  public static class SecondTargetClass {
+    public void method() {}
+  }
 
   private static final String JACKSON_JSON =
       "{\"version\":1,\"entries\":[{"
@@ -177,7 +183,8 @@ class ScaReachabilityTransformerJava9Test {
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
     ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, mockInstr);
 
-    transformer.pendingRetransform.add(com.fasterxml.jackson.databind.ObjectMapper.class);
+    transformer.pendingRetransform.add(
+        new ArrayList<>(singletonList(com.fasterxml.jackson.databind.ObjectMapper.class)));
     transformer.performPendingRetransforms();
 
     assertFalse(
@@ -223,7 +230,8 @@ class ScaReachabilityTransformerJava9Test {
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(crossJarJson));
     ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, mockInstr);
 
-    transformer.pendingRetransform.add(com.fasterxml.jackson.databind.ObjectMapper.class);
+    transformer.pendingRetransform.add(
+        new ArrayList<>(singletonList(com.fasterxml.jackson.databind.ObjectMapper.class)));
     transformer.performPendingRetransforms();
 
     // jackson-core is on the test classpath (transitive dependency of jackson-databind).
@@ -307,7 +315,48 @@ class ScaReachabilityTransformerJava9Test {
 
     assertEquals(1, transformer.pendingRetransform.size());
     assertSame(
-        ScaReachabilityMethodLevelTest.TargetClass.class, transformer.pendingRetransform.peek());
+        ScaReachabilityMethodLevelTest.TargetClass.class,
+        transformer.pendingRetransform.peek().get(0));
+  }
+
+  @Test
+  void checkAlreadyLoadedClasses_queuesAllMatchingClassesAsOneSharedBatch() throws Exception {
+    // Startup can find many already-loaded vulnerable classes at once. Queuing each as its own
+    // singleton batch would turn the common (all-succeed) case into one retransformClasses() call
+    // per class instead of one call for all of them; bisection only needs to kick in if this shared
+    // batch actually fails on a later heartbeat.
+    String targetName =
+        ScaReachabilityMethodLevelTest.TargetClass.class.getName().replace('.', '/');
+    String secondName = SecondTargetClass.class.getName().replace('.', '/');
+    String json =
+        "{\"version\":1,\"entries\":["
+            + "{\"vuln_id\":\"GHSA-target\",\"artifact\":\"com.example:lib\","
+            + "\"version_ranges\":[\"< 999.0.0\"],"
+            + "\"symbols\":[{\"class\":\""
+            + targetName
+            + "\",\"method\":\"vulnerableMethod\"}]},"
+            + "{\"vuln_id\":\"GHSA-second\",\"artifact\":\"com.example:lib2\","
+            + "\"version_ranges\":[\"< 999.0.0\"],"
+            + "\"symbols\":[{\"class\":\""
+            + secondName
+            + "\",\"method\":\"method\"}]}"
+            + "]}";
+
+    Instrumentation mockInstr = mock(Instrumentation.class);
+    when(mockInstr.getAllLoadedClasses())
+        .thenReturn(
+            new Class<?>[] {
+              ScaReachabilityMethodLevelTest.TargetClass.class, SecondTargetClass.class,
+            });
+    ScaReachabilityTransformer transformer =
+        new ScaReachabilityTransformer(ScaCveDatabase.parse(new StringReader(json)), mockInstr);
+
+    transformer.checkAlreadyLoadedClasses();
+
+    assertEquals(1, transformer.pendingRetransform.size(), "both classes must share one batch");
+    assertEquals(
+        Arrays.asList(ScaReachabilityMethodLevelTest.TargetClass.class, SecondTargetClass.class),
+        transformer.pendingRetransform.peek());
   }
 
   @Test
@@ -315,12 +364,14 @@ class ScaReachabilityTransformerJava9Test {
     ScaReachabilityTransformer transformer =
         new ScaReachabilityTransformer(
             ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}")), null);
-    transformer.pendingRetransform.add(ScaReachabilityMethodLevelTest.TargetClass.class);
+    transformer.pendingRetransform.add(
+        singletonList(ScaReachabilityMethodLevelTest.TargetClass.class));
 
     transformer.performPendingRetransforms();
 
     assertSame(
-        ScaReachabilityMethodLevelTest.TargetClass.class, transformer.pendingRetransform.peek());
+        ScaReachabilityMethodLevelTest.TargetClass.class,
+        transformer.pendingRetransform.peek().get(0));
   }
 
   @Test
