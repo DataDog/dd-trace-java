@@ -42,20 +42,24 @@ public final class MultipartHelper {
   /**
    * Builds the {@code server.request.body} map out of the multipart parts.
    *
-   * <p>Only text/plain parts are collected, matching the Jersey reference: file parts are reported
-   * separately via {@link #collectFilenames} / {@link #collectFilesContent} and must not also
-   * consume the body-map budget. The number of collected values is capped by {@link
-   * #MAX_FILES_TO_INSPECT}. The cap counts the total accumulated values across all field names, not
-   * the distinct keys: {@code getFormDataMap()} already groups parts by field name, so a per-key
-   * cap would be trivially bypassed by repeating the same field name on every part.
+   * <p>Only text/plain parts with no {@code filename} attribute are collected, matching the intent
+   * of the Jersey reference: file parts (including a file declared with a {@code text/plain}
+   * content-type) are reported separately via {@link #collectFilenames} / {@link
+   * #collectFilesContent} and must not also consume the body-map budget, or a request could pad out
+   * the cap with disposable text-file parts and push a real form field out of the map. The number
+   * of collected values is capped by {@link #MAX_FILES_TO_INSPECT}. The cap counts the total
+   * accumulated values across all field names, not the distinct keys: {@code getFormDataMap()}
+   * already groups parts by field name, so a per-key cap would be trivially bypassed by repeating
+   * the same field name on every part.
    */
   public static Map<String, List<String>> collectBodyMap(MultipartFormDataInput ret) {
     Map<String, List<String>> bodyMap = new HashMap<>();
     int total = 0;
     for (Map.Entry<String, List<InputPart>> e : ret.getFormDataMap().entrySet()) {
       for (InputPart inputPart : e.getValue()) {
-        String contentType = contentTypeOf(inputPart);
-        if (!isTextPlain(contentType)) {
+        Map<String, List<String>> headers = headersOf(inputPart);
+        String contentType = contentTypeOf(headers);
+        if (!isTextPlain(contentType) || hasFilename(headers)) {
           continue;
         }
         if (total >= MAX_FILES_TO_INSPECT) {
@@ -91,24 +95,45 @@ public final class MultipartHelper {
         : contentType;
   }
 
-  private static String contentTypeOf(InputPart inputPart) {
+  // Used by collectBodyMap only: collectFilenames/collectFilesContent do their own reflective
+  // getHeaders() call and are intentionally left untouched (out of scope, already correct).
+  private static Map<String, List<String>> headersOf(InputPart inputPart) {
     if (GET_HEADERS == null) {
       return null;
     }
     try {
       @SuppressWarnings("unchecked")
       Map<String, List<String>> headers = (Map<String, List<String>>) GET_HEADERS.invoke(inputPart);
-      if (headers == null) {
-        return null;
-      }
-      List<String> ctHeaders = getHeaderCaseInsensitive(headers, "Content-Type");
-      return (ctHeaders != null && !ctHeaders.isEmpty()) ? ctHeaders.get(0) : null;
+      return headers;
     } catch (Exception e) {
       // Reflective getHeaders() call failed (unexpected InputPart implementation): fall back to
-      // resolving no content-type rather than aborting the whole request's body-map collection.
+      // resolving no headers rather than aborting the whole request's body-map collection.
       log.debug("Failed to read multipart part headers via reflection", e);
       return null;
     }
+  }
+
+  private static String contentTypeOf(Map<String, List<String>> headers) {
+    if (headers == null) {
+      return null;
+    }
+    List<String> ctHeaders = getHeaderCaseInsensitive(headers, "Content-Type");
+    return (ctHeaders != null && !ctHeaders.isEmpty()) ? ctHeaders.get(0) : null;
+  }
+
+  // A part with a filename attribute (present, even if empty) is a file upload, not a form field,
+  // regardless of its declared content-type: a file can be declared text/plain and would otherwise
+  // pass isTextPlain() and consume the body-map budget meant for genuine form fields. Matches the
+  // same rawFilename-presence check collectFilesContent() already uses to decide "is this a file".
+  private static boolean hasFilename(Map<String, List<String>> headers) {
+    if (headers == null) {
+      return false;
+    }
+    List<String> cdHeaders = getHeaderCaseInsensitive(headers, "Content-Disposition");
+    if (cdHeaders == null || cdHeaders.isEmpty()) {
+      return false;
+    }
+    return rawFilenameFromContentDisposition(cdHeaders.get(0)) != null;
   }
 
   public static List<String> collectFilenames(MultipartFormDataInput ret) {

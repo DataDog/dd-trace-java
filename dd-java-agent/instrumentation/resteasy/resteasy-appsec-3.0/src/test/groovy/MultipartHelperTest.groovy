@@ -361,12 +361,30 @@ class MultipartHelperTest extends Specification {
     0 * file.getBody(_, _)
   }
 
+  def "collectBodyMap excludes a text/plain part that also declares a filename"() {
+    given: "a file uploaded with an explicit text/plain content-type, plus a real text field"
+    def textFile = Mock(InputPart)
+    textFile.getHeaders() >> headers('form-data; name="upload"; filename="notes.txt"', 'text/plain')
+    def text = Mock(InputPart)
+    text.getHeaders() >> headers('form-data; name="q"')
+    text.getBody(_, _) >> new ByteArrayInputStream('<script>'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['upload': [textFile], 'q': [text]]
+
+    when:
+    def result = MultipartHelper.collectBodyMap(ret)
+
+    then: "the text/plain file part never reaches getBody() and does not consume the body-map cap"
+    result == ['q': ['<script>']]
+    0 * textFile.getBody(_, _)
+  }
+
   def "collectBodyMap does not let dummy file parts exhaust the cap before a real text field"() {
-    given: "MAX_FILES_TO_INSPECT dummy file parts followed by one real text field"
+    given: "MAX_FILES_TO_INSPECT dummy text/plain file parts followed by one real text field"
     def entries = [:]
     (1..MultipartHelper.MAX_FILES_TO_INSPECT).each { i ->
       def p = Mock(InputPart)
-      p.getHeaders() >> headers("form-data; name=\"file${i}\"; filename=\"f${i}.bin\"", 'application/octet-stream')
+      p.getHeaders() >> headers("form-data; name=\"file${i}\"; filename=\"f${i}.txt\"", 'text/plain')
       entries["file${i}".toString()] = [p]
     }
     def q = Mock(InputPart)
