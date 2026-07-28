@@ -59,6 +59,7 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
             ? startSpan("spring-scheduling", SCHEDULED_CALL)
             : startSpan("spring-scheduling", SCHEDULED_CALL, null);
     DECORATE.afterStart(span);
+    DECORATE.measureIfEnabled(span);
 
     try (final ContextScope scope = activateSpan(span)) {
       DECORATE.onRun(span, runnable);
