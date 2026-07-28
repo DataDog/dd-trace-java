@@ -8,11 +8,14 @@ import org.gradle.api.logging.Logging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.io.RandomAccessFile
 import java.net.InetSocketAddress
 import java.net.URI
 import java.nio.file.Path
 import java.security.MessageDigest
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -190,6 +193,42 @@ class GradleDistributionCacheTest {
     } finally {
       server.close()
     }
+  }
+
+  @Test
+  fun `waits when the distribution lock is already held in this JVM`() {
+    val distribution = writeDistributionArchive("overlapping-lock.zip", VERSION)
+    assertThat(cacheDir.mkdirs()).isTrue()
+    val started = CountDownLatch(1)
+    val result = CompletableFuture<File>()
+    val worker = Thread {
+      started.countDown()
+      try {
+        result.complete(
+          provisionGradleDistribution(cacheDir, VERSION, listOf(distribution), logger),
+        )
+      } catch (e: Throwable) {
+        result.completeExceptionally(e)
+      }
+    }
+
+    val root =
+      try {
+        RandomAccessFile(File(cacheDir, "gradle-$VERSION-bin.lock"), "rw").use { lockFile ->
+          lockFile.channel.lock().use {
+            worker.start()
+            assertThat(started.await(10, TimeUnit.SECONDS)).isTrue()
+            Thread.sleep(200)
+            assertThat(result.isDone).isFalse()
+          }
+        }
+        result.get(30, TimeUnit.SECONDS)
+      } finally {
+        worker.join(TimeUnit.SECONDS.toMillis(30))
+      }
+
+    assertThat(root).isDirectory()
+    assertThat(File(root, "lib/gradle-launcher-$VERSION.jar")).exists()
   }
 
   @Test

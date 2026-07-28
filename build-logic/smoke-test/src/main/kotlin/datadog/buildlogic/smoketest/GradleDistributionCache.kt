@@ -8,8 +8,8 @@ import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLConnection
+import java.nio.channels.OverlappingFileLockException
 import java.security.MessageDigest
-import java.util.concurrent.ConcurrentHashMap
 import java.util.zip.ZipInputStream
 
 /** Nested distributions, under `wrapper/` so CI restores them from its existing cache. */
@@ -23,9 +23,7 @@ private val LAUNCHER_JAR = Regex("gradle-launcher-.*\\.jar")
 
 private const val CONNECT_TIMEOUT_MS = 30_000
 private const val READ_TIMEOUT_MS = 120_000
-
-/** Serializes same-JVM callers before they acquire the cross-process file lock. */
-private val installMonitors = ConcurrentHashMap<String, Any>()
+private const val LOCK_RETRY_DELAY_MS = 100L
 
 /** Provisions [gradleVersion] once in [cacheDir], trying [distributionUris] in order. */
 internal fun provisionGradleDistribution(
@@ -42,22 +40,35 @@ internal fun provisionGradleDistribution(
 
   installedDistributionRoot(installDir, gradleVersion, marker)?.let { return it }
 
-  val monitor = installMonitors.computeIfAbsent(installDir.absolutePath) { Any() }
-  synchronized(monitor) {
-    installedDistributionRoot(installDir, gradleVersion, marker)?.let { return it }
-    if (!cacheDir.isDirectory && !cacheDir.mkdirs()) {
-      throw GradleException("Could not create Gradle distribution cache: ${cacheDir.absolutePath}")
-    }
-    RandomAccessFile(File(cacheDir, "gradle-$gradleVersion-bin.lock"), "rw").use { lockFile ->
-      lockFile.channel.lock().use {
-        // Recheck after waiting for the file lock.
-        installedDistributionRoot(installDir, gradleVersion, marker)?.let { return it }
-        install(installDir, marker, gradleVersion, distributionUris, logger)
-        return installedDistributionRoot(installDir, gradleVersion, marker)
-          ?: throw GradleException(
-            "Gradle $gradleVersion was unpacked into ${installDir.absolutePath} but no " +
-              "distribution root could be found in it",
-          )
+  if (!cacheDir.isDirectory && !cacheDir.mkdirs() && !cacheDir.isDirectory) {
+    throw GradleException("Could not create Gradle distribution cache: ${cacheDir.absolutePath}")
+  }
+  return withDistributionFileLock(File(cacheDir, "gradle-$gradleVersion-bin.lock")) {
+    // Recheck after waiting for the file lock.
+    installedDistributionRoot(installDir, gradleVersion, marker)
+      ?.let { return@withDistributionFileLock it }
+    install(installDir, marker, gradleVersion, distributionUris, logger)
+    installedDistributionRoot(installDir, gradleVersion, marker)
+      ?: throw GradleException(
+        "Gradle $gradleVersion was unpacked into ${installDir.absolutePath} but no " +
+          "distribution root could be found in it",
+      )
+  }
+}
+
+private fun <T> withDistributionFileLock(lockPath: File, action: () -> T): T {
+  RandomAccessFile(lockPath, "rw").use { lockFile ->
+    while (true) {
+      val lock =
+        try {
+          lockFile.channel.lock()
+        } catch (_: OverlappingFileLockException) {
+          // Another caller in this JVM holds the lock.
+          Thread.sleep(LOCK_RETRY_DELAY_MS)
+          continue
+        }
+      lock.use {
+        return action()
       }
     }
   }
