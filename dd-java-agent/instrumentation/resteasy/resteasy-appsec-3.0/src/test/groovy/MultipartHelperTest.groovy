@@ -379,6 +379,24 @@ class MultipartHelperTest extends Specification {
     0 * textFile.getBody(_, _)
   }
 
+  def "collectBodyMap excludes a text/plain part that declares only an RFC 5987 filename*"() {
+    given: "a file uploaded with filename* only (no plain filename), plus a real text field"
+    def textFile = Mock(InputPart)
+    textFile.getHeaders() >> headers('form-data; name="upload"; filename*=UTF-8\'\'notes.txt', 'text/plain')
+    def text = Mock(InputPart)
+    text.getHeaders() >> headers('form-data; name="q"')
+    text.getBody(_, _) >> new ByteArrayInputStream('<script>'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['upload': [textFile], 'q': [text]]
+
+    when:
+    def result = MultipartHelper.collectBodyMap(ret)
+
+    then: "the text/plain file part never reaches getBody() and does not consume the body-map cap"
+    result == ['q': ['<script>']]
+    0 * textFile.getBody(_, _)
+  }
+
   def "collectBodyMap does not let dummy file parts exhaust the cap before a real text field"() {
     given: "MAX_FILES_TO_INSPECT dummy text/plain file parts followed by one real text field"
     def entries = [:]

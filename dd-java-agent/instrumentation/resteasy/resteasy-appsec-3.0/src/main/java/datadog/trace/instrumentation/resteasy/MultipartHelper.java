@@ -123,8 +123,10 @@ public final class MultipartHelper {
 
   // A part with a filename attribute (present, even if empty) is a file upload, not a form field,
   // regardless of its declared content-type: a file can be declared text/plain and would otherwise
-  // pass isTextPlain() and consume the body-map budget meant for genuine form fields. Matches the
-  // same rawFilename-presence check collectFilesContent() already uses to decide "is this a file".
+  // pass isTextPlain() and consume the body-map budget meant for genuine form fields. Uses
+  // hasFilenameParam() rather than rawFilenameFromContentDisposition(), which deliberately ignores
+  // the RFC 5987 "filename*" form: a part carrying only "filename*" must still be excluded here,
+  // even though its filename value isn't decoded/reported elsewhere in this file.
   private static boolean hasFilename(Map<String, List<String>> headers) {
     if (headers == null) {
       return false;
@@ -133,7 +135,43 @@ public final class MultipartHelper {
     if (cdHeaders == null || cdHeaders.isEmpty()) {
       return false;
     }
-    return rawFilenameFromContentDisposition(cdHeaders.get(0)) != null;
+    return hasFilenameParam(cdHeaders.get(0));
+  }
+
+  // Presence-only counterpart of rawFilenameFromContentDisposition(): recognizes both the plain
+  // "filename" parameter and the RFC 5987 extended "filename*" form (e.g. filename*=UTF-8''a.txt),
+  // since either form marks the part as a file upload. Unlike rawFilenameFromContentDisposition(),
+  // this never needs to decode the value, so the RFC 5987 charset/percent-encoding is irrelevant
+  // here. Shares the same quote-aware semicolon scanning; see rawFilenameFromContentDisposition()
+  // for the rationale.
+  private static boolean hasFilenameParam(String cd) {
+    if (cd == null) return false;
+    int i = 0;
+    int len = cd.length();
+    while (i < len) {
+      while (i < len && cd.charAt(i) != ';') {
+        if (cd.charAt(i) == '"') {
+          i++;
+          while (i < len && cd.charAt(i) != '"') {
+            if (cd.charAt(i) == '\\') i++;
+            i++;
+          }
+        }
+        i++;
+      }
+      if (i >= len) break;
+      i++;
+      while (i < len && (cd.charAt(i) == ' ' || cd.charAt(i) == '\t')) i++;
+      if (cd.regionMatches(true, i, "filename", 0, 8)) {
+        int j = i + 8;
+        if (j < len && cd.charAt(j) == '*') j++;
+        while (j < len && (cd.charAt(j) == ' ' || cd.charAt(j) == '\t')) j++;
+        if (j < len && cd.charAt(j) == '=') {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   public static List<String> collectFilenames(MultipartFormDataInput ret) {
