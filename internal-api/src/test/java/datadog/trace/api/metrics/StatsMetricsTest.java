@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -18,6 +19,16 @@ class StatsMetricsTest {
   private static Map<String, StatsMetrics.TaggedCounter> countersByTag() {
     return StatsMetrics.getInstance().getTaggedCounters().stream()
         .collect(Collectors.toMap(StatsMetrics.TaggedCounter::getTag, Function.identity()));
+  }
+
+  @AfterEach
+  void drainDeltas() {
+    // StatsMetrics is a process-wide singleton; these tests leave per-reason deltas behind. Drain
+    // every counter so they do not leak into another collector's expectations when tests share a
+    // Gradle worker (e.g. CoreMetricCollectorTest asserting an exact span-metric count).
+    for (StatsMetrics.TaggedCounter counter : StatsMetrics.getInstance().getTaggedCounters()) {
+      counter.getValueAndReset();
+    }
   }
 
   @Test
