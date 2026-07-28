@@ -233,7 +233,7 @@ public class KarateTracingHook implements RuntimeHook {
     return !fr.caller.isNone();
   }
 
-  private static boolean skipTracking(ScenarioRuntime sr) {
+  public static boolean skipTracking(ScenarioRuntime sr) {
     // do not track nested scenario calls and setup scenarios
     return !sr.caller.isNone() || sr.tags.getTagKeys().contains("setup");
   }

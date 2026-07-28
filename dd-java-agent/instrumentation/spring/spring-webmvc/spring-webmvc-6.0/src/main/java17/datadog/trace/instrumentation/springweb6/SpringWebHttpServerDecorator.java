@@ -102,7 +102,7 @@ public class SpringWebHttpServerDecorator
   }
 
   @Override
-  public void onRequest(
+  protected void doOnRequest(
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
