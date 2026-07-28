@@ -57,7 +57,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(SECONDS)
 @Threads(8)
-@Fork(value = 1)
+@Fork(1)
 public class AdversarialMetricsBenchmark {
 
   private ClientStatsAggregator aggregator;
@@ -75,6 +75,7 @@ public class AdversarialMetricsBenchmark {
         new ClientStatsAggregator(
             new WellKnownTags("", "", "", "", "", ""),
             Collections.emptySet(),
+            AdditionalTagsSchema.EMPTY,
             new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
                 Collections.singleton("peer.hostname"), Collections.emptySet()),
             this.health,
