@@ -388,6 +388,11 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   }
 
   public void closeWafContext() {
+    if (wafContextClosed) {
+      // Fast path for the common case of redundant close() calls (e.g. the generic fallback
+      // close() running after GatewayBridge#onRequestEnded already closed it).
+      return;
+    }
     synchronized (this) {
       // Must be set unconditionally, even if the WAF never ran for this request: a late/async
       // caller of getOrCreateWafContext() must not resurrect a context after close (APPSEC-69085).

@@ -118,6 +118,32 @@ class AppSecRequestContextWafContextRaceTest {
     assertTrue(ctx.isWafContextClosed());
   }
 
+  @Test
+  void fallbackCloseDoesNotClosePendingApiSecurityWafContext() {
+    AppSecRequestContext ctx = new AppSecRequestContext();
+    WafContext created = ctx.getOrCreateWafContext(wafHandle, false, false);
+    assertNotNull(created);
+
+    // API Security has sampled this request and asked to keep the context open for later
+    // schema-extraction post-processing (see ApiSecuritySamplerImpl#preSampleRequest).
+    ctx.setKeepOpenForApiSecurityPostProcessing(true);
+
+    // The generic fallback close (CoreTracer#onRootSpanPublished) must not tear down the WAF
+    // context while API Security post-processing is still pending, or schema extraction would
+    // run against an already-closed context.
+    ctx.close();
+    assertFalse(ctx.isWafContextClosed());
+    assertTrue(created.isOnline());
+
+    // AppSecSpanPostProcessor#process's finally block: post-processing is done, now really close.
+    ctx.setKeepOpenForApiSecurityPostProcessing(false);
+    ctx.closeWafContext();
+    ctx.close();
+
+    assertTrue(ctx.isWafContextClosed());
+    assertFalse(created.isOnline());
+  }
+
   /**
    * Drives {@code closeWafContext()} and {@code getOrCreateWafContext()} concurrently via a barrier
    * across many iterations. The invariant: whatever {@code getOrCreateWafContext} returns after the

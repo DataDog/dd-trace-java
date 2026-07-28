@@ -330,10 +330,16 @@ public class WAFModule implements AppSecModule {
         }
         return;
       } catch (UnclassifiedWafException e) {
-        if (!reqCtx.isWafContextClosed()) {
+        if (reqCtx.isWafContextClosed()) {
+          // The context was closed concurrently between getOrCreateWafContext() and this run()
+          // call (APPSEC-69085) - the same benign race already tracked below via
+          // wafContextClosedRace(); avoid double-counting it as a real WAF error.
+          log.debug("Skipped; the WAF context was closed concurrently");
+          WafMetricCollector.get().wafContextClosedRace();
+        } else {
           log.error("Error calling WAF", e);
+          incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
         }
-        incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
         return;
       } catch (AbstractWafException e) {
         incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
