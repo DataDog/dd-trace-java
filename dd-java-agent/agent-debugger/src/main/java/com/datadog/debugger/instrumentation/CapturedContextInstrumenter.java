@@ -1,5 +1,6 @@
 package com.datadog.debugger.instrumentation;
 
+import static com.datadog.debugger.instrumentation.ASMHelper.computeFrames;
 import static com.datadog.debugger.instrumentation.ASMHelper.getStatic;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeConstructor;
 import static com.datadog.debugger.instrumentation.ASMHelper.invokeStatic;

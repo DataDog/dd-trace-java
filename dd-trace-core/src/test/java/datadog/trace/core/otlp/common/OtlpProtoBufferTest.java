@@ -60,6 +60,14 @@ class OtlpProtoBufferTest {
     assertEquals("application/x-protobuf", payload.getContentType());
   }
 
+  @Test
+  void constructorRejectsCapacityExceedingMaxCapacity() {
+    // rounds up to a power of two above MAX_CAPACITY_BYTES; must reject before allocating
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new OtlpProtoBuffer(OtlpProtoBuffer.MAX_CAPACITY_BYTES + 1));
+  }
+
   // ─── recordMessage(GrowableBuffer, int) ──────────────────────────────────
 
   @Test

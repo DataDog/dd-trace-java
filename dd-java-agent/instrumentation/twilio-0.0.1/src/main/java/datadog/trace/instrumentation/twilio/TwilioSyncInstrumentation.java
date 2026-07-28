@@ -104,15 +104,12 @@ public class TwilioSyncInstrumentation extends InstrumenterModule.Tracing
 
       // If we have a scope (i.e. we were the top-level Twilio SDK invocation),
       final AgentSpan span = scope.span();
-      try {
-        DECORATE.onResult(span, response);
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-      } finally {
-        scope.close();
-        span.finish();
-        CallDepthThreadLocalMap.reset(Twilio.class); // reset call depth count
-      }
+      DECORATE.onResult(span, response);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
+      CallDepthThreadLocalMap.reset(Twilio.class); // reset call depth count
     }
   }
 }

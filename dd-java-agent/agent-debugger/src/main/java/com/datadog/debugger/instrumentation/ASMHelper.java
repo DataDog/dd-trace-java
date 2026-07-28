@@ -19,7 +19,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 import org.objectweb.asm.ClassWriter;
@@ -38,12 +40,21 @@ import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
+import org.objectweb.asm.tree.analysis.Analyzer;
+import org.objectweb.asm.tree.analysis.AnalyzerException;
+import org.objectweb.asm.tree.analysis.BasicInterpreter;
+import org.objectweb.asm.tree.analysis.BasicValue;
+import org.objectweb.asm.tree.analysis.Frame;
 import org.objectweb.asm.util.Printer;
 import org.objectweb.asm.util.Textifier;
 import org.objectweb.asm.util.TraceClassVisitor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Helper class for bytecode generation */
 public class ASMHelper {
+  private static final Logger LOGGER = LoggerFactory.getLogger(ASMHelper.class);
+
   public static final Type INT_TYPE = new Type(org.objectweb.asm.Type.INT_TYPE);
   public static final Type OBJECT_TYPE = new Type(Types.OBJECT_TYPE);
   public static final Type STRING_TYPE = new Type(Types.STRING_TYPE);
@@ -426,6 +437,65 @@ public class ASMHelper {
       current = current.getNext();
     }
     return lines;
+  }
+
+  /**
+   * Returns a map for all instructions what is the current frame with value on the stacks Helps to
+   * know at exit points of a method what remains on the stack
+   */
+  protected static Map<AbstractInsnNode, Frame<BasicValue>> computeFrames(
+      String owner, MethodNode methodNode) {
+    // Initial guess used for methodNode.maxStack when retrying computeFrames() below; small
+    // enough to be cheap, large enough to cover the vast majority of probe-generated methods on
+    // the first attempt.
+    final int INITIAL_MAX_STACK_GUESS = 16;
+    // Probes already applied to this method may have inserted bytecode that requires more
+    // stack than originally declared, without updating methodNode.maxStack (only maxLocals is
+    // tracked, see newVar()). The ASM analyzer sizes its Frame objects from the declared
+    // maxStack (each Frame costs maxLocals+maxStack slots), so a stale/too-small value makes
+    // the analysis fail with "Insufficient maximum stack size" even though the class itself is
+    // valid. Rather than guessing an upper bound from the instruction count (which blows up
+    // Frame memory quadratically for large methods), retry with a growing maxStack only when
+    // the Analyzer itself reports it as insufficient - this converges to close to the actual
+    // stack depth the method needs. The real maxStack is recomputed again from scratch by the
+    // ClassWriter's COMPUTE_FRAMES pass when the class is finally written.
+    Map<AbstractInsnNode, Frame<BasicValue>> frames = new IdentityHashMap<>();
+    int attemptMaxStack = Math.max(methodNode.maxStack, INITIAL_MAX_STACK_GUESS);
+    int hardLimitMaxStack = methodNode.instructions.size() * 2;
+    while (true) {
+      methodNode.maxStack = attemptMaxStack;
+      try {
+        Frame<BasicValue>[] frameArray =
+            new Analyzer<>(new BasicInterpreter()).analyze(owner, methodNode);
+        AbstractInsnNode current = methodNode.instructions.getFirst();
+        int idx = 0;
+        while (current != null) {
+          frames.put(current, frameArray[idx++]);
+          current = current.getNext();
+        }
+        break;
+      } catch (AnalyzerException ex) {
+        if (isInsufficientMaxStack(ex) && attemptMaxStack < hardLimitMaxStack) {
+          attemptMaxStack *= 2;
+          continue;
+        }
+        LOGGER.debug(
+            "Failed to analyze method[{}::{}{}] instructions",
+            owner,
+            methodNode.name,
+            methodNode.desc,
+            ex);
+        // when running tests, fails if an exception is thrown during analysis
+        // Gradle is running tests with assertions enbabled
+        assert false;
+        break;
+      }
+    }
+    return frames;
+  }
+
+  private static boolean isInsufficientMaxStack(AnalyzerException ex) {
+    return ex.getMessage() != null && ex.getMessage().contains("Insufficient maximum stack size");
   }
 
   /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */

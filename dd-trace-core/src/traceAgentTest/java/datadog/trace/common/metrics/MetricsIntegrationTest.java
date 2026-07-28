@@ -76,7 +76,6 @@ class MetricsIntegrationTest {
 
   @BeforeEach
   void setup() {
-    AggregateEntry.resetCardinalityHandlers();
     injectSysConfig(TracerConfig.AGENT_HOST, agentHost());
     injectSysConfig(TracerConfig.TRACE_AGENT_PORT, agentPort());
   }
@@ -134,6 +133,7 @@ class MetricsIntegrationTest {
             null,
             null,
             null,
+            null,
             0L);
     AggregateEntry entry1 = table.findOrInsert(snap1);
     for (long duration : new long[] {2, 1, 2, 250, 4}) {
@@ -153,6 +153,7 @@ class MetricsIntegrationTest {
             "xyzzy",
             schema,
             new String[] {"quux"},
+            null,
             null,
             null,
             null,

@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +30,7 @@ public final class HttpStreamResponseStreamWrapper<T> implements StreamResponse<
     chunks = new ArrayList<>();
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public Stream<T> stream() {
     return parsed.stream().peek(chunks::add).onClose(this::close);

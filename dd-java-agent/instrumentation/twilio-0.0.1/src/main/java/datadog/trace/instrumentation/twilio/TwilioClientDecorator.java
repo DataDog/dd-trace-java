@@ -70,7 +70,15 @@ public class TwilioClientDecorator extends ClientDecorator {
   }
 
   /** Annotate the span with the results of the operation. */
-  public void onResult(final AgentSpan span, Object result) {
+  public final void onResult(final AgentSpan span, Object result) {
+    try {
+      doOnResult(span, result);
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on result", t);
+    }
+  }
+
+  protected void doOnResult(final AgentSpan span, Object result) {
 
     // Unwrap ListenableFuture (if present)
     if (result instanceof ListenableFuture) {
