@@ -1,9 +1,9 @@
 /**
  * Client-side trace statistics (CSS): the tracer computes per-interval aggregate stats -- hit
  * counts, error counts, and latency histograms grouped by a tuple of span labels (resource,
- * service, operation, span kind, HTTP/gRPC status, peer tags, ...) -- and ships them to the Datadog
- * agent every reporting interval. This lets the backend show accurate metrics even when individual
- * spans are sampled away.
+ * service, operation, span kind, HTTP/gRPC status, peer tags, ...) -- and ships them to Datadog
+ * every reporting interval. This lets the backend show accurate metrics even when individual spans
+ * are sampled away.
  *
  * <h2>At a glance</h2>
  *
@@ -23,8 +23,9 @@
  *                                                    canonical labels (counts + histograms)
  *                                                     |
  *                                                     v  every ~10s (reporting interval)
- *                                                (4) flush table via MetricWriter (msgpack
- *                                                    or OTLP) -> agent, then clear
+ *                                                (4) flush via MetricWriter -- msgpack to the
+ *                                                    agent, OTLP to the OTLP endpoint -- then
+ *                                                    reset entries for the next interval
  * }</pre>
  *
  * <h2>Threading model (the load-bearing rule)</h2>
@@ -45,19 +46,25 @@
  * datadog.trace.common.metrics.AggregateEntry}, keyed by the canonical form of its labels, updating
  * that entry's counters and histograms. Once per reporting interval (~10s) it flushes the whole
  * table through a {@link datadog.trace.common.metrics.MetricWriter} -- msgpack ({@link
- * datadog.trace.common.metrics.SerializingMetricWriter}) or OTLP -- and clears it for the next
- * interval. Buckets are per-interval deltas, not cumulative.
+ * datadog.trace.common.metrics.SerializingMetricWriter}) or OTLP -- then resets each entry's
+ * counters for the next interval rather than discarding the table: entries (and their cross-cycle
+ * caches) are retained for reuse, and stale ones are expunged over subsequent cycles. Buckets are
+ * per-interval deltas, not cumulative.
  *
  * <h2>Cardinality is the thing that must stay bounded</h2>
  *
  * Grouping keys come from span/user data, so distinct values -- and therefore the series count, its
- * memory, and its backend cost -- would grow without bound if left alone. Every label is
- * canonicalized through a {@link datadog.trace.common.metrics.TagCardinalityHandler} that caps the
- * number of distinct values per tag and collapses any overflow into a shared sentinel, so
- * over-cardinality folds into one entry rather than exploding the table. The collapses are counted
- * per cycle and reported (to {@link datadog.trace.core.monitor.HealthMetrics} and, rate-limited,
- * through {@link datadog.trace.common.metrics.CardinalityLimitReporter}) -- so the bounding is
- * observable without the bookkeeping itself becoming unbounded.
+ * memory, and its backend cost -- would grow without bound if left alone. High-cardinality labels
+ * are canonicalized through a cardinality handler -- {@link
+ * datadog.trace.common.metrics.PropertyCardinalityHandler} for the core string fields (resource,
+ * service, operation, ...) and {@link datadog.trace.common.metrics.TagCardinalityHandler} for peer
+ * and additional tags -- that caps the number of distinct values per label and collapses any
+ * overflow into a shared sentinel, so over-cardinality folds into one entry rather than exploding
+ * the table. (Primitive key fields such as HTTP/gRPC status and the boolean flags are inherently
+ * low-cardinality and copied directly.) The collapses are counted per cycle and reported (to {@link
+ * datadog.trace.core.monitor.HealthMetrics} and, rate-limited, through {@link
+ * datadog.trace.common.metrics.CardinalityLimitReporter}) -- so the bounding is observable without
+ * the bookkeeping itself becoming unbounded.
  *
  * <h2>Three handler families</h2>
  *
