@@ -76,7 +76,6 @@ public class WriterFactory {
           .protocol(config.getOtlpTracesProtocol())
           .compression(config.getOtlpTracesCompression())
           .timeoutMillis(config.getOtlpTracesTimeout())
-          .healthMetrics(healthMetrics)
           .spanSamplingRules(singleSpanSampler)
           .flushIntervalMilliseconds(flushIntervalMilliseconds)
           .build();

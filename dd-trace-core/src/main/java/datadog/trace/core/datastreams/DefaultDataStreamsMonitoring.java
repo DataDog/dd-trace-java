@@ -33,8 +33,6 @@ import datadog.trace.api.datastreams.TransactionInfo;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Schema;
-import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
@@ -50,7 +48,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.jctools.queues.MessagePassingQueue;
@@ -82,7 +79,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean supportsDataStreams = false;
   private volatile boolean agentSupportsDataStreams = false;
   private volatile boolean configSupportsDataStreams = false;
-  private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
   private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
 
   // contains a list of active extractors by type. Thread-safe via volatile with immutable
@@ -140,7 +136,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
     sink.register(this);
-    schemaSamplers = new ConcurrentHashMap<>();
 
     this.propagator = new DataStreamsPropagator(this, this.timeSource, serviceNameOverride);
     DataStreamsTags.setServiceNameOverride(serviceNameOverride);
@@ -165,23 +160,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     if (thread.isAlive()) {
       inbox.offer(statsPoint);
     }
-  }
-
-  @Override
-  public int trySampleSchema(String topic) {
-    SchemaSampler sampler = schemaSamplers.computeIfAbsent(topic, t -> new SchemaSampler());
-    return sampler.trySample(timeSource.getCurrentTimeMillis());
-  }
-
-  @Override
-  public boolean canSampleSchema(String topic) {
-    SchemaSampler sampler = schemaSamplers.computeIfAbsent(topic, t -> new SchemaSampler());
-    return sampler.canSample(timeSource.getCurrentTimeMillis());
-  }
-
-  @Override
-  public Schema getSchema(String schemaName, SchemaIterator iterator) {
-    return SchemaBuilder.getSchema(schemaName, iterator);
   }
 
   @Override
@@ -522,7 +500,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void clear() {
     timeToBucket.clear();
-    schemaSamplers.clear();
   }
 
   void report() {
