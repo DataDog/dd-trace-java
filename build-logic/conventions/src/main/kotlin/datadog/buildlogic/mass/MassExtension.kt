@@ -11,9 +11,16 @@ constructor(objects: ObjectFactory, providers: ProviderFactory) {
   val readUrl: Property<String> =
     objects.property(String::class.java).convention(providers.environmentVariable("MASS_READ_URL"))
 
-  fun artifactUrl(upstreamArtifactUrl: String): String {
-    val massReadUrl = readUrl.orNull ?: return "https://$upstreamArtifactUrl"
+  fun artifactUrl(upstreamArtifactUrl: String): String = artifactUrls(upstreamArtifactUrl).first()
+
+  /**
+   * Ordered repository URLs: MASS, then upstream. Gradle advances only for missing artifacts, so
+   * this covers MASS cache misses, not connection failures. Without MASS, returns only upstream.
+   */
+  fun artifactUrls(upstreamArtifactUrl: String): List<String> {
+    val upstreamUrl = "https://$upstreamArtifactUrl"
+    val massReadUrl = readUrl.orNull?.takeIf { it.isNotBlank() } ?: return listOf(upstreamUrl)
     val baseUrl = if (massReadUrl.endsWith("/")) massReadUrl else "$massReadUrl/"
-    return "${baseUrl}internal/artifact/$upstreamArtifactUrl"
+    return listOf("${baseUrl}internal/artifact/$upstreamArtifactUrl", upstreamUrl)
   }
 }
