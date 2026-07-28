@@ -44,6 +44,7 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
 
   @BeforeAll
   static void startServer() throws IOException {
+    capturedBaggage.set(null);
     mockServer = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
     mockServer.createContext(
         "/capture",
@@ -78,7 +79,6 @@ class ReactorNettyBaggagePropagationTest extends AbstractInstrumentationTest {
 
   @Test
   void baggageHeaderPropagatedOnOutgoingRequest() {
-    capturedBaggage.set(null);
     Baggage baggage = Baggage.create(Collections.singletonMap("user.id", "abc123"));
 
     AgentSpan span = AgentTracer.startSpan("test", "parent");
