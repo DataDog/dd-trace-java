@@ -19,7 +19,6 @@ public final class JsonWriter implements Flushable, AutoCloseable {
   private final JsonStructure structure;
 
   private boolean requireComma;
-  private int bytesWritten;
 
   /** Creates a writer with structure check. */
   public JsonWriter() {
@@ -246,9 +245,14 @@ public final class JsonWriter implements Flushable, AutoCloseable {
     }
   }
 
-  /** Approximate number of bytes written so far. */
-  public int sizeInBytes() {
-    return this.bytesWritten;
+  /**
+   * Returns the current JSON size in bytes.
+   * @return The JSON size in bytes.
+   * @see #toByteArray()
+   */
+  public int size() {
+    flush();
+    return this.outputStream.size();
   }
 
   @Override
@@ -274,7 +278,6 @@ public final class JsonWriter implements Flushable, AutoCloseable {
   private void write(char ch) {
     try {
       this.writer.write(ch);
-      this.bytesWritten++;
     } catch (IOException ignored) {
     }
   }
@@ -282,7 +285,6 @@ public final class JsonWriter implements Flushable, AutoCloseable {
   private void writeStringLiteral(String str) {
     try {
       this.writer.write('"');
-      int count = 1;
 
       for (int i = 0; i < str.length(); ++i) {
         char c = str.charAt(i);
@@ -294,7 +296,6 @@ public final class JsonWriter implements Flushable, AutoCloseable {
           this.writer.write(HEX_DIGITS[(c >>> 8) & 0xF]);
           this.writer.write(HEX_DIGITS[(c >>> 4) & 0xF]);
           this.writer.write(HEX_DIGITS[c & 0xF]);
-          count += 6;
         } else {
           switch (c) {
             case '"': // Quotation mark
@@ -302,32 +303,26 @@ public final class JsonWriter implements Flushable, AutoCloseable {
             case '/': // Solidus
               this.writer.write('\\');
               this.writer.write(c);
-              count += 2;
               break;
             case '\b': // Backspace
               this.writer.write('\\');
               this.writer.write('b');
-              count += 2;
               break;
             case '\f': // Form feed
               this.writer.write('\\');
               this.writer.write('f');
-              count += 2;
               break;
             case '\n': // Line feed
               this.writer.write('\\');
               this.writer.write('n');
-              count += 2;
               break;
             case '\r': // Carriage return
               this.writer.write('\\');
               this.writer.write('r');
-              count += 2;
               break;
             case '\t': // Horizontal tab
               this.writer.write('\\');
               this.writer.write('t');
-              count += 2;
               break;
             default:
               if (c < 0x20) {
@@ -337,10 +332,8 @@ public final class JsonWriter implements Flushable, AutoCloseable {
                 this.writer.write('0');
                 this.writer.write(HEX_DIGITS[(c >>> 4) & 0xF]);
                 this.writer.write(HEX_DIGITS[c & 0xF]);
-                count += 6;
               } else {
                 this.writer.write(c);
-                count += 1;
               }
               break;
           }
@@ -348,9 +341,6 @@ public final class JsonWriter implements Flushable, AutoCloseable {
       }
 
       this.writer.write('"');
-      count += 1;
-
-      this.bytesWritten += count;
     } catch (IOException ignored) {
     }
   }
@@ -358,7 +348,6 @@ public final class JsonWriter implements Flushable, AutoCloseable {
   private void writeStringRaw(String str) {
     try {
       this.writer.write(str);
-      this.bytesWritten += str.length(); // exact if ASCII, estimate otherwise
     } catch (IOException ignored) {
     }
   }
