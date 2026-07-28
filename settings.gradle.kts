@@ -596,6 +596,7 @@ include(
   ":dd-java-agent:instrumentation:spring:spring-jms-3.1",
   ":dd-java-agent:instrumentation:spring:spring-messaging-4.0",
   ":dd-java-agent:instrumentation:spring:spring-rabbit-1.5",
+  ":dd-java-agent:instrumentation:spring:spring-rabbit-4.1",
   ":dd-java-agent:instrumentation:spring:spring-scheduling-3.1",
   ":dd-java-agent:instrumentation:spring:spring-security:spring-security-5.0",
   ":dd-java-agent:instrumentation:spring:spring-security:spring-security-6.0",
