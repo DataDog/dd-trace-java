@@ -1310,6 +1310,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     spanToSample.forceKeep(forceKeep);
     boolean published = forceKeep || traceCollector.sample(spanToSample);
     if (published) {
+      if (rootSpan != null && writtenTrace.get(0) != rootSpan) {
+        writtenTrace.get(0).spanContext().copyDecisionMakerFrom(rootSpan.spanContext());
+      }
       if (!apmTracingEnabled) {
         // Stamp the billing marker on every span of each exported chunk so the intake does not bill
         // APM host usage.

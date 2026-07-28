@@ -1393,6 +1393,10 @@ public class DDSpanContext
     return getRootSpanContextOrThis().propagationTags;
   }
 
+  void copyDecisionMakerFrom(DDSpanContext source) {
+    propagationTags.updateAndLockDecisionMaker(source.getPropagationTags());
+  }
+
   /** TraceSegment Implementation */
   @Override
   public void setTagTop(String key, Object value, boolean sanitize) {
