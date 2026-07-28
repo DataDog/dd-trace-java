@@ -56,6 +56,7 @@ public final class AggregateEntryTestUtils {
     UTF8BytesString grpcUtf = AggregateEntry.createUtf8(grpcStatusCode);
     List<UTF8BytesString> peerTagsList = peerTags == null ? Collections.emptyList() : peerTags;
     UTF8BytesString[] peerTagsArr = peerTagsList.toArray(new UTF8BytesString[0]);
+    UTF8BytesString[] emptyAdditional = new UTF8BytesString[0];
     long keyHash =
         AggregateEntry.hashOf(
             resourceUtf,
@@ -71,7 +72,9 @@ public final class AggregateEntryTestUtils {
             synthetic,
             traceRoot,
             peerTagsArr,
-            peerTagsArr.length);
+            peerTagsArr.length,
+            emptyAdditional,
+            0);
     return new AggregateEntry(
         keyHash,
         resourceUtf,
@@ -86,7 +89,32 @@ public final class AggregateEntryTestUtils {
         (short) httpStatusCode,
         synthetic,
         traceRoot,
-        peerTagsList);
+        peerTagsList,
+        emptyAdditional);
+  }
+
+  /**
+   * Records one OK hit of {@code durationNanos} on {@code e}. Exposes the package-private {@link
+   * AggregateEntry#recordOneDuration} to tests in other packages (e.g. the OTLP metrics writer
+   * tests) without widening the production mutation API.
+   */
+  public static AggregateEntry recordOk(AggregateEntry e, long durationNanos) {
+    return e.recordOneDuration(durationNanos);
+  }
+
+  /** Records one error hit of {@code durationNanos} on {@code e}. See {@link #recordOk}. */
+  public static AggregateEntry recordError(AggregateEntry e, long durationNanos) {
+    return e.recordOneDuration(durationNanos | AggregateEntry.ERROR_TAG);
+  }
+
+  /** Records one top-level OK hit of {@code durationNanos} on {@code e}. See {@link #recordOk}. */
+  public static AggregateEntry recordTopLevel(AggregateEntry e, long durationNanos) {
+    return e.recordOneDuration(durationNanos | AggregateEntry.TOP_LEVEL_TAG);
+  }
+
+  /** Clears the per-cycle counters and histograms on {@code e}. See {@link #recordOk}. */
+  public static void clear(AggregateEntry e) {
+    e.clearAggregate();
   }
 
   /**

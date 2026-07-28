@@ -49,7 +49,7 @@ public class ConsumerTaskInstrumentation extends InstrumenterModule.ContextTrack
   }
 
   public static class Construct {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static void construct(@Advice.This ForkJoinTask<?> task) {
       AgentSpan span = activeSpan();
       if (null != span) {
@@ -61,12 +61,12 @@ public class ConsumerTaskInstrumentation extends InstrumenterModule.ContextTrack
   }
 
   public static final class Run {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static <T> ContextScope before(@Advice.This ForkJoinTask<T> task) {
       return startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }

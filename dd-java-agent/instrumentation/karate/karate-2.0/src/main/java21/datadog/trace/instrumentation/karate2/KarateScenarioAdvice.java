@@ -17,9 +17,14 @@ public class KarateScenarioAdvice {
   public static class RetryAdvice {
     @Advice.OnMethodEnter
     public static void beforeExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
+      if (KarateTracingListener.skipTracking(scenarioRuntime)) {
+        return;
+      }
+
       ExecutionContext executionContext =
           InstrumentationContext.get(Scenario.class, ExecutionContext.class)
               .computeIfAbsent(scenarioRuntime.getScenario(), ExecutionContext::create);
+      executionContext.setTestStarted(false);
 
       // Indicate beforehand whether failures should be suppressed. This aligns the ordering with
       // the rest of the frameworks.
@@ -31,25 +36,36 @@ public class KarateScenarioAdvice {
     public static void afterExecute(
         @Advice.This ScenarioRuntime scenarioRuntime,
         @Advice.Return(readOnly = false) ScenarioResult result) {
+      if (KarateTracingListener.skipTracking(scenarioRuntime)) {
+        return;
+      }
+
+      Scenario scenario = scenarioRuntime.getScenario();
+      ExecutionContext context =
+          InstrumentationContext.get(Scenario.class, ExecutionContext.class).get(scenario);
+      if (context == null || !context.isTestStarted()) {
+        // avoid retrying an aborted scenario that did not start, as the execution policy will not
+        // advance and loop
+        return;
+      }
+      KarateTracingListener.afterScenario(scenarioRuntime, result, context);
+
       if (CallDepthThreadLocalMap.incrementCallDepth(ScenarioRuntime.class) > 0) {
-        // nested call (a retry invoked below, or a called scenario)
+        // retry invoked below
         return;
       }
 
       try {
-        Scenario scenario = scenarioRuntime.getScenario();
-        ExecutionContext context =
-            InstrumentationContext.get(Scenario.class, ExecutionContext.class).get(scenario);
-        if (context == null) {
-          return;
-        }
-
         ScenarioResult finalResult = result;
         TestExecutionPolicy executionPolicy = context.getExecutionPolicy();
         while (executionPolicy.applicable()) {
           ScenarioRuntime retry =
               new ScenarioRuntime(scenarioRuntime.getFeatureRuntime(), scenario);
-          finalResult = retry.call();
+          ScenarioResult retryResult = retry.call();
+          if (!context.isTestStarted()) {
+            break;
+          }
+          finalResult = retryResult;
         }
 
         // override the return value so the final attempt is the one recorded.
@@ -71,7 +87,8 @@ public class KarateScenarioAdvice {
         @Advice.Argument(value = 0, readOnly = false) StepResult stepResult,
         @Advice.FieldValue("scenario") Scenario scenario) {
 
-      if (stepResult.isFailed()) {
+      // Keep expected failures intact so Karate can apply the @fail result inversion.
+      if (stepResult.isFailed() && !scenario.isFail()) {
         ExecutionContext executionContext =
             InstrumentationContext.get(Scenario.class, ExecutionContext.class).get(scenario);
         if (executionContext == null) {

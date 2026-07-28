@@ -138,26 +138,26 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
 
   public static final class Construct {
 
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(suppress = Throwable.class)
     public static <T> void captureScope(@Advice.This RunnableFuture<T> task) {
       capture(InstrumentationContext.get(RunnableFuture.class, State.class), task);
     }
   }
 
   public static final class Run {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static <T> ContextScope activate(@Advice.This RunnableFuture<T> task) {
       return startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void close(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }
 
   public static final class Cancel {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static <T> void cancel(@Advice.This RunnableFuture<T> task) {
       cancelTask(InstrumentationContext.get(RunnableFuture.class, State.class), task);
     }

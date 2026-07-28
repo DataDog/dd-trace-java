@@ -45,7 +45,7 @@ public class BlockingPublisherInstrumentation
           self, InstrumentationContext.get(Publisher.class, HandoffContext.class));
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();

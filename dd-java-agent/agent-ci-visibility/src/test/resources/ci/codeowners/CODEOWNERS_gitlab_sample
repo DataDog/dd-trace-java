@@ -4,6 +4,8 @@
 # Entries before any section behave like a plain (GitHub-style) CODEOWNERS file. They form an
 # unnamed section whose owners are combined with those of every other matching section.
 *  @global-owner
+# Exclusions can also apply to the unnamed section.
+!unowned.txt
 
 # A section with default owners: every entry inherits them unless it declares its own.
 [Documentation] @docs-team
@@ -44,3 +46,13 @@ service/
 
 [BACKEND] @backend-team-b
 service/api/
+
+# An exclusion suppresses its section even if a later entry matches the same path.
+[Generated Files] @generated-files-team
+generated-assets/
+!generated-assets/excluded/
+generated-assets/excluded/special.txt @special-owner
+
+# Exclusions do not suppress ownership from other sections.
+[Other Generated Files] @other-generated-files-team
+generated-assets/excluded/

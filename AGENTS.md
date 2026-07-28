@@ -38,6 +38,7 @@ docs/                     Developer documentation (see below)
 | Testing guide (6 test types) | [docs/how_to_test.md](docs/how_to_test.md) |
 | Working with Gradle | [docs/how_to_work_with_gradle.md](docs/how_to_work_with_gradle.md) |
 | Bootstrap/premain constraints | [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) |
+| Instrumentation/advice constraints | [docs/instrumentation_design_guidelines.md](docs/instrumentation_design_guidelines.md) |
 | CI/CD workflows | [.github/workflows/README.md](.github/workflows/README.md) |
 
 **When working on a topic above, read the linked file first** — they are the source of truth maintained by humans.
@@ -56,14 +57,12 @@ docs/                     Developer documentation (see below)
 ## Code conventions
 
 - **Formatting**: google-java-format enforced via Spotless. Run `./gradlew spotlessApply` before committing.
-- **Static imports**: Prefer static imports over class-qualified calls for call-style helpers — JUnit `Assertions`, Mockito (`mock`, `when`, `verify`, `anyString`, `RETURNS_DEFAULTS`, ...), Hamcrest/AssertJ matchers, internal test DSLs, and similar. Same goes for production code: `Collections.emptyList()` is fine, but if you find yourself repeatedly writing `Foo.bar(...)` where `Foo` adds no information at the call site, static-import `bar`. Wildcard `import static x.*` is disallowed (enforced by IDE config in CONTRIBUTING.md).
+- **Static imports**: Prefer static imports over class-qualified calls for call-style helpers, in both test (Assertions.assertEquals, Mockito.mock) and production code (Collections.emptyList). Wildcard imports disallowed — see CONTRIBUTING.md.
 - **Instrumentation layout**: `dd-java-agent/instrumentation/{framework}/{framework}-{minVersion}/`
 - **Instrumentation pattern**: Type matching → Method matching → Advice class (bytecode advice, not AOP)
 - **Test frameworks**: Always use JUnit 5 for unit tests. Only use Groovy / Spock tests for instrumentation and smoke tests.
 - **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
 - **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
-- **Instrumentation one-shot methods**: Never extract the return values of `triggerClasses()`, `contextStore()`, `classLoaderMatcher()`, or `methodAdvice()` into static constants. These are called once by the framework — extracting to a constant adds constant-pool bloat with no benefit.
-- **Scope lifecycle order**: Keep the scope open until all work that needs the current active span is done — decorator calls, async callback registration, etc. Required order: decorator calls and callback registration, then `scope.close()`, then `span.finish()`.
 
 ## PR conventions
 
@@ -74,23 +73,10 @@ docs/                     Developer documentation (see below)
 
 ## Review Guidelines
 
-Before marking a PR ready, run the applicable reviews below over the branch changes (the diff since the merge-base with `master`). These are **advisory, precision-first** checks — they surface high-severity issues early and are not merge gates. The linked guidelines are the tool-agnostic source of truth.
+- **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
+- **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).
 
-### Performance Review
+## Critical constraints
 
-Follow the performance-review guidelines in [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md) — the do-no-harm / assume-hot posture, the hot-path checks (universal + Java J1–J11 + ByteBuddy-Advice idioms), and the confidence/severity model, with the detailed rubric in its `references/`. Scope: hot-path allocation, unbounded memory, repeated work, escaping objects, native-boundary crossings, and JVM-specific pitfalls.
-
-## Bootstrap constraints (critical)
-
-Code running in the agent's `premain` phase must **not** use:
-- `java.util.logging.*` — locks in log manager before app configures it
-- `java.nio.file.*` — triggers premature provider initialization
-- `javax.management.*` — causes class loading issues
-
-See [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) for details and alternatives.
-
-## Advice constraints (critical)
-
-Advice methods (OnMethodEnter/OnMethodExit) are inlined into the instrumented class's bytecode.
-Calling a static interface method there, such as Context.root() or Context.current(), can cause
-a VerifyError at runtime — use Java8BytecodeBridge (rootContext, currentContext, etc.) instead.
+- **Bootstrap**: never use `java.util.logging.*`, `java.nio.file.*`, or `javax.management.*` in `premain` code — see [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md).
+- **Advice**: never call a static interface method from advice — can cause a `VerifyError` — see [docs/instrumentation_design_guidelines.md](docs/instrumentation_design_guidelines.md).
