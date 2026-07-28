@@ -1,9 +1,11 @@
 /**
- * Client-side trace statistics (CSS): the tracer computes per-interval aggregate stats -- hit
- * counts, error counts, and latency histograms grouped by a tuple of span labels (resource,
- * service, operation, span kind, HTTP/gRPC status, peer tags, ...) -- and ships them to Datadog
- * every reporting interval. This lets the backend show accurate metrics even when individual spans
- * are sampled away.
+ * Client-side stats aggregate eligible completed spans by resource, service, operation, span kind,
+ * status, and configured tags. Each reporting interval produces hit and error counts and latency
+ * distributions. The aggregates are computed independently of trace sampling, so they include spans
+ * that are not sent individually.
+ *
+ * <p>A {@link datadog.trace.common.metrics.MetricWriter} publishes each interval: msgpack to the
+ * Datadog Agent or OTLP to the configured OTLP metrics endpoint.
  *
  * <h2>At a glance</h2>
  *
