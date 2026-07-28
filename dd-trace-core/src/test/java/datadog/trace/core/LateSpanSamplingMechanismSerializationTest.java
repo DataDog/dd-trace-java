@@ -7,20 +7,20 @@ import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.communication.serialization.ByteBufferConsumer;
-import datadog.communication.serialization.FlushingBuffer;
+import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
-import java.nio.ByteBuffer;
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
+import org.msgpack.value.MapValue;
+import org.msgpack.value.Value;
+import org.msgpack.value.ValueFactory;
 
 /**
  * Verifies that trace-level sampling metadata is preserved when a root and a later child are
@@ -70,87 +70,61 @@ class LateSpanSamplingMechanismSerializationTest extends DDCoreJavaSpecification
       assertEquals(singletonList(root), writer.get(0));
       assertEquals(singletonList(lateChild), writer.get(1));
 
-      SerializedChunk rootChunk = writer.serializedChunks.get(0);
-      SerializedChunk lateChunk = writer.serializedChunks.get(1);
+      MapValue rootChunk = writer.serializedSpans.get(0);
+      MapValue lateChunk = writer.serializedSpans.get(1);
 
       assertEquals(
-          (int) USER_KEEP, rootChunk.metrics.get(DDSpanContext.PRIORITY_SAMPLING_KEY).intValue());
-      assertEquals("-12", rootChunk.meta.get("_dd.p.dm"));
+          (int) USER_KEEP,
+          numberValue(rootChunk, "metrics", DDSpanContext.PRIORITY_SAMPLING_KEY).intValue());
+      assertEquals("-12", stringValue(rootChunk, "meta", "_dd.p.dm"));
 
       assertEquals(
-          (int) USER_KEEP, lateChunk.metrics.get(DDSpanContext.PRIORITY_SAMPLING_KEY).intValue());
+          (int) USER_KEEP,
+          numberValue(lateChunk, "metrics", DDSpanContext.PRIORITY_SAMPLING_KEY).intValue());
       // The late chunk's decision maker must match its propagated trace-level sampling priority.
-      assertEquals("-12", lateChunk.meta.get("_dd.p.dm"));
+      assertEquals("-12", stringValue(lateChunk, "meta", "_dd.p.dm"));
     } finally {
       tracer.close();
     }
   }
 
+  private static Number numberValue(MapValue span, String mapName, String key) {
+    Value value = value(span, mapName, key);
+    return value == null ? null : value.asNumberValue().toInt();
+  }
+
+  private static String stringValue(MapValue span, String mapName, String key) {
+    Value value = value(span, mapName, key);
+    return value == null ? null : value.asStringValue().asString();
+  }
+
+  private static Value value(MapValue span, String mapName, String key) {
+    Value map = span.map().get(ValueFactory.newString(mapName));
+    return map.asMapValue().map().get(ValueFactory.newString(key));
+  }
+
   private static final class SerializingWriter extends ListWriter {
-    private final List<SerializedChunk> serializedChunks = new ArrayList<>();
+    private final List<MapValue> serializedSpans = new ArrayList<>();
 
     @Override
     public void write(List<DDSpan> trace) {
-      serializedChunks.add(serialize(trace));
+      serializedSpans.add(serialize(trace));
       super.write(trace);
     }
 
-    private static SerializedChunk serialize(List<DDSpan> trace) {
+    private static MapValue serialize(List<DDSpan> trace) {
       TraceMapperV0_4 mapper = new TraceMapperV0_4();
-      CaptureBuffer capture = new CaptureBuffer();
-      MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, capture));
+      GrowableBuffer buffer = new GrowableBuffer(16 * 1024);
+      MsgPackWriter packer = new MsgPackWriter(buffer);
       assertTrue(packer.format(trace, mapper));
-      packer.flush();
 
-      try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(capture.bytes)) {
-        assertEquals(1, unpacker.unpackArrayHeader());
-        int fieldCount = unpacker.unpackMapHeader();
-        Map<String, Number> metrics = new HashMap<>();
-        Map<String, String> meta = new HashMap<>();
-
-        for (int i = 0; i < fieldCount; i++) {
-          String field = unpacker.unpackString();
-          if ("metrics".equals(field)) {
-            int size = unpacker.unpackMapHeader();
-            for (int j = 0; j < size; j++) {
-              metrics.put(unpacker.unpackString(), unpacker.unpackValue().asNumberValue().toInt());
-            }
-          } else if ("meta".equals(field)) {
-            int size = unpacker.unpackMapHeader();
-            for (int j = 0; j < size; j++) {
-              meta.put(unpacker.unpackString(), unpacker.unpackString());
-            }
-          } else {
-            unpacker.unpackValue();
-          }
-        }
-        return new SerializedChunk(metrics, meta);
-      } catch (Exception e) {
+      try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer.slice())) {
+        return unpacker.unpackValue().asArrayValue().get(0).asMapValue();
+      } catch (IOException e) {
         throw new IllegalStateException("Unable to decode serialized trace chunk", e);
       } finally {
         mapper.reset();
       }
-    }
-  }
-
-  private static final class CaptureBuffer implements ByteBufferConsumer {
-    private byte[] bytes;
-
-    @Override
-    public void accept(int messageCount, ByteBuffer buffer) {
-      assertEquals(1, messageCount);
-      bytes = new byte[buffer.remaining()];
-      buffer.get(bytes);
-    }
-  }
-
-  private static final class SerializedChunk {
-    private final Map<String, Number> metrics;
-    private final Map<String, String> meta;
-
-    private SerializedChunk(Map<String, Number> metrics, Map<String, String> meta) {
-      this.metrics = metrics;
-      this.meta = meta;
     }
   }
 }
