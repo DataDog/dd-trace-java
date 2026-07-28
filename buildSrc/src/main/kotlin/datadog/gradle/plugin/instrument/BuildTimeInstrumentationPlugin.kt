@@ -41,7 +41,8 @@ import org.gradle.kotlin.dsl.withType
  *
  * Requirements for ByteBuddy plugins:
  * 1. Must implement [net.bytebuddy.build.Plugin]
- * 2. Must have a constructor accepting a [java.io.File] parameter (target directory)
+ * 2. Must have a constructor accepting a [java.io.File] (target directory), or a two-`File`
+ *    `(sourceDirectory, targetDirectory)` constructor when the plugin also needs the source folder
  * 3. Plugin classes must be available on `buildTimeInstrumentationPlugin` configuration
  *
  * @see BuildTimeInstrumentationExtension

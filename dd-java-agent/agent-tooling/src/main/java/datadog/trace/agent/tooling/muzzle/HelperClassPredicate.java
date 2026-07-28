@@ -5,15 +5,17 @@ import java.util.function.Predicate;
 
 /**
  * Classifies a referenced class as an injectable tracer helper, a bootstrap class, or a library
- * class — similar to OpenTelemetry's {@code HelperClassPredicate#isHelperClass}; however, the main
- * signal here is whether the class was compiled from the instrumentation subproject's own output
- * ({@code ownOutput}). {@link #HELPER_PREFIXES} additionally covers helpers that live in other
- * tracer subprojects.
+ * class — similar to OpenTelemetry's {@code HelperClassPredicate#isHelperClass}. The primary signal
+ * is {@code ownOutput}: a class the instrumentation subproject compiled itself.
+ *
+ * <p>A subproject only injects helpers it owns; a helper owned by another subproject must be
+ * declared explicitly via {@code helperClassNames()}. {@link #HELPER_PREFIXES} lists the shared
+ * infrastructure subprojects that are not owned by a specific subproject and so are always treated
+ * as helpers.
  */
 public final class HelperClassPredicate {
 
   static final String[] HELPER_PREFIXES = {
-    "datadog.trace.instrumentation.",
     "datadog.opentelemetry.shim.",
     "datadog.trace.agent.tooling.iast.",
     "datadog.trace.agent.tooling.nativeimage.",
