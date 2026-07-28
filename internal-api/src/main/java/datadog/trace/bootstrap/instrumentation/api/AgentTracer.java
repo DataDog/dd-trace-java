@@ -224,18 +224,6 @@ public class AgentTracer {
     return NoopSpanContext.INSTANCE;
   }
 
-  /**
-   * Returns the noop scope instance.
-   *
-   * <p>This instance will always be the same, and can be safely tested using object identity (ie
-   * {@code ==}).
-   *
-   * @return the noop scope instance.
-   */
-  public static AgentScope noopScope() {
-    return NoopScope.INSTANCE;
-  }
-
   public static final TracerAPI NOOP_TRACER = new NoopTracerAPI();
 
   private static volatile TracerAPI provider = NOOP_TRACER;
