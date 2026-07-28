@@ -7,6 +7,7 @@ import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import javax.annotation.Nullable;
 
 /** Helper utils for Runnable/Callable instrumentation */
 public class AdviceUtils {
@@ -24,6 +25,7 @@ public class AdviceUtils {
     return startTaskScope(contextStore.get(task));
   }
 
+  @Nullable
   public static ContextScope startTaskScope(State state) {
     if (state != null) {
       final ContextContinuation continuation = state.getAndResetContinuation();
@@ -51,6 +53,12 @@ public class AdviceUtils {
     }
   }
 
+  /**
+   * Determines whether the given context should be captured for async propagation.
+   *
+   * @param context the context to check
+   * @return {@code true} if the context should be captured; otherwise {@code false}
+   */
   public static boolean shouldCapture(Context context) {
     if (context == Context.root()) {
       return false;

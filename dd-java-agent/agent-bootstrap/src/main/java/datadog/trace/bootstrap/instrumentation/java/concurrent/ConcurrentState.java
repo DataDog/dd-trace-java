@@ -8,6 +8,7 @@ import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +32,7 @@ public final class ConcurrentState {
 
   private ConcurrentState() {}
 
+  @Nullable
   public static <K> ConcurrentState captureContinuation(
       ContextStore<K, ConcurrentState> contextStore, K key, Context context) {
     if (shouldCapture(context)) {
@@ -47,6 +49,7 @@ public final class ConcurrentState {
     }
   }
 
+  @Nullable
   public static <K> ContextScope activateAndContinueContinuation(
       ContextStore<K, ConcurrentState> contextStore, K key) {
     final ConcurrentState state = contextStore.get(key);
