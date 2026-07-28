@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPro
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
+import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.Nullable;
@@ -54,7 +55,9 @@ public class AdviceUtils {
   }
 
   /**
-   * Determines whether the given context should be captured for async propagation.
+   * Determines whether the given context should be captured for async propagation. The root context
+   * is never captured; similarly a context with an invalid span is deliberately excluded from async
+   * propagation to support {@link Tracer#muteTracing()}
    *
    * @param context the context to check
    * @return {@code true} if the context should be captured; otherwise {@code false}
