@@ -428,6 +428,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_ADDITIONAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
@@ -940,6 +941,7 @@ public class Config {
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
   private final Set<String> splitByTags;
+  private final Set<String> traceStatsAdditionalTags;
   private final boolean jeeSplitByDeployment;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
@@ -1825,6 +1827,12 @@ public class Config {
             || DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmPropagationMode);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
+
+    traceStatsAdditionalTags =
+        experimentalFeaturesEnabled.contains(
+                propertyNameToEnvironmentVariableName(TRACE_STATS_ADDITIONAL_TAGS))
+            ? tryMakeImmutableSet(configProvider.getList(TRACE_STATS_ADDITIONAL_TAGS))
+            : Collections.emptySet();
 
     jeeSplitByDeployment =
         configProvider.getBoolean(
@@ -3895,13 +3903,49 @@ public class Config {
   }
 
   /**
+   * Upper bound for a configured stats cardinality limit. Each limit sizes a {@code
+   * TagCardinalityHandler} that eagerly allocates four reference arrays of {@code nextPow2(limit *
+   * 2)} slots, so an unbounded value (e.g. a mis-set env var) can exhaust the heap while the
+   * aggregator is constructed, before the tracer finishes starting. {@code 1 << 16} caps a single
+   * handler near ~2 MB while staying far above any useful setting -- the highest built-in default
+   * is 1024, and the aggregate table itself caps at a few thousand rows, so a larger per-key budget
+   * cannot produce more aggregate rows anyway.
+   */
+  private static final int MAX_TRACE_STATS_CARDINALITY_LIMIT = 1 << 16;
+
+  /**
    * Returns the per-cycle cardinality limit for the named stats field, following the RFC naming
    * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
    * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
    * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
+   *
+   * <p>A non-positive configured value is invalid -- each limit sizes a fixed-capacity handler
+   * table that requires a positive size -- so it falls back to {@code defaultLimit}, logged at
+   * debug. A value above {@link #MAX_TRACE_STATS_CARDINALITY_LIMIT} would eagerly allocate handler
+   * tables large enough to exhaust the heap at startup, so it likewise falls back to {@code
+   * defaultLimit}, logged at warn.
    */
   public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
-    return configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+    int limit =
+        configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+    if (limit <= 0) {
+      log.debug(
+          "Invalid trace.stats.{}.cardinality.limit={}; must be positive. Using default {}.",
+          tagName,
+          limit,
+          defaultLimit);
+      return defaultLimit;
+    }
+    if (limit > MAX_TRACE_STATS_CARDINALITY_LIMIT) {
+      log.warn(
+          "trace.stats.{}.cardinality.limit={} exceeds the maximum of {}; using default {} to avoid excessive memory use.",
+          tagName,
+          limit,
+          MAX_TRACE_STATS_CARDINALITY_LIMIT,
+          defaultLimit);
+      return defaultLimit;
+    }
+    return limit;
   }
 
   public boolean isLogsInjectionEnabled() {
@@ -5250,6 +5294,10 @@ public class Config {
     return tryMakeImmutableSet(configProvider.getList(TRACER_METRICS_IGNORED_RESOURCES));
   }
 
+  public Set<String> getTraceStatsAdditionalTags() {
+    return traceStatsAdditionalTags;
+  }
+
   public String getEnv() {
     // intentionally not thread safe
     if (env == null) {
@@ -6390,6 +6438,8 @@ public class Config {
         + dbmTracePreparedStatements
         + ", splitByTags="
         + splitByTags
+        + ", traceStatsAdditionalTags="
+        + traceStatsAdditionalTags
         + ", jeeSplitByDeployment="
         + jeeSplitByDeployment
         + ", scopeDepthLimit="
