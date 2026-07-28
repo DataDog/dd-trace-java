@@ -11,6 +11,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_SAMPLE_DELAY;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_AGENTIC_ONBOARDING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT;
@@ -194,7 +195,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_INHERI
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_TAG_SESSION_ID;
 import static datadog.trace.api.ConfigSetting.NON_DEFAULT_SEQ_ID;
-import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
@@ -222,6 +222,7 @@ import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENABLED_EXPERIM
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_MESSAGE_LIMIT;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_SAMPLE_DELAY;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_AGENTIC_ONBOARDING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_AUTO_USER_INSTRUMENTATION_MODE;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_BODY_PARSING_SIZE_LIMIT;
@@ -427,6 +428,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_ADDITIONAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
@@ -481,6 +483,7 @@ import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPERIMENTAL_ENAB
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_HEADERS;
@@ -497,7 +500,6 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
-import static datadog.trace.api.config.OtlpConfig.TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
@@ -624,6 +626,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_C
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_APP_NAME_AS_SERVICE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_TASK_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_SCHEDULING_MEASURED_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SQS_BODY_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING;
@@ -939,6 +942,7 @@ public class Config {
   private final boolean dbClientSplitByInstanceTypeSuffix;
   private final boolean dbClientSplitByHost;
   private final Set<String> splitByTags;
+  private final Set<String> traceStatsAdditionalTags;
   private final boolean jeeSplitByDeployment;
   private final int scopeDepthLimit;
   private final boolean scopeStrictMode;
@@ -1009,7 +1013,7 @@ public class Config {
   private final int otlpMetricsTimeout;
   private final OtlpConfig.Temporality otlpMetricsTemporalityPreference;
 
-  private final boolean tracesSpanMetricsEnabled;
+  private final boolean otelTracesSpanMetricsEnabled;
   private final boolean traceOtelSemanticsEnabled;
 
   private final String traceOtelExporter;
@@ -1088,6 +1092,7 @@ public class Config {
   private final int appSecTraceRateLimit;
   private final boolean appSecWafMetrics;
   private final int appSecWafTimeout;
+  private final String appSecAgenticOnboarding;
   private final String appSecObfuscationParameterKeyRegexp;
   private final String appSecObfuscationParameterValueRegexp;
   private final String appSecHttpBlockedTemplateHtml;
@@ -1288,6 +1293,8 @@ public class Config {
 
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
+
+  private final boolean springSchedulingMeasuredEnabled;
 
   private final boolean resilience4jMeasuredEnabled;
   private final boolean resilience4jTagMetricsEnabled;
@@ -1824,6 +1831,12 @@ public class Config {
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
+    traceStatsAdditionalTags =
+        experimentalFeaturesEnabled.contains(
+                propertyNameToEnvironmentVariableName(TRACE_STATS_ADDITIONAL_TAGS))
+            ? tryMakeImmutableSet(configProvider.getList(TRACE_STATS_ADDITIONAL_TAGS))
+            : Collections.emptySet();
+
     jeeSplitByDeployment =
         configProvider.getBoolean(
             EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT, DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT);
@@ -2145,9 +2158,9 @@ public class Config {
     traceOtelSemanticsEnabled = configProvider.getBoolean(TRACE_OTEL_SEMANTICS_ENABLED, false);
     // Tri-state default: when unset, SDK-computed OTLP span metrics are emitted iff OTLP trace
     // export and OTLP metrics export are both enabled.
-    tracesSpanMetricsEnabled =
+    otelTracesSpanMetricsEnabled =
         configProvider.getBoolean(
-            TRACES_SPAN_METRICS_ENABLED,
+            OTEL_TRACES_SPAN_METRICS_ENABLED,
             isTraceOtlpExporterEnabled()
                 && isMetricsOtelEnabled()
                 && isMetricsOtlpExporterEnabled());
@@ -2507,6 +2520,10 @@ public class Config {
     appSecWafMetrics = configProvider.getBoolean(APPSEC_WAF_METRICS, DEFAULT_APPSEC_WAF_METRICS);
 
     appSecWafTimeout = configProvider.getInteger(APPSEC_WAF_TIMEOUT, DEFAULT_APPSEC_WAF_TIMEOUT);
+
+    // RFC-1113: reported verbatim in configuration telemetry; always emitted (empty when unset).
+    appSecAgenticOnboarding =
+        configProvider.getString(APPSEC_AGENTIC_ONBOARDING, DEFAULT_APPSEC_AGENTIC_ONBOARDING);
 
     appSecObfuscationParameterKeyRegexp =
         configProvider.getString(APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP, null);
@@ -3037,6 +3054,9 @@ public class Config {
 
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
+
+    springSchedulingMeasuredEnabled =
+        configProvider.getBoolean(SPRING_SCHEDULING_MEASURED_ENABLED, false);
 
     resilience4jMeasuredEnabled = configProvider.getBoolean(RESILIENCE4J_MEASURED_ENABLED, false);
     resilience4jTagMetricsEnabled =
@@ -3889,13 +3909,49 @@ public class Config {
   }
 
   /**
+   * Upper bound for a configured stats cardinality limit. Each limit sizes a {@code
+   * TagCardinalityHandler} that eagerly allocates four reference arrays of {@code nextPow2(limit *
+   * 2)} slots, so an unbounded value (e.g. a mis-set env var) can exhaust the heap while the
+   * aggregator is constructed, before the tracer finishes starting. {@code 1 << 16} caps a single
+   * handler near ~2 MB while staying far above any useful setting -- the highest built-in default
+   * is 1024, and the aggregate table itself caps at a few thousand rows, so a larger per-key budget
+   * cannot produce more aggregate rows anyway.
+   */
+  private static final int MAX_TRACE_STATS_CARDINALITY_LIMIT = 1 << 16;
+
+  /**
    * Returns the per-cycle cardinality limit for the named stats field, following the RFC naming
    * pattern {@code DD_TRACE_STATS_{tagName}_CARDINALITY_LIMIT} (e.g. {@code
    * DD_TRACE_STATS_RESOURCE_CARDINALITY_LIMIT}). The caller supplies the default from {@code
    * MetricCardinalityLimits} so per-field rationale stays co-located with the defaults.
+   *
+   * <p>A non-positive configured value is invalid -- each limit sizes a fixed-capacity handler
+   * table that requires a positive size -- so it falls back to {@code defaultLimit}, logged at
+   * debug. A value above {@link #MAX_TRACE_STATS_CARDINALITY_LIMIT} would eagerly allocate handler
+   * tables large enough to exhaust the heap at startup, so it likewise falls back to {@code
+   * defaultLimit}, logged at warn.
    */
   public int getTraceStatsCardinalityLimit(String tagName, int defaultLimit) {
-    return configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+    int limit =
+        configProvider.getInteger("trace.stats." + tagName + ".cardinality.limit", defaultLimit);
+    if (limit <= 0) {
+      log.debug(
+          "Invalid trace.stats.{}.cardinality.limit={}; must be positive. Using default {}.",
+          tagName,
+          limit,
+          defaultLimit);
+      return defaultLimit;
+    }
+    if (limit > MAX_TRACE_STATS_CARDINALITY_LIMIT) {
+      log.warn(
+          "trace.stats.{}.cardinality.limit={} exceeds the maximum of {}; using default {} to avoid excessive memory use.",
+          tagName,
+          limit,
+          MAX_TRACE_STATS_CARDINALITY_LIMIT,
+          defaultLimit);
+      return defaultLimit;
+    }
+    return limit;
   }
 
   public boolean isLogsInjectionEnabled() {
@@ -4923,6 +4979,10 @@ public class Config {
     return resilience4jMeasuredEnabled;
   }
 
+  public boolean isSpringSchedulingMeasuredEnabled() {
+    return springSchedulingMeasuredEnabled;
+  }
+
   public boolean isResilience4jTagMetricsEnabled() {
     return resilience4jTagMetricsEnabled;
   }
@@ -5191,9 +5251,10 @@ public class Config {
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     result.put(SCHEMA_VERSION_TAG_KEY, SpanNaming.instance().version());
     result.put(DDTags.PROFILING_ENABLED, isProfilingEnabled() ? 1 : 0);
-    if (!isApmTracingEnabled()) {
-      result.put(APM_ENABLED, 0);
-    }
+    // The _dd.apm.enabled:0 billing marker is intentionally NOT set here. When APM tracing is
+    // disabled it is stamped on every span of each exported chunk (see CoreTracer.write), so that
+    // chunks flushed without their local root span (e.g. a late child span) still opt out of APM
+    // host billing.
 
     if (reportHostName) {
       final String hostName = getHostName();
@@ -5241,6 +5302,10 @@ public class Config {
 
   public Set<String> getMetricsIgnoredResources() {
     return tryMakeImmutableSet(configProvider.getList(TRACER_METRICS_IGNORED_RESOURCES));
+  }
+
+  public Set<String> getTraceStatsAdditionalTags() {
+    return traceStatsAdditionalTags;
   }
 
   public String getEnv() {
@@ -5654,8 +5719,8 @@ public class Config {
     return otlpMetricsTemporalityPreference;
   }
 
-  public boolean isTracesSpanMetricsEnabled() {
-    return tracesSpanMetricsEnabled;
+  public boolean isOtelTracesSpanMetricsEnabled() {
+    return otelTracesSpanMetricsEnabled;
   }
 
   public boolean isTraceOtelSemanticsEnabled() {
@@ -6383,6 +6448,8 @@ public class Config {
         + dbmTracePreparedStatements
         + ", splitByTags="
         + splitByTags
+        + ", traceStatsAdditionalTags="
+        + traceStatsAdditionalTags
         + ", jeeSplitByDeployment="
         + jeeSplitByDeployment
         + ", scopeDepthLimit="
@@ -6609,6 +6676,8 @@ public class Config {
         + hystrixTagsEnabled
         + ", hystrixMeasuredEnabled="
         + hystrixMeasuredEnabled
+        + ", springSchedulingMeasuredEnabled="
+        + springSchedulingMeasuredEnabled
         + ", resilience4jMeasuredEnable="
         + resilience4jMeasuredEnabled
         + ", resilience4jTagMetricsEnabled="
@@ -6659,7 +6728,9 @@ public class Config {
         + appSecHttpBlockedTemplateHtml
         + ", appSecWafTimeout="
         + appSecWafTimeout
-        + " us, appSecHttpBlockedTemplateJson="
+        + " us, appSecAgenticOnboarding="
+        + appSecAgenticOnboarding
+        + ", appSecHttpBlockedTemplateJson="
         + appSecHttpBlockedTemplateJson
         + ", apiSecurityEnabled="
         + apiSecurityEnabled
@@ -6793,8 +6864,8 @@ public class Config {
         + otlpMetricsTimeout
         + ", otlpMetricsTemporalityPreference="
         + otlpMetricsTemporalityPreference
-        + ", tracesSpanMetricsEnabled="
-        + tracesSpanMetricsEnabled
+        + ", otelTracesSpanMetricsEnabled="
+        + otelTracesSpanMetricsEnabled
         + ", traceOtelSemanticsEnabled="
         + traceOtelSemanticsEnabled
         + ", traceStatsInterval="

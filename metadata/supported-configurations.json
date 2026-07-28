@@ -241,6 +241,14 @@
         "aliases": []
       }
     ],
+    "DD_APPSEC_AGENTIC_ONBOARDING": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "",
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING": [
       {
         "version": "C",
@@ -3886,6 +3894,14 @@
         "version": "A",
         "type": "boolean",
         "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_SPRING_SCHEDULING_MEASURED_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
         "aliases": []
       }
     ],
@@ -8673,7 +8689,7 @@
         "aliases": []
       }
     ],
-    "DD_TRACES_SPAN_METRICS_ENABLED": [
+    "DD_OTEL_TRACES_SPAN_METRICS_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
@@ -10742,6 +10758,22 @@
         "version": "A",
         "type": "int",
         "default": "512",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS": [
+      {
+        "version": "A",
+        "type": "array",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "100",
         "aliases": []
       }
     ],

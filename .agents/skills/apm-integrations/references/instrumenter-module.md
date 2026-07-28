@@ -79,13 +79,9 @@ Users can then set `DD_TRACE_OKHTTP_ENABLED=false` (group off) OR `DD_TRACE_OKHT
 
 **New module you expect will soon have a sibling** — add the alias upfront and document why in the commit message. If no sibling appears, drop the alias in a follow-up.
 
-**Existing module** (modifying, refactoring, or splitting): read the existing module's `super(...)` and copy it verbatim. Integration names are public config API — renaming one silently breaks customer `DD_TRACE_*_ENABLED` settings.
-
-Before choosing, list the `dd-java-agent/instrumentation/$framework/` directory — the contents are the ground truth for whether siblings exist.
+**Editing an existing module:** read it first, then change only what the task requires. Copy `super(...)` verbatim — integration names are public config API, and silently changing the number of arguments or a string value breaks customer `DD_TRACE_*_ENABLED` settings. The same "read before touching, preserve unless you have a reason to change it" rule covers everything else on the class: overridden methods (`defaultEnabled()`, `helperClassNames()`, `contextStore()`, `orderPriority()`), the Java package, the set and order of production classes, and array/map entry ordering. Don't rename, reorder, drop, or restructure any of it as a side effect of regenerating the file — every one of those looks harmless in isolation but reads as an unexplained regression to a reviewer, and some (like a dropped `*ContextBridge` helper — see `context-tracking.md`) silently break sibling modules that reference the class by FQN.
 
 Do NOT add version aliases to the decorator's `instrumentationNames()` — that method is for analytics keys only.
-
-**When rewriting or refactoring an existing module, preserve every override the master version has.** Not just `super(...)` — also `defaultEnabled()`, `helperClassNames()`, `contextStore()`, `orderPriority()`, `muzzleDirective()`, and any other overridden method. Read the current file on master before writing; carry each override forward verbatim unless there's a documented reason to change it. Silent loss of `defaultEnabled() = false` (or similar opt-in flags) ships an integration with a different default than users expected.
 
 ### Do not create a helper class just for CallDepthThreadLocalMap when only one type is instrumented
 

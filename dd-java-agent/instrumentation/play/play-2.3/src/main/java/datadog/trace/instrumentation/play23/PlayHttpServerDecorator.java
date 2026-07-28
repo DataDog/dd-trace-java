@@ -18,6 +18,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import play.api.Routes;
@@ -84,7 +85,7 @@ public class PlayHttpServerDecorator
   }
 
   @Override
-  public void onRequest(
+  protected void doOnRequest(
       final AgentSpan span,
       final Request<?> connection,
       final Request<?> request,
@@ -96,7 +97,7 @@ public class PlayHttpServerDecorator
     // forwarded one. This way the IG callbacks and tags receive the correct peer.
     // (APPSEC-62562)
     final Request<?> connectionForSuper = withCapturedPeer(span, connection);
-    super.onRequest(span, connectionForSuper, request, parentContext);
+    super.doOnRequest(span, connectionForSuper, request, parentContext);
     if (request != null) {
       // more about routes here:
       // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md#router-tags-are-now-attributes
@@ -162,7 +163,8 @@ public class PlayHttpServerDecorator
   }
 
   @Override
-  public void onError(final AgentSpan span, Throwable throwable) {
+  protected void doOnError(
+      @Nonnull final AgentSpan span, @Nonnull Throwable throwable, byte errorPriority) {
     if (REPORT_HTTP_STATUS) {
       span.setHttpStatusCode(500);
     }
@@ -174,6 +176,6 @@ public class PlayHttpServerDecorator
         && throwable.getCause() != null) {
       throwable = throwable.getCause();
     }
-    super.onError(span, throwable);
+    super.doOnError(span, throwable, errorPriority);
   }
 }

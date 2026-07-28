@@ -138,6 +138,17 @@ public final class LongHashingUtils {
     return addToHash(hash, Double.hashCode(value));
   }
 
+  public static final long addToHash(long hash, Object[] arr, int len) {
+    for (int i = 0; i < len; i++) {
+      hash = addToHash(hash, arr[i]);
+    }
+    return hash;
+  }
+
+  public static final long addToHash(long hash, Object[] arr) {
+    return addToHash(hash, arr, arr.length);
+  }
+
   public static final long hash(Iterable<?> objs) {
     long result = 0;
     for (Object obj : objs) {

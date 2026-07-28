@@ -662,8 +662,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledForJreRange(
-      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -696,8 +694,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledForJreRange(
-      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -725,8 +721,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledForJreRange(
-      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -760,8 +754,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledForJreRange(
-      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -3191,7 +3183,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Class<?> testClass = loadClass(CLASS_NAME, buffers);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
-    if (JavaVirtualMachine.isJavaVersion(17)) {
+    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 20)) {
       // on JDK 17 with Spring6 class, transformation cannot happen
       assertEquals(0, listener.snapshots.size());
       ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
@@ -3226,7 +3218,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Class<?> testClass = loadClass(CLASS_NAME, buffers);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(42, result);
-    if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(19)
+        || JavaVirtualMachine.isJavaVersionAtLeast(17, 0, 20)) {
       Snapshot snapshot = assertOneSnapshot(listener);
       assertCaptureArgs(
           snapshot.getCaptures().getReturn(), "firstName", String.class.getTypeName(), "john");
@@ -3283,6 +3276,10 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   @EnabledForJreRange(min = JRE.JAVA_17)
   public void recordWithTypeAnnotation() throws IOException, URISyntaxException {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4)) {
+      // Fixed since JDK 25.0.4
+      return;
+    }
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot33";
     LogProbe probe1 = createMethodProbeAtExit(PROBE_ID1, CLASS_NAME, "parse", null);
     TestSnapshotListener listener = installProbes(probe1);

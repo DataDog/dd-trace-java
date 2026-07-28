@@ -14,7 +14,7 @@ class RuntimeExecStringAdvice {
     return true;
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterExec(@Advice.Enter boolean checking) {
     if (checking) {
       ProcessImplInstrumentationHelpers.resetCheckShi();
