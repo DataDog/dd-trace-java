@@ -311,6 +311,14 @@ public class WAFModule implements AppSecModule {
 
       try {
         resultWithData = doRunWaf(reqCtx, newData, ctxAndAddr, gwCtx);
+        if (resultWithData == null) {
+          // WAF context closed concurrently between the fast-path check and context creation; skip
+          // (APPSEC-69085). raspRuleEval() was already counted above, so don't also count
+          // raspRuleSkipped() here - that counter is reserved for calls that never attempted eval.
+          log.debug("Skipped; the WAF context was closed concurrently");
+          WafMetricCollector.get().wafContextClosedRace();
+          return;
+        }
       } catch (TimeoutWafException tpe) {
         if (gwCtx.isRasp) {
           reqCtx.increaseRaspTimeouts();
@@ -321,10 +329,16 @@ public class WAFModule implements AppSecModule {
         }
         return;
       } catch (UnclassifiedWafException e) {
-        if (!reqCtx.isWafContextClosed()) {
+        if (reqCtx.isWafContextClosed()) {
+          // The context was closed concurrently between getOrCreateWafContext() and this run()
+          // call (APPSEC-69085) - the same benign race already tracked below via
+          // wafContextClosedRace(); avoid double-counting it as a real WAF error.
+          log.debug("Skipped; the WAF context was closed concurrently");
+          WafMetricCollector.get().wafContextClosedRace();
+        } else {
           log.error("Error calling WAF", e);
+          incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
         }
-        incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
         return;
       } catch (AbstractWafException e) {
         incrementErrorCodeMetric(reqCtx, gwCtx, e.code);
@@ -559,6 +573,11 @@ public class WAFModule implements AppSecModule {
         throws AbstractWafException {
       WafContext wafContext =
           reqCtx.getOrCreateWafContext(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
+      if (wafContext == null) {
+        // Context closed concurrently with the isWafContextClosed() check in onDataAvailable; skip
+        // (APPSEC-69085).
+        return null;
+      }
       WafMetrics metrics;
       if (gwCtx.isRasp) {
         metrics = reqCtx.getRaspMetrics();
