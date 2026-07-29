@@ -1292,7 +1292,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     AgentSpan span = setupSpanForRequestEnd();
     LambdaAppSecHandler.processRequestEnd(span);
 
-    verify(span).setMetric("_dd.appsec.unsupported_event_type", 1);
+    verify(span).setMetric(LambdaAppSecHandler.TAG_UNSUPPORTED_EVENT_TYPE, 1);
     verify(span, never()).setTag(eq(Tags.HTTP_URL), any(String.class));
     verify(span, never()).setTag(eq(Tags.HTTP_ROUTE), any(String.class));
     verify(span, never()).setTag(eq(Tags.HTTP_USER_AGENT), any(String.class));
@@ -1309,7 +1309,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     AgentSpan span = setupSpanForRequestEnd();
     LambdaAppSecHandler.processRequestEnd(span);
 
-    verify(span).setMetric("_dd.appsec.unsupported_event_type", 1);
+    verify(span).setMetric(LambdaAppSecHandler.TAG_UNSUPPORTED_EVENT_TYPE, 1);
     verify(span, never()).setTag(eq(Tags.HTTP_URL), any(String.class));
     verify(span, never()).setTag(eq(Tags.HTTP_ROUTE), any(String.class));
     verify(span, never()).setTag(eq(Tags.HTTP_USER_AGENT), any(String.class));
@@ -1336,7 +1336,7 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     AgentSpan span = setupSpanForRequestEnd();
     LambdaAppSecHandler.processRequestEnd(span);
 
-    verify(span, never()).setMetric(eq("_dd.appsec.unsupported_event_type"), anyInt());
+    verify(span, never()).setMetric(eq(LambdaAppSecHandler.TAG_UNSUPPORTED_EVENT_TYPE), anyInt());
     verify(span).setTag(Tags.HTTP_USER_AGENT, "curl/8.0");
     verify(span).setTag(Tags.HTTP_URL, "https://api.example.com/pets/123");
     verify(span).setTag(Tags.HTTP_ROUTE, "/pets/{petId}");

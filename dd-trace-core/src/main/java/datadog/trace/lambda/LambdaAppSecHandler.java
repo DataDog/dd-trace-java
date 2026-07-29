@@ -63,6 +63,29 @@ public class LambdaAppSecHandler {
 
   private static final int MAX_EVENT_SIZE = Config.get().getAppSecBodyParsingSizeLimit();
 
+  // Serverless span metric marking an event AppSec cannot analyze as HTTP. Mutually exclusive with
+  // _dd.appsec.enabled. Package-private so tests can assert against the same name.
+  static final String TAG_UNSUPPORTED_EVENT_TYPE = "_dd.appsec.unsupported_event_type";
+
+  // HTTP header names (lowercased, matching the normalised header maps).
+  private static final String HEADER_CONTENT_TYPE = "content-type";
+  private static final String HEADER_COOKIE = "cookie";
+  private static final String HEADER_USER_AGENT = "user-agent";
+  private static final String HEADER_HOST = "host";
+  private static final String HEADER_X_FORWARDED_PROTO = "x-forwarded-proto";
+  private static final String HEADER_X_FORWARDED_PORT = "x-forwarded-port";
+  private static final String HEADER_X_FORWARDED_FOR = "x-forwarded-for";
+
+  private static final String SCHEME_HTTPS = "https";
+
+  // Content types used for body-parsing dispatch. JSON/JAVASCRIPT are matched as substrings to
+  // tolerate charset parameters (e.g. "application/json; charset=utf-8").
+  private static final String CONTENT_TYPE_FORM_URLENCODED = "application/x-www-form-urlencoded";
+  private static final String CONTENT_TYPE_APPLICATION_JSON = "application/json";
+  private static final String CONTENT_TYPE_TEXT_PLAIN = "text/plain";
+  private static final String CONTENT_TYPE_JSON_TOKEN = "json";
+  private static final String CONTENT_TYPE_JAVASCRIPT_TOKEN = "javascript";
+
   // Carries the detected trigger type from processRequestStart to processResponseData within the
   // same Lambda invocation. Cleared in processRequestEnd.
   private static final ThreadLocal<LambdaTriggerType> CURRENT_TRIGGER_TYPE = new ThreadLocal<>();
@@ -156,7 +179,7 @@ public class LambdaAppSecHandler {
 
       if (eventData != null) {
         if (!isSupportedHttpEvent(eventData)) {
-          span.setMetric("_dd.appsec.unsupported_event_type", 1);
+          span.setMetric(TAG_UNSUPPORTED_EVENT_TYPE, 1);
         } else {
           applyHttpSpanTags(span, eventData);
         }
@@ -174,24 +197,22 @@ public class LambdaAppSecHandler {
         || (eventData.method != null && eventData.path != null);
   }
 
-  /**
-   * Sets HTTP span tags (http.url, http.route, http.useragent) derived from the Lambda event.
-   */
+  /** Sets HTTP span tags (http.url, http.route, http.useragent) derived from the Lambda event. */
   private static void applyHttpSpanTags(AgentSpan span, LambdaEventData eventData) {
     if (eventData.method != null && !eventData.method.isEmpty()) {
       span.setTag(Tags.HTTP_METHOD, eventData.method);
     }
 
-    String userAgent = eventData.headers != null ? eventData.headers.get("user-agent") : null;
+    String userAgent = eventData.headers != null ? eventData.headers.get(HEADER_USER_AGENT) : null;
     if (userAgent != null && !userAgent.isEmpty()) {
       span.setTag(Tags.HTTP_USER_AGENT, userAgent);
     }
 
     if (eventData.path != null && !eventData.path.isEmpty()) {
-      String host = eventData.headers != null ? eventData.headers.get("host") : null;
-      String scheme = firstForwardedValue(eventData.headers, "x-forwarded-proto");
+      String host = eventData.headers != null ? eventData.headers.get(HEADER_HOST) : null;
+      String scheme = firstForwardedValue(eventData.headers, HEADER_X_FORWARDED_PROTO);
       if (scheme == null || scheme.isEmpty()) {
-        scheme = "https";
+        scheme = SCHEME_HTTPS;
       }
       String url =
           (host != null && !host.isEmpty())
@@ -272,13 +293,13 @@ public class LambdaAppSecHandler {
         String fallbackContentType;
         try {
           fallbackBody = OBJECT_ADAPTER.fromJson(json);
-          fallbackContentType = "application/json";
+          fallbackContentType = CONTENT_TYPE_APPLICATION_JSON;
         } catch (Exception e) {
           fallbackBody = json;
-          fallbackContentType = "text/plain";
+          fallbackContentType = CONTENT_TYPE_TEXT_PLAIN;
         }
         Map<String, String> fallbackHeaders =
-            Collections.singletonMap("content-type", fallbackContentType);
+            Collections.singletonMap(HEADER_CONTENT_TYPE, fallbackContentType);
         responseData = new LambdaResponseData(0, fallbackHeaders, fallbackBody);
       }
 
@@ -384,7 +405,7 @@ public class LambdaAppSecHandler {
         }
 
         if (bodyString != null) {
-          String contentType = headers.get("content-type");
+          String contentType = headers.get(HEADER_CONTENT_TYPE);
           body = parseBodyByContentType(bodyString, contentType);
         }
       }
@@ -800,7 +821,7 @@ public class LambdaAppSecHandler {
     String method = (String) event.get("httpMethod");
     String path = (String) event.get("path");
     // x-forwarded-for may carry a comma-separated proxy chain; take the first (client) hop.
-    String sourceIp = firstForwardedValue(headers, "x-forwarded-for");
+    String sourceIp = firstForwardedValue(headers, HEADER_X_FORWARDED_FOR);
 
     return new LambdaEventData(
         headers,
@@ -910,8 +931,8 @@ public class LambdaAppSecHandler {
   private static Map<String, String> extractHeaders(Object headersObj) {
     Map<String, String> headers = extractLowercasedStringMap(headersObj);
     log.debug("Extracted {} headers", headers.size());
-    if (headers.containsKey("cookie")) {
-      log.debug("Cookie header found with value length: {}", headers.get("cookie").length());
+    if (headers.containsKey(HEADER_COOKIE)) {
+      log.debug("Cookie header found with value length: {}", headers.get(HEADER_COOKIE).length());
     }
     return headers;
   }
@@ -1039,11 +1060,11 @@ public class LambdaAppSecHandler {
             cookiesList.stream().map(String::valueOf).collect(Collectors.joining("; "));
 
         // Merge with existing cookie header if present
-        String existingCookie = headers.get("cookie");
+        String existingCookie = headers.get(HEADER_COOKIE);
         if (existingCookie != null && !existingCookie.isEmpty()) {
-          headers.put("cookie", existingCookie + "; " + cookieValue);
+          headers.put(HEADER_COOKIE, existingCookie + "; " + cookieValue);
         } else {
-          headers.put("cookie", cookieValue);
+          headers.put(HEADER_COOKIE, cookieValue);
         }
       }
     }
@@ -1074,7 +1095,7 @@ public class LambdaAppSecHandler {
       }
     }
 
-    String contentType = headers != null ? headers.get("content-type") : null;
+    String contentType = headers != null ? headers.get(HEADER_CONTENT_TYPE) : null;
     return parseBodyByContentType(bodyString, contentType);
   }
 
@@ -1090,20 +1111,20 @@ public class LambdaAppSecHandler {
    *   <li>A missing content-type → best-effort JSON, falling back to the raw string so the body
    *       stays scannable by string-based WAF rules.
    *   <li>Any other content-type (including {@code multipart/form-data}) → the raw string.
-   *       Multipart bodies are not structurally parsed; the raw payload still stays
-   *       scannable by string-based WAF rules.
+   *       Multipart bodies are not structurally parsed; the raw payload still stays scannable by
+   *       string-based WAF rules.
    * </ul>
    */
   private static Object parseBodyByContentType(String bodyString, String contentType) {
     String contentTypeLower = contentType == null ? null : contentType.toLowerCase(Locale.ROOT);
 
-    if (contentTypeLower != null
-        && contentTypeLower.startsWith("application/x-www-form-urlencoded")) {
+    if (contentTypeLower != null && contentTypeLower.startsWith(CONTENT_TYPE_FORM_URLENCODED)) {
       return parseUrlEncodedBody(bodyString);
     }
 
     if (contentTypeLower != null
-        && (contentTypeLower.contains("json") || contentTypeLower.contains("javascript"))) {
+        && (contentTypeLower.contains(CONTENT_TYPE_JSON_TOKEN)
+            || contentTypeLower.contains(CONTENT_TYPE_JAVASCRIPT_TOKEN))) {
       // Explicit JSON content-type: parse as JSON. A body that fails to parse is malformed for its
       // declared type, so drop it (null) rather than forwarding a raw string
       return parseBodyAsJson(bodyString);
@@ -1328,11 +1349,11 @@ public class LambdaAppSecHandler {
         this.query = null;
       }
 
-      String forwardedProto = firstForwardedValue(headers, "x-forwarded-proto");
+      String forwardedProto = firstForwardedValue(headers, HEADER_X_FORWARDED_PROTO);
       this.scheme =
-          (forwardedProto != null && !forwardedProto.isEmpty()) ? forwardedProto : "https";
+          (forwardedProto != null && !forwardedProto.isEmpty()) ? forwardedProto : SCHEME_HTTPS;
 
-      String forwardedPort = firstForwardedValue(headers, "x-forwarded-port");
+      String forwardedPort = firstForwardedValue(headers, HEADER_X_FORWARDED_PORT);
       int parsedPort = -1;
       if (forwardedPort != null && !forwardedPort.isEmpty()) {
         try {
