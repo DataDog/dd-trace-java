@@ -3,7 +3,7 @@ import groovy.lang.Closure
 
 plugins {
   `java-library`
-  id("dd-trace-java.module.internal-library")
+  id("dd-trace-java.module.internal-api")
   id("dd-trace-java.jmh-conventions")
 }
 
