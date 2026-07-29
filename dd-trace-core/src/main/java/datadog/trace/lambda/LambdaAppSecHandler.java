@@ -68,8 +68,7 @@ public class LambdaAppSecHandler {
   private static final ThreadLocal<LambdaTriggerType> CURRENT_TRIGGER_TYPE = new ThreadLocal<>();
 
   // Carries the extracted event data from processRequestStart to processRequestEnd, where it is
-  // used to set HTTP span tags (http.url, http.route, http.useragent) once the span exists.
-  // Cleared in processRequestEnd.
+  // used to set HTTP span tags once the span exists. Cleared in processRequestEnd.
   private static final ThreadLocal<LambdaEventData> CURRENT_EVENT_DATA = new ThreadLocal<>();
 
   /**
@@ -93,10 +92,9 @@ public class LambdaAppSecHandler {
       log.debug(
           "Event is not a ByteArrayInputStream, type: {}",
           event != null ? event.getClass().getName() : "null");
-      // A non-stream event (e.g. a typed POJO handler receiving an S3/SQS/custom event) carries no
-      // raw HTTP payload AppSec can analyze. Record EMPTY so processRequestEnd marks the span with
-      // _dd.appsec.unsupported_event_type (mutually exclusive with _dd.appsec.enabled) instead of
-      // leaving it with neither marker.
+      // A non-stream event carries no raw HTTP payload AppSec can analyze.
+      // Record EMPTY so processRequestEnd marks the span with
+      // _dd.appsec.unsupported_event_type.
       CURRENT_EVENT_DATA.set(LambdaEventData.EMPTY);
       return null;
     }
@@ -109,11 +107,6 @@ public class LambdaAppSecHandler {
       CURRENT_TRIGGER_TYPE.set(eventData.triggerType);
       CURRENT_EVENT_DATA.set(eventData);
       if (!isSupportedHttpEvent(eventData)) {
-        // Nothing HTTP-like could be extracted from this event (not even a best-effort
-        // method/path via generic extraction), so the static HTTP security rules have nothing
-        // to run against. Skip starting a WAF/AppSec request context entirely so that
-        // processRequestEnd does not set _dd.appsec.enabled alongside
-        // _dd.appsec.unsupported_event_type, mirroring the tracer-based Python implementation.
         return null;
       }
       return processAppSecRequestData(eventData);
@@ -163,8 +156,6 @@ public class LambdaAppSecHandler {
 
       if (eventData != null) {
         if (!isSupportedHttpEvent(eventData)) {
-          // Nothing HTTP-like could be extracted from this event, so the static HTTP security
-          // rules had nothing to run against and no WAF/AppSec context was started.
           span.setMetric("_dd.appsec.unsupported_event_type", 1);
         } else {
           applyHttpSpanTags(span, eventData);
@@ -184,13 +175,9 @@ public class LambdaAppSecHandler {
   }
 
   /**
-   * Sets basic HTTP span tags (http.url, http.route, http.useragent) derived from the Lambda event,
-   * mirroring what HttpServerDecorator does for host-based HTTP instrumentations. Lambda has no
-   * such decorator today, so these are populated here for HTTP-based triggers.
+   * Sets HTTP span tags (http.url, http.route, http.useragent) derived from the Lambda event.
    */
   private static void applyHttpSpanTags(AgentSpan span, LambdaEventData eventData) {
-    // eventData.headers keys are always lowercased at extraction time (see extractHeaders /
-    // extractAlbData), so plain lowercase lookups below are reliably case-insensitive.
     if (eventData.method != null && !eventData.method.isEmpty()) {
       span.setTag(Tags.HTTP_METHOD, eventData.method);
     }
@@ -206,10 +193,6 @@ public class LambdaAppSecHandler {
       if (scheme == null || scheme.isEmpty()) {
         scheme = "https";
       }
-      // http.url is set WITHOUT the query string. The query is tagged separately as
-      // http.query.string so QueryObfuscator can redact secrets (passwords, tokens, keys) before
-      // re-appending it to http.url — mirroring HttpServerDecorator. Baking the raw query into
-      // http.url here would bypass that obfuscation entirely.
       String url =
           (host != null && !host.isEmpty())
               ? URIUtils.buildURL(scheme, host, 0, eventData.path)
@@ -401,7 +384,6 @@ public class LambdaAppSecHandler {
         }
 
         if (bodyString != null) {
-          // headers keys are already lowercased above
           String contentType = headers.get("content-type");
           body = parseBodyByContentType(bodyString, contentType);
         }
@@ -637,10 +619,7 @@ public class LambdaAppSecHandler {
         return LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET;
       }
 
-      // Check for API Gateway v2 / Lambda Function URL format (both share the "http" shape).
-      // Lambda Function URL is only identified by a positive domainName match (consistent with
-      // the Rust extension and Python's datadog-lambda layer) - a missing/non-string domainName
-      // does NOT default to LAMBDA_URL, it falls through to API_GATEWAY_V2_HTTP instead.
+      // Check for API Gateway v2 / Lambda Function URL format
       Object httpObj = requestContext.get("http");
       if (httpObj instanceof Map) {
         Object domainNameObj = requestContext.get("domainName");
@@ -788,7 +767,6 @@ public class LambdaAppSecHandler {
         Map<?, ?> rawHeaders = (Map<?, ?>) multiValueHeadersObj;
         for (Map.Entry<?, ?> entry : rawHeaders.entrySet()) {
           if (entry.getKey() != null && entry.getValue() != null) {
-            // Lowercased for consistency with extractHeaders (see its Javadoc).
             String key = String.valueOf(entry.getKey()).toLowerCase(Locale.ROOT);
             if (entry.getValue() instanceof List) {
               List<?> values = (List<?>) entry.getValue();
@@ -920,11 +898,6 @@ public class LambdaAppSecHandler {
     return result;
   }
 
-  /**
-   * Like {@link #extractStringMap(Object)}, but lowercases every key so header lookups elsewhere in
-   * this class can rely on a single, case-insensitive convention (used for both request and
-   * response headers).
-   */
   private static Map<String, String> extractLowercasedStringMap(Object mapObj) {
     Map<String, String> rawMap = extractStringMap(mapObj);
     Map<String, String> result = new HashMap<>();
@@ -934,11 +907,6 @@ public class LambdaAppSecHandler {
     return result;
   }
 
-  /**
-   * Helper method to extract headers from event. Keys are lowercased so that every header lookup
-   * elsewhere in this class can rely on a single, case-insensitive convention (mirroring what
-   * extractResponseData already does for response headers).
-   */
   private static Map<String, String> extractHeaders(Object headersObj) {
     Map<String, String> headers = extractLowercasedStringMap(headersObj);
     log.debug("Extracted {} headers", headers.size());
@@ -1085,11 +1053,7 @@ public class LambdaAppSecHandler {
 
   /**
    * Helper method to extract and parse body from event. Dispatches on the request's Content-Type
-   * header (see {@link #parseBodyByContentType}): JSON and URL-encoded form data are parsed into
-   * structured objects for the WAF, while every other content-type (including multipart/form-data)
-   * is forwarded as the raw string. Unlike the datadog-lambda-extension and datadog-lambda-python,
-   * multipart bodies are not structurally decomposed here — string-based WAF rules still scan the
-   * raw payload, but field-targeted rules do not see individual parts (follow-up work).
+   * header (see {@link #parseBodyByContentType}).
    */
   private static Object extractBody(Map<String, Object> event, Map<String, String> headers) {
     Object bodyObj = event.get("body");
@@ -1110,25 +1074,23 @@ public class LambdaAppSecHandler {
       }
     }
 
-    // headers keys are always lowercased at extraction time (see extractHeaders / extractAlbData).
     String contentType = headers != null ? headers.get("content-type") : null;
     return parseBodyByContentType(bodyString, contentType);
   }
 
   /**
    * Parses a raw body string according to its Content-Type, dispatching strictly on the declared
-   * type rather than guessing. This mirrors the datadog-lambda-extension and datadog-lambda-python,
-   * neither of which attempts JSON parsing on a body whose content-type is not JSON:
+   * type rather than guessing.
    *
    * <ul>
    *   <li>{@code application/x-www-form-urlencoded} → structured map.
    *   <li>A JSON content-type (contains {@code json} or {@code javascript}) → parsed as JSON, or
    *       dropped (null) if it fails to parse — a body that is malformed for its declared type is
-   *       not analyzed, matching the extension.
+   *       not analyzed.
    *   <li>A missing content-type → best-effort JSON, falling back to the raw string so the body
    *       stays scannable by string-based WAF rules.
-   *   <li>Any other content-type (including {@code multipart/form-data}) → the raw string, never
-   *       JSON-guessed. Multipart bodies are not structurally parsed; the raw payload still stays
+   *   <li>Any other content-type (including {@code multipart/form-data}) → the raw string.
+   *       Multipart bodies are not structurally parsed; the raw payload still stays
    *       scannable by string-based WAF rules.
    * </ul>
    */
@@ -1143,9 +1105,7 @@ public class LambdaAppSecHandler {
     if (contentTypeLower != null
         && (contentTypeLower.contains("json") || contentTypeLower.contains("javascript"))) {
       // Explicit JSON content-type: parse as JSON. A body that fails to parse is malformed for its
-      // declared type, so drop it (null) rather than forwarding a raw string — matching the
-      // datadog-lambda-extension, which does not analyze a body that fails to parse as its declared
-      // content-type.
+      // declared type, so drop it (null) rather than forwarding a raw string
       return parseBodyAsJson(bodyString);
     }
 
@@ -1193,8 +1153,6 @@ public class LambdaAppSecHandler {
         int eqIdx = pair.indexOf('=');
         String rawKey = eqIdx >= 0 ? pair.substring(0, eqIdx) : pair;
         String rawValue = eqIdx >= 0 ? pair.substring(eqIdx + 1) : "";
-        // URIUtils.decode does UTF-8 percent-decoding with '+'-to-space and, unlike URLDecoder,
-        // substitutes the replacement char for malformed sequences instead of throwing.
         String key = URIUtils.decode(rawKey, true);
         String value = URIUtils.decode(rawValue, true);
         result.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
@@ -1296,8 +1254,6 @@ public class LambdaAppSecHandler {
     final Map<String, String> pathParameters;
     final Map<String, List<String>> queryParameters;
     final Object body;
-    // Route template (e.g. "/pets/{petId}"), used for the http.route span tag. Only populated
-    // for trigger types that carry a route template (API Gateway v1/v2); null otherwise.
     final String route;
 
     static final LambdaEventData EMPTY =
