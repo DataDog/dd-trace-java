@@ -340,6 +340,19 @@ public final class LightStringMap<V> {
     // 8 slots or fewer -- tiny maps still grow only when physically full, exactly as before.
     static final int MAX_PROBES = 8;
 
+    // Backstop on probe-bound over-growth, so a hashCode() collision set cannot exhaust the heap.
+    // Keys that share a hashCode() collapse onto one home slot in EVERY table size, so growing can
+    // never shorten their probe chain. A pure probe-bound trigger would then double the table every
+    // insert past MAX_PROBES -- a handful of colliding keys could balloon an uncapped map to
+    // hundreds of millions of slots (an adversarial-input OOM). We therefore refuse a probe-bound
+    // grow once the table already holds this many slots per live entry: past that point the long
+    // chain is a genuine collision cluster no resize can spread, so we accept the chain (bounded
+    // lookup cost) rather than grow (unbounded memory). Growth to make physical room is never gated
+    // by this -- only the probe-bound trigger is. Memory stays O(live entries); the MAX_PROBES
+    // probe-length bound still holds for well-distributed keys and degrades gracefully, not
+    // catastrophically, only under genuine hashCode collisions.
+    static final int MAX_SLOTS_PER_LIVE_ENTRY = 8;
+
     // TODO: use of String constructor is deliberate, since this is
     // an internal marker that we don't want intern-ed
     static final String REMOVED = new String("\0D\0a\07\04\0\0d\00\0G");
@@ -541,43 +554,46 @@ public final class LightStringMap<V> {
       }
 
       int numSlots = numSlots(mapData);
-      int slot = findInsertionSlot(mapData, numSlots, key);
+      // Compute the home slot once and thread it into the probe (findInsertionSlot) and the
+      // probe-bound distance check below, rather than re-deriving it from key.hashCode() twice.
+      int home = preferredSlot(numSlots, key.hashCode());
+      int slot = findInsertionSlot(mapData, numSlots, key, home);
       if (slot >= 0) {
         // Key already present -- overwrite in place, no growth.
         mapData[slot + numSlots] = value;
         return mapData;
       }
 
-      boolean hasFreeSlot = slot != NO_SPACE;
-      boolean wantsGrow = !hasFreeSlot || !withinProbeBound(numSlots, slot, key);
-      if (wantsGrow && numSlots < maxSlots) {
-        // No space, or the insertion would exceed the probe bound: grow, then insert into the fresh
-        // (tombstone-free, better-spread) table.
+      if (slot == NO_SPACE) {
+        // Physically full (no null and no reclaimable tombstone). We must grow to make room, unless
+        // a finite cap blocks it -- then reject the new key (non-fatal, map unchanged).
+        if (numSlots < maxSlots) {
+          mapData = expandMapData(mapData);
+          newMapUncheckedInsert(mapData, numSlots(mapData), key, value);
+          return mapData;
+        }
+        return null;
+      }
+
+      // A free slot the probe walk found. Grow only if the insertion is past the probe bound AND a
+      // grow could actually help. Keys sharing a hashCode() cluster onto one chain in every table
+      // size, so once the table already holds MAX_SLOTS_PER_LIVE_ENTRY slots per live entry no
+      // resize can spread them -- we accept the long chain instead of doubling the table forever
+      // (the adversarial-input OOM backstop). At a finite cap the bound is likewise relaxed: we
+      // cannot grow, so we fill past MAX_PROBES until physically full.
+      int availableSlot = flip(slot);
+      int distance = (availableSlot - home) & (numSlots - 1);
+      if (distance >= MAX_PROBES
+          && numSlots < maxSlots
+          && (long) numSlots < (long) size(mapData) * MAX_SLOTS_PER_LIVE_ENTRY) {
+        // Grow, then insert into the fresh (tombstone-free, better-spread) table.
         mapData = expandMapData(mapData);
         newMapUncheckedInsert(mapData, numSlots(mapData), key, value);
         return mapData;
       }
-      if (hasFreeSlot) {
-        // A free slot the probe walk found. Below the cap this is within the probe bound; at the
-        // cap
-        // the bound is relaxed (we cannot grow), so fill it even past MAX_PROBES until physically
-        // full.
-        int availableSlot = flip(slot);
-        mapData[availableSlot] = key;
-        mapData[availableSlot + numSlots] = value;
-        return mapData;
-      }
-      // Physically full at a finite cap and the key is new: reject.
-      return null;
-    }
-
-    // Whether an insertion at the free slot encoded by {@code insertionSlot} (as returned by
-    // findInsertionSlot for an absent key) lands within {@link #MAX_PROBES} of the key's home slot.
-    static boolean withinProbeBound(int numSlots, int insertionSlot, String key) {
-      int availableSlot = flip(insertionSlot);
-      int home = preferredSlot(numSlots, key.hashCode());
-      int distance = (availableSlot - home) & (numSlots - 1);
-      return distance < MAX_PROBES;
+      mapData[availableSlot] = key;
+      mapData[availableSlot + numSlots] = value;
+      return mapData;
     }
 
     @SuppressWarnings("unchecked")
@@ -654,13 +670,19 @@ public final class LightStringMap<V> {
     }
 
     static final <T> int findInsertionSlot(Object[] mapData, int numSlots, String key) {
-      int hash = key.hashCode();
-      int preferredSlot = preferredSlot(numSlots, hash);
+      return findInsertionSlot(mapData, numSlots, key, preferredSlot(numSlots, key.hashCode()));
+    }
 
+    static final <T> int findInsertionSlot(
+        Object[] mapData, int numSlots, String key, int preferredSlot) {
       int availableIndex = NO_SPACE;
       for (int keyIndex = preferredSlot; keyIndex < numSlots; ++keyIndex) {
         Object curKey = mapData[keyIndex];
-        if (curKey == null) return flip(keyIndex);
+        // A reclaimable tombstone seen earlier in the probe order beats this null: it is closer to
+        // the home slot (shorter displacement, so less likely to trip the probe-bound grow) and
+        // reusing it clears a tombstone. The key is confirmed absent either way (we reached a
+        // null).
+        if (curKey == null) return (availableIndex != NO_SPACE) ? availableIndex : flip(keyIndex);
         if (curKey == key) return keyIndex;
         if (curKey == REMOVED) {
           if (availableIndex == NO_SPACE) availableIndex = flip(keyIndex);
@@ -668,7 +690,7 @@ public final class LightStringMap<V> {
       }
       for (int keyIndex = 0; keyIndex < preferredSlot; ++keyIndex) {
         Object curKey = mapData[keyIndex];
-        if (curKey == null) return flip(keyIndex);
+        if (curKey == null) return (availableIndex != NO_SPACE) ? availableIndex : flip(keyIndex);
         if (curKey == key) return keyIndex;
         if (curKey == REMOVED) {
           if (availableIndex == NO_SPACE) availableIndex = flip(keyIndex);
