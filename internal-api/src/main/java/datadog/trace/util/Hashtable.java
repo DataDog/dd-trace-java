@@ -23,10 +23,14 @@ import java.util.function.Function;
  * Convenience classes are provided for lower key dimensions.
  *
  * <p>For higher key dimensions, client code must implement its own class, but can still use the
- * support class to ease the implementation complexity.
+ * static building blocks on this class to ease the implementation complexity.
  *
  * <p>This outer class is a pure namespace -- it can't be instantiated. The actual table types are
- * {@link D1}, {@link D2}, and (for higher-arity callers) {@link Support}-driven custom tables.
+ * {@link D1}, {@link D2}, and (for higher-arity callers) custom tables driven by the static
+ * building blocks on this class (see {@link #createFixedBuckets(Class, int)}, {@link
+ * #bucket(Hashtable.Entry[], long)}, {@link #insertHeadEntry(Hashtable.Entry[], int,
+ * Hashtable.Entry)}, and friends). The deprecated {@link Support} class is a thin facade over those
+ * same statics, retained for source compatibility.
  */
 public final class Hashtable {
   private Hashtable() {}
@@ -37,7 +41,8 @@ public final class Hashtable {
    *
    * <p>Subclasses add the actual key field(s) and a {@code matches(...)} method tailored to their
    * key arity. See {@link D1.Entry} and {@link D2.Entry}; for higher arities, client code can
-   * subclass this directly and use {@link Support} to drive the table mechanics.
+   * subclass this directly and drive the table with the static building blocks on {@link
+   * Hashtable}.
    */
   public abstract static class Entry {
     public final long keyHash;
@@ -121,14 +126,27 @@ public final class Hashtable {
       }
     }
 
-    // Package-private so iterator tests in the same package can drive Support.bucketIterator and
-    // friends directly against the table's bucket array.
+    // Package-private so iterator tests in the same package can drive the Hashtable static
+    // building blocks directly against the table's bucket array.
     final Hashtable.Entry[] buckets;
     private int size;
 
     public D1(int capacity) {
-      this.buckets = Support.create(capacity);
+      this.buckets = new Hashtable.Entry[sizeFor(capacity)];
       this.size = 0;
+    }
+
+    /**
+     * Creates a single-key table with a fixed bucket count sized for {@code capacity} entries. The
+     * {@code entryClass} pins the concrete entry type so the compiler infers both {@code K} and
+     * {@code TEntry} at the call site -- e.g. {@code D1.createFixedBuckets(MyEntry.class, 64)} --
+     * keeping the factory symmetric with the rest of the flat-collections family (see {@link
+     * Hashtable#createFixedBuckets(Class, int)} for why the class isn't otherwise consumed).
+     * Capacity is fixed; the table does not resize.
+     */
+    public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createFixedBuckets(
+        Class<TEntry> entryClass, int capacity) {
+      return new D1<>(capacity);
     }
 
     public int size() {
@@ -137,9 +155,11 @@ public final class Hashtable {
 
     public TEntry get(K key) {
       long keyHash = D1.Entry.hash(key);
-      for (TEntry te = Support.bucket(this.buckets, keyHash); te != null; te = te.next()) {
-        if (te.keyHash == keyHash && te.matches(key)) {
-          return te;
+      for (TEntry curEntry = bucket(this.buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
+          return curEntry;
         }
       }
       return null;
@@ -148,8 +168,7 @@ public final class Hashtable {
     public TEntry remove(K key) {
       long keyHash = D1.Entry.hash(key);
 
-      for (MutatingBucketIterator<TEntry> iter =
-              Support.mutatingBucketIterator(this.buckets, keyHash);
+      for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
           iter.hasNext(); ) {
         TEntry curEntry = iter.next();
 
@@ -164,13 +183,13 @@ public final class Hashtable {
     }
 
     public void insert(TEntry newEntry) {
-      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
     }
 
     public TEntry insertOrReplace(TEntry newEntry) {
       for (MutatingBucketIterator<TEntry> iter =
-              Support.mutatingBucketIterator(this.buckets, newEntry.keyHash);
+              mutatingBucketIterator(this.buckets, newEntry.keyHash);
           iter.hasNext(); ) {
         TEntry curEntry = iter.next();
 
@@ -180,7 +199,7 @@ public final class Hashtable {
         }
       }
 
-      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return null;
     }
@@ -197,24 +216,26 @@ public final class Hashtable {
      */
     public TEntry getOrCreate(K key, Function<? super K, ? extends TEntry> creator) {
       long keyHash = D1.Entry.hash(key);
-      for (TEntry te = Support.bucket(this.buckets, keyHash); te != null; te = te.next()) {
-        if (te.keyHash == keyHash && te.matches(key)) {
-          return te;
+      for (TEntry curEntry = bucket(this.buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
+          return curEntry;
         }
       }
       TEntry newEntry = creator.apply(key);
-      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return newEntry;
     }
 
     public void clear() {
-      Support.clear(this.buckets);
+      Hashtable.clear(this.buckets);
       this.size = 0;
     }
 
     public void forEach(Consumer<? super TEntry> consumer) {
-      Support.forEach(this.buckets, consumer);
+      Hashtable.forEach(this.buckets, consumer);
     }
 
     /**
@@ -222,8 +243,8 @@ public final class Hashtable {
      * -- pass a non-capturing {@link BiConsumer} (typically a {@code static final}) plus whatever
      * side-band state it needs as {@code context}.
      */
-    public <T> void forEach(T context, BiConsumer<? super T, ? super TEntry> consumer) {
-      Support.forEach(this.buckets, context, consumer);
+    public <C> void forEach(C context, BiConsumer<? super C, ? super TEntry> consumer) {
+      Hashtable.forEach(this.buckets, context, consumer);
     }
   }
 
@@ -301,8 +322,21 @@ public final class Hashtable {
     private int size;
 
     public D2(int capacity) {
-      this.buckets = Support.create(capacity);
+      this.buckets = new Hashtable.Entry[sizeFor(capacity)];
       this.size = 0;
+    }
+
+    /**
+     * Creates a composite-key table with a fixed bucket count sized for {@code capacity} entries.
+     * The {@code entryClass} pins the concrete entry type so the compiler infers {@code K1}, {@code
+     * K2}, and {@code TEntry} at the call site -- e.g. {@code D2.createFixedBuckets(MyEntry.class,
+     * 64)} -- keeping the factory symmetric with the rest of the flat-collections family (see
+     * {@link Hashtable#createFixedBuckets(Class, int)} for why the class isn't otherwise consumed).
+     * Capacity is fixed; the table does not resize.
+     */
+    public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createFixedBuckets(
+        Class<TEntry> entryClass, int capacity) {
+      return new D2<>(capacity);
     }
 
     public int size() {
@@ -311,9 +345,11 @@ public final class Hashtable {
 
     public TEntry get(K1 key1, K2 key2) {
       long keyHash = D2.Entry.hash(key1, key2);
-      for (TEntry te = Support.bucket(this.buckets, keyHash); te != null; te = te.next()) {
-        if (te.keyHash == keyHash && te.matches(key1, key2)) {
-          return te;
+      for (TEntry curEntry = bucket(this.buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
+          return curEntry;
         }
       }
       return null;
@@ -322,8 +358,7 @@ public final class Hashtable {
     public TEntry remove(K1 key1, K2 key2) {
       long keyHash = D2.Entry.hash(key1, key2);
 
-      for (MutatingBucketIterator<TEntry> iter =
-              Support.mutatingBucketIterator(this.buckets, keyHash);
+      for (MutatingBucketIterator<TEntry> iter = mutatingBucketIterator(this.buckets, keyHash);
           iter.hasNext(); ) {
         TEntry curEntry = iter.next();
 
@@ -338,13 +373,13 @@ public final class Hashtable {
     }
 
     public void insert(TEntry newEntry) {
-      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
     }
 
     public TEntry insertOrReplace(TEntry newEntry) {
       for (MutatingBucketIterator<TEntry> iter =
-              Support.mutatingBucketIterator(this.buckets, newEntry.keyHash);
+              mutatingBucketIterator(this.buckets, newEntry.keyHash);
           iter.hasNext(); ) {
         TEntry curEntry = iter.next();
 
@@ -354,7 +389,7 @@ public final class Hashtable {
         }
       }
 
-      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return null;
     }
@@ -367,24 +402,26 @@ public final class Hashtable {
     public TEntry getOrCreate(
         K1 key1, K2 key2, BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
       long keyHash = D2.Entry.hash(key1, key2);
-      for (TEntry te = Support.bucket(this.buckets, keyHash); te != null; te = te.next()) {
-        if (te.keyHash == keyHash && te.matches(key1, key2)) {
-          return te;
+      for (TEntry curEntry = bucket(this.buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
+          return curEntry;
         }
       }
       TEntry newEntry = creator.apply(key1, key2);
-      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return newEntry;
     }
 
     public void clear() {
-      Support.clear(this.buckets);
+      Hashtable.clear(this.buckets);
       this.size = 0;
     }
 
     public void forEach(Consumer<? super TEntry> consumer) {
-      Support.forEach(this.buckets, consumer);
+      Hashtable.forEach(this.buckets, consumer);
     }
 
     /**
@@ -392,195 +429,334 @@ public final class Hashtable {
      * -- pass a non-capturing {@link BiConsumer} (typically a {@code static final}) plus whatever
      * side-band state it needs as {@code context}.
      */
-    public <T> void forEach(T context, BiConsumer<? super T, ? super TEntry> consumer) {
-      Support.forEach(this.buckets, context, consumer);
+    public <C> void forEach(C context, BiConsumer<? super C, ? super TEntry> consumer) {
+      Hashtable.forEach(this.buckets, context, consumer);
+    }
+  }
+
+  // ============================================================================================
+  // Static building blocks over a caller-owned bucket array.
+  //
+  // Use these to assemble a custom table (higher arity, primitive keys, extra value fields) when
+  // D1/D2 don't fit; D1/D2 delegate to them internally. This is the same "static functions over a
+  // caller-owned array" shape as the concurrent variant (ConcurrentHashtable); see how
+  // AggregateTable drives a Hashtable.Entry[] with these. The calling class owns the array and
+  // exposes whatever operations it needs.
+  //
+  // Not thread-safe: there is no locking here. Concurrent access, including mixing reads with
+  // writes, requires external synchronization.
+  //
+  // These were previously nested under the Support class; that class is now a deprecated facade
+  // delegating here (retained for source compatibility with existing callers such as client-side
+  // statistics).
+  // ============================================================================================
+
+  /** Upper bound on the bucket-array length returned by {@link #sizeFor(int)}. */
+  static final int MAX_BUCKETS = 1 << 30;
+
+  /**
+   * Allocates a fixed-size bucket array sized to hold {@code capacity} entries: {@code capacity}
+   * rounded up to the next power of two.
+   *
+   * <p>Returns a concrete {@code Hashtable.Entry[]} (chain heads are stored at the base type), so
+   * the array assigns directly to a caller's {@code Hashtable.Entry[]} field. As with the
+   * concurrent variant's {@code createFixedBuckets}, {@code entryClass} is <b>not</b> consumed to
+   * allocate -- the array is a heterogeneous {@code Entry[]}, not a reflectively-allocated {@code
+   * TEntry[]}. It is accepted only to keep the factory call-shape symmetric across the
+   * flat-collections family ({@code createFixedBuckets(MyEntry.class, n)}). Capacity is fixed; the
+   * table does not resize.
+   *
+   * <p>For load-factor headroom over a target working-set size, size {@code capacity} yourself
+   * (e.g. {@code createFixedBuckets(MyEntry.class, (int) (n * 4 / 3f))}); the deprecated {@link
+   * Support#create(int, float)} bundled that scaling but has no blessed equivalent.
+   */
+  public static <TEntry extends Entry> Hashtable.Entry[] createFixedBuckets(
+      Class<TEntry> entryClass, int capacity) {
+    return new Entry[sizeFor(capacity)];
+  }
+
+  /**
+   * Rounds {@code requestedSize} up to the next power of two, capped at {@link #MAX_BUCKETS}, and
+   * returns the bucket-array length to allocate. Throws {@link IllegalArgumentException} for
+   * negative inputs or inputs above the cap. The concurrent variant shares this so the two families
+   * round identically.
+   */
+  public static int sizeFor(int requestedSize) {
+    if (requestedSize < 0) {
+      throw new IllegalArgumentException("requestedSize must be non-negative: " + requestedSize);
+    }
+    if (requestedSize > MAX_BUCKETS) {
+      throw new IllegalArgumentException(
+          "requestedSize exceeds maximum bucket count (" + MAX_BUCKETS + "): " + requestedSize);
+    }
+    if (requestedSize <= 1) {
+      return 1;
+    }
+    return Integer.highestOneBit(requestedSize - 1) << 1;
+  }
+
+  public static int bucketIndex(Object[] buckets, long keyHash) {
+    return (int) (keyHash & buckets.length - 1);
+  }
+
+  /**
+   * Returns the head entry of the bucket that {@code keyHash} maps to, cast to the caller's
+   * concrete entry type. The unchecked cast lives here so the chain-walk loop at the call site
+   * doesn't need to thread a raw {@link Entry} variable through.
+   */
+  @SuppressWarnings("unchecked")
+  public static <TEntry extends Entry> TEntry bucket(Hashtable.Entry[] buckets, long keyHash) {
+    return (TEntry) buckets[bucketIndex(buckets, keyHash)];
+  }
+
+  /**
+   * Splices {@code entry} in as the new head of the chain at {@code bucketIndex}. Caller is
+   * responsible for size accounting -- this method only touches the chain pointers.
+   */
+  public static void insertHeadEntry(
+      Hashtable.Entry[] buckets, int bucketIndex, Hashtable.Entry entry) {
+    entry.setNext(buckets[bucketIndex]);
+    buckets[bucketIndex] = entry;
+  }
+
+  /**
+   * Convenience overload of {@link #insertHeadEntry(Hashtable.Entry[], int, Hashtable.Entry)} that
+   * derives the bucket index from {@code keyHash}. Use this when the caller has the hash but not
+   * the index; if the index has already been computed for another reason, prefer the int-taking
+   * overload to avoid the redundant mask.
+   */
+  public static void insertHeadEntry(
+      Hashtable.Entry[] buckets, long keyHash, Hashtable.Entry entry) {
+    insertHeadEntry(buckets, bucketIndex(buckets, keyHash), entry);
+  }
+
+  public static void clear(Hashtable.Entry[] buckets) {
+    Arrays.fill(buckets, null);
+  }
+
+  /**
+   * Walks every entry in {@code buckets} and invokes {@code consumer} on it. The unchecked cast to
+   * {@code TEntry} lives here (mirroring {@link Entry#next()}) so callers don't have to sprinkle it
+   * across their own forEach loops.
+   */
+  @SuppressWarnings("unchecked")
+  public static <TEntry extends Entry> void forEach(
+      Hashtable.Entry[] buckets, Consumer<? super TEntry> consumer) {
+    for (int i = 0; i < buckets.length; i++) {
+      for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
+        consumer.accept((TEntry) e);
+      }
     }
   }
 
   /**
-   * Building blocks for hash-table operations.
-   *
-   * <p>Used by {@link D1} and {@link D2}, and available to callers that want to assemble their own
-   * higher-arity table (3+ key parts) without re-implementing the bucket-array mechanics. The
-   * typical recipe:
-   *
-   * <ul>
-   *   <li>Subclass {@link Hashtable.Entry} directly, adding the key fields and a {@code
-   *       matches(...)} method of your chosen arity.
-   *   <li>Allocate a backing array with {@link #create(int)} or {@link #create(int, float)} (the
-   *       latter scales for a target load factor; see {@link #MAX_RATIO}).
-   *   <li>Use {@link #bucketIndex(Object[], long)} for the bucket lookup, {@link
-   *       #bucketIterator(Hashtable.Entry[], long)} for read-only chain walks, and {@link
-   *       #mutatingBucketIterator(Hashtable.Entry[], long)} when you also need {@code remove} /
-   *       {@code replace}.
-   *   <li>Use {@link #insertHeadEntry(Hashtable.Entry[], int, Hashtable.Entry)} to splice a new
-   *       entry as the head of a bucket chain.
-   *   <li>Iterate every entry with {@link #forEach(Hashtable.Entry[], Consumer)} or its
-   *       context-passing sibling. For full-table sweeps with {@code remove}, use {@link
-   *       #mutatingTableIterator(Hashtable.Entry[])}.
-   *   <li>Clear with {@link #clear(Hashtable.Entry[])}.
-   * </ul>
-   *
-   * <p>All bucket arrays produced by {@code create} have a power-of-two length, so {@link
-   * #bucketIndex(Object[], long)} can use a bit mask.
+   * Context-passing variant of {@link #forEach(Hashtable.Entry[], Consumer)}. Pair a non-capturing
+   * {@link BiConsumer} (typically a {@code static final}) with side-band state passed as {@code
+   * context} to avoid a fresh-Consumer allocation each call.
    */
+  @SuppressWarnings("unchecked")
+  public static <C, TEntry extends Entry> void forEach(
+      Hashtable.Entry[] buckets, C context, BiConsumer<? super C, ? super TEntry> consumer) {
+    for (int i = 0; i < buckets.length; i++) {
+      for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
+        consumer.accept(context, (TEntry) e);
+      }
+    }
+  }
+
+  public static <TEntry extends Hashtable.Entry> BucketIterator<TEntry> bucketIterator(
+      Hashtable.Entry[] buckets, long keyHash) {
+    return new BucketIterator<TEntry>(buckets, keyHash);
+  }
+
+  public static <TEntry extends Hashtable.Entry>
+      MutatingBucketIterator<TEntry> mutatingBucketIterator(
+          Hashtable.Entry[] buckets, long keyHash) {
+    return new MutatingBucketIterator<TEntry>(buckets, keyHash);
+  }
+
+  /**
+   * Returns a {@link MutatingTableIterator} over every entry in {@code buckets}. Useful for sweeps
+   * -- eviction, expunge -- that aren't keyed to a specific hash.
+   */
+  public static <TEntry extends Hashtable.Entry>
+      MutatingTableIterator<TEntry> mutatingTableIterator(Hashtable.Entry[] buckets) {
+    return new MutatingTableIterator<TEntry>(buckets, 0, buckets.length);
+  }
+
+  /**
+   * Variant of {@link #mutatingTableIterator(Hashtable.Entry[])} that walks only the half-open
+   * bucket range {@code [startBucket, endBucket)}. Useful for resumable sweeps -- e.g. cursor-based
+   * eviction in {@code AggregateTable} -- where one call drives {@code [cursor, length)} and a
+   * wrap-around call drives {@code [0, cursor)}. The iterator does <b>not</b> wrap around within a
+   * single instance; callers compose two iterators when wrap-around is desired. An empty range
+   * ({@code startBucket == endBucket}) produces an immediately exhausted iterator.
+   *
+   * @param startBucket inclusive lower bound; must be in {@code [0, buckets.length]}.
+   * @param endBucket exclusive upper bound; must be in {@code [startBucket, buckets.length]}.
+   */
+  public static <TEntry extends Hashtable.Entry>
+      MutatingTableIterator<TEntry> mutatingTableIterator(
+          Hashtable.Entry[] buckets, int startBucket, int endBucket) {
+    return new MutatingTableIterator<TEntry>(buckets, startBucket, endBucket);
+  }
+
+  /**
+   * Deprecated facade over the static building blocks that are now methods on {@link Hashtable}
+   * itself (mirroring the concurrent variant). Each method here delegates to its {@code
+   * Hashtable.*} counterpart; the two sizing helpers with no blessed equivalent -- {@link
+   * #create(int, float)} and {@link #MAX_RATIO} -- keep their real bodies here.
+   *
+   * <p>Retained only for source compatibility with existing callers (e.g. client-side statistics).
+   * New code should call the {@code Hashtable.*} statics directly.
+   *
+   * @deprecated use the static building blocks on {@link Hashtable} directly.
+   */
+  @Deprecated
   public static final class Support {
+    private Support() {}
+
     /**
-     * Allocates a bucket array sized to hold {@code requestedSize} entries. Returned length is
-     * {@code requestedSize} rounded up to the next power of two (capped at {@link #MAX_BUCKETS}).
+     * @deprecated use {@link Hashtable#createFixedBuckets(Class, int)}.
      */
-    public static final Hashtable.Entry[] create(int requestedSize) {
+    @Deprecated
+    public static Hashtable.Entry[] create(int requestedSize) {
       return new Entry[sizeFor(requestedSize)];
     }
 
     /**
-     * Variant of {@link #create(int)} that scales the requested working-set size before sizing the
-     * bucket array. Pair with {@link #MAX_RATIO} to leave headroom over the working set for a
-     * desired load factor; the canonical call is {@code create(n, MAX_RATIO)}.
+     * Scales the requested working-set size before sizing the bucket array. Pair with {@link
+     * #MAX_RATIO} to leave headroom over the working set for a desired load factor; the canonical
+     * call is {@code create(n, MAX_RATIO)}.
      *
-     * <p>The scaled size is truncated to {@code int} before going through {@link #sizeFor(int)}.
-     * Truncation rather than {@code ceil} is intentional: {@code sizeFor} rounds up to the next
-     * power of two anyway, so the fractional part would only matter when float fuzz pushes the
-     * result across a power-of-two boundary -- {@code ceil} would then double the array size for no
-     * reason (e.g. {@code 12 * 4/3 = 16.0...0005f -> ceil 17 -> sizeFor 32}).
+     * <p>The scaled size is truncated to {@code int} before going through {@link
+     * Hashtable#sizeFor(int)}. Truncation rather than {@code ceil} is intentional: {@code sizeFor}
+     * rounds up to the next power of two anyway, so the fractional part would only matter when
+     * float fuzz pushes the result across a power-of-two boundary -- {@code ceil} would then double
+     * the array size for no reason (e.g. {@code 12 * 4/3 = 16.0...0005f -> ceil 17 -> sizeFor 32}).
+     *
+     * <p>No blessed equivalent: callers wanting load-factor headroom size the capacity themselves
+     * and call {@link Hashtable#createFixedBuckets(Class, int)}.
+     *
+     * @deprecated size the capacity yourself and use {@link Hashtable#createFixedBuckets(Class,
+     *     int)}.
      */
-    public static final Hashtable.Entry[] create(int requestedSize, float scale) {
+    @Deprecated
+    public static Hashtable.Entry[] create(int requestedSize, float scale) {
       return new Entry[sizeFor((int) (requestedSize * scale))];
     }
-
-    /** Upper bound on the bucket array length returned by {@link #sizeFor(int)}. */
-    static final int MAX_BUCKETS = 1 << 30;
 
     /**
      * Inverse of a 75% load factor. Callers that size their bucket array from a target working-set
      * size {@code n} should pass {@code create(n, MAX_RATIO)} to leave ~25% headroom in the array.
      */
-    public static final float MAX_RATIO = 4.0f / 3.0f;
+    @Deprecated public static final float MAX_RATIO = 4.0f / 3.0f;
 
     /**
-     * Rounds {@code requestedSize} up to the next power of two, capped at {@link #MAX_BUCKETS}.
-     * Throws {@link IllegalArgumentException} for negative inputs or inputs above the cap. Returns
-     * the bucket-array length to allocate.
+     * @deprecated use {@link Hashtable#sizeFor(int)}.
      */
-    static final int sizeFor(int requestedSize) {
-      if (requestedSize < 0) {
-        throw new IllegalArgumentException("requestedSize must be non-negative: " + requestedSize);
-      }
-      if (requestedSize > MAX_BUCKETS) {
-        throw new IllegalArgumentException(
-            "requestedSize exceeds maximum bucket count (" + MAX_BUCKETS + "): " + requestedSize);
-      }
-      if (requestedSize <= 1) {
-        return 1;
-      }
-      return Integer.highestOneBit(requestedSize - 1) << 1;
+    @Deprecated
+    static int sizeFor(int requestedSize) {
+      return Hashtable.sizeFor(requestedSize);
     }
 
-    public static final void clear(Hashtable.Entry[] buckets) {
-      Arrays.fill(buckets, null);
+    /**
+     * @deprecated use {@link Hashtable#clear(Hashtable.Entry[])}.
+     */
+    @Deprecated
+    public static void clear(Hashtable.Entry[] buckets) {
+      Hashtable.clear(buckets);
     }
 
-    public static final <TEntry extends Hashtable.Entry> BucketIterator<TEntry> bucketIterator(
+    /**
+     * @deprecated use {@link Hashtable#bucketIterator(Hashtable.Entry[], long)}.
+     */
+    @Deprecated
+    public static <TEntry extends Hashtable.Entry> BucketIterator<TEntry> bucketIterator(
         Hashtable.Entry[] buckets, long keyHash) {
-      return new BucketIterator<TEntry>(buckets, keyHash);
+      return Hashtable.bucketIterator(buckets, keyHash);
     }
 
-    public static final <TEntry extends Hashtable.Entry>
+    /**
+     * @deprecated use {@link Hashtable#mutatingBucketIterator(Hashtable.Entry[], long)}.
+     */
+    @Deprecated
+    public static <TEntry extends Hashtable.Entry>
         MutatingBucketIterator<TEntry> mutatingBucketIterator(
             Hashtable.Entry[] buckets, long keyHash) {
-      return new MutatingBucketIterator<TEntry>(buckets, keyHash);
+      return Hashtable.mutatingBucketIterator(buckets, keyHash);
     }
 
     /**
-     * Returns a {@link MutatingTableIterator} over every entry in {@code buckets}. Useful for
-     * sweeps -- eviction, expunge -- that aren't keyed to a specific hash.
+     * @deprecated use {@link Hashtable#mutatingTableIterator(Hashtable.Entry[])}.
      */
-    public static final <TEntry extends Hashtable.Entry>
+    @Deprecated
+    public static <TEntry extends Hashtable.Entry>
         MutatingTableIterator<TEntry> mutatingTableIterator(Hashtable.Entry[] buckets) {
-      return new MutatingTableIterator<TEntry>(buckets, 0, buckets.length);
+      return Hashtable.mutatingTableIterator(buckets);
     }
 
     /**
-     * Variant of {@link #mutatingTableIterator(Hashtable.Entry[])} that walks only the half-open
-     * bucket range {@code [startBucket, endBucket)}. Useful for resumable sweeps -- e.g. cursor-
-     * based eviction in {@code AggregateTable} -- where one call drives {@code [cursor, length)}
-     * and a wrap-around call drives {@code [0, cursor)}. The iterator does <b>not</b> wrap around
-     * within a single instance; callers compose two iterators when wrap-around is desired. An empty
-     * range ({@code startBucket == endBucket}) produces an immediately exhausted iterator.
-     *
-     * @param startBucket inclusive lower bound; must be in {@code [0, buckets.length]}.
-     * @param endBucket exclusive upper bound; must be in {@code [startBucket, buckets.length]}.
+     * @deprecated use {@link Hashtable#mutatingTableIterator(Hashtable.Entry[], int, int)}.
      */
-    public static final <TEntry extends Hashtable.Entry>
+    @Deprecated
+    public static <TEntry extends Hashtable.Entry>
         MutatingTableIterator<TEntry> mutatingTableIterator(
             Hashtable.Entry[] buckets, int startBucket, int endBucket) {
-      return new MutatingTableIterator<TEntry>(buckets, startBucket, endBucket);
-    }
-
-    public static final int bucketIndex(Object[] buckets, long keyHash) {
-      return (int) (keyHash & buckets.length - 1);
+      return Hashtable.mutatingTableIterator(buckets, startBucket, endBucket);
     }
 
     /**
-     * Splices {@code entry} in as the new head of the chain at {@code bucketIndex}. Caller is
-     * responsible for size accounting -- this method only touches the chain pointers.
+     * @deprecated use {@link Hashtable#bucketIndex(Object[], long)}.
      */
-    public static final void insertHeadEntry(
+    @Deprecated
+    public static int bucketIndex(Object[] buckets, long keyHash) {
+      return Hashtable.bucketIndex(buckets, keyHash);
+    }
+
+    /**
+     * @deprecated use {@link Hashtable#insertHeadEntry(Hashtable.Entry[], int, Hashtable.Entry)}.
+     */
+    @Deprecated
+    public static void insertHeadEntry(
         Hashtable.Entry[] buckets, int bucketIndex, Hashtable.Entry entry) {
-      entry.setNext(buckets[bucketIndex]);
-      buckets[bucketIndex] = entry;
+      Hashtable.insertHeadEntry(buckets, bucketIndex, entry);
     }
 
     /**
-     * Convenience overload of {@link #insertHeadEntry(Hashtable.Entry[], int, Hashtable.Entry)}
-     * that derives the bucket index from {@code keyHash}. Use this when the caller has the hash but
-     * not the index; if the index has already been computed for another reason, prefer the
-     * int-taking overload to avoid the redundant mask.
+     * @deprecated use {@link Hashtable#insertHeadEntry(Hashtable.Entry[], long, Hashtable.Entry)}.
      */
-    public static final void insertHeadEntry(
+    @Deprecated
+    public static void insertHeadEntry(
         Hashtable.Entry[] buckets, long keyHash, Hashtable.Entry entry) {
-      insertHeadEntry(buckets, bucketIndex(buckets, keyHash), entry);
+      Hashtable.insertHeadEntry(buckets, keyHash, entry);
     }
 
     /**
-     * Returns the head entry of the bucket that {@code keyHash} maps to, cast to the caller's
-     * concrete entry type. The unchecked cast lives here so the chain-walk loop at the call site
-     * doesn't need to thread a raw {@link Entry} variable through.
+     * @deprecated use {@link Hashtable#bucket(Hashtable.Entry[], long)}.
      */
-    @SuppressWarnings("unchecked")
-    public static final <TEntry extends Hashtable.Entry> TEntry bucket(
+    @Deprecated
+    public static <TEntry extends Hashtable.Entry> TEntry bucket(
         Hashtable.Entry[] buckets, long keyHash) {
-      return (TEntry) buckets[bucketIndex(buckets, keyHash)];
+      return Hashtable.bucket(buckets, keyHash);
     }
 
     /**
-     * Walks every entry in {@code buckets} and invokes {@code consumer} on it. The unchecked cast
-     * to {@code TEntry} lives here (mirroring {@link Entry#next()}) so callers don't have to
-     * sprinkle it across their own forEach loops.
+     * @deprecated use {@link Hashtable#forEach(Hashtable.Entry[], Consumer)}.
      */
-    @SuppressWarnings("unchecked")
-    public static final <TEntry extends Hashtable.Entry> void forEach(
+    @Deprecated
+    public static <TEntry extends Hashtable.Entry> void forEach(
         Hashtable.Entry[] buckets, Consumer<? super TEntry> consumer) {
-      for (int i = 0; i < buckets.length; i++) {
-        for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
-          consumer.accept((TEntry) e);
-        }
-      }
+      Hashtable.forEach(buckets, consumer);
     }
 
     /**
-     * Context-passing variant of {@link #forEach(Hashtable.Entry[], Consumer)}. Pair a
-     * non-capturing {@link BiConsumer} (typically a {@code static final}) with side-band state
-     * passed as {@code context} to avoid a fresh-Consumer allocation each call.
+     * @deprecated use {@link Hashtable#forEach(Hashtable.Entry[], Object, BiConsumer)}.
      */
-    @SuppressWarnings("unchecked")
-    public static final <T, TEntry extends Hashtable.Entry> void forEach(
-        Hashtable.Entry[] buckets, T context, BiConsumer<? super T, ? super TEntry> consumer) {
-      for (int i = 0; i < buckets.length; i++) {
-        for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
-          consumer.accept(context, (TEntry) e);
-        }
-      }
+    @Deprecated
+    public static <C, TEntry extends Hashtable.Entry> void forEach(
+        Hashtable.Entry[] buckets, C context, BiConsumer<? super C, ? super TEntry> consumer) {
+      Hashtable.forEach(buckets, context, consumer);
     }
   }
 
