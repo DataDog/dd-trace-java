@@ -1,10 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.shouldCapture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,38 +17,37 @@ public final class ExecutorInstrumentationUtils {
    * Checks if given task should get state attached.
    *
    * @param task task object
-   * @param span active span
+   * @param context active context
    * @return true iff given task object should be wrapped
    */
-  public static boolean shouldAttachStateToTask(final Object task, final AgentSpan span) {
+  public static boolean shouldAttachStateToTask(final Object task, final Context context) {
     if (task == null) {
       return false;
     }
     if (ExcludeFilter.exclude(ExcludeType.EXECUTOR, task)) {
       return false;
     }
-    return span != null && span.isValid() && isAsyncPropagationEnabled();
+    return shouldCapture(context);
   }
 
   /**
-   * Create task state given current span.
+   * Create task state given current context.
    *
    * @param contextStore context storage
    * @param task task instance
-   * @param span current span
+   * @param context current context
    * @param <T> task class type
    * @return new state
    */
   public static <T> State setupState(
-      final ContextStore<T, State> contextStore, final T task, final AgentSpan span) {
-
+      final ContextStore<T, State> contextStore, final T task, final Context context) {
     final State state = contextStore.putIfAbsent(task, State.FACTORY);
-
-    if (!state.captureAndSetContinuation(span)) {
+    if (!state.captureAndSetContinuation(context)) {
       log.debug(
-          "continuation was already set for {} in span {}, no continuation captured.", task, span);
+          "continuation was already set for {} in context {}, no continuation captured.",
+          task,
+          context);
     }
-
     return state;
   }
 
