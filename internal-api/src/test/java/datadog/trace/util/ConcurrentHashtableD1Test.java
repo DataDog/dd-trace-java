@@ -19,7 +19,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void getReturnsMappedEntry() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     StringEntry e = table.getOrCreate("hello", k -> new StringEntry(k, 42));
     assertSame(e, table.get("hello"));
     assertNull(table.get("world"));
@@ -27,7 +28,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void getOrCreateOnMissBuildsEntry() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     int[] createCount = {0};
     StringEntry created =
         table.getOrCreate(
@@ -44,7 +46,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void getOrCreateOnHitSkipsCreator() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     StringEntry seeded = table.getOrCreate("a", k -> new StringEntry(k, 100));
     int[] createCount = {0};
     StringEntry got =
@@ -61,7 +64,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void nullKeyIsSupported() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     StringEntry e = table.getOrCreate(null, k -> new StringEntry(k, 0));
     assertNotNull(e);
     assertSame(e, table.get(null));
@@ -69,7 +73,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void forEachVisitsAllEntries() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     table.getOrCreate("a", k -> new StringEntry(k, 1));
     table.getOrCreate("b", k -> new StringEntry(k, 2));
     table.getOrCreate("c", k -> new StringEntry(k, 3));
@@ -83,7 +88,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void forEachWithContextPassesContext() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     table.getOrCreate("x", k -> new StringEntry(k, 10));
     table.getOrCreate("y", k -> new StringEntry(k, 20));
     Set<String> seen = new HashSet<>();
@@ -95,7 +101,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void concurrentGetOrCreateProducesExactlyOneEntry() throws InterruptedException {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     int threads = 16;
     CountDownLatch ready = new CountDownLatch(threads);
     CountDownLatch go = new CountDownLatch(1);
@@ -135,7 +142,8 @@ class ConcurrentHashtableD1Test {
   @Test
   void chainedEntriesInSameBucketAreAllReachable() {
     // 2 buckets: keyHash & 1 determines the slot. Hashes 0 and 2 both land in bucket 0.
-    ConcurrentHashtable.D1<CollidingKey, CollidingEntry> table = new ConcurrentHashtable.D1<>(2);
+    ConcurrentHashtable.D1<CollidingKey, CollidingEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(CollidingEntry.class, 2);
     CollidingKey a = new CollidingKey("a", 0);
     CollidingKey b = new CollidingKey("b", 0); // same bucket as a
     CollidingKey c = new CollidingKey("c", 2); // 2 & 1 == 0, same bucket
@@ -156,7 +164,8 @@ class ConcurrentHashtableD1Test {
     for (int i = 0; i < threads; i++) {
       keys[i] = "key-" + i;
     }
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(threads * 2);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, threads * 2);
     CountDownLatch ready = new CountDownLatch(threads);
     CountDownLatch go = new CountDownLatch(1);
 
@@ -191,7 +200,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void removeReturnsEntryAndShrinks() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     StringEntry a = table.getOrCreate("a", k -> new StringEntry(k, 1));
     table.getOrCreate("b", k -> new StringEntry(k, 2));
     assertSame(a, table.remove("a"));
@@ -202,7 +212,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void removeAbsentKeyReturnsNull() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     table.getOrCreate("a", k -> new StringEntry(k, 1));
     assertNull(table.remove("missing"));
     assertEquals(1, table.size());
@@ -211,7 +222,8 @@ class ConcurrentHashtableD1Test {
   @Test
   void removeHeadMiddleAndTailOfSameBucketChain() {
     // Capacity 1 forces every key into a single bucket, so a, b, c form one chain.
-    ConcurrentHashtable.D1<CollidingKey, CollidingEntry> table = new ConcurrentHashtable.D1<>(1);
+    ConcurrentHashtable.D1<CollidingKey, CollidingEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(CollidingEntry.class, 1);
     CollidingKey a = new CollidingKey("a", 0);
     CollidingKey b = new CollidingKey("b", 0);
     CollidingKey c = new CollidingKey("c", 0);
@@ -235,7 +247,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void removeIfRemovesMatchingEntries() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(16);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 16);
     for (int i = 0; i < 10; i++) {
       final int v = i;
       table.getOrCreate("k" + i, k -> new StringEntry(k, v));
@@ -253,7 +266,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void removeIfReturnsFalseWhenNothingMatches() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     table.getOrCreate("a", k -> new StringEntry(k, 1));
     assertFalse(table.removeIf(e -> false));
     assertEquals(1, table.size());
@@ -261,7 +275,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void clearEmptiesTableAndLeavesItUsable() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     table.getOrCreate("a", k -> new StringEntry(k, 1));
     table.getOrCreate("b", k -> new StringEntry(k, 2));
     table.clear();
@@ -275,7 +290,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void drainRemovesEveryEntryAndFeedsSink() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     table.getOrCreate("a", k -> new StringEntry(k, 1));
     table.getOrCreate("b", k -> new StringEntry(k, 2));
     table.getOrCreate("c", k -> new StringEntry(k, 3));
@@ -300,7 +316,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void drainWithContextFeedsSink() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     table.getOrCreate("a", k -> new StringEntry(k, 1));
     table.getOrCreate("b", k -> new StringEntry(k, 2));
 
@@ -313,7 +330,8 @@ class ConcurrentHashtableD1Test {
 
   @Test
   void drainOnEmptyTableInvokesSinkZeroTimes() {
-    ConcurrentHashtable.D1<String, StringEntry> table = new ConcurrentHashtable.D1<>(8);
+    ConcurrentHashtable.D1<String, StringEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(StringEntry.class, 8);
     int[] count = {0};
     table.drain(e -> count[0]++);
     assertEquals(0, count[0]);
@@ -328,7 +346,8 @@ class ConcurrentHashtableD1Test {
   @Test
   void concurrentReadsStaySafeWhileOneChainMemberChurns() throws InterruptedException {
     // Capacity 1 puts every key in one bucket so removal splices a chain the reader is walking.
-    ConcurrentHashtable.D1<CollidingKey, CollidingEntry> table = new ConcurrentHashtable.D1<>(1);
+    ConcurrentHashtable.D1<CollidingKey, CollidingEntry> table =
+        ConcurrentHashtable.D1.createFixedBuckets(CollidingEntry.class, 1);
     int n = 8;
     CollidingKey[] keys = new CollidingKey[n];
     for (int i = 0; i < n; i++) {

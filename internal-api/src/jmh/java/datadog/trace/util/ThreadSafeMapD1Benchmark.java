@@ -116,7 +116,7 @@ public class ThreadSafeMapD1Benchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
-      table = new ConcurrentHashtable.D1<>(CAPACITY);
+      table = ConcurrentHashtable.D1.createFixedBuckets(D1Entry.class, CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
       skipListMap = new ConcurrentSkipListMap<>();
       synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(CAPACITY));

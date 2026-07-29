@@ -112,7 +112,7 @@ public class ThreadSafeMapCounterBenchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
-      table = new ConcurrentHashtable.D1<>(CAPACITY);
+      table = ConcurrentHashtable.D1.createFixedBuckets(CounterEntry.class, CAPACITY);
       atomicLongMap = new ConcurrentHashMap<>(CAPACITY);
       longAdderMap = new ConcurrentHashMap<>(CAPACITY);
       for (int i = 0; i < N_KEYS; ++i) {

@@ -18,7 +18,8 @@ class ConcurrentHashtableD2Test {
 
   @Test
   void pairKeysParticipateInIdentity() {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 8);
     PairEntry ab = table.getOrCreate("a", 1, PairEntry::new);
     PairEntry ac = table.getOrCreate("a", 2, PairEntry::new);
     PairEntry bb = table.getOrCreate("b", 1, PairEntry::new);
@@ -31,7 +32,8 @@ class ConcurrentHashtableD2Test {
 
   @Test
   void getOrCreateOnMissBuildsEntryViaCreator() {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 8);
     int[] createCount = {0};
     PairEntry created =
         table.getOrCreate(
@@ -51,7 +53,8 @@ class ConcurrentHashtableD2Test {
 
   @Test
   void getOrCreateOnHitSkipsCreator() {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 8);
     PairEntry seeded = table.getOrCreate("a", 1, PairEntry::new);
     int[] createCount = {0};
     PairEntry got =
@@ -69,7 +72,8 @@ class ConcurrentHashtableD2Test {
 
   @Test
   void forEachVisitsBothPairs() {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 8);
     table.getOrCreate("a", 1, PairEntry::new);
     table.getOrCreate("b", 2, PairEntry::new);
     Set<String> seen = new HashSet<>();
@@ -81,7 +85,8 @@ class ConcurrentHashtableD2Test {
 
   @Test
   void forEachWithContextPassesContextToConsumer() {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 8);
     table.getOrCreate("a", 1, PairEntry::new);
     table.getOrCreate("b", 2, PairEntry::new);
     Set<String> seen = new HashSet<>();
@@ -93,7 +98,8 @@ class ConcurrentHashtableD2Test {
 
   @Test
   void concurrentGetOrCreateProducesExactlyOneEntry() throws InterruptedException {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 8);
     int threads = 16;
     CountDownLatch ready = new CountDownLatch(threads);
     CountDownLatch go = new CountDownLatch(1);
@@ -134,7 +140,8 @@ class ConcurrentHashtableD2Test {
   @Test
   void chainedEntriesInSameBucketAreAllReachable() {
     // 2 buckets: 4 entries guarantees at least 2 share a bucket by pigeonhole.
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(2);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 2);
     PairEntry e1 = table.getOrCreate("a", 1, PairEntry::new);
     PairEntry e2 = table.getOrCreate("a", 2, PairEntry::new);
     PairEntry e3 = table.getOrCreate("b", 1, PairEntry::new);
@@ -157,7 +164,7 @@ class ConcurrentHashtableD2Test {
       k2s[i] = i;
     }
     ConcurrentHashtable.D2<String, Integer, PairEntry> table =
-        new ConcurrentHashtable.D2<>(threads * 2);
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, threads * 2);
     CountDownLatch ready = new CountDownLatch(threads);
     CountDownLatch go = new CountDownLatch(1);
 
@@ -193,7 +200,8 @@ class ConcurrentHashtableD2Test {
 
   @Test
   void removeReturnsEntryAndShrinks() {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 8);
     PairEntry ab = table.getOrCreate("a", 1, PairEntry::new);
     table.getOrCreate("a", 2, PairEntry::new);
     assertSame(ab, table.remove("a", 1));
@@ -204,7 +212,8 @@ class ConcurrentHashtableD2Test {
 
   @Test
   void removeAbsentKeyReturnsNull() {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 8);
     table.getOrCreate("a", 1, PairEntry::new);
     assertNull(table.remove("a", 99));
     assertNull(table.remove("z", 1));
@@ -214,7 +223,8 @@ class ConcurrentHashtableD2Test {
   @Test
   void removeMiddleOfSameBucketChainKeepsOthersReachable() {
     // Capacity 1 forces every pair into a single bucket chain.
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(1);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 1);
     table.getOrCreate("a", 1, PairEntry::new);
     PairEntry mid = table.getOrCreate("a", 2, PairEntry::new);
     table.getOrCreate("a", 3, PairEntry::new);
@@ -228,7 +238,8 @@ class ConcurrentHashtableD2Test {
 
   @Test
   void removeIfRemovesMatchingEntries() {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(16);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 16);
     for (int i = 0; i < 10; i++) {
       table.getOrCreate("k", i, PairEntry::new);
     }
@@ -242,7 +253,8 @@ class ConcurrentHashtableD2Test {
 
   @Test
   void removeIfReturnsFalseWhenNothingMatches() {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 8);
     table.getOrCreate("a", 1, PairEntry::new);
     assertFalse(table.removeIf(e -> false));
     assertEquals(1, table.size());
@@ -250,7 +262,8 @@ class ConcurrentHashtableD2Test {
 
   @Test
   void clearEmptiesTableAndLeavesItUsable() {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 8);
     table.getOrCreate("a", 1, PairEntry::new);
     table.getOrCreate("b", 2, PairEntry::new);
     table.clear();
@@ -263,7 +276,8 @@ class ConcurrentHashtableD2Test {
 
   @Test
   void drainRemovesEveryEntryAndFeedsSink() {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 8);
     table.getOrCreate("a", 1, PairEntry::new);
     table.getOrCreate("a", 2, PairEntry::new);
     table.getOrCreate("b", 1, PairEntry::new);
@@ -281,7 +295,8 @@ class ConcurrentHashtableD2Test {
 
   @Test
   void drainWithContextFeedsSink() {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table = new ConcurrentHashtable.D2<>(8);
+    ConcurrentHashtable.D2<String, Integer, PairEntry> table =
+        ConcurrentHashtable.D2.createFixedBuckets(PairEntry.class, 8);
     table.getOrCreate("a", 1, PairEntry::new);
     table.getOrCreate("b", 2, PairEntry::new);
 

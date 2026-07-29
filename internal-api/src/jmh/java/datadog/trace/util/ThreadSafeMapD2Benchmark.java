@@ -36,9 +36,10 @@ import org.openjdk.jmh.annotations.Warmup;
  *   <li>{@link ConcurrentHashtable.D2} — lock-free reads, no composite key allocation per lookup.
  *       K2 is {@link Integer} (boxed), so EA may still eliminate the box on hits, but the
  *       allocation is observable on misses.
- *   <li>{@link ConcurrentHashtable.Support} (custom entry) — same lock-free read path, but K2 is a
- *       primitive {@code int} embedded directly in the entry. No boxing at any point; demonstrates
- *       the flexibility available when {@code D2}'s object-key constraint is too limiting.
+ *   <li>{@link ConcurrentHashtable} building blocks (custom entry) — same lock-free read path, but
+ *       K2 is a primitive {@code int} embedded directly in the entry. No boxing at any point;
+ *       demonstrates the flexibility available when {@code D2}'s object-key constraint is too
+ *       limiting.
  *   <li>{@link ConcurrentHashMap} — striped locking, allocates a {@link Key2} wrapper per lookup
  *       (boxes the {@code int} K2 inside).
  *   <li>{@link ConcurrentSkipListMap} — fully lock-free (CAS), but pays tree traversal and {@link
@@ -185,17 +186,15 @@ public class ThreadSafeMapD2Benchmark {
   @State(Scope.Benchmark)
   public static class SharedState {
     ConcurrentHashtable.D2<String, Integer, D2Entry> table;
-    java.util.concurrent.atomic.AtomicReferenceArray<ConcurrentHashtable.Entry> supportBuckets;
+    java.util.concurrent.atomic.AtomicReferenceArray<SupportEntry> supportBuckets;
     ConcurrentHashMap<Key2, Long> concurrentHashMap;
     ConcurrentSkipListMap<Key2, Long> skipListMap;
     Map<Key2, Long> synchronizedHashMap;
 
     @Setup(Level.Iteration)
     public void setUp() {
-      table = new ConcurrentHashtable.D2<>(CAPACITY);
-      supportBuckets =
-          new java.util.concurrent.atomic.AtomicReferenceArray<>(
-              ConcurrentHashtable.Support.sizeFor(CAPACITY));
+      table = ConcurrentHashtable.D2.createFixedBuckets(D2Entry.class, CAPACITY);
+      supportBuckets = ConcurrentHashtable.createFixedBuckets(SupportEntry.class, CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
       skipListMap = new ConcurrentSkipListMap<>();
       synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(CAPACITY));
@@ -204,8 +203,8 @@ public class ThreadSafeMapD2Benchmark {
         table.getOrCreate(SOURCE_K1[i], SOURCE_K2[i], D2Entry::new);
         // populate support table
         SupportEntry se = new SupportEntry(SOURCE_K1[i], k2);
-        int idx = ConcurrentHashtable.Support.bucketIndex(supportBuckets, se.keyHash);
-        se.setNext(ConcurrentHashtable.Support.bucket(supportBuckets, idx));
+        int idx = ConcurrentHashtable.bucketIndex(supportBuckets, se.keyHash);
+        se.setNext(ConcurrentHashtable.bucket(supportBuckets, idx));
         supportBuckets.set(idx, se);
         Key2 key = new Key2(SOURCE_K1[i], SOURCE_K2[i]);
         concurrentHashMap.put(key, (long) i);
@@ -239,7 +238,7 @@ public class ThreadSafeMapD2Benchmark {
     String k1 = SOURCE_K1[i];
     int k2 = SOURCE_K2_INT[i];
     long keyHash = SupportEntry.hash(k1, k2);
-    for (SupportEntry e = ConcurrentHashtable.Support.bucket(s.supportBuckets, keyHash);
+    for (SupportEntry e = ConcurrentHashtable.bucket(s.supportBuckets, keyHash);
         e != null;
         e = e.next()) {
       if (e.keyHash == keyHash && e.matches(k1, k2)) {
@@ -279,8 +278,8 @@ public class ThreadSafeMapD2Benchmark {
     String k1 = SOURCE_K1[i];
     int k2 = SOURCE_K2_INT[i];
     long keyHash = SupportEntry.hash(k1, k2);
-    int index = ConcurrentHashtable.Support.bucketIndex(s.supportBuckets, keyHash);
-    for (SupportEntry e = ConcurrentHashtable.Support.bucket(s.supportBuckets, index);
+    int index = ConcurrentHashtable.bucketIndex(s.supportBuckets, keyHash);
+    for (SupportEntry e = ConcurrentHashtable.bucket(s.supportBuckets, index);
         e != null;
         e = e.next()) {
       if (e.keyHash == keyHash && e.matches(k1, k2)) {
@@ -288,7 +287,7 @@ public class ThreadSafeMapD2Benchmark {
       }
     }
     synchronized (s.supportBuckets) {
-      for (SupportEntry e = ConcurrentHashtable.Support.bucket(s.supportBuckets, index);
+      for (SupportEntry e = ConcurrentHashtable.bucket(s.supportBuckets, index);
           e != null;
           e = e.next()) {
         if (e.keyHash == keyHash && e.matches(k1, k2)) {
@@ -296,7 +295,7 @@ public class ThreadSafeMapD2Benchmark {
         }
       }
       SupportEntry newEntry = new SupportEntry(k1, k2);
-      newEntry.setNext(ConcurrentHashtable.Support.bucket(s.supportBuckets, index));
+      newEntry.setNext(ConcurrentHashtable.bucket(s.supportBuckets, index));
       s.supportBuckets.set(index, newEntry);
       return newEntry;
     }
