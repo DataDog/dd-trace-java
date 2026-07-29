@@ -2,23 +2,33 @@ package datadog.trace.util;
 
 import datadog.trace.api.function.TriConsumer;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.function.BiConsumer;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
- * Implements a Map<String, Object>-like interface
+ * A lightweight {@link String}-keyed map, designed to be small and fast for tiny maps.
  *
- * <p>Designed to be light weight and fast for tiny maps -- Especially when the keys are likely to
- * be string literals
+ * <p>Supports the common map operations -- {@code set}, {@code get}, {@code remove}, {@code
+ * containsKey}, and {@code forEach} -- as an easy, largely footgun-free stand-in wherever a small
+ * {@code Map<String, V>} is needed. It deliberately does <em>not</em> implement {@link
+ * java.util.Map}; the surface is intentionally small.
  *
- * <p>Map data is stored in a single flat array that can be embedded into another object via
- * EmbeddingSupport as a further optimization.
+ * <p>Neither null keys nor null values are supported: {@code set} rejects a null value, so a null
+ * {@code get} result unambiguously means "absent". Use {@link #containsKey} if you need to probe
+ * for presence separately. Interned/literal keys resolve slightly faster but are not assumed.
+ *
+ * <p>This class is <em>not</em> thread-safe.
+ *
+ * <p>Map data is stored in a single flat array that can be embedded into another object via {@link
+ * EmbeddingSupport} as a further optimization.
  */
 /*
  * Keys are stored in the first half of the array and values in the second half.
  * Key collisions are resolved via linear probing.
  *
- * This layout is intended to optimize scanning for available and matching slots --
- * especially in the common case where the keys are string literals.
+ * This layout is intended to optimize scanning for available and matching slots.
  *
  * Key removal is handled by placing a poison key in the previously occupied slot.
  * This approach was chosen so that linear probing can break out of the loop
@@ -38,20 +48,26 @@ public final class LightStringMap<V> {
     this.initialCapacity = capacity;
   }
 
-  public void set(String literal, V value) {
-    this.data = EmbeddingSupport.set(this.initialCapacity, this.data, literal, value);
+  public void set(@Nonnull String key, @Nonnull V value) {
+    Objects.requireNonNull(value, "value");
+    this.data = EmbeddingSupport.set(this.initialCapacity, this.data, key, value);
   }
 
-  public V get(String literal) {
-    return EmbeddingSupport.get(this.data, literal);
+  @Nullable
+  public V get(@Nonnull String key) {
+    return EmbeddingSupport.get(this.data, key);
   }
 
-  public void remove(String literal) {
-    EmbeddingSupport.remove(this.data, literal);
+  public void remove(@Nonnull String key) {
+    EmbeddingSupport.remove(this.data, key);
+  }
+
+  public boolean containsKey(@Nonnull String key) {
+    return EmbeddingSupport.containsKey(this.data, key);
   }
 
   @SuppressWarnings("unchecked")
-  public void forEach(java.util.function.BiConsumer<? super String, ? super V> consumer) {
+  public void forEach(@Nonnull BiConsumer<? super String, ? super V> consumer) {
     Object[] mapData = this.data;
     if (mapData == null) return;
     int numSlots = mapData.length >> 1;
@@ -70,17 +86,17 @@ public final class LightStringMap<V> {
     // an internal marker that we don't want intern-ed
     static final String REMOVED = new String("\0D\0a\07\04\0\0d\00\0G");
 
-    public static final Object[] EMPTY_DATA = null;
+    @Nullable public static final Object[] EMPTY_DATA = null;
 
-    public static boolean isDefinitelyEmpty(Object[] mapData) {
+    public static boolean isDefinitelyEmpty(@Nullable Object[] mapData) {
       return (mapData == null);
     }
 
-    public static int numSlots(Object[] mapData) {
+    public static int numSlots(@Nullable Object[] mapData) {
       return mapData == null ? 0 : mapData.length >> 1;
     }
 
-    public static int size(Object[] mapData) {
+    public static int size(@Nullable Object[] mapData) {
       if (mapData == null) return 0;
 
       int size = 0;
@@ -92,14 +108,16 @@ public final class LightStringMap<V> {
       return size;
     }
 
-    public static Object[] clear(Object[] mapData) {
+    @Nullable
+    public static Object[] clear(@Nullable Object[] mapData) {
       if (mapData != null) {
         Arrays.fill(mapData, null);
       }
       return mapData;
     }
 
-    public static Object[] copy(Object[] mapData) {
+    @Nullable
+    public static Object[] copy(@Nullable Object[] mapData) {
       return mapData == null ? null : mapData.clone();
     }
 
@@ -107,11 +125,12 @@ public final class LightStringMap<V> {
       return (slotIndex >= 0);
     }
 
-    public static boolean isRemoved(String key) {
+    public static boolean isRemoved(@Nonnull String key) {
       return (key == REMOVED);
     }
 
-    public static String keyAt(Object[] mapData, int slotIndex) {
+    @Nullable
+    public static String keyAt(@Nullable Object[] mapData, int slotIndex) {
       if (mapData == null) return null;
       if (slotIndex < 0) return null;
 
@@ -120,20 +139,22 @@ public final class LightStringMap<V> {
     }
 
     @SuppressWarnings("unchecked")
-    public static <V> V valueAt(Object[] mapData, int slotIndex) {
-      if (mapData == null) return null;
-
-      return (V) mapData[slotIndex + numSlots(mapData)];
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <V> V prevValueAt(Object[] mapData, int slotIndex) {
+    @Nullable
+    public static <V> V valueAt(@Nullable Object[] mapData, int slotIndex) {
       if (mapData == null || slotIndex < 0) return null;
 
       return (V) mapData[slotIndex + numSlots(mapData)];
     }
 
-    public static final boolean containsKey(Object[] mapData, String key) {
+    @SuppressWarnings("unchecked")
+    @Nullable
+    public static <V> V prevValueAt(@Nullable Object[] mapData, int slotIndex) {
+      if (mapData == null || slotIndex < 0) return null;
+
+      return (V) mapData[slotIndex + numSlots(mapData)];
+    }
+
+    public static final boolean containsKey(@Nullable Object[] mapData, @Nonnull String key) {
       if (mapData == null) return false;
 
       // not bothering with optimizing literal checks
@@ -156,7 +177,7 @@ public final class LightStringMap<V> {
       return false;
     }
 
-    public static final boolean containsValue(Object[] mapData, Object value) {
+    public static final boolean containsValue(@Nullable Object[] mapData, @Nonnull Object value) {
       if (mapData == null) return false;
 
       for (int valueIndex = numSlots(mapData); valueIndex < mapData.length; ++valueIndex) {
@@ -166,16 +187,21 @@ public final class LightStringMap<V> {
       return false;
     }
 
-    public static <V> Object[] set(Object[] mapData, String key, V value) {
+    @Nonnull
+    public static <V> Object[] set(
+        @Nullable Object[] mapData, @Nonnull String key, @Nonnull V value) {
       return set(DEFAULT_CAPACITY, mapData, key, value);
     }
 
-    public static <V> Object[] setAll(Object[] destMapData, Object[] srcMapData) {
+    @Nullable
+    public static <V> Object[] setAll(
+        @Nullable Object[] destMapData, @Nullable Object[] srcMapData) {
       return setAll(destMapData, size(destMapData), srcMapData, size(srcMapData));
     }
 
+    @Nullable
     public static <V> Object[] setAll(
-        Object[] destMapData, int destSize, Object[] srcMapData, int srcSize) {
+        @Nullable Object[] destMapData, int destSize, @Nullable Object[] srcMapData, int srcSize) {
       if (srcMapData == null || srcSize == 0) return destMapData;
       if (destMapData == null) return srcMapData.clone();
 
@@ -203,7 +229,9 @@ public final class LightStringMap<V> {
       return destMapData;
     }
 
-    public static <V> Object[] set(int initialCapacity, Object[] mapData, String key, V value) {
+    @Nonnull
+    public static <V> Object[] set(
+        int initialCapacity, @Nullable Object[] mapData, @Nonnull String key, @Nonnull V value) {
       if (mapData == null) {
         int numSlots = roundUpToPow2(initialCapacity);
         mapData = new Object[numSlots << 1];
@@ -226,7 +254,8 @@ public final class LightStringMap<V> {
     }
 
     @SuppressWarnings("unchecked")
-    public static <V> V get(Object[] mapData, String key) {
+    @Nullable
+    public static <V> V get(@Nullable Object[] mapData, @Nonnull String key) {
       if (mapData == null) return null;
 
       int numSlots = numSlots(mapData);
@@ -235,7 +264,7 @@ public final class LightStringMap<V> {
       return (foundIndex >= 0) ? (V) mapData[numSlots + foundIndex] : null;
     }
 
-    public static boolean remove(Object[] mapData, String key) {
+    public static boolean remove(@Nullable Object[] mapData, @Nonnull String key) {
       if (mapData == null) return false;
 
       int numSlots = numSlots(mapData);
@@ -250,7 +279,8 @@ public final class LightStringMap<V> {
       }
     }
 
-    public static boolean checkedInsert(Object[] mapData, int numSlots, String key, Object value) {
+    public static boolean checkedInsert(
+        @Nonnull Object[] mapData, int numSlots, @Nonnull String key, @Nonnull Object value) {
       int insertionSlot = findInsertionSlot(mapData, numSlots, key);
 
       if (insertionSlot >= 0) {
@@ -266,14 +296,19 @@ public final class LightStringMap<V> {
       }
     }
 
-    public static <T> int findInsertionSlot(Object[] mapData, String key) {
+    public static <T> int findInsertionSlot(@Nullable Object[] mapData, @Nonnull String key) {
       if (mapData == null) return NO_SPACE;
 
       return findInsertionSlot(mapData, numSlots(mapData), key);
     }
 
+    @Nonnull
     public static final Object[] insertAt(
-        int initialCapacity, Object[] mapData, int insertionSlot, String key, Object value) {
+        int initialCapacity,
+        @Nullable Object[] mapData,
+        int insertionSlot,
+        @Nonnull String key,
+        @Nonnull Object value) {
       if (mapData == null) {
         return newMapData(initialCapacity, key, value);
       }
@@ -319,14 +354,15 @@ public final class LightStringMap<V> {
       return -keyIndex - 1;
     }
 
-    public static final void removeAt(Object[] mapData, int slot) {
+    public static final void removeAt(@Nullable Object[] mapData, int slot) {
       if (mapData == null || slot < 0) return;
 
       mapData[slot] = REMOVED;
       mapData[slot + numSlots(mapData)] = null;
     }
 
-    public static final Object getAndRemoveAt(Object[] mapData, int slot) {
+    @Nullable
+    public static final Object getAndRemoveAt(@Nullable Object[] mapData, int slot) {
       if (mapData == null || slot < 0) return null;
 
       mapData[slot] = REMOVED;
@@ -338,7 +374,7 @@ public final class LightStringMap<V> {
       return prev;
     }
 
-    public static final int findSlot(Object[] mapData, String key) {
+    public static final int findSlot(@Nullable Object[] mapData, @Nonnull String key) {
       if (mapData == null) return NOT_FOUND;
 
       return findSlot(mapData, numSlots(mapData), key);
@@ -375,13 +411,15 @@ public final class LightStringMap<V> {
       return mapData;
     }
 
-    public static final Object[] expandMapData(Object[] mapData) {
+    @Nonnull
+    public static final Object[] expandMapData(@Nonnull Object[] mapData) {
       // Subtle - capacity is in terms of slots - not array size, so passing length is
       // asking to double capacity
       return expandMapData(mapData, mapData.length);
     }
 
-    public static Object[] expandMapData(Object[] origMapData, int newCapacity) {
+    @Nonnull
+    public static Object[] expandMapData(@Nonnull Object[] origMapData, int newCapacity) {
       newCapacity = roundUpToPow2(newCapacity);
       int newSize = newCapacity << 1;
       // Don't try to optimize by returning origMapData if big enough to contain
@@ -401,7 +439,8 @@ public final class LightStringMap<V> {
       return newMapData;
     }
 
-    public static void forEach(Object[] mapData, BiConsumer<String, Object> entryConsumer) {
+    public static void forEach(
+        @Nullable Object[] mapData, @Nonnull BiConsumer<String, Object> entryConsumer) {
       if (mapData == null) return;
 
       int numSlots = numSlots(mapData);
@@ -415,7 +454,7 @@ public final class LightStringMap<V> {
     }
 
     public static <C> void forEach(
-        Object[] mapData, C ctx, TriConsumer<C, String, Object> entryConsumer) {
+        @Nullable Object[] mapData, C ctx, @Nonnull TriConsumer<C, String, Object> entryConsumer) {
       if (mapData == null) return;
 
       int numSlots = numSlots(mapData);
@@ -428,7 +467,8 @@ public final class LightStringMap<V> {
       }
     }
 
-    public static String toInternalString(Object[] mapData) {
+    @Nonnull
+    public static String toInternalString(@Nullable Object[] mapData) {
       StringBuilder builder = new StringBuilder(128);
       builder.append('{');
 
