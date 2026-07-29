@@ -10,6 +10,11 @@ public class AsyncTask {
     return CompletableFuture.completedFuture(getInt());
   }
 
+  @Async
+  public CompletableFuture<Void> asyncThrow() {
+    throw new RuntimeException("Datadog async repro");
+  }
+
   @Trace
   public int getInt() {
     return ThreadLocalRandom.current().nextInt();

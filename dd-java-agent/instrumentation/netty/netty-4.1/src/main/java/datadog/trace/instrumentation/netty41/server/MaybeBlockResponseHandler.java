@@ -70,6 +70,10 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     }
     HttpResponse origResponse = (HttpResponse) msg;
     int statusCode = origResponse.status().code();
+    // Interim 1xx responses (e.g. 100 Continue, 103 Early Hints) precede the final response.
+    // Analyzing one here would consume the one-shot response analysis before the final response is
+    // written, so its status and headers would never be inspected. Switching Protocols (101) is
+    // terminal, so it is still analyzed.
     if (statusCode >= 100
         && statusCode < 200
         && statusCode != HttpResponseStatus.SWITCHING_PROTOCOLS.code()) {
