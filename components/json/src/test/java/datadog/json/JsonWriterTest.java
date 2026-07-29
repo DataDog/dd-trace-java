@@ -166,9 +166,9 @@ class JsonWriterTest {
   }
 
   @Test
-  void testSizeInBytes() {
+  void testSize() {
     try (JsonWriter writer = new JsonWriter()) {
-      assertEquals(0, writer.sizeInBytes(), "Check empty writer size");
+      assertEquals(0, writer.size(), "Check empty writer size");
 
       writer.beginArray();
       assertSizeInBytes(writer, "Check size after plain ASCII string");
@@ -210,7 +210,8 @@ class JsonWriterTest {
   }
 
   private static void assertSizeInBytes(JsonWriter writer, String message) {
-    assertEquals(writer.toByteArray().length, writer.sizeInBytes(), message);
+    int size = writer.size();
+    assertEquals(writer.toByteArray().length, size, message);
   }
 
   @Test

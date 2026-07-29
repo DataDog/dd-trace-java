@@ -56,7 +56,7 @@ commons = "3.2"
 guava = "33.6.0-jre"
 javaparser = "3.28.2"
 jctools = "4.0.6"
-lz4 = "1.11.0"
+lz4 = "1.11.1"
 re2j = "1.8"
 
 # Logging
