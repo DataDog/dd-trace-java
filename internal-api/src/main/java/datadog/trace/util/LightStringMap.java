@@ -435,14 +435,6 @@ public final class LightStringMap<V> {
       return (V) mapData[slotIndex + numSlots(mapData)];
     }
 
-    @SuppressWarnings("unchecked")
-    @Nullable
-    public static <V> V prevValueAt(@Nullable Object[] mapData, int slotIndex) {
-      if (mapData == null || slotIndex < 0) return null;
-
-      return (V) mapData[slotIndex + numSlots(mapData)];
-    }
-
     public static final boolean containsKey(@Nullable Object[] mapData, @Nonnull String key) {
       if (mapData == null) return false;
 

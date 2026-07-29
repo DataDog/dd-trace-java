@@ -315,7 +315,6 @@ class LightStringMapTest {
       assertTrue(EmbeddingSupport.isPresent(slot));
       assertEquals("a", EmbeddingSupport.keyAt(data, slot));
       assertEquals("A", EmbeddingSupport.valueAt(data, slot));
-      assertEquals("A", EmbeddingSupport.prevValueAt(data, slot));
       // negative slot -> absent
       assertNull(EmbeddingSupport.keyAt(data, -1));
       assertFalse(EmbeddingSupport.isPresent(-1));
