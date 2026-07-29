@@ -61,7 +61,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   // used, closing the race where CURRENT_CONFIG can be swapped between evaluate() and the hook
   // firing. Stamped on every DD-produced evaluation (including PROVIDER_NOT_READY, with false);
   // a missing key indicates a non-DD provider and the hook falls back to false (fail-closed).
-  static final String METADATA_OBSERVE_FULL_EVALUATION_DATA = "dd.observe_full_evaluation_data";
+  static final String METADATA_OBSERVE_FULL_EVALUATION_DATA = "observe_full_evaluation_data";
 
   // Read once: when off, the __dd_* span-enrichment metadata is not attached to evaluations, so an
   // enabled provider pays nothing extra unless span enrichment is also enabled. The gate does not
