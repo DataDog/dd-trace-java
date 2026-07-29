@@ -42,7 +42,7 @@ public final class LightStringMap<V> {
   public static final int DEFAULT_CAPACITY = 8;
 
   // Slots a fresh (un-tuned) hint seeds -- a reasonable default so a cold site behaves like a
-  // plain new LightStringMap(DEFAULT_CAPACITY); it then self-tunes up or down from here.
+  // plain LightStringMap.create(); it then self-tunes up or down from here.
   static final int DEFAULT_HINT_SLOTS = DEFAULT_CAPACITY;
   // Floor step-down never drops a hint below (in slots), so a genuinely tiny site can still tune
   // below the default. Must stay >= 1 (a zero-slot table is degenerate).
@@ -66,22 +66,49 @@ public final class LightStringMap<V> {
   @Nullable private final SizingHint sizingHint;
   private Object[] data = EmbeddingSupport.EMPTY_DATA;
 
-  public LightStringMap(int capacity) {
+  private LightStringMap(int capacity) {
     this.initialCapacity = capacity;
     this.sizingHint = null;
     this.maxSlots = NO_MAX_SLOTS;
   }
 
-  public LightStringMap(@Nonnull SizingHint hint) {
+  private LightStringMap(@Nonnull SizingHint hint) {
     this.sizingHint = hint;
     this.initialCapacity = hint.seedSlots();
     this.maxSlots = hint.maxSlots();
   }
 
+  /** A new, uncapped map seeded at the default capacity. The "just give me a map" front door. */
+  @Nonnull
+  public static <V> LightStringMap<V> create() {
+    return new LightStringMap<>(DEFAULT_CAPACITY);
+  }
+
+  /**
+   * A new, uncapped map seeded at {@code capacity} (rounded up to a power of two on first write).
+   * Use when the caller already knows the rough size; otherwise prefer {@link #create()} or a
+   * {@link #sizingHint()}.
+   */
+  @Nonnull
+  public static <V> LightStringMap<V> create(int capacity) {
+    return new LightStringMap<>(capacity);
+  }
+
+  /**
+   * A new map sized (and, if the hint carries a {@code maxCapacity}, capped) from {@code hint}.
+   * Mint the hint once per construction site via {@link #sizingHint()} or {@link
+   * #buildSizingHint()}, hold it in a {@code static final} field, and pass it to every map at that
+   * site.
+   */
+  @Nonnull
+  public static <V> LightStringMap<V> create(@Nonnull SizingHint hint) {
+    return new LightStringMap<>(hint);
+  }
+
   /**
    * Mints a self-tuning {@link SizingHint} for a single construction site. Hold it in a {@code
-   * static final} field and pass it to every {@link #LightStringMap(SizingHint)} at that site; the
-   * map sizes itself from the hint and tunes the hint back on its own. The caller never touches the
+   * static final} field and pass it to every {@link #create(SizingHint)} at that site; the map
+   * sizes itself from the hint and tunes the hint back on its own. The caller never touches the
    * hint again.
    */
   @Nonnull
@@ -251,8 +278,8 @@ public final class LightStringMap<V> {
   /**
    * A self-tuning, per-construction-site sizing estimate. Mint one via {@link
    * LightStringMap#sizingHint()}, hold it in a {@code static final} field, and pass it to {@link
-   * LightStringMap#LightStringMap(SizingHint)}; the map reads it to size itself and tunes it back
-   * as it grows. The caller never updates it.
+   * LightStringMap#create(SizingHint)}; the map reads it to size itself and tunes it back as it
+   * grows. The caller never updates it.
    *
    * <p>Opaque by design (no public members). The estimate self-tunes on two events the map already
    * observes -- a new map is started ({@link #seedSlots()}) and a map grows ({@link
