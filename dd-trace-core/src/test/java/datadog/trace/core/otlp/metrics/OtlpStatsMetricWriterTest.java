@@ -1,5 +1,6 @@
 package datadog.trace.core.otlp.metrics;
 
+import static datadog.trace.common.writer.RemoteApi.Response.success;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,6 +15,7 @@ import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.trace.common.metrics.AggregateEntry;
 import datadog.trace.common.metrics.AggregateEntryTestUtils;
+import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import java.io.IOException;
@@ -64,12 +66,13 @@ class OtlpStatsMetricWriterTest {
     byte[] lastPayload;
 
     @Override
-    public void send(OtlpPayload payload) {
+    public RemoteApi.Response send(OtlpPayload payload) {
       sendCount++;
       java.nio.ByteBuffer content = payload.getContent();
       byte[] bytes = new byte[content.remaining()];
       content.get(bytes);
       lastPayload = bytes;
+      return success(200);
     }
 
     @Override
