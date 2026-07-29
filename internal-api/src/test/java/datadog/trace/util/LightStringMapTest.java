@@ -24,13 +24,13 @@ class LightStringMapTest {
 
     @Test
     void getOnEmptyMapReturnsNull() {
-      LightStringMap<Integer> map = LightStringMap.create(LightStringMap.DEFAULT_CAPACITY);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(LightStringMap.DEFAULT_CAPACITY);
       assertNull(map.get("absent"));
     }
 
     @Test
     void setThenGet() {
-      LightStringMap<Integer> map = LightStringMap.create(8);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(8);
       map.set("a", 1);
       map.set("b", 2);
       assertEquals(1, map.get("a"));
@@ -40,7 +40,7 @@ class LightStringMapTest {
 
     @Test
     void setOverwritesExistingKey() {
-      LightStringMap<Integer> map = LightStringMap.create(8);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(8);
       map.set("a", 1);
       map.set("a", 42);
       assertEquals(42, map.get("a"));
@@ -48,7 +48,7 @@ class LightStringMapTest {
 
     @Test
     void removeMakesKeyAbsent() {
-      LightStringMap<Integer> map = LightStringMap.create(8);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(8);
       map.set("a", 1);
       map.set("b", 2);
       map.remove("a");
@@ -58,7 +58,7 @@ class LightStringMapTest {
 
     @Test
     void containsKeyDistinguishesPresenceFromAbsence() {
-      LightStringMap<Integer> map = LightStringMap.create(8);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(8);
       assertFalse(map.containsKey("a"));
       map.set("a", 1);
       assertTrue(map.containsKey("a"));
@@ -69,14 +69,14 @@ class LightStringMapTest {
 
     @Test
     void setRejectsNullValue() {
-      LightStringMap<Integer> map = LightStringMap.create(8);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(8);
       assertThrows(NullPointerException.class, () -> map.set("a", null));
       assertFalse(map.containsKey("a"));
     }
 
     @Test
     void sizeTracksLiveEntries() {
-      LightStringMap<Integer> map = LightStringMap.create(8);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(8);
       assertEquals(0, map.size());
       map.set("a", 1);
       map.set("b", 2);
@@ -95,7 +95,7 @@ class LightStringMapTest {
       // can never travel 8 slots there -- so a seed-8 map fills all 8 slots before it grows,
       // exactly as it did before the trigger existed. This is the property that keeps the tiny,
       // miss-dominated consumer (springweb6 localAttributes) behaviorally unchanged.
-      LightStringMap<Integer> map = LightStringMap.create(8);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(8);
       for (int i = 0; i < 8; i++) {
         map.set("k" + i, i);
       }
@@ -117,12 +117,12 @@ class LightStringMapTest {
       // well before the table is anywhere near full. Both sets stay fully retrievable.
       int count = 32;
 
-      LightStringMap<Integer> spread = LightStringMap.create(8);
+      LightStringMap<Integer> spread = LightStringMap.createUncapped(8);
       for (int i = 0; i < count; i++) {
         spread.set("spread." + i, i);
       }
 
-      LightStringMap<Integer> clustered = LightStringMap.create(8);
+      LightStringMap<Integer> clustered = LightStringMap.createUncapped(8);
       List<String> colliding = collidingKeys(count);
       for (int i = 0; i < count; i++) {
         clustered.set(colliding.get(i), i);
@@ -154,7 +154,7 @@ class LightStringMapTest {
         assertEquals(sharedHash, key.hashCode(), "fixture keys must share one hashCode: " + key);
       }
 
-      LightStringMap<Integer> map = LightStringMap.create(8);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(8);
       for (int i = 0; i < keys.size(); i++) {
         map.set(keys.get(i), i);
       }
@@ -177,7 +177,7 @@ class LightStringMapTest {
       // rather than walk past it to a fresh null -- keeping the chain short and avoiding a needless
       // grow.
       List<String> colliding = collidingKeys(5);
-      LightStringMap<Integer> map = LightStringMap.create(16);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(16);
       for (int i = 0; i < 4; i++) {
         map.set(colliding.get(i), i);
       }
@@ -202,7 +202,7 @@ class LightStringMapTest {
     @Test
     void growsAndPreservesAllEntries() {
       // initial capacity 2 forces several resizes as we insert well past it.
-      LightStringMap<Integer> map = LightStringMap.create(2);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(2);
       int n = 100;
       for (int i = 0; i < n; i++) {
         map.set("key-" + i, i);
@@ -214,7 +214,7 @@ class LightStringMapTest {
 
     @Test
     void forEachVisitsEveryLiveEntry() {
-      LightStringMap<Integer> map = LightStringMap.create(4);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(4);
       for (int i = 0; i < 20; i++) {
         map.set("k" + i, i);
       }
@@ -232,7 +232,7 @@ class LightStringMapTest {
 
     @Test
     void nonLiteralKeyResolvesViaEqualsFallback() {
-      LightStringMap<Integer> map = LightStringMap.create(8);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(8);
       map.set("hello", 1);
       // Distinct String instance with the same content -- must be found via the equals pass.
       String lookup = new String("hello");
@@ -282,7 +282,7 @@ class LightStringMapTest {
 
     @Test
     void removeThenReinsertSameKey() {
-      LightStringMap<Integer> map = LightStringMap.create(4);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(4);
       for (int i = 0; i < 4; i++) {
         map.set("k" + i, i);
       }
@@ -743,7 +743,7 @@ class LightStringMapTest {
     void uncappedMapAlwaysReturnsTrueFromSet() {
       // The plain capacity constructor is uncapped: set stores unconditionally and never rejects,
       // even well past the initial capacity.
-      LightStringMap<Integer> map = LightStringMap.create(2);
+      LightStringMap<Integer> map = LightStringMap.createUncapped(2);
       for (int i = 0; i < 100; i++) {
         assertTrue(map.set("k" + i, i), "uncapped set should always store");
       }
@@ -869,6 +869,80 @@ class LightStringMapTest {
       assertTrue(
           hint.currentSeedSlots() <= 16,
           "learned seed " + hint.currentSeedSlots() + " must not exceed the 16-slot cap");
+    }
+  }
+
+  // ============ createCapped(...) untuned hard-capped front door ============
+
+  @Nested
+  class CreateCappedTests {
+
+    @Test
+    void createCappedRejectsNewKeyOncePhysicallyFullAtCap() {
+      // createCapped(8) hard-bounds the table at 8 slots with no hint: eight distinct keys fill it,
+      // a ninth genuinely new key is rejected and leaves the map unchanged.
+      LightStringMap<Integer> map = LightStringMap.createCapped(8);
+      for (int i = 0; i < 8; i++) {
+        assertTrue(map.set("k" + i, i), "slot " + i + " should store");
+      }
+      assertEquals(8, EmbeddingSupport.numSlots(map.dataForTesting()), "capped at 8 slots");
+      assertFalse(map.set("overflow", 99), "new key past the cap should be rejected");
+      assertEquals(8, map.size(), "rejected set must not change the map");
+      for (int i = 0; i < 8; i++) {
+        assertEquals(i, map.get("k" + i));
+      }
+    }
+
+    @Test
+    void createCappedRoundsCapUpToPowerOfTwo() {
+      // A non-power-of-two cap rounds up: createCapped(5) becomes an 8-slot cap.
+      LightStringMap<Integer> map = LightStringMap.createCapped(5);
+      for (int i = 0; i < 8; i++) {
+        assertTrue(map.set("k" + i, i));
+      }
+      assertFalse(map.set("k8", 8), "cap of 5 rounds up to 8 slots");
+    }
+
+    @Test
+    void createCappedSeedClampedToCapSmallerThanDefault() {
+      // With a cap below the default seed, the seed is clamped down to the cap: createCapped(4)
+      // seeds and caps at 4 slots, so the fifth new key is rejected.
+      LightStringMap<Integer> map = LightStringMap.createCapped(4);
+      for (int i = 0; i < 4; i++) {
+        assertTrue(map.set("k" + i, i));
+      }
+      assertEquals(4, EmbeddingSupport.numSlots(map.dataForTesting()), "capped at 4 slots");
+      assertFalse(map.set("k4", 4), "the fifth key exceeds the 4-slot cap");
+    }
+
+    @Test
+    void createCappedTwoArgSeedsSmallAndGrowsToTheCap() {
+      // createCapped(2, 16) seeds at 2 slots and grows through the power-of-two classes up to the
+      // 16-slot cap, retaining every entry; the 17th new key is rejected.
+      LightStringMap<Integer> map = LightStringMap.createCapped(2, 16);
+      for (int i = 0; i < 16; i++) {
+        assertTrue(map.set("k" + i, i), "slot " + i + " should store below the cap");
+      }
+      assertEquals(16, EmbeddingSupport.numSlots(map.dataForTesting()));
+      assertFalse(map.set("k16", 16), "the 17th key exceeds the 16-slot cap");
+      for (int i = 0; i < 16; i++) {
+        assertEquals(i, map.get("k" + i));
+      }
+    }
+
+    @Test
+    void createCappedTwoArgRoundsBothToPowerOfTwo() {
+      // Both arguments round up independently: createCapped(3, 5) seeds at 4 slots, caps at 8.
+      LightStringMap<Integer> map = LightStringMap.createCapped(3, 5);
+      for (int i = 0; i < 8; i++) {
+        assertTrue(map.set("k" + i, i));
+      }
+      assertFalse(map.set("k8", 8), "cap of 5 rounds up to 8 slots");
+    }
+
+    @Test
+    void createCappedTwoArgThrowsWhenSeedExceedsCap() {
+      assertThrows(IllegalArgumentException.class, () -> LightStringMap.createCapped(16, 8));
     }
   }
 }

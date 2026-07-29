@@ -42,7 +42,7 @@ public final class LightStringMap<V> {
   public static final int DEFAULT_CAPACITY = 8;
 
   // Slots a fresh (un-tuned) hint seeds -- a reasonable default so a cold site behaves like a
-  // plain LightStringMap.create(); it then self-tunes up or down from here.
+  // plain LightStringMap.createUncapped(); it then self-tunes up or down from here.
   static final int DEFAULT_HINT_SLOTS = DEFAULT_CAPACITY;
   // Floor step-down never drops a hint below (in slots), so a genuinely tiny site can still tune
   // below the default. Must stay >= 1 (a zero-slot table is degenerate).
@@ -66,10 +66,10 @@ public final class LightStringMap<V> {
   @Nullable private final AdaptiveSizingHint sizingHint;
   private Object[] data = EmbeddingSupport.EMPTY_DATA;
 
-  private LightStringMap(int capacity) {
+  private LightStringMap(int capacity, int maxSlots) {
     this.initialCapacity = capacity;
     this.sizingHint = null;
-    this.maxSlots = NO_MAX_SLOTS;
+    this.maxSlots = maxSlots;
   }
 
   private LightStringMap(@Nonnull AdaptiveSizingHint hint) {
@@ -80,18 +80,47 @@ public final class LightStringMap<V> {
 
   /** A new, uncapped map seeded at the default capacity. The "just give me a map" front door. */
   @Nonnull
-  public static <V> LightStringMap<V> create() {
-    return new LightStringMap<>(DEFAULT_CAPACITY);
+  public static <V> LightStringMap<V> createUncapped() {
+    return new LightStringMap<>(DEFAULT_CAPACITY, NO_MAX_SLOTS);
   }
 
   /**
    * A new, uncapped map seeded at {@code capacity} (rounded up to a power of two on first write).
-   * Use when the caller already knows the rough size; otherwise prefer {@link #create()} or a
-   * {@link #adaptiveSizingHint()}.
+   * Use when the caller already knows the rough size; otherwise prefer {@link #createUncapped()} or
+   * a {@link #adaptiveSizingHint()}.
    */
   @Nonnull
-  public static <V> LightStringMap<V> create(int capacity) {
-    return new LightStringMap<>(capacity);
+  public static <V> LightStringMap<V> createUncapped(int capacity) {
+    return new LightStringMap<>(capacity, NO_MAX_SLOTS);
+  }
+
+  /**
+   * A new map hard-capped at {@code maxCapacity} slots (rounded up to a power of two), seeded at
+   * the default capacity (clamped to the cap). Once the table is physically full at the cap, {@link
+   * #set} rejects a genuinely new key (returns {@code false}) instead of growing further -- a
+   * thought-free way to bound worst-case memory without minting an {@link AdaptiveSizingHint}.
+   */
+  @Nonnull
+  public static <V> LightStringMap<V> createCapped(int maxCapacity) {
+    int max = EmbeddingSupport.roundUpToPow2(maxCapacity);
+    int seed = Math.min(DEFAULT_CAPACITY, max);
+    return new LightStringMap<>(seed, max);
+  }
+
+  /**
+   * A new map seeded at {@code initialCapacity} and hard-capped at {@code maxCapacity} (both in
+   * slots, each rounded up to a power of two). Like {@link #createCapped(int)} but with an explicit
+   * seed. Throws {@link IllegalArgumentException} if the rounded seed exceeds the rounded cap.
+   */
+  @Nonnull
+  public static <V> LightStringMap<V> createCapped(int initialCapacity, int maxCapacity) {
+    int seed = EmbeddingSupport.roundUpToPow2(initialCapacity);
+    int max = EmbeddingSupport.roundUpToPow2(maxCapacity);
+    if (seed > max) {
+      throw new IllegalArgumentException(
+          "initialCapacity (" + seed + " slots) exceeds maxCapacity (" + max + " slots)");
+    }
+    return new LightStringMap<>(seed, max);
   }
 
   /**
@@ -172,11 +201,11 @@ public final class LightStringMap<V> {
    * Stores {@code value} under {@code key}, growing the backing table if the probe-bound grow
    * trigger fires. Returns {@code true} if the mapping was stored (or overwrote an existing one).
    *
-   * <p>Returns {@code false} only for a capped map (one built from a {@link
-   * #buildAdaptiveSizingHint()}.{@code maxCapacity(...)} hint): once the table is physically full
-   * at its cap, a genuinely new key is rejected rather than growing past the cap. The rejection is
-   * non-fatal -- the map is unchanged and the caller may ignore the return. An uncapped map always
-   * returns {@code true}.
+   * <p>Returns {@code false} only for a capped map (one built via {@link #createCapped(int)} /
+   * {@link #createCapped(int, int)}, or from a {@link #buildAdaptiveSizingHint()}.{@code
+   * maxCapacity(...)} hint): once the table is physically full at its cap, a genuinely new key is
+   * rejected rather than growing past the cap. The rejection is non-fatal -- the map is unchanged
+   * and the caller may ignore the return. An uncapped map always returns {@code true}.
    */
   public boolean set(@Nonnull String key, @Nonnull V value) {
     Objects.requireNonNull(value, "value");
