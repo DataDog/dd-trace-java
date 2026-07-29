@@ -161,11 +161,12 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
         mockBackend.waitForCoverages(0));
   }
 
-  // TODO: add back LATEST_GRADLE_VERSION after fixing ordering on Gradle 9.3.0
   @TableTest({
-    "scenario              | gradleVersion | projectName                         | flakyTests                                                                                                                                | expectedOrder                                                                                                                                                                                                                                                                              | eventsNumber",
-    "junit4-ordering-7.6.4 | 7.6.4         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
-    "junit4-ordering-9.2.1 | 9.2.1         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          "
+    "scenario               | gradleVersion | projectName                         | flakyTests                                                                                                                                | expectedOrder                                                                                                                                                                                                                                                                              | eventsNumber",
+    "junit4-ordering-7.6.4  | 7.6.4         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
+    "junit4-ordering-9.2.1  | 9.2.1         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
+    "junit4-ordering-9.3.0  | 9.3.0         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
+    "junit4-ordering-latest | latest        | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          "
   })
   @ParameterizedTest
   void testJunit4ClassOrdering(
@@ -175,6 +176,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       List<TestFQN> expectedOrder,
       int eventsNumber)
       throws IOException {
+    gradleVersion = resolveVersion(gradleVersion);
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
     givenGradleProjectFiles(projectName);
     givenGradleProjectProperties();
