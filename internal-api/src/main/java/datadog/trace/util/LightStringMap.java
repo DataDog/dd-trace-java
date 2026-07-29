@@ -52,21 +52,30 @@ public final class LightStringMap<V> {
   // not something that fights a steady workload.
   static final int DECAY_INTERVAL = 1024;
   // Safety ceiling on how large a hint will pre-provision (in slots). Bounds the shared hint's
-  // over-provision from an outlier; the map itself is uncapped and grows past this on its own.
+  // over-provision from an outlier; a map without a maxCapacity still grows past this on its own.
   static final int MAX_HINT_SLOTS = 1024;
 
+  // Sentinel maxSlots meaning "no hard cap": the map grows freely (numSlots < NO_MAX_SLOTS always
+  // holds, so the cap check never fires and set() always stores).
+  static final int NO_MAX_SLOTS = Integer.MAX_VALUE;
+
   private final int initialCapacity;
+  // Hard cap on slots (a power of two), or NO_MAX_SLOTS when uncapped. Comes from the sizing hint's
+  // maxCapacity so every map at a construction site shares one bound.
+  private final int maxSlots;
   @Nullable private final SizingHint sizingHint;
   private Object[] data = EmbeddingSupport.EMPTY_DATA;
 
   public LightStringMap(int capacity) {
     this.initialCapacity = capacity;
     this.sizingHint = null;
+    this.maxSlots = NO_MAX_SLOTS;
   }
 
   public LightStringMap(@Nonnull SizingHint hint) {
     this.sizingHint = hint;
     this.initialCapacity = hint.seedSlots();
+    this.maxSlots = hint.maxSlots();
   }
 
   /**
@@ -80,18 +89,121 @@ public final class LightStringMap<V> {
     return new SizingHint();
   }
 
-  public void set(@Nonnull String key, @Nonnull V value) {
+  /**
+   * Opens a builder for a {@link SizingHint} that carries an initial capacity and/or a hard {@code
+   * maxCapacity}. Use this instead of {@link #sizingHint()} when a site wants to bound its maps'
+   * worst-case memory: every map built from the returned hint shares the same cap, and {@link #set}
+   * rejects (returns {@code false}) once a map is physically full at that cap. The hint still
+   * self-tunes its seed capacity within the cap.
+   */
+  @Nonnull
+  public static SizingHintBuilder buildSizingHint() {
+    return new SizingHintBuilder();
+  }
+
+  /** Builds a {@link SizingHint} with an initial and/or maximum capacity. */
+  public static final class SizingHintBuilder {
+    private int initCapacity = DEFAULT_HINT_SLOTS;
+    private int maxCapacity = NO_MAX_SLOTS;
+
+    private SizingHintBuilder() {}
+
+    /** Seed capacity in slots for a cold map (rounded up to a power of two). */
+    @Nonnull
+    public SizingHintBuilder initCapacity(int slots) {
+      this.initCapacity = slots;
+      return this;
+    }
+
+    /**
+     * Hard cap, in slots (rounded up to a power of two), on how large any map built from this hint
+     * may grow. Once a map is physically full at this many slots, {@link #set} rejects a new key
+     * (returns {@code false}) instead of growing further -- bounding worst-case memory.
+     */
+    @Nonnull
+    public SizingHintBuilder maxCapacity(int slots) {
+      this.maxCapacity = slots;
+      return this;
+    }
+
+    @Nonnull
+    public SizingHint build() {
+      int seed = EmbeddingSupport.roundUpToPow2(this.initCapacity);
+      int max =
+          (this.maxCapacity == NO_MAX_SLOTS)
+              ? NO_MAX_SLOTS
+              : EmbeddingSupport.roundUpToPow2(this.maxCapacity);
+      if (max != NO_MAX_SLOTS && seed > max) {
+        throw new IllegalArgumentException(
+            "initCapacity (" + seed + " slots) exceeds maxCapacity (" + max + " slots)");
+      }
+      return new SizingHint(seed, max);
+    }
+  }
+
+  /**
+   * Stores {@code value} under {@code key}, growing the backing table if the probe-bound grow
+   * trigger fires. Returns {@code true} if the mapping was stored (or overwrote an existing one).
+   *
+   * <p>Returns {@code false} only for a capped map (one built from a {@link
+   * #buildSizingHint()}.{@code maxCapacity(...)} hint): once the table is physically full at its
+   * cap, a genuinely new key is rejected rather than growing past the cap. The rejection is
+   * non-fatal -- the map is unchanged and the caller may ignore the return. An uncapped map always
+   * returns {@code true}.
+   */
+  public boolean set(@Nonnull String key, @Nonnull V value) {
     Objects.requireNonNull(value, "value");
 
     Object[] before = this.data;
     int beforeSlots = EmbeddingSupport.numSlots(before);
-    // The spine owns the grow decision (probe-bound trigger) and returns the map data, resized if
-    // it grew. The object is a thin delegate: its only extra job is to teach the sizing hint.
-    Object[] after = EmbeddingSupport.set(this.initialCapacity, before, key, value);
-    this.data = after;
 
-    // Record a genuine grow (not the lazy first allocation, which seeds from beforeSlots == 0) so
-    // the hint learns this site's high-water mark. seedSlots()/newMapData never feed the hint.
+    if (this.maxSlots == NO_MAX_SLOTS) {
+      // Uncapped: the spine owns the grow decision (probe-bound trigger) and always stores the key.
+      // The object stays a thin delegate whose only extra job is to teach the sizing hint.
+      Object[] after = EmbeddingSupport.set(this.initialCapacity, before, key, value);
+      this.data = after;
+      recordGrowth(beforeSlots, after);
+      return true;
+    }
+
+    // Capped: orchestrate the insert so a grow past maxSlots becomes a (non-fatal) rejection rather
+    // than an unbounded resize. Reuses the same spine primitives as the uncapped path.
+    if (before == null) {
+      this.data = EmbeddingSupport.newMapData(this.initialCapacity, key, value);
+      return true;
+    }
+    int numSlots = beforeSlots;
+    int slot = EmbeddingSupport.findInsertionSlot(before, numSlots, key);
+    if (slot >= 0) {
+      before[slot + numSlots] = value; // key already present -- overwrite in place
+      return true;
+    }
+
+    boolean hasFreeSlot = slot != EmbeddingSupport.NO_SPACE;
+    boolean wantsGrow = !hasFreeSlot || !EmbeddingSupport.withinProbeBound(numSlots, slot, key);
+    if (wantsGrow && numSlots < this.maxSlots) {
+      Object[] after = EmbeddingSupport.expandMapData(before);
+      EmbeddingSupport.newMapUncheckedInsert(after, EmbeddingSupport.numSlots(after), key, value);
+      this.data = after;
+      recordGrowth(beforeSlots, after);
+      return true;
+    }
+    if (hasFreeSlot) {
+      // At the cap: the probe bound is relaxed (we cannot grow), so fill any free slot the probe
+      // walk found, even one past MAX_PROBES, until the table is physically full.
+      int availableSlot = EmbeddingSupport.flip(slot);
+      before[availableSlot] = key;
+      before[availableSlot + numSlots] = value;
+      return true;
+    }
+    // Physically full at the cap and the key is new: reject.
+    return false;
+  }
+
+  // Teach the sizing hint after a genuine grow (not the lazy first allocation, which seeds from
+  // beforeSlots == 0) so it learns this site's high-water mark. seedSlots()/newMapData never feed
+  // the hint.
+  private void recordGrowth(int beforeSlots, @Nullable Object[] after) {
     if (this.sizingHint != null && beforeSlots != 0) {
       int afterSlots = EmbeddingSupport.numSlots(after);
       if (afterSlots > beforeSlots) {
@@ -154,11 +266,27 @@ public final class LightStringMap<V> {
   public static final class SizingHint {
     // Learned seed capacity in slots (always a power of two). Additive-increase on grow (with one
     // class of headroom), multiplicative-decrease on the decay tick.
-    private int slots = DEFAULT_HINT_SLOTS;
+    private int slots;
     // Approximate count of maps started from this hint; drives the periodic step-down decay.
     private int constructs;
+    // Hard cap on slots for maps built from this hint (a power of two), or NO_MAX_SLOTS when
+    // uncapped. Immutable; the learned seed is clamped to it so a hint never over-provisions past
+    // the cap.
+    private final int maxSlots;
 
-    private SizingHint() {}
+    private SizingHint() {
+      this(DEFAULT_HINT_SLOTS, NO_MAX_SLOTS);
+    }
+
+    private SizingHint(int seedSlots, int maxSlots) {
+      this.slots = seedSlots;
+      this.maxSlots = maxSlots;
+    }
+
+    // The hard slot cap for maps built from this hint (NO_MAX_SLOTS when uncapped).
+    int maxSlots() {
+      return this.maxSlots;
+    }
 
     /**
      * The seed capacity (in slots) for a map just started from this hint. Advances the decay clock
@@ -178,12 +306,14 @@ public final class LightStringMap<V> {
     /**
      * Records that a map grew to {@code grownSlots}. Reserves one extra power-of-two class so a
      * reseeded map starts with slack and is unlikely to immediately re-trip the grow trigger for
-     * the same workload. Monotonic-max, clamped to {@link #MAX_HINT_SLOTS}.
+     * the same workload. Monotonic-max, clamped to {@link #MAX_HINT_SLOTS} and to this hint's hard
+     * {@code maxSlots} cap so a capped hint never seeds a map larger than its cap.
      */
     void recordSlots(int grownSlots) {
       int candidate = grownSlots << 1;
-      if (candidate > MAX_HINT_SLOTS) {
-        candidate = MAX_HINT_SLOTS;
+      int ceiling = Math.min(MAX_HINT_SLOTS, this.maxSlots);
+      if (candidate > ceiling) {
+        candidate = ceiling;
       }
       if (candidate > this.slots) {
         this.slots = candidate;
@@ -398,7 +528,9 @@ public final class LightStringMap<V> {
 
     // Whether an insertion at the free slot encoded by {@code insertionSlot} (as returned by
     // findInsertionSlot for an absent key) lands within {@link #MAX_PROBES} of the key's home slot.
-    private static boolean withinProbeBound(int numSlots, int insertionSlot, String key) {
+    // Package-private so the capped object-tier set() can share the same grow decision as the
+    // spine.
+    static boolean withinProbeBound(int numSlots, int insertionSlot, String key) {
       int availableSlot = flip(insertionSlot);
       int home = preferredSlot(numSlots, key.hashCode());
       int distance = (availableSlot - home) & (numSlots - 1);
