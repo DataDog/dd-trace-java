@@ -43,8 +43,12 @@ public final class MultipartContentDecoder {
     while (true) {
       int idx = indexOfIgnoreAsciiCase(contentType, "charset=", searchFrom);
       if (idx < 0) return null;
-      // Require a parameter boundary before "charset=" so "xcharset=..." is not matched
-      if (idx == 0 || contentType.charAt(idx - 1) == ';' || contentType.charAt(idx - 1) == ' ') {
+      // Require a parameter boundary before "charset=" so "xcharset=..." is not matched.
+      // RFC 7230 optional whitespace (OWS) allows both space and horizontal tab.
+      if (idx == 0
+          || contentType.charAt(idx - 1) == ';'
+          || contentType.charAt(idx - 1) == ' '
+          || contentType.charAt(idx - 1) == '\t') {
         int nameStart = idx + 8;
         int end = contentType.length();
         for (int i = nameStart; i < end; i++) {

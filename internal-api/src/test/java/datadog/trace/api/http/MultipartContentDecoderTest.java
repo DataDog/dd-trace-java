@@ -111,6 +111,18 @@ public class MultipartContentDecoderTest {
     assertEquals(expectedCharset, MultipartContentDecoder.extractCharset(contentType).name());
   }
 
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "text/plain;\tcharset=ISO-8859-1",
+        "text/plain; \tcharset=ISO-8859-1",
+        "text/plain;\t charset=ISO-8859-1"
+      })
+  void extractCharsetAcceptsTabAsParameterBoundary(String contentType) {
+    // RFC 7230 optional whitespace (OWS) allows both space and horizontal tab before a parameter
+    assertEquals("ISO-8859-1", MultipartContentDecoder.extractCharset(contentType).name());
+  }
+
   @Test
   void extractCharsetIgnoresSubstringMatchInParameterName() {
     // "xcharset=UTF-16" must not match; the real "charset=UTF-8" that follows must be used
