@@ -63,7 +63,7 @@ public final class LightStringMap<V> {
   // Hard cap on slots (a power of two), or NO_MAX_SLOTS when uncapped. Comes from the sizing hint's
   // maxCapacity so every map at a construction site shares one bound.
   private final int maxSlots;
-  @Nullable private final SizingHint sizingHint;
+  @Nullable private final AdaptiveSizingHint sizingHint;
   private Object[] data = EmbeddingSupport.EMPTY_DATA;
 
   private LightStringMap(int capacity) {
@@ -72,7 +72,7 @@ public final class LightStringMap<V> {
     this.maxSlots = NO_MAX_SLOTS;
   }
 
-  private LightStringMap(@Nonnull SizingHint hint) {
+  private LightStringMap(@Nonnull AdaptiveSizingHint hint) {
     this.sizingHint = hint;
     this.initialCapacity = hint.seedSlots();
     this.maxSlots = hint.maxSlots();
@@ -87,7 +87,7 @@ public final class LightStringMap<V> {
   /**
    * A new, uncapped map seeded at {@code capacity} (rounded up to a power of two on first write).
    * Use when the caller already knows the rough size; otherwise prefer {@link #create()} or a
-   * {@link #sizingHint()}.
+   * {@link #adaptiveSizingHint()}.
    */
   @Nonnull
   public static <V> LightStringMap<V> create(int capacity) {
@@ -96,48 +96,48 @@ public final class LightStringMap<V> {
 
   /**
    * A new map sized (and, if the hint carries a {@code maxCapacity}, capped) from {@code hint}.
-   * Mint the hint once per construction site via {@link #sizingHint()} or {@link
-   * #buildSizingHint()}, hold it in a {@code static final} field, and pass it to every map at that
-   * site.
+   * Mint the hint once per construction site via {@link #adaptiveSizingHint()} or {@link
+   * #buildAdaptiveSizingHint()}, hold it in a {@code static final} field, and pass it to every map
+   * at that site.
    */
   @Nonnull
-  public static <V> LightStringMap<V> create(@Nonnull SizingHint hint) {
+  public static <V> LightStringMap<V> create(@Nonnull AdaptiveSizingHint hint) {
     return new LightStringMap<>(hint);
   }
 
   /**
-   * Mints a self-tuning {@link SizingHint} for a single construction site. Hold it in a {@code
-   * static final} field and pass it to every {@link #create(SizingHint)} at that site; the map
-   * sizes itself from the hint and tunes the hint back on its own. The caller never touches the
-   * hint again.
+   * Mints a self-tuning {@link AdaptiveSizingHint} for a single construction site. Hold it in a
+   * {@code static final} field and pass it to every {@link #create(AdaptiveSizingHint)} at that
+   * site; the map sizes itself from the hint and tunes the hint back on its own. The caller never
+   * touches the hint again.
    */
   @Nonnull
-  public static SizingHint sizingHint() {
-    return new SizingHint();
+  public static AdaptiveSizingHint adaptiveSizingHint() {
+    return new AdaptiveSizingHint();
   }
 
   /**
-   * Opens a builder for a {@link SizingHint} that carries an initial capacity and/or a hard {@code
-   * maxCapacity}. Use this instead of {@link #sizingHint()} when a site wants to bound its maps'
-   * worst-case memory: every map built from the returned hint shares the same cap, and {@link #set}
-   * rejects (returns {@code false}) once a map is physically full at that cap. The hint still
-   * self-tunes its seed capacity within the cap.
+   * Opens a builder for an {@link AdaptiveSizingHint} that carries an initial capacity and/or a
+   * hard {@code maxCapacity}. Use this instead of {@link #adaptiveSizingHint()} when a site wants
+   * to bound its maps' worst-case memory: every map built from the returned hint shares the same
+   * cap, and {@link #set} rejects (returns {@code false}) once a map is physically full at that
+   * cap. The hint still self-tunes its seed capacity within the cap.
    */
   @Nonnull
-  public static SizingHintBuilder buildSizingHint() {
-    return new SizingHintBuilder();
+  public static AdaptiveSizingHintBuilder buildAdaptiveSizingHint() {
+    return new AdaptiveSizingHintBuilder();
   }
 
-  /** Builds a {@link SizingHint} with an initial and/or maximum capacity. */
-  public static final class SizingHintBuilder {
+  /** Builds an {@link AdaptiveSizingHint} with an initial and/or maximum capacity. */
+  public static final class AdaptiveSizingHintBuilder {
     private int initCapacity = DEFAULT_HINT_SLOTS;
     private int maxCapacity = NO_MAX_SLOTS;
 
-    private SizingHintBuilder() {}
+    private AdaptiveSizingHintBuilder() {}
 
     /** Seed capacity in slots for a cold map (rounded up to a power of two). */
     @Nonnull
-    public SizingHintBuilder initCapacity(int slots) {
+    public AdaptiveSizingHintBuilder initCapacity(int slots) {
       this.initCapacity = slots;
       return this;
     }
@@ -148,13 +148,13 @@ public final class LightStringMap<V> {
      * (returns {@code false}) instead of growing further -- bounding worst-case memory.
      */
     @Nonnull
-    public SizingHintBuilder maxCapacity(int slots) {
+    public AdaptiveSizingHintBuilder maxCapacity(int slots) {
       this.maxCapacity = slots;
       return this;
     }
 
     @Nonnull
-    public SizingHint build() {
+    public AdaptiveSizingHint build() {
       int seed = EmbeddingSupport.roundUpToPow2(this.initCapacity);
       int max =
           (this.maxCapacity == NO_MAX_SLOTS)
@@ -164,7 +164,7 @@ public final class LightStringMap<V> {
         throw new IllegalArgumentException(
             "initCapacity (" + seed + " slots) exceeds maxCapacity (" + max + " slots)");
       }
-      return new SizingHint(seed, max);
+      return new AdaptiveSizingHint(seed, max);
     }
   }
 
@@ -173,8 +173,8 @@ public final class LightStringMap<V> {
    * trigger fires. Returns {@code true} if the mapping was stored (or overwrote an existing one).
    *
    * <p>Returns {@code false} only for a capped map (one built from a {@link
-   * #buildSizingHint()}.{@code maxCapacity(...)} hint): once the table is physically full at its
-   * cap, a genuinely new key is rejected rather than growing past the cap. The rejection is
+   * #buildAdaptiveSizingHint()}.{@code maxCapacity(...)} hint): once the table is physically full
+   * at its cap, a genuinely new key is rejected rather than growing past the cap. The rejection is
    * non-fatal -- the map is unchanged and the caller may ignore the return. An uncapped map always
    * returns {@code true}.
    */
@@ -246,9 +246,9 @@ public final class LightStringMap<V> {
 
   /**
    * A self-tuning, per-construction-site sizing estimate. Mint one via {@link
-   * LightStringMap#sizingHint()}, hold it in a {@code static final} field, and pass it to {@link
-   * LightStringMap#create(SizingHint)}; the map reads it to size itself and tunes it back as it
-   * grows. The caller never updates it.
+   * LightStringMap#adaptiveSizingHint()}, hold it in a {@code static final} field, and pass it to
+   * {@link LightStringMap#create(AdaptiveSizingHint)}; the map reads it to size itself and tunes it
+   * back as it grows. The caller never updates it.
    *
    * <p>Opaque by design (no public members). The estimate self-tunes on two events the map already
    * observes -- a new map is started ({@link #seedSlots()}) and a map grows ({@link
@@ -259,7 +259,7 @@ public final class LightStringMap<V> {
    * update only mis-sizes a future array (over/under-provision) for an instance or two, never
    * corrupts map data -- no synchronization.
    */
-  public static final class SizingHint {
+  public static final class AdaptiveSizingHint {
     // Learned seed capacity in slots (always a power of two). Additive-increase on grow (with one
     // class of headroom), multiplicative-decrease on the decay tick.
     private int slots;
@@ -270,11 +270,11 @@ public final class LightStringMap<V> {
     // the cap.
     private final int maxSlots;
 
-    private SizingHint() {
+    private AdaptiveSizingHint() {
       this(DEFAULT_HINT_SLOTS, NO_MAX_SLOTS);
     }
 
-    private SizingHint(int seedSlots, int maxSlots) {
+    private AdaptiveSizingHint(int seedSlots, int maxSlots) {
       this.slots = seedSlots;
       this.maxSlots = maxSlots;
     }
@@ -501,7 +501,7 @@ public final class LightStringMap<V> {
      */
     @Nonnull
     public static <V> Object[] set(
-        @Nonnull SizingHint hint,
+        @Nonnull AdaptiveSizingHint hint,
         @Nullable Object[] mapData,
         @Nonnull String key,
         @Nonnull V value) {
