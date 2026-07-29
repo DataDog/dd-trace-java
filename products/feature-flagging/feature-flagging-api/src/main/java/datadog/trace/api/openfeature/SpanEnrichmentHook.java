@@ -1,7 +1,5 @@
 package datadog.trace.api.openfeature;
 
-import datadog.trace.api.featureflag.FeatureFlaggingGateway;
-import datadog.trace.api.featureflag.SpanEnrichmentEvent;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
@@ -19,10 +17,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * OpenFeature {@code finally} hook that captures feature-flag evaluation metadata for APM span
- * enrichment. Registered from {@link Provider#getProviderHooks()} only when the gate is on. For
- * each relevant evaluation it dispatches a {@link SpanEnrichmentEvent} onto {@link
- * FeatureFlaggingGateway}; the agent-side write tier resolves the active local-root span and
- * accumulates the per-trace state that is flushed onto the root when the trace completes.
+ * enrichment. Registered from {@link Provider#getProviderHooks()} only when the gate is on. The
+ * hook sends JDK values through the optional reflective agent bridge. CDN evaluation does not
+ * require that bridge.
  *
  * <p>Capture branch (frozen Node reference):
  *
@@ -56,14 +53,12 @@ class SpanEnrichmentHook implements Hook<Object> {
       final Integer serialId = metadata != null ? metadata.getInteger(METADATA_SERIAL_ID) : null;
       if (serialId != null) {
         final boolean doLog = Boolean.TRUE.equals(metadata.getBoolean(METADATA_DO_LOG));
-        FeatureFlaggingGateway.dispatch(
-            SpanEnrichmentEvent.serialId(serialId, doLog, targetingKey(ctx)));
+        RawBridgeAccess.dispatchSpanSerialId(serialId, doLog, targetingKey(ctx));
       } else if (details.getVariant() == null) {
         // Runtime-default detection = MISSING VARIANT (never a reason enum). Unwrap any OpenFeature
         // Value to a native Java type here so the seam carries only JDK types.
-        FeatureFlaggingGateway.dispatch(
-            SpanEnrichmentEvent.runtimeDefault(
-                details.getFlagKey(), unwrapDefaultValue(details.getValue())));
+        RawBridgeAccess.dispatchSpanRuntimeDefault(
+            details.getFlagKey(), unwrapDefaultValue(details.getValue()));
       }
     } catch (final Throwable t) {
       // Never let span enrichment break flag evaluation; a debug line aids diagnosis if it does.

@@ -23,12 +23,12 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.Capabilities;
-import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.FeatureFlaggingRawBridge;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.IOException;
@@ -40,8 +40,6 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tabletest.junit.TableTest;
@@ -50,11 +48,13 @@ import org.tabletest.junit.TableTest;
 class RemoteConfigServiceImplTest {
 
   @Mock private FeatureFlaggingGateway.ConfigListener listener;
-  @Captor private ArgumentCaptor<ConfigurationDeserializer> deserializerCaptor;
+  @Mock private FeatureFlaggingRawBridge.ConfigurationListener rawListener;
 
   @AfterEach
   void cleanup() {
     FeatureFlaggingGateway.removeConfigListener(listener);
+    FeatureFlaggingRawBridge.removeConfigurationListener(rawListener);
+    FeatureFlaggingRawBridge.dispatchConfiguration(null);
   }
 
   @Test
@@ -63,17 +63,23 @@ class RemoteConfigServiceImplTest {
     final SharedCommunicationObjects sco = mock(SharedCommunicationObjects.class);
     when(sco.configurationPoller(any(Config.class))).thenReturn(poller);
     FeatureFlaggingGateway.addConfigListener(listener);
+    FeatureFlaggingRawBridge.addConfigurationListener(rawListener);
     final RemoteConfigServiceImpl service = new RemoteConfigServiceImpl(sco, Config.get());
 
     service.init();
 
     verify(poller).addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    verify(poller).addListener(eq(Product.FFE_FLAGS), deserializerCaptor.capture(), eq(service));
+    verify(poller).addListener(Product.FFE_FLAGS, service);
 
-    final ServerConfiguration config = deserializer().deserialize(emptyConfig().getBytes(UTF_8));
-    service.accept("test", config, mock(PollingRateHinter.class));
+    final byte[] content = emptyConfig().getBytes(UTF_8);
+    service.accept("test", content, mock(PollingRateHinter.class));
 
     verify(listener).accept(any(ServerConfiguration.class));
+    verify(rawListener).accept(eq(content));
+
+    service.accept("test", null, mock(PollingRateHinter.class));
+    verify(listener).accept(null);
+    verify(rawListener).accept(null);
 
     service.close();
 
@@ -306,11 +312,6 @@ class RemoteConfigServiceImplTest {
     assertThrows(
         UnsupportedOperationException.class,
         () -> adapter.toJson(mock(JsonWriter.class), new Date()));
-  }
-
-  @SuppressWarnings("unchecked")
-  private ConfigurationDeserializer<ServerConfiguration> deserializer() {
-    return deserializerCaptor.getValue();
   }
 
   private static ServerConfiguration deserialize(final String json) throws Exception {

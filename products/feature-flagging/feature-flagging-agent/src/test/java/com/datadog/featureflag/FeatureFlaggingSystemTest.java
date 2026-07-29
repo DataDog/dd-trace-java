@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.Capabilities;
-import datadog.remoteconfig.ConfigurationDeserializer;
+import datadog.remoteconfig.ConfigurationChangesListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
@@ -99,7 +99,7 @@ class FeatureFlaggingSystemTest {
     FeatureFlaggingSystem.start(sharedCommunicationObjects);
 
     verify(poller).addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    verify(poller).addListener(eq(Product.FFE_FLAGS), any(ConfigurationDeserializer.class), any());
+    verify(poller).addListener(eq(Product.FFE_FLAGS), any(ConfigurationChangesListener.class));
     verify(poller).start();
 
     FeatureFlaggingSystem.stop();
@@ -128,9 +128,8 @@ class FeatureFlaggingSystemTest {
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
-  void agentlessConfigurationSourceUsesHttpServiceWithoutRemoteConfig() {
-    assertInstanceOf(
-        AgentlessConfigurationSource.class,
+  void agentlessConfigurationSourceIsProviderOwned() {
+    assertNull(
         FeatureFlaggingSystem.createConfigurationSourceService(
             sharedCommunicationObjects(), Config.get()));
   }

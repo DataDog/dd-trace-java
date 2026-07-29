@@ -1,95 +1,76 @@
 package datadog.trace.api.openfeature;
 
-import static java.util.Arrays.asList;
-
-import datadog.trace.api.featureflag.FeatureFlaggingGateway;
-import datadog.trace.api.featureflag.exposure.ExposureEvent;
-import datadog.trace.api.featureflag.exposure.Subject;
-import datadog.trace.api.featureflag.ufc.v1.Allocation;
-import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
-import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
-import datadog.trace.api.featureflag.ufc.v1.Flag;
-import datadog.trace.api.featureflag.ufc.v1.Rule;
-import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
-import datadog.trace.api.featureflag.ufc.v1.Shard;
-import datadog.trace.api.featureflag.ufc.v1.ShardRange;
-import datadog.trace.api.featureflag.ufc.v1.Split;
-import datadog.trace.api.featureflag.ufc.v1.ValueType;
-import datadog.trace.api.featureflag.ufc.v1.Variant;
+import datadog.openfeature.internal.core.ConfigurationSnapshot;
+import datadog.openfeature.internal.core.EvaluationResult;
+import datadog.openfeature.internal.core.FlagEvaluator;
+import datadog.openfeature.internal.core.FlagEvaluator.ValueKind;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.ImmutableMetadata;
 import dev.openfeature.sdk.ProviderEvaluation;
-import dev.openfeature.sdk.Reason;
 import dev.openfeature.sdk.Structure;
 import dev.openfeature.sdk.Value;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.AbstractMap;
-import java.util.Date;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
-class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
+/** Thin OpenFeature adapter over the provider-owned core runtime. */
+class DDEvaluator implements Evaluator {
 
-  private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
-      new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
-
-  // Evaluation-metadata keys consumed by the span-enrichment capture hook (see
-  // SpanEnrichmentHook). Emitted only when the span-enrichment gate is on.
   static final String METADATA_SPLIT_SERIAL_ID = "__dd_split_serial_id";
   static final String METADATA_DO_LOG = "__dd_do_log";
 
-  // Read once: when off, the __dd_* span-enrichment metadata is not attached to evaluations, so an
-  // enabled provider pays nothing extra unless span enrichment is also enabled. The gate does not
-  // change at runtime, and this class is loaded lazily (well after startup) so config is ready.
   private static final boolean SPAN_ENRICHMENT_ENABLED = SpanEnrichmentGate.isEnabled();
 
   private final Runnable configCallback;
-  private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
-  private final CountDownLatch initializationLatch = new CountDownLatch(1);
+  private final Provider.Options options;
+  private final FlagEvaluator evaluator = new FlagEvaluator();
+  private volatile ProviderRuntime.Handle runtime;
 
-  public DDEvaluator(final Runnable configCallback) {
+  DDEvaluator(final Runnable configCallback, final Provider.Options options) {
     this.configCallback = configCallback;
+    this.options = options;
   }
 
   @Override
   public boolean initialize(
       final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
-    FeatureFlaggingGateway.activate();
-    FeatureFlaggingGateway.addConfigListener(this);
-    return initializationLatch.await(timeout, unit) || hasConfiguration();
+    ProviderRuntime.Handle current = runtime;
+    if (current == null) {
+      synchronized (this) {
+        current = runtime;
+        if (current == null) {
+          current =
+              ProviderRuntime.acquire(
+                  RuntimeConfiguration.resolve(options), ignored -> configCallback.run());
+          runtime = current;
+        }
+      }
+    }
+    return current.awaitConfiguration(timeout, unit) || hasConfiguration();
   }
 
   @Override
   public boolean hasConfiguration() {
-    return configuration.get() != null;
+    final ProviderRuntime.Handle current = runtime;
+    return current != null && current.configuration() != null;
   }
 
   @Override
   public void shutdown() {
-    FeatureFlaggingGateway.removeConfigListener(this);
-  }
-
-  @Override
-  public void accept(final ServerConfiguration config) {
-    configuration.set(config);
-    if (config != null) {
-      initializationLatch.countDown();
-      configCallback.run();
-    } else if (initializationLatch.getCount() == 0) {
-      configCallback.run();
+    final ProviderRuntime.Handle current = runtime;
+    runtime = null;
+    if (current != null) {
+      current.close();
     }
   }
 
@@ -99,426 +80,133 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final String key,
       final T defaultValue,
       final EvaluationContext context) {
-    try {
-      final ServerConfiguration config = configuration.get();
-      if (config == null) {
-        return error(defaultValue, ErrorCode.PROVIDER_NOT_READY);
-      }
+    final ProviderRuntime.Handle current = runtime;
+    final ConfigurationSnapshot snapshot = current == null ? null : current.configuration();
+    final EvaluationResult result =
+        evaluator.evaluate(
+            snapshot,
+            valueKind(target),
+            key,
+            unwrapDefaultValue(defaultValue),
+            toCoreContext(context));
+    return toProviderEvaluation(target, key, defaultValue, context, result);
+  }
 
-      if (context == null) {
-        return error(defaultValue, ErrorCode.INVALID_CONTEXT);
-      }
-
-      final Flag flag = config.flags.get(key);
-      if (flag == null) {
-        return error(defaultValue, ErrorCode.FLAG_NOT_FOUND);
-      }
-
-      if (!flag.enabled) {
-        return ProviderEvaluation.<T>builder()
-            .value(defaultValue)
-            .reason(Reason.DISABLED.name())
-            .build();
-      }
-
-      if (flag.allocations == null) {
-        return error(defaultValue, ErrorCode.GENERAL, "Missing allocations for flag " + key);
-      }
-
-      final Date now = new Date();
-      final String targetingKey = context.getTargetingKey();
-
-      for (final Allocation allocation : flag.allocations) {
-        if (!isAllocationActive(allocation, now)) {
-          continue;
-        }
-
-        if (!isEmpty(allocation.rules)) {
-          if (!evaluateRules(allocation.rules, context)) {
-            continue;
-          }
-        }
-
-        if (!isEmpty(allocation.splits)) {
-          for (final Split split : allocation.splits) {
-            if (isEmpty(split.shards)) {
-              return resolveVariant(
-                  target, key, defaultValue, flag, split.variationKey, allocation, split, context);
-            } else {
-              if (targetingKey == null) {
-                return error(defaultValue, ErrorCode.TARGETING_KEY_MISSING);
-              }
-              // To match a split, subject must match ALL underlying shards
-              boolean allShardsMatch = true;
-              for (final Shard shard : split.shards) {
-                if (!matchesShard(shard, targetingKey)) {
-                  allShardsMatch = false;
-                  break;
-                }
-              }
-              if (allShardsMatch) {
-                return resolveVariant(
-                    target,
-                    key,
-                    defaultValue,
-                    flag,
-                    split.variationKey,
-                    allocation,
-                    split,
-                    context);
-              }
-            }
-          }
-        }
-      }
-
-      return ProviderEvaluation.<T>builder()
-          .value(defaultValue)
-          .reason(Reason.DEFAULT.name())
-          .build();
-    } catch (final PatternSyntaxException e) {
-      return error(defaultValue, ErrorCode.PARSE_ERROR, e);
-    } catch (final NumberFormatException e) {
-      return error(defaultValue, ErrorCode.TYPE_MISMATCH, e);
-    } catch (final Exception e) {
-      return error(defaultValue, ErrorCode.GENERAL, e);
+  private static ValueKind valueKind(final Class<?> target) {
+    if (target == Boolean.class) {
+      return ValueKind.BOOLEAN;
     }
-  }
-
-  private static <T> ProviderEvaluation<T> error(final T defaultValue, final ErrorCode code) {
-    return error(defaultValue, code, (String) null);
-  }
-
-  private static <T> ProviderEvaluation<T> error(
-      final T defaultValue, final ErrorCode code, final Throwable cause) {
-    return error(defaultValue, code, cause == null ? null : cause.getMessage());
-  }
-
-  private static <T> ProviderEvaluation<T> error(
-      final T defaultValue, final ErrorCode code, final String errorMessage) {
-    return ProviderEvaluation.<T>builder()
-        .value(defaultValue)
-        .reason(Reason.ERROR.name())
-        .errorCode(code)
-        .errorMessage(errorMessage)
-        .build();
-  }
-
-  private static boolean isEmpty(final List<?> list) {
-    return list == null || list.isEmpty();
-  }
-
-  private static boolean isAllocationActive(final Allocation allocation, final Date now) {
-    final Date startDate = allocation.startAt;
-    if (startDate != null && now.before(startDate)) {
-      return false;
+    if (target == String.class) {
+      return ValueKind.STRING;
     }
-
-    final Date endDate = allocation.endAt;
-    if (endDate != null && now.after(endDate)) {
-      return false;
+    if (target == Integer.class) {
+      return ValueKind.INTEGER;
     }
-
-    return true;
+    if (target == Double.class) {
+      return ValueKind.DOUBLE;
+    }
+    if (target == Value.class) {
+      return ValueKind.OBJECT;
+    }
+    throw new IllegalArgumentException("Type not supported: " + target);
   }
 
-  private static boolean evaluateRules(final List<Rule> rules, final EvaluationContext context) {
-    for (final Rule rule : rules) {
-      if (isEmpty(rule.conditions)) {
-        continue;
-      }
-
-      boolean allConditionsMatch = true;
-      for (final ConditionConfiguration condition : rule.conditions) {
-        if (!evaluateCondition(condition, context)) {
-          allConditionsMatch = false;
-          break;
-        }
-      }
-
-      if (allConditionsMatch) {
-        return true;
-      }
+  private static datadog.openfeature.internal.core.EvaluationContext toCoreContext(
+      final EvaluationContext context) {
+    if (context == null) {
+      return null;
     }
-    return false;
+    final Map<String, Object> attributes = new LinkedHashMap<>();
+    for (final String key : context.keySet()) {
+      attributes.put(key, unwrapValue(context.getValue(key)));
+    }
+    return new datadog.openfeature.internal.core.EvaluationContext(
+        context.getTargetingKey(), attributes);
   }
 
-  private static boolean evaluateCondition(
-      final ConditionConfiguration condition, final EvaluationContext context) {
-    if (condition.operator == ConditionOperator.IS_NULL) {
-      final Object value = resolveAttribute(condition.attribute, context);
-      boolean isNull = value == null;
-      // condition.value determines if we're checking for null (true) or not null (false)
-      boolean expectedNull = condition.value instanceof Boolean ? (Boolean) condition.value : true;
-      return isNull == expectedNull;
-    }
-
-    final Object attributeValue = resolveAttribute(condition.attribute, context);
-    if (attributeValue == null) {
-      return false;
-    }
-
-    switch (condition.operator) {
-      case MATCHES:
-        return matchesRegex(attributeValue, condition.value);
-      case NOT_MATCHES:
-        return !matchesRegex(attributeValue, condition.value);
-      case ONE_OF:
-        return isOneOf(attributeValue, condition.value);
-      case NOT_ONE_OF:
-        return !isOneOf(attributeValue, condition.value);
-      case GTE:
-        return compareNumber(attributeValue, condition.value, (a, b) -> a >= b);
-      case GT:
-        return compareNumber(attributeValue, condition.value, (a, b) -> a > b);
-      case LTE:
-        return compareNumber(attributeValue, condition.value, (a, b) -> a <= b);
-      case LT:
-        return compareNumber(attributeValue, condition.value, (a, b) -> a < b);
-      default:
-        return false;
-    }
-  }
-
-  private static boolean matchesRegex(final Object attributeValue, final Object conditionValue) {
-    // PatternSyntaxException is intentionally not caught here so it propagates to evaluate(),
-    // which maps it to ErrorCode.PARSE_ERROR.
-    final Pattern pattern = Pattern.compile(String.valueOf(conditionValue));
-    return pattern.matcher(String.valueOf(attributeValue)).find();
-  }
-
-  private static boolean isOneOf(final Object attributeValue, final Object conditionValue) {
-    if (!(conditionValue instanceof Iterable)) {
-      return false;
-    }
-    for (final Object value : (Iterable<?>) conditionValue) {
-      if (valuesEqual(attributeValue, value)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private static boolean valuesEqual(final Object a, final Object b) {
-    if (Objects.equals(a, b)) {
-      return true;
-    }
-
-    if (a instanceof Number || b instanceof Number) {
-      return compareNumber(a, b, (first, second) -> first == second);
-    }
-
-    return String.valueOf(a).equals(String.valueOf(b));
-  }
-
-  private static boolean compareNumber(
-      final Object attributeValue, final Object conditionValue, NumberComparator comparator) {
-    final double a = mapValue(Double.class, attributeValue);
-    final double b = mapValue(Double.class, conditionValue);
-    return comparator.compare(a, b);
-  }
-
-  private static boolean matchesShard(final Shard shard, final String targetingKey) {
-    final int assignedShard = getShard(shard.salt, targetingKey, shard.totalShards);
-    for (final ShardRange range : shard.ranges) {
-      if (assignedShard >= range.start && assignedShard < range.end) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private static int getShard(final String salt, final String targetingKey, final int totalShards) {
-    final String hashKey = salt + "-" + targetingKey;
-    final String md5Hash = getMD5Hash(hashKey);
-    final String first8Chars = md5Hash.substring(0, Math.min(8, md5Hash.length()));
-    final long intFromHash = Long.parseLong(first8Chars, 16);
-    return (int) (intFromHash % totalShards);
-  }
-
-  private static String getMD5Hash(final String input) {
-    try {
-      final MessageDigest md = MessageDigest.getInstance("MD5");
-      final byte[] hashBytes = md.digest(input.getBytes(StandardCharsets.UTF_8));
-      final StringBuilder hexString = new StringBuilder();
-      for (byte b : hashBytes) {
-        final String hex = Integer.toHexString(0xff & b);
-        if (hex.length() == 1) {
-          hexString.append('0');
-        }
-        hexString.append(hex);
-      }
-      return hexString.toString();
-    } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException("MD5 algorithm not available", e);
-    }
-  }
-
-  private static <T> ProviderEvaluation<T> resolveVariant(
+  private static <T> ProviderEvaluation<T> toProviderEvaluation(
       final Class<T> target,
       final String key,
       final T defaultValue,
-      final Flag flag,
-      final String variationKey,
-      final Allocation allocation,
-      final Split split,
-      final EvaluationContext context) {
-    final Variant variant = flag.variations.get(variationKey);
-    if (variant == null) {
+      final EvaluationContext context,
+      final EvaluationResult result) {
+    if (result.error != null) {
       return ProviderEvaluation.<T>builder()
           .value(defaultValue)
-          .reason(Reason.ERROR.name())
-          .errorCode(ErrorCode.GENERAL)
-          .errorMessage("Variant not found for: " + variationKey)
+          .reason(dev.openfeature.sdk.Reason.ERROR.name())
+          .errorCode(errorCode(result.error))
+          .errorMessage(result.errorMessage)
           .build();
     }
 
-    if (!isTypeCompatible(target, flag.variationType)) {
-      return error(
-          defaultValue,
-          ErrorCode.TYPE_MISMATCH,
-          "Requested type "
-              + target.getSimpleName()
-              + " does not match flag variationType "
-              + flag.variationType.name());
+    final ImmutableMetadata.ImmutableMetadataBuilder metadata = ImmutableMetadata.builder();
+    if (result.flagKey != null) {
+      metadata.addString("flagKey", result.flagKey);
     }
-
-    final T mappedValue;
-    try {
-      mappedValue = mapValue(target, variant.value);
-    } catch (final NumberFormatException e) {
-      return error(
-          defaultValue,
-          ErrorCode.PARSE_ERROR,
-          "Variant '"
-              + variant.key
-              + "' value does not match declared type "
-              + flag.variationType.name()
-              + ": "
-              + e.getMessage());
+    if (result.variationType != null) {
+      metadata.addString("variationType", result.variationType);
     }
-
-    final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder =
-        ImmutableMetadata.builder()
-            .addString("flagKey", flag.key)
-            .addString("variationType", flag.variationType.name())
-            .addString("allocationKey", allocation.key);
-    // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment —
-    // only when span enrichment is on, so a provider without enrichment pays nothing extra.
-    // __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log is always
-    // present (when enrichment is on) so the span-enrichment hook can decide whether to record the
-    // subject.
+    if (result.allocationKey != null) {
+      metadata.addString("allocationKey", result.allocationKey);
+    }
     if (SPAN_ENRICHMENT_ENABLED) {
-      if (split.serialId != null) {
-        metadataBuilder.addInteger(METADATA_SPLIT_SERIAL_ID, split.serialId);
+      if (result.splitSerialId != null) {
+        metadata.addInteger(METADATA_SPLIT_SERIAL_ID, result.splitSerialId);
       }
-      metadataBuilder.addBoolean(METADATA_DO_LOG, allocation.doLog != null && allocation.doLog);
+      metadata.addBoolean(METADATA_DO_LOG, result.doLog);
     }
-    final ProviderEvaluation<T> result =
+
+    final T value = mapResultValue(target, result.value);
+    final ProviderEvaluation<T> evaluation =
         ProviderEvaluation.<T>builder()
-            .value(mappedValue)
-            .reason(
-                !isEmpty(allocation.rules)
-                    ? Reason.TARGETING_MATCH.name()
-                    : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
-            .variant(variant.key)
-            .flagMetadata(metadataBuilder.build())
+            .value(value)
+            .reason(result.reason.name())
+            .variant(result.variant)
+            .flagMetadata(metadata.build())
             .build();
-    final boolean doLog = allocation.doLog != null && allocation.doLog;
-    if (doLog) {
-      dispatchExposure(key, result, context);
+    if (result.doLog && context != null && result.allocationKey != null && result.variant != null) {
+      RawBridgeAccess.dispatchExposure(
+          System.currentTimeMillis(),
+          result.allocationKey,
+          key,
+          result.variant,
+          context.getTargetingKey(),
+          flattenContext(context));
     }
-    return result;
+    return evaluation;
   }
 
-  private static Object resolveAttribute(final String name, final EvaluationContext context) {
-    // Special handling for "id" attribute: if not explicitly provided, use targeting key
-    if ("id".equals(name) && !context.keySet().contains(name)) {
-      return context.getTargetingKey();
-    }
-    final Value resolved = context.getValue(name);
-    return context.convertValue(resolved);
-  }
-
-  private static boolean isTypeCompatible(final Class<?> target, final ValueType variationType) {
-    if (variationType == null) {
-      return true; // No type info — allow any
-    }
-    switch (variationType) {
-      case BOOLEAN:
-        return target == Boolean.class;
-      case STRING:
-        return target == String.class;
-      case INTEGER:
-        return target == Integer.class;
-      case NUMERIC:
-        return target == Double.class;
-      case JSON:
-        return target == Value.class;
+  private static ErrorCode errorCode(final EvaluationResult.Error error) {
+    switch (error) {
+      case PROVIDER_NOT_READY:
+        return ErrorCode.PROVIDER_NOT_READY;
+      case INVALID_CONTEXT:
+        return ErrorCode.INVALID_CONTEXT;
+      case FLAG_NOT_FOUND:
+        return ErrorCode.FLAG_NOT_FOUND;
+      case TARGETING_KEY_MISSING:
+        return ErrorCode.TARGETING_KEY_MISSING;
+      case TYPE_MISMATCH:
+        return ErrorCode.TYPE_MISMATCH;
+      case PARSE_ERROR:
+        return ErrorCode.PARSE_ERROR;
       default:
-        return true; // Unknown types pass through — mapValue errors caught as GENERAL
+        return ErrorCode.GENERAL;
     }
   }
 
   @SuppressWarnings("unchecked")
+  private static <T> T mapResultValue(final Class<T> target, final Object value) {
+    if (target == Value.class) {
+      return (T) Value.objectToValue(value);
+    }
+    return target.cast(value);
+  }
+
+  @SuppressWarnings("unchecked")
   static <T> T mapValue(final Class<T> target, final Object value) {
-    if (value == null) {
-      return null;
-    }
-    if (!SUPPORTED_RESOLUTION_TYPES.contains(target)) {
-      throw new IllegalArgumentException("Type not supported: " + target);
-    }
-    if (target.isInstance(value)) {
-      return target.cast(value);
-    }
-    if (target == String.class) {
-      return (T) String.valueOf(value);
-    }
-    if (target == Boolean.class) {
-      if (value instanceof Number) {
-        return (T) (Boolean) (parseDouble(value) != 0);
-      }
-      return (T) Boolean.valueOf(value.toString());
-    }
-    if (target == Integer.class) {
-      final Double number = parseDouble(value);
-      return (T) (Integer) number.intValue();
-    }
-    if (target == Double.class) {
-      final Double number = parseDouble(value);
-      return (T) number;
-    }
-    return (T) Value.objectToValue(value);
-  }
-
-  private static Double parseDouble(final Object value) {
-    if (value instanceof Number) {
-      return ((Number) value).doubleValue();
-    }
-    return Double.parseDouble(String.valueOf(value));
-  }
-
-  private static <T> void dispatchExposure(
-      final String flag, final ProviderEvaluation<T> evaluation, final EvaluationContext context) {
-    final String allocationKey = allocationKey(evaluation);
-    final String variantKey = evaluation.getVariant();
-    if (allocationKey == null || variantKey == null) {
-      return;
-    }
-    final ExposureEvent event =
-        new ExposureEvent(
-            System.currentTimeMillis(),
-            new datadog.trace.api.featureflag.exposure.Allocation(allocationKey),
-            new datadog.trace.api.featureflag.exposure.Flag(flag),
-            new datadog.trace.api.featureflag.exposure.Variant(variantKey),
-            new Subject(context.getTargetingKey(), flattenContext(context)));
-
-    FeatureFlaggingGateway.dispatch(event);
-  }
-
-  private static <T> String allocationKey(final ProviderEvaluation<T> resolution) {
-    final ImmutableMetadata meta = resolution.getFlagMetadata();
-    return meta == null ? null : meta.getString("allocationKey");
+    final Object mapped = FlagEvaluator.mapValue(valueKind(target), value);
+    return target == Value.class ? (T) Value.objectToValue(mapped) : target.cast(mapped);
   }
 
   static AbstractMap<String, Object> flattenContext(final EvaluationContext context) {
@@ -554,12 +242,55 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     return result;
   }
 
-  @FunctionalInterface
-  private interface NumberComparator {
-    boolean compare(double a, double b);
+  static Object unwrapDefaultValue(final Object value) {
+    return value instanceof Value ? unwrapValue((Value) value) : value;
   }
 
-  private static class FlattenEntry {
+  private static Object unwrapValue(final Value value) {
+    if (value == null || value.isNull()) {
+      return null;
+    }
+    if (value.isStructure()) {
+      final Structure structure = value.asStructure();
+      final Map<String, Object> map = new LinkedHashMap<>();
+      if (structure != null) {
+        for (final String key : structure.keySet()) {
+          map.put(key, unwrapValue(structure.getValue(key)));
+        }
+      }
+      return map;
+    }
+    if (value.isList()) {
+      final List<Value> list = value.asList();
+      final List<Object> output = new ArrayList<>(list == null ? 0 : list.size());
+      if (list != null) {
+        for (final Value element : list) {
+          output.add(unwrapValue(element));
+        }
+      }
+      return output;
+    }
+    if (value.isBoolean()) {
+      return value.asBoolean();
+    }
+    if (value.isString()) {
+      return value.asString();
+    }
+    if (value.isNumber()) {
+      final Double number = value.asDouble();
+      if (number != null && number == Math.rint(number) && !Double.isInfinite(number)) {
+        final Integer integer = value.asInteger();
+        if (integer != null) {
+          return integer;
+        }
+      }
+      return number;
+    }
+    final Instant instant = value.asInstant();
+    return instant == null ? value.asObject() : instant.toString();
+  }
+
+  private static final class FlattenEntry {
     private final String key;
     private final Value value;
 

@@ -70,10 +70,6 @@ public class FeatureFlaggingSystem {
 
   private static void initializeSystem(final SharedCommunicationObjects sco, final Config config) {
     final ConfigurationSourceService configService = createConfigurationSourceService(sco, config);
-    if (configService == null) {
-      LOGGER.debug("Feature Flagging system disabled by unsupported configuration source");
-      return;
-    }
     final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
     initialize(configService, exposureWriter);
 
@@ -119,7 +115,8 @@ public class FeatureFlaggingSystem {
       return new RemoteConfigServiceImpl(sco, config);
     }
     if (CONFIGURATION_SOURCE_AGENTLESS.equals(configurationSource)) {
-      return new AgentlessConfigurationSource(config);
+      // CDN delivery belongs to the application provider. The agent owns telemetry only.
+      return null;
     }
     return null;
   }

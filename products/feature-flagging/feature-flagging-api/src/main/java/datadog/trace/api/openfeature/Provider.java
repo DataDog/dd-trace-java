@@ -2,7 +2,6 @@ package datadog.trace.api.openfeature;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.EventProvider;
@@ -15,7 +14,7 @@ import dev.openfeature.sdk.Value;
 import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.OpenFeatureError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
-import java.lang.reflect.Constructor;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -28,8 +27,6 @@ public class Provider extends EventProvider implements Metadata {
 
   private static final Logger log = LoggerFactory.getLogger(Provider.class);
   static final String METADATA = "datadog-openfeature-provider";
-  private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
-
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
@@ -129,7 +126,7 @@ public class Provider extends EventProvider implements Metadata {
       throw e;
     } catch (final Throwable e) {
       markInitializationError();
-      throw new FatalError("Failed to initialize provider, is the tracer configured?", e);
+      throw new FatalError("Failed to initialize provider: " + e.getMessage(), e);
     }
   }
 
@@ -202,13 +199,11 @@ public class Provider extends EventProvider implements Metadata {
     }
   }
 
-  private Evaluator buildEvaluator() throws Exception {
+  private Evaluator buildEvaluator() {
     if (evaluator != null) {
       return evaluator;
     }
-    final Class<?> evaluatorClass = loadEvaluatorClass();
-    final Constructor<?> ctor = evaluatorClass.getConstructor(Runnable.class);
-    return (Evaluator) ctor.newInstance((Runnable) this::onConfigurationChange);
+    return new DDEvaluator(this::onConfigurationChange, options);
   }
 
   @Override
@@ -274,11 +269,6 @@ public class Provider extends EventProvider implements Metadata {
     return evaluator.evaluate(Value.class, key, defaultValue, ctx);
   }
 
-  @SuppressForbidden // Class#forName(String) used to lazy-load the evaluator implementation
-  protected Class<?> loadEvaluatorClass() throws ClassNotFoundException {
-    return Class.forName(EVALUATOR_IMPL);
-  }
-
   private enum InitializationState {
     NOT_STARTED,
     INITIALIZING,
@@ -289,12 +279,54 @@ public class Provider extends EventProvider implements Metadata {
 
   public static class Options {
 
-    private long timeout;
-    private TimeUnit unit;
+    private long timeout = 30;
+    private TimeUnit unit = SECONDS;
+    String configurationSource;
+    String cdnBaseUrl;
+    String apiKey;
+    String site;
+    String environment;
+    Duration pollInterval;
+    Duration requestTimeout;
 
     public Options initTimeout(final long timeout, final TimeUnit unit) {
       this.timeout = timeout;
       this.unit = unit;
+      return this;
+    }
+
+    public Options configurationSource(final String configurationSource) {
+      this.configurationSource = configurationSource;
+      return this;
+    }
+
+    public Options cdnBaseUrl(final String cdnBaseUrl) {
+      this.cdnBaseUrl = cdnBaseUrl;
+      return this;
+    }
+
+    public Options apiKey(final String apiKey) {
+      this.apiKey = apiKey;
+      return this;
+    }
+
+    public Options site(final String site) {
+      this.site = site;
+      return this;
+    }
+
+    public Options environment(final String environment) {
+      this.environment = environment;
+      return this;
+    }
+
+    public Options pollInterval(final Duration pollInterval) {
+      this.pollInterval = pollInterval;
+      return this;
+    }
+
+    public Options requestTimeout(final Duration requestTimeout) {
+      this.requestTimeout = requestTimeout;
       return this;
     }
 
