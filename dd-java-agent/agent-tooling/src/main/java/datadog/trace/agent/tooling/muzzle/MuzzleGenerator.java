@@ -205,7 +205,8 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     mv.visitMaxs(0, 0);
     mv.visitEnd();
 
-    // Generated: public static String[] helperClassNames() — omitted for helper-less modules.
+    // Generate helperClassNames() with resolved helpers for the agent to read at load time;
+    // skip the method entirely when the module injects nothing.
     if (orderedHelpers.length > 0) {
       MethodVisitor hv =
           cw.visitMethod(
@@ -239,17 +240,17 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
 
     // Manual additions cover helpers the crawl can't see.
     Set<String> manualHelpers = new LinkedHashSet<>(asList(module.helperClassNames()));
-    Set<String> seedHelpers = new LinkedHashSet<>(inferredHelpers);
-    seedHelpers.addAll(manualHelpers);
-    for (String helper : new ArrayList<>(seedHelpers)) {
+    Set<String> initialHelpers = new LinkedHashSet<>(inferredHelpers);
+    initialHelpers.addAll(manualHelpers);
+    for (String helper : new ArrayList<>(initialHelpers)) {
       if (isOwnOutput(helper)) {
-        addNestedClasses(helper, seedHelpers);
+        addNestedClasses(helper, initialHelpers);
       }
     }
 
     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
     String[] orderedHelpers =
-        discoverAndOrderHelpers(seedHelpers, manualHelpers, helperPredicate, contextClassLoader);
+        discoverAndOrderHelpers(initialHelpers, manualHelpers, helperPredicate, contextClassLoader);
 
     // Drop build-time-only muzzle providers; injecting them fails the application.
     ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(contextClassLoader);
@@ -270,7 +271,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     return new File(sourceDir, className.replace('.', '/') + ".class").isFile();
   }
 
-  /** Adds the nested classes ({@code Foo$Bar}, {@code Foo$1}, ...) of an own-output helper. */
+  /** Adds the nested classes ({@code Foo$Bar}, {@code Foo$1}, ...) of an ownOutput helper. */
   private void addNestedClasses(String className, Set<String> helperClasses) {
     File classFile = new File(sourceDir, className.replace('.', '/') + ".class");
     File dir = classFile.getParentFile();
@@ -313,43 +314,45 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   }
 
   /**
-   * Runs {@link HelperScanner} over the seed helpers to both discover their transitive helper
-   * dependencies and load-order the result (dependencies first). Keeps only our own helpers (plus
-   * manual additions), dropping library classes the scanner pulls in, and retains every seed even
-   * if it could not be located.
+   * Expands the given helpers with any helper classes they depend on and returns them in
+   * dependency-first load order (as required by {@link
+   * datadog.trace.agent.tooling.HelperInjector}), via {@link HelperScanner}. Library classes the
+   * scanner pulls in are dropped; helpers that could not be located are still kept (appended,
+   * unordered).
    */
   private static String[] discoverAndOrderHelpers(
-      Set<String> seedHelpers,
+      Set<String> initialHelpers,
       Set<String> manualHelpers,
       HelperClassPredicate helperPredicate,
       ClassLoader loader) {
-    if (seedHelpers.isEmpty()) {
+    if (initialHelpers.isEmpty()) {
       return new String[0];
     }
     List<String> ordered = new ArrayList<>();
     try {
       for (String name :
           HelperScanner.withClassDependencies(
-              ClassFileLocator.ForClassLoader.of(loader), seedHelpers.toArray(new String[0]))) {
+              ClassFileLocator.ForClassLoader.of(loader), initialHelpers.toArray(new String[0]))) {
         if ((helperPredicate.isHelperClass(name) || manualHelpers.contains(name))
             && !ordered.contains(name)) {
           ordered.add(name);
         }
       }
     } catch (Throwable ignore) {
-      // best-effort ordering; unordered seeds are appended below
+      // best-effort ordering; unlocatable helpers are appended below
     }
-    for (String seed : seedHelpers) {
-      if (!ordered.contains(seed)) {
-        ordered.add(seed);
+    for (String helper : initialHelpers) {
+      if (!ordered.contains(helper)) {
+        ordered.add(helper);
       }
     }
     return ordered.toArray(new String[0]);
   }
 
   /**
-   * Writes an advisory report classifying each declared helper as inferred vs. manual-only, to
-   * guide migration. Best-effort — never fails the build.
+   * Writes an advisory report classifying each declared helper as inferred vs. manual-only. Used to
+   * guide migration from manually listed helpers to auto-inferred ones. TODO: Remove this method
+   * after all instrumentations are migrated!
    */
   private void writeInferenceReport(
       InstrumenterModule module,

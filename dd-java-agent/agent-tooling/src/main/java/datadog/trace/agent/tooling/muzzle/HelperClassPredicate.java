@@ -24,8 +24,8 @@ public final class HelperClassPredicate {
   private final Predicate<String> ownOutput;
 
   /**
-   * @param ownOutput whether a dotted class name was compiled from the instrumentation subproject's
-   *     own output; injected because agent-tooling cannot resolve build directories itself.
+   * @param ownOutput tests whether a class name was compiled by the instrumentation subproject
+   *     itself; injected so this classifier stays independent of the build directory layout.
    */
   public HelperClassPredicate(final Predicate<String> ownOutput) {
     this.ownOutput = ownOutput;
@@ -44,9 +44,7 @@ public final class HelperClassPredicate {
     return false;
   }
 
-  /**
-   * Whether the class is on the bootstrap class-path (or a JDK/SLF4J type) and so never injected.
-   */
+  /** Whether the class is on the bootstrap class-path and so never injected. */
   public static boolean isBootstrap(final String className) {
     if (className.startsWith("java.")
         || className.startsWith("javax.")
