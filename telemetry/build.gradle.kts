@@ -1,5 +1,5 @@
 plugins {
-  id("me.champeau.jmh")
+  id("dd-trace-java.jmh-conventions")
   id("java-library")
 }
 
@@ -18,7 +18,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.telemetry.TelemetrySystem",
   "datadog.telemetry.api.*",
   "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction",
-  "datadog.telemetry.metric.OtelSpiMetricPeriodicAction"
+  "datadog.telemetry.metric.OtelSpiMetricPeriodicAction",
+  "datadog.telemetry.metric.OtlpTelemetryPeriodicAction"
 )
 extra["excludedClassesBranchCoverage"] = listOf(
   "datadog.telemetry.PolymorphicAdapterFactory.1",
