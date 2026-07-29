@@ -1,5 +1,5 @@
 plugins {
-  id("dd-trace-java.module.internal-platform-component")
+  id("dd-trace-java.module.platform-component")
 }
 
 extra["excludedClassesInstructionCoverage"] =

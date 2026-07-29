@@ -1,7 +1,7 @@
 plugins {
   `java-library`
   `java-test-fixtures`
-  id("dd-trace-java.module.internal-platform-component")
+  id("dd-trace-java.module.platform-component")
 }
 
 description = "HTTP Client API"
