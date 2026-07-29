@@ -41,16 +41,95 @@ import javax.annotation.Nullable;
 public final class LightStringMap<V> {
   public static final int DEFAULT_CAPACITY = 8;
 
+  // Slots a fresh (un-tuned) hint seeds -- a reasonable default so a cold site behaves like a
+  // plain new LightStringMap(DEFAULT_CAPACITY); it then self-tunes up or down from here.
+  static final int DEFAULT_HINT_SLOTS = DEFAULT_CAPACITY;
+  // Floor step-down never drops a hint below (in slots), so a genuinely tiny site can still tune
+  // below the default. Must stay >= 1 (a zero-slot table is degenerate).
+  static final int MIN_HINT_SLOTS = 1;
+  // Step the learned estimate down one power-of-two class every this-many constructions. A
+  // power of two so the tick test is a bit-mask. Large => decay is a slow background correction,
+  // not something that fights a steady workload.
+  static final int DECAY_INTERVAL = 1024;
+  // Safety ceiling on how large a hint will pre-provision (in slots). Bounds the shared hint's
+  // over-provision from an outlier; the map itself is uncapped and grows past this on its own.
+  static final int MAX_HINT_SLOTS = 1024;
+
+  // Object-tier growth trigger. We grow before the live entry count would exceed this fraction of
+  // the slots, so linear-probe chains stay short instead of the map filling to a load factor of
+  // 1.0 right before every doubling. Expressed as a 1/4 reserve (a 0.75 trigger) via a shift so
+  // the hot-path check stays float-free. The static EmbeddingSupport spine has no live count to
+  // consult, so it keeps its grow-only-when-physically-full behavior -- this threshold is purely
+  // an object-tier policy layered on top of the spine.
+  private static final int LOAD_FACTOR_RESERVE_SHIFT = 2;
+
   private final int initialCapacity;
+  @Nullable private final SizingHint sizingHint;
   private Object[] data = EmbeddingSupport.EMPTY_DATA;
+  // Live entry count (excludes tombstones), tracked so the growth threshold is an O(1) check
+  // rather than an O(capacity) scan on the hot path.
+  private int size;
 
   public LightStringMap(int capacity) {
     this.initialCapacity = capacity;
+    this.sizingHint = null;
+  }
+
+  public LightStringMap(@Nonnull SizingHint hint) {
+    this.sizingHint = hint;
+    this.initialCapacity = hint.seedSlots();
+  }
+
+  /**
+   * Mints a self-tuning {@link SizingHint} for a single construction site. Hold it in a {@code
+   * static final} field and pass it to every {@link #LightStringMap(SizingHint)} at that site; the
+   * map sizes itself from the hint and tunes the hint back on its own. The caller never touches the
+   * hint again.
+   */
+  @Nonnull
+  public static SizingHint sizingHint() {
+    return new SizingHint();
   }
 
   public void set(@Nonnull String key, @Nonnull V value) {
     Objects.requireNonNull(value, "value");
-    this.data = EmbeddingSupport.set(this.initialCapacity, this.data, key, value);
+
+    Object[] mapData = this.data;
+    if (mapData == null) {
+      // Lazy first allocation, sized to the seed. This is the seed itself, not a grow, so it is
+      // never recorded back to the hint.
+      this.data = EmbeddingSupport.newMapData(this.initialCapacity, key, value);
+      this.size = 1;
+      return;
+    }
+
+    int numSlots = EmbeddingSupport.numSlots(mapData);
+    int slot = EmbeddingSupport.findInsertionSlot(mapData, numSlots, key);
+    if (slot >= 0) {
+      // Key already present -- overwrite in place, no size change, no growth.
+      mapData[slot + numSlots] = value;
+      return;
+    }
+
+    // A new key. Grow first if there is no space at all, or if landing it would push the live
+    // count past the load-factor threshold; otherwise fill the available slot directly.
+    if (slot == EmbeddingSupport.NO_SPACE || this.size + 1 > growThreshold(numSlots)) {
+      mapData = EmbeddingSupport.expandMapData(mapData);
+      this.data = mapData;
+      numSlots = EmbeddingSupport.numSlots(mapData);
+      EmbeddingSupport.newMapUncheckedInsert(mapData, numSlots, key, value);
+      this.size++;
+      // Record the grow so the hint learns this site's high-water mark.
+      if (this.sizingHint != null) {
+        this.sizingHint.recordSlots(numSlots);
+      }
+      return;
+    }
+
+    int availableSlot = EmbeddingSupport.flip(slot);
+    mapData[availableSlot] = key;
+    mapData[availableSlot + numSlots] = value;
+    this.size++;
   }
 
   @Nullable
@@ -59,7 +138,19 @@ public final class LightStringMap<V> {
   }
 
   public void remove(@Nonnull String key) {
-    EmbeddingSupport.remove(this.data, key);
+    if (EmbeddingSupport.remove(this.data, key)) {
+      this.size--;
+    }
+  }
+
+  /** The number of live entries in this map (tombstones excluded). */
+  public int size() {
+    return this.size;
+  }
+
+  // Grow before the live count exceeds this many slots -- a 1/4 reserve, i.e. a 0.75 load factor.
+  private static int growThreshold(int numSlots) {
+    return numSlots - (numSlots >> LOAD_FACTOR_RESERVE_SHIFT);
   }
 
   public boolean containsKey(@Nonnull String key) {
@@ -75,6 +166,72 @@ public final class LightStringMap<V> {
       String key = (String) mapData[slot];
       if (key == null || EmbeddingSupport.isRemoved(key)) continue;
       consumer.accept(key, (V) mapData[slot + numSlots]);
+    }
+  }
+
+  // Visible for testing: the backing spine (null until the first set).
+  @Nullable
+  Object[] dataForTesting() {
+    return this.data;
+  }
+
+  /**
+   * A self-tuning, per-construction-site sizing estimate. Mint one via {@link
+   * LightStringMap#sizingHint()}, hold it in a {@code static final} field, and pass it to {@link
+   * LightStringMap#LightStringMap(SizingHint)}; the map reads it to size itself and tunes it back
+   * as it grows. The caller never updates it.
+   *
+   * <p>Opaque by design (no public members). The estimate self-tunes on two events the map already
+   * observes -- a new map is started ({@link #seedSlots()}) and a map grows ({@link
+   * #recordSlots(int)}) -- so it is tier-agnostic: the same hint can drive both this object and the
+   * static {@link EmbeddingSupport} spine.
+   *
+   * <p>Tuning is racy by design: {@code slots}/{@code constructs} are plain ints, so a lost or torn
+   * update only mis-sizes a future array (over/under-provision) for an instance or two, never
+   * corrupts map data -- no synchronization.
+   */
+  public static final class SizingHint {
+    // Learned seed capacity in slots (always a power of two). Additive-increase on grow (with one
+    // class of headroom), multiplicative-decrease on the decay tick.
+    private int slots = DEFAULT_HINT_SLOTS;
+    // Approximate count of maps started from this hint; drives the periodic step-down decay.
+    private int constructs;
+
+    private SizingHint() {}
+
+    /**
+     * The seed capacity (in slots) for a map just started from this hint. Advances the decay clock
+     * and, every {@link #DECAY_INTERVAL} maps, steps the estimate down one class so a stale
+     * high-water from a past spike self-corrects; if that made it too tight, the next grow snaps it
+     * back.
+     */
+    int seedSlots() {
+      int n = ++this.constructs; // racy; a torn read only jitters the decay cadence
+      if ((n & (DECAY_INTERVAL - 1)) == 0) {
+        int reduced = this.slots >> 1;
+        this.slots = (reduced < MIN_HINT_SLOTS) ? MIN_HINT_SLOTS : reduced;
+      }
+      return this.slots;
+    }
+
+    /**
+     * Records that a map grew to {@code grownSlots}. Reserves one extra power-of-two class so the
+     * steady-state load factor stays &le; 0.5 (kills the load-factor-1.0 tail without a terminal
+     * read), monotonic-max, clamped to {@link #MAX_HINT_SLOTS}.
+     */
+    void recordSlots(int grownSlots) {
+      int candidate = grownSlots << 1;
+      if (candidate > MAX_HINT_SLOTS) {
+        candidate = MAX_HINT_SLOTS;
+      }
+      if (candidate > this.slots) {
+        this.slots = candidate;
+      }
+    }
+
+    // Visible for testing: the current learned seed capacity in slots.
+    int currentSeedSlots() {
+      return this.slots;
     }
   }
 
