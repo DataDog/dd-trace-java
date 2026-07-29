@@ -7,7 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -87,20 +89,53 @@ class LightStringMapTest {
     }
 
     @Test
-    void growsBeforeReachingFullLoad() {
-      // With a 0.75 load-factor trigger, a capacity-8 map grows on the 7th distinct key rather
-      // than filling all 8 slots first -- keeping linear-probe chains short.
+    void tinyMapGrowsOnlyWhenPhysicallyFull() {
+      // The probe-bound grow trigger (MAX_PROBES == 8) cannot fire on an 8-slot table -- a probe
+      // can never travel 8 slots there -- so a seed-8 map fills all 8 slots before it grows,
+      // exactly as it did before the trigger existed. This is the property that keeps the tiny,
+      // miss-dominated consumer (springweb6 localAttributes) behaviorally unchanged.
       LightStringMap<Integer> map = new LightStringMap<>(8);
-      for (int i = 0; i < 6; i++) {
+      for (int i = 0; i < 8; i++) {
         map.set("k" + i, i);
       }
-      assertEquals(8, EmbeddingSupport.numSlots(map.dataForTesting()));
-      map.set("k6", 6);
-      assertEquals(16, EmbeddingSupport.numSlots(map.dataForTesting()));
-      // All entries survive the grow.
-      assertEquals(7, map.size());
-      for (int i = 0; i < 7; i++) {
+      assertEquals(
+          8, EmbeddingSupport.numSlots(map.dataForTesting()), "fills to full before growing");
+      map.set("k8", 8);
+      assertEquals(16, EmbeddingSupport.numSlots(map.dataForTesting()), "9th key forces the grow");
+      assertEquals(9, map.size());
+      for (int i = 0; i < 9; i++) {
         assertEquals(i, map.get("k" + i));
+      }
+    }
+
+    @Test
+    void clusteredKeysGrowEarlierThanWellSpreadKeys() {
+      // The whole point of the probe bound: it responds to local clustering that a load factor is
+      // blind to. The same number of keys, all colliding onto one home slot, must drive the table
+      // strictly larger than a well-spread set would -- the trigger is firing on long probe chains
+      // well before the table is anywhere near full. Both sets stay fully retrievable.
+      int count = 32;
+
+      LightStringMap<Integer> spread = new LightStringMap<>(8);
+      for (int i = 0; i < count; i++) {
+        spread.set("spread." + i, i);
+      }
+
+      LightStringMap<Integer> clustered = new LightStringMap<>(8);
+      List<String> colliding = collidingKeys(count);
+      for (int i = 0; i < count; i++) {
+        clustered.set(colliding.get(i), i);
+      }
+
+      int spreadSlots = EmbeddingSupport.numSlots(spread.dataForTesting());
+      int clusteredSlots = EmbeddingSupport.numSlots(clustered.dataForTesting());
+      assertTrue(
+          clusteredSlots > spreadSlots,
+          "clustered keys should over-grow (" + clusteredSlots + " vs spread " + spreadSlots + ")");
+
+      for (int i = 0; i < count; i++) {
+        assertEquals(i, spread.get("spread." + i));
+        assertEquals(i, clustered.get(colliding.get(i)));
       }
     }
 
@@ -142,6 +177,22 @@ class LightStringMapTest {
       // Distinct String instance with the same content -- must be found via the equals pass.
       String lookup = new String("hello");
       assertEquals(1, map.get(lookup));
+    }
+
+    // Strings whose home slot collides in a large reference table (2^16 slots), and therefore in
+    // every smaller power-of-two table the map passes through while growing -- so they pile onto a
+    // single probe chain no matter how the map is sized here.
+    private List<String> collidingKeys(int count) {
+      int reference = 1 << 16;
+      int target = EmbeddingSupport.preferredSlot(reference, "anchor".hashCode());
+      List<String> keys = new ArrayList<>(count);
+      for (int i = 0; keys.size() < count; i++) {
+        String candidate = "collide." + i;
+        if (EmbeddingSupport.preferredSlot(reference, candidate.hashCode()) == target) {
+          keys.add(candidate);
+        }
+      }
+      return keys;
     }
 
     @Test
