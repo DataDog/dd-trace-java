@@ -586,4 +586,137 @@ class LightStringMapTest {
       }
     }
   }
+
+  // ============ maxCapacity hard cap + boolean set() ============
+
+  @Nested
+  class CapTests {
+
+    @Test
+    void uncappedMapAlwaysReturnsTrueFromSet() {
+      // The plain capacity constructor is uncapped: set stores unconditionally and never rejects,
+      // even well past the initial capacity.
+      LightStringMap<Integer> map = new LightStringMap<>(2);
+      for (int i = 0; i < 100; i++) {
+        assertTrue(map.set("k" + i, i), "uncapped set should always store");
+      }
+      assertEquals(100, map.size());
+    }
+
+    @Test
+    void hintWithoutMaxCapacityIsUncapped() {
+      // buildSizingHint() with no maxCapacity behaves like the zero-config sizingHint(): no cap, so
+      // set always stores.
+      LightStringMap.SizingHint hint = LightStringMap.buildSizingHint().build();
+      LightStringMap<Integer> map = new LightStringMap<>(hint);
+      for (int i = 0; i < 100; i++) {
+        assertTrue(map.set("k" + i, i));
+      }
+      assertEquals(100, map.size());
+    }
+
+    @Test
+    void cappedSetStoresUntilPhysicallyFullThenRejects() {
+      // maxCapacity(8) bounds the table at 8 slots. Eight distinct keys fill every slot (a
+      // 8-slot table never trips the probe bound, so it fills before it would grow); a ninth,
+      // genuinely new key cannot grow past the cap, so set rejects it and leaves the map unchanged.
+      LightStringMap.SizingHint hint = LightStringMap.buildSizingHint().maxCapacity(8).build();
+      LightStringMap<Integer> map = new LightStringMap<>(hint);
+      for (int i = 0; i < 8; i++) {
+        assertTrue(map.set("k" + i, i), "slot " + i + " should store");
+      }
+      assertEquals(8, EmbeddingSupport.numSlots(map.dataForTesting()), "capped at 8 slots");
+      assertEquals(8, map.size());
+
+      assertFalse(map.set("overflow", 99), "new key past the cap should be rejected");
+      assertEquals(8, map.size(), "rejected set must not change the map");
+      assertNull(map.get("overflow"));
+      // Every prior entry is still readable.
+      for (int i = 0; i < 8; i++) {
+        assertEquals(i, map.get("k" + i));
+      }
+    }
+
+    @Test
+    void cappedSetOverwritesExistingKeyEvenWhenFull() {
+      // Rejection only applies to a genuinely new key. Overwriting a present key when the table is
+      // full at the cap still succeeds -- no new slot is needed.
+      LightStringMap.SizingHint hint = LightStringMap.buildSizingHint().maxCapacity(8).build();
+      LightStringMap<Integer> map = new LightStringMap<>(hint);
+      for (int i = 0; i < 8; i++) {
+        map.set("k" + i, i);
+      }
+      assertTrue(map.set("k3", 300), "overwrite of a present key should succeed when full");
+      assertEquals(300, map.get("k3"));
+      assertEquals(8, map.size());
+    }
+
+    @Test
+    void cappedMapGrowsUpToTheCap() {
+      // A cap does not pin the seed size: a map started small still grows through the
+      // power-of-two classes up to the cap, retaining every entry along the way.
+      LightStringMap.SizingHint hint =
+          LightStringMap.buildSizingHint().initCapacity(2).maxCapacity(16).build();
+      LightStringMap<Integer> map = new LightStringMap<>(hint);
+      for (int i = 0; i < 16; i++) {
+        assertTrue(map.set("k" + i, i), "slot " + i + " should store below the cap");
+      }
+      assertEquals(16, EmbeddingSupport.numSlots(map.dataForTesting()));
+      assertEquals(16, map.size());
+      assertFalse(map.set("k16", 16), "the 17th key exceeds the 16-slot cap");
+      for (int i = 0; i < 16; i++) {
+        assertEquals(i, map.get("k" + i));
+      }
+    }
+
+    @Test
+    void afterRejectionRemovingThenReinsertingSucceeds() {
+      // A rejection is non-fatal: freeing a slot (remove) makes room again, so a subsequent set of
+      // a
+      // new key succeeds via the reclaimed tombstone.
+      LightStringMap.SizingHint hint = LightStringMap.buildSizingHint().maxCapacity(8).build();
+      LightStringMap<Integer> map = new LightStringMap<>(hint);
+      for (int i = 0; i < 8; i++) {
+        map.set("k" + i, i);
+      }
+      assertFalse(map.set("late", 99));
+      map.remove("k0");
+      assertTrue(map.set("late", 99), "a freed slot admits a new key");
+      assertEquals(99, map.get("late"));
+    }
+
+    @Test
+    void maxCapacityRoundsUpToPowerOfTwo() {
+      // A non-power-of-two cap rounds up: maxCapacity(5) becomes an 8-slot cap.
+      LightStringMap.SizingHint hint = LightStringMap.buildSizingHint().maxCapacity(5).build();
+      LightStringMap<Integer> map = new LightStringMap<>(hint);
+      for (int i = 0; i < 8; i++) {
+        assertTrue(map.set("k" + i, i));
+      }
+      assertFalse(map.set("k8", 8), "cap of 5 rounds up to 8 slots");
+    }
+
+    @Test
+    void buildThrowsWhenInitCapacityExceedsMaxCapacity() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> LightStringMap.buildSizingHint().initCapacity(16).maxCapacity(8).build());
+    }
+
+    @Test
+    void cappedHintNeverSeedsAMapLargerThanTheCap() {
+      // The learned seed is clamped to the cap: even after a map grows to the cap, recordSlots
+      // (which
+      // normally reserves a class of headroom) cannot push the seed past maxSlots.
+      LightStringMap.SizingHint hint =
+          LightStringMap.buildSizingHint().initCapacity(2).maxCapacity(16).build();
+      LightStringMap<Integer> map = new LightStringMap<>(hint);
+      for (int i = 0; i < 16; i++) {
+        map.set("k" + i, i);
+      }
+      assertTrue(
+          hint.currentSeedSlots() <= 16,
+          "learned seed " + hint.currentSeedSlots() + " must not exceed the 16-slot cap");
+    }
+  }
 }
