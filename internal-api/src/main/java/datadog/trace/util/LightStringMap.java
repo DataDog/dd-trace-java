@@ -284,9 +284,12 @@ public final class LightStringMap<V> {
    * #recordSlots(int)}) -- so it is tier-agnostic: the same hint can drive both this object and the
    * static {@link EmbeddingSupport} spine.
    *
-   * <p>Tuning is racy by design: {@code slots}/{@code constructs} are plain ints, so a lost or torn
-   * update only mis-sizes a future array (over/under-provision) for an instance or two, never
-   * corrupts map data -- no synchronization.
+   * <p>Tuning is racy by design and needs no synchronization: {@code slots}/{@code constructs} are
+   * plain ints, whose reads and writes are atomic (JLS 17.7), so a reader never sees a half-written
+   * value. The only races are a lost update (an interleaved increment or grow dropped) and a stale
+   * read (a write not yet visible to another thread); either just mis-sizes a future array by a
+   * class (over/under-provision) for an instance or two, which the next grow corrects. Map data is
+   * never touched by this state, so there is no corruption path.
    */
   public static final class AdaptiveSizingHint {
     // Learned seed capacity in slots (always a power of two). Additive-increase on grow (with one
@@ -320,7 +323,7 @@ public final class LightStringMap<V> {
      * back.
      */
     int seedSlots() {
-      int n = ++this.constructs; // racy; a torn read only jitters the decay cadence
+      int n = ++this.constructs; // racy; a lost increment only jitters the decay cadence
       if ((n & (DECAY_INTERVAL - 1)) == 0) {
         int reduced = this.slots >> 1;
         this.slots = (reduced < MIN_HINT_SLOTS) ? MIN_HINT_SLOTS : reduced;
