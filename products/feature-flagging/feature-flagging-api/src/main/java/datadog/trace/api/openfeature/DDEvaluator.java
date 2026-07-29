@@ -59,7 +59,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   // Consent flag pinned to the ServerConfiguration used by this evaluation. Read by
   // FlagEvalLoggingHook so the hashed-vs-raw decision follows the config the evaluator actually
   // used, closing the race where CURRENT_CONFIG can be swapped between evaluate() and the hook
-  // firing. Absent metadata → false (fail-closed toward privacy).
+  // firing. Stamped on every DD-produced evaluation (including PROVIDER_NOT_READY, with false);
+  // a missing key indicates a non-DD provider and the hook falls back to false (fail-closed).
   static final String METADATA_OBSERVE_FULL_EVALUATION_DATA = "dd.observe_full_evaluation_data";
 
   // Read once: when off, the __dd_* span-enrichment metadata is not attached to evaluations, so an
@@ -114,34 +115,38 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     // through every ProviderEvaluation this call can return. The hook reads the flag from the
     // resulting evaluation metadata rather than from FeatureFlaggingGateway, so the hashed-vs-raw
     // decision cannot drift if CURRENT_CONFIG is swapped by a Remote Config update while this
-    // evaluation is in flight. If config is null (PROVIDER_NOT_READY) we return no consent
-    // metadata; the hook fails closed to hashed/omitted, which is the privacy-preserving default.
+    // evaluation is in flight. If config is null (PROVIDER_NOT_READY) we default to the
+    // privacy-preserving false — same wire outcome the hook would produce from missing metadata.
     final ServerConfiguration config = configuration.get();
+    final boolean observeFullEvaluationData = config != null && config.observeFullEvaluationData;
     try {
       if (config == null) {
-        return error(defaultValue, ErrorCode.PROVIDER_NOT_READY, (String) null, null);
+        return error(defaultValue, ErrorCode.PROVIDER_NOT_READY, null, observeFullEvaluationData);
       }
 
       if (context == null) {
-        return error(defaultValue, ErrorCode.INVALID_CONTEXT, (String) null, config);
+        return error(defaultValue, ErrorCode.INVALID_CONTEXT, null, observeFullEvaluationData);
       }
 
       final Flag flag = config.flags.get(key);
       if (flag == null) {
-        return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, (String) null, config);
+        return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, null, observeFullEvaluationData);
       }
 
       if (!flag.enabled) {
         return ProviderEvaluation.<T>builder()
             .value(defaultValue)
             .reason(Reason.DISABLED.name())
-            .flagMetadata(consentMetadata(config))
+            .flagMetadata(consentMetadata(observeFullEvaluationData))
             .build();
       }
 
       if (flag.allocations == null) {
         return error(
-            defaultValue, ErrorCode.GENERAL, "Missing allocations for flag " + key, config);
+            defaultValue,
+            ErrorCode.GENERAL,
+            "Missing allocations for flag " + key,
+            observeFullEvaluationData);
       }
 
       final Date now = new Date();
@@ -170,10 +175,11 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
                   allocation,
                   split,
                   context,
-                  config);
+                  observeFullEvaluationData);
             } else {
               if (targetingKey == null) {
-                return error(defaultValue, ErrorCode.TARGETING_KEY_MISSING, (String) null, config);
+                return error(
+                    defaultValue, ErrorCode.TARGETING_KEY_MISSING, null, observeFullEvaluationData);
               }
               // To match a split, subject must match ALL underlying shards
               boolean allShardsMatch = true;
@@ -193,7 +199,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
                     allocation,
                     split,
                     context,
-                    config);
+                    observeFullEvaluationData);
               }
             }
           }
@@ -203,46 +209,36 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       return ProviderEvaluation.<T>builder()
           .value(defaultValue)
           .reason(Reason.DEFAULT.name())
-          .flagMetadata(consentMetadata(config))
+          .flagMetadata(consentMetadata(observeFullEvaluationData))
           .build();
     } catch (final PatternSyntaxException e) {
-      return error(defaultValue, ErrorCode.PARSE_ERROR, e, config);
+      return error(defaultValue, ErrorCode.PARSE_ERROR, e.getMessage(), observeFullEvaluationData);
     } catch (final NumberFormatException e) {
-      return error(defaultValue, ErrorCode.TYPE_MISMATCH, e, config);
+      return error(
+          defaultValue, ErrorCode.TYPE_MISMATCH, e.getMessage(), observeFullEvaluationData);
     } catch (final Exception e) {
-      return error(defaultValue, ErrorCode.GENERAL, e, config);
+      return error(defaultValue, ErrorCode.GENERAL, e.getMessage(), observeFullEvaluationData);
     }
   }
 
-  private static ImmutableMetadata consentMetadata(final ServerConfiguration config) {
+  private static ImmutableMetadata consentMetadata(final boolean observeFullEvaluationData) {
     return ImmutableMetadata.builder()
-        .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, config.observeFullEvaluationData)
+        .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
         .build();
   }
 
   private static <T> ProviderEvaluation<T> error(
       final T defaultValue,
       final ErrorCode code,
-      final Throwable cause,
-      final ServerConfiguration config) {
-    return error(defaultValue, code, cause == null ? null : cause.getMessage(), config);
-  }
-
-  private static <T> ProviderEvaluation<T> error(
-      final T defaultValue,
-      final ErrorCode code,
       final String errorMessage,
-      final ServerConfiguration config) {
-    final ProviderEvaluation.ProviderEvaluationBuilder<T> builder =
-        ProviderEvaluation.<T>builder()
-            .value(defaultValue)
-            .reason(Reason.ERROR.name())
-            .errorCode(code)
-            .errorMessage(errorMessage);
-    if (config != null) {
-      builder.flagMetadata(consentMetadata(config));
-    }
-    return builder.build();
+      final boolean observeFullEvaluationData) {
+    return ProviderEvaluation.<T>builder()
+        .value(defaultValue)
+        .reason(Reason.ERROR.name())
+        .errorCode(code)
+        .errorMessage(errorMessage)
+        .flagMetadata(consentMetadata(observeFullEvaluationData))
+        .build();
   }
 
   private static boolean isEmpty(final List<?> list) {
@@ -404,7 +400,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final Allocation allocation,
       final Split split,
       final EvaluationContext context,
-      final ServerConfiguration config) {
+      final boolean observeFullEvaluationData) {
     final Variant variant = flag.variations.get(variationKey);
     if (variant == null) {
       return ProviderEvaluation.<T>builder()
@@ -412,7 +408,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           .reason(Reason.ERROR.name())
           .errorCode(ErrorCode.GENERAL)
           .errorMessage("Variant not found for: " + variationKey)
-          .flagMetadata(consentMetadata(config))
+          .flagMetadata(consentMetadata(observeFullEvaluationData))
           .build();
     }
 
@@ -424,7 +420,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
               + target.getSimpleName()
               + " does not match flag variationType "
               + flag.variationType.name(),
-          config);
+          observeFullEvaluationData);
     }
 
     final T mappedValue;
@@ -440,7 +436,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
               + flag.variationType.name()
               + ": "
               + e.getMessage(),
-          config);
+          observeFullEvaluationData);
     }
 
     // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
@@ -452,7 +448,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .addString("variationType", flag.variationType.name())
             .addString("allocationKey", allocation.key)
             .addLong("dd.eval.timestamp_ms", evalTimestampMs)
-            .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, config.observeFullEvaluationData);
+            .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
     // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment —
     // only when span enrichment is on, so a provider without enrichment pays nothing extra.
     // __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log is always

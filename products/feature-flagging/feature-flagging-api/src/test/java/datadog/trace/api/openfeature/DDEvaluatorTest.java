@@ -241,19 +241,15 @@ public class DDEvaluatorTest {
   }
 
   @Test
-  public void observeFullEvaluationDataOmittedWhenEvaluatorHasNoConfig() {
+  public void observeFullEvaluationDataDefaultsToFalseWhenEvaluatorHasNoConfig() {
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
     final ProviderEvaluation<?> details =
         evaluator.evaluate(Integer.class, "test", 23, mock(EvaluationContext.class));
     assertThat(details.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
-    // No config → no consent metadata → hook fails closed to hashed/omitted.
+    // No config → consent stamped as the privacy-preserving false.
     assertThat(
-        details.getFlagMetadata() == null
-            || details
-                    .getFlagMetadata()
-                    .getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA)
-                == null,
-        equalTo(true));
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
   }
 
   private static Arguments[] flatteningTestCases() {

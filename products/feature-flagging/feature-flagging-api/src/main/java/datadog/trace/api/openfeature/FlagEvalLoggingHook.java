@@ -112,8 +112,8 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // Read the PII consent flag from evaluation metadata stamped by DDEvaluator against the
       // exact ServerConfiguration used for this evaluation. This closes the race where reading
       // FeatureFlaggingGateway here could see a *later* RC update than the evaluator did.
-      // Missing metadata (non-DD provider, or PROVIDER_NOT_READY before any config was accepted)
-      // → false, the privacy-preserving default.
+      // Missing key (non-DD provider) → false, the privacy-preserving default. DD-produced
+      // evaluations always stamp the key, including PROVIDER_NOT_READY (with false).
       final Boolean consentFromMetadata =
           metadata != null
               ? metadata.getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA)
