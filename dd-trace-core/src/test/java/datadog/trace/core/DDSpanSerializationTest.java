@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
@@ -33,6 +34,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -390,6 +392,52 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     assertEquals(link.traceState(), actualLink.getTraceState());
     assertEquals((long) (link.traceFlags() & 0xFF), actualLink.getTraceFlags());
     assertEquals("unit-test", actualLink.getAttributes().get("link.source"));
+    tracer.close();
+  }
+
+  @Test
+  void serializeTraceWithJsonSpanEventsV1() throws Exception {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true, 1);
+    context.setTag(
+        SPAN_EVENTS,
+        "[{\"time_unix_nano\":1234567890,\"name\":\"event.one\","
+            + "\"attributes\":{\"str\":\"value\",\"int\":42,\"double\":12.5,"
+            + "\"bool\":true,\"arr\":[\"x\",7,2.5,false]}},"
+            + "{\"time_unix_nano\":1234567891,\"name\":\"event.two\"}]");
+    DDSpan span = DDSpan.create("test", 0, context, null);
+
+    V1PayloadReader.V1Span payload = V1PayloadReader.readFirstSpan(serializeV1Payload(span));
+
+    assertFalse(payload.getAttributes().containsKey(SPAN_EVENTS));
+    assertEquals(2, payload.getEvents().size());
+    V1PayloadReader.V1SpanEvent firstEvent = payload.getEvents().get(0);
+    assertEquals(1234567890L, firstEvent.getTimeUnixNano());
+    assertEquals("event.one", firstEvent.getName());
+    assertEquals("value", firstEvent.getAttributes().get("str"));
+    assertEquals(42L, firstEvent.getAttributes().get("int"));
+    assertEquals(12.5d, firstEvent.getAttributes().get("double"));
+    assertEquals(true, firstEvent.getAttributes().get("bool"));
+    assertEquals(Arrays.asList("x", 7L, 2.5d, false), firstEvent.getAttributes().get("arr"));
+
+    V1PayloadReader.V1SpanEvent secondEvent = payload.getEvents().get(1);
+    assertEquals(1234567891L, secondEvent.getTimeUnixNano());
+    assertEquals("event.two", secondEvent.getName());
+    assertEquals(Collections.emptyMap(), secondEvent.getAttributes());
+    tracer.close();
+  }
+
+  @Test
+  void serializeTraceWithMalformedJsonSpanEventsAsEmptyV1() throws Exception {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true, 1);
+    context.setTag(SPAN_EVENTS, "[{");
+    DDSpan span = DDSpan.create("test", 0, context, null);
+
+    V1PayloadReader.V1Span payload = V1PayloadReader.readFirstSpan(serializeV1Payload(span));
+
+    assertFalse(payload.getAttributes().containsKey(SPAN_EVENTS));
+    assertEquals(Collections.emptyList(), payload.getEvents());
     tracer.close();
   }
 

@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 
@@ -11,6 +12,7 @@ import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.environment.JavaVirtualMachine;
+import datadog.json.JsonReader;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -202,12 +204,12 @@ public final class TraceMapperV1 implements TraceMapper {
 
   private void encodeSpanEvents(Writable writable, int fieldId, Object eventsObject) {
     writable.writeInt(fieldId);
-    if (!(eventsObject instanceof List) || ((List<?>) eventsObject).isEmpty()) {
+    List<?> events = parseSpanEvents(eventsObject);
+    if (events.isEmpty()) {
       writable.startArray(0);
       return;
     }
 
-    List<?> events = (List<?>) eventsObject;
     int encodableCount = 0;
     for (Object event : events) {
       if (isEncodableSpanEvent(event)) {
@@ -234,6 +236,23 @@ public final class TraceMapperV1 implements TraceMapper {
       encodeString(writable, 2, String.valueOf(nameObject));
       encodeEventAttributes(writable, 3, attributes);
     }
+  }
+
+  private List<?> parseSpanEvents(Object eventsObject) {
+    if (eventsObject instanceof List) {
+      return (List<?>) eventsObject;
+    }
+    if (eventsObject instanceof CharSequence) {
+      try (JsonReader reader = new JsonReader(eventsObject.toString())) {
+        Object events = reader.nextValue();
+        if (events instanceof List) {
+          return (List<?>) events;
+        }
+      } catch (IOException e) {
+        log.debug("Failed to parse span events from JSON", e);
+      }
+    }
+    return emptyList();
   }
 
   private boolean isEncodableSpanEvent(Object event) {
