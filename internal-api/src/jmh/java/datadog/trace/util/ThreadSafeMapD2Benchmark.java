@@ -203,9 +203,9 @@ public class ThreadSafeMapD2Benchmark {
         table.getOrCreate(SOURCE_K1[i], SOURCE_K2[i], D2Entry::new);
         // populate support table
         SupportEntry se = new SupportEntry(SOURCE_K1[i], k2);
-        int idx = ConcurrentHashtable.bucketIndex(supportBuckets, se.keyHash);
-        se.setNext(ConcurrentHashtable.bucket(supportBuckets, idx));
-        supportBuckets.set(idx, se);
+        synchronized (ConcurrentHashtable.getWriteLock(supportBuckets)) {
+          ConcurrentHashtable.insertHeadEntry(supportBuckets, se.keyHash, se);
+        }
         Key2 key = new Key2(SOURCE_K1[i], SOURCE_K2[i]);
         concurrentHashMap.put(key, (long) i);
         skipListMap.put(key, (long) i);
@@ -286,7 +286,7 @@ public class ThreadSafeMapD2Benchmark {
         return e;
       }
     }
-    synchronized (s.supportBuckets) {
+    synchronized (ConcurrentHashtable.getWriteLock(s.supportBuckets)) {
       for (SupportEntry e = ConcurrentHashtable.bucket(s.supportBuckets, index);
           e != null;
           e = e.next()) {
@@ -295,8 +295,7 @@ public class ThreadSafeMapD2Benchmark {
         }
       }
       SupportEntry newEntry = new SupportEntry(k1, k2);
-      newEntry.setNext(ConcurrentHashtable.bucket(s.supportBuckets, index));
-      s.supportBuckets.set(index, newEntry);
+      ConcurrentHashtable.insertHeadEntry(s.supportBuckets, index, newEntry);
       return newEntry;
     }
   }
