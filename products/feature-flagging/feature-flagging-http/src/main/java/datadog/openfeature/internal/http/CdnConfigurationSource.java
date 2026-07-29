@@ -277,6 +277,9 @@ public final class CdnConfigurationSource implements ConfigurationSource {
         throw new InterruptedIOException("Feature Flagging HTTP request cancelled");
       } catch (final ExecutionException e) {
         final Throwable cause = e.getCause();
+        if (cause instanceof CancellationException) {
+          throw new InterruptedIOException("Feature Flagging HTTP request cancelled");
+        }
         if (cause instanceof IOException) {
           throw (IOException) cause;
         }
