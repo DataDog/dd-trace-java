@@ -187,9 +187,11 @@ public final class ConcurrentHashtable {
 
     public TEntry get(K key) {
       long keyHash = D1.Entry.hash(key);
-      for (TEntry te = bucket(buckets, keyHash); te != null; te = te.next()) {
-        if (te.keyHash == keyHash && te.matches(key)) {
-          return te;
+      for (TEntry curEntry = bucket(buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
+          return curEntry;
         }
       }
       return null;
@@ -203,15 +205,17 @@ public final class ConcurrentHashtable {
     public TEntry getOrCreate(K key, Function<? super K, ? extends TEntry> creator) {
       long keyHash = D1.Entry.hash(key);
       int index = bucketIndex(buckets, keyHash);
-      for (TEntry te = bucket(buckets, index); te != null; te = te.next()) {
-        if (te.keyHash == keyHash && te.matches(key)) {
-          return te;
+      for (TEntry curEntry = bucket(buckets, index); curEntry != null; curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
+          return curEntry;
         }
       }
       synchronized (getWriteLock(buckets)) {
-        for (TEntry te = bucket(buckets, index); te != null; te = te.next()) {
-          if (te.keyHash == keyHash && te.matches(key)) {
-            return te;
+        for (TEntry curEntry = bucket(buckets, index);
+            curEntry != null;
+            curEntry = curEntry.next()) {
+          if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
+            return curEntry;
           }
         }
         TEntry newEntry = creator.apply(key);
@@ -231,11 +235,13 @@ public final class ConcurrentHashtable {
       int index = bucketIndex(buckets, keyHash);
       synchronized (getWriteLock(buckets)) {
         TEntry prev = null;
-        for (TEntry te = bucket(buckets, index); te != null; prev = te, te = te.next()) {
-          if (te.keyHash == keyHash && te.matches(key)) {
-            unlink(buckets, index, prev, te);
+        for (TEntry curEntry = bucket(buckets, index);
+            curEntry != null;
+            prev = curEntry, curEntry = curEntry.next()) {
+          if (curEntry.keyHash == keyHash && curEntry.matches(key)) {
+            unlink(buckets, index, prev, curEntry);
             size.decrementAndGet();
-            return te;
+            return curEntry;
           }
         }
         return null;
@@ -388,9 +394,11 @@ public final class ConcurrentHashtable {
 
     public TEntry get(K1 key1, K2 key2) {
       long keyHash = D2.Entry.hash(key1, key2);
-      for (TEntry te = bucket(buckets, keyHash); te != null; te = te.next()) {
-        if (te.keyHash == keyHash && te.matches(key1, key2)) {
-          return te;
+      for (TEntry curEntry = bucket(buckets, keyHash);
+          curEntry != null;
+          curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
+          return curEntry;
         }
       }
       return null;
@@ -408,15 +416,17 @@ public final class ConcurrentHashtable {
         K1 key1, K2 key2, BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
       long keyHash = D2.Entry.hash(key1, key2);
       int index = bucketIndex(buckets, keyHash);
-      for (TEntry te = bucket(buckets, index); te != null; te = te.next()) {
-        if (te.keyHash == keyHash && te.matches(key1, key2)) {
-          return te;
+      for (TEntry curEntry = bucket(buckets, index); curEntry != null; curEntry = curEntry.next()) {
+        if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
+          return curEntry;
         }
       }
       synchronized (getWriteLock(buckets)) {
-        for (TEntry te = bucket(buckets, index); te != null; te = te.next()) {
-          if (te.keyHash == keyHash && te.matches(key1, key2)) {
-            return te;
+        for (TEntry curEntry = bucket(buckets, index);
+            curEntry != null;
+            curEntry = curEntry.next()) {
+          if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
+            return curEntry;
           }
         }
         TEntry newEntry = creator.apply(key1, key2);
@@ -436,11 +446,13 @@ public final class ConcurrentHashtable {
       int index = bucketIndex(buckets, keyHash);
       synchronized (getWriteLock(buckets)) {
         TEntry prev = null;
-        for (TEntry te = bucket(buckets, index); te != null; prev = te, te = te.next()) {
-          if (te.keyHash == keyHash && te.matches(key1, key2)) {
-            unlink(buckets, index, prev, te);
+        for (TEntry curEntry = bucket(buckets, index);
+            curEntry != null;
+            prev = curEntry, curEntry = curEntry.next()) {
+          if (curEntry.keyHash == keyHash && curEntry.matches(key1, key2)) {
+            unlink(buckets, index, prev, curEntry);
             size.decrementAndGet();
-            return te;
+            return curEntry;
           }
         }
         return null;
@@ -718,8 +730,8 @@ public final class ConcurrentHashtable {
   public static <TEntry extends Entry> void forEach(
       AtomicReferenceArray<TEntry> buckets, Consumer<? super TEntry> consumer) {
     for (int i = 0; i < buckets.length(); i++) {
-      for (TEntry te = buckets.get(i); te != null; te = te.next()) {
-        consumer.accept(te);
+      for (TEntry curEntry = buckets.get(i); curEntry != null; curEntry = curEntry.next()) {
+        consumer.accept(curEntry);
       }
     }
   }
@@ -729,8 +741,8 @@ public final class ConcurrentHashtable {
       C context,
       BiConsumer<? super C, ? super TEntry> consumer) {
     for (int i = 0; i < buckets.length(); i++) {
-      for (TEntry te = buckets.get(i); te != null; te = te.next()) {
-        consumer.accept(context, te);
+      for (TEntry curEntry = buckets.get(i); curEntry != null; curEntry = curEntry.next()) {
+        consumer.accept(context, curEntry);
       }
     }
   }
