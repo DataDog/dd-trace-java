@@ -1,15 +1,15 @@
 [
   {
-    "language": "jvm",
-    "package": [
-      {
-        "ecosystem": "maven",
-        "name": "org.example:some-lib",
-        "version_range": ["< 1.0.0"]
-      }
+    "targets": [],
+    "lang": "maven",
+    "dependency_name": "org.example:some-lib",
+    "package_versions": [
+      "< 1.0.0"
     ],
-    "ecosystem_specific": {
-      "imports": []
+    "vulnerability": {
+      "id": "GHSA-empty-symbols",
+      "severity": "LOW",
+      "description": "Entry with empty targets — should produce no output"
     }
   }
 ]

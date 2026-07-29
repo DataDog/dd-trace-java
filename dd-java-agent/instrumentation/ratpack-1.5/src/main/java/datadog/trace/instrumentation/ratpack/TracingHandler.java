@@ -8,8 +8,8 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.ratpack.RatpackServerDecorator.DECORATE;
 
 import com.google.common.reflect.TypeToken;
+import datadog.context.ContextScope;
 import datadog.trace.api.gateway.Flow;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
@@ -45,12 +45,12 @@ public final class TracingHandler implements Handler {
 
     boolean setFinalizer = false;
 
-    try (final AgentScope scope = activateSpan(ratpackSpan)) {
+    try (final ContextScope scope = activateSpan(ratpackSpan)) {
 
       ctx.getResponse()
           .beforeSend(
               response -> {
-                try (final AgentScope ignored = activateSpan(ratpackSpan)) {
+                try (final ContextScope ignored = activateSpan(ratpackSpan)) {
                   if (nettySpan != null) {
                     // Rename the netty span resource name with the ratpack route.
                     DECORATE.onContext(nettySpan, ctx);

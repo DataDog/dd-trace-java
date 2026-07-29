@@ -57,10 +57,10 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(SECONDS)
 @Threads(8)
-@Fork(value = 1)
+@Fork(1)
 public class AdversarialMetricsBenchmark {
 
-  private ConflatingMetricsAggregator aggregator;
+  private ClientStatsAggregator aggregator;
   private CountingHealthMetrics health;
 
   @State(Scope.Thread)
@@ -72,13 +72,14 @@ public class AdversarialMetricsBenchmark {
   public void setup() {
     this.health = new CountingHealthMetrics();
     this.aggregator =
-        new ConflatingMetricsAggregator(
+        new ClientStatsAggregator(
             new WellKnownTags("", "", "", "", "", ""),
             Collections.emptySet(),
-            new ConflatingMetricsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
+            AdditionalTagsSchema.EMPTY,
+            new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
                 Collections.singleton("peer.hostname"), Collections.emptySet()),
             this.health,
-            new ConflatingMetricsAggregatorBenchmark.NullSink(),
+            new ClientStatsAggregatorBenchmark.NullSink(),
             2048,
             2048,
             false);

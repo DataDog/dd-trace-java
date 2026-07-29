@@ -153,10 +153,11 @@ public class Servlet3Advice {
       return;
     }
 
+    final AgentSpan span = spanFromContext(scope.context());
+    boolean finishSpanManually = false;
+
     if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
       final HttpServletResponse resp = (HttpServletResponse) response;
-
-      final AgentSpan span = spanFromContext(scope.context());
 
       if (DECORATE.safeIsAsyncStarted(request)) {
         AtomicBoolean activated = new AtomicBoolean();
@@ -176,7 +177,7 @@ public class Servlet3Advice {
           }
           if (finishSpan) {
             DECORATE.beforeFinish(scope.context());
-            span.finish(); // Finish the span manually since finishSpanOnClose was false
+            finishSpanManually = true;
           }
         }
       } else { // not async
@@ -199,10 +200,13 @@ public class Servlet3Advice {
         }
         if (finishSpan) {
           DECORATE.beforeFinish(scope.context());
-          span.finish(); // Finish the span manually since finishSpanOnClose was false
+          finishSpanManually = true;
         }
       }
     }
     scope.close();
+    if (finishSpanManually) {
+      span.finish(); // Finish the span manually since finishSpanOnClose was false
+    }
   }
 }

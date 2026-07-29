@@ -1,7 +1,11 @@
+import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheLicenseResourceTransformer
+import com.github.jengelman.gradle.plugins.shadow.transformers.ApacheNoticeResourceTransformer
+import org.gradle.api.file.DuplicatesStrategy.INCLUDE
+
 plugins {
   java
   id("com.diffplug.spotless") version "8.4.0"
-  id("com.gradleup.shadow") version "8.3.9"
+  alias(libs.plugins.shadow)
 }
 
 java {
@@ -69,7 +73,11 @@ tasks {
   }
 
   shadowJar {
-    mergeServiceFiles()
+    duplicatesStrategy = INCLUDE
+    transform<ApacheLicenseResourceTransformer>()
+    transform<ApacheNoticeResourceTransformer>()
+    failOnDuplicateEntries = true
+
     manifest {
       attributes(mapOf("Main-Class" to "datadog.trace.plugin.csi.PluginApplication"))
     }

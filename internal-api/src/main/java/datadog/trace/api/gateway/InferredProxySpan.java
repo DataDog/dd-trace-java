@@ -18,6 +18,7 @@ import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -46,10 +47,11 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     SUPPORTED_PROXIES = new HashMap<>();
     SUPPORTED_PROXIES.put("aws-apigateway", "aws.apigateway");
     SUPPORTED_PROXIES.put("aws-httpapi", "aws.httpapi");
+    SUPPORTED_PROXIES.put("azure-apim", "azure.apim");
   }
 
   private final Map<String, String> headers;
-  private AgentSpan span;
+  @VisibleForTesting AgentSpan span;
   // Service-entry span registered at startSpan() time; used to guard against premature finishing
   // by child spans (e.g., Spring MVC handler spans) before the response status is known.
   private AgentSpan registeredServiceEntrySpan;
@@ -178,7 +180,8 @@ public class InferredProxySpan implements ImplicitContextKeyed {
    * arn:aws:apigateway:{region}::/restapis/{api-id} Format for v2 HTTP:
    * arn:aws:apigateway:{region}::/apis/{api-id}
    */
-  private String computeArn(String proxySystem, String region, String apiId) {
+  @VisibleForTesting
+  String computeArn(String proxySystem, String region, String apiId) {
     if (proxySystem == null || region == null || apiId == null) {
       return null;
     }

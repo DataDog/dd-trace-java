@@ -3,10 +3,10 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -14,7 +14,7 @@ import java.util.concurrent.ThreadPoolExecutor;
  * This class is a helper for the ThreadPoolExecutorInstrumentation. The instrumentation has two
  * modes, where the legacy mode uses wrapping of the Runnable and the new mode uses the State
  * context store field in the actual Runnable. The ThreadLocal below is needed to transport the
- * AgentScope between two methods when using the context store approach. More details can be found
+ * ContextScope between two methods when using the context store approach. More details can be found
  * in the ThreadPoolExecutorInstrumentation.
  */
 public final class TPEHelper {
@@ -24,7 +24,7 @@ public final class TPEHelper {
   // A ThreadPoolExecutor with one of these types will newer be propagated/wrapped
   private static final Set<String> excludedClasses;
   // A ThreadLocal to store the Scope between beforeExecute and afterExecute if wrapping is not used
-  private static final ThreadLocal<AgentScope> threadLocalScope;
+  private static final ThreadLocal<ContextScope> threadLocalScope;
 
   private static final ClassValue<Boolean> WRAP =
       GenericClassValue.of(
@@ -78,29 +78,29 @@ public final class TPEHelper {
     }
   }
 
-  public static AgentScope startScope(ContextStore<Runnable, State> contextStore, Runnable task) {
+  public static ContextScope startScope(ContextStore<Runnable, State> contextStore, Runnable task) {
     if (task == null || exclude(RUNNABLE, task)) {
       return null;
     }
     return AdviceUtils.startTaskScope(contextStore, task);
   }
 
-  public static void setThreadLocalScope(AgentScope scope, Runnable task) {
+  public static void setThreadLocalScope(ContextScope scope, Runnable task) {
     if (scope == null || task == null || exclude(RUNNABLE, task)) {
       return;
     }
-    AgentScope current = threadLocalScope.get();
+    ContextScope current = threadLocalScope.get();
     if (current != null) {
       current.close();
     }
     threadLocalScope.set(scope);
   }
 
-  public static AgentScope getAndClearThreadLocalScope(Runnable task) {
+  public static ContextScope getAndClearThreadLocalScope(Runnable task) {
     if (task == null || exclude(RUNNABLE, task)) {
       return null;
     }
-    AgentScope scope = threadLocalScope.get();
+    ContextScope scope = threadLocalScope.get();
     // Intentionally use `.set(null)` instead of `.remove()` for performance reasons.
     // For details see: https://github.com/DataDog/dd-trace-java/pull/9856#discussion_r2527729963
     // noinspection ThreadLocalSetWithNull
@@ -108,7 +108,7 @@ public final class TPEHelper {
     return scope;
   }
 
-  public static void endScope(AgentScope scope, Runnable task) {
+  public static void endScope(ContextScope scope, Runnable task) {
     if (task == null || exclude(RUNNABLE, task)) {
       return;
     }

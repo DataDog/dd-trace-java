@@ -17,6 +17,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import java.util.Collections;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -167,6 +168,26 @@ public class InstrumentationGatewayTest {
     assertEquals(301, rba.getStatusCode());
     assertEquals(BlockingContentType.NONE, rba.getBlockingContentType());
     assertEquals("https://www.google.com/", rba.getExtraHeaders().get("Location"));
+  }
+
+  @Test
+  public void blockResponseFunctionDefaultMethodDelegatesRequestBlockingAction() {
+    TraceSegment segment = TraceSegment.NoOp.INSTANCE;
+    Flow.Action.RequestBlockingAction action =
+        new Flow.Action.RequestBlockingAction(
+            451,
+            BlockingContentType.JSON,
+            Collections.singletonMap("x-blocked", "true"),
+            "security-response-id");
+
+    CapturingBlockResponseFunction blockResponseFunction = new CapturingBlockResponseFunction();
+
+    assertTrue(blockResponseFunction.tryCommitBlockingResponse(segment, action));
+    assertSame(segment, blockResponseFunction.segment);
+    assertEquals(451, blockResponseFunction.statusCode);
+    assertEquals(BlockingContentType.JSON, blockResponseFunction.templateType);
+    assertEquals("true", blockResponseFunction.extraHeaders.get("x-blocked"));
+    assertEquals("security-response-id", blockResponseFunction.securityResponseId);
   }
 
   @Test
@@ -561,6 +582,29 @@ public class InstrumentationGatewayTest {
     public Flow<Void> apply(RequestContext requestContext, T t, T t2) {
       count++;
       return flow;
+    }
+  }
+
+  private static final class CapturingBlockResponseFunction implements BlockResponseFunction {
+    private TraceSegment segment;
+    private int statusCode;
+    private BlockingContentType templateType;
+    private Map<String, String> extraHeaders;
+    private String securityResponseId;
+
+    @Override
+    public boolean tryCommitBlockingResponse(
+        TraceSegment segment,
+        int statusCode,
+        BlockingContentType templateType,
+        Map<String, String> extraHeaders,
+        String securityResponseId) {
+      this.segment = segment;
+      this.statusCode = statusCode;
+      this.templateType = templateType;
+      this.extraHeaders = extraHeaders;
+      this.securityResponseId = securityResponseId;
+      return true;
     }
   }
 

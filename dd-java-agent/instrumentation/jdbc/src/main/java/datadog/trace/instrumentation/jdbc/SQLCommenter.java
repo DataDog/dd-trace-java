@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.jdbc;
 
 import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter;
+import datadog.trace.util.SubSequence;
 
 public class SQLCommenter {
   // SQL-specific constants, rest defined in SharedDBCommenter
@@ -15,7 +16,17 @@ public class SQLCommenter {
   private static final int BUFFER_EXTRA = 4;
   private static final int SQL_COMMENT_OVERHEAD = SPACE_CHARS + COMMENT_DELIMITERS + BUFFER_EXTRA;
 
-  protected static String getFirstWord(String sql) {
+  /**
+   * Returns the first whitespace-delimited word of {@code sql} as a zero-copy {@link SubSequence}
+   * -- avoiding a substring allocation on every {@link #inject} call, since the callers only need
+   * to {@code startsWith}/{@code equalsIgnoreCase} it.
+   *
+   * <p><b>Transient view -- do not retain.</b> The returned {@code SubSequence} references the
+   * entire {@code sql} string, so holding onto it keeps the whole query reachable (a memory hazard
+   * for large SQL). Consume it in place and discard; if the value must be retained, call {@link
+   * SubSequence#toString()} to detach a standalone copy.
+   */
+  protected static SubSequence getFirstWord(String sql) {
     int beginIndex = 0;
     while (beginIndex < sql.length() && Character.isWhitespace(sql.charAt(beginIndex))) {
       beginIndex++;
@@ -24,7 +35,7 @@ public class SQLCommenter {
     while (endIndex < sql.length() && !Character.isWhitespace(sql.charAt(endIndex))) {
       endIndex++;
     }
-    return sql.substring(beginIndex, endIndex);
+    return SubSequence.of(sql, beginIndex, endIndex);
   }
 
   public static String inject(
@@ -40,7 +51,7 @@ public class SQLCommenter {
     }
     boolean appendComment = preferAppend;
     if (dbType != null) {
-      final String firstWord = getFirstWord(sql);
+      final SubSequence firstWord = getFirstWord(sql);
 
       // The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC
       // callable statements
@@ -112,11 +123,6 @@ public class SQLCommenter {
       return false;
     }
 
-    String commentContent = extractCommentContent(sql, appendComment);
-    return SharedDBCommenter.containsTraceComment(commentContent);
-  }
-
-  private static String extractCommentContent(String sql, boolean appendComment) {
     int startIdx;
     int endIdx;
     if (appendComment) {
@@ -127,9 +133,10 @@ public class SQLCommenter {
       endIdx = sql.indexOf(CLOSE_COMMENT);
     }
     if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
-      return sql.substring(startIdx + OPEN_COMMENT_LEN, endIdx);
+      // Check the comment body in place -- no substring of the comment region.
+      return SharedDBCommenter.containsTraceComment(sql, startIdx + OPEN_COMMENT_LEN, endIdx);
     }
-    return "";
+    return false;
   }
 
   /**

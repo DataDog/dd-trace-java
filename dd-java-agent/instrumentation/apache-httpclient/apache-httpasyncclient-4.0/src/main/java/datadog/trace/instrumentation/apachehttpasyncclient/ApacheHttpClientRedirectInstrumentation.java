@@ -46,7 +46,7 @@ public class ApacheHttpClientRedirectInstrumentation
 
   public static class ClientRedirectAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    private static void onAfterExecute(
+    static void onAfterExecute(
         @Advice.Argument(value = 2) final HttpContext context,
         @Advice.Return(typing = Assigner.Typing.DYNAMIC) final HttpRequest redirect) {
       if (redirect == null) {
@@ -58,30 +58,30 @@ public class ApacheHttpClientRedirectInstrumentation
       }
       HttpRequest original = (HttpRequest) originalRequest;
 
-      // Apache HttpClient 4.0.1+ copies headers from original to redirect only
-      // if redirect headers are empty. Because we add headers
-      // "x-datadog-" and "x-b3-" to redirect: it means redirect headers never
-      // will be empty. So in case if not-instrumented redirect had no headers,
-      // we just copy all not set headers from original to redirect (doing same
-      // thing as apache httpclient does).
-      if (!redirect.headerIterator().hasNext()) {
-        // redirect didn't have other headers besides tracing, so we need to do copy
-        // (same work as Apache HttpClient 4.0.1+ does w/o instrumentation)
-        if (original instanceof HttpRequestWrapper) {
-          // We should use the initial request because the wrapped one might contain more headers
-          // (i.e. Host) we do not want to copy
-          // if we cannot access the original request we cannot safely copy.
-          // At this point we break the propagation not to corrupt the customer request
-          redirect.setHeaders(((HttpRequestWrapper) original).getOriginal().getAllHeaders());
-        }
+      // Apache HttpClient 4.0.1+ copies headers from the original request to the redirect only when
+      // the redirect request has no headers. Because tracing injects propagation headers before
+      // redirect handling completes, an otherwise empty redirect request may no longer look empty
+      // to HttpClient. Preserve that header-copy behavior only for same-origin redirects;
+      // cross-origin redirects must not receive application headers such as Authorization or
+      // Cookie.
+      boolean emptyRedirect = !redirect.headerIterator().hasNext();
+      if (emptyRedirect && RedirectHelper.isSameOrigin(context, original, redirect)) {
+        redirect.setHeaders(((HttpRequestWrapper) original).getOriginal().getAllHeaders());
       } else {
+        boolean copiedPropagationHeader = false;
         for (final Header header : original.getAllHeaders()) {
           if (PropagationUtils.KNOWN_PROPAGATION_HEADERS.contains(
               header.getName().toLowerCase(Locale.ROOT))) {
             if (!redirect.containsHeader(header.getName())) {
               redirect.setHeader(header.getName(), header.getValue());
+              copiedPropagationHeader = true;
             }
           }
+        }
+        if (emptyRedirect && !copiedPropagationHeader) {
+          // When there are no propagation headers to copy, add a harmless header to keep HttpClient
+          // from treating the redirect as empty and copying application headers later.
+          redirect.setHeader("x-datadog-redirect", "true");
         }
       }
     }

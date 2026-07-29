@@ -26,7 +26,16 @@ public interface AgentSpan
         WithAgentSpan {
 
   /**
-   * Extracts the span from context.
+   * Extracts the span from the current {@link Context}.
+   *
+   * @return the current span if existing, {@code null} otherwise.
+   */
+  static AgentSpan current() {
+    return Context.current().get(SPAN_KEY);
+  }
+
+  /**
+   * Extracts the span from the given {@link Context}.
    *
    * @param context the context to extract the span from.
    * @return the span if existing, {@code null} otherwise.
@@ -251,7 +260,7 @@ public interface AgentSpan
    *
    * @return a scope to be closed when the combined context is invalid.
    */
-  default ContextScope attachWithCurrent() {
+  default ContextScope attachWithContext() {
     return storeInto(Context.current()).attach();
   }
 

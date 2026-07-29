@@ -13,7 +13,7 @@ import static datadog.trace.api.DDTags.THREAD_ID;
 import static datadog.trace.api.DDTags.THREAD_NAME;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -39,7 +39,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -420,6 +420,40 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertNotEquals(extractedContext.getSpanId(), span.getParentId());
     assertEquals(PrioritySampling.UNSET, span.samplingPriority());
     assertTrue(span.getLinks().isEmpty());
+  }
+
+  @Test
+  @WithConfig(key = "trace.propagation.behavior.extract", value = "ignore")
+  void appSecContextPreservedFromTagContextWithIgnoreBehavior() {
+    Object appSecData = new Object();
+    Object iastData = new Object();
+    TagContext tagContext =
+        new TagContext()
+            .withRequestContextDataAppSec(appSecData)
+            .withRequestContextDataIast(iastData);
+
+    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
+
+    assertEquals(appSecData, span.getRequestContext().getData(RequestContextSlot.APPSEC));
+    assertEquals(iastData, span.getRequestContext().getData(RequestContextSlot.IAST));
+    span.finish();
+  }
+
+  @Test
+  @WithConfig(key = "trace.propagation.behavior.extract", value = "restart")
+  void appSecContextPreservedFromTagContextWithRestartBehavior() {
+    Object appSecData = new Object();
+    Object iastData = new Object();
+    TagContext tagContext =
+        new TagContext()
+            .withRequestContextDataAppSec(appSecData)
+            .withRequestContextDataIast(iastData);
+
+    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
+
+    assertEquals(appSecData, span.getRequestContext().getData(RequestContextSlot.APPSEC));
+    assertEquals(iastData, span.getRequestContext().getData(RequestContextSlot.IAST));
+    span.finish();
   }
 
   @TableTest({

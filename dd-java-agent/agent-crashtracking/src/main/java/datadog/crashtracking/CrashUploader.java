@@ -581,7 +581,8 @@ public final class CrashUploader {
         if (payload.experimental != null
             && (payload.experimental.ucontext != null
                 || payload.experimental.registerToMemoryMapping != null
-                || payload.experimental.runtimeArgs != null)) {
+                || payload.experimental.runtimeArgs != null
+                || payload.experimental.runtimeInfo != null)) {
           writer.name("experimental");
           writer.beginObject();
           if (payload.experimental.ucontext != null) {
@@ -610,6 +611,20 @@ public final class CrashUploader {
               writer.value(arg);
             }
             writer.endArray();
+          }
+          if (payload.experimental.runtimeInfo != null) {
+            writer.name("runtime_info");
+            writer.beginObject();
+            if (payload.experimental.runtimeInfo.jreVersion != null) {
+              writer.name("jre_version").value(payload.experimental.runtimeInfo.jreVersion);
+            }
+            if (payload.experimental.runtimeInfo.javaVm != null) {
+              writer.name("java_vm").value(payload.experimental.runtimeInfo.javaVm);
+            }
+            if (payload.experimental.runtimeInfo.vmInfo != null) {
+              writer.name("vm_info").value(payload.experimental.runtimeInfo.vmInfo);
+            }
+            writer.endObject();
           }
           writer.endObject();
         }

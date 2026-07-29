@@ -971,6 +971,49 @@ tasks.named<Test>("latestDepTest") {
 ./gradlew allTests -PtestJvm=zulu11
 ```
 
+### JMH Benchmarks (`dd-trace-java.jmh-conventions` Plugin)
+
+The convention uses the JVM selected by the `dd-trace-java.test-jvm-constraints` plugin via `-PtestJvm` as the 
+JMH launcher. It also maps optional `-Pjmh.*` project properties to JMH parameters, allowing an individual run 
+to be adjusted without editing benchmark annotations.
+Explicit settings in a module’s `jmh {}` block take precedence (i.e. the managed property won't apply).
+
+The new properties enable to override the defaults, in other words 
+
+* without `jmh.forks` or `jmh.threads`, forks and threads come from `@Fork` and `@Threads`; otherwise JMH defaults apply,
+* without `jmh.includes`, JMH runs all discovered benchmarks,
+* without `jmh.profilers`, no profiler is attached unless configured elsewhere.
+
+```Gradle Kotlin DSL
+plugins {
+    id("dd-trace-java.jmh-conventions")
+}
+
+jmh {
+    jmhVersion = libs.versions.jmh.get()
+    duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+    
+    // jvm, fork, profilers are managed by the jmh convention plugin 
+    threads = 10 // Threads is enforced and jmh.threads won't be applied
+}
+```
+
+| Property        | Effect                                                        |
+|-----------------|---------------------------------------------------------------|
+| `jmh.includes`  | Comma-separated benchmark name patterns to run (a subset run) |
+| `jmh.profilers` | Comma-separated JMH profilers to attach (e.g. `stack`, `gc`)  |
+| `jmh.forks`     | Overrides the fork count for a spot-check run                 |
+| `jmh.threads`   | Overrides the thread count for a spot-check run               |
+
+```bash
+./gradlew :dd-trace-core:jmh -Pjmh.includes=SpanCreationBenchmark -Pjmh.forks=1 -Pjmh.threads=1 -PtestJvm=21
+```
+
+**Tips:**
+
+* Keep the benchmark's fork and thread settings aligned with what it measures.
+* Use `-Pjmh.profilers=gc` when investigating allocations.
+
 ### `tracerJava` Extension
 
 Manages multi-version Java source sets, allowing a single project to compile code targeting different JVM versions.

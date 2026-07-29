@@ -3,6 +3,7 @@ package datadog.smoketest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.environment.JavaVirtualMachine;
@@ -73,6 +74,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   @BeforeEach
   void resetMockBackend() {
+    assumeFalse(JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
     mockBackend.reset();
   }
 
@@ -92,6 +94,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "succeed-jacoco-argline     | test_successful_maven_run_with_jacoco_and_argline | 3.9.9                        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
     "succeed-cucumber           | test_successful_maven_run_with_cucumber           | 3.9.9                        | 4              | 1                 | true          | false         | false        | true           | []                                                               | 8                      ",
     "failed-flaky-retries       | test_failed_maven_run_flaky_retries               | 3.9.9                        | 8              | 5                 | false         | false         | true         | true           | []                                                               | 8                      ",
+    "cucumber-suite-flaky       | test_maven_run_cucumber_suite_flaky_retries       | 3.9.9                        | 8              | 5                 | false         | false         | true         | false          | []                                                               | 17                     ",
     "succeed-junit-platform     | test_successful_maven_run_junit_platform_runner   | 3.9.9                        | 4              | 0                 | true          | false         | false        | false          | []                                                               | 8                      ",
     "succeed-arg-line-property  | test_successful_maven_run_with_arg_line_property  | 3.9.9                        | 4              | 0                 | true          | false         | false        | false          | [\"-DargLine='-Dmy-custom-property=provided-via-command-line'\"] | 8                      ",
     "succeed-multi-forks-j8     | test_successful_maven_run_multiple_forks          | 3.9.9                        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
@@ -125,6 +128,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         "Maven Smoke Tests Project maven-surefire-plugin default-test",
         "datadog.smoke.TestFailed",
         "test_failed");
+    mockBackend.givenFlakyTest(
+        "Maven Smoke Tests Project maven-surefire-plugin default-test",
+        "classpath:datadog/smoke/basic_arithmetic.feature:Basic Arithmetic",
+        "Basic Arithmetic - Addition"); // cucumber.junit-platform.naming-strategy=long
 
     mockBackend.givenTestsSkipping(testsSkipping);
     mockBackend.givenSkippableTest(

@@ -1,9 +1,9 @@
 {
   "dsl": "",
   "json": {
-    "and": [
+    "or": [
       {
-        "or": [
+        "and": [
           {"eq": [{"ref": "i"}, 10]},
           {"==": [{"ref": "i"}, 10]},
           {"lt": [{"ref": "i"}, 11]},
@@ -20,6 +20,7 @@
           {"not": {"isEmpty": {"ref": "list"}}},
           {"any": [{"ref": "list"}, {"eq": [{"ref": "@it"}, "a"]}]},
           {"all": [{"ref": "list"}, {"neq": [{"ref": "@it"}, "d"]}]},
+          {"all": [{"ref": "largeList"}, {"neq": [{"ref": "@it"}, "d"]}]},
           {"startsWith": [{"ref": "str"}, "hel"]},
           {"endsWith": [{"ref": "str"}, "llo"]},
           {"contains": [{"ref": "str"}, "ll"]},

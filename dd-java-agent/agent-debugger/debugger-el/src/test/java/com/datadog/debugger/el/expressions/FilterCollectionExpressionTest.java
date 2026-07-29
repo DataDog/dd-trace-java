@@ -1,32 +1,40 @@
 package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.DSL.*;
+import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
-import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.SetValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import datadog.trace.bootstrap.debugger.el.Values;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class FilterCollectionExpressionTest {
+
+  private final EvalContext evalContext = createEvalContext(this);
+
   @Test
   void testMatchingList() {
     ListValue collection = new ListValue(new int[] {1, 2, 3});
 
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
-    CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
+    CollectionValue<?> filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertEquals(1, filtered.count());
     assertFalse(filtered.isEmpty());
@@ -40,7 +48,7 @@ class FilterCollectionExpressionTest {
     ListValue collection = new ListValue(new int[0]);
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
-    CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
+    CollectionValue<?> filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertTrue(filtered.isEmpty());
     assertFalse(filtered.isNull());
@@ -54,9 +62,7 @@ class FilterCollectionExpressionTest {
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
     EvaluationException exception =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(RefResolverHelper.createResolver(this)));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("filter(null, {@it < 2})", print(expression));
   }
@@ -67,9 +73,7 @@ class FilterCollectionExpressionTest {
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
     EvaluationException exception =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(RefResolverHelper.createResolver(this)));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("filter(null, {@it < 2})", print(expression));
   }
@@ -80,11 +84,25 @@ class FilterCollectionExpressionTest {
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
     EvaluationException exception =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(RefResolverHelper.createResolver(this)));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("filter(null, {@it < 2})", print(expression));
+  }
+
+  @Test
+  void testLargeList() {
+    List<Integer> largeList = new ArrayList<>();
+    for (int i = 0; i < 1_000_000; i++) {
+      largeList.add(i);
+    }
+    ListValue collection = new ListValue(largeList);
+    FilterCollectionExpression expression =
+        new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(0)));
+    EvalContext timeoutEvalContext = createEvalContext(this, Duration.ofMillis(1));
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> expression.evaluate(timeoutEvalContext));
+    assertEquals("timeout (1ms)", exception.getMessage());
+    assertEquals("filter(List, {@it < 0})", print(expression));
   }
 
   @Test
@@ -98,7 +116,7 @@ class FilterCollectionExpressionTest {
     FilterCollectionExpression expression =
         new FilterCollectionExpression(
             collection, eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("b")));
-    CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
+    CollectionValue<?> filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertEquals(1, filtered.count());
     assertFalse(filtered.isEmpty());
@@ -108,7 +126,7 @@ class FilterCollectionExpressionTest {
     expression =
         new FilterCollectionExpression(
             collection, lt(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value(2)));
-    filtered = expression.evaluate(RefResolverHelper.createResolver(this));
+    filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertEquals(1, filtered.count());
     assertFalse(filtered.isEmpty());
@@ -122,7 +140,7 @@ class FilterCollectionExpressionTest {
     MapValue collection = new MapValue(Collections.emptyMap());
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
-    CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
+    CollectionValue<?> filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertTrue(filtered.isEmpty());
     assertFalse(filtered.isNull());
@@ -136,9 +154,7 @@ class FilterCollectionExpressionTest {
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
     EvaluationException exception =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(RefResolverHelper.createResolver(this)));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("filter(null, {@it < 2})", print(expression));
   }
@@ -149,9 +165,7 @@ class FilterCollectionExpressionTest {
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
     EvaluationException exception =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(RefResolverHelper.createResolver(this)));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("filter(null, {@it < 2})", print(expression));
   }
@@ -162,9 +176,7 @@ class FilterCollectionExpressionTest {
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
     EvaluationException exception =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(RefResolverHelper.createResolver(this)));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("filter(null, {@it < 2})", print(expression));
   }
@@ -179,17 +191,34 @@ class FilterCollectionExpressionTest {
 
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, eq(ref(ValueReferences.KEY_REF), value("b")));
-    CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
+    CollectionValue<?> filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertEquals(1, filtered.count());
     assertEquals("filter(Map, {@key == \"b\"})", print(expression));
 
     expression =
         new FilterCollectionExpression(collection, eq(ref(ValueReferences.VALUE_REF), value(2)));
-    filtered = expression.evaluate(RefResolverHelper.createResolver(this));
+    filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertEquals(1, filtered.count());
     assertEquals("filter(Map, {@value == 2})", print(expression));
+  }
+
+  @Test
+  void testLargeMap() {
+    Map<Integer, Integer> map = new HashMap<>();
+    for (int i = 0; i <= 1_000_000; i++) {
+      map.put(i, i);
+    }
+    MapValue collection = new MapValue(map);
+
+    FilterCollectionExpression expression =
+        new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(0)));
+    EvalContext timeoutEvalContext = createEvalContext(this, Duration.ofMillis(1));
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> expression.evaluate(timeoutEvalContext));
+    assertEquals("timeout (1ms)", exception.getMessage());
+    assertEquals("filter(Map, {@it < 0})", print(expression));
   }
 
   @Test
@@ -197,7 +226,7 @@ class FilterCollectionExpressionTest {
     SetValue collection = new SetValue(new HashSet<>(Arrays.asList(1, 2, 3)));
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
-    CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
+    CollectionValue<?> filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertEquals(1, filtered.count());
     assertFalse(filtered.isEmpty());
@@ -211,7 +240,7 @@ class FilterCollectionExpressionTest {
     SetValue collection = new SetValue(new HashSet<>());
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
-    CollectionValue<?> filtered = expression.evaluate(RefResolverHelper.createResolver(this));
+    CollectionValue<?> filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertTrue(filtered.isEmpty());
     assertFalse(filtered.isNull());
@@ -225,9 +254,7 @@ class FilterCollectionExpressionTest {
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
     EvaluationException exception =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(RefResolverHelper.createResolver(this)));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("filter(null, {@it < 2})", print(expression));
   }
@@ -238,9 +265,7 @@ class FilterCollectionExpressionTest {
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
     EvaluationException exception =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(RefResolverHelper.createResolver(this)));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("filter(null, {@it < 2})", print(expression));
   }
@@ -251,11 +276,26 @@ class FilterCollectionExpressionTest {
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(2)));
     EvaluationException exception =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(RefResolverHelper.createResolver(this)));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("filter(null, {@it < 2})", print(expression));
+  }
+
+  @Test
+  void testLargeSet() {
+    Set<Integer> set = new HashSet<>();
+    for (int i = 0; i <= 1_000_000; i++) {
+      set.add(i);
+    }
+    SetValue collection = new SetValue(set);
+
+    FilterCollectionExpression expression =
+        new FilterCollectionExpression(collection, lt(ref(ValueReferences.ITERATOR_REF), value(0)));
+    EvalContext timeoutEvalContext = createEvalContext(this, Duration.ofMillis(1));
+    EvaluationException exception =
+        assertThrows(EvaluationException.class, () -> expression.evaluate(timeoutEvalContext));
+    assertEquals("timeout (1ms)", exception.getMessage());
+    assertEquals("filter(Set, {@it < 0})", print(expression));
   }
 
   @Test
@@ -265,9 +305,7 @@ class FilterCollectionExpressionTest {
         new FilterCollectionExpression(
             collection, eq(ref(ValueReferences.ITERATOR_REF), value("foo")));
     EvaluationException exception =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(RefResolverHelper.createResolver(this)));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals(
         "Unsupported List class: com.datadog.debugger.el.expressions.FilterCollectionExpressionTest$CustomList",
         exception.getMessage());
@@ -280,9 +318,7 @@ class FilterCollectionExpressionTest {
     FilterCollectionExpression expression =
         new FilterCollectionExpression(collection, eq(ref(ValueReferences.VALUE_REF), value(2)));
     EvaluationException exception =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(RefResolverHelper.createResolver(this)));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals(
         "Unsupported Map class: com.datadog.debugger.el.expressions.FilterCollectionExpressionTest$CustomMap",
         exception.getMessage());
@@ -296,9 +332,7 @@ class FilterCollectionExpressionTest {
         new FilterCollectionExpression(
             collection, eq(ref(ValueReferences.ITERATOR_REF), value("foo")));
     EvaluationException exception =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(RefResolverHelper.createResolver(this)));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals(
         "Unsupported Set class: com.datadog.debugger.el.expressions.FilterCollectionExpressionTest$CustomSet",
         exception.getMessage());

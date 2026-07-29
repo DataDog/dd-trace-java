@@ -1,8 +1,10 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
+
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.Expression;
 import com.datadog.debugger.el.Visitor;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /** TODO: Primordial support for 'debugger watches' support */
 public final class IfElseExpression implements Expression<Void> {
@@ -18,12 +20,13 @@ public final class IfElseExpression implements Expression<Void> {
   }
 
   @Override
-  public Void evaluate(ValueReferenceResolver valueRefResolver) {
-    if (test.evaluate(valueRefResolver)) {
-      thenExpression.evaluate(valueRefResolver);
+  public Void evaluate(EvalContext evalContext) {
+    if (test.evaluate(evalContext)) {
+      thenExpression.evaluate(evalContext);
     } else {
-      elseExpression.evaluate(valueRefResolver);
+      elseExpression.evaluate(evalContext);
     }
+    checkTimeout(evalContext.getTimeoutChecker(), this);
     return null;
   }
 

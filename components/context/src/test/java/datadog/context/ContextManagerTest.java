@@ -10,17 +10,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Phaser;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class ContextManagerTest {
-  @BeforeEach
-  void init() {
-    // Ensure no current context prior starting test
-    assertEquals(root(), current());
-  }
-
+class ContextManagerTest extends ContextTestBase {
   @Test
   void testContextAttachment() {
     Context context1 = root().with(STRING_KEY, "value1");
@@ -58,21 +50,56 @@ class ContextManagerTest {
   }
 
   @Test
-  void testAttachSameContextMultipleTimes() {
-    Context context = root().with(STRING_KEY, "value1");
-    try (ContextScope ignored1 = context.attach()) {
-      assertEquals(context, current());
-      try (ContextScope ignored2 = context.attach()) {
-        try (ContextScope ignored3 = context.attach()) {
-          assertEquals(context, current());
-        }
-        // Test closing a scope on the current context should not deactivate it if activated
-        // multiple times
-        assertEquals(context, current());
+  void testNoopScopeContextReturnsAttachedContext() {
+    Context context = root().with(STRING_KEY, "value");
+    try (ContextScope outer = context.attach()) {
+      // second attach returns a noop scope; verify context() reflects the attached context
+      try (ContextScope noop = context.attach()) {
+        assertEquals(context, noop.context());
       }
     }
-    // Test closing the same number of scope as activation should deactivate the context
-    assertEquals(root(), current());
+  }
+
+  @Test
+  void testNoopScopeReturnsCorrectContext() {
+    Context context = root().with(STRING_KEY, "value");
+    try (ContextScope outer = context.attach()) {
+      try (ContextScope noop1 = context.attach();
+          ContextScope noop2 = context.attach()) {
+        assertEquals(context, noop1.context());
+        assertEquals(context, noop2.context());
+      }
+    }
+  }
+
+  @Test
+  void testNoopScopeCorrectContextAcrossManyContexts() {
+    for (int i = 0; i < 200; i++) {
+      Context ctx = root().with(STRING_KEY, "ctx-" + i);
+      try (ContextScope outer = ctx.attach()) {
+        try (ContextScope noop = ctx.attach()) {
+          assertEquals(ctx, noop.context());
+        }
+      }
+    }
+  }
+
+  @Test
+  void testAttachSameContextMultipleTimes() {
+    Context context = root().with(STRING_KEY, "value1");
+    try (ContextScope scope1 = context.attach()) {
+      assertEquals(context, current());
+      // re-attaching an already-active context returns a noop scope
+      try (ContextScope noop2 = context.attach()) {
+        assertEquals(context, noop2.context());
+        try (ContextScope noop3 = context.attach()) {
+          assertEquals(context, noop3.context());
+        }
+        assertEquals(context, current()); // noop close: context remains active
+      }
+      assertEquals(context, current()); // still active after all noop closes
+    }
+    assertEquals(root(), current()); // only the original scope deactivates on close
   }
 
   @Test
@@ -96,15 +123,16 @@ class ContextManagerTest {
     Context context1 = root().with(STRING_KEY, "value1");
     try (ContextScope ignored = context1.attach()) {
       Context context2 = context1.with(STRING_KEY, "value2");
-      ContextScope scope = context2.attach();
-      // Test current context
-      assertEquals(context2, current());
-      // Test current context deactivation
-      scope.close();
-      assertEquals(context1, current());
-      // Test multiple context deactivations don’t change current context
-      scope.close();
-      assertEquals(context1, current());
+      try (ContextScope scope = context2.attach()) {
+        // Test current context
+        assertEquals(context2, current());
+        // Test current context deactivation
+        scope.close();
+        assertEquals(context1, current());
+        // Test multiple context deactivations don’t change current context
+        scope.close();
+        assertEquals(context1, current());
+      }
     }
   }
 
@@ -207,11 +235,5 @@ class ContextManagerTest {
       Future<?> future = executor.submit(() -> assertEquals(root(), current()));
       assertDoesNotThrow(() -> future.get());
     }
-  }
-
-  @AfterEach
-  void tearDown() {
-    // Ensure no current context after ending test
-    assertEquals(root(), current());
   }
 }

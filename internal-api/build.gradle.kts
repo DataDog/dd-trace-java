@@ -3,8 +3,8 @@ import groovy.lang.Closure
 
 plugins {
   `java-library`
-  id("me.champeau.jmh")
   id("dd-trace-java.module.internal-library")
+  id("dd-trace-java.jmh-conventions")
 }
 
 java {
@@ -53,6 +53,8 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.EndpointCheckpointerHolder",
   "datadog.trace.api.iast.IastAdvice.Kind",
   "datadog.trace.api.UserEventTrackingMode",
+  // Lazy holder idiom; exercised indirectly via TagMap.EMPTY
+  "datadog.trace.api.OptimizedTagMap.EmptyHolder",
   // These are almost fully abstract classes so nothing to test
   "datadog.trace.api.profiling.RecordingData",
   "datadog.trace.api.appsec.AppSecEventTracker",
@@ -64,7 +66,9 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.profiling.RecordingType",
   // Data Streams Monitoring
   "datadog.trace.api.datastreams.Backlog",
+  "datadog.trace.api.datastreams.DataStreamsTransactionExtractor.Type", // enum
   "datadog.trace.api.datastreams.InboxItem",
+  "datadog.trace.api.datastreams.KafkaConfigReport", // pojo
   "datadog.trace.api.datastreams.NoopDataStreamsMonitoring",
   "datadog.trace.api.datastreams.NoopPathwayContext",
   "datadog.trace.api.datastreams.SchemaRegistryUsage",
@@ -85,6 +89,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.AgentSpan",
   "datadog.trace.bootstrap.instrumentation.api.AgentSpanContext",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.LegacyContextManager",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentHistogram",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTraceCollector",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",
@@ -195,9 +200,12 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.cache.FixedSizeCache.IdentityHash",
   "datadog.trace.api.cache.FixedSizeWeakKeyCache",
   // Interface with default method
+  "datadog.trace.api.civisibility.execution.TestExecutionPolicy",
   "datadog.trace.api.iast.Taintable",
   "datadog.trace.api.Stateful",
   "datadog.trace.api.Stateful.1",
+  // an interface
+  "datadog.trace.bootstrap.instrumentation.api.ProfilerContext",
   // a stub
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration",
   "datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration.NoOp",
@@ -232,6 +240,10 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.SpanPostProcessor.NoOpSpanPostProcessor",
   "datadog.trace.util.TempLocationManager",
   "datadog.trace.util.TempLocationManager.*",
+  // constants only
+  "datadog.trace.bootstrap.instrumentation.api.ServiceNameSources",
+  // POJO, covered by test suites in other gradle submodules (e.g. AIGuardInternalTests, HttpServerDecoratorTest)
+  "datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData",
 )
 
 extra["excludedClassesBranchCoverage"] = listOf(
@@ -255,6 +267,7 @@ dependencies {
   api(project(":components:context"))
   api(project(":components:environment"))
   api(project(":components:json"))
+  implementation(project(":products:feature-flagging:feature-flagging-config"))
   api(project(":utils:config-utils"))
   api(project(":utils:time-utils"))
 

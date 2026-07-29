@@ -52,8 +52,11 @@ public final class InstrumentationPoints {
     if (throwable != null) {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
+      scope.close();
       span.finish();
     } else if (expectsResponse(command)) {
+      // Register the callback before closing the scope so the active span is correct when
+      // the CompletableFuture instrumentation captures context for the finishing lambda.
       asyncCommand.handleAsync(
           (value, ex) -> {
             if (ex instanceof CancellationException) {
@@ -65,12 +68,13 @@ public final class InstrumentationPoints {
             span.finish();
             return null;
           });
+      scope.close();
     } else {
       // No response is expected, so we must finish the span now.
       DECORATE.beforeFinish(span);
+      scope.close();
       span.finish();
     }
-    scope.close();
     // span may be finished by handleAsync call above.
   }
 

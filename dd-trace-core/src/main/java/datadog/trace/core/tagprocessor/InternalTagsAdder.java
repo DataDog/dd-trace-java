@@ -34,8 +34,10 @@ public final class InternalTagsAdder extends TagsPostProcessor {
     }
 
     if (!ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
-      // service name != DD_SERVICE
-      unsafeTags.set(baseServiceEntry);
+      if (baseServiceEntry != null) {
+        // service name != DD_SERVICE
+        unsafeTags.set(baseServiceEntry);
+      }
     } else {
       // as per config consistency, the version tag is added across tracers only if
       // the service name is DD_SERVICE and version  tag is not manually set

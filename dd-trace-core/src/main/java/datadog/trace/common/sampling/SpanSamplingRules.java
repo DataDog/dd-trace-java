@@ -108,10 +108,10 @@ public class SpanSamplingRules {
     }
 
     /**
-     * Validate and create a {@link Rule} from its {@link JsonRule} representation.
+     * Validate and create a {@link Rule} from its {@code JsonRule} representation.
      *
-     * @param jsonRule The {@link JsonRule} to validate.
-     * @return A {@link Rule} if the {@link JsonRule} is valid, {@code null} otherwise.
+     * @param jsonRule The {@code JsonRule} to validate.
+     * @return A {@link Rule} if the {@code JsonRule} is valid, {@code null} otherwise.
      */
     public static Rule create(JsonRule jsonRule) {
       String service = SamplingRule.normalizeGlob(jsonRule.service);

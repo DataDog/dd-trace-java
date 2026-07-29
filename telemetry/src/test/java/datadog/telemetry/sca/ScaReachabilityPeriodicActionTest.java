@@ -476,6 +476,80 @@ class ScaReachabilityPeriodicActionTest {
   }
 
   /**
+   * Regression test for the multi-classloader re-detection bug.
+   *
+   * <p>{@link DependencyService} can report the same JAR on consecutive heartbeats when it
+   * discovers it from multiple classloaders in the same application. The CVE hit must be emitted
+   * exactly once — on the heartbeat where the CVE state is pending or first detected via {@code
+   * peekSnapshot}. Re-detections of the same JAR with no new CVE activity must produce no emission.
+   *
+   * <p>Without the fix, Step 2 called {@code peekSnapshot} unconditionally when {@code
+   * snapshotByKey} had no entry, causing the hit to be re-emitted on every subsequent heartbeat
+   * where {@code DependencyService} reported the JAR again (e.g. from a different classloader).
+   */
+  @Test
+  void depReDetectedByDependencyService_hitNotReEmittedOnSubsequentDetection() {
+    DependencyService svc = mock(DependencyService.class);
+    Dependency dep = new Dependency("com.example:lib", "1.0.0", "lib.jar", "HASH");
+    // Same dep returned on both heartbeats (simulates multiple classloaders detecting the same JAR)
+    when(svc.drainDeterminedDependencies())
+        .thenReturn(Collections.singletonList(dep)) // HB1: first detection
+        .thenReturn(Collections.singletonList(dep)); // HB2: re-detected from another classloader
+    ScaReachabilityPeriodicAction merged = new ScaReachabilityPeriodicAction(svc);
+
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("com.example:lib", "1.0.0", "GHSA-dup");
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "com.example:lib", "1.0.0", "GHSA-dup", "com.app.Ctrl", "handle", 10);
+
+    // HB1: first detection, CVE is pending → emit merged entry with hit
+    merged.doIteration(telService);
+    ArgumentCaptor<Dependency> captor1 = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor1.capture());
+    assertTrue(
+        captor1.getValue().reachabilityMetadata.get(0).contains("\"path\""),
+        "HB1 must include the callsite hit");
+    reset(telService);
+
+    // HB2: same JAR re-detected, no new CVE activity → must NOT re-emit the hit
+    merged.doIteration(telService);
+    verify(telService, never()).addDependency(any());
+  }
+
+  /**
+   * Companion to {@link #depReDetectedByDependencyService_hitNotReEmittedOnSubsequentDetection}:
+   * verifies that a REAL new CVE state change (hit arriving between heartbeats) is still emitted
+   * correctly even when DependencyService also reports the dep again on the same heartbeat.
+   */
+  @Test
+  void depReDetectedWithNewHit_emitsOnceWithNewHit() {
+    DependencyService svc = mock(DependencyService.class);
+    Dependency dep = new Dependency("com.example:lib", "1.0.0", "lib.jar", "HASH");
+    when(svc.drainDeterminedDependencies())
+        .thenReturn(Collections.singletonList(dep)) // HB1
+        .thenReturn(Collections.singletonList(dep)); // HB2
+    ScaReachabilityPeriodicAction merged = new ScaReachabilityPeriodicAction(svc);
+
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("com.example:lib", "1.0.0", "GHSA-new");
+
+    // HB1: first detection, CVE pending with reached:[] → emitted once
+    merged.doIteration(telService);
+    verify(telService, times(1)).addDependency(any());
+    reset(telService);
+
+    // Hit recorded between HB1 and HB2
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "com.example:lib", "1.0.0", "GHSA-new", "com.app.Svc", "exec", 7);
+
+    // HB2: re-detection AND new hit pending (snapshotByKey has the entry) → emit once with hit
+    merged.doIteration(telService);
+    ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor.capture());
+    assertTrue(
+        captor.getValue().reachabilityMetadata.get(0).contains("\"path\""),
+        "HB2 must include the new callsite hit");
+  }
+
+  /**
    * Dep and CVE arrive simultaneously (same heartbeat) — existing Step 2 merge path. This existing
    * behavior must still work after the knownDeps refactor.
    */
@@ -494,5 +568,107 @@ class ScaReachabilityPeriodicActionTest {
     Dependency emitted = captor.getValue();
     assertEquals("lib.jar", emitted.source, "Step 2 merge must preserve source");
     assertTrue(emitted.reachabilityMetadata.get(0).contains("GHSA-simultaneous"));
+  }
+
+  /**
+   * Regression test for the registry key mismatch for JARs without pom.properties (PR #11614).
+   *
+   * <p>For JARs without {@code pom.properties}, {@code DependencyResolver.guessFallbackNoPom}
+   * produces an artifact-ID-only name (e.g. {@code "junrar"} instead of {@code
+   * "com.github.junrar:junrar"}). The transformer must register the CVE under the same name so that
+   * the registry key matches what {@code DependencyService} will report.
+   *
+   * <p>Without the fix, {@code registerCve} was called with {@code entry.artifact()} = {@code
+   * "com.github.junrar:junrar"}, while {@code DependencyService} reported {@code dep.name} = {@code
+   * "junrar"}. The result: two separate telemetry entries for the same physical JAR — one with
+   * {@code metadata:[]} (from Step 2, carrying source/hash but no CVE) and one with the CVE
+   * metadata (from Step 3, without source/hash).
+   *
+   * <p>With the fix, the transformer uses the resolved {@code dep.name} from {@code matchDep} (i.e.
+   * {@code "junrar"}) for {@code registerCve}, so the registry and {@code DependencyService} keys
+   * match. Step 2 merges them into a single emission with both the CVE metadata and source/hash.
+   */
+  @Test
+  void noPomJar_artifactIdOnlyName_cveAndSourceHashMergedIntoSingleEntry() {
+    // Simulates what ScaReachabilityTransformer.processClass() now does after the fix:
+    // registerCve with the artifactId-only name that DependencyService will also report.
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("junrar", "7.5.5", "GHSA-hf5p-test");
+
+    // DependencyService returns the dep with the same artifactId-only name (guessFallbackNoPom).
+    Dependency incoming = new Dependency("junrar", "7.5.5", "junrar-7.5.5.jar", "CAFEBABE");
+    ScaReachabilityPeriodicAction merged = actionWithDeps(incoming);
+
+    merged.doIteration(telService);
+
+    // Must produce exactly ONE emission with BOTH the CVE metadata AND source/hash — not two
+    // separate entries (one with CVE but no source/hash, one with source/hash but no CVE).
+    ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor.capture());
+    Dependency emitted = captor.getValue();
+    assertEquals(
+        "junrar", emitted.name, "name must be the artifactId-only name from DependencyService");
+    assertEquals("7.5.5", emitted.version);
+    assertEquals(
+        "junrar-7.5.5.jar", emitted.source, "source/hash from DependencyService must be preserved");
+    assertEquals("CAFEBABE", emitted.hash, "hash from DependencyService must be preserved");
+    assertFalse(
+        emitted.reachabilityMetadata.isEmpty(),
+        "CVE metadata must NOT be lost — a single merged entry must carry both CVE data and source/hash");
+    assertTrue(emitted.reachabilityMetadata.get(0).contains("GHSA-hf5p-test"));
+  }
+
+  /**
+   * Same physical copy (identical source/hash) re-detected on a later heartbeat must NOT be
+   * re-emitted — the backend already received it. Mirrors a Spring Boot {@code
+   * LaunchedURLClassLoader} reporting the same nested JAR (same URI) again.
+   */
+  @Test
+  void sameSourceHashReDetected_doesNotReEmit() {
+    DependencyService svc = mock(DependencyService.class);
+    Dependency dep = new Dependency("com.example:lib", "1.0", "lib.jar", "AABB");
+    when(svc.drainDeterminedDependencies())
+        .thenReturn(Collections.singletonList(dep)) // HB1: first detection
+        .thenReturn(Collections.singletonList(dep)); // HB2: same physical copy re-detected
+    ScaReachabilityPeriodicAction merged = new ScaReachabilityPeriodicAction(svc);
+
+    // HB1: first detection → emits metadata:[] (SCA monitoring signal)
+    merged.doIteration(telService);
+    verify(telService, times(1)).addDependency(any(Dependency.class));
+    reset(telService);
+
+    // HB2: same source/hash → backend already knows it → no emission
+    merged.doIteration(telService);
+    verify(telService, never()).addDependency(any());
+  }
+
+  /**
+   * Two physical copies of the same {@code name@version} but with different source/hash (e.g. two
+   * Tomcat webapps each shipping their own copy of the artifact) must BOTH be emitted, matching the
+   * legacy {@code DependencyPeriodicAction} behavior.
+   */
+  @Test
+  void differentSourceHashSameKey_emitsBothPhysicalCopies() {
+    DependencyService svc = mock(DependencyService.class);
+    Dependency copy1 = new Dependency("com.example:lib", "1.0", "/app1/lib.jar", "AABB");
+    Dependency copy2 = new Dependency("com.example:lib", "1.0", "/app2/lib.jar", "CCDD");
+    when(svc.drainDeterminedDependencies())
+        .thenReturn(Collections.singletonList(copy1)) // HB1: first physical copy
+        .thenReturn(Collections.singletonList(copy2)); // HB2: distinct physical copy
+    ScaReachabilityPeriodicAction merged = new ScaReachabilityPeriodicAction(svc);
+
+    // HB1: first copy → emitted
+    merged.doIteration(telService);
+    ArgumentCaptor<Dependency> captor1 = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor1.capture());
+    assertEquals("/app1/lib.jar", captor1.getValue().source);
+    assertEquals("AABB", captor1.getValue().hash);
+    reset(telService);
+
+    // HB2: different source/hash → new physical copy → also emitted
+    merged.doIteration(telService);
+    ArgumentCaptor<Dependency> captor2 = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor2.capture());
+    assertEquals("/app2/lib.jar", captor2.getValue().source);
+    assertEquals("CCDD", captor2.getValue().hash);
   }
 }

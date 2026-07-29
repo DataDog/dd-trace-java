@@ -7,6 +7,7 @@ import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.taint.TaintedObjects;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.RequestContext;
@@ -61,7 +62,7 @@ public class Reporter {
     }
     if (span == null) {
       final AgentSpan newSpan = startNewSpan();
-      try (final AgentScope autoClosed = tracer().activateManualSpan(newSpan)) {
+      try (final ContextScope autoClosed = tracer().activateManualSpan(newSpan)) {
         vulnerability.updateSpan(newSpan);
         reportVulnerability(newSpan, vulnerability);
       } finally {

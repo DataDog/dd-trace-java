@@ -1,12 +1,12 @@
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
+import datadog.context.ContextContinuation
 import datadog.trace.agent.test.InstrumentationSpecification
-import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import io.servicetalk.concurrent.api.AsyncContext
 import io.servicetalk.concurrent.api.CapturedContext
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class ContextPreservingInstrumentationTest extends InstrumentationSpecification {
 
@@ -150,10 +150,10 @@ class ContextPreservingInstrumentationTest extends InstrumentationSpecification 
    */
   private class ParentContext {
     final CapturedContext capturedContext = asyncContextProvider.captureContext()
-    final AgentScope.Continuation spanContinuation = AgentTracer.captureActiveSpan()
+    final ContextContinuation spanContinuation = AgentTracer.captureActiveSpan()
 
     def releaseParentSpan() {
-      spanContinuation.cancel()
+      spanContinuation.release()
     }
   }
 

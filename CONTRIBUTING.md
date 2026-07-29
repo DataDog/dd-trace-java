@@ -63,6 +63,16 @@ For IntelliJ IDEA, we suggest the following settings and plugin.
 * To run test in a specific JDK use the `testJvm` property, e.g. `-PtestJvm=11`
 * Install the [Google Java Format](https://plugins.jetbrains.com/plugin/8527-google-java-format) plugin
 
+### Static imports
+
+Prefer static imports over class-qualified calls for call-style helpers — JUnit `Assertions`, Mockito (`mock`,
+`when`, `verify`, `anyString`, `RETURNS_DEFAULTS`, ...), Hamcrest/AssertJ matchers, internal test DSLs, and similar.
+
+Same goes for production code: `Collections.emptyList()` is fine, but if you find yourself repeatedly writing
+`Foo.bar(...)` where `Foo` adds no information at the call site, static-import `bar`.
+
+Wildcard imports (`import x.*` or `import static x.*`) are disallowed — see the IntelliJ IDEA settings above.
+
 ### Troubleshooting
 
 * Gradle fails with a "too many open files" error.
@@ -118,7 +128,7 @@ Both pull requests and issues should be labelled with at least a component or an
 
 Labels are used to not only categorize but also alter the continuous integration behavior:
 
-* `tag: no release note` to exclude a pull request from the next release changelog. Use it when changes are not relevant to the users like:
+* `tag: no release notes` to exclude a pull request from the next release changelog. Use it when changes are not relevant to the users like:
   * Internal features changes
   * Refactoring pull requests
   * CI and build tools improvements
@@ -129,6 +139,21 @@ Labels are used to not only categorize but also alter the continuous integration
 >[!NOTE]
 > For reference, the [full list of all labels available](https://github.com/DataDog/dd-trace-java/labels).
 > If you feel one is missing, let [the maintainer team](https://github.com/orgs/DataDog/teams/apm-java) know!
+
+### Merge Queue
+
+Pull requests are merged into the protected branches using [the Datadog GitLab merge queue system](https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/3121612126/MergeQueue).
+Once approved, pull requests can be added to merge queue using the `Merge when ready` button at the bottom of the page, or by commenting `/merge`.
+The merge queue will run more tests than the pull request checks, meaning having test failures on merge queue while having pull request checks passing is an expected behavior - the pull request checks are lighter to provide quick feedback during development iterations.
+
+By default, the merge commit message uses the pull request title as its subject and the squashed pull request commit messages as its body.
+A custom commit message can be specified by commenting `/merge --commit-message "custom message"`.
+
+Pull requests can be force-merged by commenting: `/merge -f --reason "reason"`.
+
+>[!WARNING]
+> By-passing merge queue will effectively merge pull request content without running all continuous integration tests and checks.
+> Only by-pass the merge queue to fix the build or help restore the continuous integration status.
 
 ## Pull request reviews
 

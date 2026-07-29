@@ -30,7 +30,7 @@ tasks.named("jar", Jar) {
 }
 
 tasks.named("shadowJar", ShadowJar) {
-  configurations = [project.configurations.runtimeClasspath]
+  configurations.add(project.configurations.named('runtimeClasspath'))
 }
 
 dependencies {

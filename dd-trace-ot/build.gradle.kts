@@ -3,7 +3,7 @@ import groovy.lang.Closure
 plugins {
   id("com.gradleup.shadow")
   id("dd-trace-java.module.distributable.api")
-  id("me.champeau.jmh")
+  id("dd-trace-java.jmh-conventions")
 }
 
 description = "dd-trace-ot"
@@ -61,11 +61,14 @@ dependencies {
   implementation(project(":dd-trace-ot:correlation-id-injection"))
 
   testImplementation(project(":dd-java-agent:testing"))
-  testImplementation(project(":utils:junit-utils"))
+  testImplementation(project(":utils:test-junit-utils"))
+  testImplementation(project(":utils:test-junit-converter-utils"))
   testImplementation(libs.bundles.mockito)
 
-  add("ot31CompatibilityTestImplementation", project(":utils:junit-utils"))
-  add("ot33CompatibilityTestImplementation", project(":utils:junit-utils"))
+  add("ot31CompatibilityTestImplementation", project(":utils:test-junit-utils"))
+  add("ot31CompatibilityTestImplementation", project(":utils:test-junit-converter-utils"))
+  add("ot33CompatibilityTestImplementation", project(":utils:test-junit-utils"))
+  add("ot33CompatibilityTestImplementation", project(":utils:test-junit-converter-utils"))
 
   // Kotlin accessors not generated if not coming from plugin
   add("ot33CompatibilityTestImplementation", "io.opentracing:opentracing-api") {
@@ -116,12 +119,12 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
   dependencies {
     // direct dependencies
     exclude(project(":dd-trace-api"))
-    exclude(dependency("io.opentracing:"))
-    exclude(dependency("io.opentracing.contrib:"))
-    exclude(dependency("org.slf4j:"))
-    exclude(dependency("com.github.jnr:"))
+    exclude(dependency("io.opentracing:.*:.*"))
+    exclude(dependency("io.opentracing.contrib:.*:.*"))
+    exclude(dependency("org.slf4j:.*:.*"))
+    exclude(dependency("com.github.jnr:.*:.*"))
     // indirect dependency of JNR, no need to embed
-    exclude(dependency("org.ow2.asm:"))
+    exclude(dependency("org.ow2.asm:.*:.*"))
   }
 
   relocate("com.", "ddtrot.com.") {

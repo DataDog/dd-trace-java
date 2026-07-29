@@ -1199,6 +1199,20 @@ public class DDSpanContext
         consumer, longRunningVersion, restrictedSpan, injectLinksAsTags, injectBaggageAsTags);
   }
 
+  /**
+   * Serialize span links as first-class structured data rather than tags. While baggage tag
+   * injection keeps following the tracer configuration.
+   */
+  void processTagsAndBaggageWithStructuredLinks(
+      final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
+    processTagsAndBaggage(
+        consumer,
+        longRunningVersion,
+        restrictedSpan,
+        false, // injectLinksAsTags
+        injectBaggageAsTags);
+  }
+
   void processTagsAndBaggage(
       final MetadataConsumer consumer,
       int longRunningVersion,

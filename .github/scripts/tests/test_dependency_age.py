@@ -1,3 +1,6 @@
+import argparse
+import contextlib
+import io
 import json
 import os
 import re
@@ -6,7 +9,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
+from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = REPO_ROOT / ".github/scripts/dependency_age.py"
@@ -468,6 +473,24 @@ class DependencyAgeScriptTest(unittest.TestCase):
         updated_block = summary[updated_idx:]
         self.assertIn("com.example:update-lib:4.0.0", updated_block)
         self.assertIn("updated to `3.9.0`", updated_block)
+
+    def test_highest_baseline_version_picks_newest_of_coexisting_pins(self) -> None:
+        # A single lockfile can pin the same artifact at several versions (one per Gradle
+        # configuration). The baseline should be the newest so that only versions higher than
+        # the highest existing version are considered upgrades.
+        baseline_coords = {
+            "ch.qos.logback:logback-core:1.1.11",
+            "ch.qos.logback:logback-core:1.2.13",
+            "ch.qos.logback:logback-core:1.5.34",
+            "com.example:unrelated:9.9.9",
+        }
+        self.assertEqual(
+            dependency_age.highest_baseline_version(baseline_coords, "ch.qos.logback", "logback-core"),
+            "1.5.34",
+        )
+        self.assertIsNone(
+            dependency_age.highest_baseline_version(baseline_coords, "ch.qos.logback", "logback-classic")
+        )
 
     def test_summary_omits_empty_sections(self) -> None:
         # only too-new violations -> only the "reverted" section should appear

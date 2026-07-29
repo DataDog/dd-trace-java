@@ -16,9 +16,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.core.DDCoreJavaSpecification;
-import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
-import datadog.trace.junit.utils.converter.ProductTraceSourceConverter;
-import datadog.trace.junit.utils.converter.SamplingMechanismConverter;
+import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
+import datadog.trace.test.junit.utils.converter.ProductTraceSourceConverter;
+import datadog.trace.test.junit.utils.converter.SamplingMechanismConverter;
 import java.util.Map;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;

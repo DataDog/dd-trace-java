@@ -439,7 +439,7 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
             elif published_at > cutoff:
                 hours_remaining = int((published_at - cutoff).total_seconds() / 3600) + 1
                 group_id, artifact_id, version = gav.split(":", 2)
-                baseline_version = next((c[len(f"{group_id}:{artifact_id}:"):] for c in baseline_coords if c.startswith(f"{group_id}:{artifact_id}:")), None)
+                baseline_version = highest_baseline_version(baseline_coords, group_id, artifact_id)
                 eligible = find_eligible_version(
                     group_id=group_id, artifact_id=artifact_id,
                     too_new_version=version, baseline_version=baseline_version,
@@ -676,6 +676,15 @@ def fetch_available_versions(group_id: str, artifact_id: str, repo_urls: list[st
         except (urllib.error.URLError, ET.ParseError, TimeoutError, OSError):
             continue
     return []
+
+
+# select the highest baseline version of group:artifact present in a lockfile.
+def highest_baseline_version(baseline_coords: set[str], group_id: str, artifact_id: str) -> str | None:
+    prefix = f"{group_id}:{artifact_id}:"
+    versions = [coord[len(prefix):] for coord in baseline_coords if coord.startswith(prefix)]
+    if not versions:
+        return None
+    return max(versions, key=_version_sort_key)
 
 
 # for a too-new coordinate, walk backward through available versions to find the newest one

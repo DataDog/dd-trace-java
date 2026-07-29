@@ -3,7 +3,7 @@ import net.ltgt.gradle.errorprone.CheckSeverity
 
 plugins {
   id 'com.gradleup.shadow'
-  id 'me.champeau.jmh'
+  id 'dd-trace-java.jmh-conventions'
   id 'com.google.protobuf' version '0.10.0'
   id 'net.ltgt.errorprone' version '3.1.0'
   id 'dd-trace-java.version-file'
@@ -50,7 +50,6 @@ dependencies {
   testImplementation project(':dd-java-agent:agent-bootstrap')
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
   testImplementation(libs.bytebuddy)
-  testImplementation(libs.guava)
 
   testImplementation(libs.groovy.yaml)
 

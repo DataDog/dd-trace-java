@@ -1,14 +1,12 @@
 package com.datadog.appsec.sca;
 
-import javax.annotation.Nullable;
-
-/** A single symbol from sca_cves.json: a class (and optionally a method) to watch for. */
+/** A single method-level symbol from sca_cves.json: a class and method to watch for. */
 public final class ScaSymbol {
 
   private final String className; // JVM internal format: "com/foo/Bar"
-  @Nullable private final String method; // null = class-level; non-null = future method-level
+  private final String method;
 
-  public ScaSymbol(String className, @Nullable String method) {
+  public ScaSymbol(String className, String method) {
     this.className = className;
     this.method = method;
   }
@@ -18,16 +16,8 @@ public final class ScaSymbol {
     return className;
   }
 
-  /**
-   * Method name for method-level tracking, or null for class-level. Currently always null since the
-   * database only has class-level symbols.
-   */
-  @Nullable
+  /** Method name for method-level tracking, e.g. {@code "readValue"}. */
   public String method() {
     return method;
-  }
-
-  public boolean isClassLevel() {
-    return method == null;
   }
 }

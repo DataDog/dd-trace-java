@@ -294,6 +294,34 @@ public class StableConfigSourceTest extends DDJavaSpecification {
     }
   }
 
+  @Test
+  void testStableConfigGetHandlesPresentAndMissingKeys() {
+    Map<String, Object> configMap = new HashMap<>();
+    configMap.put("DD_SERVICE", "test-service");
+    configMap.put("DD_PORT", 8126);
+
+    StableConfigSource.StableConfig config =
+        new StableConfigSource.StableConfig("config-123", configMap);
+
+    // Present String value: hits the non-null branch of the ternary in get()
+    assertEquals("test-service", config.get("DD_SERVICE"));
+    // Present non-String value: exercises String.valueOf on a non-null, non-String object
+    assertEquals("8126", config.get("DD_PORT"));
+    // Missing key: hits the null branch of the ternary in get()
+    assertNull(config.get("DD_MISSING"));
+
+    assertEquals("config-123", config.getConfigId());
+    assertEquals(configMap.keySet(), config.getKeys());
+  }
+
+  @Test
+  void testStableConfigEmpty() {
+    StableConfigSource.StableConfig empty = StableConfigSource.StableConfig.EMPTY;
+    assertNull(empty.get("DD_SERVICE"));
+    assertNull(empty.getConfigId());
+    assertEquals(0, empty.getKeys().size());
+  }
+
   private static void writeFileYaml(
       Path filePath, String configId, Map<String, String> defaultConfigs) throws IOException {
     Map<String, Object> yamlData = new HashMap<>();

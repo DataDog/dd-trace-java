@@ -4,78 +4,90 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 
 /**
- * Parses GHSA enrichment JSON files from the sca-reachability-database into the internal
+ * Parses GHSA symbol JSON files from the sca-reachability-symbols repository into the internal
  * sca_cves.json format consumed by SCA Reachability at runtime.
  *
  * Key transformations:
- * - Filters entries to JVM language only
- * - Expands multi-package GHSA entries into N records (one per Maven artifact), because
- *   each artifact may have different version ranges for the same set of class symbols
+ * - Filters entries to Maven ecosystem only (lang == "maven")
+ * - Each array entry maps 1:1 to one sca_cves.json record (one dependency_name per entry)
+ * - Parses target strings "package:ClassName.method" using lastIndexOf to split at the colon
+ *   and lastIndexOf on the class+method part to split class from method
  * - Converts class FQNs to JVM internal format (slashes) so the ClassFileTransformer
- *   can do O(1) map lookups without per-class string conversion
- * - Sets method=null for all symbols — field exists for forward compatibility when the
- *   database adds method-level symbols in the future (see APPSEC-62260)
+ *   can do O(1) map lookups without per-class string conversion at runtime
  */
 object GhsaEnrichmentParser {
 
   private val mapper = ObjectMapper()
 
   /**
-   * Parses a single GHSA enrichment file.
+   * Parses a single GHSA symbols file.
    *
-   * @param ghsaId the GHSA identifier (e.g. "GHSA-645p-88qh-w398"), used as vuln_id
-   * @param jsonContent the raw JSON content of the enrichment file
+   * @param jsonContent the raw JSON content of the symbols file
    * @return list of sca_cves.json entry maps, one per affected Maven artifact
    */
-  fun parse(ghsaId: String, jsonContent: String): List<Map<String, Any?>> {
+  fun parse(jsonContent: String): List<Map<String, Any?>> {
     val root = mapper.readTree(jsonContent)
-    require(root.isArray) { "GHSA enrichment file $ghsaId must be a JSON array, got ${root.nodeType}" }
+    require(root.isArray) { "GHSA enrichment file must be a JSON array, got ${root.nodeType}" }
 
     val entries = mutableListOf<Map<String, Any?>>()
 
     for (entry in root) {
-      if (entry.path("language").asText() != "jvm") continue
+      if (entry.path("lang").asText() != "maven") continue
 
-      val symbols = extractSymbols(entry)
+      val ghsaId =
+          entry.path("vulnerability").path("id").asText().takeIf { it.isNotEmpty() } ?: continue
+      val artifact = entry.path("dependency_name").asText().takeIf { it.isNotEmpty() } ?: continue
+      val versionRanges = entry.path("package_versions").map { it.asText() }
+
+      val symbols = extractTargets(entry)
       if (symbols.isEmpty()) continue
 
-      for (pkg in entry.path("package")) {
-        if (pkg.path("ecosystem").asText() != "maven") continue
-        val artifact = pkg.path("name").asText().takeIf { it.isNotEmpty() } ?: continue
-        val versionRanges = pkg.path("version_range").map { it.asText() }
-
-        entries += mapOf(
-          "vuln_id" to ghsaId,
-          "artifact" to artifact,
-          "version_ranges" to versionRanges,
-          "symbols" to symbols,
-        )
-      }
+      entries +=
+          mapOf(
+              "vuln_id" to ghsaId,
+              "artifact" to artifact,
+              "version_ranges" to versionRanges,
+              "symbols" to symbols,
+          )
     }
 
     return entries
   }
 
-  private fun extractSymbols(entry: JsonNode): List<Map<String, Any?>> {
+  /**
+   * Parses the targets array from a GHSA entry.
+   *
+   * Each target string has the format "package:ClassName.method". Parsing uses
+   * lastIndexOf(':') to split package from class+method, then lastIndexOf('.') on the
+   * class+method part to split class name from method name. Malformed targets (missing ':'
+   * or missing '.' after ':') are silently skipped.
+   *
+   * Targets within one entry may come from different packages; no assumption is made that
+   * all targets share a common package prefix.
+   *
+   * TODO(APPSEC-62260): if the database adds inner-class targets (e.g. "pkg:Outer.Inner.method"),
+   * the current replace('.', '/') will produce pkg/Outer/Inner instead of the correct
+   * pkg/Outer$Inner. Update when the database team defines the inner-class format.
+   */
+  private fun extractTargets(entry: JsonNode): List<Map<String, Any?>> {
     val symbols = mutableListOf<Map<String, Any?>>()
-    val imports = entry.path("ecosystem_specific").path("imports")
-    if (imports.isMissingNode || !imports.isArray) return symbols
+    val targets = entry.path("targets")
+    if (targets.isMissingNode || !targets.isArray) return symbols
 
-    for (importGroup in imports) {
-      for (symbol in importGroup.path("symbols")) {
-        if (symbol.path("type").asText() != "class") continue
-        val pkg = symbol.path("value").asText().takeIf { it.isNotEmpty() } ?: continue
-        val name = symbol.path("name").asText().takeIf { it.isNotEmpty() } ?: continue
+    for (target in targets) {
+      val t = target.asText().takeIf { it.isNotEmpty() } ?: continue
+      val colonIdx = t.lastIndexOf(':')
+      if (colonIdx < 0) continue
+      val pkg = t.substring(0, colonIdx)
+      val classAndMethod = t.substring(colonIdx + 1)
+      val dotIdx = classAndMethod.lastIndexOf('.')
+      if (dotIdx < 0) continue
+      val simpleClass = classAndMethod.substring(0, dotIdx)
+      val method = classAndMethod.substring(dotIdx + 1)
+      if (pkg.isEmpty() || simpleClass.isEmpty() || method.isEmpty()) continue
 
-        // JVM internal format (slashes) — avoids per-class conversion in the
-        // ClassFileTransformer hot path at runtime.
-        // TODO(APPSEC-62260): verify inner-class format when database adds method-level symbols.
-        // If GHSA uses dot notation for inner classes (e.g. name="Outer.Inner"), the replace below
-        // produces com/example/Outer/Inner instead of the correct com/example/Outer$Inner.
-        // When the database team defines the format, update this to handle the $ separator.
-        val internalName = "$pkg.$name".replace('.', '/')
-        symbols += mapOf("class" to internalName, "method" to null)
-      }
+      val internalName = "$pkg.$simpleClass".replace('.', '/')
+      symbols += mapOf("class" to internalName, "method" to method)
     }
 
     return symbols

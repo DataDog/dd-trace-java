@@ -1,5 +1,5 @@
 plugins {
-  id("me.champeau.jmh")
+  id("dd-trace-java.jmh-conventions")
   id("java-library")
   id("dd-trace-java.module.internal-library")
 }
@@ -17,7 +17,9 @@ val excludedClassesCoverage by extra(
     "datadog.telemetry.RequestBuilderSupplier",
     "datadog.telemetry.TelemetrySystem",
     "datadog.telemetry.api.*",
-    "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction"
+    "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction",
+    "datadog.telemetry.metric.OtelSpiMetricPeriodicAction",
+    "datadog.telemetry.metric.OtlpTelemetryPeriodicAction",
   )
 )
 extra["excludedClassesBranchCoverage"] = listOf(

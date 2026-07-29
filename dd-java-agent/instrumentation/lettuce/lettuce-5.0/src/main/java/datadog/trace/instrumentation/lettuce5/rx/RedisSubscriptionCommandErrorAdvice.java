@@ -9,7 +9,7 @@ import io.lettuce.core.protocol.RedisCommand;
 import net.bytebuddy.asm.Advice;
 
 public class RedisSubscriptionCommandErrorAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterError(
       @Advice.This RedisCommand command, @Advice.Argument(value = 0) Throwable throwable) {
 

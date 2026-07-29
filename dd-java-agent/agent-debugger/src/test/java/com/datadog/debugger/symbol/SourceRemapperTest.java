@@ -30,4 +30,15 @@ class SourceRemapperTest {
     assertTrue(sourceRemapper instanceof SourceRemapper.KotlinSourceRemapper);
     assertEquals(24, sourceRemapper.remapSourceLine(42));
   }
+
+  @Test
+  public void noKotlinDebug() {
+    SourceMap sourceMapMock = mock(SourceMap.class);
+    when(sourceMapMock.getDefaultStratumName()).thenReturn("Main");
+    StratumExt stratumMainMock = mock(StratumExt.class);
+    when(sourceMapMock.getStratum(eq("Kotlin"))).thenReturn(stratumMainMock);
+    when(sourceMapMock.getStratum(eq("KotlinDebug"))).thenReturn(null);
+    SourceRemapper sourceRemapper = SourceRemapper.getSourceRemapper("foo.kt", sourceMapMock);
+    assertNotNull(sourceRemapper);
+  }
 }

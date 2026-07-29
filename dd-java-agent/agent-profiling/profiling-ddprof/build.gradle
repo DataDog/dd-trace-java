@@ -1,6 +1,7 @@
 plugins {
   id 'com.gradleup.shadow'
   id 'dd-trace-java.module.internal-library'
+  id 'dd-trace-java.jmh-conventions'
   id 'idea'
 }
 
@@ -39,6 +40,19 @@ dependencies {
   testImplementation libs.bundles.junit5
 }
 
+
+jmh {
+  jmhVersion = libs.versions.jmh.get()
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  failOnError = false
+  forceGC = true
+  if (project.hasProperty('jmhIncludes')) {
+    includes = [project.jmhIncludes]
+  }
+  if (project.hasProperty('jmhProf')) {
+    profilers = [project.jmhProf]
+  }
+}
 
 configurations.configureEach {
   resolutionStrategy.cacheChangingModulesFor 0, 'seconds'

@@ -178,7 +178,9 @@ def generateTestingJar(String interfaceName, String backend, List<NamedDomainObj
 
     archiveBaseName.set(name)
 
-    configurations = [project.configurations.named('runtimeClasspath').get()] + configurationProviders.collect { it.get() }
+    configurations = providers.provider {
+      [project.configurations.named('runtimeClasspath').get()] + configurationProviders.collect { it.get() }
+    }
   }
 }
 
@@ -391,5 +393,4 @@ tasks.withType(Test).configureEach {
     .orElse(Math.max(1, (Runtime.runtime.availableProcessors() / 2).toInteger()))
     .get()
 }
-
 

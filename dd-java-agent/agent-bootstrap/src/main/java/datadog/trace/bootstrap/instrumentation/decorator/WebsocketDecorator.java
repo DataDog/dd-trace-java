@@ -15,6 +15,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -26,8 +27,12 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class WebsocketDecorator extends BaseDecorator {
+  private static final Logger log = LoggerFactory.getLogger(WebsocketDecorator.class);
+
   private static final CharSequence WEBSOCKET = UTF8BytesString.create("websocket");
   private static final String[] INSTRUMENTATION_NAMES = {WEBSOCKET.toString()};
   private static final CharSequence WEBSOCKET_RECEIVE = UTF8BytesString.create("websocket.receive");
@@ -57,12 +62,13 @@ public class WebsocketDecorator extends BaseDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(AgentSpan span) {
-    return super.afterStart(span).setMeasured(true);
+  protected void doAfterStart(@Nonnull AgentSpan span) {
+    super.doAfterStart(span);
+    span.setMeasured(true);
   }
 
   @Nonnull
-  public AgentSpan onReceiveFrameStart(
+  public AgentSpan startInboundFrameSpan(
       final HandlerContext.Receiver handlerContext, final Object data, boolean partialDelivery) {
     handlerContext.recordChunkData(data, partialDelivery);
     return onFrameStart(
@@ -70,7 +76,7 @@ public class WebsocketDecorator extends BaseDecorator {
   }
 
   @Nonnull
-  public AgentSpan onSessionCloseIssued(
+  public AgentSpan startOutboundCloseSpan(
       final HandlerContext.Sender handlerContext, CharSequence closeReason, int closeCode) {
     return onFrameStart(
             WEBSOCKET_CLOSE, SPAN_KIND_PRODUCER, handlerContext, SPAN_ATTRIBUTES_SEND, false)
@@ -79,7 +85,7 @@ public class WebsocketDecorator extends BaseDecorator {
   }
 
   @Nonnull
-  public AgentSpan onSessionCloseReceived(
+  public AgentSpan startInboundCloseSpan(
       final HandlerContext.Receiver handlerContext, CharSequence closeReason, int closeCode) {
     return onFrameStart(
             WEBSOCKET_CLOSE, SPAN_KIND_CONSUMER, handlerContext, SPAN_ATTRIBUTES_RECEIVE, true)
@@ -88,14 +94,24 @@ public class WebsocketDecorator extends BaseDecorator {
   }
 
   @Nonnull
-  public AgentSpan onSendFrameStart(
+  public AgentSpan startOutboundFrameSpan(
       final HandlerContext.Sender handlerContext, final CharSequence msgType, final int msgSize) {
     handlerContext.recordChunkData(msgType, msgSize);
     return onFrameStart(
         WEBSOCKET_SEND, SPAN_KIND_PRODUCER, handlerContext, SPAN_ATTRIBUTES_SEND, false);
   }
 
-  public void onFrameEnd(final HandlerContext handlerContext) {
+  public final void onFrameEnd(final HandlerContext handlerContext) {
+    try {
+      doOnFrameEnd(handlerContext);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on frame end", t);
+    }
+  }
+
+  protected void doOnFrameEnd(final HandlerContext handlerContext) {
     if (handlerContext == null) {
       return;
     }
@@ -116,7 +132,8 @@ public class WebsocketDecorator extends BaseDecorator {
         wsSpan.setTag(WEBSOCKET_MESSAGE_LENGTH, handlerContext.getMsgSize());
         wsSpan.setTag(WEBSOCKET_MESSAGE_TYPE, handlerContext.getMessageType());
       }
-      (beforeFinish(wsSpan)).finish();
+      beforeFinish(wsSpan);
+      wsSpan.finish();
     } finally {
       handlerContext.reset();
     }

@@ -1,3 +1,0 @@
-plugins {
-  id 'dd-trace-java.module.instrumentation'
-}

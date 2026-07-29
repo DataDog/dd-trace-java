@@ -1,6 +1,6 @@
 plugins {
-  id("me.champeau.jmh")
   id("dd-trace-java.module.internal-platform-component")
+  id("dd-trace-java.jmh-conventions")
 }
 
 jmh {

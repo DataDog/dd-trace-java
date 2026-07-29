@@ -11,7 +11,9 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.http.OkHttpUtils;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
 import datadog.trace.api.aiguard.AIGuard.AIGuardClientError;
@@ -26,7 +28,6 @@ import datadog.trace.api.aiguard.Evaluator;
 import datadog.trace.api.aiguard.noop.NoOpEvaluator;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.telemetry.WafMetricCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
@@ -71,7 +72,7 @@ public class AIGuardInternal implements Evaluator {
   static final String ACTION_TAG = "ai_guard.action";
   static final String REASON_TAG = "ai_guard.reason";
   static final String BLOCKED_TAG = "ai_guard.blocked";
-  static final String EVENT_TAG = "ai_guard.event";
+
   static final String META_STRUCT_TAG = "ai_guard";
   static final String META_STRUCT_MESSAGES = "messages";
   static final String META_STRUCT_CATEGORIES = "attack_categories";
@@ -275,13 +276,14 @@ public class AIGuardInternal implements Evaluator {
     final AgentSpan localRootSpan = span.getLocalRootSpan();
     if (localRootSpan != null) {
       localRootSpan.setTag(Tags.AI_GUARD_KEEP, true);
-      localRootSpan.setTag(EVENT_TAG, true);
+      localRootSpan.setTag(Tags.AI_GUARD_EVENT, true);
+      localRootSpan.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD);
       applyClientIpTags(localRootSpan);
       // copyAnomalyDetectionTags MUST run after applyClientIpTags, to make
       // sure client IP tags were populated.
       copyAnomalyDetectionTags(span, localRootSpan);
     }
-    try (final AgentScope scope = tracer.activateSpan(span)) {
+    try (final ContextScope scope = tracer.activateSpan(span)) {
       final Message last = messages.get(messages.size() - 1);
       if (isToolCall(last)) {
         span.setTag(TARGET_TAG, "tool");
