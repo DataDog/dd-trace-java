@@ -307,7 +307,7 @@ class LightStringMapTest {
       assertFalse(EmbeddingSupport.remove(null, "x"));
       assertFalse(EmbeddingSupport.containsKey(null, "x"));
       assertFalse(EmbeddingSupport.containsValue(null, "x"));
-      assertEquals(EmbeddingSupport.NOT_FOUND, EmbeddingSupport.findSlot(null, "x"));
+      assertEquals(EmbeddingSupport.SLOT_NOT_FOUND, EmbeddingSupport.findSlot(null, "x"));
     }
 
     @Test
@@ -406,9 +406,13 @@ class LightStringMapTest {
     }
 
     @Test
-    void findSlotMissReturnsMinusOneNotSentinel() {
+    void findSlotReportsSameMissSentinelForNullMapAndAbsentKey() {
+      // findSlot follows the String.indexOf idiom: every miss returns SLOT_NOT_FOUND, whether the
+      // map is null or simply lacks the key. The two cases must not diverge (they used to).
       Object[] data = EmbeddingSupport.set(8, null, "a", "A");
-      assertEquals(-1, EmbeddingSupport.findSlot(data, "absent"));
+      assertEquals(EmbeddingSupport.SLOT_NOT_FOUND, EmbeddingSupport.findSlot(data, "absent"));
+      assertEquals(EmbeddingSupport.SLOT_NOT_FOUND, EmbeddingSupport.findSlot(null, "absent"));
+      assertEquals(-1, EmbeddingSupport.SLOT_NOT_FOUND);
     }
 
     @Test
@@ -436,7 +440,8 @@ class LightStringMapTest {
 
     @Test
     void insertAtFromNullBuildsNewMap() {
-      Object[] data = EmbeddingSupport.insertAt(4, null, EmbeddingSupport.NO_SPACE, "a", "A");
+      Object[] data =
+          EmbeddingSupport.insertAt(4, null, EmbeddingSupport.SLOT_CAPACITY_REACHED, "a", "A");
       assertEquals("A", EmbeddingSupport.get(data, "a"));
     }
 

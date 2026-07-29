@@ -208,8 +208,8 @@ public final class LightStringMap<V> {
    * and the caller may ignore the return. An uncapped map always returns {@code true}.
    */
   public boolean set(@Nonnull String key, @Nonnull V value) {
-    Objects.requireNonNull(value, "value");
-
+    // Null-value rejection is enforced centrally in EmbeddingSupport.setOrReject (the shared insert
+    // core), so it holds for the spine entry points too -- not just this object-tier front door.
     // A thin delegate over the shared spine orchestration: it passes this map's cap (NO_MAX_SLOTS
     // when uncapped) and does the two things only the object tier can -- swap in the new backing
     // array and teach the sizing hint. A null result is the spine's non-fatal rejection signal.
@@ -352,8 +352,17 @@ public final class LightStringMap<V> {
   }
 
   public static final class EmbeddingSupport {
-    public static final int NOT_FOUND = Integer.MIN_VALUE;
-    static final int NO_SPACE = Integer.MIN_VALUE;
+    // findSlot is a pure lookup in the String.indexOf idiom: a non-negative slot on a hit, or this
+    // sentinel on any miss (null map or absent key).
+    public static final int SLOT_NOT_FOUND = -1;
+    // findInsertionSlot is a locate-or-reserve in the Arrays.binarySearch idiom, so its return
+    // lives
+    // in a different numeric space than findSlot's: a non-negative slot when the key is already
+    // present, a flip()-encoded free slot when it is absent, or this sentinel when the table is
+    // physically full. The two sentinels are deliberately named apart so a return from one method
+    // is
+    // never compared against the other's contract.
+    static final int SLOT_CAPACITY_REACHED = Integer.MIN_VALUE;
 
     // Grow trigger: an insertion that would land this many slots or more from its home slot forces
     // a resize, rather than waiting for the table to fill completely. This bounds the worst-case
@@ -542,6 +551,9 @@ public final class LightStringMap<V> {
         @Nullable Object[] mapData,
         @Nonnull String key,
         @Nonnull V value) {
+      // The map contract forbids null values (a null get() unambiguously means "absent"), so reject
+      // one here -- the single chokepoint every set path (object tier and spine) flows through.
+      Objects.requireNonNull(value, "value");
       if (mapData == null) {
         return newMapData(initialCapacity, key, value);
       }
@@ -557,7 +569,7 @@ public final class LightStringMap<V> {
         return mapData;
       }
 
-      if (slot == NO_SPACE) {
+      if (slot == SLOT_CAPACITY_REACHED) {
         // Physically full (no null and no reclaimable tombstone). We must grow to make room, unless
         // a finite cap blocks it -- then reject the new key (non-fatal, map unchanged).
         if (numSlots < maxSlots) {
@@ -616,7 +628,7 @@ public final class LightStringMap<V> {
     }
 
     public static <T> int findInsertionSlot(@Nullable Object[] mapData, @Nonnull String key) {
-      if (mapData == null) return NO_SPACE;
+      if (mapData == null) return SLOT_CAPACITY_REACHED;
 
       return findInsertionSlot(mapData, numSlots(mapData), key);
     }
@@ -628,11 +640,14 @@ public final class LightStringMap<V> {
         int insertionSlot,
         @Nonnull String key,
         @Nonnull Object value) {
+      // Same null-value invariant as setOrReject; insertAt is a separate spine write path that does
+      // not flow through it, so it needs its own guard.
+      Objects.requireNonNull(value, "value");
       if (mapData == null) {
         return newMapData(initialCapacity, key, value);
       }
 
-      if (insertionSlot == NO_SPACE) {
+      if (insertionSlot == SLOT_CAPACITY_REACHED) {
         mapData = expandMapData(mapData);
         newMapUncheckedInsert(mapData, numSlots(mapData), key, value);
       } else {
@@ -645,36 +660,44 @@ public final class LightStringMap<V> {
       return mapData;
     }
 
-    static final <T> int findInsertionSlot(Object[] mapData, int numSlots, String key) {
+    static final <T> int findInsertionSlot(
+        @Nonnull Object[] mapData, int numSlots, @Nonnull String key) {
       return findInsertionSlot(mapData, numSlots, key, preferredSlot(numSlots, key.hashCode()));
     }
 
     static final <T> int findInsertionSlot(
-        Object[] mapData, int numSlots, String key, int preferredSlot) {
-      int availableIndex = NO_SPACE;
+        @Nonnull Object[] mapData, int numSlots, @Nonnull String key, int preferredSlot) {
+      int availableIndex = SLOT_CAPACITY_REACHED;
       for (int keyIndex = preferredSlot; keyIndex < numSlots; ++keyIndex) {
         Object curKey = mapData[keyIndex];
         // A reclaimable tombstone seen earlier in the probe order beats this null: it is closer to
         // the home slot (shorter displacement, so less likely to trip the probe-bound grow) and
         // reusing it clears a tombstone. The key is confirmed absent either way (we reached a
         // null).
-        if (curKey == null) return (availableIndex != NO_SPACE) ? availableIndex : flip(keyIndex);
+        if (curKey == null)
+          return (availableIndex != SLOT_CAPACITY_REACHED) ? availableIndex : flip(keyIndex);
         if (curKey == key) return keyIndex;
         if (curKey == REMOVED) {
-          if (availableIndex == NO_SPACE) availableIndex = flip(keyIndex);
+          if (availableIndex == SLOT_CAPACITY_REACHED) availableIndex = flip(keyIndex);
         } else if (key.equals(curKey)) return keyIndex;
       }
       for (int keyIndex = 0; keyIndex < preferredSlot; ++keyIndex) {
         Object curKey = mapData[keyIndex];
-        if (curKey == null) return (availableIndex != NO_SPACE) ? availableIndex : flip(keyIndex);
+        if (curKey == null)
+          return (availableIndex != SLOT_CAPACITY_REACHED) ? availableIndex : flip(keyIndex);
         if (curKey == key) return keyIndex;
         if (curKey == REMOVED) {
-          if (availableIndex == NO_SPACE) availableIndex = flip(keyIndex);
+          if (availableIndex == SLOT_CAPACITY_REACHED) availableIndex = flip(keyIndex);
         } else if (key.equals(curKey)) return keyIndex;
       }
       return availableIndex;
     }
 
+    // Encodes a free slot index as a negative number so it is distinguishable from a "key present
+    // at this slot" hit (which is >= 0), letting one int carry both outcomes without an out-param.
+    // This is the same convention java.util.Arrays.binarySearch uses to return an insertion point:
+    // slot i maps to -i-1, so slot 0 (which cannot be negated to a distinct value) becomes -1.
+    // Self-inverse: flip(flip(i)) == i.
     static int flip(int keyIndex) {
       return -keyIndex - 1;
     }
@@ -700,12 +723,12 @@ public final class LightStringMap<V> {
     }
 
     public static final int findSlot(@Nullable Object[] mapData, @Nonnull String key) {
-      if (mapData == null) return NOT_FOUND;
+      if (mapData == null) return SLOT_NOT_FOUND;
 
       return findSlot(mapData, numSlots(mapData), key);
     }
 
-    static final int findSlot(Object[] mapData, int numSlots, String key) {
+    static final int findSlot(@Nonnull Object[] mapData, int numSlots, @Nonnull String key) {
       int hash = key.hashCode();
       int preferredSlot = preferredSlot(numSlots, hash);
 
@@ -715,18 +738,20 @@ public final class LightStringMap<V> {
       // pointer compare, while a miss touches only the probe chain (not the whole array).
       for (int keyIndex = preferredSlot; keyIndex < numSlots; ++keyIndex) {
         Object curKey = mapData[keyIndex];
-        if (curKey == null) return -1;
+        if (curKey == null) return SLOT_NOT_FOUND;
         if (curKey != REMOVED && key.equals(curKey)) return keyIndex;
       }
       for (int keyIndex = 0; keyIndex < preferredSlot; ++keyIndex) {
         Object curKey = mapData[keyIndex];
-        if (curKey == null) return -1;
+        if (curKey == null) return SLOT_NOT_FOUND;
         if (curKey != REMOVED && key.equals(curKey)) return keyIndex;
       }
-      return -1;
+      return SLOT_NOT_FOUND;
     }
 
-    static final Object[] newMapData(int initialCapacity, String key, Object value) {
+    @Nonnull
+    static final Object[] newMapData(
+        int initialCapacity, @Nonnull String key, @Nonnull Object value) {
       int numSlots = roundUpToPow2(initialCapacity);
       Object[] mapData = new Object[numSlots << 1];
 
@@ -779,7 +804,9 @@ public final class LightStringMap<V> {
     }
 
     public static <C> void forEach(
-        @Nullable Object[] mapData, C ctx, @Nonnull TriConsumer<C, String, Object> entryConsumer) {
+        @Nullable Object[] mapData,
+        @Nullable C ctx,
+        @Nonnull TriConsumer<C, String, Object> entryConsumer) {
       if (mapData == null) return;
 
       int numSlots = numSlots(mapData);
@@ -816,7 +843,8 @@ public final class LightStringMap<V> {
       return builder.toString();
     }
 
-    static void newMapUncheckedInsert(Object[] mapData, int numSlots, String key, Object value) {
+    static void newMapUncheckedInsert(
+        @Nonnull Object[] mapData, int numSlots, @Nonnull String key, @Nonnull Object value) {
       int hash = key.hashCode();
       int preferredSlot = preferredSlot(numSlots, hash);
 
@@ -850,7 +878,8 @@ public final class LightStringMap<V> {
       return n <= 1 ? 1 : Integer.highestOneBit(n - 1) << 1;
     }
 
-    static final String str(Object key) {
+    @Nullable
+    static final String str(@Nullable Object key) {
       return (String) key;
     }
   }

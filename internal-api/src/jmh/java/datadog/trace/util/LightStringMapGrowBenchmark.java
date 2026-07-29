@@ -143,7 +143,7 @@ public class LightStringMapGrowBenchmark {
     }
 
     boolean grow;
-    if (slot == EmbeddingSupport.NO_SPACE) {
+    if (slot == EmbeddingSupport.SLOT_CAPACITY_REACHED) {
       grow = true;
     } else {
       int available = EmbeddingSupport.flip(slot);
