@@ -441,33 +441,6 @@ class LightStringMapTest {
     }
 
     @Test
-    void setAllMergesSourceIntoDest() {
-      Object[] dest = null;
-      dest = EmbeddingSupport.set(8, dest, "a", "A");
-      dest = EmbeddingSupport.set(8, dest, "b", "B");
-
-      Object[] src = null;
-      src = EmbeddingSupport.set(8, src, "c", "C");
-      src = EmbeddingSupport.set(8, src, "d", "D");
-
-      dest = EmbeddingSupport.setAll(dest, src);
-      assertEquals(4, EmbeddingSupport.size(dest));
-      assertEquals("A", EmbeddingSupport.get(dest, "a"));
-      assertEquals("C", EmbeddingSupport.get(dest, "c"));
-      assertEquals("D", EmbeddingSupport.get(dest, "d"));
-    }
-
-    @Test
-    void setAllFromNullDestClonesSource() {
-      Object[] src = EmbeddingSupport.set(8, null, "c", "C");
-      Object[] dest = EmbeddingSupport.setAll(null, src);
-      assertEquals("C", EmbeddingSupport.get(dest, "c"));
-      // clone -> independent from src
-      EmbeddingSupport.set(8, dest, "d", "D");
-      assertNull(EmbeddingSupport.get(src, "d"));
-    }
-
-    @Test
     void forEachStaticVisitsLiveEntries() {
       Object[] data = null;
       for (int i = 0; i < 6; i++) {

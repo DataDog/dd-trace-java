@@ -485,42 +485,6 @@ public final class LightStringMap<V> {
       return set(DEFAULT_CAPACITY, mapData, key, value);
     }
 
-    @Nullable
-    public static <V> Object[] setAll(
-        @Nullable Object[] destMapData, @Nullable Object[] srcMapData) {
-      return setAll(destMapData, size(destMapData), srcMapData, size(srcMapData));
-    }
-
-    @Nullable
-    public static <V> Object[] setAll(
-        @Nullable Object[] destMapData, int destSize, @Nullable Object[] srcMapData, int srcSize) {
-      if (srcMapData == null || srcSize == 0) return destMapData;
-      if (destMapData == null) return srcMapData.clone();
-
-      int expectedSize = destSize + srcSize;
-      int initDestSlots = numSlots(destMapData);
-      int initFreeSpace = initDestSlots - destSize;
-
-      int numDestSlots;
-      if (expectedSize > initDestSlots) {
-        destMapData = expandMapData(destMapData, expectedSize + Math.max(initFreeSpace, 10));
-        numDestSlots = numSlots(destMapData); // re-read after expandMapData rounds to pow-of-2
-      } else {
-        numDestSlots = initDestSlots;
-      }
-
-      int numSrcSlots = numSlots(srcMapData);
-      for (int srcSlot = 0; srcSlot < numSrcSlots; ++srcSlot) {
-        String srcKey = str(srcMapData[srcSlot]);
-        if (srcKey == null || srcKey == REMOVED) continue;
-
-        Object srcValue = srcMapData[srcSlot + numSrcSlots];
-        checkedInsert(destMapData, numDestSlots, srcKey, srcValue);
-      }
-
-      return destMapData;
-    }
-
     @Nonnull
     public static <V> Object[] set(
         int initialCapacity, @Nullable Object[] mapData, @Nonnull String key, @Nonnull V value) {
@@ -645,23 +609,6 @@ public final class LightStringMap<V> {
         mapData[foundIndex] = REMOVED;
         mapData[foundIndex + numSlots] = null;
 
-        return true;
-      } else {
-        return false;
-      }
-    }
-
-    public static boolean checkedInsert(
-        @Nonnull Object[] mapData, int numSlots, @Nonnull String key, @Nonnull Object value) {
-      int insertionSlot = findInsertionSlot(mapData, numSlots, key);
-
-      if (insertionSlot >= 0) {
-        mapData[insertionSlot + numSlots] = value;
-        return true;
-      } else if (insertionSlot != NO_SPACE) {
-        int availableSlot = flip(insertionSlot);
-        mapData[availableSlot] = key;
-        mapData[availableSlot + numSlots] = value;
         return true;
       } else {
         return false;
