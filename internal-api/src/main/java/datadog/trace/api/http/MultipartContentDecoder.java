@@ -39,18 +39,26 @@ public final class MultipartContentDecoder {
 
   public static Charset extractCharset(String contentType) {
     if (contentType == null) return null;
+    int len = contentType.length();
     int searchFrom = 0;
     while (true) {
-      int idx = indexOfIgnoreAsciiCase(contentType, "charset=", searchFrom);
+      int idx = indexOfIgnoreAsciiCase(contentType, "charset", searchFrom);
       if (idx < 0) return null;
-      // Require a parameter boundary before "charset=" so "xcharset=..." is not matched.
+      // Require a parameter boundary before "charset" so "xcharset=..." is not matched.
       // RFC 7230 optional whitespace (OWS) allows both space and horizontal tab.
-      if (idx == 0
-          || contentType.charAt(idx - 1) == ';'
-          || contentType.charAt(idx - 1) == ' '
-          || contentType.charAt(idx - 1) == '\t') {
-        int nameStart = idx + 8;
-        int end = contentType.length();
+      boolean boundaryOk =
+          idx == 0
+              || contentType.charAt(idx - 1) == ';'
+              || contentType.charAt(idx - 1) == ' '
+              || contentType.charAt(idx - 1) == '\t';
+      // Also allow OWS around the "=", e.g. "charset = ISO-8859-1".
+      int j = idx + 7;
+      while (j < len && (contentType.charAt(j) == ' ' || contentType.charAt(j) == '\t')) j++;
+      if (boundaryOk && j < len && contentType.charAt(j) == '=') {
+        j++;
+        while (j < len && (contentType.charAt(j) == ' ' || contentType.charAt(j) == '\t')) j++;
+        int nameStart = j;
+        int end = len;
         for (int i = nameStart; i < end; i++) {
           char c = contentType.charAt(i);
           if (c == ';' || c == ',' || c == ' ') {

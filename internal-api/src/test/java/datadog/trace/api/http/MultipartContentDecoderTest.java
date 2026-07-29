@@ -123,6 +123,17 @@ public class MultipartContentDecoderTest {
     assertEquals("ISO-8859-1", MultipartContentDecoder.extractCharset(contentType).name());
   }
 
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "text/plain; charset = ISO-8859-1",
+        "text/plain; charset =ISO-8859-1",
+        "text/plain; charset= ISO-8859-1"
+      })
+  void extractCharsetAcceptsWhitespaceAroundEqualsSign(String contentType) {
+    assertEquals("ISO-8859-1", MultipartContentDecoder.extractCharset(contentType).name());
+  }
+
   @Test
   void extractCharsetIgnoresSubstringMatchInParameterName() {
     // "xcharset=UTF-16" must not match; the real "charset=UTF-8" that follows must be used
