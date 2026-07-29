@@ -11,11 +11,16 @@ public abstract class FeatureFlaggingGateway {
 
   public interface ConfigListener extends Consumer<ServerConfiguration> {}
 
+  public interface ActivationListener {
+    void activate();
+  }
+
   public interface ExposureListener extends Consumer<ExposureEvent> {}
 
   public interface SpanEnrichmentListener extends Consumer<SpanEnrichmentEvent> {}
 
   private static final List<ConfigListener> CONFIG_LISTENERS = new CopyOnWriteArrayList<>();
+  private static final List<ActivationListener> ACTIVATION_LISTENERS = new CopyOnWriteArrayList<>();
   private static final List<ExposureListener> EXPOSURE_LISTENERS = new CopyOnWriteArrayList<>();
   private static final List<SpanEnrichmentListener> SPAN_ENRICHMENT_LISTENERS =
       new CopyOnWriteArrayList<>();
@@ -40,6 +45,19 @@ public abstract class FeatureFlaggingGateway {
   public static void dispatch(final ServerConfiguration config) {
     CURRENT_CONFIG.set(config);
     CONFIG_LISTENERS.forEach(listener -> listener.accept(config));
+  }
+
+  public static void addActivationListener(final ActivationListener listener) {
+    ACTIVATION_LISTENERS.add(listener);
+  }
+
+  public static void removeActivationListener(final ActivationListener listener) {
+    ACTIVATION_LISTENERS.remove(listener);
+  }
+
+  /** Signals that application code initialized the Datadog OpenFeature provider. */
+  public static void activate() {
+    ACTIVATION_LISTENERS.forEach(ActivationListener::activate);
   }
 
   public static void addExposureListener(final ExposureListener listener) {
