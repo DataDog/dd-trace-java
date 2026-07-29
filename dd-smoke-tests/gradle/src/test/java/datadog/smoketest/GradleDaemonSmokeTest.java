@@ -1,5 +1,6 @@
 package datadog.smoketest;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -161,6 +162,45 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
         mockBackend.waitForCoverages(0));
   }
 
+  @TableTest({
+    "scenario       | gradleVersion | verificationEnabled",
+    "legacy-default | 7.6.4         | false              ",
+    "legacy-enabled | 7.6.4         | true               ",
+    "modern-default | 8.3           | false              ",
+    "modern-enabled | 8.3           | true               "
+  })
+  @ParameterizedTest
+  void testInjectedDependencyVerification(String gradleVersion, boolean verificationEnabled)
+      throws IOException {
+    givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
+    givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
+    givenGradleProjectFiles("test-gradle-dependency-verification");
+
+    Map<String, String> additionalArgs = new HashMap<>();
+    if (verificationEnabled) {
+      additionalArgs.put(
+          CiVisibilityConfig.CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED, "true");
+    }
+    givenGradleProjectProperties(additionalArgs);
+    ensureDependenciesDownloaded(gradleVersion);
+
+    BuildResult buildResult =
+        runGradle(
+            gradleVersion, Arrays.asList("compileJava", "--stacktrace"), !verificationEnabled);
+
+    if (verificationEnabled) {
+      assertTrue(buildResult.getOutput().contains("Dependency verification failed"));
+    } else {
+      assertBuildSuccessful(buildResult);
+      String warning =
+          "Datadog Test Optimization disabled Gradle dependency verification for dependencies "
+              + "injected into this build.";
+      int firstWarning = buildResult.getOutput().indexOf(warning);
+      assertTrue(firstWarning >= 0);
+      assertEquals(firstWarning, buildResult.getOutput().lastIndexOf(warning));
+    }
+  }
+
   // TODO: add back LATEST_GRADLE_VERSION after fixing ordering on Gradle 9.3.0
   @TableTest({
     "scenario              | gradleVersion | projectName                         | flakyTests                                                                                                                                | expectedOrder                                                                                                                                                                                                                                                                              | eventsNumber",
@@ -280,14 +320,19 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   private void givenGradleProjectProperties() throws IOException {
+    givenGradleProjectProperties(Collections.emptyMap());
+  }
+
+  private void givenGradleProjectProperties(Map<String, String> additionalArgs) throws IOException {
     assertTrue(new java.io.File(AGENT_JAR).isFile());
 
     Path ddApiKeyPath = testKitFolder.resolve(".dd.api.key");
     Files.write(ddApiKeyPath, "dummy".getBytes());
 
-    Map<String, String> additionalArgs = new HashMap<>();
-    additionalArgs.put(GeneralConfig.API_KEY_FILE, ddApiKeyPath.toAbsolutePath().toString());
-    additionalArgs.put(
+    Map<String, String> effectiveAdditionalArgs = new HashMap<>(additionalArgs);
+    effectiveAdditionalArgs.put(
+        GeneralConfig.API_KEY_FILE, ddApiKeyPath.toAbsolutePath().toString());
+    effectiveAdditionalArgs.put(
         CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION, JACOCO_PLUGIN_VERSION);
     /*
      * Some of the smoke tests (in particular the one with the Gradle plugin), are using Gradle Test Kit for their tests.
@@ -298,9 +343,9 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
      * This causes the tests to fail because the number of reported traces is different.
      * To avoid this discrepancy between local and CI runs, we disable tracing instrumentations.
      */
-    additionalArgs.put(TraceInstrumentationConfig.TRACE_ENABLED, "false");
+    effectiveAdditionalArgs.put(TraceInstrumentationConfig.TRACE_ENABLED, "false");
     List<String> arguments =
-        buildJvmArguments(mockBackend.getIntakeUrl(), TEST_SERVICE_NAME, additionalArgs);
+        buildJvmArguments(mockBackend.getIntakeUrl(), TEST_SERVICE_NAME, effectiveAdditionalArgs);
 
     String gradleProperties = "org.gradle.jvmargs=" + String.join(" ", arguments);
     // Write to projectFolder (per-test) instead of testKitFolder (shared), so each
