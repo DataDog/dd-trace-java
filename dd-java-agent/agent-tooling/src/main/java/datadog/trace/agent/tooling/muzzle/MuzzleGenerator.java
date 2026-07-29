@@ -130,7 +130,6 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   private byte[] generateMuzzleClass(InstrumenterModule module) {
 
     AdviceShader adviceShader = AdviceShader.with(module.adviceShading());
-    HelperClassPredicate helperPredicate = new HelperClassPredicate(this::isOwnOutput);
 
     // Crawl advice for muzzle references (only recursing into the instrumentation package).
     Set<String> adviceClasses = new HashSet<>();
@@ -144,40 +143,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       }
     }
 
-    // Inferred helpers = our classes referenced from the advice minus the advice roots.
-    Set<String> inferredHelpers = new LinkedHashSet<>();
-    for (Reference reference : allReferences) {
-      if (!adviceClasses.contains(reference.className)
-          && helperPredicate.isHelperClass(reference.className)) {
-        inferredHelpers.add(reference.className);
-      }
-    }
-
-    // Manual additions cover helpers the crawl can't see.
-    Set<String> manualHelpers = new LinkedHashSet<>(asList(module.helperClassNames()));
-    Set<String> seedHelpers = new LinkedHashSet<>(inferredHelpers);
-    seedHelpers.addAll(manualHelpers);
-    for (String helper : new ArrayList<>(seedHelpers)) {
-      if (isOwnOutput(helper)) {
-        addNestedClasses(helper, seedHelpers);
-      }
-    }
-
-    ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-    String[] orderedHelpers =
-        discoverAndOrderHelpers(seedHelpers, manualHelpers, helperPredicate, contextClassLoader);
-
-    // Drop build-time-only muzzle providers
-    ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(contextClassLoader);
-    List<String> injectableHelpers = new ArrayList<>(orderedHelpers.length);
-    for (String helper : orderedHelpers) {
-      if (!isBuildTimeOnly(helper, locator)) {
-        injectableHelpers.add(helper);
-      }
-    }
-    orderedHelpers = injectableHelpers.toArray(new String[0]);
-
-    writeInferenceReport(module, adviceClasses.isEmpty(), inferredHelpers, orderedHelpers);
+    String[] orderedHelpers = computeInjectedHelpers(module, allReferences, adviceClasses);
 
     // Injected helpers are our own classes, so they don't need to be asserted as library
     // references.
@@ -258,6 +224,47 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     return cw.toByteArray();
   }
 
+  /** Resolves the ordered set of helper classes to inject for a module. */
+  String[] computeInjectedHelpers(
+      InstrumenterModule module, List<Reference> allReferences, Set<String> adviceClasses) {
+    HelperClassPredicate helperPredicate = new HelperClassPredicate(this::isOwnOutput);
+    // Inferred helpers = our classes referenced from the advice minus the advice roots.
+    Set<String> inferredHelpers = new LinkedHashSet<>();
+    for (Reference reference : allReferences) {
+      if (!adviceClasses.contains(reference.className)
+          && helperPredicate.isHelperClass(reference.className)) {
+        inferredHelpers.add(reference.className);
+      }
+    }
+
+    // Manual additions cover helpers the crawl can't see.
+    Set<String> manualHelpers = new LinkedHashSet<>(asList(module.helperClassNames()));
+    Set<String> seedHelpers = new LinkedHashSet<>(inferredHelpers);
+    seedHelpers.addAll(manualHelpers);
+    for (String helper : new ArrayList<>(seedHelpers)) {
+      if (isOwnOutput(helper)) {
+        addNestedClasses(helper, seedHelpers);
+      }
+    }
+
+    ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+    String[] orderedHelpers =
+        discoverAndOrderHelpers(seedHelpers, manualHelpers, helperPredicate, contextClassLoader);
+
+    // Drop build-time-only muzzle providers; injecting them fails the application.
+    ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(contextClassLoader);
+    List<String> injectableHelpers = new ArrayList<>(orderedHelpers.length);
+    for (String helper : orderedHelpers) {
+      if (!isBuildTimeOnly(helper, locator)) {
+        injectableHelpers.add(helper);
+      }
+    }
+    orderedHelpers = injectableHelpers.toArray(new String[0]);
+
+    writeInferenceReport(module, adviceClasses.isEmpty(), inferredHelpers, orderedHelpers);
+    return orderedHelpers;
+  }
+
   /** {@code true} if the class was compiled from this instrumentation subproject's own output. */
   private boolean isOwnOutput(String className) {
     return new File(sourceDir, className.replace('.', '/') + ".class").isFile();
@@ -291,7 +298,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
    * {@code true} if the class uses the muzzle {@link Reference} API (as a {@link ReferenceProvider}
    * or via {@code compileReferences}). Use this method to avoid injecting build-time-only classes.
    */
-  private static boolean isBuildTimeOnly(String className, ClassFileLocator locator) {
+  static boolean isBuildTimeOnly(String className, ClassFileLocator locator) {
     try {
       ClassFileLocator.Resolution resolution = locator.locate(className);
       if (!resolution.isResolved()) {

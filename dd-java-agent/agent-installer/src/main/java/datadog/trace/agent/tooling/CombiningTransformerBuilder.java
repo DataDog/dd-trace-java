@@ -130,7 +130,6 @@ public final class CombiningTransformerBuilder
 
     adviceShader = AdviceShader.with(module);
 
-    // Resolve helper names eagerly at install. Only the resolved String[] is captured.
     String[] helperClassNames =
         InstrumenterModule.loadStaticMuzzleHelperClassNames(
             Utils.getExtendedClassLoader(), module.getClass().getName());
