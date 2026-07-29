@@ -4,6 +4,7 @@ import static datadog.trace.util.LightStringMap.EmbeddingSupport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -583,6 +584,68 @@ class LightStringMapTest {
       for (int i = 0; i < 50; i++) {
         assertEquals(i, map.get("k" + i));
       }
+    }
+  }
+
+  // ============ hint-aware spine set(SizingHint, ...) overload ============
+
+  @Nested
+  class SpineHintTests {
+
+    @Test
+    void spineSetSeedsAFreshTableFromTheHint() {
+      // Dropping to the spine keeps the hint's sizing: a fresh table seeds from seedSlots(), just
+      // like LightStringMap.create(hint) does through the object tier.
+      LightStringMap.SizingHint hint = LightStringMap.buildSizingHint().initCapacity(4).build();
+      Object[] data = EmbeddingSupport.set(hint, null, "a", 1);
+      assertEquals(4, EmbeddingSupport.numSlots(data));
+      assertEquals(1, (Object) EmbeddingSupport.get(data, "a"));
+    }
+
+    @Test
+    void spineSetTeachesTheHintOnGrow() {
+      // A grow through the spine ratchets the hint up with one class of headroom -- identical to
+      // the
+      // object tier's growthRaisesSeedWithOneClassOfHeadroom.
+      LightStringMap.SizingHint hint = LightStringMap.sizingHint();
+      Object[] data = null;
+      for (int i = 0; i < LightStringMap.DEFAULT_HINT_SLOTS + 1; i++) {
+        data = EmbeddingSupport.set(hint, data, "k" + i, i);
+      }
+      int grownSlots = EmbeddingSupport.numSlots(data);
+      assertEquals(grownSlots * 2, hint.currentSeedSlots());
+    }
+
+    @Test
+    void spineSetDoesNotEnforceTheHintCap() {
+      // The cap guardrail does NOT follow to the spine: an Object[] return cannot signal rejection,
+      // so a capped hint used at the spine grows past its cap and always stores. (Contrast the
+      // object tier, which rejects at the cap -- see CapTests.)
+      LightStringMap.SizingHint hint =
+          LightStringMap.buildSizingHint().initCapacity(2).maxCapacity(4).build();
+      Object[] data = null;
+      for (int i = 0; i < 12; i++) {
+        data = EmbeddingSupport.set(hint, data, "k" + i, i);
+      }
+      assertTrue(EmbeddingSupport.numSlots(data) > 4, "spine grew past the hint's 4-slot cap");
+      for (int i = 0; i < 12; i++) {
+        assertEquals(
+            i, (Object) EmbeddingSupport.get(data, "k" + i), "every key stored despite the cap");
+      }
+    }
+
+    @Test
+    void spineSetOverwriteInPlaceDoesNotTeachTheHint() {
+      // An in-place overwrite neither grows nor teaches the hint -- same array back, seed
+      // unchanged.
+      LightStringMap.SizingHint hint = LightStringMap.sizingHint();
+      Object[] data = EmbeddingSupport.set(hint, null, "a", 1);
+      int seedAfterFirstInsert = hint.currentSeedSlots();
+
+      Object[] afterOverwrite = EmbeddingSupport.set(hint, data, "a", 2);
+      assertSame(data, afterOverwrite, "overwrite reuses the same backing array");
+      assertEquals(2, (Object) EmbeddingSupport.get(afterOverwrite, "a"));
+      assertEquals(seedAfterFirstInsert, hint.currentSeedSlots(), "no grow -> hint not taught");
     }
   }
 
