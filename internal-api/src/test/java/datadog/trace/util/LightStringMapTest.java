@@ -1,6 +1,6 @@
 package datadog.trace.util;
 
-import static datadog.trace.util.LightMap.EmbeddingSupport;
+import static datadog.trace.util.LightStringMap.EmbeddingSupport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -11,7 +11,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-class LightMapTest {
+class LightStringMapTest {
 
   // ============ Instance API ============
 
@@ -20,13 +20,13 @@ class LightMapTest {
 
     @Test
     void getOnEmptyMapReturnsNull() {
-      LightMap<Integer> map = new LightMap<>(LightMap.DEFAULT_CAPACITY);
+      LightStringMap<Integer> map = new LightStringMap<>(LightStringMap.DEFAULT_CAPACITY);
       assertNull(map.get("absent"));
     }
 
     @Test
     void setThenGet() {
-      LightMap<Integer> map = new LightMap<>(8);
+      LightStringMap<Integer> map = new LightStringMap<>(8);
       map.set("a", 1);
       map.set("b", 2);
       assertEquals(1, map.get("a"));
@@ -36,7 +36,7 @@ class LightMapTest {
 
     @Test
     void setOverwritesExistingKey() {
-      LightMap<Integer> map = new LightMap<>(8);
+      LightStringMap<Integer> map = new LightStringMap<>(8);
       map.set("a", 1);
       map.set("a", 42);
       assertEquals(42, map.get("a"));
@@ -44,7 +44,7 @@ class LightMapTest {
 
     @Test
     void removeMakesKeyAbsent() {
-      LightMap<Integer> map = new LightMap<>(8);
+      LightStringMap<Integer> map = new LightStringMap<>(8);
       map.set("a", 1);
       map.set("b", 2);
       map.remove("a");
@@ -55,7 +55,7 @@ class LightMapTest {
     @Test
     void growsAndPreservesAllEntries() {
       // initial capacity 2 forces several resizes as we insert well past it.
-      LightMap<Integer> map = new LightMap<>(2);
+      LightStringMap<Integer> map = new LightStringMap<>(2);
       int n = 100;
       for (int i = 0; i < n; i++) {
         map.set("key-" + i, i);
@@ -67,7 +67,7 @@ class LightMapTest {
 
     @Test
     void forEachVisitsEveryLiveEntry() {
-      LightMap<Integer> map = new LightMap<>(4);
+      LightStringMap<Integer> map = new LightStringMap<>(4);
       for (int i = 0; i < 20; i++) {
         map.set("k" + i, i);
       }
@@ -85,7 +85,7 @@ class LightMapTest {
 
     @Test
     void nonLiteralKeyResolvesViaEqualsFallback() {
-      LightMap<Integer> map = new LightMap<>(8);
+      LightStringMap<Integer> map = new LightStringMap<>(8);
       map.set("hello", 1);
       // Distinct String instance with the same content -- must be found via the equals pass.
       String lookup = new String("hello");
@@ -94,7 +94,7 @@ class LightMapTest {
 
     @Test
     void removeThenReinsertSameKey() {
-      LightMap<Integer> map = new LightMap<>(4);
+      LightStringMap<Integer> map = new LightStringMap<>(4);
       for (int i = 0; i < 4; i++) {
         map.set("k" + i, i);
       }
@@ -135,7 +135,7 @@ class LightMapTest {
     @Test
     void defaultCapacitySetOverload() {
       Object[] data = EmbeddingSupport.set(null, "a", "A");
-      assertEquals(LightMap.DEFAULT_CAPACITY, EmbeddingSupport.numSlots(data));
+      assertEquals(LightStringMap.DEFAULT_CAPACITY, EmbeddingSupport.numSlots(data));
       assertEquals("A", EmbeddingSupport.get(data, "a"));
     }
 

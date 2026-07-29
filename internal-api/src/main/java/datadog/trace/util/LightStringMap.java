@@ -28,13 +28,13 @@ import java.util.function.BiConsumer;
  * In the event of resizing, removal markers are discarded while assigning
  * slots in the new data array.
  */
-public final class LightMap<V> {
+public final class LightStringMap<V> {
   public static final int DEFAULT_CAPACITY = 8;
 
   private final int initialCapacity;
   private Object[] data = EmbeddingSupport.EMPTY_DATA;
 
-  public LightMap(int capacity) {
+  public LightStringMap(int capacity) {
     this.initialCapacity = capacity;
   }
 
