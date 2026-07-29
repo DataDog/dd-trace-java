@@ -348,17 +348,10 @@ public final class LightMap<V> {
       int hash = key.hashCode();
       int preferredSlot = preferredSlot(numSlots, hash);
 
-      // Tight ref-equality first pass — optimized for the literal-key hit case.
-      // Trade-off: on a miss this walks the whole key array; that's acceptable
-      // since the documented use case is mostly-hit lookups against known keys.
-      for (int keyIndex = preferredSlot; keyIndex < numSlots; ++keyIndex) {
-        if (mapData[keyIndex] == key) return keyIndex;
-      }
-      for (int keyIndex = 0; keyIndex < preferredSlot; ++keyIndex) {
-        if (mapData[keyIndex] == key) return keyIndex;
-      }
-
-      // Fallback equals pass for non-literal-key hits; terminates at null.
+      // Single equals-based probe that terminates at the first null slot. We do not
+      // assume interned keys, so there is no separate ref-equality pre-pass: String.equals
+      // already short-circuits on `this == other`, so a literal-key hit still resolves on a
+      // pointer compare, while a miss touches only the probe chain (not the whole array).
       for (int keyIndex = preferredSlot; keyIndex < numSlots; ++keyIndex) {
         Object curKey = mapData[keyIndex];
         if (curKey == null) return -1;
