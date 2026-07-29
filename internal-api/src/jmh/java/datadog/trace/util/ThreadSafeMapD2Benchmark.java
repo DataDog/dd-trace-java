@@ -155,7 +155,10 @@ public class ThreadSafeMapD2Benchmark {
     Key2(String k1, Integer k2) {
       this.k1 = k1;
       this.k2 = k2;
-      this.hash = Objects.hash(k1, k2);
+      // Varargs-free hash: Objects.hash(k1, k2) would allocate an Object[] per key, penalizing the
+      // map baselines with an allocation the wrapper itself doesn't need and overstating the
+      // ConcurrentHashtable advantage this benchmark measures.
+      this.hash = 31 * k1.hashCode() + k2.hashCode();
     }
 
     @Override
