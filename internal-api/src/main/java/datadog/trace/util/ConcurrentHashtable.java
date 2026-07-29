@@ -263,6 +263,13 @@ public final class ConcurrentHashtable {
      *
      * <p>A capturing-lambda {@code sink} is fine here — drain is a rare flush operation — but a
      * context-passing overload is offered for callers that prefer to avoid the allocation.
+     *
+     * <p><b>Contract:</b> {@code sink} must not throw. Entries are detached as the sweep proceeds
+     * and {@code size} is reset only after it completes, so a {@code sink} that throws part-way
+     * leaves those already-detached entries gone while {@code size()} still reports the pre-drain
+     * count. The drain is not rolled back; a throwing sink is a caller error that also means a
+     * half-published flush. This is intentional — the alternative is per-entry size bookkeeping on
+     * a path that only matters when the caller is already in error.
      */
     public void drain(Consumer<? super TEntry> sink) {
       synchronized (getWriteLock(buckets)) {
@@ -463,6 +470,13 @@ public final class ConcurrentHashtable {
      *
      * <p>A capturing-lambda {@code sink} is fine here — drain is a rare flush operation — but a
      * context-passing overload is offered for callers that prefer to avoid the allocation.
+     *
+     * <p><b>Contract:</b> {@code sink} must not throw. Entries are detached as the sweep proceeds
+     * and {@code size} is reset only after it completes, so a {@code sink} that throws part-way
+     * leaves those already-detached entries gone while {@code size()} still reports the pre-drain
+     * count. The drain is not rolled back; a throwing sink is a caller error that also means a
+     * half-published flush. This is intentional — the alternative is per-entry size bookkeeping on
+     * a path that only matters when the caller is already in error.
      */
     public void drain(Consumer<? super TEntry> sink) {
       synchronized (getWriteLock(buckets)) {
@@ -657,6 +671,10 @@ public final class ConcurrentHashtable {
    * intact — is handed to the caller. Self-locking: synchronizes on {@code buckets} for the whole
    * pass. Does not touch size accounting, so a caller tracking size resets it inside its own {@code
    * synchronized (getWriteLock(buckets))} block (which nests with this one on the same monitor).
+   *
+   * <p>{@code sink} must not throw: buckets are detached as the sweep proceeds, so a sink that
+   * throws part-way leaves earlier buckets drained and later ones intact, and any caller-side size
+   * reset never runs. The drain is not rolled back — a throwing sink is a caller error.
    */
   public static <TEntry extends Entry> void drain(
       AtomicReferenceArray<TEntry> buckets, Consumer<? super TEntry> sink) {
