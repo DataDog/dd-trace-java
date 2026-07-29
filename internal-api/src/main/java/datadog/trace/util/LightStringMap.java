@@ -487,6 +487,40 @@ public final class LightStringMap<V> {
       return setOrReject(initialCapacity, NO_MAX_SLOTS, mapData, key, value);
     }
 
+    /**
+     * Hint-aware spine insert: the migration counterpart of {@link LightStringMap#set} for a map
+     * that has been dropped to the embedded spine but wants to keep the self-tuning it had as an
+     * object. Seeds a fresh table from {@code hint.seedSlots()} and teaches the hint back on a
+     * genuine grow, exactly as the object tier does -- so graduating a map to the spine is a strict
+     * superset (it gains the embedding win without losing its sizing).
+     *
+     * <p>Unlike the object tier, the hint's {@code maxCapacity} cap does <em>not</em> bound growth
+     * here: a returned {@code Object[]} cannot signal a rejection, so this always stores and always
+     * returns non-null. Taking the spine means you own bounding your own growth; only the sizing
+     * tuning follows down, not the cap guardrail.
+     */
+    @Nonnull
+    public static <V> Object[] set(
+        @Nonnull SizingHint hint,
+        @Nullable Object[] mapData,
+        @Nonnull String key,
+        @Nonnull V value) {
+      int beforeSlots = numSlots(mapData);
+      // Seed a fresh table from the hint (mirrors LightStringMap(hint)); initialCapacity is only
+      // read on the null-array branch, so the 0 below is never consumed when mapData is non-null.
+      int seedCapacity = (mapData == null) ? hint.seedSlots() : 0;
+      Object[] after = setOrReject(seedCapacity, NO_MAX_SLOTS, mapData, key, value);
+      // Teach the hint on a genuine grow only (not the lazy first allocation, which already seeded
+      // from the hint) -- mirrors LightStringMap.recordGrowth.
+      if (beforeSlots != 0) {
+        int afterSlots = numSlots(after);
+        if (afterSlots > beforeSlots) {
+          hint.recordSlots(afterSlots);
+        }
+      }
+      return after;
+    }
+
     // The single insert orchestration shared by the uncapped spine set() above and the capped
     // object-tier LightStringMap.set(): probe, then either overwrite in place, fill a free slot, or
     // grow. Stores {@code key -> value} and returns the (possibly new) backing array.
