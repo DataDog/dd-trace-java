@@ -9,6 +9,8 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Open-addressed, single-array find-or-create over <b>self-contained entries</b> — each slot is one
@@ -125,16 +127,17 @@ public final class FlatHashtable {
     public abstract static class Entry<K> extends FlatHashtable.Entry {
       final K key;
 
-      protected Entry(K key) {
+      protected Entry(@Nullable K key) {
         super(hash(key));
         this.key = key;
       }
 
+      @Nullable
       public final K key() {
         return key;
       }
 
-      public boolean matches(Object key) {
+      public boolean matches(@Nullable Object key) {
         return Objects.equals(this.key, key);
       }
 
@@ -143,7 +146,7 @@ public final class FlatHashtable {
        * don't collide with a real key that hashes to 0; real-key collisions are resolved by {@link
        * #matches(Object)}.
        */
-      public static long hash(Object key) {
+      public static long hash(@Nullable Object key) {
         return (key == null) ? Long.MIN_VALUE : key.hashCode();
       }
     }
@@ -166,12 +169,15 @@ public final class FlatHashtable {
      * A bounded {@link D1} holding up to {@code maxCapacity} entries at the {@link
      * #DEFAULT_LOAD_FACTOR}, then capping ({@link #getOrCreate} returns {@code null}).
      */
-    public static <K, E extends D1.Entry<K>> D1<K, E> createFixed(Class<E> type, int maxCapacity) {
+    @Nonnull
+    public static <K, E extends D1.Entry<K>> D1<K, E> createFixed(
+        @Nonnull Class<E> type, int maxCapacity) {
       return createFixed(type, maxCapacity, DEFAULT_LOAD_FACTOR);
     }
 
+    @Nonnull
     public static <K, E extends D1.Entry<K>> D1<K, E> createFixed(
-        Class<E> type, int maxCapacity, float loadFactor) {
+        @Nonnull Class<E> type, int maxCapacity, float loadFactor) {
       return new D1<>(create(type, maxCapacity, loadFactor), loadFactor, false, maxCapacity);
     }
 
@@ -179,13 +185,15 @@ public final class FlatHashtable {
      * A growable {@link D1} sized initially for {@code initialCapacity} entries at the {@link
      * #DEFAULT_LOAD_FACTOR}; doubles on demand, so it never caps.
      */
+    @Nonnull
     public static <K, E extends D1.Entry<K>> D1<K, E> createGrowable(
-        Class<E> type, int initialCapacity) {
+        @Nonnull Class<E> type, int initialCapacity) {
       return createGrowable(type, initialCapacity, DEFAULT_LOAD_FACTOR);
     }
 
+    @Nonnull
     public static <K, E extends D1.Entry<K>> D1<K, E> createGrowable(
-        Class<E> type, int initialCapacity, float loadFactor) {
+        @Nonnull Class<E> type, int initialCapacity, float loadFactor) {
       E[] table = create(type, initialCapacity, loadFactor);
       return new D1<>(table, loadFactor, true, (int) (table.length * loadFactor));
     }
@@ -195,7 +203,8 @@ public final class FlatHashtable {
     }
 
     /** Existing entry for {@code key}, or {@code null}. Read-only — never creates. */
-    public TEntry get(K key) {
+    @Nullable
+    public TEntry get(@Nullable K key) {
       final long keyHash = Entry.hash(key);
       final TEntry[] table = this.table;
       final int mask = table.length - 1;
@@ -222,7 +231,8 @@ public final class FlatHashtable {
      * and {@code key} is absent (the caller supplies the overflow default). A hit is always
      * returned even at capacity — the cap blocks only creation, not lookup.
      */
-    public TEntry getOrCreate(K key, CreateStrategy<TEntry, K> createStrat) {
+    @Nullable
+    public TEntry getOrCreate(@Nullable K key, @Nonnull CreateStrategy<TEntry, K> createStrat) {
       final TEntry existing = get(key);
       if (existing != null) {
         return existing;
@@ -244,7 +254,7 @@ public final class FlatHashtable {
      * Comparison-free and caller-responsible (same contract as {@link FlatHashtable#insert}): the
      * caller must ensure {@code entry}'s key is absent, else it lands shadowed.
      */
-    public boolean insert(TEntry entry) {
+    public boolean insert(@Nonnull TEntry entry) {
       if (size >= limit) {
         if (!growable) {
           return false; // fixed table full
@@ -266,7 +276,7 @@ public final class FlatHashtable {
       size = 0;
     }
 
-    public void forEach(Consumer<? super TEntry> consumer) {
+    public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
       FlatHashtable.forEach(table, consumer);
     }
 
@@ -274,7 +284,7 @@ public final class FlatHashtable {
      * Context-passing {@link #forEach(Consumer)}: pair a non-capturing {@link BiConsumer} with
      * side-band {@code context} to avoid a per-call closure.
      */
-    public <C> void forEach(C context, BiConsumer<? super C, ? super TEntry> consumer) {
+    public <C> void forEach(C context, @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
       FlatHashtable.forEach(table, context, consumer);
     }
   }
@@ -301,21 +311,23 @@ public final class FlatHashtable {
       final K1 key1;
       final K2 key2;
 
-      protected Entry(K1 key1, K2 key2) {
+      protected Entry(@Nullable K1 key1, @Nullable K2 key2) {
         super(hash(key1, key2));
         this.key1 = key1;
         this.key2 = key2;
       }
 
+      @Nullable
       public final K1 key1() {
         return key1;
       }
 
+      @Nullable
       public final K2 key2() {
         return key2;
       }
 
-      public boolean matches(K1 key1, K2 key2) {
+      public boolean matches(@Nullable K1 key1, @Nullable K2 key2) {
         return Objects.equals(this.key1, key1) && Objects.equals(this.key2, key2);
       }
 
@@ -324,7 +336,7 @@ public final class FlatHashtable {
        * LongHashingUtils#hash(Object, Object)}. Null parts contribute {@code 0} (not a sentinel,
        * unlike {@link D1.Entry}); {@link #matches(Object, Object)} resolves any collision.
        */
-      public static long hash(Object key1, Object key2) {
+      public static long hash(@Nullable Object key1, @Nullable Object key2) {
         return LongHashingUtils.hash(key1, key2);
       }
     }
@@ -347,13 +359,15 @@ public final class FlatHashtable {
      * A bounded {@link D2} holding up to {@code maxCapacity} entries at the {@link
      * #DEFAULT_LOAD_FACTOR}, then capping ({@link #getOrCreate} returns {@code null}).
      */
+    @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createFixed(
-        Class<E> type, int maxCapacity) {
+        @Nonnull Class<E> type, int maxCapacity) {
       return createFixed(type, maxCapacity, DEFAULT_LOAD_FACTOR);
     }
 
+    @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createFixed(
-        Class<E> type, int maxCapacity, float loadFactor) {
+        @Nonnull Class<E> type, int maxCapacity, float loadFactor) {
       return new D2<>(create(type, maxCapacity, loadFactor), loadFactor, false, maxCapacity);
     }
 
@@ -361,13 +375,15 @@ public final class FlatHashtable {
      * A growable {@link D2} sized initially for {@code initialCapacity} entries at the {@link
      * #DEFAULT_LOAD_FACTOR}; doubles on demand, so it never caps.
      */
+    @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createGrowable(
-        Class<E> type, int initialCapacity) {
+        @Nonnull Class<E> type, int initialCapacity) {
       return createGrowable(type, initialCapacity, DEFAULT_LOAD_FACTOR);
     }
 
+    @Nonnull
     public static <K1, K2, E extends D2.Entry<K1, K2>> D2<K1, K2, E> createGrowable(
-        Class<E> type, int initialCapacity, float loadFactor) {
+        @Nonnull Class<E> type, int initialCapacity, float loadFactor) {
       E[] table = create(type, initialCapacity, loadFactor);
       return new D2<>(table, loadFactor, true, (int) (table.length * loadFactor));
     }
@@ -377,7 +393,8 @@ public final class FlatHashtable {
     }
 
     /** Existing entry for {@code (key1, key2)}, or {@code null}. Read-only — never creates. */
-    public TEntry get(K1 key1, K2 key2) {
+    @Nullable
+    public TEntry get(@Nullable K1 key1, @Nullable K2 key2) {
       final long keyHash = Entry.hash(key1, key2);
       final TEntry[] table = this.table;
       final int mask = table.length - 1;
@@ -402,7 +419,11 @@ public final class FlatHashtable {
      * Two-key analogue of {@link D1#getOrCreate}: growable never returns {@code null}; fixed
      * returns {@code null} when full and {@code (key1, key2)} is absent.
      */
-    public TEntry getOrCreate(K1 key1, K2 key2, CreateStrategy2<TEntry, K1, K2> createStrat) {
+    @Nullable
+    public TEntry getOrCreate(
+        @Nullable K1 key1,
+        @Nullable K2 key2,
+        @Nonnull CreateStrategy2<TEntry, K1, K2> createStrat) {
       final TEntry existing = get(key1, key2);
       if (existing != null) {
         return existing;
@@ -424,7 +445,7 @@ public final class FlatHashtable {
      * Comparison-free and caller-responsible: the caller must ensure {@code (key1, key2)} is
      * absent.
      */
-    public boolean insert(TEntry entry) {
+    public boolean insert(@Nonnull TEntry entry) {
       if (size >= limit) {
         if (!growable) {
           return false; // fixed table full
@@ -446,11 +467,11 @@ public final class FlatHashtable {
       size = 0;
     }
 
-    public void forEach(Consumer<? super TEntry> consumer) {
+    public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
       FlatHashtable.forEach(table, consumer);
     }
 
-    public <C> void forEach(C context, BiConsumer<? super C, ? super TEntry> consumer) {
+    public <C> void forEach(C context, @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
       FlatHashtable.forEach(table, context, consumer);
     }
   }
@@ -468,7 +489,8 @@ public final class FlatHashtable {
   @Strategy
   @FunctionalInterface
   public interface CreateStrategy2<E, K1, K2> {
-    E create(K1 key1, K2 key2);
+    @Nonnull
+    E create(@Nullable K1 key1, @Nullable K2 key2);
   }
 
   /**
@@ -484,7 +506,7 @@ public final class FlatHashtable {
   @Strategy
   @FunctionalInterface
   public interface HashStrategy<E> {
-    long hashOf(E entry);
+    long hashOf(@Nonnull E entry);
   }
 
   /**
@@ -505,7 +527,7 @@ public final class FlatHashtable {
   @FunctionalInterface
   public interface MatchingStrategy<E, K> {
     /** Whether the stored {@code entry} is the one for {@code key}. */
-    boolean matches(E entry, K key);
+    boolean matches(@Nonnull E entry, K key);
 
     /**
      * Hash of {@code key}; defaults to {@code key.hashCode()} (the table applies its own spread).
@@ -560,7 +582,8 @@ public final class FlatHashtable {
   @Strategy
   @FunctionalInterface
   public interface CreateStrategy<E, K> {
-    E create(K key);
+    @Nonnull
+    E create(@Nullable K key);
   }
 
   /**
@@ -610,7 +633,8 @@ public final class FlatHashtable {
    * CreateStrategy#create} mints an entry — different types, no ambiguity at the call site.
    */
   @SuppressWarnings("unchecked")
-  public static <E> E[] create(Class<E> type, int cardinalityLimit) {
+  @Nonnull
+  public static <E> E[] create(@Nonnull Class<E> type, int cardinalityLimit) {
     return (E[]) Array.newInstance(type, capacityFor(cardinalityLimit));
   }
 
@@ -619,7 +643,8 @@ public final class FlatHashtable {
    * float)} and the {@link #DEFAULT_LOAD_FACTOR} / {@link #LOW_LOAD_FACTOR} constants).
    */
   @SuppressWarnings("unchecked")
-  public static <E> E[] create(Class<E> type, int cardinalityLimit, float loadFactor) {
+  @Nonnull
+  public static <E> E[] create(@Nonnull Class<E> type, int cardinalityLimit, float loadFactor) {
     return (E[]) Array.newInstance(type, capacityFor(cardinalityLimit, loadFactor));
   }
 
@@ -628,7 +653,9 @@ public final class FlatHashtable {
    * hit; walks to the first empty slot (or all the way around) on a miss.
    */
   @StrategyConsumer
-  public static <E, K> E get(E[] table, K key, MatchingStrategy<E, K> matchStrat) {
+  @Nullable
+  public static <E, K> E get(
+      @Nonnull E[] table, K key, @Nonnull MatchingStrategy<E, K> matchStrat) {
     final int mask = table.length - 1;
     final int start = home(matchStrat.hashKey(key), mask);
     int i = start;
@@ -654,8 +681,12 @@ public final class FlatHashtable {
    * double-create is acceptable only when the payload makes it benign (see class doc).
    */
   @StrategyConsumer
+  @Nullable
   public static <E, K> E getOrCreate(
-      E[] table, K key, MatchingStrategy<E, K> matchStrat, CreateStrategy<E, K> createStrat) {
+      @Nonnull E[] table,
+      K key,
+      @Nonnull MatchingStrategy<E, K> matchStrat,
+      @Nonnull CreateStrategy<E, K> createStrat) {
     final int mask = table.length - 1;
     final int start = home(matchStrat.hashKey(key), mask);
     int i = start;
@@ -687,7 +718,7 @@ public final class FlatHashtable {
    * removed) able to resurrect stale data. Reach for it only from the expert tier, with that
    * contract in hand.
    */
-  public static <E extends Entry> boolean insert(E[] table, E entry) {
+  public static <E extends Entry> boolean insert(@Nonnull E[] table, @Nonnull E entry) {
     return placeAt(table, entry, entry.hash);
   }
 
@@ -696,7 +727,8 @@ public final class FlatHashtable {
    * HashStrategy#hashOf}. Same comparison-free, caller-ensures-absence contract.
    */
   @StrategyConsumer
-  public static <E> boolean insert(E[] table, E entry, HashStrategy<E> hashStrat) {
+  public static <E> boolean insert(
+      @Nonnull E[] table, @Nonnull E entry, @Nonnull HashStrategy<E> hashStrat) {
     return placeAt(table, entry, hashStrat.hashOf(entry));
   }
 
@@ -739,7 +771,8 @@ public final class FlatHashtable {
    * (the home comes from {@link Entry#hash}). See {@link #resizingInsert(Entry[], Entry)} to do
    * both in one call, and its note on growing over unbounded key domains.
    */
-  public static <E extends Entry> E[] resize(E[] table) {
+  @Nonnull
+  public static <E extends Entry> E[] resize(@Nonnull E[] table) {
     E[] grown = allocateGrown(table);
     for (final E e : table) {
       if (e != null) {
@@ -754,7 +787,8 @@ public final class FlatHashtable {
    * HashStrategy#hashOf}. Not a {@link StrategyConsumer} — the rehash is a cold, one-off traversal,
    * not a hot specialization site.
    */
-  public static <E> E[] resize(E[] table, HashStrategy<E> hashStrat) {
+  @Nonnull
+  public static <E> E[] resize(@Nonnull E[] table, @Nonnull HashStrategy<E> hashStrat) {
     E[] grown = allocateGrown(table);
     for (final E e : table) {
       if (e != null) {
@@ -787,7 +821,8 @@ public final class FlatHashtable {
    * so it is the easiest place to leak memory: use it only for a genuinely bounded key domain,
    * never over externally-controlled cardinality.
    */
-  public static <E extends Entry> E[] resizingInsert(E[] table, E entry) {
+  @Nonnull
+  public static <E extends Entry> E[] resizingInsert(@Nonnull E[] table, @Nonnull E entry) {
     E[] t = table;
     while (!insert(t, entry)) {
       t = resize(t); // one doubling always suffices; the loop is belt-and-braces
@@ -800,7 +835,9 @@ public final class FlatHashtable {
    * HashStrategy#hashOf}). Same grows-unboundedly caution.
    */
   @StrategyConsumer
-  public static <E> E[] resizingInsert(E[] table, E entry, HashStrategy<E> hashStrat) {
+  @Nonnull
+  public static <E> E[] resizingInsert(
+      @Nonnull E[] table, @Nonnull E entry, @Nonnull HashStrategy<E> hashStrat) {
     E[] t = table;
     while (!insert(t, entry, hashStrat)) {
       t = resize(t, hashStrat);
@@ -809,7 +846,7 @@ public final class FlatHashtable {
   }
 
   /** Applies {@code consumer} to every entry in {@code table} (skipping empty slots); any order. */
-  public static <E> void forEach(E[] table, Consumer<? super E> consumer) {
+  public static <E> void forEach(@Nonnull E[] table, @Nonnull Consumer<? super E> consumer) {
     for (final E e : table) {
       if (e != null) {
         consumer.accept(e);
@@ -822,7 +859,7 @@ public final class FlatHashtable {
    * (typically a {@code static final}) with side-band {@code context} to avoid a per-call closure.
    */
   public static <C, E> void forEach(
-      E[] table, C context, BiConsumer<? super C, ? super E> consumer) {
+      @Nonnull E[] table, C context, @Nonnull BiConsumer<? super C, ? super E> consumer) {
     for (final E e : table) {
       if (e != null) {
         consumer.accept(context, e);
@@ -840,7 +877,9 @@ public final class FlatHashtable {
    * specializes the traversal so {@code hashOf} inlines. (Still pass a {@code static final}
    * strategy to avoid a per-call allocation.)
    */
-  public static <E> Iterator<E> iterator(E[] table, long hash, HashStrategy<E> hashStrat) {
+  @Nonnull
+  public static <E> Iterator<E> iterator(
+      @Nonnull E[] table, long hash, @Nonnull HashStrategy<E> hashStrat) {
     return new StrategyHashIterator<>(table, hash, hashStrat);
   }
 
@@ -854,7 +893,8 @@ public final class FlatHashtable {
    * Iterator<E>} return type as the general overload; the call site specializes by its own
    * monomorphism.
    */
-  public static <E extends Entry> Iterator<E> iterator(E[] table, long hash) {
+  @Nonnull
+  public static <E extends Entry> Iterator<E> iterator(@Nonnull E[] table, long hash) {
     return new EntryHashIterator<>(table, hash);
   }
 
