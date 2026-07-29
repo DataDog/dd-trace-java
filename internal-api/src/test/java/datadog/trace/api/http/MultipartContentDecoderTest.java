@@ -135,6 +135,31 @@ public class MultipartContentDecoderTest {
   }
 
   @Test
+  void extractCharsetContinuesSearchAfterInvalidCharsetValue() {
+    // The first "charset" parameter is invalid; a later, valid one must still be found.
+    assertEquals(
+        "UTF-8",
+        MultipartContentDecoder.extractCharset("text/plain; charset=NOTACHARSET; charset=UTF-8")
+            .name());
+  }
+
+  @Test
+  void extractCharsetIgnoresCharsetLookingSubstringInsideQuotedParameterValue() {
+    // The quoted boundary value contains "charset=" but must be treated as opaque text, not a
+    // real charset parameter; the actual charset= that follows must be used.
+    assertEquals(
+        "UTF-8",
+        MultipartContentDecoder.extractCharset(
+                "text/plain; boundary=\"charset=oops\"; charset=UTF-8")
+            .name());
+  }
+
+  @Test
+  void extractCharsetReturnsNullWhenOnlyMatchIsInsideQuotedParameterValue() {
+    assertNull(MultipartContentDecoder.extractCharset("text/plain; boundary=\"charset=oops\""));
+  }
+
+  @Test
   void extractCharsetIgnoresSubstringMatchInParameterName() {
     // "xcharset=UTF-16" must not match; the real "charset=UTF-8" that follows must be used
     assertEquals(

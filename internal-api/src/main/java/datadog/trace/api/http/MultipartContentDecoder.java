@@ -37,62 +37,84 @@ public final class MultipartContentDecoder {
     }
   }
 
+  /**
+   * Walks the media-type parameter list of a Content-Type value looking for a {@code charset}
+   * parameter, honoring RFC 7230 quoted-string syntax for parameter values. Quoted values are fully
+   * consumed as opaque tokens, so a {@code charset}-looking substring inside another parameter's
+   * quoted value (e.g. {@code boundary="charset=oops"}) can never be mistaken for a real {@code
+   * charset} parameter. If a {@code charset} parameter is found but its value is not a valid
+   * charset name, the search continues to any later {@code charset} parameter instead of giving up.
+   */
   public static Charset extractCharset(String contentType) {
     if (contentType == null) return null;
     int len = contentType.length();
-    int searchFrom = 0;
-    while (true) {
-      int idx = indexOfIgnoreAsciiCase(contentType, "charset", searchFrom);
-      if (idx < 0) return null;
-      // Require a parameter boundary before "charset" so "xcharset=..." is not matched.
-      // RFC 7230 optional whitespace (OWS) allows both space and horizontal tab.
-      boolean boundaryOk =
-          idx == 0
-              || contentType.charAt(idx - 1) == ';'
-              || contentType.charAt(idx - 1) == ' '
-              || contentType.charAt(idx - 1) == '\t';
-      // Also allow OWS around the "=", e.g. "charset = ISO-8859-1".
-      int j = idx + 7;
-      while (j < len && (contentType.charAt(j) == ' ' || contentType.charAt(j) == '\t')) j++;
-      if (boundaryOk && j < len && contentType.charAt(j) == '=') {
-        j++;
-        while (j < len && (contentType.charAt(j) == ' ' || contentType.charAt(j) == '\t')) j++;
-        int nameStart = j;
-        int end = len;
-        for (int i = nameStart; i < end; i++) {
+    // Skip the media type itself (e.g. "text/plain") up to the first parameter delimiter.
+    int i = skipToDelimiter(contentType, 0, len);
+    while (i < len) {
+      i++; // consume the ';' or ',' that ends the previous token
+      i = skipOws(contentType, i, len);
+      int nameStart = i;
+      while (i < len
+          && contentType.charAt(i) != '='
+          && contentType.charAt(i) != ';'
+          && contentType.charAt(i) != ',') {
+        i++;
+      }
+      if (i >= len || contentType.charAt(i) != '=') {
+        // Parameter with no '=' (malformed) — skip past it and keep looking.
+        i = skipToDelimiter(contentType, i, len);
+        continue;
+      }
+      int nameEnd = i;
+      while (nameEnd > nameStart && isOws(contentType.charAt(nameEnd - 1))) nameEnd--;
+      String name = contentType.substring(nameStart, nameEnd);
+      i = skipOws(contentType, i + 1, len);
+      String value;
+      if (i < len && contentType.charAt(i) == '"') {
+        StringBuilder sb = new StringBuilder();
+        i++;
+        while (i < len && contentType.charAt(i) != '"') {
           char c = contentType.charAt(i);
-          if (c == ';' || c == ',' || c == ' ') {
-            end = i;
-            break;
+          if (c == '\\' && i + 1 < len) {
+            i++;
+            c = contentType.charAt(i);
           }
+          sb.append(c);
+          i++;
         }
-        String name = contentType.substring(nameStart, end).trim();
-        if (name.length() > 1 && name.charAt(0) == '"' && name.charAt(name.length() - 1) == '"') {
-          name = name.substring(1, name.length() - 1);
-        }
+        if (i < len) i++; // consume closing quote
+        value = sb.toString();
+        i = skipToDelimiter(contentType, i, len);
+      } else {
+        int valStart = i;
+        i = skipToDelimiter(contentType, i, len);
+        int valEnd = i;
+        while (valEnd > valStart && isOws(contentType.charAt(valEnd - 1))) valEnd--;
+        value = contentType.substring(valStart, valEnd);
+      }
+      if (name.equalsIgnoreCase("charset")) {
         try {
-          return Charset.forName(name);
-        } catch (IllegalArgumentException e) {
-          return null;
+          return Charset.forName(value);
+        } catch (IllegalArgumentException ignored) {
+          // An invalid charset value here does not rule out a later, valid charset parameter.
         }
       }
-      searchFrom = idx + 1;
     }
+    return null;
   }
 
-  private static int indexOfIgnoreAsciiCase(String s, String needle, int fromIndex) {
-    int sLen = s.length();
-    int nLen = needle.length();
-    outer:
-    for (int i = fromIndex, max = sLen - nLen; i <= max; i++) {
-      for (int j = 0; j < nLen; j++) {
-        if (Character.toLowerCase(s.charAt(i + j)) != needle.charAt(j)) {
-          continue outer;
-        }
-      }
-      return i;
-    }
-    return -1;
+  private static int skipToDelimiter(String s, int i, int len) {
+    while (i < len && s.charAt(i) != ';' && s.charAt(i) != ',') i++;
+    return i;
+  }
+
+  private static boolean isOws(char c) {
+    return c == ' ' || c == '\t';
+  }
+
+  private static int skipOws(String s, int i, int len) {
+    while (i < len && isOws(s.charAt(i))) i++;
+    return i;
   }
 
   private MultipartContentDecoder() {}
