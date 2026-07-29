@@ -10,6 +10,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * Concurrent hash table providing lock-free reads and locked writes for {@link D1} (single-key) and
@@ -127,6 +129,7 @@ public final class ConcurrentHashtable {
    * @param <K> the key type
    * @param <TEntry> the user's {@link D1.Entry D1.Entry&lt;K&gt;} subclass
    */
+  @ThreadSafe
   public static final class D1<K, TEntry extends D1.Entry<K>> {
 
     /**
@@ -336,6 +339,7 @@ public final class ConcurrentHashtable {
    * @param <K2> second key type
    * @param <TEntry> the user's {@link D2.Entry D2.Entry&lt;K1, K2&gt;} subclass
    */
+  @ThreadSafe
   public static final class D2<K1, K2, TEntry extends D2.Entry<K1, K2>> {
 
     /**
@@ -626,6 +630,7 @@ public final class ConcurrentHashtable {
    * lock, so call it inside the caller's {@code synchronized (getWriteLock(buckets))} block, after
    * re-checking the chain for the key under that lock. Does not touch size accounting.
    */
+  @GuardedBy("getWriteLock(buckets)")
   public static <TEntry extends Entry> void insertHeadEntry(
       @Nonnull AtomicReferenceArray<TEntry> buckets, int index, @Nonnull TEntry entry) {
     assert Thread.holdsLock(getWriteLock(buckets))
@@ -639,6 +644,7 @@ public final class ConcurrentHashtable {
    * the bucket index from {@code keyHash}. Prefer the int-taking overload when the index is already
    * computed (e.g. a {@code getOrCreate} that reuses it across the lock-free pre-check).
    */
+  @GuardedBy("getWriteLock(buckets)")
   public static <TEntry extends Entry> void insertHeadEntry(
       @Nonnull AtomicReferenceArray<TEntry> buckets, long keyHash, @Nonnull TEntry entry) {
     insertHeadEntry(buckets, bucketIndex(buckets, keyHash), entry);
@@ -653,6 +659,7 @@ public final class ConcurrentHashtable {
    * so call it inside the caller's {@code synchronized (getWriteLock(buckets))} block. Does not
    * touch size accounting.
    */
+  @GuardedBy("getWriteLock(buckets)")
   public static <TEntry extends Entry> void unlink(
       @Nonnull AtomicReferenceArray<TEntry> buckets,
       int index,
