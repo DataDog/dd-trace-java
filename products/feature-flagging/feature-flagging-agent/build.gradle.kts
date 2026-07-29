@@ -15,7 +15,7 @@ description = "Feature flagging agent system"
 
 dependencies {
   api(libs.slf4j)
-  api(project(":products:feature-flagging:feature-flagging-lib"))
+  api(project(":products:feature-flagging:feature-flagging-agent-runtime"))
   api(project(":internal-api"))
   compileOnly(project(":products:feature-flagging:feature-flagging-config"))
 

@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
  * Capture-side unit suite for APM feature-flag span enrichment. The hook dispatches a {@link
  * SpanEnrichmentEvent} onto {@link FeatureFlaggingGateway} and the agent-side write tier does the
  * accumulation, so these tests assert the dispatched events (not span tags — those are covered in
- * {@code feature-flagging-lib}) plus the {@link Provider} gating.
+ * {@code feature-flagging-agent-runtime}) plus the {@link Provider} gating.
  */
 class SpanEnrichmentHookTest {
 
