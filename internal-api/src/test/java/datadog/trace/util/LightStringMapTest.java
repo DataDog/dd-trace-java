@@ -4,6 +4,7 @@ import static datadog.trace.util.LightStringMap.EmbeddingSupport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
@@ -50,6 +51,24 @@ class LightStringMapTest {
       map.remove("a");
       assertNull(map.get("a"));
       assertEquals(2, map.get("b"));
+    }
+
+    @Test
+    void containsKeyDistinguishesPresenceFromAbsence() {
+      LightStringMap<Integer> map = new LightStringMap<>(8);
+      assertFalse(map.containsKey("a"));
+      map.set("a", 1);
+      assertTrue(map.containsKey("a"));
+      assertFalse(map.containsKey("b"));
+      map.remove("a");
+      assertFalse(map.containsKey("a"));
+    }
+
+    @Test
+    void setRejectsNullValue() {
+      LightStringMap<Integer> map = new LightStringMap<>(8);
+      assertThrows(NullPointerException.class, () -> map.set("a", null));
+      assertFalse(map.containsKey("a"));
     }
 
     @Test
