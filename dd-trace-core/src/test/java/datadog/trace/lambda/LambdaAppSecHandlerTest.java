@@ -1465,6 +1465,40 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     verify(span).setTag(Tags.HTTP_URL, "http://api.example.com/pets/123");
   }
 
+  @Test
+  void processRequestEndIncludesNonDefaultForwardedPortInUrl() {
+    // A non-standard X-Forwarded-Port must be preserved in http.url (only the first hop is used).
+    String eventJson =
+        "{\"resource\": \"/pets/{petId}\",\"path\": \"/pets/123\",\"httpMethod\":"
+            + " \"GET\",\"headers\": {\"Host\": \"api.example.com\", \"X-Forwarded-Port\": \"8443,"
+            + " 443\"},\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-1\"}}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+    setupMockCallbacks(new Callbacks());
+    LambdaAppSecHandler.processRequestStart(event);
+
+    AgentSpan span = setupSpanForRequestEnd();
+    LambdaAppSecHandler.processRequestEnd(span);
+
+    verify(span).setTag(Tags.HTTP_URL, "https://api.example.com:8443/pets/123");
+  }
+
+  @Test
+  void processRequestEndOmitsDefaultForwardedPortFromUrl() {
+    // The scheme's default port (443 for https) must not appear in http.url.
+    String eventJson =
+        "{\"resource\": \"/pets/{petId}\",\"path\": \"/pets/123\",\"httpMethod\":"
+            + " \"GET\",\"headers\": {\"Host\": \"api.example.com\", \"X-Forwarded-Port\":"
+            + " \"443\"},\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-1\"}}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+    setupMockCallbacks(new Callbacks());
+    LambdaAppSecHandler.processRequestStart(event);
+
+    AgentSpan span = setupSpanForRequestEnd();
+    LambdaAppSecHandler.processRequestEnd(span);
+
+    verify(span).setTag(Tags.HTTP_URL, "https://api.example.com/pets/123");
+  }
+
   @SuppressWarnings("unchecked")
   private AgentSpan setupSpanForRequestEnd() {
     AppSecContext mockAppSecContext = mock(AppSecContext.class);

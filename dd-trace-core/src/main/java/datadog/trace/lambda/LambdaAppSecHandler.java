@@ -214,9 +214,12 @@ public class LambdaAppSecHandler {
       if (scheme == null || scheme.isEmpty()) {
         scheme = SCHEME_HTTPS;
       }
+      // buildURL omits the port when it is <= 0 or the scheme's default (80/443), so a missing or
+      // default X-Forwarded-Port yields a clean URL while a non-standard port is preserved.
+      int port = forwardedPort(eventData.headers);
       String url =
           (host != null && !host.isEmpty())
-              ? URIUtils.buildURL(scheme, host, 0, eventData.path)
+              ? URIUtils.buildURL(scheme, host, port, eventData.path)
               : eventData.path;
       span.setTag(Tags.HTTP_URL, url);
 
@@ -245,6 +248,22 @@ public class LambdaAppSecHandler {
     }
     int commaIdx = value.indexOf(',');
     return (commaIdx >= 0 ? value.substring(0, commaIdx) : value).trim();
+  }
+
+  /**
+   * Parses the first {@code X-Forwarded-Port} value as an int, or -1 if the header is absent, empty,
+   * or not a number.
+   */
+  private static int forwardedPort(Map<String, String> headers) {
+    String forwardedPort = firstForwardedValue(headers, HEADER_X_FORWARDED_PORT);
+    if (forwardedPort == null || forwardedPort.isEmpty()) {
+      return -1;
+    }
+    try {
+      return Integer.parseInt(forwardedPort);
+    } catch (NumberFormatException ignored) {
+      return -1;
+    }
   }
 
   /**
@@ -1353,14 +1372,7 @@ public class LambdaAppSecHandler {
       this.scheme =
           (forwardedProto != null && !forwardedProto.isEmpty()) ? forwardedProto : SCHEME_HTTPS;
 
-      String forwardedPort = firstForwardedValue(headers, HEADER_X_FORWARDED_PORT);
-      int parsedPort = -1;
-      if (forwardedPort != null && !forwardedPort.isEmpty()) {
-        try {
-          parsedPort = Integer.parseInt(forwardedPort.trim());
-        } catch (NumberFormatException ignored) {
-        }
-      }
+      int parsedPort = forwardedPort(headers);
       this.port = parsedPort > 0 ? parsedPort : 443;
     }
 
