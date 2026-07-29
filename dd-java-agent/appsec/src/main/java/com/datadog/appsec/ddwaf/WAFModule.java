@@ -1,6 +1,5 @@
 package com.datadog.appsec.ddwaf;
 
-import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -603,7 +602,10 @@ public class WAFModule implements AppSecModule {
   private Collection<AppSecEvent> buildEvents(
       Waf.ResultWithData actionWithData, String securityResponseId) {
     if (actionWithData.data == null) {
-      log.debug(SEND_TELEMETRY, "WAF result data is null");
+      // Since ruleset 1.14.1, fingerprint processors evaluate unconditionally, so the WAF
+      // returns MATCH with no data (no real rule/event) on every ordinary request, not just on
+      // attacks. This is expected and no longer worth logging (dd-trace-py/dd-trace-go don't log
+      // here either: both gate their equivalent log on non-empty events, not on the return code).
       return Collections.emptyList();
     }
     Collection<WAFResultData> listResults;
