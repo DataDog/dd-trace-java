@@ -776,9 +776,11 @@ public class SnapshotSerializationTest {
               }
             },
             "mutex-holder");
+    // daemon: a failed await below would otherwise leave the mutex held and block the test JVM
+    holder.setDaemon(true);
     holder.start();
-    assertTrue(locked.await(30, TimeUnit.SECONDS));
     try {
+      assertTrue(locked.await(5, TimeUnit.SECONDS));
       JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
       Snapshot snapshot = createSnapshot();
       CapturedContext context = new CapturedContext();
@@ -792,7 +794,10 @@ public class SnapshotSerializationTest {
       Map<String, Object> local = (Map<String, Object>) getLocalsFromJson(buffer).get("syncMap");
       assertNull(local.get(ENTRIES));
       assertNull(local.get(SIZE));
-      Assertions.assertNotNull(local.get(FIELDS));
+      Map<String, Object> fields = (Map<String, Object>) local.get(FIELDS);
+      Assertions.assertNotNull(fields);
+      // serialized through the object path: the backing map is a field, not entries
+      assertTrue(fields.containsKey("m"));
     } finally {
       release.countDown();
       holder.join();
