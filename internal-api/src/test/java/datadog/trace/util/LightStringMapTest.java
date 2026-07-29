@@ -72,6 +72,39 @@ class LightStringMapTest {
     }
 
     @Test
+    void sizeTracksLiveEntries() {
+      LightStringMap<Integer> map = new LightStringMap<>(8);
+      assertEquals(0, map.size());
+      map.set("a", 1);
+      map.set("b", 2);
+      assertEquals(2, map.size());
+      map.set("a", 11); // overwrite does not change size
+      assertEquals(2, map.size());
+      map.remove("a");
+      assertEquals(1, map.size());
+      map.remove("missing"); // no-op does not change size
+      assertEquals(1, map.size());
+    }
+
+    @Test
+    void growsBeforeReachingFullLoad() {
+      // With a 0.75 load-factor trigger, a capacity-8 map grows on the 7th distinct key rather
+      // than filling all 8 slots first -- keeping linear-probe chains short.
+      LightStringMap<Integer> map = new LightStringMap<>(8);
+      for (int i = 0; i < 6; i++) {
+        map.set("k" + i, i);
+      }
+      assertEquals(8, EmbeddingSupport.numSlots(map.dataForTesting()));
+      map.set("k6", 6);
+      assertEquals(16, EmbeddingSupport.numSlots(map.dataForTesting()));
+      // All entries survive the grow.
+      assertEquals(7, map.size());
+      for (int i = 0; i < 7; i++) {
+        assertEquals(i, map.get("k" + i));
+      }
+    }
+
+    @Test
     void growsAndPreservesAllEntries() {
       // initial capacity 2 forces several resizes as we insert well past it.
       LightStringMap<Integer> map = new LightStringMap<>(2);
@@ -365,6 +398,141 @@ class LightStringMapTest {
       assertTrue(EmbeddingSupport.isRemoved(EmbeddingSupport.REMOVED));
       assertFalse(EmbeddingSupport.isRemoved("removed"));
       assertFalse(EmbeddingSupport.isRemoved(new String("REMOVED")));
+    }
+  }
+
+  @Nested
+  class SizingHintTests {
+
+    @Test
+    void freshHintSeedsAtDefault() {
+      LightStringMap.SizingHint hint = LightStringMap.sizingHint();
+      assertEquals(LightStringMap.DEFAULT_HINT_SLOTS, hint.currentSeedSlots());
+    }
+
+    @Test
+    void hintSeedsAFreshMapAtItsLearnedCapacity() {
+      LightStringMap.SizingHint hint = LightStringMap.sizingHint();
+      LightStringMap<Integer> map = new LightStringMap<>(hint);
+      // A hint-seeded map allocates its backing array lazily, sized to the hint.
+      map.set("a", 1);
+      Object[] data = map.dataForTesting();
+      assertEquals(LightStringMap.DEFAULT_HINT_SLOTS, EmbeddingSupport.numSlots(data));
+    }
+
+    @Test
+    void growthRaisesSeedWithOneClassOfHeadroom() {
+      LightStringMap.SizingHint hint = LightStringMap.sizingHint();
+      // Fill a hint-seeded map past its seed so it grows; the hint should learn the new size
+      // PLUS one power-of-two class of headroom (so the steady-state load factor stays <= 0.5).
+      LightStringMap<Integer> map = new LightStringMap<>(hint);
+      for (int i = 0; i < LightStringMap.DEFAULT_HINT_SLOTS + 1; i++) {
+        map.set("k" + i, i);
+      }
+      int grownSlots = EmbeddingSupport.numSlots(map.dataForTesting());
+      assertEquals(grownSlots * 2, hint.currentSeedSlots());
+    }
+
+    @Test
+    void seedIsMonotonicMaxAcrossMaps() {
+      LightStringMap.SizingHint hint = LightStringMap.sizingHint();
+      // A big map ratchets the hint up.
+      LightStringMap<Integer> big = new LightStringMap<>(hint);
+      for (int i = 0; i < 20; i++) {
+        big.set("k" + i, i);
+      }
+      int learned = hint.currentSeedSlots();
+      assertTrue(learned > LightStringMap.DEFAULT_HINT_SLOTS);
+      // A subsequent tiny map does not lower the learned seed.
+      LightStringMap<Integer> small = new LightStringMap<>(hint);
+      small.set("a", 1);
+      assertEquals(learned, hint.currentSeedSlots());
+    }
+
+    @Test
+    void decayStepsSeedDownAfterInterval() {
+      LightStringMap.SizingHint hint = LightStringMap.sizingHint();
+      // Ratchet the hint above the default so a step-down is observable.
+      LightStringMap<Integer> big = new LightStringMap<>(hint);
+      for (int i = 0; i < 20; i++) {
+        big.set("k" + i, i);
+      }
+      int learned = hint.currentSeedSlots();
+      // One full decay interval of constructions steps the seed down exactly one class.
+      for (int i = 0; i < LightStringMap.DECAY_INTERVAL; i++) {
+        new LightStringMap<Integer>(hint);
+      }
+      assertEquals(learned / 2, hint.currentSeedSlots());
+    }
+
+    @Test
+    void decayFloorsAtMinimum() {
+      LightStringMap.SizingHint hint = LightStringMap.sizingHint();
+      // Enough decay intervals to drive an un-ratcheted hint to the floor and hold there.
+      int intervals = 32;
+      for (int i = 0; i < intervals * LightStringMap.DECAY_INTERVAL; i++) {
+        new LightStringMap<Integer>(hint);
+      }
+      assertEquals(LightStringMap.MIN_HINT_SLOTS, hint.currentSeedSlots());
+    }
+
+    @Test
+    void seedIsCappedAtMax() {
+      LightStringMap.SizingHint hint = LightStringMap.sizingHint();
+      // A very large map cannot push the learned seed past the pre-provisioning ceiling.
+      LightStringMap<Integer> big = new LightStringMap<>(hint);
+      for (int i = 0; i < LightStringMap.MAX_HINT_SLOTS * 4; i++) {
+        big.set("k" + i, i);
+      }
+      assertTrue(hint.currentSeedSlots() <= LightStringMap.MAX_HINT_SLOTS);
+      assertEquals(LightStringMap.MAX_HINT_SLOTS, hint.currentSeedSlots());
+    }
+
+    @Test
+    void oneDecayStepStaysSafeThenSecondDecayRepins() {
+      LightStringMap.SizingHint hint = LightStringMap.sizingHint();
+      // Learn a large size. With one class of headroom, `learned` is 2x the array the workload
+      // physically grew into.
+      LightStringMap<Integer> big = new LightStringMap<>(hint);
+      for (int i = 0; i < 20; i++) {
+        big.set("k" + i, i);
+      }
+      int learned = hint.currentSeedSlots();
+
+      // First decay lands the seed exactly on the physical high-water: the same workload now fits
+      // without regrowing, so the seed holds (the headroom step-down is "free").
+      for (int i = 0; i < LightStringMap.DECAY_INTERVAL; i++) {
+        new LightStringMap<Integer>(hint);
+      }
+      assertEquals(learned / 2, hint.currentSeedSlots());
+      LightStringMap<Integer> stillFits = new LightStringMap<>(hint);
+      for (int i = 0; i < 20; i++) {
+        stillFits.set("k" + i, i);
+      }
+      assertEquals(learned / 2, hint.currentSeedSlots());
+
+      // Second decay probes below the need: the workload now regrows and snaps the seed back up.
+      for (int i = 0; i < LightStringMap.DECAY_INTERVAL; i++) {
+        new LightStringMap<Integer>(hint);
+      }
+      assertEquals(learned / 4, hint.currentSeedSlots());
+      LightStringMap<Integer> recovered = new LightStringMap<>(hint);
+      for (int i = 0; i < 20; i++) {
+        recovered.set("k" + i, i);
+      }
+      assertEquals(learned, hint.currentSeedSlots());
+    }
+
+    @Test
+    void hintSeededMapStoresAndReadsBackCorrectly() {
+      LightStringMap.SizingHint hint = LightStringMap.sizingHint();
+      LightStringMap<Integer> map = new LightStringMap<>(hint);
+      for (int i = 0; i < 50; i++) {
+        map.set("k" + i, i);
+      }
+      for (int i = 0; i < 50; i++) {
+        assertEquals(i, map.get("k" + i));
+      }
     }
   }
 }
