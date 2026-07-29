@@ -146,9 +146,8 @@ public final class ConcurrentHashtable {
       }
 
       public boolean matches(Object key) {
-        // equals() is invoked on the lookup parameter, not the stored field: when matches() inlines
-        // into get/getOrCreate the caller's key type is known, so the JIT can devirtualize the
-        // equals() call. Objects.equals short-circuits on ==, so interned keys still hit identity.
+        // equals() on the lookup param, not the field, so the JIT can devirtualize it once
+        // matches() inlines into get/getOrCreate (the caller's key type is known there).
         return Objects.equals(key, this.key);
       }
 
@@ -352,10 +351,8 @@ public final class ConcurrentHashtable {
       }
 
       public boolean matches(K1 key1, K2 key2) {
-        // equals() is invoked on the lookup parameters, not the stored fields: when matches()
-        // inlines
-        // into get/getOrCreate the caller's key types are known, so the JIT can devirtualize the
-        // equals() calls. Objects.equals short-circuits on ==, so interned keys still hit identity.
+        // equals() on the lookup params, not the fields, so the JIT can devirtualize them once
+        // matches() inlines into get/getOrCreate (the caller's key types are known there).
         return Objects.equals(key1, this.key1) && Objects.equals(key2, this.key2);
       }
 
