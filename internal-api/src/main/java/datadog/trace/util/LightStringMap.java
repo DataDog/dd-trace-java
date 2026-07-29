@@ -55,20 +55,9 @@ public final class LightStringMap<V> {
   // over-provision from an outlier; the map itself is uncapped and grows past this on its own.
   static final int MAX_HINT_SLOTS = 1024;
 
-  // Object-tier growth trigger. We grow before the live entry count would exceed this fraction of
-  // the slots, so linear-probe chains stay short instead of the map filling to a load factor of
-  // 1.0 right before every doubling. Expressed as a 1/4 reserve (a 0.75 trigger) via a shift so
-  // the hot-path check stays float-free. The static EmbeddingSupport spine has no live count to
-  // consult, so it keeps its grow-only-when-physically-full behavior -- this threshold is purely
-  // an object-tier policy layered on top of the spine.
-  private static final int LOAD_FACTOR_RESERVE_SHIFT = 2;
-
   private final int initialCapacity;
   @Nullable private final SizingHint sizingHint;
   private Object[] data = EmbeddingSupport.EMPTY_DATA;
-  // Live entry count (excludes tombstones), tracked so the growth threshold is an O(1) check
-  // rather than an O(capacity) scan on the hot path.
-  private int size;
 
   public LightStringMap(int capacity) {
     this.initialCapacity = capacity;
@@ -94,42 +83,21 @@ public final class LightStringMap<V> {
   public void set(@Nonnull String key, @Nonnull V value) {
     Objects.requireNonNull(value, "value");
 
-    Object[] mapData = this.data;
-    if (mapData == null) {
-      // Lazy first allocation, sized to the seed. This is the seed itself, not a grow, so it is
-      // never recorded back to the hint.
-      this.data = EmbeddingSupport.newMapData(this.initialCapacity, key, value);
-      this.size = 1;
-      return;
-    }
+    Object[] before = this.data;
+    int beforeSlots = EmbeddingSupport.numSlots(before);
+    // The spine owns the grow decision (probe-bound trigger) and returns the map data, resized if
+    // it grew. The object is a thin delegate: its only extra job is to teach the sizing hint.
+    Object[] after = EmbeddingSupport.set(this.initialCapacity, before, key, value);
+    this.data = after;
 
-    int numSlots = EmbeddingSupport.numSlots(mapData);
-    int slot = EmbeddingSupport.findInsertionSlot(mapData, numSlots, key);
-    if (slot >= 0) {
-      // Key already present -- overwrite in place, no size change, no growth.
-      mapData[slot + numSlots] = value;
-      return;
-    }
-
-    // A new key. Grow first if there is no space at all, or if landing it would push the live
-    // count past the load-factor threshold; otherwise fill the available slot directly.
-    if (slot == EmbeddingSupport.NO_SPACE || this.size + 1 > growThreshold(numSlots)) {
-      mapData = EmbeddingSupport.expandMapData(mapData);
-      this.data = mapData;
-      numSlots = EmbeddingSupport.numSlots(mapData);
-      EmbeddingSupport.newMapUncheckedInsert(mapData, numSlots, key, value);
-      this.size++;
-      // Record the grow so the hint learns this site's high-water mark.
-      if (this.sizingHint != null) {
-        this.sizingHint.recordSlots(numSlots);
+    // Record a genuine grow (not the lazy first allocation, which seeds from beforeSlots == 0) so
+    // the hint learns this site's high-water mark. seedSlots()/newMapData never feed the hint.
+    if (this.sizingHint != null && beforeSlots != 0) {
+      int afterSlots = EmbeddingSupport.numSlots(after);
+      if (afterSlots > beforeSlots) {
+        this.sizingHint.recordSlots(afterSlots);
       }
-      return;
     }
-
-    int availableSlot = EmbeddingSupport.flip(slot);
-    mapData[availableSlot] = key;
-    mapData[availableSlot + numSlots] = value;
-    this.size++;
   }
 
   @Nullable
@@ -138,19 +106,12 @@ public final class LightStringMap<V> {
   }
 
   public void remove(@Nonnull String key) {
-    if (EmbeddingSupport.remove(this.data, key)) {
-      this.size--;
-    }
+    EmbeddingSupport.remove(this.data, key);
   }
 
   /** The number of live entries in this map (tombstones excluded). */
   public int size() {
-    return this.size;
-  }
-
-  // Grow before the live count exceeds this many slots -- a 1/4 reserve, i.e. a 0.75 load factor.
-  private static int growThreshold(int numSlots) {
-    return numSlots - (numSlots >> LOAD_FACTOR_RESERVE_SHIFT);
+    return EmbeddingSupport.size(this.data);
   }
 
   public boolean containsKey(@Nonnull String key) {
@@ -215,9 +176,9 @@ public final class LightStringMap<V> {
     }
 
     /**
-     * Records that a map grew to {@code grownSlots}. Reserves one extra power-of-two class so the
-     * steady-state load factor stays &le; 0.5 (kills the load-factor-1.0 tail without a terminal
-     * read), monotonic-max, clamped to {@link #MAX_HINT_SLOTS}.
+     * Records that a map grew to {@code grownSlots}. Reserves one extra power-of-two class so a
+     * reseeded map starts with slack and is unlikely to immediately re-trip the grow trigger for
+     * the same workload. Monotonic-max, clamped to {@link #MAX_HINT_SLOTS}.
      */
     void recordSlots(int grownSlots) {
       int candidate = grownSlots << 1;
@@ -238,6 +199,20 @@ public final class LightStringMap<V> {
   public static final class EmbeddingSupport {
     public static final int NOT_FOUND = Integer.MIN_VALUE;
     static final int NO_SPACE = Integer.MIN_VALUE;
+
+    // Grow trigger: an insertion that would land this many slots or more from its home slot forces
+    // a resize, rather than waiting for the table to fill completely. This bounds the worst-case
+    // probe length (and therefore lookup cost) directly -- a load-factor threshold cannot, because
+    // it is blind to local clustering (colliding keys pile into one chain long before global
+    // occupancy is high). The check is derived entirely from the probe walk, so it is stateless and
+    // lives here in the spine rather than needing a maintained live count in the object tier.
+    //
+    // Chosen as a power-of-two-friendly 8 from measurement (LightStringMapGrowBenchmark): it caps
+    // the worst-case probe at 8 while keeping the memory over-provision modest on well-spread keys.
+    // Because a table never has more than (numSlots - 1) probe distance, this is inert for tables
+    // of
+    // 8 slots or fewer -- tiny maps still grow only when physically full, exactly as before.
+    static final int MAX_PROBES = 8;
 
     // TODO: use of String constructor is deliberate, since this is
     // an internal marker that we don't want intern-ed
@@ -400,14 +375,34 @@ public final class LightStringMap<V> {
       }
 
       int numSlots = numSlots(mapData);
-      if (checkedInsert(mapData, numSlots, key, value)) {
+      int slot = findInsertionSlot(mapData, numSlots, key);
+      if (slot >= 0) {
+        // Key already present -- overwrite in place, no growth.
+        mapData[slot + numSlots] = value;
+        return mapData;
+      }
+      if (slot != NO_SPACE && withinProbeBound(numSlots, slot, key)) {
+        // A free slot within the probe bound -- fill it directly.
+        int availableSlot = flip(slot);
+        mapData[availableSlot] = key;
+        mapData[availableSlot + numSlots] = value;
         return mapData;
       }
 
+      // No space at all, or the insertion would exceed the probe bound: grow, then insert into the
+      // fresh (tombstone-free, better-spread) table.
       mapData = expandMapData(mapData);
-      numSlots = numSlots(mapData);
-      newMapUncheckedInsert(mapData, numSlots, key, value);
+      newMapUncheckedInsert(mapData, numSlots(mapData), key, value);
       return mapData;
+    }
+
+    // Whether an insertion at the free slot encoded by {@code insertionSlot} (as returned by
+    // findInsertionSlot for an absent key) lands within {@link #MAX_PROBES} of the key's home slot.
+    private static boolean withinProbeBound(int numSlots, int insertionSlot, String key) {
+      int availableSlot = flip(insertionSlot);
+      int home = preferredSlot(numSlots, key.hashCode());
+      int distance = (availableSlot - home) & (numSlots - 1);
+      return distance < MAX_PROBES;
     }
 
     @SuppressWarnings("unchecked")
