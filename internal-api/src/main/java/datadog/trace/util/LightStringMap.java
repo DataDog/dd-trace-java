@@ -181,50 +181,19 @@ public final class LightStringMap<V> {
   public boolean set(@Nonnull String key, @Nonnull V value) {
     Objects.requireNonNull(value, "value");
 
+    // A thin delegate over the shared spine orchestration: it passes this map's cap (NO_MAX_SLOTS
+    // when uncapped) and does the two things only the object tier can -- swap in the new backing
+    // array and teach the sizing hint. A null result is the spine's non-fatal rejection signal.
     Object[] before = this.data;
     int beforeSlots = EmbeddingSupport.numSlots(before);
-
-    if (this.maxSlots == NO_MAX_SLOTS) {
-      // Uncapped: the spine owns the grow decision (probe-bound trigger) and always stores the key.
-      // The object stays a thin delegate whose only extra job is to teach the sizing hint.
-      Object[] after = EmbeddingSupport.set(this.initialCapacity, before, key, value);
-      this.data = after;
-      recordGrowth(beforeSlots, after);
-      return true;
+    Object[] after =
+        EmbeddingSupport.setOrReject(this.initialCapacity, this.maxSlots, before, key, value);
+    if (after == null) {
+      return false; // capped, physically full, key is new
     }
-
-    // Capped: orchestrate the insert so a grow past maxSlots becomes a (non-fatal) rejection rather
-    // than an unbounded resize. Reuses the same spine primitives as the uncapped path.
-    if (before == null) {
-      this.data = EmbeddingSupport.newMapData(this.initialCapacity, key, value);
-      return true;
-    }
-    int numSlots = beforeSlots;
-    int slot = EmbeddingSupport.findInsertionSlot(before, numSlots, key);
-    if (slot >= 0) {
-      before[slot + numSlots] = value; // key already present -- overwrite in place
-      return true;
-    }
-
-    boolean hasFreeSlot = slot != EmbeddingSupport.NO_SPACE;
-    boolean wantsGrow = !hasFreeSlot || !EmbeddingSupport.withinProbeBound(numSlots, slot, key);
-    if (wantsGrow && numSlots < this.maxSlots) {
-      Object[] after = EmbeddingSupport.expandMapData(before);
-      EmbeddingSupport.newMapUncheckedInsert(after, EmbeddingSupport.numSlots(after), key, value);
-      this.data = after;
-      recordGrowth(beforeSlots, after);
-      return true;
-    }
-    if (hasFreeSlot) {
-      // At the cap: the probe bound is relaxed (we cannot grow), so fill any free slot the probe
-      // walk found, even one past MAX_PROBES, until the table is physically full.
-      int availableSlot = EmbeddingSupport.flip(slot);
-      before[availableSlot] = key;
-      before[availableSlot + numSlots] = value;
-      return true;
-    }
-    // Physically full at the cap and the key is new: reject.
-    return false;
+    this.data = after;
+    recordGrowth(beforeSlots, after);
+    return true;
   }
 
   // Teach the sizing hint after a genuine grow (not the lazy first allocation, which seeds from
@@ -513,14 +482,28 @@ public final class LightStringMap<V> {
     @Nonnull
     public static <V> Object[] set(
         int initialCapacity, @Nullable Object[] mapData, @Nonnull String key, @Nonnull V value) {
-      if (mapData == null) {
-        int numSlots = roundUpToPow2(initialCapacity);
-        mapData = new Object[numSlots << 1];
+      // Uncapped: NO_MAX_SLOTS makes the cap check inert, so setOrReject grows on demand and never
+      // rejects -- the result is always non-null.
+      return setOrReject(initialCapacity, NO_MAX_SLOTS, mapData, key, value);
+    }
 
-        int keyIndex = preferredSlot(numSlots, key.hashCode());
-        mapData[keyIndex] = key;
-        mapData[keyIndex + numSlots] = value;
-        return mapData;
+    // The single insert orchestration shared by the uncapped spine set() above and the capped
+    // object-tier LightStringMap.set(): probe, then either overwrite in place, fill a free slot, or
+    // grow. Stores {@code key -> value} and returns the (possibly new) backing array.
+    //
+    // Returns null ONLY when {@code maxSlots} is a finite cap, the table is physically full at it,
+    // and the key is genuinely new -- the caller's non-fatal rejection signal. With {@code maxSlots
+    // == NO_MAX_SLOTS} the cap check is inert (numSlots is always below it), so a grow is always
+    // available and the result is never null.
+    @Nullable
+    static <V> Object[] setOrReject(
+        int initialCapacity,
+        int maxSlots,
+        @Nullable Object[] mapData,
+        @Nonnull String key,
+        @Nonnull V value) {
+      if (mapData == null) {
+        return newMapData(initialCapacity, key, value);
       }
 
       int numSlots = numSlots(mapData);
@@ -530,25 +513,32 @@ public final class LightStringMap<V> {
         mapData[slot + numSlots] = value;
         return mapData;
       }
-      if (slot != NO_SPACE && withinProbeBound(numSlots, slot, key)) {
-        // A free slot within the probe bound -- fill it directly.
+
+      boolean hasFreeSlot = slot != NO_SPACE;
+      boolean wantsGrow = !hasFreeSlot || !withinProbeBound(numSlots, slot, key);
+      if (wantsGrow && numSlots < maxSlots) {
+        // No space, or the insertion would exceed the probe bound: grow, then insert into the fresh
+        // (tombstone-free, better-spread) table.
+        mapData = expandMapData(mapData);
+        newMapUncheckedInsert(mapData, numSlots(mapData), key, value);
+        return mapData;
+      }
+      if (hasFreeSlot) {
+        // A free slot the probe walk found. Below the cap this is within the probe bound; at the
+        // cap
+        // the bound is relaxed (we cannot grow), so fill it even past MAX_PROBES until physically
+        // full.
         int availableSlot = flip(slot);
         mapData[availableSlot] = key;
         mapData[availableSlot + numSlots] = value;
         return mapData;
       }
-
-      // No space at all, or the insertion would exceed the probe bound: grow, then insert into the
-      // fresh (tombstone-free, better-spread) table.
-      mapData = expandMapData(mapData);
-      newMapUncheckedInsert(mapData, numSlots(mapData), key, value);
-      return mapData;
+      // Physically full at a finite cap and the key is new: reject.
+      return null;
     }
 
     // Whether an insertion at the free slot encoded by {@code insertionSlot} (as returned by
     // findInsertionSlot for an absent key) lands within {@link #MAX_PROBES} of the key's home slot.
-    // Package-private so the capped object-tier set() can share the same grow decision as the
-    // spine.
     static boolean withinProbeBound(int numSlots, int insertionSlot, String key) {
       int availableSlot = flip(insertionSlot);
       int home = preferredSlot(numSlots, key.hashCode());
