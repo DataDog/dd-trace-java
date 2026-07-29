@@ -8,6 +8,8 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Concurrent hash table providing lock-free reads and locked writes for {@link D1} (single-key) and
@@ -113,6 +115,7 @@ public final class ConcurrentHashtable {
     }
 
     @SuppressWarnings("unchecked")
+    @Nullable
     public final <TEntry extends Entry> TEntry next() {
       return (TEntry) this.next;
     }
@@ -135,17 +138,18 @@ public final class ConcurrentHashtable {
     public abstract static class Entry<K> extends ConcurrentHashtable.Entry {
       final K key;
 
-      protected Entry(K key) {
+      protected Entry(@Nullable K key) {
         super(hash(key));
         this.key = key;
       }
 
       /** The key this entry was created with. */
+      @Nullable
       public K key() {
         return this.key;
       }
 
-      public boolean matches(Object key) {
+      public boolean matches(@Nullable Object key) {
         // equals() on the lookup param, not the field, so the JIT can devirtualize it once
         // matches() inlines into get/getOrCreate (the caller's key type is known there).
         return Objects.equals(key, this.key);
@@ -156,7 +160,7 @@ public final class ConcurrentHashtable {
        * they don't collide with a real key that hashes to 0; real-key collisions in chains are
        * resolved by {@link #matches(Object)}.
        */
-      public static long hash(Object key) {
+      public static long hash(@Nullable Object key) {
         return (key == null) ? Long.MIN_VALUE : key.hashCode();
       }
     }
@@ -176,8 +180,9 @@ public final class ConcurrentHashtable {
      * ConcurrentHashtable#createFixedBuckets(Class, int)} for why the class isn't otherwise
      * consumed here). Capacity is fixed; the table does not resize.
      */
+    @Nonnull
     public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createFixedBuckets(
-        Class<TEntry> entryClass, int capacity) {
+        @Nonnull Class<TEntry> entryClass, int capacity) {
       return new D1<>(ConcurrentHashtable.createFixedBuckets(entryClass, capacity));
     }
 
@@ -185,7 +190,8 @@ public final class ConcurrentHashtable {
       return size.get();
     }
 
-    public TEntry get(K key) {
+    @Nullable
+    public TEntry get(@Nullable K key) {
       long keyHash = D1.Entry.hash(key);
       for (TEntry curEntry = bucket(buckets, keyHash);
           curEntry != null;
@@ -202,7 +208,9 @@ public final class ConcurrentHashtable {
      * hit; acquires a table-level lock on miss. Re-checks under the lock to avoid duplicate entries
      * under concurrent misses.
      */
-    public TEntry getOrCreate(K key, Function<? super K, ? extends TEntry> creator) {
+    @Nonnull
+    public TEntry getOrCreate(
+        @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
       long keyHash = D1.Entry.hash(key);
       int index = bucketIndex(buckets, keyHash);
       for (TEntry curEntry = bucket(buckets, index); curEntry != null; curEntry = curEntry.next()) {
@@ -230,7 +238,8 @@ public final class ConcurrentHashtable {
      * table-level lock to splice the chain; lock-free readers observe the removal via the volatile
      * write of the predecessor's {@code next} (or the bucket head).
      */
-    public TEntry remove(K key) {
+    @Nullable
+    public TEntry remove(@Nullable K key) {
       long keyHash = D1.Entry.hash(key);
       int index = bucketIndex(buckets, keyHash);
       synchronized (getWriteLock(buckets)) {
@@ -253,7 +262,7 @@ public final class ConcurrentHashtable {
      * Holds the table-level lock for the whole sweep, so the predicate sees a stable table and
      * concurrent writers are excluded; lock-free readers continue throughout.
      */
-    public boolean removeIf(Predicate<? super TEntry> predicate) {
+    public boolean removeIf(@Nonnull Predicate<? super TEntry> predicate) {
       return ConcurrentHashtable.removeIf(buckets, size, predicate);
     }
 
@@ -276,7 +285,7 @@ public final class ConcurrentHashtable {
      * half-published flush. This is intentional — the alternative is per-entry size bookkeeping on
      * a path that only matters when the caller is already in error.
      */
-    public void drain(Consumer<? super TEntry> sink) {
+    public void drain(@Nonnull Consumer<? super TEntry> sink) {
       synchronized (getWriteLock(buckets)) {
         ConcurrentHashtable.drain(buckets, sink);
         size.set(0);
@@ -288,7 +297,7 @@ public final class ConcurrentHashtable {
      * a {@code static final}) plus the accumulator as {@code context} (e.g. the target list or
      * event builder) to avoid a capturing-lambda allocation.
      */
-    public <C> void drain(C context, BiConsumer<? super C, ? super TEntry> sink) {
+    public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
       synchronized (getWriteLock(buckets)) {
         ConcurrentHashtable.drain(buckets, context, sink);
         size.set(0);
@@ -303,7 +312,7 @@ public final class ConcurrentHashtable {
       }
     }
 
-    public void forEach(Consumer<? super TEntry> consumer) {
+    public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
       ConcurrentHashtable.forEach(buckets, consumer);
     }
 
@@ -311,7 +320,7 @@ public final class ConcurrentHashtable {
      * Context-passing forEach. Avoids a capturing-lambda allocation — pass a non-capturing {@link
      * BiConsumer} (typically a {@code static final}) plus whatever side-band state it needs.
      */
-    public <C> void forEach(C context, BiConsumer<? super C, ? super TEntry> consumer) {
+    public <C> void forEach(C context, @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
       ConcurrentHashtable.forEach(buckets, context, consumer);
     }
   }
@@ -340,30 +349,32 @@ public final class ConcurrentHashtable {
       final K1 key1;
       final K2 key2;
 
-      protected Entry(K1 key1, K2 key2) {
+      protected Entry(@Nullable K1 key1, @Nullable K2 key2) {
         super(hash(key1, key2));
         this.key1 = key1;
         this.key2 = key2;
       }
 
       /** The first key part this entry was created with. */
+      @Nullable
       public K1 key1() {
         return this.key1;
       }
 
       /** The second key part this entry was created with. */
+      @Nullable
       public K2 key2() {
         return this.key2;
       }
 
-      public boolean matches(K1 key1, K2 key2) {
+      public boolean matches(@Nullable K1 key1, @Nullable K2 key2) {
         // equals() on the lookup params, not the fields, so the JIT can devirtualize them once
         // matches() inlines into get/getOrCreate (the caller's key types are known there).
         return Objects.equals(key1, this.key1) && Objects.equals(key2, this.key2);
       }
 
       /** Returns the 64-bit lookup hash combining both key parts via {@link LongHashingUtils}. */
-      public static long hash(Object key1, Object key2) {
+      public static long hash(@Nullable Object key1, @Nullable Object key2) {
         return LongHashingUtils.hash(key1, key2);
       }
     }
@@ -383,8 +394,9 @@ public final class ConcurrentHashtable {
      * {@link ConcurrentHashtable#createFixedBuckets(Class, int)} for why the class isn't otherwise
      * consumed here). Capacity is fixed; the table does not resize.
      */
+    @Nonnull
     public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createFixedBuckets(
-        Class<TEntry> entryClass, int capacity) {
+        @Nonnull Class<TEntry> entryClass, int capacity) {
       return new D2<>(ConcurrentHashtable.createFixedBuckets(entryClass, capacity));
     }
 
@@ -392,7 +404,8 @@ public final class ConcurrentHashtable {
       return size.get();
     }
 
-    public TEntry get(K1 key1, K2 key2) {
+    @Nullable
+    public TEntry get(@Nullable K1 key1, @Nullable K2 key2) {
       long keyHash = D2.Entry.hash(key1, key2);
       for (TEntry curEntry = bucket(buckets, keyHash);
           curEntry != null;
@@ -412,8 +425,11 @@ public final class ConcurrentHashtable {
      * <p>The {@code creator} should build an entry whose {@code keyHash} equals {@link
      * D2.Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}.
      */
+    @Nonnull
     public TEntry getOrCreate(
-        K1 key1, K2 key2, BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
+        @Nullable K1 key1,
+        @Nullable K2 key2,
+        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
       long keyHash = D2.Entry.hash(key1, key2);
       int index = bucketIndex(buckets, keyHash);
       for (TEntry curEntry = bucket(buckets, index); curEntry != null; curEntry = curEntry.next()) {
@@ -441,7 +457,8 @@ public final class ConcurrentHashtable {
      * the table-level lock to splice the chain; lock-free readers observe the removal via the
      * volatile write of the predecessor's {@code next} (or the bucket head).
      */
-    public TEntry remove(K1 key1, K2 key2) {
+    @Nullable
+    public TEntry remove(@Nullable K1 key1, @Nullable K2 key2) {
       long keyHash = D2.Entry.hash(key1, key2);
       int index = bucketIndex(buckets, keyHash);
       synchronized (getWriteLock(buckets)) {
@@ -464,7 +481,7 @@ public final class ConcurrentHashtable {
      * Holds the table-level lock for the whole sweep, so the predicate sees a stable table and
      * concurrent writers are excluded; lock-free readers continue throughout.
      */
-    public boolean removeIf(Predicate<? super TEntry> predicate) {
+    public boolean removeIf(@Nonnull Predicate<? super TEntry> predicate) {
       return ConcurrentHashtable.removeIf(buckets, size, predicate);
     }
 
@@ -487,7 +504,7 @@ public final class ConcurrentHashtable {
      * half-published flush. This is intentional — the alternative is per-entry size bookkeeping on
      * a path that only matters when the caller is already in error.
      */
-    public void drain(Consumer<? super TEntry> sink) {
+    public void drain(@Nonnull Consumer<? super TEntry> sink) {
       synchronized (getWriteLock(buckets)) {
         ConcurrentHashtable.drain(buckets, sink);
         size.set(0);
@@ -499,7 +516,7 @@ public final class ConcurrentHashtable {
      * a {@code static final}) plus the accumulator as {@code context} (e.g. the target list or
      * event builder) to avoid a capturing-lambda allocation.
      */
-    public <C> void drain(C context, BiConsumer<? super C, ? super TEntry> sink) {
+    public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
       synchronized (getWriteLock(buckets)) {
         ConcurrentHashtable.drain(buckets, context, sink);
         size.set(0);
@@ -514,7 +531,7 @@ public final class ConcurrentHashtable {
       }
     }
 
-    public void forEach(Consumer<? super TEntry> consumer) {
+    public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
       ConcurrentHashtable.forEach(buckets, consumer);
     }
 
@@ -522,7 +539,7 @@ public final class ConcurrentHashtable {
      * Context-passing forEach. Avoids a capturing-lambda allocation — pass a non-capturing {@link
      * BiConsumer} (typically a {@code static final}) plus whatever side-band state it needs.
      */
-    public <C> void forEach(C context, BiConsumer<? super C, ? super TEntry> consumer) {
+    public <C> void forEach(C context, @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
       ConcurrentHashtable.forEach(buckets, context, consumer);
     }
   }
@@ -549,8 +566,9 @@ public final class ConcurrentHashtable {
    * createFixedBuckets(MyEntry.class, n)} and get back a precisely typed {@code
    * AtomicReferenceArray<MyEntry>} without an explicit witness.
    */
+  @Nonnull
   public static <TEntry extends Entry> AtomicReferenceArray<TEntry> createFixedBuckets(
-      Class<TEntry> entryClass, int capacity) {
+      @Nonnull Class<TEntry> entryClass, int capacity) {
     return new AtomicReferenceArray<>(sizeFor(capacity));
   }
 
@@ -571,11 +589,12 @@ public final class ConcurrentHashtable {
    * array today, but obtain it here rather than assuming that, so callers stay correct if the
    * monitor ever changes.
    */
-  public static Object getWriteLock(AtomicReferenceArray<?> buckets) {
+  @Nonnull
+  public static Object getWriteLock(@Nonnull AtomicReferenceArray<?> buckets) {
     return buckets;
   }
 
-  public static int bucketIndex(AtomicReferenceArray<?> buckets, long keyHash) {
+  public static int bucketIndex(@Nonnull AtomicReferenceArray<?> buckets, long keyHash) {
     return (int) (keyHash & (buckets.length() - 1));
   }
 
@@ -583,8 +602,9 @@ public final class ConcurrentHashtable {
    * Returns the head entry of the bucket that {@code keyHash} maps to. The bucket read is a
    * volatile read of the slot, so it is safe from any thread without a lock.
    */
+  @Nullable
   public static <TEntry extends Entry> TEntry bucket(
-      AtomicReferenceArray<TEntry> buckets, long keyHash) {
+      @Nonnull AtomicReferenceArray<TEntry> buckets, long keyHash) {
     return buckets.get(bucketIndex(buckets, keyHash));
   }
 
@@ -593,8 +613,9 @@ public final class ConcurrentHashtable {
    * computed (e.g. inside {@code getOrCreate} where the same index is reused across the lock
    * boundary).
    */
+  @Nullable
   public static <TEntry extends Entry> TEntry bucket(
-      AtomicReferenceArray<TEntry> buckets, int index) {
+      @Nonnull AtomicReferenceArray<TEntry> buckets, int index) {
     return buckets.get(index);
   }
 
@@ -606,7 +627,7 @@ public final class ConcurrentHashtable {
    * re-checking the chain for the key under that lock. Does not touch size accounting.
    */
   public static <TEntry extends Entry> void insertHeadEntry(
-      AtomicReferenceArray<TEntry> buckets, int index, TEntry entry) {
+      @Nonnull AtomicReferenceArray<TEntry> buckets, int index, @Nonnull TEntry entry) {
     assert Thread.holdsLock(getWriteLock(buckets))
         : "insertHeadEntry called without holding getWriteLock(buckets)";
     entry.setNext(buckets.get(index));
@@ -619,7 +640,7 @@ public final class ConcurrentHashtable {
    * computed (e.g. a {@code getOrCreate} that reuses it across the lock-free pre-check).
    */
   public static <TEntry extends Entry> void insertHeadEntry(
-      AtomicReferenceArray<TEntry> buckets, long keyHash, TEntry entry) {
+      @Nonnull AtomicReferenceArray<TEntry> buckets, long keyHash, @Nonnull TEntry entry) {
     insertHeadEntry(buckets, bucketIndex(buckets, keyHash), entry);
   }
 
@@ -633,7 +654,10 @@ public final class ConcurrentHashtable {
    * touch size accounting.
    */
   public static <TEntry extends Entry> void unlink(
-      AtomicReferenceArray<TEntry> buckets, int index, TEntry prev, TEntry entry) {
+      @Nonnull AtomicReferenceArray<TEntry> buckets,
+      int index,
+      @Nullable TEntry prev,
+      @Nonnull TEntry entry) {
     assert Thread.holdsLock(getWriteLock(buckets))
         : "unlink called without holding getWriteLock(buckets)";
     TEntry next = entry.next();
@@ -651,9 +675,9 @@ public final class ConcurrentHashtable {
    * throughout.
    */
   public static <TEntry extends Entry> boolean removeIf(
-      AtomicReferenceArray<TEntry> buckets,
-      AtomicInteger size,
-      Predicate<? super TEntry> predicate) {
+      @Nonnull AtomicReferenceArray<TEntry> buckets,
+      @Nonnull AtomicInteger size,
+      @Nonnull Predicate<? super TEntry> predicate) {
     synchronized (getWriteLock(buckets)) {
       boolean removed = false;
       for (int i = 0; i < buckets.length(); i++) {
@@ -686,7 +710,7 @@ public final class ConcurrentHashtable {
    * reset never runs. The drain is not rolled back — a throwing sink is a caller error.
    */
   public static <TEntry extends Entry> void drain(
-      AtomicReferenceArray<TEntry> buckets, Consumer<? super TEntry> sink) {
+      @Nonnull AtomicReferenceArray<TEntry> buckets, @Nonnull Consumer<? super TEntry> sink) {
     synchronized (getWriteLock(buckets)) {
       for (int i = 0; i < buckets.length(); i++) {
         TEntry head = buckets.get(i);
@@ -703,7 +727,9 @@ public final class ConcurrentHashtable {
 
   /** Context-passing variant of {@link #drain(AtomicReferenceArray, Consumer)}. Self-locking. */
   public static <C, TEntry extends Entry> void drain(
-      AtomicReferenceArray<TEntry> buckets, C context, BiConsumer<? super C, ? super TEntry> sink) {
+      @Nonnull AtomicReferenceArray<TEntry> buckets,
+      C context,
+      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
     synchronized (getWriteLock(buckets)) {
       for (int i = 0; i < buckets.length(); i++) {
         TEntry head = buckets.get(i);
@@ -719,7 +745,7 @@ public final class ConcurrentHashtable {
   }
 
   /** Nulls every bucket head. Self-locking: synchronizes on {@code buckets}. */
-  public static void clear(AtomicReferenceArray<?> buckets) {
+  public static void clear(@Nonnull AtomicReferenceArray<?> buckets) {
     synchronized (getWriteLock(buckets)) {
       for (int i = 0; i < buckets.length(); i++) {
         buckets.set(i, null);
@@ -728,7 +754,7 @@ public final class ConcurrentHashtable {
   }
 
   public static <TEntry extends Entry> void forEach(
-      AtomicReferenceArray<TEntry> buckets, Consumer<? super TEntry> consumer) {
+      @Nonnull AtomicReferenceArray<TEntry> buckets, @Nonnull Consumer<? super TEntry> consumer) {
     for (int i = 0; i < buckets.length(); i++) {
       for (TEntry curEntry = buckets.get(i); curEntry != null; curEntry = curEntry.next()) {
         consumer.accept(curEntry);
@@ -737,9 +763,9 @@ public final class ConcurrentHashtable {
   }
 
   public static <C, TEntry extends Entry> void forEach(
-      AtomicReferenceArray<TEntry> buckets,
+      @Nonnull AtomicReferenceArray<TEntry> buckets,
       C context,
-      BiConsumer<? super C, ? super TEntry> consumer) {
+      @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
     for (int i = 0; i < buckets.length(); i++) {
       for (TEntry curEntry = buckets.get(i); curEntry != null; curEntry = curEntry.next()) {
         consumer.accept(context, curEntry);
