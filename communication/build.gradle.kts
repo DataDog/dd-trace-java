@@ -39,7 +39,12 @@ dependencies {
 extra["minimumBranchCoverage"] = 0.5
 extra["minimumInstructionCoverage"] = 0.8
 extra["excludedClassesCoverage"] = listOf(
+  "okhttp3.internal.PatchUtil",
+  "okhttp3.internal.PatchUtil.1",
+  "okhttp3.internal.PatchUtil.2",
+  "okhttp3.internal.platform.PatchPlatform",
   "datadog.communication.ddagent.ExternalAgentLauncher",
+  "datadog.communication.ddagent.NoopFeaturesDiscovery",
   "datadog.communication.ddagent.ExternalAgentLauncher.NamedPipeHealthCheck",
   "datadog.communication.ddagent.SharedCommunicationObjects.FixedConfigUrlSupplier",
   "datadog.communication.ddagent.SharedCommunicationObjects.RetryConfigUrlSupplier",
@@ -56,6 +61,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.communication.IntakeApi",
   "datadog.communication.util.IOUtils",
   "datadog.communication.util.IOUtils.1",
+  "datadog.communication.http.SocketUtils",
 )
 extra["excludedClassesBranchCoverage"] = listOf(
   "datadog.communication.ddagent.TracerVersion",

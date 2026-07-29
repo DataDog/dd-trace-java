@@ -108,7 +108,7 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
   }
 
   public static final class OnResponse {
-    public static AgentSpan onResponse(AgentSpan span, HttpChannel channel) {
+    public static void onResponse(AgentSpan span, HttpChannel channel) {
       Request request = channel.getRequest();
       Response response = channel.getResponse();
       if (Config.get().isServletPrincipalEnabled() && request.getUserPrincipal() != null) {
@@ -122,7 +122,7 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
         }
         JettyDecorator.DECORATE.onError(span, throwable);
       }
-      return DECORATE.onResponse(span, response);
+      DECORATE.onResponse(span, response);
     }
   }
 }

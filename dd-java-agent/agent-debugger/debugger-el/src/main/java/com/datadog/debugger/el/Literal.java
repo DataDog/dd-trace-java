@@ -1,7 +1,6 @@
 package com.datadog.debugger.el;
 
 import com.datadog.debugger.el.expressions.ValueExpression;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.Objects;
 
@@ -27,7 +26,7 @@ public class Literal<ConstantType>
   }
 
   @Override
-  public Value<ConstantType> evaluate(ValueReferenceResolver valueRefResolver) {
+  public Value<ConstantType> evaluate(EvalContext evalContext) {
     return this;
   }
 

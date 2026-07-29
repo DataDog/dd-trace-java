@@ -1057,7 +1057,8 @@ public class GatewayBridge {
               ctx.getWafTimeouts() > 0, // wafTimeout,
               ctx.isWafRequestBlockFailure(), // blockFailure,
               ctx.isWafRateLimited(), // rateLimited,
-              ctx.isWafTruncated() // inputTruncated
+              ctx.isWafTruncated(), // inputTruncated
+              ctx.isWafRequestExcluded() // requestExcluded
               );
     }
 

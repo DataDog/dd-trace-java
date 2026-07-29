@@ -103,3 +103,17 @@ exploration-tests-line-jackson-databind:
     PROJECT: jackson-databind
   script:
     - ./run-exploration-tests.sh "line" "$PROJECT" "./mvnw verify" "include_${PROJECT}.txt" "exclude_line_$PROJECT.txt"
+
+exploration-tests-method-okhttp:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: okhttp
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+    - sdk use java 17.0.10-tem
+    - java -XshowSettings:system -version
+    - ./run-exploration-tests.sh "method" "$PROJECT" "GRADLE_OPTS=-XX:ActiveProcessorCount=4 ./gradlew --max-workers 4 jvmTest -Dtest.java.version=11" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"

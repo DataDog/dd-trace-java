@@ -1,213 +1,284 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
-
 import datadog.metrics.api.Histogram;
-import datadog.trace.api.Pair;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
- * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields that {@link
- * SerializingMetricWriter} writes to the wire plus the mutable counter/histogram state for the key.
+ * Aggregator hashtable entry: UTF8 label fields + counter/histogram state.
  *
- * <p>{@link #matches(SpanSnapshot)} compares the entry's stored UTF8 forms against the snapshot's
- * raw {@code CharSequence}/{@code String}/{@code String[]} fields via content-equality, so {@code
- * String} vs {@code UTF8BytesString} mixing on the same logical key collapses into one entry
- * instead of splitting.
- *
- * <p>The static UTF8 caches that used to live on {@code MetricKey} and {@code
- * ConflatingMetricsAggregator} are consolidated here.
- *
- * <p><b>Deliberate cohesion.</b> This class concentrates five responsibilities -- the static UTF8
- * caches, the canonicalized label fields, the raw {@code peerTagNames}/{@code peerTagValues} arrays
- * used by {@link #matches}, the pre-encoded {@code peerTags} list used by the serializer, and the
- * mutable counter/histogram aggregate state -- on a single object. The prior design split the label
- * fields and aggregate state across separate {@code MetricKey} and {@code AggregateMetric}
- * instances, allocating both per unique key on miss; folding them yields one allocation per unique
- * key. The class is wider than its predecessors as a result, but that's the trade we explicitly
- * chose.
- *
- * <p><b>Required vs optional field absence.</b> Required label fields ({@code resource}, {@code
- * service}, {@code operationName}, {@code type}, {@code spanKind}) canonicalize a {@code null}
- * snapshot value into {@link UTF8BytesString#EMPTY} via {@link #canonicalize} -- they are never
- * {@code null} on a constructed entry. Optional label fields ({@code serviceSource}, {@code
- * httpMethod}, {@code httpEndpoint}, {@code grpcStatusCode}) stay {@code null} on the entry when
- * the snapshot value was {@code null}; the serializer uses {@code != null} to decide whether to
- * emit them on the wire. {@link #contentEquals} treats {@code null} and length-0 as equivalent so
- * {@link #matches} works against either form.
- *
- * <p><b>Not thread-safe.</b> Counter and histogram updates are performed by the single aggregator
- * thread; producer threads tag durations via {@link #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits and
- * hand them off through the snapshot inbox.
- *
- * <p><b>Single-writer invariant relies on convention.</b> The aggregator thread is the only mutator
- * of this class and of {@link AggregateTable}. Nothing enforces this at runtime -- a stray mutation
- * from a different thread (e.g. an HTTP-client callback) would corrupt counters or hashtable chains
- * silently. The {@code ClearSignal} routing in {@link Aggregator} is the explicit mechanism for
- * funneling cross-thread requests (e.g. {@code disable()}) back onto the aggregator thread; any new
- * entry point that mutates aggregate state must do the same.
+ * <p>Public so the cross-package OTLP writer ({@code datadog.trace.core.otlp.metrics}) can read the
+ * per-entry accessors.
  */
-final class AggregateEntry extends Hashtable.Entry {
+public final class AggregateEntry extends Hashtable.Entry {
 
   static final long ERROR_TAG = 0x8000000000000000L;
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
-  // UTF8 caches consolidated from the previous MetricKey + ConflatingMetricsAggregator split.
-  private static final DDCache<String, UTF8BytesString> RESOURCE_CACHE =
-      DDCaches.newFixedSizeCache(32);
-  private static final DDCache<String, UTF8BytesString> SERVICE_CACHE =
-      DDCaches.newFixedSizeCache(32);
-  private static final DDCache<String, UTF8BytesString> OPERATION_CACHE =
-      DDCaches.newFixedSizeCache(64);
-  private static final DDCache<String, UTF8BytesString> SERVICE_SOURCE_CACHE =
-      DDCaches.newFixedSizeCache(16);
-  private static final DDCache<String, UTF8BytesString> TYPE_CACHE = DDCaches.newFixedSizeCache(8);
-  private static final DDCache<String, UTF8BytesString> SPAN_KIND_CACHE =
-      DDCaches.newFixedSizeCache(16);
-  private static final DDCache<String, UTF8BytesString> HTTP_METHOD_CACHE =
-      DDCaches.newFixedSizeCache(8);
-  private static final DDCache<String, UTF8BytesString> HTTP_ENDPOINT_CACHE =
-      DDCaches.newFixedSizeCache(32);
-  private static final DDCache<String, UTF8BytesString> GRPC_STATUS_CODE_CACHE =
-      DDCaches.newFixedSizeCache(32);
+  private static final UTF8BytesString[] EMPTY_TAGS = new UTF8BytesString[0];
 
-  /**
-   * Outer cache keyed by peer-tag name, with an inner per-name cache keyed by value. The inner
-   * cache produces the "name:value" encoded form the serializer writes.
-   */
-  private static final DDCache<
-          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
-      PEER_TAGS_CACHE = DDCaches.newFixedSizeCache(64);
+  final UTF8BytesString resource;
+  final UTF8BytesString service;
+  final UTF8BytesString operationName;
+  // Optional fields use UTF8BytesString.EMPTY as the "absent" sentinel rather than null. The
+  // cardinality handlers map null inputs to EMPTY, and createUtf8 does the same for the of(...)
+  // factory, so callers don't need to special-case absence.
+  final UTF8BytesString serviceSource;
+  final UTF8BytesString type;
+  final UTF8BytesString spanKind;
+  final UTF8BytesString httpMethod;
+  final UTF8BytesString httpEndpoint;
+  final UTF8BytesString grpcStatusCode;
+  final short httpStatusCode;
+  final boolean synthetic;
+  final boolean traceRoot;
+  final List<UTF8BytesString> peerTags;
 
-  private static final Function<
-          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
-      PEER_TAGS_CACHE_ADDER =
-          key ->
-              Pair.of(
-                  DDCaches.newFixedSizeCache(512),
-                  value -> UTF8BytesString.create(key + ":" + value));
+  // Schema-ordered "key:value" strings; "key:" prefix makes packing unambiguous without null slots.
+  final UTF8BytesString[] additionalTags;
 
-  private final UTF8BytesString resource;
-  private final UTF8BytesString service;
-  private final UTF8BytesString operationName;
-  @Nullable private final UTF8BytesString serviceSource;
-  private final UTF8BytesString type;
-  private final UTF8BytesString spanKind;
-  @Nullable private final UTF8BytesString httpMethod;
-  @Nullable private final UTF8BytesString httpEndpoint;
-  @Nullable private final UTF8BytesString grpcStatusCode;
-  private final short httpStatusCode;
+  // Recording state (this field through errorDuration below) is thread-confined: the entry is
+  // mutated only on the aggregator thread, so these fields are intentionally unsynchronized and not
+  // thread-safe. Producers hand off immutable SpanSnapshots; only the aggregator thread records
+  // into the entry.
+  private final Histogram okLatencies;
 
-  /** Whether the root span carried the {@code synthetics} origin tag (synthetic-monitoring run). */
-  private final boolean synthetic;
-
-  /** Whether this span is the trace root ({@code parentId == 0}). */
-  private final boolean traceRoot;
-
-  // Peer tags carried in two forms: parallel String[] arrays mirroring the snapshot's (schema +
-  // values) shape for matches(), and pre-encoded List<UTF8BytesString> ("name:value") for the
-  // serializer. peerTagNames is the schema's names array (shared by-reference when the schema
-  // hasn't been replaced); peerTagValues is the per-span String[] parallel to it.
-  //
-  // Package-private so the in-package test helper (AggregateEntryTestUtils) can compare entries
-  // by raw layout; production access comes from this class's own matches() + constructor.
-  @Nullable final String[] peerTagNames;
-  @Nullable final String[] peerTagValues;
-  private final List<UTF8BytesString> peerTags;
-
-  // Mutable aggregate state -- single-thread (consumer/aggregator) writer.
-  private final Histogram okLatencies = Histogram.newHistogram();
-
-  /**
-   * Lazily allocated on the first recorded error. Most entries never see an error and keep this
-   * null for life; {@link SerializingMetricWriter} writes a cached empty-histogram form when null
-   * to keep the wire payload identical. Once allocated, it survives {@link #clear()} (cleared, not
-   * nulled) since an entry that errored once tends to error again.
-   */
+  // Null until first error; SerializingMetricWriter writes empty histogram form when null. Not
+  // thread-safe as well.
   @Nullable private Histogram errorLatencies;
 
   private int errorCount;
   private int hitCount;
   private int topLevelCount;
-  private long duration;
+  // Tracked separately for per-outcome OTLP histogram sums; getDuration() returns the sum.
+  private long okDuration;
+  private long errorDuration;
 
-  /** Hot-path constructor for the producer/consumer flow. Builds UTF8 fields via the caches. */
-  AggregateEntry(SpanSnapshot s, long keyHash) {
+  /**
+   * Field-bearing constructor. Package-private so {@link AggregateEntryTestUtils} can build
+   * expected entries.
+   */
+  AggregateEntry(
+      long keyHash,
+      UTF8BytesString resource,
+      UTF8BytesString service,
+      UTF8BytesString operationName,
+      UTF8BytesString serviceSource,
+      UTF8BytesString type,
+      UTF8BytesString spanKind,
+      UTF8BytesString httpMethod,
+      UTF8BytesString httpEndpoint,
+      UTF8BytesString grpcStatusCode,
+      short httpStatusCode,
+      boolean synthetic,
+      boolean traceRoot,
+      List<UTF8BytesString> peerTags,
+      UTF8BytesString[] additionalTags) {
     super(keyHash);
-    this.resource = canonicalize(RESOURCE_CACHE, s.resourceName);
-    this.service = canonicalize(SERVICE_CACHE, s.serviceName);
-    this.operationName = canonicalize(OPERATION_CACHE, s.operationName);
-    this.serviceSource = canonicalizeOptional(SERVICE_SOURCE_CACHE, s.serviceNameSource);
-    this.type = canonicalize(TYPE_CACHE, s.spanType);
-    this.spanKind = canonicalize(SPAN_KIND_CACHE, s.spanKind);
-    this.httpMethod = canonicalizeOptional(HTTP_METHOD_CACHE, s.httpMethod);
-    this.httpEndpoint = canonicalizeOptional(HTTP_ENDPOINT_CACHE, s.httpEndpoint);
-    this.grpcStatusCode = canonicalizeOptional(GRPC_STATUS_CODE_CACHE, s.grpcStatusCode);
-    this.httpStatusCode = s.httpStatusCode;
-    this.synthetic = s.synthetic;
-    this.traceRoot = s.traceRoot;
-    this.peerTagNames = s.peerTagSchema == null ? null : s.peerTagSchema.names;
-    this.peerTagValues = s.peerTagValues;
-    this.peerTags = materializePeerTags(this.peerTagNames, this.peerTagValues);
+    this.resource = resource;
+    this.service = service;
+    this.operationName = operationName;
+    this.serviceSource = serviceSource;
+    this.type = type;
+    this.spanKind = spanKind;
+    this.httpMethod = httpMethod;
+    this.httpEndpoint = httpEndpoint;
+    this.grpcStatusCode = grpcStatusCode;
+    this.httpStatusCode = httpStatusCode;
+    this.synthetic = synthetic;
+    this.traceRoot = traceRoot;
+    this.peerTags = peerTags;
+    this.additionalTags = additionalTags;
+    this.okLatencies = Histogram.newHistogram();
   }
 
   /**
-   * Records a single hit. {@code tagAndDuration} carries the duration nanos with optional {@link
-   * #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits OR-ed in.
+   * 64-bit lookup hash, computed over UTF8-encoded fields so that cardinality-blocked values (which
+   * all canonicalize to the same sentinel {@link UTF8BytesString}) collide in the same bucket.
+   * {@link UTF8BytesString#hashCode()} returns the underlying String hash, so entries built via
+   * {@link #of} produce the same hash as entries built from a snapshot with matching content.
+   *
+   * <p>Field order intentionally mirrors {@link Canonical#matches} -- UTF8 fields first (highest
+   * cardinality first for matches' short-circuit benefit), then the peer-tag list, then the
+   * primitives. The hash itself is order-stable across all callers; the lockstep ordering is purely
+   * for readability when reasoning about lookup and equality in tandem.
    */
-  void recordOneDuration(long tagAndDuration) {
-    ++hitCount;
-    if ((tagAndDuration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
-      tagAndDuration ^= TOP_LEVEL_TAG;
-      ++topLevelCount;
-    }
-    if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
-      tagAndDuration ^= ERROR_TAG;
-      errorLatenciesForWrite().accept(tagAndDuration);
-      ++errorCount;
-    } else {
-      okLatencies.accept(tagAndDuration);
-    }
-    duration += tagAndDuration;
+  static long hashOf(
+      UTF8BytesString resource,
+      UTF8BytesString service,
+      UTF8BytesString operationName,
+      UTF8BytesString serviceSource,
+      UTF8BytesString type,
+      UTF8BytesString spanKind,
+      UTF8BytesString httpMethod,
+      UTF8BytesString httpEndpoint,
+      UTF8BytesString grpcStatusCode,
+      short httpStatusCode,
+      boolean synthetic,
+      boolean traceRoot,
+      UTF8BytesString[] peerTags,
+      int peerTagCount,
+      UTF8BytesString[] additionalTags,
+      int additionalTagCount) {
+    long h = 0;
+    h = LongHashingUtils.addToHash(h, resource);
+    h = LongHashingUtils.addToHash(h, service);
+    h = LongHashingUtils.addToHash(h, operationName);
+    h = LongHashingUtils.addToHash(h, serviceSource);
+    h = LongHashingUtils.addToHash(h, type);
+    h = LongHashingUtils.addToHash(h, spanKind);
+    h = LongHashingUtils.addToHash(h, httpMethod);
+    h = LongHashingUtils.addToHash(h, httpEndpoint);
+    h = LongHashingUtils.addToHash(h, grpcStatusCode);
+    h = LongHashingUtils.addToHash(h, peerTags, peerTagCount);
+    h = LongHashingUtils.addToHash(h, additionalTags, additionalTagCount);
+    h = LongHashingUtils.addToHash(h, httpStatusCode);
+    h = LongHashingUtils.addToHash(h, synthetic);
+    h = LongHashingUtils.addToHash(h, traceRoot);
+    return h;
   }
 
-  int getErrorCount() {
-    return errorCount;
+  // Accessors for SerializingMetricWriter and the cross-package OTLP writer.
+  public UTF8BytesString getResource() {
+    return resource;
   }
 
-  int getHitCount() {
+  public UTF8BytesString getService() {
+    return service;
+  }
+
+  public UTF8BytesString getOperationName() {
+    return operationName;
+  }
+
+  public UTF8BytesString getServiceSource() {
+    return serviceSource;
+  }
+
+  /**
+   * Whether the snapshot carried a service-source value. Encapsulates the EMPTY-as-absent
+   * convention: optional fields use {@link UTF8BytesString#EMPTY} as the sentinel for "no value
+   * captured" (see field comment) -- callers that need a presence check should go through this
+   * predicate rather than comparing against {@code EMPTY} directly.
+   */
+  public boolean hasServiceSource() {
+    return serviceSource.length() > 0;
+  }
+
+  public UTF8BytesString getType() {
+    return type;
+  }
+
+  public UTF8BytesString getSpanKind() {
+    return spanKind;
+  }
+
+  public UTF8BytesString getHttpMethod() {
+    return httpMethod;
+  }
+
+  /**
+   * Whether the snapshot carried an HTTP method. See {@link #hasServiceSource} for the contract.
+   */
+  public boolean hasHttpMethod() {
+    return httpMethod.length() > 0;
+  }
+
+  public UTF8BytesString getHttpEndpoint() {
+    return httpEndpoint;
+  }
+
+  /**
+   * Whether the snapshot carried an HTTP endpoint. See {@link #hasServiceSource} for the contract.
+   */
+  public boolean hasHttpEndpoint() {
+    return httpEndpoint.length() > 0;
+  }
+
+  public UTF8BytesString getGrpcStatusCode() {
+    return grpcStatusCode;
+  }
+
+  /**
+   * Whether the snapshot carried a gRPC status code. See {@link #hasServiceSource} for the
+   * contract.
+   */
+  public boolean hasGrpcStatusCode() {
+    return grpcStatusCode.length() > 0;
+  }
+
+  public int getHttpStatusCode() {
+    return httpStatusCode;
+  }
+
+  public boolean isSynthetics() {
+    return synthetic;
+  }
+
+  public boolean isTraceRoot() {
+    return traceRoot;
+  }
+
+  public List<UTF8BytesString> getPeerTags() {
+    return peerTags;
+  }
+
+  /**
+   * @return the packed additional-tag values this entry recorded, as canonical {@code "key:value"}
+   *     UTF8BytesStrings in schema (alphabetical-by-key) order. Only tags the span actually set are
+   *     present (no null slots), so the length is the count of present tags -- empty when the span
+   *     set none or no additional tags are configured.
+   */
+  public UTF8BytesString[] getAdditionalTags() {
+    return additionalTags;
+  }
+
+  // ----- recording state accessors -----
+
+  public int getHitCount() {
     return hitCount;
   }
 
-  int getTopLevelCount() {
+  public int getErrorCount() {
+    return errorCount;
+  }
+
+  public int getTopLevelCount() {
     return topLevelCount;
   }
 
-  long getDuration() {
-    return duration;
+  /**
+   * Total recorded duration for the native msgpack path -- the sum of {@link #getOkDuration()} and
+   * {@link #getErrorDuration()}. OK and error durations are tracked separately so the OTLP writer
+   * can emit per-outcome histogram sums.
+   */
+  public long getDuration() {
+    return okDuration + errorDuration;
   }
 
-  Histogram getOkLatencies() {
+  public long getOkDuration() {
+    return okDuration;
+  }
+
+  public long getErrorDuration() {
+    return errorDuration;
+  }
+
+  public Histogram getOkLatencies() {
     return okLatencies;
   }
 
   /**
-   * Returns the entry's error-latency histogram, or {@code null} if no error has been recorded.
-   * Callers serializing this should treat {@code null} as "emit a cached empty histogram"; see
-   * {@link SerializingMetricWriter}.
+   * Returns the entry's error latency histogram, or {@code null} if no error has been recorded yet.
+   * Callers should treat null as "serialize as an empty histogram" (see {@link
+   * SerializingMetricWriter}).
    */
-  @Nullable
-  Histogram getErrorLatencies() {
+  public Histogram getErrorLatencies() {
     return errorLatencies;
   }
 
@@ -222,244 +293,291 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   /**
-   * Resets the per-cycle counters and histograms. Label fields ({@code resource}, {@code service},
-   * ..., {@code peerTagNames}, {@code peerTagValues}) are deliberately left intact -- they're the
-   * entry's bucket identity and must persist so a subsequent snapshot with the same key reuses this
-   * entry instead of allocating a fresh one. Entries that stay at {@code hitCount == 0} across a
-   * cycle are reaped by {@link AggregateTable#expungeStaleAggregates}.
+   * Records a single hit. {@code tagAndDuration} carries the duration nanos with optional {@link
+   * #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits OR-ed in.
    */
-  void clear() {
+  AggregateEntry recordOneDuration(long tagAndDuration) {
+    hitCount++;
+    if ((tagAndDuration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
+      tagAndDuration ^= TOP_LEVEL_TAG;
+      topLevelCount++;
+    }
+    if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
+      tagAndDuration ^= ERROR_TAG;
+      errorLatenciesForWrite().accept(tagAndDuration);
+      errorDuration += tagAndDuration;
+      errorCount++;
+    } else {
+      okLatencies.accept(tagAndDuration);
+      okDuration += tagAndDuration;
+    }
+    return this;
+  }
+
+  /**
+   * Clears the recording state. The OK histogram is reused; the error histogram (if allocated) is
+   * reused too, but entries that never saw an error keep their {@code errorLatencies} field null.
+   */
+  void clearAggregate() {
     this.errorCount = 0;
     this.hitCount = 0;
     this.topLevelCount = 0;
-    this.duration = 0;
+    this.okDuration = 0;
+    this.errorDuration = 0;
     this.okLatencies.clear();
-    // errorLatencies stays null on entries that never errored. Only clear if it was allocated.
     if (this.errorLatencies != null) {
       this.errorLatencies.clear();
     }
   }
 
-  boolean matches(SpanSnapshot s) {
-    String[] snapshotNames = s.peerTagSchema == null ? null : s.peerTagSchema.names;
-    return httpStatusCode == s.httpStatusCode
-        && synthetic == s.synthetic
-        && traceRoot == s.traceRoot
-        && contentEquals(resource, s.resourceName)
-        && contentEquals(service, s.serviceName)
-        && contentEquals(operationName, s.operationName)
-        && contentEquals(serviceSource, s.serviceNameSource)
-        && contentEquals(type, s.spanType)
-        && contentEquals(spanKind, s.spanKind)
-        && Arrays.equals(peerTagNames, snapshotNames)
-        && Arrays.equals(peerTagValues, s.peerTagValues)
-        && contentEquals(httpMethod, s.httpMethod)
-        && contentEquals(httpEndpoint, s.httpEndpoint)
-        && contentEquals(grpcStatusCode, s.grpcStatusCode);
-  }
-
   /**
-   * Pre-checks {@link #keyHash} against {@code keyHash} before delegating to {@link
-   * #matches(SpanSnapshot)}. The hash check is cheap and rules out most mismatches without touching
-   * the field-by-field comparison.
-   */
-  boolean matches(long keyHash, SpanSnapshot s) {
-    return this.keyHash == keyHash && matches(s);
-  }
-
-  /**
-   * Computes the 64-bit lookup hash for a {@link SpanSnapshot}. Chained per-field calls -- no
-   * varargs / Object[] allocation, no autoboxing on primitive overloads. The constructor's
-   * super({@code hashOf(s)}) call uses the same function so an entry built from a snapshot hashes
-   * to the same bucket the snapshot itself looks up.
+   * Reusable scratch buffer for canonicalizing a {@link SpanSnapshot} into UTF8 fields, computing
+   * its lookup hash, comparing against existing entries, and building a fresh entry on miss.
    *
-   * <p>Hashes are content-stable across {@code String} / {@code UTF8BytesString}: {@link
-   * UTF8BytesString#hashCode()} returns the underlying {@code String}'s hash.
+   * <p>One instance is held by an {@link AggregateTable} and reused on every {@code findOrInsert}
+   * call. Single-threaded use only. Fields are deliberately mutable -- this is a hot-path scratch
+   * area, not a value class.
    */
-  static long hashOf(SpanSnapshot s) {
-    long h = 0;
-    h = LongHashingUtils.addToHash(h, s.resourceName);
-    h = LongHashingUtils.addToHash(h, s.serviceName);
-    h = LongHashingUtils.addToHash(h, s.operationName);
-    h = LongHashingUtils.addToHash(h, s.serviceNameSource);
-    h = LongHashingUtils.addToHash(h, s.spanType);
-    h = LongHashingUtils.addToHash(h, s.httpStatusCode);
-    h = LongHashingUtils.addToHash(h, s.synthetic);
-    h = LongHashingUtils.addToHash(h, s.traceRoot);
-    h = LongHashingUtils.addToHash(h, s.spanKind);
-    // Always mix in both the schema's content hash and the values' content hash, unconditionally
-    // (no null-skip). Arrays.hashCode is content-based for both String[]s; the default
-    // Object[].hashCode is identity-based, which would let two snapshots with content-equal but
-    // distinct PeerTagSchema instances hash to different buckets. Null inputs hash to 0 here,
-    // distinct from {@code Arrays.hashCode(empty)} = 1 or any non-empty array.
-    //
-    // peerTagValues is gated by peerTagSchema: the slot's peerTagValues is a reusable scratch
-    // buffer that may carry stale contents from a prior tag-firing publish when this publish had
-    // no peer tags. Hash it only when the schema says it's meaningful, matching the matches()
-    // contract.
-    h = LongHashingUtils.addToHash(h, s.peerTagSchema == null ? 0 : s.peerTagSchema.namesHash);
-    h =
-        LongHashingUtils.addToHash(
-            h, s.peerTagSchema == null ? 0 : Arrays.hashCode(s.peerTagValues));
-    h = LongHashingUtils.addToHash(h, s.httpMethod);
-    h = LongHashingUtils.addToHash(h, s.httpEndpoint);
-    h = LongHashingUtils.addToHash(h, s.grpcStatusCode);
-    return h;
-  }
+  static final class Canonical {
+    UTF8BytesString resource;
+    UTF8BytesString service;
+    UTF8BytesString operationName;
+    UTF8BytesString serviceSource;
+    UTF8BytesString type;
+    UTF8BytesString spanKind;
+    UTF8BytesString httpMethod;
+    UTF8BytesString httpEndpoint;
+    UTF8BytesString grpcStatusCode;
+    short httpStatusCode;
+    boolean synthetic;
+    boolean traceRoot;
 
-  // Accessors for SerializingMetricWriter.
-  UTF8BytesString getResource() {
-    return resource;
-  }
+    /**
+     * Reusable buffer of canonicalized peer-tag UTF8 forms. Cleared and refilled in {@link
+     * #populate}; on miss, {@link #createEntry} copies it into an immutable list for the entry to
+     * own. Zero allocation on the hit path. Sized lazily to the schema's tag count; resized if the
+     * schema grows.
+     */
+    UTF8BytesString[] peerTagsBuffer = EMPTY_TAGS;
 
-  UTF8BytesString getService() {
-    return service;
-  }
+    int peerTagsSize = 0;
 
-  UTF8BytesString getOperationName() {
-    return operationName;
-  }
+    /** Core per-field cardinality handlers; owned by the enclosing {@link AggregateTable}. */
+    final CoreHandlers handlers;
 
-  @Nullable
-  UTF8BytesString getServiceSource() {
-    return serviceSource;
-  }
+    /** Schema + per-key blocked sentinels for additional metric tags. Immutable. */
+    final AdditionalTagsSchema additionalTagsSchema;
 
-  UTF8BytesString getType() {
-    return type;
-  }
+    /**
+     * Reusable scratch for canonicalized additional-tag values, sized to the schema. Present values
+     * are packed at the front in schema order (alphabetical by key); {@link #additionalTagsSize}
+     * gives the count. Each entry is a {@code "key:value"} UTF8BytesString, so packing loses no
+     * information -- the key prefix disambiguates which key a value belongs to. Mirrors the {@code
+     * peerTagsBuffer + peerTagsSize} pattern. {@link #createEntry} copies the populated prefix into
+     * the new entry.
+     */
+    final UTF8BytesString[] additionalTagsBuffer;
 
-  UTF8BytesString getSpanKind() {
-    return spanKind;
-  }
+    int additionalTagsSize;
 
-  @Nullable
-  UTF8BytesString getHttpMethod() {
-    return httpMethod;
-  }
+    long keyHash;
 
-  @Nullable
-  UTF8BytesString getHttpEndpoint() {
-    return httpEndpoint;
-  }
+    Canonical(CoreHandlers handlers, AdditionalTagsSchema additionalTagsSchema) {
+      this.handlers = handlers;
+      this.additionalTagsSchema = additionalTagsSchema;
+      this.additionalTagsBuffer = new UTF8BytesString[additionalTagsSchema.size()];
+    }
 
-  @Nullable
-  UTF8BytesString getGrpcStatusCode() {
-    return grpcStatusCode;
-  }
+    /** Canonicalize all fields from {@code s} through the handlers into this buffer. */
+    void populateFrom(SpanSnapshot s) {
+      this.resource = handlers.resource.register(s.resourceName);
+      this.service = handlers.service.register(s.serviceName);
+      this.operationName = handlers.operation.register(s.operationName);
+      this.serviceSource = handlers.serviceSource.register(s.serviceNameSource);
+      this.type = handlers.type.register(s.spanType);
+      this.spanKind = handlers.spanKind.register(s.spanKind);
+      this.httpMethod = handlers.httpMethod.register(s.httpMethod);
+      this.httpEndpoint = handlers.httpEndpoint.register(s.httpEndpoint);
+      this.grpcStatusCode = handlers.grpcStatusCode.register(s.grpcStatusCode);
+      this.httpStatusCode = s.httpStatusCode;
+      this.synthetic = s.synthetic;
+      this.traceRoot = s.traceRoot;
+      populatePeerTags(s.peerTagSchema, s.peerTagValues);
+      populateAdditionalTags(s.additionalTagValues);
+      this.keyHash = computeKeyHash();
+    }
 
-  int getHttpStatusCode() {
-    return httpStatusCode;
-  }
+    private long computeKeyHash() {
+      return hashOf(
+          resource,
+          service,
+          operationName,
+          serviceSource,
+          type,
+          spanKind,
+          httpMethod,
+          httpEndpoint,
+          grpcStatusCode,
+          httpStatusCode,
+          synthetic,
+          traceRoot,
+          peerTagsBuffer,
+          peerTagsSize,
+          additionalTagsBuffer,
+          additionalTagsSize);
+    }
 
-  boolean isSynthetics() {
-    return synthetic;
-  }
+    /**
+     * Replaces the current peer-tag buffer contents with the canonical UTF8 forms for this
+     * snapshot.
+     *
+     * <p>Each non-null value is canonicalized with the handler at the same schema index. Null
+     * values are skipped because they would canonicalize to {@link UTF8BytesString#EMPTY} and be
+     * filtered out anyway. Producer-side {@code capturePeerTagValues} produces sparse-null arrays,
+     * so the skip pays off whenever a span carries only a subset of the configured peer tags.
+     */
+    private void populatePeerTags(@Nullable PeerTagSchema schema, @Nullable String[] values) {
+      peerTagsSize = 0;
+      if (schema == null || values == null) {
+        return;
+      }
+      int n = Math.min(schema.size(), values.length);
+      if (peerTagsBuffer.length < n) {
+        peerTagsBuffer = new UTF8BytesString[n];
+      }
+      for (int i = 0; i < n; i++) {
+        String value = values[i];
+        if (value == null) {
+          continue;
+        }
+        peerTagsBuffer[peerTagsSize++] = schema.register(i, value);
+      }
+    }
 
-  boolean isTraceRoot() {
-    return traceRoot;
-  }
+    /**
+     * Packs canonical {@code "key:value"} UTF8BytesStrings for each present slot of {@code values}
+     * into the front of {@link #additionalTagsBuffer} (schema order), via {@link
+     * AdditionalTagsSchema#register}, and sets {@link #additionalTagsSize}. The handler returns the
+     * per-key blocked sentinel when the per-cycle value budget is exhausted.
+     */
+    private void populateAdditionalTags(@Nullable String[] values) {
+      additionalTagsSize = 0;
+      // values is captured against the same additionalTagsSchema, so it is either null or exactly
+      // schema.size() long (== additionalTagsBuffer.length); guard the array we actually index.
+      if (values == null || values.length == 0) {
+        return;
+      }
+      int n = additionalTagsBuffer.length;
+      for (int i = 0; i < n; i++) {
+        String v = values[i];
+        if (v == null) {
+          continue;
+        }
+        additionalTagsBuffer[additionalTagsSize++] = additionalTagsSchema.register(i, v);
+      }
+    }
 
-  List<UTF8BytesString> getPeerTags() {
-    return peerTags;
-  }
+    /**
+     * Whether this canonicalized snapshot matches the given entry. Compares UTF8 fields via
+     * content-equality (so an entry surviving a handler reset still matches a freshly-canonicalized
+     * snapshot of the same content).
+     *
+     * <p>Field order is cardinality-tuned: resource / service / operationName first because they
+     * vary most across collisions, then the remaining UTF8 fields, then the peer-tag list
+     * comparison (slowest), then the primitives. All UTF8 fields are non-null by the EMPTY-
+     * sentinel invariant (see field comments above), so direct {@code a.equals(b)} is safe.
+     */
+    boolean matches(AggregateEntry e) {
+      return resource.equals(e.resource)
+          && service.equals(e.service)
+          && operationName.equals(e.operationName)
+          && serviceSource.equals(e.serviceSource)
+          && type.equals(e.type)
+          && spanKind.equals(e.spanKind)
+          && httpMethod.equals(e.httpMethod)
+          && httpEndpoint.equals(e.httpEndpoint)
+          && grpcStatusCode.equals(e.grpcStatusCode)
+          && peerTagsEqual(peerTagsBuffer, peerTagsSize, e.peerTags)
+          && httpStatusCode == e.httpStatusCode
+          && synthetic == e.synthetic
+          && traceRoot == e.traceRoot
+          && additionalTagsEqual(additionalTagsBuffer, additionalTagsSize, e.additionalTags);
+    }
 
-  // Production AggregateEntry intentionally has no equals/hashCode override -- AggregateTable
-  // bucketing uses keyHash + matches(SpanSnapshot) directly and never invokes Object.equals.
-  // For tests that need value-equality (Spock argument matchers), use AggregateEntryTestUtils in
-  // src/test, which provides equals/hashCode helpers without exposing the contract in production.
+    /** Compact compare: first {@code aSize} slots of {@code a} against the entry's packed array. */
+    private static boolean additionalTagsEqual(
+        UTF8BytesString[] a, int aSize, UTF8BytesString[] b) {
+      if (aSize != b.length) {
+        return false;
+      }
+      for (int i = 0; i < aSize; i++) {
+        if (!a[i].equals(b[i])) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    private static boolean peerTagsEqual(UTF8BytesString[] a, int aSize, List<UTF8BytesString> b) {
+      if (aSize != b.size()) {
+        return false;
+      }
+      for (int i = 0; i < aSize; i++) {
+        if (!a[i].equals(b.get(i))) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    /**
+     * Build a new entry from the currently-populated canonical fields. The peer-tag buffer is
+     * copied into an immutable list so the entry's reference stays stable across subsequent {@link
+     * #populate} calls.
+     */
+    AggregateEntry createEntry() {
+      List<UTF8BytesString> snapshottedPeerTags;
+      int n = peerTagsSize;
+      if (n == 0) {
+        snapshottedPeerTags = Collections.emptyList();
+      } else if (n == 1) {
+        snapshottedPeerTags = Collections.singletonList(peerTagsBuffer[0]);
+      } else {
+        snapshottedPeerTags = Arrays.asList(Arrays.copyOf(peerTagsBuffer, n));
+      }
+      UTF8BytesString[] snapshottedAdditionalTags =
+          additionalTagsSize == 0
+              ? EMPTY_TAGS
+              : Arrays.copyOf(additionalTagsBuffer, additionalTagsSize);
+      return new AggregateEntry(
+          keyHash,
+          resource,
+          service,
+          operationName,
+          serviceSource,
+          type,
+          spanKind,
+          httpMethod,
+          httpEndpoint,
+          grpcStatusCode,
+          httpStatusCode,
+          synthetic,
+          traceRoot,
+          snapshottedPeerTags,
+          snapshottedAdditionalTags);
+    }
+  }
 
   // ----- helpers -----
 
-  private static UTF8BytesString canonicalize(
-      DDCache<String, UTF8BytesString> cache, CharSequence charSeq) {
-    if (charSeq == null) {
-      return EMPTY;
+  /** Direct {@link UTF8BytesString} creation that bypasses the cardinality handlers. */
+  static UTF8BytesString createUtf8(CharSequence cs) {
+    if (cs == null) {
+      return UTF8BytesString.EMPTY;
     }
-    if (charSeq instanceof UTF8BytesString) {
-      return (UTF8BytesString) charSeq;
+    if (cs instanceof UTF8BytesString) {
+      return (UTF8BytesString) cs;
     }
-    return cache.computeIfAbsent(charSeq.toString(), UTF8BytesString::create);
-  }
-
-  /**
-   * Like {@link #canonicalize} but returns {@code null} for a {@code null} input (rather than
-   * {@link UTF8BytesString#EMPTY}). Used for the four optional fields so the serializer can
-   * distinguish "absent" via a {@code != null} check and elide the field on the wire.
-   *
-   * <p>The {@code instanceof UTF8BytesString} short-circuit is dead code for {@link
-   * SpanSnapshot#httpMethod}/{@code httpEndpoint}/{@code grpcStatusCode} (statically {@code
-   * String}) but live for {@link SpanSnapshot#serviceNameSource} ({@link CharSequence}); keeping a
-   * single helper keeps the constructor consistent.
-   */
-  @Nullable
-  private static UTF8BytesString canonicalizeOptional(
-      DDCache<String, UTF8BytesString> cache, @Nullable CharSequence charSeq) {
-    if (charSeq == null) {
-      return null;
-    }
-    if (charSeq instanceof UTF8BytesString) {
-      return (UTF8BytesString) charSeq;
-    }
-    return cache.computeIfAbsent(charSeq.toString(), UTF8BytesString::create);
-  }
-
-  /**
-   * UTF8 vs raw CharSequence content-equality, no allocation in the common (String) case.
-   *
-   * <p>Treats {@code null} and empty (length 0) as equivalent on either side. This matches the
-   * canonicalization semantics: {@link #canonicalize} maps a {@code null} input to {@link
-   * UTF8BytesString#EMPTY}, so an entry built from a snapshot with a null field needs to match a
-   * subsequent snapshot whose field is still null. {@code intHash(null) == 0 == "".hashCode()}, so
-   * the hash already agrees with this view.
-   */
-  private static boolean contentEquals(UTF8BytesString a, CharSequence b) {
-    if (a == null || a.length() == 0) {
-      return b == null || b.length() == 0;
-    }
-    // UTF8BytesString.toString() returns the underlying String -- O(1), no allocation.
-    return b != null && a.toString().contentEquals(b);
-  }
-
-  /**
-   * Encodes the per-span peer-tag values into the {@code List<UTF8BytesString>} the serializer
-   * consumes. Reads name/value pairs at the same index from the schema's names and the snapshot's
-   * values; null value slots are skipped (the span didn't set that peer tag). Counts hits once for
-   * exact-size allocation and preserves the singletonList fast path for the common one-entry case
-   * (e.g. internal-kind base.service).
-   */
-  private static List<UTF8BytesString> materializePeerTags(
-      @Nullable String[] names, @Nullable String[] values) {
-    if (names == null || values == null) {
-      return Collections.emptyList();
-    }
-    int n = names.length;
-    int firstHit = -1;
-    int hitCount = 0;
-    for (int i = 0; i < n; i++) {
-      if (values[i] != null) {
-        if (hitCount == 0) firstHit = i;
-        hitCount++;
-      }
-    }
-    if (hitCount == 0) {
-      return Collections.emptyList();
-    }
-    if (hitCount == 1) {
-      return Collections.singletonList(encodePeerTag(names[firstHit], values[firstHit]));
-    }
-    List<UTF8BytesString> tags = new ArrayList<>(hitCount);
-    for (int i = firstHit; i < n; i++) {
-      if (values[i] != null) {
-        tags.add(encodePeerTag(names[i], values[i]));
-      }
-    }
-    return tags;
-  }
-
-  private static UTF8BytesString encodePeerTag(String name, String value) {
-    final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
-        cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(name, PEER_TAGS_CACHE_ADDER);
-    return cacheAndCreator.getLeft().computeIfAbsent(value, cacheAndCreator.getRight());
+    return UTF8BytesString.create(cs.toString());
   }
 }

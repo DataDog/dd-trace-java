@@ -18,22 +18,27 @@ The OpenFeature SDK (`dev.openfeature:sdk`) is included as a transitive dependen
 
 ### Evaluation metrics (optional)
 
-To enable evaluation metrics (`feature_flag.evaluations` counter), add the OpenTelemetry SDK dependencies:
+To enable evaluation metrics (`feature_flag.evaluations` counter), enable the Datadog Java agent's
+OpenTelemetry metrics pipeline:
+
+```shell
+DD_METRICS_OTEL_ENABLED=true
+```
+
+The provider records metrics through the OpenTelemetry Metrics API. Add `opentelemetry-api` if your
+application does not already use the OpenTelemetry API for custom metrics:
 
 ```xml
 <dependency>
     <groupId>io.opentelemetry</groupId>
-    <artifactId>opentelemetry-sdk-metrics</artifactId>
-    <version>1.47.0</version>
-</dependency>
-<dependency>
-    <groupId>io.opentelemetry</groupId>
-    <artifactId>opentelemetry-exporter-otlp</artifactId>
+    <artifactId>opentelemetry-api</artifactId>
     <version>1.47.0</version>
 </dependency>
 ```
 
-Any OpenTelemetry API 1.x version is compatible. If these dependencies are absent, the provider operates normally without metrics.
+The OpenTelemetry SDK and OTLP exporter are not required on the application classpath. The Datadog
+Java agent collects the API metric and exports it through the same OTLP pipeline as other custom OTel
+metrics.
 
 ## Usage
 
@@ -52,15 +57,20 @@ boolean enabled = client.getBooleanValue("my-feature", false,
 
 ## Evaluation metrics
 
-When the OTel SDK dependencies are on the classpath, the provider records a `feature_flag.evaluations` counter via OTLP HTTP/protobuf. Metrics are exported every 10 seconds to the Datadog Agent's OTLP receiver.
+When `DD_METRICS_OTEL_ENABLED=true` and the OpenTelemetry API is on the classpath, the provider
+records a `feature_flag.evaluations` counter. The Datadog Java agent exports it to the Datadog
+Agent's OTLP receiver using the configured OpenTelemetry metrics export interval.
 
 ### Configuration
 
-| Environment variable | Description | Default |
-|---|---|---|
-| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | Signal-specific OTLP endpoint (used as-is) | — |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Generic OTLP endpoint (`/v1/metrics` appended) | — |
-| (none set) | Default endpoint | `http://localhost:4318/v1/metrics` |
+Configure the OTLP endpoint and protocol using the standard Datadog Java agent OpenTelemetry metrics
+settings. For example, to export metrics over OTLP/gRPC:
+
+```shell
+DD_METRICS_OTEL_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://<agent-host>:4317
+OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+```
 
 ### Metric attributes
 
@@ -75,5 +85,19 @@ When the OTel SDK dependencies are on the classpath, the provider records a `fea
 ## Requirements
 
 - Java 11+
-- Datadog Agent with Remote Configuration enabled
-- `DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED=true`
+- `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` uses the Datadog agentless
+  backend. Set `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` to a
+  different HTTP backend while keeping agentless delivery semantics. A bare
+  host uses the standard rules-based server path; a URL with a path is used as
+  the exact UFC endpoint. Configured URLs are opaque: the SDK does not add the
+  Datadog-managed `dd_env` query parameter, so custom backends must include any
+  required tenant or environment scope in the configured URL. The derived
+  Datadog-managed endpoint is
+  `https://ufc-server.ff-cdn.<site>/api/v2/feature-flagging/config/rules-based/server`
+  and expects UFC under the JSON:API `data.attributes` response member. It is
+  intended for supported commercial sites; use an explicit base URL elsewhere.
+  Agentless responses do not have an SDK-imposed payload-size limit.
+  `remote_config` uses the existing Agent Remote
+  Configuration path. `offline` is reserved for startup-provided UFC bytes;
+  until those bytes are implemented, no network source starts and evaluations
+  use defaults.

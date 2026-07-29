@@ -5,6 +5,7 @@ import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.datastreams.DataStreamsContext.forHttpServer;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
@@ -166,7 +167,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
    * @param parentContext The parent context of the span to create.
    * @return A new context bundling the span, child of the given parent context.
    */
-  public Context startSpan(REQUEST_CARRIER carrier, Context parentContext) {
+  public Context startSpan(REQUEST_CARRIER carrier, @Nonnull Context parentContext) {
     String instrumentationName = component().toString();
     AgentSpanContext extracted = getExtractedSpanContext(parentContext);
     // Call IG callbacks
@@ -237,7 +238,21 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             }
           };
 
-  public AgentSpan onRequest(
+  public final void onRequest(
+      final AgentSpan span,
+      final CONNECTION connection,
+      final REQUEST request,
+      final Context parentContext) {
+    try {
+      doOnRequest(span, connection, request, parentContext);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on request", t);
+    }
+  }
+
+  protected void doOnRequest(
       final AgentSpan span,
       final CONNECTION connection,
       final REQUEST request,
@@ -428,11 +443,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS,
             request,
             DSM_TRANSACTION_SOURCE_READER);
-    return span;
   }
 
   protected static AgentSpanContext.Extracted getExtractedSpanContext(Context parentContext) {
-    AgentSpan extractedSpan = AgentSpan.fromContext(parentContext);
+    AgentSpan extractedSpan = fromContext(parentContext);
     if (extractedSpan != null) {
       AgentSpanContext extractedSpanContext = extractedSpan.spanContext();
       if (extractedSpanContext instanceof AgentSpanContext.Extracted) {
@@ -449,7 +463,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return null;
   }
 
-  public AgentSpan onResponseStatus(final AgentSpan span, final int status) {
+  public final void onResponseStatus(final AgentSpan span, final int status) {
+    try {
+      doOnResponseStatus(span, status);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on response status", t);
+    }
+  }
+
+  protected void doOnResponseStatus(final AgentSpan span, final int status) {
     if (status > UNSET_STATUS) {
       span.setHttpStatusCode(status);
       // explicitly set here because some other decorators might already set an error without
@@ -465,7 +489,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
       span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
     }
-    return span;
   }
 
   /**
@@ -483,10 +506,20 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return false;
   }
 
-  public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
+  public final void onResponse(final AgentSpan span, final RESPONSE response) {
+    try {
+      doOnResponse(span, response);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on response", t);
+    }
+  }
+
+  protected void doOnResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);
-      onResponseStatus(span, status);
+      doOnResponseStatus(span, status);
 
       AgentPropagation.ContextVisitor<RESPONSE> getter = responseGetter();
       if (getter != null) {
@@ -501,7 +534,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         callIGCallbackResponseAndHeaders(span, response, status);
       }
     }
-    return span;
   }
 
   private AgentSpanContext callIGCallbackStart(@Nullable final AgentSpanContext extracted) {
@@ -536,13 +568,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
+  protected void doOnError(
+      @Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
     if (throwable != null) {
       span.addThrowable(
           throwable instanceof ExecutionException ? throwable.getCause() : throwable,
           ErrorPriorities.HTTP_SERVER_DECORATOR);
     }
-    return span;
   }
 
   private Flow<Void> callIGCallbackRequestHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
@@ -639,8 +671,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   @Override
-  public Context beforeFinish(Context context) {
-    AgentSpan span = AgentSpan.fromContext(context);
+  protected void doBeforeFinish(@Nonnull Context context) {
+    AgentSpan span = fromContext(context);
     if (span != null) {
       onRequestEndForInstrumentationGateway(span);
     }
@@ -648,7 +680,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     // Close Serverless Gateway Inferred Span if any
     finishInferredProxySpan(context);
 
-    return super.beforeFinish(context);
+    super.doBeforeFinish(context);
   }
 
   protected void finishInferredProxySpan(Context context) {

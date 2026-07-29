@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
@@ -22,6 +23,9 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.context.Context;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.context.propagation.Propagators;
 import datadog.environment.ThreadSupport;
 import datadog.logging.RatelimitedLogger;
@@ -190,6 +194,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final TagMap localRootSpanTags;
 
   private final boolean localRootSpanTagsNeedIntercept;
+
+  /**
+   * When {@code false}, every exported span is stamped with the {@code _dd.apm.enabled:0} billing
+   * marker — see {@link #write(SpanList)}.
+   */
+  private final boolean apmTracingEnabled;
 
   /** A set of tags that are added to every span */
   private final TagMap defaultSpanTags;
@@ -665,6 +675,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.serviceName = serviceName;
 
     this.initialConfig = config;
+    this.apmTracingEnabled = config.isApmTracingEnabled();
     this.initialSampler = sampler;
 
     // Get initial Trace Sampling Rules from config
@@ -904,7 +915,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
     if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
       TagMap tmp = TagMap.fromMap(localRootSpanTags);
-      tmp.put(PROFILING_CONTEXT_ENGINE, profilingContextIntegration.name());
+      tmp.set(PROFILING_CONTEXT_ENGINE, profilingContextIntegration.name());
       this.localRootSpanTags = tmp.freeze();
     } else {
       this.localRootSpanTags = TagMap.fromMapImmutable(localRootSpanTags);
@@ -1160,12 +1171,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public AgentScope.Continuation captureActiveSpan() {
     return scopeManager.captureActiveSpan();
   }
 
   @Override
-  public AgentScope.Continuation captureSpan(final AgentSpan span) {
+  public ContextContinuation captureSpan(final AgentSpan span) {
     return scopeManager.captureSpan(span);
   }
 
@@ -1255,7 +1267,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public void notifyAppSecEnd(AgentSpan span) {
+  public void notifyAppSecEnd(AgentSpan span, Object result) {
+    LambdaAppSecHandler.processResponseData(span, result);
     LambdaAppSecHandler.processRequestEnd(span);
   }
 
@@ -1297,6 +1310,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     spanToSample.forceKeep(forceKeep);
     boolean published = forceKeep || traceCollector.sample(spanToSample);
     if (published) {
+      if (!apmTracingEnabled) {
+        // Stamp the billing marker on every span of each exported chunk so the intake does not bill
+        // APM host usage.
+        for (int i = 0; i < writtenTrace.size(); i++) {
+          writtenTrace.get(i).setTag(APM_ENABLED, 0);
+        }
+      }
       writer.write(writtenTrace);
     } else {
       // with span streaming this won't work - it needs to be changed
@@ -1790,6 +1810,18 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
       // Handle remote terminated span context as span links
       if (parentSpanContext != null && parentSpanContext.isRemote()) {
+        // Preserve AppSec/IAST request context before dropping the remote parent: when
+        // extract=IGNORE or RESTART the TagContext parent is nulled before buildSpanContext
+        // can copy requestContextDataAppSec/Iast into DDSpanContext.
+        if (parentSpanContext instanceof TagContext) {
+          TagContext tc = (TagContext) parentSpanContext;
+          if (builderRequestContextDataAppSec == null) {
+            builderRequestContextDataAppSec = tc.getRequestContextDataAppSec();
+          }
+          if (builderRequestContextDataIast == null) {
+            builderRequestContextDataIast = tc.getRequestContextDataIast();
+          }
+        }
         switch (Config.get().getTracePropagationBehaviorExtract()) {
           case RESTART:
             links = addParentSpanLink(links, parentSpanContext);
@@ -2451,5 +2483,25 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       }
     }
     return result.freeze();
+  }
+
+  @Override
+  public Context currentContext() {
+    return scopeManager.currentContext();
+  }
+
+  @Override
+  public ContextScope attach(Context context) {
+    return scopeManager.attach(context);
+  }
+
+  @Override
+  public Context swap(Context context) {
+    return scopeManager.swap(context);
+  }
+
+  @Override
+  public ContextContinuation capture(Context context) {
+    return scopeManager.capture(context);
   }
 }

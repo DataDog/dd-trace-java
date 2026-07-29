@@ -1,10 +1,13 @@
 package com.datadog.debugger.el.values;
 
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkArrayLength;
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkCollectionSize;
+
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
 import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.lang.reflect.Array;
@@ -134,14 +137,17 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
   @Override
   public boolean contains(Value<?> val) {
     if (listHolder instanceof Collection) {
-      if (WellKnownClasses.isSafe((Collection<?>) listHolder)) {
-        return ((Collection<?>) listHolder).contains(val.isNull() ? null : val.getValue());
+      Collection<?> collection = (Collection<?>) listHolder;
+      if (WellKnownClasses.isSafe(collection)) {
+        checkCollectionSize(collection, this);
+        return collection.contains(val.isNull() ? null : val.getValue());
       }
       throw new UnsupportedOperationException(
           "Unsupported Collection class: " + listHolder.getClass().getTypeName());
     }
     if (arrayHolder != null) {
       int count = Array.getLength(arrayHolder);
+      checkArrayLength(count, this);
       if (arrayType.isPrimitive()) {
         if (val.getValue() == null || val.isNull()) {
           throw new IllegalArgumentException("Cannot compare null with primitive array");
@@ -255,7 +261,7 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
   }
 
   @Override
-  public ListValue evaluate(ValueReferenceResolver valueRefResolver) {
+  public ListValue evaluate(EvalContext evalContext) {
     return this;
   }
 

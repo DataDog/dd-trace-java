@@ -22,9 +22,13 @@ apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-scala.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
   classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
+}
+tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {
+  classpath += files(sourceSets.latestDepForkedTest.scala.classesDirectory)
 }
 
 dependencies {

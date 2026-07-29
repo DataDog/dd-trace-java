@@ -1,10 +1,10 @@
 package com.datadog.debugger.el.values;
 
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
 import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.Collections;
@@ -144,7 +144,7 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
   }
 
   @Override
-  public MapValue evaluate(ValueReferenceResolver valueRefResolver) {
+  public MapValue evaluate(EvalContext evalContext) {
     return this;
   }
 

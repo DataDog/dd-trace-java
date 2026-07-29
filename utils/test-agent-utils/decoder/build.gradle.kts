@@ -4,10 +4,10 @@ plugins {
 
 apply(from = "$rootDir/gradle/java.gradle")
 
-extra["minimumInstructionCoverage"] = 0.8
 extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.test.agent.decoder.v04.raw.*",
   "datadog.trace.test.agent.decoder.v05.raw.*",
+  "datadog.trace.test.agent.decoder.v1.raw.*",
 )
 
 dependencies {

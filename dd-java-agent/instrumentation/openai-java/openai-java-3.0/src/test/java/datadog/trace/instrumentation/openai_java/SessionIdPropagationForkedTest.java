@@ -13,11 +13,10 @@ import com.sun.net.httpserver.HttpServer;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.llmobs.LLMObsContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.DDSpan;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -77,7 +76,7 @@ class SessionIdPropagationForkedTest extends AbstractInstrumentationTest {
     String expectedSessionId = "session-propagation-test-abc";
 
     AgentSpan parentSpan = AgentTracer.startSpan("test", "parent");
-    try (AgentScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
+    try (ContextScope ignored1 = AgentTracer.activateSpan(parentSpan)) {
       try (ContextScope ignored2 =
           LLMObsContext.attach(parentSpan.spanContext(), expectedSessionId)) {
         try {

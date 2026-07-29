@@ -99,7 +99,7 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
   }
 
   public static class SparkPlanInfoAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     @SuppressForbidden
     public static void exit(
         @Advice.Return(readOnly = false) SparkPlanInfo planInfo,

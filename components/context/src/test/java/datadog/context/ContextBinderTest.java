@@ -8,15 +8,9 @@ import static datadog.context.ContextTest.STRING_KEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class ContextBinderTest {
-  @BeforeEach
-  void setUp() {
-    assertEquals(root(), current(), "No context is expected to be set");
-  }
-
+class ContextBinderTest extends ContextTestBase {
   @Test
   void testAttachAndDetach() {
     // Setting up test

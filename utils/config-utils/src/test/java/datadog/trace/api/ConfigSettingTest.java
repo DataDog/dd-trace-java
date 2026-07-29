@@ -3,7 +3,7 @@ package datadog.trace.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-import datadog.trace.junit.utils.tabletest.ConfigValueConverter;
+import datadog.trace.test.junit.utils.tabletest.ConfigValueConverter;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.converter.ArgumentConversionException;
 import org.junit.jupiter.params.converter.ArgumentConverter;

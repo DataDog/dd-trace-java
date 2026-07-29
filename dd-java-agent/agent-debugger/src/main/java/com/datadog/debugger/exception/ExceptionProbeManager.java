@@ -197,10 +197,6 @@ public class ExceptionProbeManager {
       return snapshots;
     }
 
-    public boolean isSampling() {
-      return !snapshots.isEmpty();
-    }
-
     public void addSnapshot(Snapshot snapshot) {
       snapshots.add(snapshot);
     }

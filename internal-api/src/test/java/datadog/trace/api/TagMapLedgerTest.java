@@ -9,8 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 
 public class TagMapLedgerTest {
   static final int SIZE = 32;
@@ -74,26 +72,6 @@ public class TagMapLedgerTest {
     map.set(key(1000), value(1000));
   }
 
-  @ParameterizedTest
-  @EnumSource(TagMapType.class)
-  public void buildMutable(TagMapType mapType) {
-    TagMap.Ledger ledger = TagMap.ledger();
-    for (int i = 0; i < SIZE; ++i) {
-      ledger.set(key(i), value(i));
-    }
-
-    assertEquals(SIZE, ledger.estimateSize());
-
-    TagMap map = ledger.build(mapType.factory);
-    for (int i = 0; i < SIZE; ++i) {
-      assertEquals(value(i), map.getString(key(i)));
-    }
-    assertEquals(SIZE, map.size());
-
-    // just proving that the map is mutable
-    map.set(key(1000), value(1000));
-  }
-
   @Test
   public void buildImmutable() {
     TagMap.Ledger ledger = TagMap.ledger();
@@ -112,38 +90,11 @@ public class TagMapLedgerTest {
     assertFrozen(map);
   }
 
-  @ParameterizedTest
-  @EnumSource(TagMapType.class)
-  public void buildImmutable(TagMapType mapType) {
-    TagMap.Ledger ledger = TagMap.ledger();
-    for (int i = 0; i < SIZE; ++i) {
-      ledger.set(key(i), value(i));
-    }
-
-    assertEquals(SIZE, ledger.estimateSize());
-
-    TagMap map = ledger.buildImmutable(mapType.factory);
-    for (int i = 0; i < SIZE; ++i) {
-      assertEquals(value(i), map.getString(key(i)));
-    }
-    assertEquals(SIZE, map.size());
-
-    assertFrozen(map);
-  }
-
   @Test
   public void build_empty() {
     TagMap.Ledger ledger = TagMap.ledger();
     assertTrue(ledger.isDefinitelyEmpty());
     assertNotSame(TagMap.EMPTY, ledger.build());
-  }
-
-  @ParameterizedTest
-  @EnumSource(TagMapType.class)
-  public void build_empty(TagMapType mapType) {
-    TagMap.Ledger ledger = TagMap.ledger();
-    assertTrue(ledger.isDefinitelyEmpty());
-    assertNotSame(mapType.empty(), ledger.build(mapType.factory));
   }
 
   @Test

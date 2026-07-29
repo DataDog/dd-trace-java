@@ -100,6 +100,7 @@ public class Elasticsearch7RestClientInstrumentation extends InstrumenterModule.
         final AgentSpan span = scope.span();
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
+        scope.close();
         span.finish();
       } else if (result instanceof Response) {
         final AgentSpan span = scope.span();
@@ -107,11 +108,12 @@ public class Elasticsearch7RestClientInstrumentation extends InstrumenterModule.
           DECORATE.onResponse(span, ((Response) result));
         }
         DECORATE.beforeFinish(span);
+        scope.close();
         span.finish();
       } else {
+        scope.close();
         // async call, span finished by RestResponseListener
       }
-      scope.close();
     }
   }
 }

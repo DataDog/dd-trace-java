@@ -8,6 +8,7 @@ import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -23,12 +24,12 @@ class ReactiveStreamsContextPropagationTest {
   void publisherCapturedContextOverridesActiveContext() {
     final Publisher<Object> publisher = subscriber -> {};
     final Subscriber<Object> subscriber = new NoopSubscriber();
-    final ContextStore<Publisher, Context> publisherContexts = new MapContextStore<>();
+    final ContextStore<Publisher, HandoffContext> publisherContexts = new MapContextStore<>();
     final ContextStore<Subscriber, Context> subscriberContexts = new MapContextStore<>();
 
-    // A context was captured on the publisher (e.g. at assembly / cross-thread subscribe).
+    // A context was handed off on the publisher, confined to this (the producing) thread.
     final Context captured = Context.root().with(KEY, "captured");
-    publisherContexts.put(publisher, captured);
+    publisherContexts.put(publisher, HandoffContext.threadConfined(captured));
 
     // The current thread already carries a different, non-root active context.
     final Context active = Context.root().with(KEY, "active");
@@ -52,9 +53,64 @@ class ReactiveStreamsContextPropagationTest {
       assertSame(active, Context.current());
     }
 
-    // The captured context is remembered for the subscriber, and removed from the publisher store.
+    // The captured context is remembered for the subscriber, and consumed from the publisher store.
     assertSame(captured, subscriberContexts.get(subscriber));
     assertNull(publisherContexts.get(publisher));
+  }
+
+  @Test
+  void publisherContextFromAnotherThreadIsIgnored() throws InterruptedException {
+    // A thread-confined deposit from another thread (concurrent multicast subscribe) must be
+    // ignored.
+    final Publisher<Object> publisher = subscriber -> {};
+    final Subscriber<Object> subscriber = new NoopSubscriber();
+    final ContextStore<Publisher, HandoffContext> publisherContexts = new MapContextStore<>();
+    final ContextStore<Subscriber, Context> subscriberContexts = new MapContextStore<>();
+
+    final Context foreign = Context.root().with(KEY, "foreign");
+    final Thread producer =
+        new Thread(() -> publisherContexts.put(publisher, HandoffContext.threadConfined(foreign)));
+    producer.start();
+    producer.join();
+
+    final Context active = Context.root().with(KEY, "active");
+    try (ContextScope activeScope = active.attach()) {
+      final ContextScope scope =
+          ReactiveStreamsContextPropagation.captureOnSubscribe(
+              publisher, subscriber, publisherContexts, subscriberContexts);
+      if (scope != null) {
+        scope.close();
+      }
+    }
+
+    // The foreign deposit is ignored; the subscriber keeps this thread's active context.
+    assertSame(active, subscriberContexts.get(subscriber));
+  }
+
+  @Test
+  void anyThreadPublisherContextIsAdoptedAcrossThreads() throws InterruptedException {
+    // An any-thread deposit (resilience4j/spring-messaging: attached early, subscribed later) is
+    // adopted even when the subscribe runs on a different thread.
+    final Publisher<Object> publisher = subscriber -> {};
+    final Subscriber<Object> subscriber = new NoopSubscriber();
+    final ContextStore<Publisher, HandoffContext> publisherContexts = new MapContextStore<>();
+    final ContextStore<Subscriber, Context> subscriberContexts = new MapContextStore<>();
+
+    final Context captured = Context.root().with(KEY, "captured");
+    final Thread producer =
+        new Thread(() -> publisherContexts.put(publisher, HandoffContext.anyThread(captured)));
+    producer.start();
+    producer.join();
+
+    final ContextScope scope =
+        ReactiveStreamsContextPropagation.captureOnSubscribe(
+            publisher, subscriber, publisherContexts, subscriberContexts);
+    if (scope != null) {
+      scope.close();
+    }
+
+    // The any-thread deposit is adopted despite the cross-thread subscribe.
+    assertSame(captured, subscriberContexts.get(subscriber));
   }
 
   @Test

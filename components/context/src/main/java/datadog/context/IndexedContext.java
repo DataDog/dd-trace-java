@@ -6,11 +6,9 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
 import javax.annotation.Nullable;
-import javax.annotation.ParametersAreNonnullByDefault;
 
 /** {@link Context} containing many values. */
-@ParametersAreNonnullByDefault
-final class IndexedContext implements Context {
+final class IndexedContext implements SelfScopedContext {
   final Object[] store;
 
   IndexedContext(Object[] store) {
@@ -30,6 +28,9 @@ final class IndexedContext implements Context {
   public <T> Context with(ContextKey<T> key, @Nullable T value) {
     requireNonNull(key, "Context key cannot be null");
     int index = key.index;
+    if (index < this.store.length && this.store[index] == value) {
+      return this;
+    }
     Object[] newStore = copyOfRange(this.store, 0, max(this.store.length, index + 1));
     newStore[index] = value;
     return new IndexedContext(newStore);

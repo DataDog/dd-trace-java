@@ -39,10 +39,10 @@ public class SofaRpcClientDecorator extends ClientDecorator {
     return null;
   }
 
-  public AgentSpan onRequest(AgentSpan span, SofaRequest request) {
+  public void onRequest(AgentSpan span, SofaRequest request) {
     span.setTag("rpc.system", "sofarpc");
     if (request == null) {
-      return span;
+      return;
     }
     String serviceName = request.getTargetServiceUniqueName();
     String methodName = request.getMethodName();
@@ -54,14 +54,12 @@ public class SofaRpcClientDecorator extends ClientDecorator {
     } else if (methodName != null) {
       span.setResourceName(methodName);
     }
-    return span;
   }
 
-  public AgentSpan onResponse(AgentSpan span, SofaResponse response) {
+  public void onResponse(AgentSpan span, SofaResponse response) {
     if (response != null && response.isError()) {
       span.setError(true);
       span.setTag("error.message", response.getErrorMsg());
     }
-    return span;
   }
 }

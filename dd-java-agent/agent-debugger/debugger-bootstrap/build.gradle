@@ -14,4 +14,5 @@ dependencies {
   implementation libs.slf4j
   implementation libs.instrument.java
   implementation project(':internal-api')
+  testImplementation libs.bundles.mockito
 }

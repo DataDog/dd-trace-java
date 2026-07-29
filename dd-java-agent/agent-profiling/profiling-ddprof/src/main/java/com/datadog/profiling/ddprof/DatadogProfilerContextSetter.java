@@ -11,7 +11,7 @@ public class DatadogProfilerContextSetter
     this.profiler = profiler;
   }
 
-  public void set(CharSequence value) {
+  public void set(String value) {
     profiler.setContextValue(offset, value);
   }
 

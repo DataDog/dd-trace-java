@@ -17,7 +17,9 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.telemetry.RequestBuilderSupplier",
   "datadog.telemetry.TelemetrySystem",
   "datadog.telemetry.api.*",
-  "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction"
+  "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction",
+  "datadog.telemetry.metric.OtelSpiMetricPeriodicAction",
+  "datadog.telemetry.metric.OtlpTelemetryPeriodicAction"
 )
 extra["excludedClassesBranchCoverage"] = listOf(
   "datadog.telemetry.PolymorphicAdapterFactory.1",

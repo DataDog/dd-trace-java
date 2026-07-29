@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_PATH;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet.ServletRequestSetter.SETTER;
@@ -27,6 +26,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -100,6 +100,11 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
         // Don't want to generate a new top-level span
         return null;
       }
+
+      final int depth = CallDepthThreadLocalMap.incrementCallDepth(RequestDispatcher.class);
+      if (depth > 0) {
+        return null;
+      }
       final AgentSpanContext parent;
       if (servletSpan == null || (parentSpan != null && servletSpan.isSameTrace(parentSpan))) {
         // Use the parentSpan if the servletSpan is null or part of the same trace.
@@ -130,7 +135,7 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
       // temporarily replace from request to avoid spring resource name bubbling up:
       requestContext = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
 
-      final ContextScope scope = getCurrentContext().with(span).attach();
+      final ContextScope scope = span.attachWithContext();
       // Set the context after activation so we have the proper Context object
       request.setAttribute(DD_CONTEXT_ATTRIBUTE, scope.context());
 
@@ -148,8 +153,12 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
         return;
       }
 
-      if (requestContext != null) {
-        request.setAttribute(DD_CONTEXT_ATTRIBUTE, requestContext);
+      try {
+        if (requestContext != null) {
+          request.setAttribute(DD_CONTEXT_ATTRIBUTE, requestContext);
+        }
+      } finally {
+        CallDepthThreadLocalMap.reset(RequestDispatcher.class);
       }
 
       final AgentSpan span = spanFromContext(scope.context());

@@ -3,17 +3,19 @@ package datadog.trace.common.metrics;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Set;
 
 /**
- * Names of the peer-tags eligible for client-stats aggregation, packed into a flat {@code String[]}
- * for parallel-array access by producers and the aggregator thread.
+ * Parallel arrays of peer-tag names and their {@link TagCardinalityHandler}s, using matching
+ * indexes.
  *
- * <p>This is the minimal carrier shape used by {@link SpanSnapshot}: the producer captures per-span
- * values into a {@code String[]} parallel to {@link #names}, and the aggregator reconstructs the
- * encoded {@code tag:value} pairs from the same name index. It replaces the prior "flat pairs"
- * {@code [name0, value0, name1, value1, ...]} layout, which forced a worst-case allocation +
- * trim-and-copy on every span.
+ * <p>Each schema stores peer-tag names and their cardinality handlers by index. Producers capture
+ * span tag values into a {@code String[]} with the same ordering as {@link #names}. Consumers pass
+ * the index and captured value to {@link #register(int, String)} to canonicalize it through the
+ * per-tag cardinality handler.
  *
  * <p>Two schemas exist:
  *
@@ -21,35 +23,44 @@ import java.util.Set;
  *   <li>{@link #INTERNAL} -- a singleton with one entry for {@code base.service}, used for
  *       internal-kind spans where only the base service is aggregated.
  *   <li>A peer-aggregation schema built via {@link #of(Set, String)} for {@code client}/{@code
- *       producer}/{@code consumer} spans. {@link ConflatingMetricsAggregator} caches the most
- *       recently built schema and reconciles it on the aggregator thread once per reporting cycle
- *       by comparing {@link #state} against {@link DDAgentFeaturesDiscovery#state()}.
+ *       producer}/{@code consumer} spans. {@link ClientStatsAggregator} caches the most recently
+ *       built schema and reconciles it on the aggregator thread once per reporting cycle by
+ *       comparing {@link #state} against {@link DDAgentFeaturesDiscovery#state()}.
  * </ul>
  *
- * <p>This class deliberately has no cardinality limiters -- callers that need those layer them on
- * top.
+ * <p>Cardinality blocks are counted inside each {@link TagCardinalityHandler} and flushed once per
+ * cycle via {@code ClientStatsAggregator#resetCardinalityHandlers} -- to {@link HealthMetrics} as a
+ * per-cycle count and to the shared {@link CardinalityLimitReporter}, which aggregates by tag name
+ * and emits a rate-limited warn summary.
  *
- * <p><b>Thread-safety:</b> {@link #names} is final and safe to read from any thread. {@link #state}
- * is exercised only on the aggregator thread (read and updated in reconciliation); producer threads
- * access the schema only through the volatile {@code cachedPeerTagSchema} reference in {@link
- * ConflatingMetricsAggregator}.
+ * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
+ * the indexing even if the current schema is replaced between capture and consumption.
+ *
+ * <p><b>Thread-safety:</b> the aggregator thread is the only thread that mutates this schema,
+ * including its {@link TagCardinalityHandler}s and {@link #state}. Producer threads may read {@link
+ * #names} and {@link #handlers} because they are final and published through the volatile {@code
+ * cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
  */
 final class PeerTagSchema {
 
+  /**
+   * Sentinel {@link #state} for schemas that are never reconciled against feature discovery: the
+   * {@link #INTERNAL} singleton and test-built schemas. A {@code null} state always mismatches a
+   * real discovery hash, so a schema built with it would rebuild on first reconcile -- but neither
+   * of these schemas takes that path.
+   */
+  static final String NO_STATE = null;
+
   /** Singleton schema for internal-kind spans -- only {@code base.service}. */
-  static final PeerTagSchema INTERNAL =
-      // INTERNAL is never reconciled, so the state value is irrelevant.
-      new PeerTagSchema(new String[] {BASE_SERVICE}, null);
+  static final PeerTagSchema INTERNAL = new PeerTagSchema(new String[] {BASE_SERVICE}, NO_STATE);
+
+  // Health/telemetry statsD tag per the approved Cardinality Limits RFC (section 5): peer-tag
+  // collapses are reported under the lowercased protobuf field name peer_tags, aggregated across
+  // every configured peer tag rather than per individual tag name.
+  private static final String[] COLLAPSED_STATSD_TAG = {"collapsed:peer_tags"};
 
   final String[] names;
-
-  /**
-   * Precomputed {@code Arrays.hashCode(names)}. The schema is shared across many publishes so
-   * recomputing it on the aggregator hot path (per-publish call to {@code AggregateEntry.hashOf})
-   * was waste -- it showed up as a top aggregator-thread sample. Cached here, computed once at
-   * construction.
-   */
-  final int namesHash;
+  final TagCardinalityHandler[] handlers;
 
   /**
    * The {@code DDAgentFeaturesDiscovery.state()} hash this schema was built from. The aggregator
@@ -60,30 +71,31 @@ final class PeerTagSchema {
    */
   String state;
 
-  private PeerTagSchema(String[] names, String state) {
-    this.names = names;
-    this.namesHash = java.util.Arrays.hashCode(names);
-    this.state = state;
-  }
-
   /** Builds a schema for the given peer-tag names. Order is determined by the {@link Set}. */
-  static PeerTagSchema of(Set<String> tags, String state) {
-    return new PeerTagSchema(tags.toArray(new String[0]), state);
+  static PeerTagSchema of(Set<String> names, String state) {
+    return new PeerTagSchema(names.toArray(new String[0]), state);
+  }
+
+  PeerTagSchema(String[] names, String state) {
+    this.names = names;
+    this.state = state;
+    this.handlers = new TagCardinalityHandler[names.length];
+    for (int i = 0; i < names.length; i++) {
+      this.handlers[i] =
+          new TagCardinalityHandler(
+              names[i],
+              Config.get()
+                  .getTraceStatsCardinalityLimit(
+                      "peer_tags", MetricCardinalityLimits.PEER_TAG_VALUE),
+              MetricCardinalityLimits.USE_BLOCKED_SENTINEL);
+    }
   }
 
   /**
-   * Test-only factory that takes the names array directly so tests can build a schema in a specific
-   * order without going through a {@link Set}.
-   */
-  static PeerTagSchema testSchema(String[] names) {
-    return new PeerTagSchema(names, null);
-  }
-
-  /**
-   * Whether this schema's tag names exactly match {@code other}. Used by the aggregator's reconcile
-   * path: when a feature discovery refresh changes {@link DDAgentFeaturesDiscovery#state()} but the
-   * resulting set is unchanged, the aggregator can keep this schema and just update {@link #state}
-   * instead of rebuilding.
+   * Whether this schema contains exactly the same tag names as {@code other}. Used during
+   * reconciliation: if feature discovery has a new {@link DDAgentFeaturesDiscovery#state()} but the
+   * peer-tag set is unchanged, the aggregator can reuse this schema and update {@link #state}
+   * instead of rebuilding the handlers.
    */
   boolean hasSameTagsAs(Set<String> other) {
     if (this.names.length != other.size()) {
@@ -97,7 +109,48 @@ final class PeerTagSchema {
     return true;
   }
 
+  /**
+   * Canonicalizes the peer-tag value at slot {@code i}. Returns {@link UTF8BytesString#EMPTY} for
+   * null inputs and the handler's {@code "<tag>:tracer_blocked_value"} sentinel when the per-tag
+   * cardinality budget is exhausted.
+   */
+  UTF8BytesString register(int i, String value) {
+    return handlers[i].register(value);
+  }
+
+  /**
+   * Resets cardinality tracking for each peer tag and reports how many values were blocked since
+   * the previous reset.
+   *
+   * <p>The counts are sent to {@link HealthMetrics} for the current reporting cycle. They are also
+   * added to {@code reporter}, which groups them by tag name for a rate-limited warning. Grouping
+   * counts by name ensures they are not lost when a schema rebuild replaces the handlers.
+   *
+   * <p>This method must be called only from the aggregator thread because the handlers are not
+   * thread-safe.
+   */
+  void resetHandlers(HealthMetrics healthMetrics, CardinalityLimitReporter reporter) {
+    long totalCollapsed = 0;
+    for (int i = 0; i < handlers.length; i++) {
+      long numBlocked = handlers[i].reset();
+      if (numBlocked > 0) {
+        // The human-facing reporter names the specific peer tag that triggered the block.
+        reporter.record(names[i], numBlocked);
+      }
+      totalCollapsed += numBlocked;
+    }
+    // The health metric is reported at the peer_tags field granularity (not per tag name) per the
+    // approved Cardinality Limits RFC.
+    if (totalCollapsed > 0) {
+      healthMetrics.onTagCardinalityBlocked(COLLAPSED_STATSD_TAG, totalCollapsed);
+    }
+  }
+
   int size() {
     return names.length;
+  }
+
+  String name(int i) {
+    return names[i];
   }
 }

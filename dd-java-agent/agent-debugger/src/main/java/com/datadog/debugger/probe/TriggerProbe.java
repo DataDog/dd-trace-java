@@ -9,15 +9,18 @@ import com.datadog.debugger.instrumentation.CapturedContextInstrumenter;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
+import datadog.trace.api.Config;
 import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContextProbe;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -134,7 +137,8 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
     }
     long start = System.nanoTime();
     try {
-      return probeCondition.execute(capture);
+      Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
+      return probeCondition.execute(capture, TimeoutChecker.create(Config.get(), timeout));
     } catch (Exception ex) {
       DebuggerAgent.getSink().getProbeStatusSink().addError(probeId, ex);
       return false;

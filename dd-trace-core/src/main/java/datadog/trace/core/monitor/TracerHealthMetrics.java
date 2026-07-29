@@ -31,6 +31,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
       httpStatus -> new String[] {"status:" + httpStatus};
 
   private static final String[] NO_TAGS = new String[0];
+  private static final String[] COLLAPSED_WHOLE_KEY_TAGS = new String[] {"collapsed:whole_key"};
   private static final String[] STATUS_OK_TAGS = STATUS_TAGS.apply(200);
   private final RadixTreeCache<String[]> statusTagsCache =
       new RadixTreeCache<>(16, 32, STATUS_TAGS, 200, 400);
@@ -372,11 +373,17 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   @Override
   public void onStatsAggregateDropped() {
     statsAggregateDropped.increment();
+    statsd.count("datadog.tracer.stats.collapsed_spans", 1, COLLAPSED_WHOLE_KEY_TAGS);
   }
 
   @Override
   public void onStatsInboxFull() {
     statsInboxFull.increment();
+  }
+
+  @Override
+  public void onTagCardinalityBlocked(String[] statsDTag, long count) {
+    statsd.count("datadog.tracer.stats.collapsed_spans", count, statsDTag);
   }
 
   @Override

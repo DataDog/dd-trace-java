@@ -185,10 +185,11 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
     if (log.isDebugEnabled()) {
       log.debug(
-          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, logEndpoint={}, snapshotEndpoint={}, diagnosticsEndpoint={}, evpProxyEndpoint={}, telemetryProxyEndpoint={}",
+          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsClientSideStats={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, logEndpoint={}, snapshotEndpoint={}, diagnosticsEndpoint={}, evpProxyEndpoint={}, telemetryProxyEndpoint={}",
           newState.traceEndpoint,
           newState.metricsEndpoint,
           newState.supportsDropping,
+          newState.supportsClientSideStats,
           newState.supportsLongRunning,
           newState.dataStreamsEndpoint,
           newState.configEndpoint,
@@ -406,10 +407,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     return discoveryState.peerTags;
   }
 
-  public String getOrgPropagationMarker() {
-    return discoveryState.orgPropagationMarker;
-  }
-
   public String getMetricsEndpoint() {
     return discoveryState.metricsEndpoint;
   }
@@ -458,6 +455,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public String state() {
     return discoveryState.state;
+  }
+
+  public String getOrgPropagationMarker() {
+    return discoveryState.orgPropagationMarker;
   }
 
   @Override

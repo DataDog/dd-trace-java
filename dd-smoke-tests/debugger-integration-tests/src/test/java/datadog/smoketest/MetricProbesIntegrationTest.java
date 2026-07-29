@@ -210,7 +210,7 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         MetricProbe.builder()
             .probeId(PROBE_ID)
             // on line: System.out.println("fullMethod");
-            .where("DebuggerTestApplication.java", 88)
+            .where("DebuggerTestApplication.java", 95)
             .kind(kind)
             .metricName(metricName)
             .valueScript(script)

@@ -16,6 +16,7 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.ExposuresRequest;
 import datadog.trace.api.intake.Intake;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -82,6 +83,16 @@ public class ExposureWriterImpl implements ExposureWriter {
   @Override
   public void accept(final ExposureEvent event) {
     queue.offer(event);
+  }
+
+  @VisibleForTesting
+  boolean isSerializerThreadAlive() {
+    return serializerThread.isAlive();
+  }
+
+  @VisibleForTesting
+  int queueSize() {
+    return queue.size();
   }
 
   private static class ExposureSerializingHandler implements Runnable {

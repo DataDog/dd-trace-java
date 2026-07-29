@@ -21,7 +21,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -118,8 +117,7 @@ public class MoshiSnapshotHelper {
         jsonWriter.nullValue();
         return;
       }
-      jsonWriter.setTag(
-          TimeoutChecker.class, new TimeoutChecker(System.currentTimeMillis(), captureTimeOut));
+      jsonWriter.setTag(TimeoutChecker.class, TimeoutChecker.create(Config.get(), captureTimeOut));
       jsonWriter.beginObject();
       jsonWriter.name(ENTRY);
       capturedContextAdapter.toJson(jsonWriter, captures.getEntry());
@@ -160,12 +158,12 @@ public class MoshiSnapshotHelper {
       TimeoutChecker timeoutChecker = jsonWriter.tag(TimeoutChecker.class);
       if (timeoutChecker == null) {
         Duration timeout =
-            Duration.of(Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
-        timeoutChecker = new TimeoutChecker(timeout);
+            Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+        timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
       }
       // need to 'freeze' the context before serializing it
       capturedContext.freeze(timeoutChecker);
-      if (timeoutChecker.isTimedOut(System.currentTimeMillis())) {
+      if (timeoutChecker.isTimedOut()) {
         jsonWriter.beginObject();
         jsonWriter.name(NOT_CAPTURED_REASON);
         jsonWriter.value(TIMEOUT_REASON);
@@ -273,7 +271,7 @@ public class MoshiSnapshotHelper {
         if (count >= limits.maxFieldCount) {
           return SerializationResult.FIELD_COUNT;
         }
-        if (timeoutChecker.isTimedOut(System.currentTimeMillis())) {
+        if (timeoutChecker.isTimedOut()) {
           return SerializationResult.TIMEOUT;
         }
         jsonWriter.name(entry.getKey());
@@ -305,7 +303,7 @@ public class MoshiSnapshotHelper {
       }
       TimeoutChecker timeoutChecker = capturedValue.getTimeoutChecker();
       if (timeoutChecker == null) {
-        timeoutChecker = new TimeoutChecker(Duration.of(10, ChronoUnit.MILLIS));
+        timeoutChecker = TimeoutChecker.create(Config.get(), Duration.ofMillis(10));
       }
       Object value = capturedValue.getValue();
       String type = capturedValue.getType();

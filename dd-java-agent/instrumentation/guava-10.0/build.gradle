@@ -25,6 +25,13 @@ dependencies {
   latestDepTestImplementation group: 'com.google.guava', name: 'guava', version: '+'
 }
 
+// Baseline tests should exercise the first Guava version needed by the tests.
+['testCompileClasspath', 'testRuntimeClasspath'].each {
+  configurations.named(it) {
+    resolutionStrategy.force 'com.google.guava:guava:16.0'
+  }
+}
+
 // Exclude helper class from test execution to avoid JUnit 5.14+ discovering it as test
 tasks.withType(Test).configureEach {
   filter {

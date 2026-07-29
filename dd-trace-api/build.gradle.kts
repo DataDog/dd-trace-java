@@ -5,6 +5,11 @@ plugins {
 apply(from = "$rootDir/gradle/java.gradle")
 apply(from = "$rootDir/gradle/publish.gradle")
 
+configure<datadog.gradle.plugin.jardiff.JardiffExtension> {
+  // jar is not cacheable, and may differ
+  ignoreHashCheck = true
+}
+
 extra["minimumBranchCoverage"] = 0.8
 
 // These are tested outside of this module since this module mainly just defines 'API'
@@ -26,6 +31,10 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.aiguard.AIGuard",
   "datadog.trace.api.aiguard.AIGuard.AIGuardAbortError",
   "datadog.trace.api.aiguard.AIGuard.AIGuardClientError",
+  "datadog.trace.api.aiguard.AIGuard.ContentPart",
+  "datadog.trace.api.aiguard.AIGuard.ContentPart.Type",
+  "datadog.trace.api.aiguard.AIGuard.Evaluation",
+  "datadog.trace.api.aiguard.AIGuard.Message",
   "datadog.trace.api.aiguard.AIGuard.Options",
   "datadog.trace.api.civisibility.CIVisibility",
   "datadog.trace.api.civisibility.DDTestModule",
@@ -34,7 +43,6 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.civisibility.noop.NoOpDDTestSession",
   "datadog.trace.api.civisibility.noop.NoOpDDTestSuite",
   "datadog.trace.api.config.AIGuardConfig",
-  "datadog.trace.api.config.FeatureFlaggingConfig",
   "datadog.trace.api.config.ProfilingConfig",
   "datadog.trace.api.interceptor.MutableSpan",
   "datadog.trace.api.profiling.Profiling",
@@ -43,8 +51,10 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.api.profiling.ProfilingContext",
   "datadog.trace.api.profiling.ProfilingContextAttribute.NoOp",
   "datadog.trace.api.llmobs.LLMObs",
+  "datadog.trace.api.llmobs.LLMObs.Document",
   "datadog.trace.api.llmobs.LLMObs.LLMMessage",
   "datadog.trace.api.llmobs.LLMObs.ToolCall",
+  "datadog.trace.api.llmobs.LLMObs.ToolResult",
   "datadog.trace.api.llmobs.LLMObsSpan",
   "datadog.trace.api.llmobs.noop.NoOpLLMObsSpan",
   "datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory",
@@ -63,6 +73,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.payloadtags.PayloadTagsData",
   "datadog.trace.payloadtags.PayloadTagsData.PathAndValue",
   "datadog.trace.api.llmobs.LLMObsTags",
+  "datadog.trace.api.config.OtlpConfig.Compression",
   "datadog.trace.api.config.OtlpConfig.Protocol",
   "datadog.trace.api.config.OtlpConfig.Temporality",
 )
@@ -71,7 +82,6 @@ description = "dd-trace-api"
 
 dependencies {
   api(libs.slf4j)
-  testImplementation(libs.guava)
   testImplementation(libs.bundles.mockito)
   testImplementation(project(":utils:test-utils"))
 }

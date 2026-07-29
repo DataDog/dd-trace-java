@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.springscheduling;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -8,6 +9,8 @@ import org.springframework.scheduling.support.ScheduledMethodRunnable;
 public class SpringSchedulingDecorator extends BaseDecorator {
   public static final CharSequence SCHEDULED_CALL = UTF8BytesString.create("scheduled.call");
   public static final SpringSchedulingDecorator DECORATE = new SpringSchedulingDecorator();
+
+  private static final boolean MEASURED = Config.get().isSpringSchedulingMeasuredEnabled();
 
   private SpringSchedulingDecorator() {}
 
@@ -26,7 +29,13 @@ public class SpringSchedulingDecorator extends BaseDecorator {
     return "spring-scheduling";
   }
 
-  public AgentSpan onRun(final AgentSpan span, final Runnable runnable) {
+  public void measureIfEnabled(final AgentSpan span) {
+    if (MEASURED) {
+      span.setMeasured(true);
+    }
+  }
+
+  public void onRun(final AgentSpan span, final Runnable runnable) {
     if (runnable != null) {
       CharSequence resourceName = "";
       if (runnable instanceof ScheduledMethodRunnable) {
@@ -37,6 +46,5 @@ public class SpringSchedulingDecorator extends BaseDecorator {
       }
       span.setResourceName(resourceName);
     }
-    return span;
   }
 }

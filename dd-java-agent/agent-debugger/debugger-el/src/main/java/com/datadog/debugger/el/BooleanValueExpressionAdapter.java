@@ -3,7 +3,6 @@ package com.datadog.debugger.el;
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import com.datadog.debugger.el.values.BooleanValue;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 public class BooleanValueExpressionAdapter implements ValueExpression<BooleanValue> {
 
@@ -14,8 +13,8 @@ public class BooleanValueExpressionAdapter implements ValueExpression<BooleanVal
   }
 
   @Override
-  public BooleanValue evaluate(ValueReferenceResolver valueRefResolver) {
-    Boolean result = booleanExpression.evaluate(valueRefResolver);
+  public BooleanValue evaluate(EvalContext evalContext) {
+    Boolean result = booleanExpression.evaluate(evalContext);
     if (result == null) {
       throw new EvaluationException(
           "Boolean expression returning null", PrettyPrintVisitor.print(this));

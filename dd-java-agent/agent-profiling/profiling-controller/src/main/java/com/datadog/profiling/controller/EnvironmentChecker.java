@@ -1,7 +1,5 @@
 package com.datadog.profiling.controller;
 
-import static datadog.environment.OperatingSystem.architecture;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
@@ -238,7 +236,8 @@ public final class EnvironmentChecker {
   @SuppressForbidden
   private static boolean extractSoFromJar(Path target, StringBuilder sb) throws Exception {
     URL jarUrl = EnvironmentChecker.class.getProtectionDomain().getCodeSource().getLocation();
-    String linuxArchFolder = architecture().isArm64() ? "/linux-arm64/" : "/linux-x64/";
+    String linuxArchFolder =
+        OperatingSystem.architecture().isArm64() ? "/linux-arm64/" : "/linux-x64/";
     try (JarFile jarFile = new JarFile(new File(jarUrl.toURI()))) {
       return jarFile.stream()
           .filter(e -> e.getName().contains("libjavaProfiler.so"))

@@ -1,5 +1,8 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
+
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
@@ -7,7 +10,6 @@ import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.CapturedContext;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.Objects;
 
@@ -21,14 +23,14 @@ public class GetMemberExpression implements ValueExpression<Value<?>> {
   }
 
   @Override
-  public Value<?> evaluate(ValueReferenceResolver valueRefResolver) {
-    Value<?> targetValue = target.evaluate(valueRefResolver);
+  public Value<?> evaluate(EvalContext evalContext) {
+    Value<?> targetValue = target.evaluate(evalContext);
     if (targetValue == Value.undefined()) {
       return targetValue;
     }
     CapturedContext.CapturedValue member;
     try {
-      member = valueRefResolver.getMember(targetValue.getValue(), memberName);
+      member = evalContext.getValueRefResolver().getMember(targetValue.getValue(), memberName);
     } catch (RuntimeException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
     }
@@ -41,6 +43,7 @@ public class GetMemberExpression implements ValueExpression<Value<?>> {
             || Redaction.isRedactedType(memberValue.getClass().getTypeName()))) {
       ExpressionHelper.throwRedactedException(this);
     }
+    checkTimeout(evalContext.getTimeoutChecker(), this);
     return Value.of(member.getValue(), ValueType.of(member.getType()));
   }
 

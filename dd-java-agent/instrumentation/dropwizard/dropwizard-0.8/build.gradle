@@ -23,3 +23,11 @@ dependencies {
   // Anything 1.0+ fails with a java.lang.NoClassDefFoundError: org/eclipse/jetty/server/RequestLog
   //  latestDepTestImplementation group: 'io.dropwizard', name: 'dropwizard-testing', version: '1.+'
 }
+
+// Dropwizard 0.8 (via Jackson's FuzzyEnumModule) references the CharMatcher.WHITESPACE field,
+// which present only until 25.1-jre.
+['testCompileClasspath', 'testRuntimeClasspath'].each {
+  configurations.named(it) {
+    resolutionStrategy.force 'com.google.guava:guava:25.1-jre'
+  }
+}

@@ -4,6 +4,7 @@ import static datadog.trace.test.util.AssertionsUtils.assertMapContainsKeyValues
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
@@ -24,6 +25,7 @@ public class DecoderTest {
     DecodedMessage message = Decoder.decodeV05(buffer);
     List<DecodedTrace> traces = message.getTraces();
     assertEquals(1, traces.size());
+    assertNull(traces.get(0).getSamplingPriority());
     List<DecodedSpan> spans = traces.get(0).getSpans();
     assertEquals(2, spans.size());
     List<DecodedSpan> sorted = Decoder.sortByStart(spans);
@@ -59,6 +61,7 @@ public class DecoderTest {
     DecodedMessage message = Decoder.decodeV04(buffer);
     List<DecodedTrace> traces = message.getTraces();
     assertEquals(1, traces.size());
+    assertNull(traces.get(0).getSamplingPriority());
     List<DecodedSpan> spans = traces.get(0).getSpans();
     assertEquals(2, spans.size());
     List<DecodedSpan> sorted = Decoder.sortByStart(spans);
@@ -96,6 +99,7 @@ public class DecoderTest {
     DecodedMessage message = Decoder.decodeV1(buffer);
     List<DecodedTrace> traces = message.getTraces();
     assertEquals(1, traces.size());
+    assertEquals(1, traces.get(0).getSamplingPriority());
     List<DecodedSpan> spans = traces.get(0).getSpans();
     assertEquals(2, spans.size());
     List<DecodedSpan> sorted = Decoder.sortByStart(spans);

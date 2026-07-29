@@ -56,7 +56,6 @@ class BuildTimeInstrumentationPlugin : Plugin<Project> {
       project.extensions.create<BuildTimeInstrumentationExtension>("buildTimeInstrumentation")
 
     project.configurations.register(BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION) {
-      isVisible = false
       isCanBeConsumed = false
       isCanBeResolved = true
     }

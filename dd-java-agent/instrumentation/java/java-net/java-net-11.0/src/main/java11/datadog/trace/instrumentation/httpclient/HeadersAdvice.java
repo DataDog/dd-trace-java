@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.httpclient;
 
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.httpclient.HttpHeadersInjectAdapter.KEEP;
 import static datadog.trace.instrumentation.httpclient.HttpHeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
@@ -24,7 +24,7 @@ public class HeadersAdvice {
       // case insensitively
       final Map<String, List<String>> headerMap = new TreeMap<>(CASE_INSENSITIVE_ORDER);
       headerMap.putAll(headers.map());
-      DECORATE.injectContext(getCurrentContext(), headerMap, SETTER);
+      DECORATE.injectContext(currentContext(), headerMap, SETTER);
       headers = HttpHeaders.of(headerMap, KEEP);
     }
   }

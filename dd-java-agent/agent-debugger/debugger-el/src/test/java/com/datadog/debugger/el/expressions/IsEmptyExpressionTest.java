@@ -1,11 +1,12 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
-import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.values.BooleanValue;
@@ -13,7 +14,6 @@ import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.StringValue;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
 import java.util.Arrays;
 import java.util.Collections;
@@ -21,30 +21,30 @@ import java.util.HashSet;
 import org.junit.jupiter.api.Test;
 
 class IsEmptyExpressionTest {
+  EvalContext evalContext = createEvalContext(this);
+
   @Test
   void testNullValue() {
-    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     IsEmptyExpression expression1 = new IsEmptyExpression(null);
     EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> expression1.evaluate(resolver));
+        assertThrows(EvaluationException.class, () -> expression1.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("isEmpty(null)", print(expression1));
     IsEmptyExpression expression2 = new IsEmptyExpression(DSL.value(Values.NULL_OBJECT));
-    exception = assertThrows(EvaluationException.class, () -> expression2.evaluate(resolver));
+    exception = assertThrows(EvaluationException.class, () -> expression2.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("isEmpty(null)", print(expression2));
     IsEmptyExpression expression3 = new IsEmptyExpression(DSL.value(Value.nullValue()));
-    exception = assertThrows(EvaluationException.class, () -> expression3.evaluate(resolver));
+    exception = assertThrows(EvaluationException.class, () -> expression3.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("isEmpty(com.datadog.debugger.el.values.NullValue)", print(expression3));
   }
 
   @Test
   void testUndefinedValue() {
-    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     IsEmptyExpression expression = new IsEmptyExpression(DSL.value(Values.UNDEFINED_OBJECT));
     EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> expression.evaluate(resolver));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("isEmpty(UNDEFINED)", print(expression));
   }
@@ -55,15 +55,14 @@ class IsEmptyExpressionTest {
     NumericValue one = new NumericValue(1, ValueType.INT);
     NumericValue none = new NumericValue(null, ValueType.OBJECT);
 
-    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     IsEmptyExpression expression = new IsEmptyExpression(zero);
-    assertFalse(expression.evaluate(resolver));
+    assertFalse(expression.evaluate(evalContext));
     assertEquals("isEmpty(0)", print(expression));
     expression = new IsEmptyExpression(one);
-    assertFalse(expression.evaluate(resolver));
+    assertFalse(expression.evaluate(evalContext));
     assertEquals("isEmpty(1)", print(expression));
     IsEmptyExpression nullExpression = new IsEmptyExpression(none);
-    assertThrows(EvaluationException.class, () -> nullExpression.evaluate(resolver));
+    assertThrows(EvaluationException.class, () -> nullExpression.evaluate(evalContext));
     assertEquals("isEmpty(null)", print(nullExpression));
   }
 
@@ -73,16 +72,15 @@ class IsEmptyExpressionTest {
     BooleanValue no = BooleanValue.FALSE;
     BooleanValue none = new BooleanValue(null, ValueType.OBJECT);
 
-    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     IsEmptyExpression expression = new IsEmptyExpression(yes);
-    assertFalse(expression.evaluate(resolver));
+    assertFalse(expression.evaluate(evalContext));
     assertEquals("isEmpty(true)", print(expression));
     expression = new IsEmptyExpression(no);
-    assertFalse(expression.evaluate(resolver));
+    assertFalse(expression.evaluate(evalContext));
     assertEquals("isEmpty(false)", print(expression));
     IsEmptyExpression nullExpression = new IsEmptyExpression(none);
     EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> nullExpression.evaluate(resolver));
+        assertThrows(EvaluationException.class, () -> nullExpression.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("isEmpty(null)", print(nullExpression));
   }
@@ -93,17 +91,16 @@ class IsEmptyExpressionTest {
     StringValue emptyString = new StringValue("");
     StringValue nullString = new StringValue(null);
 
-    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     IsEmptyExpression isEmpty1 = new IsEmptyExpression(string);
     IsEmptyExpression isEmpty2 = new IsEmptyExpression(emptyString);
     IsEmptyExpression isEmpty3 = new IsEmptyExpression(nullString);
 
-    assertFalse(isEmpty1.evaluate(resolver));
+    assertFalse(isEmpty1.evaluate(evalContext));
     assertEquals("isEmpty(\"Hello World\")", print(isEmpty1));
-    assertTrue(isEmpty2.evaluate(resolver));
+    assertTrue(isEmpty2.evaluate(evalContext));
     assertEquals("isEmpty(\"\")", print(isEmpty2));
     EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> isEmpty3.evaluate(resolver));
+        assertThrows(EvaluationException.class, () -> isEmpty3.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("isEmpty(\"null\")", print(isEmpty3));
   }
@@ -117,7 +114,6 @@ class IsEmptyExpressionTest {
     ListValue set = new ListValue(new HashSet<>(Arrays.asList("a", "b")));
     ListValue emptySet = new ListValue(Collections.emptySet());
 
-    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     IsEmptyExpression isEmpty1 = new IsEmptyExpression(list);
     IsEmptyExpression isEmpty2 = new IsEmptyExpression(emptyList);
     IsEmptyExpression isEmpty3 = new IsEmptyExpression(nullList);
@@ -125,20 +121,20 @@ class IsEmptyExpressionTest {
     IsEmptyExpression isEmpty5 = new IsEmptyExpression(set);
     IsEmptyExpression isEmpty6 = new IsEmptyExpression(emptySet);
 
-    assertFalse(isEmpty1.evaluate(resolver));
+    assertFalse(isEmpty1.evaluate(evalContext));
     assertEquals("isEmpty(List)", print(isEmpty1));
-    assertTrue(isEmpty2.evaluate(resolver));
+    assertTrue(isEmpty2.evaluate(evalContext));
     assertEquals("isEmpty(List)", print(isEmpty2));
     EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> isEmpty3.evaluate(resolver));
+        assertThrows(EvaluationException.class, () -> isEmpty3.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("isEmpty(null)", print(isEmpty3));
-    exception = assertThrows(EvaluationException.class, () -> isEmpty4.evaluate(resolver));
+    exception = assertThrows(EvaluationException.class, () -> isEmpty4.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("isEmpty(null)", print(isEmpty4));
-    assertFalse(isEmpty5.evaluate(resolver));
+    assertFalse(isEmpty5.evaluate(evalContext));
     assertEquals("isEmpty(Set)", print(isEmpty5));
-    assertTrue(isEmpty6.evaluate(resolver));
+    assertTrue(isEmpty6.evaluate(evalContext));
     assertEquals("isEmpty(Set)", print(isEmpty6));
   }
 
@@ -149,21 +145,20 @@ class IsEmptyExpressionTest {
     MapValue nullMao = new MapValue(null);
     MapValue undefinedMap = new MapValue(Values.UNDEFINED_OBJECT);
 
-    ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
     IsEmptyExpression isEmpty1 = new IsEmptyExpression(map);
     IsEmptyExpression isEmpty2 = new IsEmptyExpression(emptyMap);
     IsEmptyExpression isEmpty3 = new IsEmptyExpression(nullMao);
     IsEmptyExpression isEmpty4 = new IsEmptyExpression(undefinedMap);
 
-    assertFalse(isEmpty1.evaluate(resolver));
+    assertFalse(isEmpty1.evaluate(evalContext));
     assertEquals("isEmpty(Map)", print(isEmpty1));
-    assertTrue(isEmpty2.evaluate(resolver));
+    assertTrue(isEmpty2.evaluate(evalContext));
     assertEquals("isEmpty(Map)", print(isEmpty2));
     EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> isEmpty3.evaluate(resolver));
+        assertThrows(EvaluationException.class, () -> isEmpty3.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("isEmpty(null)", print(isEmpty3));
-    exception = assertThrows(EvaluationException.class, () -> isEmpty4.evaluate(resolver));
+    exception = assertThrows(EvaluationException.class, () -> isEmpty4.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("isEmpty(null)", print(isEmpty4));
   }

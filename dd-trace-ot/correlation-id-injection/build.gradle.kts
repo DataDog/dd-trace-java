@@ -23,7 +23,6 @@ dependencies {
   compileOnly("org.apache.logging.log4j:log4j-api:$log4j2")
   compileOnly("log4j:log4j:$log4j1")
 
-  testImplementation(libs.guava)
   testImplementation(project(":dd-trace-ot"))
   testImplementation(project(":dd-java-agent:testing"))
   testImplementation(libs.bundles.mockito)
