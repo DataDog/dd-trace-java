@@ -48,15 +48,13 @@ public final class HelperScanner extends ClassVisitor {
     this.locator = locator;
   }
 
-  /**
-   * Expands helper class names with their non-bootstrap dependencies, via the agent class loader.
-   */
+  /** Expands helper class names to include any non-bootstrap classes they depend on. */
   public static String[] withClassDependencies(String... helperClassNames) {
     return new HelperScanner().simulateClassLoading(helperClassNames);
   }
 
   /**
-   * Same as above, but reads bytecode via the given locator (e.g. during build time where the agent
+   * Same as above, but reads bytecode via the passed locator (e.g. during build time when the agent
    * loader is absent).
    */
   public static String[] withClassDependencies(

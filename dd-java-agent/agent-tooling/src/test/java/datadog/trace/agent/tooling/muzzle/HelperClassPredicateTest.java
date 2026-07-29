@@ -18,14 +18,11 @@ class HelperClassPredicateTest {
   }
 
   @Test
-  void instrumentationPackageIsHelperOnlyWhenOwnOutput() {
-    // a module's own instrumentation-package class is a helper via ownOutput
-    HelperClassPredicate own =
-        predicateWithOwnOutput("datadog.trace.instrumentation.foo.FooDecorator");
-    assertTrue(own.isHelperClass("datadog.trace.instrumentation.foo.FooDecorator"));
-    // a helper compiled by a different instrumentation subproject is not adopted just by reference
-    HelperClassPredicate other = predicateWithOwnOutput();
-    assertFalse(other.isHelperClass("datadog.trace.instrumentation.servlet.ServletBlockingHelper"));
+  void instrumentationPackageRequiresOwnOutput() {
+    // The same instrumentation-package class is a helper only when this subproject compiled it
+    String className = "datadog.trace.instrumentation.servlet.ServletBlockingHelper";
+    assertTrue(predicateWithOwnOutput(className).isHelperClass(className));
+    assertFalse(predicateWithOwnOutput().isHelperClass(className));
   }
 
   @Test

@@ -33,7 +33,8 @@ object ByteBuddyInstrumenter {
       val factories = plugins.map {
         try {
           val pluginClass = instrumentingLoader.loadClass(it).asSubclass(Plugin::class.java)
-          // Prefer a (source, target) constructor; fall back to the single target-directory one.
+          // Fall back to just the targetDirectory instance if no sourceDirectory is provided.
+          // SourceDirectory is needed to know whether the subproject compiled a given class (signal for injecting it as a helper).
           val loadedPlugin = try {
             pluginClass.getConstructor(File::class.java, File::class.java)
               .newInstance(sourceDirectory, targetDirectory)
