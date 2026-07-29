@@ -13,7 +13,8 @@ final class RuntimeConfiguration {
 
   enum Source {
     CDN,
-    REMOTE_CONFIG
+    REMOTE_CONFIG,
+    DISABLED
   }
 
   final Source source;
@@ -25,13 +26,23 @@ final class RuntimeConfiguration {
   }
 
   static RuntimeConfiguration resolve(final Provider.Options options) {
+    final Boolean providerEnabled =
+        options.providerEnabled != null
+            ? options.providerEnabled
+            : booleanSetting("dd.feature.flags.enabled", "DD_FEATURE_FLAGS_ENABLED");
     final String sourceValue =
         first(
             options.configurationSource,
             setting(
                 "dd.feature.flags.configuration.source", "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE"));
-    final Source source = parseSource(sourceValue);
-    if (source == Source.REMOTE_CONFIG) {
+    final Boolean legacyProviderEnabled =
+        options.legacyProviderEnabled != null
+            ? options.legacyProviderEnabled
+            : booleanSetting(
+                "dd.experimental.flagging.provider.enabled",
+                "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED");
+    final Source source = resolveSource(providerEnabled, sourceValue, legacyProviderEnabled);
+    if (source != Source.CDN) {
       return new RuntimeConfiguration(source, null);
     }
 
@@ -72,11 +83,20 @@ final class RuntimeConfiguration {
             .build());
   }
 
-  private static Source parseSource(final String value) {
-    if (value == null || value.trim().isEmpty()) {
+  private static Source resolveSource(
+      final Boolean providerEnabled,
+      final String sourceValue,
+      final Boolean legacyProviderEnabled) {
+    if (Boolean.FALSE.equals(providerEnabled)) {
+      return Source.DISABLED;
+    }
+    if (sourceValue == null || sourceValue.trim().isEmpty()) {
+      if (legacyProviderEnabled != null) {
+        return legacyProviderEnabled ? Source.REMOTE_CONFIG : Source.DISABLED;
+      }
       return Source.CDN;
     }
-    final String normalized = value.trim().toLowerCase(Locale.ROOT);
+    final String normalized = sourceValue.trim().toLowerCase(Locale.ROOT);
     if ("agentless".equals(normalized) || "cdn".equals(normalized)) {
       return Source.CDN;
     }
@@ -84,7 +104,7 @@ final class RuntimeConfiguration {
       return Source.REMOTE_CONFIG;
     }
     throw new IllegalArgumentException(
-        "Unsupported Feature Flagging configuration source: " + value);
+        "Unsupported Feature Flagging configuration source: " + sourceValue);
   }
 
   private static Duration seconds(final String value, final long defaultValue) {
@@ -103,6 +123,11 @@ final class RuntimeConfiguration {
   private static String setting(final String property, final String environment) {
     final String propertyValue = System.getProperty(property);
     return propertyValue != null ? propertyValue : System.getenv(environment);
+  }
+
+  private static Boolean booleanSetting(final String property, final String environment) {
+    final String value = setting(property, environment);
+    return value == null ? null : Boolean.valueOf(value);
   }
 
   private static String first(final String... values) {

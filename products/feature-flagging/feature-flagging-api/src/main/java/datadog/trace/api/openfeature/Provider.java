@@ -281,6 +281,8 @@ public class Provider extends EventProvider implements Metadata {
 
     private long timeout = 30;
     private TimeUnit unit = SECONDS;
+    Boolean providerEnabled;
+    Boolean legacyProviderEnabled;
     String configurationSource;
     String cdnBaseUrl;
     String apiKey;
@@ -297,6 +299,11 @@ public class Provider extends EventProvider implements Metadata {
 
     public Options configurationSource(final String configurationSource) {
       this.configurationSource = configurationSource;
+      return this;
+    }
+
+    public Options enabled(final boolean enabled) {
+      this.providerEnabled = enabled;
       return this;
     }
 

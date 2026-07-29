@@ -17,6 +17,9 @@ final class ProviderRuntime {
 
   static Handle acquire(
       final RuntimeConfiguration configuration, final Consumer<ConfigurationSnapshot> listener) {
+    if (configuration.source == RuntimeConfiguration.Source.DISABLED) {
+      throw new IllegalStateException("Datadog OpenFeature provider is disabled by configuration");
+    }
     synchronized (LOCK) {
       if (shared == null) {
         shared = new SharedRuntime(configuration);

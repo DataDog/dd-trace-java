@@ -51,6 +51,36 @@ class ProviderTest {
   }
 
   @Test
+  void preservesStableAndLegacySourceSelection() {
+    assertEquals(
+        RuntimeConfiguration.Source.DISABLED,
+        RuntimeConfiguration.resolve(new Provider.Options().enabled(false)).source);
+
+    final Provider.Options legacyEnabled = new Provider.Options();
+    legacyEnabled.legacyProviderEnabled = true;
+    assertEquals(
+        RuntimeConfiguration.Source.REMOTE_CONFIG,
+        RuntimeConfiguration.resolve(legacyEnabled).source);
+
+    final Provider.Options legacyDisabled = new Provider.Options();
+    legacyDisabled.legacyProviderEnabled = false;
+    assertEquals(
+        RuntimeConfiguration.Source.DISABLED, RuntimeConfiguration.resolve(legacyDisabled).source);
+    assertEquals(
+        RuntimeConfiguration.Source.CDN,
+        RuntimeConfiguration.resolve(legacyDisabled.configurationSource("agentless")).source);
+  }
+
+  @Test
+  void disabledProviderDoesNotStartConfigurationSource() {
+    first = new Provider(new Provider.Options().enabled(false).initTimeout(10, MILLISECONDS));
+
+    final FatalError error =
+        assertThrows(FatalError.class, () -> first.initialize(new MutableContext()));
+    assertTrue(error.getMessage().contains("disabled by configuration"));
+  }
+
+  @Test
   void providerOwnsCdnLifecycleWithoutAgent() throws Exception {
     final AtomicInteger requests = new AtomicInteger();
     final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
