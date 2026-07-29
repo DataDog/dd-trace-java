@@ -141,6 +141,65 @@ class LightStringMapTest {
     }
 
     @Test
+    void collidingHashCodesDoNotExplodeMemory() {
+      // Regression: keys sharing an identical hashCode() land on the same home slot in EVERY table
+      // size, so growing never shortens their probe chain. A pure probe-bound grow trigger would
+      // double the table on every insert past MAX_PROBES, ballooning an uncapped map to hundreds of
+      // millions of slots from a few dozen keys (an adversarial-input OOM). The
+      // MAX_SLOTS_PER_LIVE_ENTRY backstop must keep the table O(live entries) while every key stays
+      // retrievable.
+      List<String> keys = identicalHashCodeKeys(32);
+      int sharedHash = keys.get(0).hashCode();
+      for (String key : keys) {
+        assertEquals(sharedHash, key.hashCode(), "fixture keys must share one hashCode: " + key);
+      }
+
+      LightStringMap<Integer> map = LightStringMap.create(8);
+      for (int i = 0; i < keys.size(); i++) {
+        map.set(keys.get(i), i);
+      }
+
+      int slots = EmbeddingSupport.numSlots(map.dataForTesting());
+      assertTrue(
+          slots <= keys.size() * 16,
+          "colliding keys must stay bounded, not explode: " + slots + " slots for " + keys.size());
+      assertEquals(keys.size(), map.size());
+      for (int i = 0; i < keys.size(); i++) {
+        assertEquals(i, map.get(keys.get(i)), keys.get(i));
+      }
+    }
+
+    @Test
+    void insertReclaimsEarlierTombstoneInsteadOfExtendingChain() {
+      // A chain of same-home-slot keys, with one removed mid-chain, leaves a tombstone. A later
+      // insert of a new key on that chain must reclaim the (earlier, shorter-displacement)
+      // tombstone
+      // rather than walk past it to a fresh null -- keeping the chain short and avoiding a needless
+      // grow.
+      List<String> colliding = collidingKeys(5);
+      LightStringMap<Integer> map = LightStringMap.create(16);
+      for (int i = 0; i < 4; i++) {
+        map.set(colliding.get(i), i);
+      }
+      Object[] data = map.dataForTesting();
+      int numSlots = EmbeddingSupport.numSlots(data);
+      int reclaimedSlot = slotOf(data, numSlots, colliding.get(1));
+      assertTrue(reclaimedSlot >= 0, "second key should be present before removal");
+
+      map.remove(colliding.get(1)); // tombstone mid-chain
+      map.set(colliding.get(4), 4); // new key on the same chain
+
+      Object[] after = map.dataForTesting();
+      assertEquals(16, EmbeddingSupport.numSlots(after), "reusing the tombstone avoids a grow");
+      assertEquals(
+          colliding.get(4),
+          after[reclaimedSlot],
+          "the new key should reuse the earlier tombstone slot, not extend the chain");
+      assertEquals(4, map.get(colliding.get(4)));
+      assertNull(map.get(colliding.get(1)));
+    }
+
+    @Test
     void growsAndPreservesAllEntries() {
       // initial capacity 2 forces several resizes as we insert well past it.
       LightStringMap<Integer> map = LightStringMap.create(2);
@@ -194,6 +253,31 @@ class LightStringMapTest {
         }
       }
       return keys;
+    }
+
+    // Distinct strings that all share ONE hashCode() (not merely one home slot): the equal-hashCode
+    // blocks "Aa" and "BB" both hash to 2112, and any concatenation of them yields the same
+    // hashCode -- so these collide in every table size and can never be spread apart by growing.
+    private List<String> identicalHashCodeKeys(int count) {
+      String[] blocks = {"Aa", "BB"};
+      List<String> keys = new ArrayList<>(count);
+      for (int i = 0; keys.size() < count; i++) {
+        StringBuilder sb = new StringBuilder();
+        int bits = i;
+        for (int b = 0; b < 5; b++) { // 2^5 = 32 distinct combinations
+          sb.append(blocks[bits & 1]);
+          bits >>>= 1;
+        }
+        keys.add(sb.toString());
+      }
+      return keys;
+    }
+
+    private int slotOf(Object[] data, int numSlots, String key) {
+      for (int slot = 0; slot < numSlots; slot++) {
+        if (key.equals(data[slot])) return slot;
+      }
+      return -1;
     }
 
     @Test
