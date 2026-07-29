@@ -448,6 +448,21 @@ class MultipartHelperTest extends Specification {
     result == ['anonymous']
   }
 
+  def "collectFilesContent includes part with only an RFC 5987 filename* (security fix)"() {
+    given: "a file declaring filename* only, no plain filename"
+    def part = Mock(InputPart)
+    part.getHeaders() >> headers('form-data; name="upload"; filename*=UTF-8\'\'notes.txt', 'text/plain')
+    part.getBody(_, _) >> new ByteArrayInputStream('<script>'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['upload': [part]]
+
+    when:
+    def result = MultipartHelper.collectFilesContent(ret)
+
+    then: "content is still inspected here even though collectBodyMap now excludes this part"
+    result == ['<script>']
+  }
+
   def "collectFilesContent skips part without filename attribute"() {
     given:
     def part = Mock(InputPart)

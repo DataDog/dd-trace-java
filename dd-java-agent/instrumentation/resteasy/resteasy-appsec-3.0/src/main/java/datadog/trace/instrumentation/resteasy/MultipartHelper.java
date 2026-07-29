@@ -125,8 +125,9 @@ public final class MultipartHelper {
   // regardless of its declared content-type: a file can be declared text/plain and would otherwise
   // pass isTextPlain() and consume the body-map budget meant for genuine form fields. Uses
   // hasFilenameParam() rather than rawFilenameFromContentDisposition(), which deliberately ignores
-  // the RFC 5987 "filename*" form: a part carrying only "filename*" must still be excluded here,
-  // even though its filename value isn't decoded/reported elsewhere in this file.
+  // the RFC 5987 "filename*" form: a part carrying only "filename*" must still be excluded here.
+  // collectFilesContent() uses the same hasFilenameParam() gate, so such a part is still inspected
+  // there even though this file never decodes its filename* value.
   private static boolean hasFilename(Map<String, List<String>> headers) {
     if (headers == null) {
       return false;
@@ -228,9 +229,9 @@ public final class MultipartHelper {
         if (cdHeaders == null || cdHeaders.isEmpty()) {
           continue;
         }
-        // rawFilenameFromContentDisposition returns null if filename attr absent,
-        // otherwise returns the value (possibly empty) — both cases warrant content inspection
-        if (rawFilenameFromContentDisposition(cdHeaders.get(0)) == null) {
+        // hasFilenameParam recognizes both filename and filename* (see its javadoc): a part with
+        // neither is a plain form field, already covered by collectBodyMap, and skipped here.
+        if (!hasFilenameParam(cdHeaders.get(0))) {
           continue;
         }
         List<String> ctHeaders = getHeaderCaseInsensitive(headers, "Content-Type");
