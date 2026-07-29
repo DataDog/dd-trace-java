@@ -36,6 +36,7 @@ public final class OtlpLogsJsonCollector extends OtlpLogsCollector
   private JsonWriter writer;
   private boolean anyLogRecordWritten;
   private boolean logRecordStarted;
+  private int logRecordCount;
 
   private final LazyJsonArray attributesArray = new LazyJsonArray();
 
@@ -65,6 +66,8 @@ public final class OtlpLogsJsonCollector extends OtlpLogsCollector
 
   /** Prepare temporary elements to collect logs data. */
   private void start() {
+    logRecordCount = 0;
+
     writer = new JsonWriter();
     writer.beginObject();
     writer.name("resourceLogs").beginArray();
@@ -84,6 +87,11 @@ public final class OtlpLogsJsonCollector extends OtlpLogsCollector
     logRecordStarted = false;
 
     currentScope = null;
+  }
+
+  @Override
+  public int getLogRecordCount() {
+    return logRecordCount;
   }
 
   @Override
@@ -119,6 +127,7 @@ public final class OtlpLogsJsonCollector extends OtlpLogsCollector
 
     logRecordStarted = false;
     anyLogRecordWritten = true;
+    logRecordCount++;
   }
 
   // opens the log record object on first attribute or value written for it
