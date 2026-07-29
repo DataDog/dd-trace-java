@@ -1,7 +1,7 @@
 plugins {
   `java-library`
   id("dd-trace-java.version-file")
-  id("dd-trace-java.module.internal-library")
+  id("dd-trace-java.module.product-library")
 }
 
 description = "Feature flagging remote config and exposure handling"

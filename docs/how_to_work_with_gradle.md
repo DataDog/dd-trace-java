@@ -1156,16 +1156,17 @@ Use the most specific module plugin instead of applying `gradle/java.gradle` dir
 | Published APIs                  | `dd-trace-java.module.distributable.api` |
 | Instrumentation modules         | `dd-trace-java.module.instrumentation`   |
 | Internal API modules            | `dd-trace-java.module.internal-api`      |
+| Product libraries               | `dd-trace-java.module.product-library`   |
 | Internal implementation libraries | `dd-trace-java.module.internal-library` |
 | Platform components             | `dd-trace-java.module.platform-component` |
 | Smoke-test modules              | `dd-trace-java.module.smoke-test`        |
 | Testing support modules         | `dd-trace-java.module.testing-support`   |
 
 Use `internal-api` for internal API surfaces such as product `*-api` modules or `remote-config-api`. Use
-`internal-library` for internal implementation modules such as product `*-lib` modules, `:communication`, `:telemetry`,
-`:utils:*`, and similar shared libraries. Use `platform-component` only for platform modules under
-`:components`; those modules are kept separate because they can grow stricter dependency and testing constraints than
-general internal libraries.
+`product-library` for product implementation modules such as product `*-lib` modules. Use `internal-library` for
+`:communication`, `:telemetry`, agent helpers, `:utils:*`, and similar shared libraries. Use `platform-component` only
+for platform modules under `:components`; those modules are kept separate because they can grow stricter dependency and
+testing constraints than general internal libraries.
 
 For example:
 
