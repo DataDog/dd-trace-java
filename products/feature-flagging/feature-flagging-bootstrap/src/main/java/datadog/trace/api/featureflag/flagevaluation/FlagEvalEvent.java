@@ -51,12 +51,13 @@ public final class FlagEvalEvent {
   public final Map<String, Object> attrs;
 
   /**
-   * Whether the UFC environment active <em>at evaluation time</em> had {@code
-   * observeFullEvaluationData} enabled. Snapshotted on the evaluation thread (from {@code
-   * FeatureFlaggingGateway.isObserveFullEvaluationDataEnabled()}) so the consent decision is pinned
-   * to the instant the flag was evaluated, not to whatever configuration happens to be active when
-   * the event is later drained and flushed. {@code false} is the privacy-preserving default: when
-   * off, the targeting key is hashed and the per-evaluation context is omitted on emission.
+   * Whether the {@code ServerConfiguration} the evaluator actually used for this evaluation had
+   * {@code observeFullEvaluationData} enabled. Read by the hook from evaluation metadata stamped by
+   * {@code DDEvaluator} against that exact configuration, so the consent decision follows the
+   * evaluator rather than whatever configuration happens to be active later (either at hook-fire
+   * time or when the event is drained and flushed). {@code false} is the privacy-preserving
+   * default: when off, the targeting key is hashed and the per-evaluation context is omitted on
+   * emission.
    */
   public final boolean observeFullEvaluationData;
 

@@ -109,12 +109,16 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
           ctx != null && ctx.getCtx() != null ? ctx.getCtx().getTargetingKey() : null;
       final Map<String, Value> attrs = snapshotAttrs(ctx);
 
-      // Snapshot the PII consent flag now, on the evaluation thread, so it is pinned to the
-      // configuration active at evaluation time. The event is drained and flushed later, by which
-      // point a subsequent RC update may have changed CURRENT_CONFIG; reading consent here (not at
-      // drain/flush) is what makes the hashed-vs-raw decision faithful to the evaluation.
-      final boolean observeFullEvaluationData =
-          FeatureFlaggingGateway.isObserveFullEvaluationDataEnabled();
+      // Read the PII consent flag from evaluation metadata stamped by DDEvaluator against the
+      // exact ServerConfiguration used for this evaluation. This closes the race where reading
+      // FeatureFlaggingGateway here could see a *later* RC update than the evaluator did.
+      // Missing metadata (non-DD provider, or PROVIDER_NOT_READY before any config was accepted)
+      // → false, the privacy-preserving default.
+      final Boolean consentFromMetadata =
+          metadata != null
+              ? metadata.getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA)
+              : null;
+      final boolean observeFullEvaluationData = consentFromMetadata != null && consentFromMetadata;
 
       w.enqueue(
           new FlagEvalEvent(

@@ -462,42 +462,54 @@ class FlagEvalLoggingHookTest {
     assertFalse(attrs.containsKey("cohorts[1]"));
   }
 
-  // ---- observeFullEvaluationData is snapshotted from the gateway at evaluation time ----
+  // ---- observeFullEvaluationData is read from evaluation metadata stamped by DDEvaluator ----
+  // The hook must not consult FeatureFlaggingGateway for consent: doing so races against a
+  // Remote Config update that swaps CURRENT_CONFIG between evaluate() and finallyAfter().
 
   @Test
-  void snapshotsObserveFullEvaluationDataTrueFromGatewayAtEvaluationTime() {
+  void readsObserveFullEvaluationDataTrueFromEvaluationMetadata() {
+    assertTrue(enqueuedEventWithConsentMetadata(true).observeFullEvaluationData);
+  }
+
+  @Test
+  void readsObserveFullEvaluationDataFalseFromEvaluationMetadata() {
+    assertFalse(enqueuedEventWithConsentMetadata(false).observeFullEvaluationData);
+  }
+
+  @Test
+  void observeFullEvaluationDataDefaultsToFalseWhenMetadataAbsent() {
+    // No metadata at all: fail-closed toward privacy.
+    assertFalse(enqueuedEventWithConsentMetadata(null).observeFullEvaluationData);
+  }
+
+  @Test
+  void ignoresGatewayConsentEvenWhenItDisagreesWithMetadata() {
+    // Gateway says "consent on" (a *later* RC update after the evaluation ran); metadata pins
+    // the evaluator's original view of "consent off". The hook must trust metadata.
     FeatureFlaggingGateway.dispatch(observeConfig(true));
     try {
-      assertTrue(enqueuedEvent().observeFullEvaluationData);
+      assertFalse(enqueuedEventWithConsentMetadata(false).observeFullEvaluationData);
     } finally {
       FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
     }
   }
 
-  @Test
-  void snapshotsObserveFullEvaluationDataFalseFromGatewayAtEvaluationTime() {
-    FeatureFlaggingGateway.dispatch(observeConfig(false));
-    try {
-      assertFalse(enqueuedEvent().observeFullEvaluationData);
-    } finally {
-      FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
-    }
-  }
-
-  @Test
-  void observeFullEvaluationDataDefaultsToFalseWhenNoConfigDispatched() {
-    // No UFC dispatched: the gateway reports the privacy-preserving default and the hook stamps it.
-    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
-    assertFalse(enqueuedEvent().observeFullEvaluationData);
-  }
-
-  /** Fires the hook once for a simple targeted evaluation and returns the enqueued event. */
-  private FlagEvalEvent enqueuedEvent() {
+  /**
+   * Fires the hook once for a simple targeted evaluation whose metadata carries the given consent
+   * value ({@code null} = key absent) and returns the enqueued event.
+   */
+  private FlagEvalEvent enqueuedEventWithConsentMetadata(final Boolean consent) {
     final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+    final ImmutableMetadata metadata =
+        consent == null
+            ? null
+            : ImmutableMetadata.builder()
+                .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, consent)
+                .build();
     hook.finallyAfter(
         hookCtxWithTargetingKey("obs-flag", "user-1"),
-        details("obs-flag", "on", "on", Reason.TARGETING_MATCH.name(), null),
+        details("obs-flag", "on", "on", Reason.TARGETING_MATCH.name(), metadata),
         Collections.emptyMap());
     assertNotNull(captured.get(), "writer.enqueue must be called once");
     return captured.get();
