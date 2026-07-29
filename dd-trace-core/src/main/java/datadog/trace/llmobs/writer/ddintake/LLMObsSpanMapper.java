@@ -8,7 +8,11 @@ import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.api.llmobs.LLMObs;
+import datadog.trace.api.llmobs.LLMObsInternal;
+import datadog.trace.api.llmobs.LLMObsSpanData;
+import datadog.trace.api.llmobs.LLMObsSpanProcessor;
 import datadog.trace.api.llmobs.LLMObsTags;
+import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.Payload;
@@ -24,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -93,9 +98,11 @@ public class LLMObsSpanMapper implements RemoteMapper {
       LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID;
 
   private final MetaWriter metaWriter = new MetaWriter();
+  private final Set<CoreSpan<?>> droppedSpans = Collections.newSetFromMap(new IdentityHashMap<>());
   private final int size;
 
   private final ByteBuffer header;
+  private List<? extends CoreSpan<?>> pendingTrace;
   private int spansWritten;
 
   public LLMObsSpanMapper() {
@@ -123,12 +130,27 @@ public class LLMObsSpanMapper implements RemoteMapper {
     List<? extends CoreSpan<?>> llmobsSpans =
         trace.stream().filter(LLMObsSpanMapper::isLLMObsSpan).collect(Collectors.toList());
 
+    boolean retry = trace == pendingTrace;
+    if (!retry) {
+      pendingTrace = null;
+      droppedSpans.clear();
+    }
     if (llmobsSpans.isEmpty()) {
       // do nothing if no llmobs spans in the trace
       return;
     }
 
+    if (!retry) {
+      prepareSpans(llmobsSpans);
+      pendingTrace = trace;
+    }
+
+    int writtenSpans = 0;
     for (CoreSpan<?> span : llmobsSpans) {
+      if (droppedSpans.contains(span)) {
+        continue;
+      }
+
       // Read session_id off the span before opening the map so we can size it correctly.
       // We deliberately do NOT remove the tag (unlike parent_id) — the session_id:<value>
       // entry must remain in the tags[] array to match dd-trace-py and dd-trace-js behavior.
@@ -151,7 +173,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
       // 3
       writable.writeUTF8(PARENT_ID);
       writable.writeString(span.getTag(PARENT_ID_TAG_INTERNAL_FULL), null);
-      span.removeTag(PARENT_ID_TAG_INTERNAL_FULL);
 
       // 4
       writable.writeUTF8(NAME);
@@ -188,11 +209,42 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
       /* 10 (metrics), 11 (tags), 12 meta — shift down 1 if session_id absent */
       span.processTagsAndBaggage(metaWriter.withWritable(writable, getErrorsMap(span)));
+      writtenSpans++;
     }
 
     // Increase only after all spans have been written. This way, if it rolls back because of a
     // buffer overflow, the counter won't be skewed.
-    spansWritten += llmobsSpans.size();
+    spansWritten += writtenSpans;
+    pendingTrace = null;
+    droppedSpans.clear();
+  }
+
+  private void prepareSpans(List<? extends CoreSpan<?>> spans) {
+    LLMObsSpanProcessor processor = LLMObsInternal.getSpanProcessor();
+    for (CoreSpan<?> span : spans) {
+      boolean dropped = false;
+      if (processor != null) {
+        boolean processorError = false;
+        try {
+          LLMObsSpanDataAdapter adapter = new LLMObsSpanDataAdapter(span);
+          LLMObsSpanData result = processor.process(adapter);
+          if (result == null) {
+            dropped = true;
+          } else {
+            adapter.apply(result);
+          }
+        } catch (RuntimeException error) {
+          processorError = true;
+          dropped = true;
+          LOGGER.warn("Error in LLM Observability span processor, dropping span", error);
+        } finally {
+          LLMObsMetricCollector.get().recordUserProcessorCalled(processorError);
+        }
+      }
+      if (dropped) {
+        droppedSpans.add(span);
+      }
+    }
   }
 
   private CharSequence llmObsSpanName(CoreSpan<?> span) {
@@ -282,21 +334,12 @@ public class LLMObsSpanMapper implements RemoteMapper {
           tagsToRemapToMeta.put(key, tag.getValue());
         } else if (key.startsWith(LLMOBS_METRIC_PREFIX) && tag.getValue() instanceof Number) {
           ++metricsSize;
-        } else if (key.startsWith(LLMOBS_TAG_PREFIX)) {
-          if (key.startsWith(LLMOBS_TAG_PREFIX)) {
-            key = key.substring(LLMOBS_TAG_PREFIX.length());
-          }
-          if (TAGS_FOR_REMAPPING.contains(key)) {
-            tagsToRemapToMeta.put(key, tag.getValue());
-          } else {
-            ++tagsSize;
-          }
+        } else if (key.startsWith(LLMOBS_TAG_PREFIX) && !key.equals(PARENT_ID_TAG_INTERNAL_FULL)) {
+          ++tagsSize;
         }
       }
 
-      if (!spanKind.equals("unknown")) {
-        metadata.getTags().remove(SPAN_KIND_TAG_KEY);
-      } else {
+      if (spanKind.equals("unknown")) {
         LOGGER.warn("missing span kind");
       }
 
@@ -318,7 +361,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
         String key = tag.getKey();
         Object value = tag.getValue();
-        if (!tagsToRemapToMeta.containsKey(key) && key.startsWith(LLMOBS_TAG_PREFIX)) {
+        if (!tagsToRemapToMeta.containsKey(key)
+            && key.startsWith(LLMOBS_TAG_PREFIX)
+            && !key.equals(SPAN_KIND_TAG_KEY)
+            && !key.equals(PARENT_ID_TAG_INTERNAL_FULL)) {
           writable.writeObject(key.substring(LLMOBS_TAG_PREFIX.length()) + ":" + value, null);
         }
       }
