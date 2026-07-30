@@ -923,10 +923,7 @@ public class DDSpanContext
    * If the tag may be intercepted, then boxing is also used.
    */
   private boolean precheckIntercept(String tag) {
-    // Usually only a single instanceof TagMap will be loaded,
-    // so isOptimized is turned into a direct call and then inlines to a constant
-    // Since isOptimized just returns a constant - doesn't require synchronization
-    return !unsafeTags.isOptimized() || tagInterceptor.needsIntercept(tag);
+    return tagInterceptor.needsIntercept(tag);
   }
 
   /*
@@ -1196,7 +1193,26 @@ public class DDSpanContext
   void processTagsAndBaggage(
       final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
     processTagsAndBaggage(
-        consumer, longRunningVersion, restrictedSpan, injectLinksAsTags, injectBaggageAsTags);
+        consumer,
+        longRunningVersion,
+        restrictedSpan,
+        injectLinksAsTags,
+        injectBaggageAsTags,
+        propagationTags);
+  }
+
+  void processTagsAndBaggage(
+      final MetadataConsumer consumer,
+      int longRunningVersion,
+      DDSpan restrictedSpan,
+      boolean firstInChunk) {
+    processTagsAndBaggage(
+        consumer,
+        longRunningVersion,
+        restrictedSpan,
+        injectLinksAsTags,
+        injectBaggageAsTags,
+        firstInChunk ? getPropagationTags() : null);
   }
 
   /**
@@ -1210,7 +1226,22 @@ public class DDSpanContext
         longRunningVersion,
         restrictedSpan,
         false, // injectLinksAsTags
-        injectBaggageAsTags);
+        injectBaggageAsTags,
+        propagationTags);
+  }
+
+  void processTagsAndBaggageWithStructuredLinks(
+      final MetadataConsumer consumer,
+      int longRunningVersion,
+      DDSpan restrictedSpan,
+      boolean firstInChunk) {
+    processTagsAndBaggage(
+        consumer,
+        longRunningVersion,
+        restrictedSpan,
+        false, // injectLinksAsTags
+        injectBaggageAsTags,
+        firstInChunk ? getPropagationTags() : null);
   }
 
   void processTagsAndBaggage(
@@ -1218,7 +1249,8 @@ public class DDSpanContext
       int longRunningVersion,
       DDSpan restrictedSpan,
       boolean injectLinksAsTags,
-      boolean injectBaggageAsTags) {
+      boolean injectBaggageAsTags,
+      PropagationTags serializedPropagationTags) {
     // NOTE: The span is passed for the sole purpose of allowing updating & reading of the span
     // links
     // This is a compromise to avoid...
@@ -1243,9 +1275,14 @@ public class DDSpanContext
         if (w3cBaggage != null) {
           injectW3CBaggageTags(baggageItemsWithPropagationTags);
         }
-        propagationTags.fillTagMap(baggageItemsWithPropagationTags);
+        if (serializedPropagationTags != null) {
+          serializedPropagationTags.fillTagMap(baggageItemsWithPropagationTags);
+        }
       } else {
-        baggageItemsWithPropagationTags = propagationTags.createTagMap();
+        baggageItemsWithPropagationTags =
+            serializedPropagationTags == null
+                ? EMPTY_BAGGAGE
+                : serializedPropagationTags.createTagMap();
       }
 
       consumer.accept(

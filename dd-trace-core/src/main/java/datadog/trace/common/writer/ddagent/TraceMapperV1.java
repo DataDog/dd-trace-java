@@ -91,7 +91,7 @@ public final class TraceMapperV1 implements TraceMapper {
     }
 
     CoreSpan<?> firstSpan = trace.get(0);
-    firstSpan.processTagsAndBaggageWithStructuredLinks(spanMetadata);
+    firstSpan.processTagsAndBaggageWithStructuredLinks(spanMetadata, true);
     Metadata firstSpanMeta = spanMetadata.metadata;
 
     // encoded fields: 1..7, but skipping #5, as not required by tracers and set by the agent.
@@ -108,7 +108,7 @@ public final class TraceMapperV1 implements TraceMapper {
     // traceID = 6, the ID of the trace to which all spans in this chunk belong
     encodeTraceId(writable, 6, firstSpan.getTraceId());
     // samplingMechanism = 7, uint32
-    encodeInt(writable, 7, parseSamplingMechanism(firstSpanMeta.getTags()));
+    encodeInt(writable, 7, parseSamplingMechanism(firstSpanMeta.getBaggage()));
   }
 
   private Map<String, Object> buildChunkAttributes(List<? extends CoreSpan<?>> trace) {
@@ -128,9 +128,10 @@ public final class TraceMapperV1 implements TraceMapper {
 
     // spanMetadata will already have data from first span.
     Metadata meta = spanMetadata.metadata;
-    for (CoreSpan<?> span : spans) {
+    for (int i = 0; i < spans.size(); i++) {
+      CoreSpan<?> span = spans.get(i);
       if (meta == null) {
-        span.processTagsAndBaggageWithStructuredLinks(spanMetadata);
+        span.processTagsAndBaggageWithStructuredLinks(spanMetadata, i == 0);
         meta = spanMetadata.metadata;
       }
       TagMap tags = meta.getTags();
@@ -605,8 +606,8 @@ public final class TraceMapperV1 implements TraceMapper {
    * <p>V1 payload expects only the numeric mechanism, so we normalize both forms to a positive
    * integer and fall back to {@link SamplingMechanism#DEFAULT} when absent or malformed.
    */
-  private int parseSamplingMechanism(TagMap tags) {
-    String decisionMaker = tags.getString(KEY_DECISION_MAKER);
+  private int parseSamplingMechanism(Map<String, String> propagationMetadata) {
+    String decisionMaker = propagationMetadata.get(KEY_DECISION_MAKER);
     if (decisionMaker == null || decisionMaker.isEmpty()) {
       return SamplingMechanism.DEFAULT;
     }
