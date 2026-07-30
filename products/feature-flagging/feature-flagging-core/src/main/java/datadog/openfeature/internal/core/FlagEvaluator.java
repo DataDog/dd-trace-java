@@ -1,17 +1,18 @@
 package datadog.openfeature.internal.core;
 
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Allocation;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Condition;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.ConditionOperator;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Flag;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Rule;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Shard;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.ShardRange;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Split;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.ValueType;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Variant;
 import datadog.openfeature.internal.core.EvaluationResult.Error;
 import datadog.openfeature.internal.core.EvaluationResult.Reason;
+import datadog.trace.api.featureflag.ufc.v1.Allocation;
+import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
+import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.Rule;
+import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Shard;
+import datadog.trace.api.featureflag.ufc.v1.ShardRange;
+import datadog.trace.api.featureflag.ufc.v1.Split;
+import datadog.trace.api.featureflag.ufc.v1.ValueType;
+import datadog.trace.api.featureflag.ufc.v1.Variant;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -20,7 +21,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-/** Evaluates immutable UFC snapshots without OpenFeature or agent classes. */
+/** Evaluates the existing UFC model without OpenFeature SDK types. */
 public final class FlagEvaluator {
 
   public enum ValueKind {
@@ -32,7 +33,7 @@ public final class FlagEvaluator {
   }
 
   public EvaluationResult evaluate(
-      final ConfigurationSnapshot snapshot,
+      final ServerConfiguration snapshot,
       final ValueKind target,
       final String key,
       final Object defaultValue,
@@ -137,7 +138,7 @@ public final class FlagEvaluator {
         typeName(flag),
         allocation.key,
         split.serialId,
-        allocation.doLog);
+        Boolean.TRUE.equals(allocation.doLog));
   }
 
   public static Object mapValue(final ValueKind target, final Object value) {
@@ -165,8 +166,8 @@ public final class FlagEvaluator {
   }
 
   private static boolean isActive(final Allocation allocation, final long now) {
-    return (allocation.startAtMillis == null || now >= allocation.startAtMillis)
-        && (allocation.endAtMillis == null || now <= allocation.endAtMillis);
+    return (allocation.startAt == null || now >= allocation.startAt.getTime())
+        && (allocation.endAt == null || now <= allocation.endAt.getTime());
   }
 
   private static boolean evaluateRules(final List<Rule> rules, final EvaluationContext context) {
@@ -175,7 +176,7 @@ public final class FlagEvaluator {
         continue;
       }
       boolean matches = true;
-      for (final Condition condition : rule.conditions) {
+      for (final ConditionConfiguration condition : rule.conditions) {
         if (!evaluateCondition(condition, context)) {
           matches = false;
           break;
@@ -189,7 +190,7 @@ public final class FlagEvaluator {
   }
 
   private static boolean evaluateCondition(
-      final Condition condition, final EvaluationContext context) {
+      final ConditionConfiguration condition, final EvaluationContext context) {
     final Object attribute = context.attribute(condition.attribute);
     if (condition.operator == ConditionOperator.IS_NULL) {
       final boolean expectedNull =

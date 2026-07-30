@@ -88,10 +88,14 @@ tasks.withType<Javadoc>().configureEach {
 
 val coreProject = project(":products:feature-flagging:feature-flagging-core")
 val httpProject = project(":products:feature-flagging:feature-flagging-http")
+val bootstrapProject = project(":products:feature-flagging:feature-flagging-bootstrap")
 
 tasks.named<Jar>("jar") {
   from(coreProject.extensions.getByType<SourceSetContainer>().named("main").map { it.output })
   from(httpProject.extensions.getByType<SourceSetContainer>().named("main").map { it.output })
+  from(bootstrapProject.extensions.getByType<SourceSetContainer>().named("main").map { it.output }) {
+    include("datadog/trace/api/featureflag/ufc/v1/**")
+  }
 }
 
 tasks.withType<Test>().configureEach {
@@ -116,7 +120,8 @@ tasks.register("verifyDdOpenfeatureArtifact") {
       "datadog/openfeature/internal/core/ConfigurationStore.class",
       "datadog/openfeature/internal/core/FlagEvaluator.class",
       "datadog/openfeature/internal/http/CdnConfigurationSource.class",
-      "datadog/openfeature/internal/http/HttpConfigurationOptions.class"
+      "datadog/openfeature/internal/http/HttpConfigurationOptions.class",
+      "datadog/trace/api/featureflag/ufc/v1/ServerConfiguration.class"
     )
     ZipFile(providerJar).use { zip ->
       val entryNames = zip.entries().asSequence().map { it.name }.toSet()

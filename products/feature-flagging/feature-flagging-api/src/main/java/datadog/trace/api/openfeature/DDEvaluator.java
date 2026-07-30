@@ -1,6 +1,5 @@
 package datadog.trace.api.openfeature;
 
-import datadog.openfeature.internal.core.ConfigurationSnapshot;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.Subject;
@@ -29,7 +28,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static final boolean SPAN_ENRICHMENT_ENABLED = SpanEnrichmentGate.isEnabled();
 
   private final Runnable configCallback;
-  private final AtomicReference<ConfigurationSnapshot> configuration = new AtomicReference<>();
+  private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
   private final OpenFeatureEvaluationAdapter evaluator =
       new OpenFeatureEvaluationAdapter(DDEvaluator::dispatchExposure, SPAN_ENRICHMENT_ENABLED);
@@ -58,7 +57,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   @Override
   public void accept(final ServerConfiguration config) {
-    configuration.set(ServerConfigurationAdapter.adapt(config));
+    configuration.set(config);
     if (config != null) {
       initializationLatch.countDown();
       configCallback.run();

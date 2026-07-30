@@ -1,5 +1,6 @@
 package datadog.openfeature.internal.core;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -11,7 +12,7 @@ public final class EvaluationContext {
 
   public EvaluationContext(final String targetingKey, final Map<String, Object> attributes) {
     final Map<String, Object> retained =
-        attributes == null ? Map.of() : new LinkedHashMap<>(attributes);
+        attributes == null ? Collections.emptyMap() : new LinkedHashMap<>(attributes);
     this.targetingKey = targetingKey;
     this.attributes =
         new AttributeProvider() {

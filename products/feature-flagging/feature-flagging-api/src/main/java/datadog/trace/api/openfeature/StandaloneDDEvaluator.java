@@ -1,6 +1,6 @@
 package datadog.trace.api.openfeature;
 
-import datadog.openfeature.internal.core.ConfigurationSnapshot;
+import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import java.util.concurrent.TimeUnit;
@@ -57,7 +57,7 @@ final class StandaloneDDEvaluator implements Evaluator {
       final T defaultValue,
       final EvaluationContext context) {
     final StandaloneProviderRuntime.Handle current = runtime;
-    final ConfigurationSnapshot snapshot = current == null ? null : current.configuration();
+    final ServerConfiguration snapshot = current == null ? null : current.configuration();
     return evaluator.evaluate(snapshot, target, key, defaultValue, context);
   }
 }

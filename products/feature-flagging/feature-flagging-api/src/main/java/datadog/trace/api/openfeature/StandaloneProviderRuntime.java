@@ -1,9 +1,9 @@
 package datadog.trace.api.openfeature;
 
-import datadog.openfeature.internal.core.ConfigurationSnapshot;
 import datadog.openfeature.internal.core.ConfigurationSource;
 import datadog.openfeature.internal.core.ConfigurationStore;
 import datadog.openfeature.internal.http.CdnConfigurationSource;
+import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -17,7 +17,7 @@ final class StandaloneProviderRuntime {
 
   static Handle acquire(
       final StandaloneRuntimeConfiguration configuration,
-      final Consumer<ConfigurationSnapshot> listener) {
+      final Consumer<ServerConfiguration> listener) {
     if (configuration.source == StandaloneRuntimeConfiguration.Source.DISABLED) {
       throw new IllegalStateException("Datadog OpenFeature provider is disabled by configuration");
     }
@@ -53,14 +53,14 @@ final class StandaloneProviderRuntime {
 
   static final class Handle implements AutoCloseable {
     private SharedRuntime runtime;
-    private Consumer<ConfigurationSnapshot> listener;
+    private Consumer<ServerConfiguration> listener;
 
-    private Handle(final SharedRuntime runtime, final Consumer<ConfigurationSnapshot> listener) {
+    private Handle(final SharedRuntime runtime, final Consumer<ServerConfiguration> listener) {
       this.runtime = runtime;
       this.listener = listener;
     }
 
-    ConfigurationSnapshot configuration() {
+    ServerConfiguration configuration() {
       return runtime == null ? null : runtime.store.current();
     }
 

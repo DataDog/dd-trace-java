@@ -1,10 +1,10 @@
 package datadog.trace.api.openfeature;
 
-import datadog.openfeature.internal.core.ConfigurationSnapshot;
 import datadog.openfeature.internal.core.EvaluationResult;
 import datadog.openfeature.internal.core.EvaluationResult.Reason;
 import datadog.openfeature.internal.core.FlagEvaluator;
 import datadog.openfeature.internal.core.FlagEvaluator.ValueKind;
+import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.ImmutableMetadata;
@@ -41,7 +41,7 @@ final class OpenFeatureEvaluationAdapter {
   }
 
   <T> ProviderEvaluation<T> evaluate(
-      final ConfigurationSnapshot snapshot,
+      final ServerConfiguration snapshot,
       final Class<T> target,
       final String key,
       final T defaultValue,

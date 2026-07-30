@@ -20,6 +20,7 @@ dependencies {
   api(project(":communication"))
   implementation(project(":internal-api"))
   api(project(":products:feature-flagging:feature-flagging-bootstrap"))
+  implementation(project(":products:feature-flagging:feature-flagging-core"))
   implementation(project(":utils:logging-utils"))
   api(project(":utils:queue-utils"))
 

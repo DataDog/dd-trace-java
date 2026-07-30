@@ -1,5 +1,4 @@
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
-import groovy.lang.Closure
 
 plugins {
   `java-library`
@@ -15,8 +14,6 @@ extra["minimumBranchCoverage"] = 0.7
 
 extra["excludedClassesCoverage"] = listOf(
   // Immutable data transfer types
-  "datadog.openfeature.internal.core.ConfigurationSnapshot",
-  "datadog.openfeature.internal.core.ConfigurationSnapshot.*",
   "datadog.openfeature.internal.core.EvaluationResult",
   "datadog.openfeature.internal.core.EvaluationResult.*",
   "datadog.openfeature.internal.core.ApplyResult",
@@ -24,34 +21,13 @@ extra["excludedClassesCoverage"] = listOf(
 )
 
 configure<TestJvmConstraintsExtension> {
-  minJavaVersion.set(JavaVersion.VERSION_11)
-}
-
-java {
-  toolchain {
-    languageVersion = JavaLanguageVersion.of(11)
-  }
-}
-
-fun AbstractCompile.configureCompiler(
-  javaVersionInteger: Int,
-  compatibilityVersion: JavaVersion? = null,
-  unsetReleaseFlagReason: String? = null
-) {
-  (project.extra["configureCompiler"] as Closure<*>).call(
-    this,
-    javaVersionInteger,
-    compatibilityVersion,
-    unsetReleaseFlagReason
-  )
-}
-
-tasks.withType<JavaCompile>().configureEach {
-  configureCompiler(11, JavaVersion.VERSION_11)
+  minJavaVersion.set(JavaVersion.VERSION_1_8)
 }
 
 dependencies {
   implementation(libs.moshi)
+  compileOnlyApi(project(":products:feature-flagging:feature-flagging-bootstrap"))
 
   testImplementation(libs.bundles.junit5)
+  testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
 }

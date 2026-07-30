@@ -7,9 +7,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.api.featureflag.ufc.v1.Allocation;
+import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
+import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Split;
+import datadog.trace.api.featureflag.ufc.v1.ValueType;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class UfcParserTest {
@@ -18,9 +24,9 @@ class UfcParserTest {
 
   @Test
   void parsesRawUfc() throws Exception {
-    final ConfigurationSnapshot snapshot = parser.parse(Fixtures.UFC.getBytes(UTF_8));
+    final ServerConfiguration snapshot = parser.parse(Fixtures.UFC.getBytes(UTF_8));
 
-    assertEquals("test", snapshot.environmentName);
+    assertEquals("test", snapshot.environment.name);
     assertEquals(1, snapshot.flags.size());
     assertNotNull(snapshot.flags.get("message"));
   }
@@ -33,16 +39,19 @@ class UfcParserTest {
             + "}}";
 
     assertEquals(1, parser.parse(response.getBytes(UTF_8)).flags.size());
+    assertEquals(1, parser.parseJsonApi(response.getBytes(UTF_8)).flags.size());
+    assertThrows(IOException.class, () -> parser.parseJsonApi(Fixtures.UFC.getBytes(UTF_8)));
   }
 
   @Test
-  void parsesCompleteUfcModelAndFreezesNestedValues() throws Exception {
+  void parsesCompleteUfcModel() throws Exception {
     final String content =
         "{"
             + "\"createdAt\":\"2026-01-01T00:00:00Z\","
             + "\"format\":\"SERVER\","
             + "\"environment\":{\"name\":\"production\"},"
             + "\"flags\":{\"targeted\":{"
+            + "\"key\":\"targeted\","
             + "\"enabled\":true,"
             + "\"variationType\":\"JSON\","
             + "\"variations\":{\"on\":{\"value\":{\"nested\":[1,true]}}},"
@@ -64,30 +73,45 @@ class UfcParserTest {
             + "}]"
             + "}}}";
 
-    final ConfigurationSnapshot snapshot = parser.parse(content.getBytes(UTF_8));
-    final ConfigurationSnapshot.Flag flag = snapshot.flags.get("targeted");
-    final ConfigurationSnapshot.Allocation allocation = flag.allocations.get(0);
-    final ConfigurationSnapshot.Split split = allocation.splits.get(0);
+    final ServerConfiguration snapshot = parser.parse(content.getBytes(UTF_8));
+    final Flag flag = snapshot.flags.get("targeted");
+    final Allocation allocation = flag.allocations.get(0);
+    final Split split = allocation.splits.get(0);
 
     assertEquals("targeted", flag.key);
-    assertEquals(ConfigurationSnapshot.ValueType.JSON, flag.variationType);
-    assertNotNull(allocation.startAtMillis);
-    assertEquals(null, allocation.endAtMillis);
-    assertEquals(
-        ConfigurationSnapshot.ConditionOperator.ONE_OF,
-        allocation.rules.get(0).conditions.get(0).operator);
+    assertEquals(ValueType.JSON, flag.variationType);
+    assertNotNull(allocation.startAt);
+    assertEquals(null, allocation.endAt);
+    assertEquals(ConditionOperator.ONE_OF, allocation.rules.get(0).conditions.get(0).operator);
     assertEquals(12, split.serialId);
     assertEquals("test", split.extraLogging.get("reason"));
     assertEquals(100, split.shards.get(0).totalShards);
     assertEquals(50, split.shards.get(0).ranges.get(0).end);
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> ((Map<String, Object>) flag.variations.get("on").value).put("new", true));
-    assertThrows(
-        UnsupportedOperationException.class,
-        () ->
-            ((List<Object>) ((Map<String, Object>) flag.variations.get("on").value).get("nested"))
-                .add("new"));
+  }
+
+  @Test
+  void parsesOffsetDatesAndMapsInvalidDatesToNull() throws Exception {
+    final String content =
+        "{"
+            + "\"flags\":{\"flag\":{"
+            + "\"enabled\":true,"
+            + "\"variationType\":\"STRING\","
+            + "\"variations\":{\"on\":{\"value\":\"on\"}},"
+            + "\"allocations\":["
+            + "{\"key\":\"positive\",\"startAt\":\"2023-01-01T01:00:00+01:00\","
+            + "\"splits\":[]},"
+            + "{\"key\":\"negative\",\"startAt\":\"2023-01-01T00:00:00-05:00\","
+            + "\"splits\":[]},"
+            + "{\"key\":\"invalid\",\"startAt\":\"not-a-date\",\"splits\":[]}"
+            + "]"
+            + "}}}";
+
+    final List<Allocation> allocations =
+        parser.parse(content.getBytes(UTF_8)).flags.get("flag").allocations;
+
+    assertEquals(Instant.parse("2023-01-01T00:00:00Z"), allocations.get(0).startAt.toInstant());
+    assertEquals(Instant.parse("2023-01-01T05:00:00Z"), allocations.get(1).startAt.toInstant());
+    assertEquals(null, allocations.get(2).startAt);
   }
 
   @Test
@@ -95,7 +119,7 @@ class UfcParserTest {
     final String content =
         Fixtures.UFC.replace("\"flags\":{", "\"flags\":{\"broken\":{\"enabled\":\"yes\"},");
 
-    final ConfigurationSnapshot snapshot = parser.parse(content.getBytes(UTF_8));
+    final ServerConfiguration snapshot = parser.parse(content.getBytes(UTF_8));
 
     assertFalse(snapshot.flags.containsKey("broken"));
     assertNotNull(snapshot.flags.get("message"));
@@ -114,11 +138,16 @@ class UfcParserTest {
     assertThrows(IOException.class, () -> parser.parse(new byte[0]));
     assertThrows(IOException.class, () -> parser.parse("{".getBytes(UTF_8)));
     assertThrows(IOException.class, () -> parser.parse("[]".getBytes(UTF_8)));
-    assertThrows(IOException.class, () -> parser.parse("{}".getBytes(UTF_8)));
     assertThrows(
         IOException.class,
         () ->
             parser.parse("{\"data\":{\"type\":\"universal-flag-configuration\"}}".getBytes(UTF_8)));
+  }
+
+  @Test
+  void allowsMissingAndNullFlagMaps() throws Exception {
+    assertEquals(null, parser.parse("{}".getBytes(UTF_8)).flags);
+    assertEquals(null, parser.parse("{\"flags\":null}".getBytes(UTF_8)).flags);
   }
 
   @Test

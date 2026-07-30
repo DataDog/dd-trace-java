@@ -1,5 +1,6 @@
 package datadog.openfeature.internal.core;
 
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -25,7 +26,7 @@ class EvaluationContextTest {
   @Test
   void preservesExplicitId() {
     final EvaluationContext context =
-        new EvaluationContext("subject", Map.of("id", "explicit-subject"));
+        new EvaluationContext("subject", singletonMap("id", "explicit-subject"));
 
     assertEquals("explicit-subject", context.attribute("id"));
   }

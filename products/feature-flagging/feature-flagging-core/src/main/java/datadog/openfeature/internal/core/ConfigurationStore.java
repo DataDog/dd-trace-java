@@ -1,5 +1,6 @@
 package datadog.openfeature.internal.core;
 
+import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.List;
@@ -12,8 +13,8 @@ import java.util.function.Consumer;
 public final class ConfigurationStore implements ConfigurationSink {
 
   private final UfcParser parser;
-  private final AtomicReference<ConfigurationSnapshot> current = new AtomicReference<>();
-  private final List<Consumer<ConfigurationSnapshot>> listeners = new CopyOnWriteArrayList<>();
+  private final AtomicReference<ServerConfiguration> current = new AtomicReference<>();
+  private final List<Consumer<ServerConfiguration>> listeners = new CopyOnWriteArrayList<>();
   private final Object changeMonitor = new Object();
 
   public ConfigurationStore() {
@@ -26,7 +27,7 @@ public final class ConfigurationStore implements ConfigurationSink {
 
   @Override
   public ApplyResult apply(final byte[] content) {
-    final ConfigurationSnapshot next;
+    final ServerConfiguration next;
     try {
       next = parser.parse(content);
     } catch (final IOException | RuntimeException ignored) {
@@ -44,7 +45,7 @@ public final class ConfigurationStore implements ConfigurationSink {
     return ApplyResult.CLEARED;
   }
 
-  public ConfigurationSnapshot current() {
+  public ServerConfiguration current() {
     return current.get();
   }
 
@@ -52,15 +53,15 @@ public final class ConfigurationStore implements ConfigurationSink {
     return current.get() != null;
   }
 
-  public void addListener(final Consumer<ConfigurationSnapshot> listener) {
+  public void addListener(final Consumer<ServerConfiguration> listener) {
     listeners.add(listener);
-    final ConfigurationSnapshot snapshot = current.get();
+    final ServerConfiguration snapshot = current.get();
     if (snapshot != null) {
       listener.accept(snapshot);
     }
   }
 
-  public void removeListener(final Consumer<ConfigurationSnapshot> listener) {
+  public void removeListener(final Consumer<ServerConfiguration> listener) {
     listeners.remove(listener);
   }
 
@@ -85,11 +86,11 @@ public final class ConfigurationStore implements ConfigurationSink {
   @SuppressFBWarnings(
       value = "NN_NAKED_NOTIFY",
       justification = "The caller updates the atomic snapshot before it signals waiting readers")
-  private void signalChange(final ConfigurationSnapshot snapshot) {
+  private void signalChange(final ServerConfiguration snapshot) {
     synchronized (changeMonitor) {
       changeMonitor.notifyAll();
     }
-    for (final Consumer<ConfigurationSnapshot> listener : listeners) {
+    for (final Consumer<ServerConfiguration> listener : listeners) {
       listener.accept(snapshot);
     }
   }

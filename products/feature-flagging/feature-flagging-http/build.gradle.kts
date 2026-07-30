@@ -28,6 +28,7 @@ dependencies {
   api(project(":products:feature-flagging:feature-flagging-core"))
 
   testImplementation(libs.bundles.junit5)
+  testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
 }
 
 fun AbstractCompile.configureCompiler(

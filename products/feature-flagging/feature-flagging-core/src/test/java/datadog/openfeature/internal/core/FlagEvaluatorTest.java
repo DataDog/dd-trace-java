@@ -5,19 +5,24 @@ import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Allocation;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Condition;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.ConditionOperator;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Flag;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Rule;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Shard;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.ShardRange;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Split;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.ValueType;
-import datadog.openfeature.internal.core.ConfigurationSnapshot.Variant;
 import datadog.openfeature.internal.core.EvaluationResult.Error;
 import datadog.openfeature.internal.core.EvaluationResult.Reason;
 import datadog.openfeature.internal.core.FlagEvaluator.ValueKind;
+import datadog.trace.api.featureflag.ufc.v1.Allocation;
+import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
+import datadog.trace.api.featureflag.ufc.v1.Environment;
+import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.Rule;
+import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Shard;
+import datadog.trace.api.featureflag.ufc.v1.ShardRange;
+import datadog.trace.api.featureflag.ufc.v1.Split;
+import datadog.trace.api.featureflag.ufc.v1.ValueType;
+import datadog.trace.api.featureflag.ufc.v1.Variant;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -51,9 +56,8 @@ class FlagEvaluatorTest {
     assertEquals(
         "42", evaluate(staticFlag(ValueType.STRING, 42), ValueKind.STRING, context("id")).value);
     assertEquals(
-        Map.of("nested", true),
-        evaluate(
-                staticFlag(ValueType.JSON, Map.of("nested", true)), ValueKind.OBJECT, context("id"))
+        map("nested", true),
+        evaluate(staticFlag(ValueType.JSON, map("nested", true)), ValueKind.OBJECT, context("id"))
             .value);
     assertNull(FlagEvaluator.mapValue(ValueKind.STRING, null));
   }
@@ -78,8 +82,7 @@ class FlagEvaluatorTest {
 
     assertError(
         snapshot(
-            new Flag(
-                "flag", true, ValueType.STRING, Map.of("on", new Variant("on", "value")), null)),
+            new Flag("flag", true, ValueType.STRING, map("on", new Variant("on", "value")), null)),
         ValueKind.STRING,
         context("id"),
         Error.GENERAL);
@@ -92,8 +95,8 @@ class FlagEvaluatorTest {
         snapshot(
             flag(
                 ValueType.STRING,
-                Map.of("on", new Variant("on", "value")),
-                List.of(split("missing", emptyList())))),
+                map("on", new Variant("on", "value")),
+                list(split("missing", emptyList())))),
         ValueKind.STRING,
         context("id"),
         Error.GENERAL);
@@ -108,11 +111,11 @@ class FlagEvaluatorTest {
   void returnsDisabledAndDefaultResults() {
     final Flag disabled =
         new Flag(
-            "flag", false, ValueType.STRING, Map.of("on", new Variant("on", "value")), emptyList());
+            "flag", false, ValueType.STRING, map("on", new Variant("on", "value")), emptyList());
     assertEquals(Reason.DISABLED, evaluate(disabled, ValueKind.STRING, context("id")).reason);
 
     final Flag noSplits =
-        flag(ValueType.STRING, Map.of("on", new Variant("on", "value")), emptyList());
+        flag(ValueType.STRING, map("on", new Variant("on", "value")), emptyList());
     assertEquals(Reason.DEFAULT, evaluate(noSplits, ValueKind.STRING, context("id")).reason);
 
     final long now = System.currentTimeMillis();
@@ -121,21 +124,21 @@ class FlagEvaluatorTest {
             "flag",
             true,
             ValueType.STRING,
-            Map.of("on", new Variant("on", "value")),
-            List.of(
+            map("on", new Variant("on", "value")),
+            list(
                 new Allocation(
                     "future",
                     emptyList(),
-                    now + 60_000,
+                    new Date(now + 60_000),
                     null,
-                    List.of(split("on", emptyList())),
+                    list(split("on", emptyList())),
                     false),
                 new Allocation(
                     "past",
                     emptyList(),
                     null,
-                    now - 60_000,
-                    List.of(split("on", emptyList())),
+                    new Date(now - 60_000),
+                    list(split("on", emptyList())),
                     false)));
     assertEquals(Reason.DEFAULT, evaluate(inactive, ValueKind.STRING, context("id")).reason);
   }
@@ -144,35 +147,35 @@ class FlagEvaluatorTest {
   void evaluatesAllRuleOperators() {
     final Rule matchingRule =
         new Rule(
-            List.of(
+            list(
                 condition(ConditionOperator.MATCHES, "country", "^U"),
                 condition(ConditionOperator.NOT_MATCHES, "country", "^C"),
-                condition(ConditionOperator.ONE_OF, "tier", List.of("free", "paid")),
-                condition(ConditionOperator.NOT_ONE_OF, "tier", List.of("blocked")),
+                condition(ConditionOperator.ONE_OF, "tier", list("free", "paid")),
+                condition(ConditionOperator.NOT_ONE_OF, "tier", list("blocked")),
                 condition(ConditionOperator.GTE, "age", 18),
                 condition(ConditionOperator.GT, "age", 17),
                 condition(ConditionOperator.LTE, "age", 18),
                 condition(ConditionOperator.LT, "age", 19),
                 condition(ConditionOperator.IS_NULL, "missing", true),
                 condition(ConditionOperator.IS_NULL, "country", false),
-                condition(ConditionOperator.ONE_OF, "score", List.of("18"))));
+                condition(ConditionOperator.ONE_OF, "score", list("18"))));
     final Flag flag =
         new Flag(
             "flag",
             true,
             ValueType.STRING,
-            Map.of("on", new Variant("on", "matched")),
-            List.of(
+            map("on", new Variant("on", "matched")),
+            list(
                 new Allocation(
                     "targeted",
-                    List.of(new Rule(emptyList()), matchingRule),
+                    list(new Rule(emptyList()), matchingRule),
                     null,
                     null,
-                    List.of(split("on", emptyList())),
+                    list(split("on", emptyList())),
                     false)));
     final EvaluationContext matching =
         new EvaluationContext(
-            "subject", Map.of("country", "US", "tier", "paid", "age", 18, "score", 18));
+            "subject", map("country", "US", "tier", "paid", "age", 18, "score", 18));
 
     assertEquals(Reason.TARGETING_MATCH, evaluate(flag, ValueKind.STRING, matching).reason);
     assertEquals(
@@ -181,7 +184,7 @@ class FlagEvaluatorTest {
                 flag,
                 ValueKind.STRING,
                 new EvaluationContext(
-                    "subject", Map.of("country", "CA", "tier", "paid", "age", 18, "score", 18)))
+                    "subject", map("country", "CA", "tier", "paid", "age", 18, "score", 18)))
             .reason);
   }
 
@@ -190,27 +193,24 @@ class FlagEvaluatorTest {
     final Flag invalidRegex = targetedFlag(condition(ConditionOperator.MATCHES, "value", "["));
     assertEquals(
         Error.PARSE_ERROR,
-        evaluate(
-                invalidRegex,
-                ValueKind.STRING,
-                new EvaluationContext("id", Map.of("value", "text")))
+        evaluate(invalidRegex, ValueKind.STRING, new EvaluationContext("id", map("value", "text")))
             .error);
 
     final Flag invalidNumber = targetedFlag(condition(ConditionOperator.GT, "value", "number"));
     assertEquals(
         Error.TYPE_MISMATCH,
-        evaluate(invalidNumber, ValueKind.STRING, new EvaluationContext("id", Map.of("value", 2)))
+        evaluate(invalidNumber, ValueKind.STRING, new EvaluationContext("id", map("value", 2)))
             .error);
   }
 
   @Test
   void evaluatesShardsAndRequiresTargetingKey() {
-    final Shard matchingShard = new Shard("salt", List.of(new ShardRange(0, 1)), 1);
+    final Shard matchingShard = new Shard("salt", list(new ShardRange(0, 1)), 1);
     final Flag sharded =
         flag(
             ValueType.STRING,
-            Map.of("on", new Variant("on", "value")),
-            List.of(split("on", List.of(matchingShard))));
+            map("on", new Variant("on", "value")),
+            list(split("on", list(matchingShard))));
 
     assertEquals(Reason.SPLIT, evaluate(sharded, ValueKind.STRING, context("id")).reason);
     assertEquals(
@@ -220,8 +220,8 @@ class FlagEvaluatorTest {
     final Flag unmatched =
         flag(
             ValueType.STRING,
-            Map.of("on", new Variant("on", "value")),
-            List.of(split("on", List.of(invalidShard))));
+            map("on", new Variant("on", "value")),
+            list(split("on", list(invalidShard))));
     assertEquals(Reason.DEFAULT, evaluate(unmatched, ValueKind.STRING, context("id")).reason);
   }
 
@@ -235,7 +235,7 @@ class FlagEvaluatorTest {
     assertEquals("subject", context.attribute("id"));
     assertEquals("value", context.attribute("name"));
     assertEquals(
-        "explicit", new EvaluationContext("subject", Map.of("id", "explicit")).attribute("id"));
+        "explicit", new EvaluationContext("subject", map("id", "explicit")).attribute("id"));
     assertNull(new EvaluationContext("subject", null).attribute("missing"));
   }
 
@@ -245,15 +245,15 @@ class FlagEvaluatorTest {
   }
 
   private void assertError(
-      final ConfigurationSnapshot snapshot,
+      final ServerConfiguration snapshot,
       final ValueKind kind,
       final EvaluationContext context,
       final Error error) {
     assertEquals(error, evaluator.evaluate(snapshot, kind, "flag", "default", context).error);
   }
 
-  private static ConfigurationSnapshot snapshot(final Flag flag) {
-    return new ConfigurationSnapshot(null, "SERVER", "test", Map.of("flag", flag));
+  private static ServerConfiguration snapshot(final Flag flag) {
+    return new ServerConfiguration(null, "SERVER", new Environment("test"), map("flag", flag));
   }
 
   private static EvaluationContext context(final String targetingKey) {
@@ -261,22 +261,22 @@ class FlagEvaluatorTest {
   }
 
   private static Flag staticFlag(final ValueType type, final Object value) {
-    return flag(type, Map.of("on", new Variant("on", value)), List.of(split("on", emptyList())));
+    return flag(type, map("on", new Variant("on", value)), list(split("on", emptyList())));
   }
 
-  private static Flag targetedFlag(final Condition condition) {
+  private static Flag targetedFlag(final ConditionConfiguration condition) {
     return new Flag(
         "flag",
         true,
         ValueType.STRING,
-        Map.of("on", new Variant("on", "value")),
-        List.of(
+        map("on", new Variant("on", "value")),
+        list(
             new Allocation(
                 "allocation",
-                List.of(new Rule(List.of(condition))),
+                list(new Rule(list(condition))),
                 null,
                 null,
-                List.of(split("on", emptyList())),
+                list(split("on", emptyList())),
                 false)));
   }
 
@@ -287,15 +287,33 @@ class FlagEvaluatorTest {
         true,
         type,
         variants,
-        List.of(new Allocation("allocation", emptyList(), null, null, splits, true)));
+        list(new Allocation("allocation", emptyList(), null, null, splits, true)));
   }
 
   private static Split split(final String variationKey, final List<Shard> shards) {
     return new Split(shards, variationKey, emptyMap(), 7);
   }
 
-  private static Condition condition(
+  private static ConditionConfiguration condition(
       final ConditionOperator operator, final String attribute, final Object value) {
-    return new Condition(operator, attribute, value);
+    return new ConditionConfiguration(operator, attribute, value);
+  }
+
+  @SafeVarargs
+  private static <T> List<T> list(final T... values) {
+    final List<T> result = new ArrayList<>(values.length);
+    for (final T value : values) {
+      result.add(value);
+    }
+    return result;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <K, V> Map<K, V> map(final Object... keyValues) {
+    final Map<K, V> result = new LinkedHashMap<>();
+    for (int index = 0; index < keyValues.length; index += 2) {
+      result.put((K) keyValues[index], (V) keyValues[index + 1]);
+    }
+    return result;
   }
 }

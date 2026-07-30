@@ -1,9 +1,6 @@
 package com.datadog.featureflag;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Collections.emptyMap;
-import static java.util.Collections.emptySet;
-import static java.util.Collections.singleton;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -16,11 +13,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.JsonReader;
-import com.squareup.moshi.JsonWriter;
-import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.Capabilities;
 import datadog.remoteconfig.ConfigurationDeserializer;
@@ -29,14 +21,8 @@ import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
-import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.IOException;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Type;
-import java.time.Instant;
-import java.util.Date;
-import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,7 +30,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.tabletest.junit.TableTest;
 
 @ExtendWith(MockitoExtension.class)
 class RemoteConfigServiceImplTest {
@@ -190,23 +175,6 @@ class RemoteConfigServiceImplTest {
   }
 
   @Test
-  void flagMapAdapterFactoryOnlyCreatesFlagMapAdapterForFlagMapType() {
-    final Moshi moshi = moshi();
-    final Type flagsType = Types.newParameterizedType(Map.class, String.class, Flag.class);
-
-    final JsonAdapter<?> adapter =
-        UniversalFlagConfigParser.FlagMapAdapter.FACTORY.create(flagsType, emptySet(), moshi);
-
-    assertNotNull(adapter);
-    assertTrue(adapter instanceof UniversalFlagConfigParser.FlagMapAdapter);
-    assertNull(
-        UniversalFlagConfigParser.FlagMapAdapter.FACTORY.create(String.class, emptySet(), moshi));
-    assertNull(
-        UniversalFlagConfigParser.FlagMapAdapter.FACTORY.create(
-            flagsType, singleton(mock(Annotation.class)), moshi));
-  }
-
-  @Test
   void allowsNullFlagMap() throws Exception {
     final ServerConfiguration config =
         deserialize(
@@ -252,62 +220,6 @@ class RemoteConfigServiceImplTest {
     assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
   }
 
-  @Test
-  void flagMapAdapterIsReadOnly() {
-    final UniversalFlagConfigParser.FlagMapAdapter adapter =
-        new UniversalFlagConfigParser.FlagMapAdapter(moshi().adapter(Flag.class));
-
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> adapter.toJson(mock(JsonWriter.class), emptyMap()));
-  }
-
-  @TableTest({
-    "scenario                                  | value                            | expectedEpochMilli",
-    "utc second                                | '2023-01-01T00:00:00Z'           | 1672531200000     ",
-    "utc end of year                           | '2023-12-31T23:59:59Z'           | 1704067199000     ",
-    "leap day                                  | '2024-02-29T12:00:00Z'           | 1709208000000     ",
-    "millisecond precision                     | '2023-01-01T00:00:00.000Z'       | 1672531200000     ",
-    "three fractional digits                   | '2023-06-15T14:30:45.123Z'       | 1686839445123     ",
-    "six fractional digits truncate to millis  | '2023-06-15T14:30:45.123456Z'    | 1686839445123     ",
-    "six fractional digits preserve millis     | '2023-06-15T14:30:45.235982Z'    | 1686839445235     ",
-    "nine fractional digits truncate to millis | '2023-06-15T14:30:45.123456789Z' | 1686839445123     ",
-    "one fractional digit                      | '2023-06-15T14:30:45.1Z'         | 1686839445100     ",
-    "two fractional digits                     | '2023-06-15T14:30:45.12Z'        | 1686839445120     ",
-    "positive offset                           | '2023-01-01T01:00:00+01:00'      | 1672531200000     ",
-    "negative offset                           | '2023-01-01T00:00:00-05:00'      | 1672549200000     ",
-    "date only                                 | '2023-01-01'                     |                   ",
-    "invalid                                   | 'invalid-date'                   |                   ",
-    "empty string                              | ''                               |                   ",
-    "not a date                                | 'not-a-date'                     |                   ",
-    "slash date                                | '2023/01/01T00:00:00Z'           |                   ",
-    "null                                      |                                  |                   "
-  })
-  void testDateParsing(final String value, final Long expectedEpochMilli) throws Exception {
-    final JsonReader reader = mock(JsonReader.class);
-    when(reader.nextString()).thenReturn(value);
-    final UniversalFlagConfigParser.DateAdapter adapter =
-        new UniversalFlagConfigParser.DateAdapter();
-
-    final Date parsed = adapter.fromJson(reader);
-    if (expectedEpochMilli == null) {
-      assertNull(parsed);
-    } else {
-      assertNotNull(parsed);
-      assertEquals(Instant.ofEpochMilli(expectedEpochMilli), parsed.toInstant());
-    }
-  }
-
-  @Test
-  void testParsingOnlyAdapter() {
-    final UniversalFlagConfigParser.DateAdapter adapter =
-        new UniversalFlagConfigParser.DateAdapter();
-
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> adapter.toJson(mock(JsonWriter.class), new Date()));
-  }
-
   @SuppressWarnings("unchecked")
   private ConfigurationDeserializer<ServerConfiguration> deserializer() {
     return deserializerCaptor.getValue();
@@ -315,10 +227,6 @@ class RemoteConfigServiceImplTest {
 
   private static ServerConfiguration deserialize(final String json) throws Exception {
     return UniversalFlagConfigParser.INSTANCE.deserialize(json.getBytes(UTF_8));
-  }
-
-  private static Moshi moshi() {
-    return new Moshi.Builder().add(Date.class, new UniversalFlagConfigParser.DateAdapter()).build();
   }
 
   private static String emptyConfig() {

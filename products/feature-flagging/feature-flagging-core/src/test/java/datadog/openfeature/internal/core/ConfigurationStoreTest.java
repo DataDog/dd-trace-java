@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -21,7 +22,7 @@ class ConfigurationStoreTest {
     final AtomicInteger changes = new AtomicInteger();
     store.addListener(ignored -> changes.incrementAndGet());
     assertEquals(ApplyResult.ACCEPTED, store.apply(Fixtures.UFC.getBytes(UTF_8)));
-    final ConfigurationSnapshot accepted = store.current();
+    final ServerConfiguration accepted = store.current();
 
     assertEquals(ApplyResult.REJECTED, store.apply("{".getBytes(UTF_8)));
     assertSame(accepted, store.current());
@@ -48,8 +49,8 @@ class ConfigurationStoreTest {
   void sendsCurrentAndDeletedSnapshotsToListeners() {
     final ConfigurationStore store = new ConfigurationStore();
     store.apply(Fixtures.UFC.getBytes(UTF_8));
-    final AtomicReference<ConfigurationSnapshot> current = new AtomicReference<>();
-    final Consumer<ConfigurationSnapshot> listener = current::set;
+    final AtomicReference<ServerConfiguration> current = new AtomicReference<>();
+    final Consumer<ServerConfiguration> listener = current::set;
 
     store.addListener(listener);
     assertSame(store.current(), current.get());
