@@ -36,7 +36,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Unit tests for {@link FlagEvalLoggingHook}: cheap capture, non-blocking enqueue, eval-time
+ * Unit tests for {@link FlagEvalLoggingHook}: context capture, non-blocking enqueue, eval-time
  * metadata, absent-variant detection, and killswitch-via-writer-null behaviour.
  */
 class FlagEvalLoggingHookTest {

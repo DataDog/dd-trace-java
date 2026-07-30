@@ -17,8 +17,20 @@ import java.util.function.Supplier;
  * OpenFeature {@code Hook<T>} that captures flag evaluation events for EVP {@code flagevaluation}
  * emission.
  *
- * <p>Contract: {@code finallyAfter} does ONLY cheap scalar extraction + a non-blocking offer to the
- * writer's bounded queue. No inline aggregation on the hook thread.
+ * <p>Contract: {@code finallyAfter} does scalar metadata extraction, a deep snapshot of the
+ * evaluation context, and a non-blocking offer to the writer's bounded queue. Flattening,
+ * aggregation, and posting are deferred to the writer's worker thread.
+ *
+ * <p><strong>Hot-path cost:</strong> the context snapshot is NOT free. {@link
+ * DDEvaluator#snapshotValues} deep-copies every context attribute (a fresh {@code Value} per
+ * attribute, plus {@code ArrayList}/{@code ImmutableStructure} copies for nested lists and
+ * structures, plus an {@code IdentityHashMap} for cycle detection) synchronously on the evaluation
+ * thread. Cost is proportional to the size and nesting depth of the evaluation context, so it is
+ * measurable for large or deeply nested contexts. Some copy is required - {@link EvaluationContext}
+ * is caller-owned and mutable, so its values must be captured before the event is handed to another
+ * thread - but this one is unbounded: the writer later prunes the context to 256 fields, so a
+ * narrower snapshot could cap the inline cost. Only the {@link DDEvaluator#flattenValues} step is
+ * deferred, via the event's attribute supplier.
  *
  * <p>This hook is registered alongside the existing OTel {@link FlagEvalMetricsHook} - it does NOT
  * replace it (the existing OTel metrics hook is left unchanged).
@@ -57,8 +69,11 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
   }
 
   /**
-   * Cheap capture + non-blocking enqueue only. Runs at the {@code finally} stage so it covers
-   * success, error, and default-value paths.
+   * Capture + non-blocking enqueue only; no flattening, aggregation, or I/O. Runs at the {@code
+   * finally} stage so it covers success, error, and default-value paths.
+   *
+   * <p>The context snapshot taken here scales with context size/nesting - see the class javadoc for
+   * why it cannot be deferred.
    */
   @Override
   public void finallyAfter(
@@ -78,7 +93,7 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
         return;
       }
 
-      // Cheap scalar extraction - no JSON, no map lookups beyond metadata.asMap()
+      // Scalar extraction - individual typed metadata reads, no JSON, no flattening
       final String flagKey = details.getFlagKey();
       final ImmutableMetadata metadata = details.getFlagMetadata();
 
@@ -107,6 +122,9 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // targetingKey from evaluation context
       final String targetingKey =
           ctx != null && ctx.getCtx() != null ? ctx.getCtx().getTargetingKey() : null;
+
+      // Deep-copies the caller's mutable context. This is the dominant cost of the hook for
+      // large/nested contexts; it must happen inline, before the async handoff below.
       final Map<String, Value> attrs = snapshotAttrs(ctx);
 
       w.enqueue(
@@ -123,6 +141,11 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
     }
   }
 
+  /**
+   * Deep-copies the evaluation context's attributes on the calling (evaluation) thread. Runs inline
+   * because {@link EvaluationContext} is caller-owned and mutable and the resulting event is
+   * consumed asynchronously. Cost scales with attribute count and nesting depth.
+   */
   private Map<String, Value> snapshotAttrs(final HookContext<T> ctx) {
     if (ctx == null || ctx.getCtx() == null) {
       return Collections.emptyMap();
@@ -133,7 +156,10 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
     return attrs.isEmpty() ? Collections.emptyMap() : attrs;
   }
 
-  /** Extracts converted, flattened attributes from the evaluation context. */
+  /**
+   * Extracts converted, flattened attributes from the snapshot. Invoked lazily by the writer's
+   * worker thread via the event's supplier, never on the evaluation thread.
+   */
   private Map<String, Object> extractAttrs(final Map<String, Value> attrs) {
     if (attrs.isEmpty()) {
       return Collections.emptyMap();
