@@ -23,6 +23,7 @@ public class R2dbcInstrumenterModule extends InstrumenterModule.Tracing {
       packageName + ".R2dbcSQLCommenter",
       packageName + ".TracingPublisher",
       packageName + ".TracingPublisher$TracingSubscriber",
+      packageName + ".TracingPublisher$TracingSubscriber$TracingSubscription",
     };
   }
 
