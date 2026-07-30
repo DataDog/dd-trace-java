@@ -87,5 +87,19 @@
     },
     "tags": [],
     "evaluateAt": "EXIT"
+  },
+  {
+    "id": "70b55d06-f9fa-403b-a329-4f2f960aed02",
+    "version": 0,
+    "type": "TRIGGER_PROBE",
+    "language": "java",
+    "where": {
+      "typeName": "MetadataClientUtils",
+      "methodName": "listTableWithContinuation"
+    },
+    "tags": [],
+    "evaluateAt": "EXIT",
+    "sessionId": "session",
+    "sampling": { "snapshotsPerSecond": 100 }
   }
 ]

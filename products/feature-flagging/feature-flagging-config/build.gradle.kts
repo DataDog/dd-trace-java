@@ -4,9 +4,8 @@ plugins {
 
 apply(from = "$rootDir/gradle/java.gradle")
 
-description = "Feature flagging configuration keys (compile-time constants)"
+description = "Feature flagging configuration keys and source resolution"
 
-extra["excludedClassesCoverage"] = listOf(
-  // Constants-only holder — no executable logic to cover.
-  "datadog.trace.api.featureflag.config.FeatureFlaggingConfig",
-)
+dependencies {
+  testImplementation(libs.bundles.junit5)
+}

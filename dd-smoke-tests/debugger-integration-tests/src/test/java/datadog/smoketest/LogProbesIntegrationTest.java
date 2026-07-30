@@ -100,7 +100,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           assertNull(snapshot.getCaptures().getReturn().getCapturedThrowable());
           snapshotReceived.set(true);
         });
-    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         () -> snapshotReceived.get() && statusResult.get(),
         () ->
@@ -132,7 +132,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           assertFullMethodCaptureArgs(snapshot.getCaptures().getEntry());
           snapshotReceived.set(true);
         });
-    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         () -> snapshotReceived.get() && statusResult.get(),
         () ->
@@ -166,7 +166,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           assertFullMethodCaptureArgs(snapshot.getCaptures().getReturn());
           snapshotReceived.set(true);
         });
-    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         () -> snapshotReceived.get() && statusResult.get(),
         () ->
@@ -199,7 +199,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
               "Cannot find symbol: noarg", snapshot.getEvaluationErrors().get(0).getMessage());
           snapshotReceived.set(true);
         });
-    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         () -> snapshotReceived.get() && statusResult.get(),
         () ->
@@ -236,7 +236,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           assertEquals(PROBE_ID.getId(), snapshot.getProbe().getId());
           snapshotReceived.set(true);
         });
-    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         () -> snapshotReceived.get() && correctLogMessage.get() && statusResult.get(),
         () ->
@@ -288,7 +288,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           assertNull(key2Value.getNotCapturedReason());
           snapshotReceived.set(true);
         });
-    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
     processRequests(
         () -> snapshotReceived.get() && statusResult.get(),
         () ->
@@ -371,7 +371,7 @@ public class LogProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
           assertNull(capturedContext.getCapturedThrowable());
           snapshotReceived.set(true);
         });
-    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting();
+    AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(LINE_PROBE_ID1);
     processRequests(
         () -> snapshotReceived.get() && statusResult.get(),
         () ->
