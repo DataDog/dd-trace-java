@@ -26,7 +26,11 @@ import javax.annotation.Nullable;
  * <p>This class is <em>not</em> thread-safe.
  *
  * <p>Map data is stored in a single flat array that can be embedded into another object via {@link
- * EmbeddingSupport} as a further optimization.
+ * EmbeddingSupport} as a further optimization -- an expert hatch that drops the {@code LightMap}
+ * wrapper and drives the caller-owned array directly. It buys only the wrapper object back (about
+ * one object header, ~32 B per map) and nothing else: lookup and iteration are otherwise identical.
+ * Reach for it only when that per-map word matters at scale -- see the {@code *_embedded} arms in
+ * {@code SingleThreadedMapBenchmark} for the (marginal) delta.
  */
 /*
  * Keys are stored in the first half of the array and values in the second half.
@@ -91,7 +95,16 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
     this.maxSlots = hint.maxSlots();
   }
 
-  /** A new, uncapped map seeded at the default capacity. The "just give me a map" front door. */
+  /**
+   * A new, uncapped map seeded at the default capacity ({@value #DEFAULT_CAPACITY} slots). The
+   * "just give me a map" front door, sized for a handful of entries.
+   *
+   * <p>If the map will routinely hold more than about {@value #DEFAULT_CAPACITY} entries, prefer
+   * {@link #createUncapped(int)} with a rough size, or better a reused {@link
+   * #createUncappedAdaptiveSizingHint() AdaptiveSizingHint}. Left at the default seed, a larger map
+   * takes a resize as it grows, which roughly halves build throughput -- see {@code
+   * SingleThreadedMapBenchmark} ({@code create_lightMap} vs {@code create_lightMap_adaptive}).
+   */
   @Nonnull
   public static <K, V> LightMap<K, V> createUncapped() {
     return new LightMap<>(DEFAULT_CAPACITY, NO_MAX_SLOTS);
@@ -112,6 +125,10 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
    * the default capacity (clamped to the cap). Once the table is physically full at the cap, {@link
    * #set} rejects a genuinely new key (returns {@code false}) instead of growing further -- a
    * thought-free way to bound worst-case memory without minting an {@link AdaptiveSizingHint}.
+   *
+   * <p>Like {@link #createUncapped()}, this seeds for a handful of entries; if the map will
+   * routinely hold more, give an explicit seed via {@link #createCapped(int, int)} or reuse a
+   * {@link #createCappedAdaptiveSizingHint(int)} to avoid a resize on the way up.
    */
   @Nonnull
   public static <K, V> LightMap<K, V> createCapped(int maxCapacity) {
