@@ -3,12 +3,19 @@ package datadog.trace.api.featureflag;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
@@ -47,6 +54,53 @@ class FeatureFlaggingRawBridgeTest {
     try {
       assertEquals("retained", new String(received.get(), UTF_8));
     } finally {
+      FeatureFlaggingRawBridge.removeConfigurationListener(listener);
+    }
+  }
+
+  @Test
+  void serializesRetainedConfigurationWithConcurrentUpdates() throws Exception {
+    FeatureFlaggingRawBridge.dispatchConfiguration("retained".getBytes(UTF_8));
+    final CountDownLatch retainedDeliveryStarted = new CountDownLatch(1);
+    final CountDownLatch releaseRetainedDelivery = new CountDownLatch(1);
+    final CountDownLatch updateCompleted = new CountDownLatch(1);
+    final List<String> received = Collections.synchronizedList(new ArrayList<>());
+    final FeatureFlaggingRawBridge.ConfigurationListener listener =
+        content -> {
+          final String value = new String(content, UTF_8);
+          if ("retained".equals(value)) {
+            retainedDeliveryStarted.countDown();
+            try {
+              releaseRetainedDelivery.await();
+            } catch (final InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new AssertionError(e);
+            }
+          }
+          received.add(value);
+        };
+    final Thread registration =
+        new Thread(() -> FeatureFlaggingRawBridge.addConfigurationListener(listener));
+    final Thread update =
+        new Thread(
+            () -> {
+              FeatureFlaggingRawBridge.dispatchConfiguration("updated".getBytes(UTF_8));
+              updateCompleted.countDown();
+            });
+    try {
+      registration.start();
+      assertTrue(retainedDeliveryStarted.await(1, TimeUnit.SECONDS));
+      update.start();
+      assertFalse(updateCompleted.await(100, TimeUnit.MILLISECONDS));
+      releaseRetainedDelivery.countDown();
+      registration.join(1_000);
+      update.join(1_000);
+
+      assertEquals(Arrays.asList("retained", "updated"), received);
+    } finally {
+      releaseRetainedDelivery.countDown();
+      registration.join(1_000);
+      update.join(1_000);
       FeatureFlaggingRawBridge.removeConfigurationListener(listener);
     }
   }

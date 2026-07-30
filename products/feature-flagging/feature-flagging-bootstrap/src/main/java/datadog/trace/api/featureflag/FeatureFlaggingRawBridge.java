@@ -5,12 +5,11 @@ import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.Flag;
 import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.exposure.Variant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Stable bootstrap bridge for provider-owned Feature Flagging implementations.
@@ -24,29 +23,49 @@ public final class FeatureFlaggingRawBridge {
     void accept(byte[] content);
   }
 
-  private static final List<ConfigurationListener> CONFIGURATION_LISTENERS =
-      new CopyOnWriteArrayList<>();
-  private static final AtomicReference<byte[]> CURRENT_CONFIGURATION = new AtomicReference<>();
+  private static final Object CONFIGURATION_LOCK = new Object();
+  private static final List<ListenerRegistration> CONFIGURATION_LISTENERS = new ArrayList<>();
+  private static byte[] currentConfiguration;
+  private static long configurationVersion;
 
   private FeatureFlaggingRawBridge() {}
 
   public static void addConfigurationListener(final ConfigurationListener listener) {
-    CONFIGURATION_LISTENERS.add(listener);
-    final byte[] current = CURRENT_CONFIGURATION.get();
+    final ListenerRegistration registration = new ListenerRegistration(listener);
+    final byte[] current;
+    final long version;
+    synchronized (CONFIGURATION_LOCK) {
+      CONFIGURATION_LISTENERS.add(registration);
+      current = currentConfiguration;
+      version = configurationVersion;
+    }
     if (current != null) {
-      listener.accept(current.clone());
+      registration.deliver(version, current);
     }
   }
 
   public static void removeConfigurationListener(final ConfigurationListener listener) {
-    CONFIGURATION_LISTENERS.remove(listener);
+    synchronized (CONFIGURATION_LOCK) {
+      for (int i = 0; i < CONFIGURATION_LISTENERS.size(); i++) {
+        if (CONFIGURATION_LISTENERS.get(i).listener.equals(listener)) {
+          CONFIGURATION_LISTENERS.remove(i);
+          break;
+        }
+      }
+    }
   }
 
   public static void dispatchConfiguration(final byte[] content) {
     final byte[] retained = content == null ? null : content.clone();
-    CURRENT_CONFIGURATION.set(retained);
-    for (final ConfigurationListener listener : CONFIGURATION_LISTENERS) {
-      listener.accept(retained == null ? null : retained.clone());
+    final List<ListenerRegistration> listeners;
+    final long version;
+    synchronized (CONFIGURATION_LOCK) {
+      currentConfiguration = retained;
+      version = ++configurationVersion;
+      listeners = new ArrayList<>(CONFIGURATION_LISTENERS);
+    }
+    for (final ListenerRegistration listener : listeners) {
+      listener.deliver(version, retained);
     }
   }
 
@@ -82,5 +101,22 @@ public final class FeatureFlaggingRawBridge {
 
   public static void dispatchSpanRuntimeDefault(final String flagKey, final Object value) {
     FeatureFlaggingGateway.dispatch(SpanEnrichmentEvent.runtimeDefault(flagKey, value));
+  }
+
+  private static final class ListenerRegistration {
+    private final ConfigurationListener listener;
+    private long deliveredVersion = Long.MIN_VALUE;
+
+    private ListenerRegistration(final ConfigurationListener listener) {
+      this.listener = listener;
+    }
+
+    private synchronized void deliver(final long version, final byte[] content) {
+      if (version <= deliveredVersion) {
+        return;
+      }
+      deliveredVersion = version;
+      listener.accept(content == null ? null : content.clone());
+    }
   }
 }
