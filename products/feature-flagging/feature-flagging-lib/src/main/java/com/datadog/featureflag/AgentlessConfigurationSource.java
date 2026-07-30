@@ -15,7 +15,11 @@ import datadog.trace.util.AgentThreadFactory;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.math.BigInteger;
 import java.net.HttpURLConnection;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -41,6 +45,12 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
 
   private static final String DATADOG_UFC_RULES_BASED_SERVER_PATH =
       "/api/v2/feature-flagging/config/rules-based/server";
+  private static final String BASE62_ALPHABET =
+      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  private static final String API_KEY_FINGERPRINT_HEADER = "DD-Api-Key-Fingerprint";
+  private static final String CLIFFORD_SHA256_PREFIX = "rijn_";
+  private static final int CLIFFORD_SHA256_BASE62_LENGTH = 43;
+  private static final BigInteger BASE_62 = BigInteger.valueOf(62);
   private static final int MAX_ATTEMPTS = 3;
   private static final int MINUTES_BETWEEN_WARNINGS = 5;
   private static final long FIRST_RETRY_MIN_MILLIS = 2_000;
@@ -289,6 +299,27 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     return TimeUnit.SECONDS.toMillis(seconds);
   }
 
+  static String apiKeyFingerprint(final String apiKey) {
+    final byte[] digest;
+    try {
+      digest = MessageDigest.getInstance("SHA-256").digest(apiKey.getBytes(StandardCharsets.UTF_8));
+    } catch (final NoSuchAlgorithmException error) {
+      throw new IllegalStateException("SHA-256 is not available", error);
+    }
+
+    BigInteger value = new BigInteger(1, digest);
+    final StringBuilder encoded = new StringBuilder(CLIFFORD_SHA256_BASE62_LENGTH);
+    while (value.signum() > 0) {
+      final BigInteger[] quotientAndRemainder = value.divideAndRemainder(BASE_62);
+      encoded.append(BASE62_ALPHABET.charAt(quotientAndRemainder[1].intValue()));
+      value = quotientAndRemainder[0];
+    }
+    while (encoded.length() < CLIFFORD_SHA256_BASE62_LENGTH) {
+      encoded.append('0');
+    }
+    return CLIFFORD_SHA256_PREFIX + encoded.reverse();
+  }
+
   static long retryDelayMillis(
       final long pollIntervalMillis, final int attempt, final double jitter) {
     final long baseDelay;
@@ -363,11 +394,14 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       if (etag != null) {
         headers.put("If-None-Match", etag);
       }
+      final boolean datadogManagedEndpoint = isDatadogManagedEndpoint(endpoint, config);
+      final String apiKey = config.getApiKey();
+      if (datadogManagedEndpoint && apiKey != null) {
+        headers.put(API_KEY_FINGERPRINT_HEADER, apiKeyFingerprint(apiKey));
+      }
       // Leave Accept-Encoding unset so OkHttp negotiates gzip and transparently decompresses it.
       final Request request =
-          prepareRequest(endpoint, headers, config, isDatadogManagedEndpoint(endpoint, config))
-              .get()
-              .build();
+          prepareRequest(endpoint, headers, config, datadogManagedEndpoint).get().build();
       if (!fetching.compareAndSet(false, true)) {
         throw new IllegalStateException("Feature Flagging HTTP request already in flight");
       }
