@@ -1163,10 +1163,10 @@ Use the most specific module plugin instead of applying `gradle/java.gradle` dir
 | Testing support modules         | `dd-trace-java.module.testing-support`   |
 
 Use `internal-api` for internal API surfaces such as product `*-api` modules or `remote-config-api`. Use
-`product-library` for product implementation modules such as product `*-lib` modules. Use `internal-library` for
-`:communication`, `:telemetry`, agent helpers, `:utils:*`, and similar shared libraries. Use `platform-component` only
-for platform modules under `:components`; those modules are kept separate because they can grow stricter dependency and
-testing constraints than general internal libraries.
+`product-library` for product implementation modules such as product `*-lib` modules. Use `internal-library` for shared,
+non-product-specific modules such as `:communication`, `:telemetry`, agent helpers, and `:utils:*`. Use
+`platform-component` only for platform modules under `:components`; those modules are kept separate because they can
+grow stricter dependency and testing constraints than general internal libraries.
 
 For example:
 
