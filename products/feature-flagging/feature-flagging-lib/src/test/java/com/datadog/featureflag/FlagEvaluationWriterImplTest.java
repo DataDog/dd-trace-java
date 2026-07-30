@@ -36,7 +36,6 @@ import datadog.trace.api.intake.Intake;
 import datadog.trace.api.telemetry.CoreMetricCollector;
 import datadog.trace.api.telemetry.MetricCollector;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -194,29 +193,29 @@ class FlagEvaluationWriterImplTest {
   }
 
   @Test
-  void enqueueRechecksEnabledStateAfterTakingLifecycleLock() throws Exception {
+  void closeSweepsAndCountsEventsLeftInTheQueue() {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any())).thenReturn(mockEvp);
     when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
     final FlagEvaluationWriterImpl writer =
         new FlagEvaluationWriterImpl(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg());
-    final Thread enqueuer = new Thread(() -> writer.enqueue(simpleEvent("race-flag", "on")));
 
-    final Object lifecycleLock = lifecycleLock(writer);
-    try {
-      FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
-      synchronized (lifecycleLock) {
-        enqueuer.start();
-        awaitThreadState(enqueuer, Thread.State.BLOCKED);
-        FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
-      }
-      enqueuer.join(TimeUnit.SECONDS.toMillis(5));
-      assertTrue(!enqueuer.isAlive());
-    } finally {
-      FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
-    }
+    // The worker is never started, so nothing drains these; close() must account for them rather
+    // than leave them silently stranded. Stands in for the narrow window where a lock-free
+    // producer offers after the worker's final drain.
+    writer.enqueue(simpleEvent("residual-flag-1", "on"));
+    writer.enqueue(simpleEvent("residual-flag-2", "on"));
+    writer.close();
 
+    final Collection<? extends MetricCollector.Metric> metrics =
+        CoreMetricCollector.getInstance().drain();
+    assertEquals(
+        2,
+        metricSum(
+            metrics,
+            FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
+            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CLOSED));
     assertNull(writer.pollQueuedEventForTest());
   }
 
@@ -531,21 +530,6 @@ class FlagEvaluationWriterImplTest {
     assertEquals(2, posts.get());
     setup.handler.flush();
     assertEquals(2, posts.get());
-  }
-
-  private static Object lifecycleLock(final FlagEvaluationWriterImpl writer) throws Exception {
-    final Field field = FlagEvaluationWriterImpl.class.getDeclaredField("lifecycleLock");
-    field.setAccessible(true);
-    return field.get(writer);
-  }
-
-  private static void awaitThreadState(final Thread thread, final Thread.State state)
-      throws InterruptedException {
-    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-    while (thread.getState() != state && System.nanoTime() < deadline) {
-      Thread.sleep(10);
-    }
-    assertEquals(state, thread.getState());
   }
 
   private static Map<String, String> context() {
