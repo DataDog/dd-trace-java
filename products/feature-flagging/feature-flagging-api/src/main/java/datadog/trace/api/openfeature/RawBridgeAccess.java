@@ -18,6 +18,7 @@ final class RawBridgeAccess {
   private static final String BRIDGE_CLASS =
       "datadog.trace.api.featureflag.FeatureFlaggingRawBridge";
   private static final String CONFIG_LISTENER_CLASS = BRIDGE_CLASS + "$ConfigurationListener";
+  private static final BridgeMethods BRIDGE_METHODS = BridgeMethods.load();
 
   private RawBridgeAccess() {}
 
@@ -26,7 +27,7 @@ final class RawBridgeAccess {
   }
 
   static void activateIfPresent() {
-    invokeOptional("activate", new Class<?>[0]);
+    invokeOptional("activate", BRIDGE_METHODS.activate);
   }
 
   static void dispatchExposure(
@@ -38,9 +39,7 @@ final class RawBridgeAccess {
       final Map<String, Object> attributes) {
     invokeOptional(
         "dispatchExposure",
-        new Class<?>[] {
-          long.class, String.class, String.class, String.class, String.class, Map.class
-        },
+        BRIDGE_METHODS.dispatchExposure,
         timestamp,
         allocationKey,
         flagKey,
@@ -52,26 +51,21 @@ final class RawBridgeAccess {
   static void dispatchSpanSerialId(
       final int serialId, final boolean doLog, final String targetingKey) {
     invokeOptional(
-        "dispatchSpanSerialId",
-        new Class<?>[] {int.class, boolean.class, String.class},
-        serialId,
-        doLog,
-        targetingKey);
+        "dispatchSpanSerialId", BRIDGE_METHODS.dispatchSpanSerialId, serialId, doLog, targetingKey);
   }
 
   static void dispatchSpanRuntimeDefault(final String flagKey, final Object value) {
     invokeOptional(
-        "dispatchSpanRuntimeDefault", new Class<?>[] {String.class, Object.class}, flagKey, value);
+        "dispatchSpanRuntimeDefault", BRIDGE_METHODS.dispatchSpanRuntimeDefault, flagKey, value);
   }
 
-  @SuppressForbidden
   private static void invokeOptional(
-      final String methodName, final Class<?>[] parameterTypes, final Object... arguments) {
+      final String methodName, final Method method, final Object... arguments) {
+    if (method == null) {
+      return;
+    }
     try {
-      final Class<?> bridge = Class.forName(BRIDGE_CLASS);
-      bridge.getMethod(methodName, parameterTypes).invoke(null, arguments);
-    } catch (final ClassNotFoundException | NoSuchMethodException ignored) {
-      // CDN evaluation works without an agent and with agents released before the raw bridge.
+      method.invoke(null, arguments);
     } catch (final ReflectiveOperationException | LinkageError e) {
       log.debug("Feature Flagging agent bridge call failed: {}", methodName, e);
     }
@@ -79,8 +73,6 @@ final class RawBridgeAccess {
 
   private static final class RemoteConfigurationSource implements ConfigurationSource {
     private final ConfigurationSink sink;
-    private Class<?> bridge;
-    private Method removeListener;
     private Object listener;
     private volatile SourceStatus status = SourceStatus.NEW;
 
@@ -95,9 +87,14 @@ final class RawBridgeAccess {
         return;
       }
       status = SourceStatus.STARTING;
+      if (!BRIDGE_METHODS.supportsRemoteConfiguration()) {
+        status = SourceStatus.ERROR;
+        throw new IllegalStateException(
+            "Remote Configuration requires a Java agent with the Feature Flagging raw bridge "
+                + "(version 1.65.0 or later)",
+            BRIDGE_METHODS.unavailableCause);
+      }
       try {
-        bridge = Class.forName(BRIDGE_CLASS);
-        final Class<?> listenerType = Class.forName(CONFIG_LISTENER_CLASS);
         final InvocationHandler handler =
             (proxy, method, arguments) -> {
               if (method.getDeclaringClass() == Object.class) {
@@ -126,16 +123,11 @@ final class RawBridgeAccess {
             };
         listener =
             Proxy.newProxyInstance(
-                RawBridgeAccess.class.getClassLoader(), new Class<?>[] {listenerType}, handler);
-        bridge.getMethod("addConfigurationListener", listenerType).invoke(null, listener);
-        removeListener = bridge.getMethod("removeConfigurationListener", listenerType);
+                RawBridgeAccess.class.getClassLoader(),
+                new Class<?>[] {BRIDGE_METHODS.listenerType},
+                handler);
+        BRIDGE_METHODS.addConfigurationListener.invoke(null, listener);
         status = SourceStatus.READY;
-      } catch (final ClassNotFoundException | NoSuchMethodException e) {
-        status = SourceStatus.ERROR;
-        throw new IllegalStateException(
-            "Remote Configuration requires a Java agent with the Feature Flagging raw bridge "
-                + "(version 1.65.0 or later)",
-            e);
       } catch (final ReflectiveOperationException | LinkageError e) {
         status = SourceStatus.ERROR;
         throw new IllegalStateException(
@@ -154,17 +146,78 @@ final class RawBridgeAccess {
         return;
       }
       try {
-        if (removeListener != null && listener != null) {
-          removeListener.invoke(null, listener);
+        if (BRIDGE_METHODS.removeConfigurationListener != null && listener != null) {
+          BRIDGE_METHODS.removeConfigurationListener.invoke(null, listener);
         }
       } catch (final ReflectiveOperationException | LinkageError e) {
         log.debug("Feature Flagging agent bridge listener removal failed", e);
       } finally {
-        bridge = null;
-        removeListener = null;
         listener = null;
         status = SourceStatus.CLOSED;
       }
+    }
+  }
+
+  private static final class BridgeMethods {
+    private final Class<?> listenerType;
+    private final Method activate;
+    private final Method dispatchExposure;
+    private final Method dispatchSpanSerialId;
+    private final Method dispatchSpanRuntimeDefault;
+    private final Method addConfigurationListener;
+    private final Method removeConfigurationListener;
+    private final Throwable unavailableCause;
+
+    private BridgeMethods(
+        final Class<?> listenerType,
+        final Method activate,
+        final Method dispatchExposure,
+        final Method dispatchSpanSerialId,
+        final Method dispatchSpanRuntimeDefault,
+        final Method addConfigurationListener,
+        final Method removeConfigurationListener,
+        final Throwable unavailableCause) {
+      this.listenerType = listenerType;
+      this.activate = activate;
+      this.dispatchExposure = dispatchExposure;
+      this.dispatchSpanSerialId = dispatchSpanSerialId;
+      this.dispatchSpanRuntimeDefault = dispatchSpanRuntimeDefault;
+      this.addConfigurationListener = addConfigurationListener;
+      this.removeConfigurationListener = removeConfigurationListener;
+      this.unavailableCause = unavailableCause;
+    }
+
+    @SuppressForbidden
+    private static BridgeMethods load() {
+      try {
+        final Class<?> bridge = Class.forName(BRIDGE_CLASS);
+        final Class<?> listenerType = Class.forName(CONFIG_LISTENER_CLASS);
+        return new BridgeMethods(
+            listenerType,
+            bridge.getMethod("activate"),
+            bridge.getMethod(
+                "dispatchExposure",
+                long.class,
+                String.class,
+                String.class,
+                String.class,
+                String.class,
+                Map.class),
+            bridge.getMethod("dispatchSpanSerialId", int.class, boolean.class, String.class),
+            bridge.getMethod("dispatchSpanRuntimeDefault", String.class, Object.class),
+            bridge.getMethod("addConfigurationListener", listenerType),
+            bridge.getMethod("removeConfigurationListener", listenerType),
+            null);
+      } catch (final ClassNotFoundException | NoSuchMethodException | LinkageError e) {
+        // CDN evaluation works without an agent and with agents released before the raw bridge.
+        return new BridgeMethods(null, null, null, null, null, null, null, e);
+      }
+    }
+
+    private boolean supportsRemoteConfiguration() {
+      return listenerType != null
+          && addConfigurationListener != null
+          && removeConfigurationListener != null;
     }
   }
 }
