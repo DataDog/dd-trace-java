@@ -3,6 +3,7 @@ package datadog.trace.api.openfeature;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -11,6 +12,7 @@ import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
+import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -71,6 +73,27 @@ class DDEvaluatorTest {
   }
 
   @Test
+  void preservesObjectDefaultsForFallbackResults() throws Exception {
+    FeatureFlaggingRawBridge.dispatchConfiguration(OBJECT_FALLBACK_UFC.getBytes(UTF_8));
+    evaluator =
+        new DDEvaluator(() -> {}, new Provider.Options().configurationSource("remote_config"));
+    evaluator.initialize(1, SECONDS, new MutableContext("subject"));
+    final MutableContext context = new MutableContext("subject");
+    final Value instantDefault = new Value(Instant.parse("2026-07-29T00:00:00Z"));
+    final Value doubleDefault = new Value(42D);
+
+    final ProviderEvaluation<Value> disabled =
+        evaluator.evaluate(Value.class, "disabled", instantDefault, context);
+    final ProviderEvaluation<Value> unmatched =
+        evaluator.evaluate(Value.class, "unmatched", doubleDefault, context);
+
+    assertEquals("DISABLED", disabled.getReason());
+    assertSame(instantDefault, disabled.getValue());
+    assertEquals("DEFAULT", unmatched.getReason());
+    assertSame(doubleDefault, unmatched.getValue());
+  }
+
+  @Test
   void mapsSupportedValues() {
     assertEquals("42", DDEvaluator.mapValue(String.class, 42));
     assertEquals(42, DDEvaluator.mapValue(Integer.class, "42"));
@@ -94,4 +117,11 @@ class DDEvaluatorTest {
           + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"hello\"}},"
           + "\"allocations\":[{\"key\":\"allocation\",\"rules\":[],\"splits\":["
           + "{\"variationKey\":\"on\",\"shards\":[],\"serialId\":7}],\"doLog\":true}]}}}";
+
+  private static final String OBJECT_FALLBACK_UFC =
+      "{\"format\":\"SERVER\",\"environment\":{\"name\":\"test\"},\"flags\":{"
+          + "\"disabled\":{\"key\":\"disabled\",\"enabled\":false,\"variationType\":\"JSON\","
+          + "\"variations\":{},\"allocations\":[]},"
+          + "\"unmatched\":{\"key\":\"unmatched\",\"enabled\":true,\"variationType\":\"JSON\","
+          + "\"variations\":{},\"allocations\":[]}}}";
 }

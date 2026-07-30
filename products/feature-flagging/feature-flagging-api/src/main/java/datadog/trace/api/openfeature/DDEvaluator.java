@@ -2,6 +2,7 @@ package datadog.trace.api.openfeature;
 
 import datadog.openfeature.internal.core.ConfigurationSnapshot;
 import datadog.openfeature.internal.core.EvaluationResult;
+import datadog.openfeature.internal.core.EvaluationResult.Reason;
 import datadog.openfeature.internal.core.FlagEvaluator;
 import datadog.openfeature.internal.core.FlagEvaluator.ValueKind;
 import dev.openfeature.sdk.ErrorCode;
@@ -156,7 +157,11 @@ class DDEvaluator implements Evaluator {
       metadata.addBoolean(METADATA_DO_LOG, result.doLog);
     }
 
-    final T value = mapResultValue(target, result.value);
+    final T value =
+        target == Value.class
+                && (result.reason == Reason.DISABLED || result.reason == Reason.DEFAULT)
+            ? defaultValue
+            : mapResultValue(target, result.value);
     final ProviderEvaluation<T> evaluation =
         ProviderEvaluation.<T>builder()
             .value(value)
