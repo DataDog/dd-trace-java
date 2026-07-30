@@ -234,10 +234,9 @@ class FlagEvaluatorTest {
 
     assertEquals("subject", context.attribute("id"));
     assertEquals("value", context.attribute("name"));
-    assertEquals("value", context.attributes().get("name"));
     assertEquals(
         "explicit", new EvaluationContext("subject", Map.of("id", "explicit")).attribute("id"));
-    assertEquals(emptyMap(), new EvaluationContext("subject", null).attributes());
+    assertNull(new EvaluationContext("subject", null).attribute("missing"));
   }
 
   private EvaluationResult evaluate(

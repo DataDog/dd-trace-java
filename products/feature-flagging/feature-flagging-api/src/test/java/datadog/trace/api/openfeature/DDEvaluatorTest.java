@@ -6,9 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import datadog.trace.api.featureflag.FeatureFlaggingRawBridge;
 import dev.openfeature.sdk.ErrorCode;
+import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
@@ -94,6 +99,23 @@ class DDEvaluatorTest {
   }
 
   @Test
+  void doesNotEnumerateContextAttributesForStaticEvaluation() throws Exception {
+    FeatureFlaggingRawBridge.dispatchConfiguration(STATIC_NO_LOG_UFC.getBytes(UTF_8));
+    evaluator =
+        new DDEvaluator(() -> {}, new Provider.Options().configurationSource("remote_config"));
+    evaluator.initialize(1, SECONDS, new MutableContext("subject"));
+    final EvaluationContext context = mock(EvaluationContext.class);
+    when(context.getTargetingKey()).thenReturn("subject");
+
+    final ProviderEvaluation<String> result =
+        evaluator.evaluate(String.class, "message", "default", context);
+
+    assertEquals("hello", result.getValue());
+    verify(context).getTargetingKey();
+    verifyNoMoreInteractions(context);
+  }
+
+  @Test
   void mapsSupportedValues() {
     assertEquals("42", DDEvaluator.mapValue(String.class, 42));
     assertEquals(42, DDEvaluator.mapValue(Integer.class, "42"));
@@ -124,4 +146,11 @@ class DDEvaluatorTest {
           + "\"variations\":{},\"allocations\":[]},"
           + "\"unmatched\":{\"key\":\"unmatched\",\"enabled\":true,\"variationType\":\"JSON\","
           + "\"variations\":{},\"allocations\":[]}}}";
+
+  private static final String STATIC_NO_LOG_UFC =
+      "{\"format\":\"SERVER\",\"environment\":{\"name\":\"test\"},\"flags\":{"
+          + "\"message\":{\"key\":\"message\",\"enabled\":true,\"variationType\":\"STRING\","
+          + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"hello\"}},"
+          + "\"allocations\":[{\"key\":\"allocation\",\"rules\":[],\"splits\":["
+          + "{\"variationKey\":\"on\",\"shards\":[],\"serialId\":7}],\"doLog\":false}]}}}";
 }

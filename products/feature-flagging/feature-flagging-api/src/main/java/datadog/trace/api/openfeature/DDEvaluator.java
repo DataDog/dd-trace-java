@@ -117,12 +117,19 @@ class DDEvaluator implements Evaluator {
     if (context == null) {
       return null;
     }
-    final Map<String, Object> attributes = new LinkedHashMap<>();
-    for (final String key : context.keySet()) {
-      attributes.put(key, unwrapValue(context.getValue(key)));
-    }
-    return new datadog.openfeature.internal.core.EvaluationContext(
-        context.getTargetingKey(), attributes);
+    return datadog.openfeature.internal.core.EvaluationContext.lazy(
+        context.getTargetingKey(),
+        new datadog.openfeature.internal.core.EvaluationContext.AttributeProvider() {
+          @Override
+          public boolean contains(final String name) {
+            return context.keySet().contains(name);
+          }
+
+          @Override
+          public Object get(final String name) {
+            return unwrapValue(context.getValue(name));
+          }
+        });
   }
 
   private static <T> ProviderEvaluation<T> toProviderEvaluation(
