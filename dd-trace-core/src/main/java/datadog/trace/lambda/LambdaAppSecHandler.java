@@ -251,8 +251,8 @@ public class LambdaAppSecHandler {
   }
 
   /**
-   * Parses the first {@code X-Forwarded-Port} value as an int, or -1 if the header is absent, empty,
-   * or not a number.
+   * Parses the first {@code X-Forwarded-Port} value as an int, or -1 if the header is absent,
+   * empty, or not a number.
    */
   private static int forwardedPort(Map<String, String> headers) {
     String forwardedPort = firstForwardedValue(headers, HEADER_X_FORWARDED_PORT);
