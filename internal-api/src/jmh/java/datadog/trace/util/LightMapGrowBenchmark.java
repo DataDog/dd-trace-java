@@ -1,6 +1,6 @@
 package datadog.trace.util;
 
-import datadog.trace.util.LightStringMap.EmbeddingSupport;
+import datadog.trace.util.LightMap.EmbeddingSupport;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -20,8 +20,8 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Measures three candidate grow triggers for {@code LightStringMap}, to decide whether to reframe
- * "when to grow" from a load-factor threshold to a maximum-probe bound.
+ * Measures three candidate grow triggers for {@code LightMap}, to decide whether to reframe "when
+ * to grow" from a load-factor threshold to a maximum-probe bound.
  *
  * <ul>
  *   <li>{@code FULL} -- grow only when the table is physically full (the pre-existing spine
@@ -48,7 +48,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 3, time = 1)
 @State(Scope.Thread)
-public class LightStringMapGrowBenchmark {
+public class LightMapGrowBenchmark {
 
   static final int SEED_SLOTS = 8;
   static final int LOAD_FACTOR_RESERVE_SHIFT = 2; // 1/4 reserve => 0.75 trigger

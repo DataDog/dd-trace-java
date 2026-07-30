@@ -38,12 +38,21 @@ import javax.annotation.Nullable;
  * Insertions after the a removal can fill the emptied slot.
  * In the event of resizing, removal markers are discarded while assigning
  * slots in the new data array.
+ *
+ * Why a single Object[] and not two typed arrays (K[] keys, V[] values)?
+ * Under erasure "properly typed" arrays would still be (K[]) new Object[] and
+ * (V[]) new Object[], so no real type safety is gained. Meanwhile the single
+ * array buys two concrete things:
+ *   - The removal tombstone (a non-K sentinel) can live directly in the array.
+ *     A reified K[] could not hold it (ArrayStoreException), forcing a separate
+ *     parallel deleted-marker structure.
+ *   - Embedding is one Object[] field in the host object instead of two.
  */
-public final class LightStringMap<K, V> {
+public final class LightMap<K, V> {
   public static final int DEFAULT_CAPACITY = 8;
 
   // Slots a fresh (un-tuned) hint seeds -- a reasonable default so a cold site behaves like a
-  // plain LightStringMap.createUncapped(); it then self-tunes up or down from here.
+  // plain LightMap.createUncapped(); it then self-tunes up or down from here.
   static final int DEFAULT_HINT_SLOTS = DEFAULT_CAPACITY;
   // Floor step-down never drops a hint below (in slots), so a genuinely tiny site can still tune
   // below the default. Must stay >= 1 (a zero-slot table is degenerate).
@@ -67,13 +76,13 @@ public final class LightStringMap<K, V> {
   @Nullable private final AdaptiveSizingHint sizingHint;
   private Object[] data = EmbeddingSupport.EMPTY_DATA;
 
-  private LightStringMap(int capacity, int maxSlots) {
+  private LightMap(int capacity, int maxSlots) {
     this.initialCapacity = capacity;
     this.sizingHint = null;
     this.maxSlots = maxSlots;
   }
 
-  private LightStringMap(@Nonnull AdaptiveSizingHint hint) {
+  private LightMap(@Nonnull AdaptiveSizingHint hint) {
     this.sizingHint = hint;
     this.initialCapacity = hint.seedSlots();
     this.maxSlots = hint.maxSlots();
@@ -81,8 +90,8 @@ public final class LightStringMap<K, V> {
 
   /** A new, uncapped map seeded at the default capacity. The "just give me a map" front door. */
   @Nonnull
-  public static <K, V> LightStringMap<K, V> createUncapped() {
-    return new LightStringMap<>(DEFAULT_CAPACITY, NO_MAX_SLOTS);
+  public static <K, V> LightMap<K, V> createUncapped() {
+    return new LightMap<>(DEFAULT_CAPACITY, NO_MAX_SLOTS);
   }
 
   /**
@@ -91,8 +100,8 @@ public final class LightStringMap<K, V> {
    * a {@link #adaptiveSizingHint()}.
    */
   @Nonnull
-  public static <K, V> LightStringMap<K, V> createUncapped(int capacity) {
-    return new LightStringMap<>(capacity, NO_MAX_SLOTS);
+  public static <K, V> LightMap<K, V> createUncapped(int capacity) {
+    return new LightMap<>(capacity, NO_MAX_SLOTS);
   }
 
   /**
@@ -102,10 +111,10 @@ public final class LightStringMap<K, V> {
    * thought-free way to bound worst-case memory without minting an {@link AdaptiveSizingHint}.
    */
   @Nonnull
-  public static <K, V> LightStringMap<K, V> createCapped(int maxCapacity) {
+  public static <K, V> LightMap<K, V> createCapped(int maxCapacity) {
     int max = EmbeddingSupport.roundUpToPow2(maxCapacity);
     int seed = Math.min(DEFAULT_CAPACITY, max);
-    return new LightStringMap<>(seed, max);
+    return new LightMap<>(seed, max);
   }
 
   /**
@@ -114,25 +123,25 @@ public final class LightStringMap<K, V> {
    * seed. Throws {@link IllegalArgumentException} if the rounded seed exceeds the rounded cap.
    */
   @Nonnull
-  public static <K, V> LightStringMap<K, V> createCapped(int initialCapacity, int maxCapacity) {
+  public static <K, V> LightMap<K, V> createCapped(int initialCapacity, int maxCapacity) {
     int seed = EmbeddingSupport.roundUpToPow2(initialCapacity);
     int max = EmbeddingSupport.roundUpToPow2(maxCapacity);
     if (seed > max) {
       throw new IllegalArgumentException(
           "initialCapacity (" + seed + " slots) exceeds maxCapacity (" + max + " slots)");
     }
-    return new LightStringMap<>(seed, max);
+    return new LightMap<>(seed, max);
   }
 
   /**
    * A new map sized (and, if the hint carries a {@code maxCapacity}, capped) from {@code hint}.
    * Mint the hint once per construction site via {@link #adaptiveSizingHint()} or {@link
-   * #adaptiveSizingHintBuilder()}, hold it in a {@code static final} field, and pass it to every map
-   * at that site.
+   * #adaptiveSizingHintBuilder()}, hold it in a {@code static final} field, and pass it to every
+   * map at that site.
    */
   @Nonnull
-  public static <K, V> LightStringMap<K, V> create(@Nonnull AdaptiveSizingHint hint) {
-    return new LightStringMap<>(hint);
+  public static <K, V> LightMap<K, V> create(@Nonnull AdaptiveSizingHint hint) {
+    return new LightMap<>(hint);
   }
 
   /**
@@ -276,9 +285,9 @@ public final class LightStringMap<K, V> {
 
   /**
    * A self-tuning, per-construction-site sizing estimate. Mint one via {@link
-   * LightStringMap#adaptiveSizingHint()}, hold it in a {@code static final} field, and pass it to
-   * {@link LightStringMap#create(AdaptiveSizingHint)}; the map reads it to size itself and tunes it
-   * back as it grows. The caller never updates it.
+   * LightMap#adaptiveSizingHint()}, hold it in a {@code static final} field, and pass it to {@link
+   * LightMap#create(AdaptiveSizingHint)}; the map reads it to size itself and tunes it back as it
+   * grows. The caller never updates it.
    *
    * <p>Opaque by design (no public members). The estimate self-tunes on two events the map already
    * observes -- a new map is started ({@link #seedSlots()}) and a map grows ({@link
@@ -375,7 +384,7 @@ public final class LightStringMap<K, V> {
     // occupancy is high). The check is derived entirely from the probe walk, so it is stateless and
     // lives here in the spine rather than needing a maintained live count in the object tier.
     //
-    // Chosen as a power-of-two-friendly 8 from measurement (LightStringMapGrowBenchmark): it caps
+    // Chosen as a power-of-two-friendly 8 from measurement (LightMapGrowBenchmark): it caps
     // the worst-case probe at 8 while keeping the memory over-provision modest on well-spread keys.
     // Because a table never has more than (numSlots - 1) probe distance, this is inert for tables
     // of
@@ -520,10 +529,10 @@ public final class LightStringMap<K, V> {
     }
 
     /**
-     * Hint-aware spine insert: the migration counterpart of {@link LightStringMap#set} for a map
-     * that has been dropped to the embedded spine but wants to keep the self-tuning it had as an
-     * object. Seeds a fresh table from {@code hint.seedSlots()} and teaches the hint back on a
-     * genuine grow, exactly as the object tier does -- so graduating a map to the spine is a strict
+     * Hint-aware spine insert: the migration counterpart of {@link LightMap#set} for a map that has
+     * been dropped to the embedded spine but wants to keep the self-tuning it had as an object.
+     * Seeds a fresh table from {@code hint.seedSlots()} and teaches the hint back on a genuine
+     * grow, exactly as the object tier does -- so graduating a map to the spine is a strict
      * superset (it gains the embedding win without losing its sizing).
      *
      * <p>Unlike the object tier, the hint's {@code maxCapacity} cap does <em>not</em> bound growth
@@ -538,12 +547,12 @@ public final class LightStringMap<K, V> {
         @Nonnull Object key,
         @Nonnull V value) {
       int beforeSlots = numSlots(mapData);
-      // Seed a fresh table from the hint (mirrors LightStringMap(hint)); initialCapacity is only
+      // Seed a fresh table from the hint (mirrors LightMap(hint)); initialCapacity is only
       // read on the null-array branch, so the 0 below is never consumed when mapData is non-null.
       int seedCapacity = (mapData == null) ? hint.seedSlots() : 0;
       Object[] after = setOrReject(seedCapacity, NO_MAX_SLOTS, mapData, key, value);
       // Teach the hint on a genuine grow only (not the lazy first allocation, which already seeded
-      // from the hint) -- mirrors LightStringMap.recordGrowth.
+      // from the hint) -- mirrors LightMap.recordGrowth.
       if (beforeSlots != 0) {
         int afterSlots = numSlots(after);
         if (afterSlots > beforeSlots) {
@@ -554,7 +563,7 @@ public final class LightStringMap<K, V> {
     }
 
     // The single insert orchestration shared by the uncapped spine set() above and the capped
-    // object-tier LightStringMap.set(): probe, then either overwrite in place, fill a free slot, or
+    // object-tier LightMap.set(): probe, then either overwrite in place, fill a free slot, or
     // grow. Stores {@code key -> value} and returns the (possibly new) backing array.
     //
     // Returns null ONLY when {@code maxSlots} is a finite cap, the table is physically full at it,

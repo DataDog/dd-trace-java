@@ -1,6 +1,6 @@
 package datadog.trace.util;
 
-import static datadog.trace.util.LightStringMap.EmbeddingSupport;
+import static datadog.trace.util.LightMap.EmbeddingSupport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -15,7 +15,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-class LightStringMapTest {
+class LightMapTest {
 
   // ============ Instance API ============
 
@@ -24,14 +24,13 @@ class LightStringMapTest {
 
     @Test
     void getOnEmptyMapReturnsNull() {
-      LightStringMap<String, Integer> map =
-          LightStringMap.createUncapped(LightStringMap.DEFAULT_CAPACITY);
+      LightMap<String, Integer> map = LightMap.createUncapped(LightMap.DEFAULT_CAPACITY);
       assertNull(map.get("absent"));
     }
 
     @Test
     void setThenGet() {
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(8);
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
       map.set("a", 1);
       map.set("b", 2);
       assertEquals(1, map.get("a"));
@@ -41,7 +40,7 @@ class LightStringMapTest {
 
     @Test
     void setOverwritesExistingKey() {
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(8);
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
       map.set("a", 1);
       map.set("a", 42);
       assertEquals(42, map.get("a"));
@@ -49,7 +48,7 @@ class LightStringMapTest {
 
     @Test
     void removeMakesKeyAbsent() {
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(8);
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
       map.set("a", 1);
       map.set("b", 2);
       map.remove("a");
@@ -59,7 +58,7 @@ class LightStringMapTest {
 
     @Test
     void containsKeyDistinguishesPresenceFromAbsence() {
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(8);
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
       assertFalse(map.containsKey("a"));
       map.set("a", 1);
       assertTrue(map.containsKey("a"));
@@ -70,14 +69,14 @@ class LightStringMapTest {
 
     @Test
     void setRejectsNullValue() {
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(8);
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
       assertThrows(NullPointerException.class, () -> map.set("a", null));
       assertFalse(map.containsKey("a"));
     }
 
     @Test
     void sizeTracksLiveEntries() {
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(8);
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
       assertEquals(0, map.size());
       map.set("a", 1);
       map.set("b", 2);
@@ -96,7 +95,7 @@ class LightStringMapTest {
       // can never travel 8 slots there -- so a seed-8 map fills all 8 slots before it grows,
       // exactly as it did before the trigger existed. This is the property that keeps the tiny,
       // miss-dominated consumer (springweb6 localAttributes) behaviorally unchanged.
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(8);
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
       for (int i = 0; i < 8; i++) {
         map.set("k" + i, i);
       }
@@ -118,12 +117,12 @@ class LightStringMapTest {
       // well before the table is anywhere near full. Both sets stay fully retrievable.
       int count = 32;
 
-      LightStringMap<String, Integer> spread = LightStringMap.createUncapped(8);
+      LightMap<String, Integer> spread = LightMap.createUncapped(8);
       for (int i = 0; i < count; i++) {
         spread.set("spread." + i, i);
       }
 
-      LightStringMap<String, Integer> clustered = LightStringMap.createUncapped(8);
+      LightMap<String, Integer> clustered = LightMap.createUncapped(8);
       List<String> colliding = collidingKeys(count);
       for (int i = 0; i < count; i++) {
         clustered.set(colliding.get(i), i);
@@ -155,7 +154,7 @@ class LightStringMapTest {
         assertEquals(sharedHash, key.hashCode(), "fixture keys must share one hashCode: " + key);
       }
 
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(8);
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
       for (int i = 0; i < keys.size(); i++) {
         map.set(keys.get(i), i);
       }
@@ -178,7 +177,7 @@ class LightStringMapTest {
       // rather than walk past it to a fresh null -- keeping the chain short and avoiding a needless
       // grow.
       List<String> colliding = collidingKeys(5);
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(16);
+      LightMap<String, Integer> map = LightMap.createUncapped(16);
       for (int i = 0; i < 4; i++) {
         map.set(colliding.get(i), i);
       }
@@ -203,7 +202,7 @@ class LightStringMapTest {
     @Test
     void growsAndPreservesAllEntries() {
       // initial capacity 2 forces several resizes as we insert well past it.
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(2);
+      LightMap<String, Integer> map = LightMap.createUncapped(2);
       int n = 100;
       for (int i = 0; i < n; i++) {
         map.set("key-" + i, i);
@@ -215,7 +214,7 @@ class LightStringMapTest {
 
     @Test
     void forEachVisitsEveryLiveEntry() {
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(4);
+      LightMap<String, Integer> map = LightMap.createUncapped(4);
       for (int i = 0; i < 20; i++) {
         map.set("k" + i, i);
       }
@@ -233,7 +232,7 @@ class LightStringMapTest {
 
     @Test
     void nonLiteralKeyResolvesViaEqualsFallback() {
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(8);
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
       map.set("hello", 1);
       // Distinct String instance with the same content -- must be found via the equals pass.
       String lookup = new String("hello");
@@ -283,7 +282,7 @@ class LightStringMapTest {
 
     @Test
     void removeThenReinsertSameKey() {
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(4);
+      LightMap<String, Integer> map = LightMap.createUncapped(4);
       for (int i = 0; i < 4; i++) {
         map.set("k" + i, i);
       }
@@ -324,7 +323,7 @@ class LightStringMapTest {
     @Test
     void defaultCapacitySetOverload() {
       Object[] data = EmbeddingSupport.set(null, "a", "A");
-      assertEquals(LightStringMap.DEFAULT_CAPACITY, EmbeddingSupport.numSlots(data));
+      assertEquals(LightMap.DEFAULT_CAPACITY, EmbeddingSupport.numSlots(data));
       assertEquals("A", EmbeddingSupport.get(data, "a"));
     }
 
@@ -520,27 +519,27 @@ class LightStringMapTest {
 
     @Test
     void freshHintSeedsAtDefault() {
-      LightStringMap.AdaptiveSizingHint hint = LightStringMap.adaptiveSizingHint();
-      assertEquals(LightStringMap.DEFAULT_HINT_SLOTS, hint.currentSeedSlots());
+      LightMap.AdaptiveSizingHint hint = LightMap.adaptiveSizingHint();
+      assertEquals(LightMap.DEFAULT_HINT_SLOTS, hint.currentSeedSlots());
     }
 
     @Test
     void hintSeedsAFreshMapAtItsLearnedCapacity() {
-      LightStringMap.AdaptiveSizingHint hint = LightStringMap.adaptiveSizingHint();
-      LightStringMap<String, Integer> map = LightStringMap.create(hint);
+      LightMap.AdaptiveSizingHint hint = LightMap.adaptiveSizingHint();
+      LightMap<String, Integer> map = LightMap.create(hint);
       // A hint-seeded map allocates its backing array lazily, sized to the hint.
       map.set("a", 1);
       Object[] data = map.dataForTesting();
-      assertEquals(LightStringMap.DEFAULT_HINT_SLOTS, EmbeddingSupport.numSlots(data));
+      assertEquals(LightMap.DEFAULT_HINT_SLOTS, EmbeddingSupport.numSlots(data));
     }
 
     @Test
     void growthRaisesSeedWithOneClassOfHeadroom() {
-      LightStringMap.AdaptiveSizingHint hint = LightStringMap.adaptiveSizingHint();
+      LightMap.AdaptiveSizingHint hint = LightMap.adaptiveSizingHint();
       // Fill a hint-seeded map past its seed so it grows; the hint should learn the new size
       // PLUS one power-of-two class of headroom (so the steady-state load factor stays <= 0.5).
-      LightStringMap<String, Integer> map = LightStringMap.create(hint);
-      for (int i = 0; i < LightStringMap.DEFAULT_HINT_SLOTS + 1; i++) {
+      LightMap<String, Integer> map = LightMap.create(hint);
+      for (int i = 0; i < LightMap.DEFAULT_HINT_SLOTS + 1; i++) {
         map.set("k" + i, i);
       }
       int grownSlots = EmbeddingSupport.numSlots(map.dataForTesting());
@@ -549,65 +548,65 @@ class LightStringMapTest {
 
     @Test
     void seedIsMonotonicMaxAcrossMaps() {
-      LightStringMap.AdaptiveSizingHint hint = LightStringMap.adaptiveSizingHint();
+      LightMap.AdaptiveSizingHint hint = LightMap.adaptiveSizingHint();
       // A big map ratchets the hint up.
-      LightStringMap<String, Integer> big = LightStringMap.create(hint);
+      LightMap<String, Integer> big = LightMap.create(hint);
       for (int i = 0; i < 20; i++) {
         big.set("k" + i, i);
       }
       int learned = hint.currentSeedSlots();
-      assertTrue(learned > LightStringMap.DEFAULT_HINT_SLOTS);
+      assertTrue(learned > LightMap.DEFAULT_HINT_SLOTS);
       // A subsequent tiny map does not lower the learned seed.
-      LightStringMap<String, Integer> small = LightStringMap.create(hint);
+      LightMap<String, Integer> small = LightMap.create(hint);
       small.set("a", 1);
       assertEquals(learned, hint.currentSeedSlots());
     }
 
     @Test
     void decayStepsSeedDownAfterInterval() {
-      LightStringMap.AdaptiveSizingHint hint = LightStringMap.adaptiveSizingHint();
+      LightMap.AdaptiveSizingHint hint = LightMap.adaptiveSizingHint();
       // Ratchet the hint above the default so a step-down is observable.
-      LightStringMap<String, Integer> big = LightStringMap.create(hint);
+      LightMap<String, Integer> big = LightMap.create(hint);
       for (int i = 0; i < 20; i++) {
         big.set("k" + i, i);
       }
       int learned = hint.currentSeedSlots();
       // One full decay interval of constructions steps the seed down exactly one class.
-      for (int i = 0; i < LightStringMap.DECAY_INTERVAL; i++) {
-        LightStringMap.<String, Integer>create(hint);
+      for (int i = 0; i < LightMap.DECAY_INTERVAL; i++) {
+        LightMap.<String, Integer>create(hint);
       }
       assertEquals(learned / 2, hint.currentSeedSlots());
     }
 
     @Test
     void decayFloorsAtMinimum() {
-      LightStringMap.AdaptiveSizingHint hint = LightStringMap.adaptiveSizingHint();
+      LightMap.AdaptiveSizingHint hint = LightMap.adaptiveSizingHint();
       // Enough decay intervals to drive an un-ratcheted hint to the floor and hold there.
       int intervals = 32;
-      for (int i = 0; i < intervals * LightStringMap.DECAY_INTERVAL; i++) {
-        LightStringMap.<String, Integer>create(hint);
+      for (int i = 0; i < intervals * LightMap.DECAY_INTERVAL; i++) {
+        LightMap.<String, Integer>create(hint);
       }
-      assertEquals(LightStringMap.MIN_HINT_SLOTS, hint.currentSeedSlots());
+      assertEquals(LightMap.MIN_HINT_SLOTS, hint.currentSeedSlots());
     }
 
     @Test
     void seedIsCappedAtMax() {
-      LightStringMap.AdaptiveSizingHint hint = LightStringMap.adaptiveSizingHint();
+      LightMap.AdaptiveSizingHint hint = LightMap.adaptiveSizingHint();
       // A very large map cannot push the learned seed past the pre-provisioning ceiling.
-      LightStringMap<String, Integer> big = LightStringMap.create(hint);
-      for (int i = 0; i < LightStringMap.MAX_HINT_SLOTS * 4; i++) {
+      LightMap<String, Integer> big = LightMap.create(hint);
+      for (int i = 0; i < LightMap.MAX_HINT_SLOTS * 4; i++) {
         big.set("k" + i, i);
       }
-      assertTrue(hint.currentSeedSlots() <= LightStringMap.MAX_HINT_SLOTS);
-      assertEquals(LightStringMap.MAX_HINT_SLOTS, hint.currentSeedSlots());
+      assertTrue(hint.currentSeedSlots() <= LightMap.MAX_HINT_SLOTS);
+      assertEquals(LightMap.MAX_HINT_SLOTS, hint.currentSeedSlots());
     }
 
     @Test
     void oneDecayStepStaysSafeThenSecondDecayRepins() {
-      LightStringMap.AdaptiveSizingHint hint = LightStringMap.adaptiveSizingHint();
+      LightMap.AdaptiveSizingHint hint = LightMap.adaptiveSizingHint();
       // Learn a large size. With one class of headroom, `learned` is 2x the array the workload
       // physically grew into.
-      LightStringMap<String, Integer> big = LightStringMap.create(hint);
+      LightMap<String, Integer> big = LightMap.create(hint);
       for (int i = 0; i < 20; i++) {
         big.set("k" + i, i);
       }
@@ -615,22 +614,22 @@ class LightStringMapTest {
 
       // First decay lands the seed exactly on the physical high-water: the same workload now fits
       // without regrowing, so the seed holds (the headroom step-down is "free").
-      for (int i = 0; i < LightStringMap.DECAY_INTERVAL; i++) {
-        LightStringMap.<String, Integer>create(hint);
+      for (int i = 0; i < LightMap.DECAY_INTERVAL; i++) {
+        LightMap.<String, Integer>create(hint);
       }
       assertEquals(learned / 2, hint.currentSeedSlots());
-      LightStringMap<String, Integer> stillFits = LightStringMap.create(hint);
+      LightMap<String, Integer> stillFits = LightMap.create(hint);
       for (int i = 0; i < 20; i++) {
         stillFits.set("k" + i, i);
       }
       assertEquals(learned / 2, hint.currentSeedSlots());
 
       // Second decay probes below the need: the workload now regrows and snaps the seed back up.
-      for (int i = 0; i < LightStringMap.DECAY_INTERVAL; i++) {
-        LightStringMap.<String, Integer>create(hint);
+      for (int i = 0; i < LightMap.DECAY_INTERVAL; i++) {
+        LightMap.<String, Integer>create(hint);
       }
       assertEquals(learned / 4, hint.currentSeedSlots());
-      LightStringMap<String, Integer> recovered = LightStringMap.create(hint);
+      LightMap<String, Integer> recovered = LightMap.create(hint);
       for (int i = 0; i < 20; i++) {
         recovered.set("k" + i, i);
       }
@@ -639,8 +638,8 @@ class LightStringMapTest {
 
     @Test
     void hintSeededMapStoresAndReadsBackCorrectly() {
-      LightStringMap.AdaptiveSizingHint hint = LightStringMap.adaptiveSizingHint();
-      LightStringMap<String, Integer> map = LightStringMap.create(hint);
+      LightMap.AdaptiveSizingHint hint = LightMap.adaptiveSizingHint();
+      LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 50; i++) {
         map.set("k" + i, i);
       }
@@ -658,9 +657,9 @@ class LightStringMapTest {
     @Test
     void spineSetSeedsAFreshTableFromTheHint() {
       // Dropping to the spine keeps the hint's sizing: a fresh table seeds from seedSlots(), just
-      // like LightStringMap.create(hint) does through the object tier.
-      LightStringMap.AdaptiveSizingHint hint =
-          LightStringMap.adaptiveSizingHintBuilder().initCapacity(4).build();
+      // like LightMap.create(hint) does through the object tier.
+      LightMap.AdaptiveSizingHint hint =
+          LightMap.adaptiveSizingHintBuilder().initCapacity(4).build();
       Object[] data = EmbeddingSupport.set(hint, null, "a", 1);
       assertEquals(4, EmbeddingSupport.numSlots(data));
       assertEquals(1, (Object) EmbeddingSupport.get(data, "a"));
@@ -671,9 +670,9 @@ class LightStringMapTest {
       // A grow through the spine ratchets the hint up with one class of headroom -- identical to
       // the
       // object tier's growthRaisesSeedWithOneClassOfHeadroom.
-      LightStringMap.AdaptiveSizingHint hint = LightStringMap.adaptiveSizingHint();
+      LightMap.AdaptiveSizingHint hint = LightMap.adaptiveSizingHint();
       Object[] data = null;
-      for (int i = 0; i < LightStringMap.DEFAULT_HINT_SLOTS + 1; i++) {
+      for (int i = 0; i < LightMap.DEFAULT_HINT_SLOTS + 1; i++) {
         data = EmbeddingSupport.set(hint, data, "k" + i, i);
       }
       int grownSlots = EmbeddingSupport.numSlots(data);
@@ -685,8 +684,8 @@ class LightStringMapTest {
       // The cap guardrail does NOT follow to the spine: an Object[] return cannot signal rejection,
       // so a capped hint used at the spine grows past its cap and always stores. (Contrast the
       // object tier, which rejects at the cap -- see CapTests.)
-      LightStringMap.AdaptiveSizingHint hint =
-          LightStringMap.adaptiveSizingHintBuilder().initCapacity(2).maxCapacity(4).build();
+      LightMap.AdaptiveSizingHint hint =
+          LightMap.adaptiveSizingHintBuilder().initCapacity(2).maxCapacity(4).build();
       Object[] data = null;
       for (int i = 0; i < 12; i++) {
         data = EmbeddingSupport.set(hint, data, "k" + i, i);
@@ -702,7 +701,7 @@ class LightStringMapTest {
     void spineSetOverwriteInPlaceDoesNotTeachTheHint() {
       // An in-place overwrite neither grows nor teaches the hint -- same array back, seed
       // unchanged.
-      LightStringMap.AdaptiveSizingHint hint = LightStringMap.adaptiveSizingHint();
+      LightMap.AdaptiveSizingHint hint = LightMap.adaptiveSizingHint();
       Object[] data = EmbeddingSupport.set(hint, null, "a", 1);
       int seedAfterFirstInsert = hint.currentSeedSlots();
 
@@ -722,7 +721,7 @@ class LightStringMapTest {
     void uncappedMapAlwaysReturnsTrueFromSet() {
       // The plain capacity constructor is uncapped: set stores unconditionally and never rejects,
       // even well past the initial capacity.
-      LightStringMap<String, Integer> map = LightStringMap.createUncapped(2);
+      LightMap<String, Integer> map = LightMap.createUncapped(2);
       for (int i = 0; i < 100; i++) {
         assertTrue(map.set("k" + i, i), "uncapped set should always store");
       }
@@ -734,8 +733,8 @@ class LightStringMapTest {
       // adaptiveSizingHintBuilder() with no maxCapacity behaves like the zero-config
       // adaptiveSizingHint(): no cap, so
       // set always stores.
-      LightStringMap.AdaptiveSizingHint hint = LightStringMap.adaptiveSizingHintBuilder().build();
-      LightStringMap<String, Integer> map = LightStringMap.create(hint);
+      LightMap.AdaptiveSizingHint hint = LightMap.adaptiveSizingHintBuilder().build();
+      LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 100; i++) {
         assertTrue(map.set("k" + i, i));
       }
@@ -747,9 +746,9 @@ class LightStringMapTest {
       // maxCapacity(8) bounds the table at 8 slots. Eight distinct keys fill every slot (a
       // 8-slot table never trips the probe bound, so it fills before it would grow); a ninth,
       // genuinely new key cannot grow past the cap, so set rejects it and leaves the map unchanged.
-      LightStringMap.AdaptiveSizingHint hint =
-          LightStringMap.adaptiveSizingHintBuilder().maxCapacity(8).build();
-      LightStringMap<String, Integer> map = LightStringMap.create(hint);
+      LightMap.AdaptiveSizingHint hint =
+          LightMap.adaptiveSizingHintBuilder().maxCapacity(8).build();
+      LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 8; i++) {
         assertTrue(map.set("k" + i, i), "slot " + i + " should store");
       }
@@ -769,9 +768,9 @@ class LightStringMapTest {
     void cappedSetOverwritesExistingKeyEvenWhenFull() {
       // Rejection only applies to a genuinely new key. Overwriting a present key when the table is
       // full at the cap still succeeds -- no new slot is needed.
-      LightStringMap.AdaptiveSizingHint hint =
-          LightStringMap.adaptiveSizingHintBuilder().maxCapacity(8).build();
-      LightStringMap<String, Integer> map = LightStringMap.create(hint);
+      LightMap.AdaptiveSizingHint hint =
+          LightMap.adaptiveSizingHintBuilder().maxCapacity(8).build();
+      LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 8; i++) {
         map.set("k" + i, i);
       }
@@ -784,9 +783,9 @@ class LightStringMapTest {
     void cappedMapGrowsUpToTheCap() {
       // A cap does not pin the seed size: a map started small still grows through the
       // power-of-two classes up to the cap, retaining every entry along the way.
-      LightStringMap.AdaptiveSizingHint hint =
-          LightStringMap.adaptiveSizingHintBuilder().initCapacity(2).maxCapacity(16).build();
-      LightStringMap<String, Integer> map = LightStringMap.create(hint);
+      LightMap.AdaptiveSizingHint hint =
+          LightMap.adaptiveSizingHintBuilder().initCapacity(2).maxCapacity(16).build();
+      LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 16; i++) {
         assertTrue(map.set("k" + i, i), "slot " + i + " should store below the cap");
       }
@@ -803,9 +802,9 @@ class LightStringMapTest {
       // A rejection is non-fatal: freeing a slot (remove) makes room again, so a subsequent set of
       // a
       // new key succeeds via the reclaimed tombstone.
-      LightStringMap.AdaptiveSizingHint hint =
-          LightStringMap.adaptiveSizingHintBuilder().maxCapacity(8).build();
-      LightStringMap<String, Integer> map = LightStringMap.create(hint);
+      LightMap.AdaptiveSizingHint hint =
+          LightMap.adaptiveSizingHintBuilder().maxCapacity(8).build();
+      LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 8; i++) {
         map.set("k" + i, i);
       }
@@ -818,9 +817,9 @@ class LightStringMapTest {
     @Test
     void maxCapacityRoundsUpToPowerOfTwo() {
       // A non-power-of-two cap rounds up: maxCapacity(5) becomes an 8-slot cap.
-      LightStringMap.AdaptiveSizingHint hint =
-          LightStringMap.adaptiveSizingHintBuilder().maxCapacity(5).build();
-      LightStringMap<String, Integer> map = LightStringMap.create(hint);
+      LightMap.AdaptiveSizingHint hint =
+          LightMap.adaptiveSizingHintBuilder().maxCapacity(5).build();
+      LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 8; i++) {
         assertTrue(map.set("k" + i, i));
       }
@@ -831,7 +830,7 @@ class LightStringMapTest {
     void buildThrowsWhenInitCapacityExceedsMaxCapacity() {
       assertThrows(
           IllegalArgumentException.class,
-          () -> LightStringMap.adaptiveSizingHintBuilder().initCapacity(16).maxCapacity(8).build());
+          () -> LightMap.adaptiveSizingHintBuilder().initCapacity(16).maxCapacity(8).build());
     }
 
     @Test
@@ -839,9 +838,9 @@ class LightStringMapTest {
       // The learned seed is clamped to the cap: even after a map grows to the cap, recordSlots
       // (which
       // normally reserves a class of headroom) cannot push the seed past maxSlots.
-      LightStringMap.AdaptiveSizingHint hint =
-          LightStringMap.adaptiveSizingHintBuilder().initCapacity(2).maxCapacity(16).build();
-      LightStringMap<String, Integer> map = LightStringMap.create(hint);
+      LightMap.AdaptiveSizingHint hint =
+          LightMap.adaptiveSizingHintBuilder().initCapacity(2).maxCapacity(16).build();
+      LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 16; i++) {
         map.set("k" + i, i);
       }
@@ -860,7 +859,7 @@ class LightStringMapTest {
     void createCappedRejectsNewKeyOncePhysicallyFullAtCap() {
       // createCapped(8) hard-bounds the table at 8 slots with no hint: eight distinct keys fill it,
       // a ninth genuinely new key is rejected and leaves the map unchanged.
-      LightStringMap<String, Integer> map = LightStringMap.createCapped(8);
+      LightMap<String, Integer> map = LightMap.createCapped(8);
       for (int i = 0; i < 8; i++) {
         assertTrue(map.set("k" + i, i), "slot " + i + " should store");
       }
@@ -875,7 +874,7 @@ class LightStringMapTest {
     @Test
     void createCappedRoundsCapUpToPowerOfTwo() {
       // A non-power-of-two cap rounds up: createCapped(5) becomes an 8-slot cap.
-      LightStringMap<String, Integer> map = LightStringMap.createCapped(5);
+      LightMap<String, Integer> map = LightMap.createCapped(5);
       for (int i = 0; i < 8; i++) {
         assertTrue(map.set("k" + i, i));
       }
@@ -886,7 +885,7 @@ class LightStringMapTest {
     void createCappedSeedClampedToCapSmallerThanDefault() {
       // With a cap below the default seed, the seed is clamped down to the cap: createCapped(4)
       // seeds and caps at 4 slots, so the fifth new key is rejected.
-      LightStringMap<String, Integer> map = LightStringMap.createCapped(4);
+      LightMap<String, Integer> map = LightMap.createCapped(4);
       for (int i = 0; i < 4; i++) {
         assertTrue(map.set("k" + i, i));
       }
@@ -898,7 +897,7 @@ class LightStringMapTest {
     void createCappedTwoArgSeedsSmallAndGrowsToTheCap() {
       // createCapped(2, 16) seeds at 2 slots and grows through the power-of-two classes up to the
       // 16-slot cap, retaining every entry; the 17th new key is rejected.
-      LightStringMap<String, Integer> map = LightStringMap.createCapped(2, 16);
+      LightMap<String, Integer> map = LightMap.createCapped(2, 16);
       for (int i = 0; i < 16; i++) {
         assertTrue(map.set("k" + i, i), "slot " + i + " should store below the cap");
       }
@@ -912,7 +911,7 @@ class LightStringMapTest {
     @Test
     void createCappedTwoArgRoundsBothToPowerOfTwo() {
       // Both arguments round up independently: createCapped(3, 5) seeds at 4 slots, caps at 8.
-      LightStringMap<String, Integer> map = LightStringMap.createCapped(3, 5);
+      LightMap<String, Integer> map = LightMap.createCapped(3, 5);
       for (int i = 0; i < 8; i++) {
         assertTrue(map.set("k" + i, i));
       }
@@ -921,7 +920,7 @@ class LightStringMapTest {
 
     @Test
     void createCappedTwoArgThrowsWhenSeedExceedsCap() {
-      assertThrows(IllegalArgumentException.class, () -> LightStringMap.createCapped(16, 8));
+      assertThrows(IllegalArgumentException.class, () -> LightMap.createCapped(16, 8));
     }
   }
 }
