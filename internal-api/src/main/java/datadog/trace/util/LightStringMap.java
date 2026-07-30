@@ -473,21 +473,22 @@ public final class LightStringMap<V> {
     public static final boolean containsKey(@Nullable Object[] mapData, @Nonnull String key) {
       if (mapData == null) return false;
 
-      // not bothering with optimizing literal checks
       int numSlots = numSlots(mapData);
 
       int hash = key.hashCode();
       int preferredSlot = preferredSlot(numSlots, hash);
 
-      // TODO: check whether fast literal search is worth it
+      // Identity fast path before equals(), same rationale as findSlot.
       for (int slot = preferredSlot; slot < numSlots; ++slot) {
         Object curKey = mapData[slot];
         if (curKey == null) return false;
+        if (curKey == key) return true;
         if (curKey != REMOVED && key.equals(curKey)) return true;
       }
       for (int slot = 0; slot < preferredSlot; ++slot) {
         Object curKey = mapData[slot];
         if (curKey == null) return false;
+        if (curKey == key) return true;
         if (curKey != REMOVED && key.equals(curKey)) return true;
       }
       return false;
@@ -747,18 +748,24 @@ public final class LightStringMap<V> {
       int hash = key.hashCode();
       int preferredSlot = preferredSlot(numSlots, hash);
 
-      // Single equals-based probe that terminates at the first null slot. We do not
-      // assume interned keys, so there is no separate ref-equality pre-pass: String.equals
-      // already short-circuits on `this == other`, so a literal-key hit still resolves on a
-      // pointer compare, while a miss touches only the probe chain (not the whole array).
+      // A single probe that terminates at the first null slot. Each live slot is checked by
+      // identity (curKey == key) before equals(): interned or reused keys -- the common case for a
+      // String-keyed map here -- hit without any virtual equals() call, and the guard is a wash
+      // when equals() inlines and a win when it does not (keys erase to Object, so equals() is not
+      // guaranteed monomorphic across callers of the shared spine). We compare key.equals(curKey),
+      // not curKey.equals(key), so the receiver stays the caller's key type and C2 can devirtualize
+      // it. This is a per-slot guard, not a whole-array pre-pass: a miss still touches only the
+      // probe chain. A live key is never REMOVED, so the identity hit needs no tombstone check.
       for (int keyIndex = preferredSlot; keyIndex < numSlots; ++keyIndex) {
         Object curKey = mapData[keyIndex];
         if (curKey == null) return SLOT_NOT_FOUND;
+        if (curKey == key) return keyIndex;
         if (curKey != REMOVED && key.equals(curKey)) return keyIndex;
       }
       for (int keyIndex = 0; keyIndex < preferredSlot; ++keyIndex) {
         Object curKey = mapData[keyIndex];
         if (curKey == null) return SLOT_NOT_FOUND;
+        if (curKey == key) return keyIndex;
         if (curKey != REMOVED && key.equals(curKey)) return keyIndex;
       }
       return SLOT_NOT_FOUND;
