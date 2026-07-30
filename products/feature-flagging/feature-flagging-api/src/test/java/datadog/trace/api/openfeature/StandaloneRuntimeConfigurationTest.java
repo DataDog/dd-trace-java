@@ -3,6 +3,7 @@ package datadog.trace.api.openfeature;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
@@ -87,6 +88,22 @@ class StandaloneRuntimeConfigurationTest {
         "http://127.0.0.1:8080/config?tenant=test", configuration.http.endpoint.toString());
     assertEquals(Duration.ofSeconds(7), configuration.http.pollInterval);
     assertEquals(Duration.ofSeconds(2), configuration.http.requestTimeout);
+  }
+
+  @Test
+  void treatsBlankBaseUrlsAsTheManagedEndpoint() {
+    System.setProperty(API_KEY, "secret");
+    for (final String baseUrl : new String[] {"", "   "}) {
+      System.setProperty(BASE_URL, baseUrl);
+
+      final StandaloneRuntimeConfiguration configuration = StandaloneRuntimeConfiguration.resolve();
+
+      assertEquals(
+          "https://ufc-server.ff-cdn.datadoghq.com/api/v2/feature-flagging/config/rules-based/server",
+          configuration.http.endpoint.toString());
+      assertTrue(configuration.http.managedEndpoint);
+      assertEquals("secret", configuration.http.apiKey);
+    }
   }
 
   @Test

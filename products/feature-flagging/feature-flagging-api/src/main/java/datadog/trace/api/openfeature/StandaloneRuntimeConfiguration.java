@@ -66,7 +66,7 @@ final class StandaloneRuntimeConfiguration {
             .pollInterval(pollInterval)
             .requestTimeout(requestTimeout)
             .apiKey(apiKey)
-            .managedEndpoint(configuredBaseUrl == null)
+            .managedEndpoint(configuredBaseUrl == null || configuredBaseUrl.trim().isEmpty())
             .build());
   }
 
