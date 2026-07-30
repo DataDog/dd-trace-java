@@ -5041,6 +5041,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_BEANSHELL_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_BEANSHELL_ENABLED", "DD_INTEGRATION_BEANSHELL_ENABLED"]
+      }
+    ],
     "DD_TRACE_CAFFEINE_ENABLED": [
       {
         "version": "A",
