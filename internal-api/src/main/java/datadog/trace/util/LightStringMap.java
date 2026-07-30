@@ -127,7 +127,7 @@ public final class LightStringMap<K, V> {
   /**
    * A new map sized (and, if the hint carries a {@code maxCapacity}, capped) from {@code hint}.
    * Mint the hint once per construction site via {@link #adaptiveSizingHint()} or {@link
-   * #buildAdaptiveSizingHint()}, hold it in a {@code static final} field, and pass it to every map
+   * #adaptiveSizingHintBuilder()}, hold it in a {@code static final} field, and pass it to every map
    * at that site.
    */
   @Nonnull
@@ -154,7 +154,7 @@ public final class LightStringMap<K, V> {
    * cap. The hint still self-tunes its seed capacity within the cap.
    */
   @Nonnull
-  public static AdaptiveSizingHintBuilder buildAdaptiveSizingHint() {
+  public static AdaptiveSizingHintBuilder adaptiveSizingHintBuilder() {
     return new AdaptiveSizingHintBuilder();
   }
 
@@ -203,7 +203,7 @@ public final class LightStringMap<K, V> {
    * trigger fires. Returns {@code true} if the mapping was stored (or overwrote an existing one).
    *
    * <p>Returns {@code false} only for a capped map (one built via {@link #createCapped(int)} /
-   * {@link #createCapped(int, int)}, or from a {@link #buildAdaptiveSizingHint()}.{@code
+   * {@link #createCapped(int, int)}, or from a {@link #adaptiveSizingHintBuilder()}.{@code
    * maxCapacity(...)} hint): once the table is physically full at its cap, a genuinely new key is
    * rejected rather than growing past the cap. The rejection is non-fatal -- the map is unchanged
    * and the caller may ignore the return. An uncapped map always returns {@code true}.
