@@ -107,7 +107,6 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // targetingKey from evaluation context
       final String targetingKey =
           ctx != null && ctx.getCtx() != null ? ctx.getCtx().getTargetingKey() : null;
-      final Map<String, Value> attrs = snapshotAttrs(ctx);
 
       // Consent is read from metadata stamped by DDEvaluator (pinned to its ServerConfiguration).
       // Missing key = non-DD provider → false, the privacy-preserving default.
@@ -117,16 +116,32 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
               : null;
       final boolean observeFullEvaluationData = consentFromMetadata != null && consentFromMetadata;
 
-      w.enqueue(
-          new FlagEvalEvent(
-              flagKey,
-              variant,
-              allocationKey,
-              targetingKey,
-              errorMessage,
-              evalTimeMs,
-              observeFullEvaluationData,
-              () -> extractAttrs(attrs)));
+      // On the protected path the evaluation context is dropped on emit and never consulted by
+      // the aggregator, so skip the snapshot + supplier allocation entirely.
+      if (observeFullEvaluationData) {
+        final Map<String, Value> attrs = snapshotAttrs(ctx);
+        w.enqueue(
+            new FlagEvalEvent(
+                flagKey,
+                variant,
+                allocationKey,
+                targetingKey,
+                errorMessage,
+                evalTimeMs,
+                true,
+                () -> extractAttrs(attrs)));
+      } else {
+        w.enqueue(
+            new FlagEvalEvent(
+                flagKey,
+                variant,
+                allocationKey,
+                targetingKey,
+                errorMessage,
+                evalTimeMs,
+                false,
+                Collections.<String, Object>emptyMap()));
+      }
     } catch (LinkageError | Exception e) {
       // Never let EVP recording break flag evaluation
     }

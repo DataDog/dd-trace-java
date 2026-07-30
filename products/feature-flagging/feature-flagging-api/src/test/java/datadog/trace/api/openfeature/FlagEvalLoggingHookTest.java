@@ -405,7 +405,7 @@ class FlagEvalLoggingHookTest {
             .ctx(context)
             .build();
     final FlagEvaluationDetails<Object> det =
-        details("ctx-flag", "v", "v", Reason.TARGETING_MATCH.name(), null);
+        details("ctx-flag", "v", "v", Reason.TARGETING_MATCH.name(), consentOnMetadata());
 
     hook.finallyAfter(hookCtx, det, Collections.emptyMap());
 
@@ -442,7 +442,7 @@ class FlagEvalLoggingHookTest {
             .ctx(context)
             .build();
     final FlagEvaluationDetails<Object> det =
-        details("ctx-flag", "v", "v", Reason.TARGETING_MATCH.name(), null);
+        details("ctx-flag", "v", "v", Reason.TARGETING_MATCH.name(), consentOnMetadata());
 
     hook.finallyAfter(hookCtx, det, Collections.emptyMap());
     context.add("region", "eu-west-1");
@@ -481,6 +481,39 @@ class FlagEvalLoggingHookTest {
   }
 
   @Test
+  void protectedPathSkipsEvaluationContextCapture() {
+    // Consent off → the hook must not snapshot the evaluation context at all. Verified by mutating
+    // the context after finallyAfter returns and asserting the enqueued event still sees nothing.
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+
+    final MutableContext context = new MutableContext("user-1");
+    context.add("region", "us-east-1");
+
+    final HookContext<Object> hookCtx =
+        HookContext.<Object>builder()
+            .flagKey("ctx-flag")
+            .type(FlagValueType.STRING)
+            .defaultValue("default")
+            .ctx(context)
+            .build();
+    final ImmutableMetadata consentOff =
+        ImmutableMetadata.builder()
+            .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, false)
+            .build();
+
+    hook.finallyAfter(
+        hookCtx,
+        details("ctx-flag", "v", "v", Reason.TARGETING_MATCH.name(), consentOff),
+        Collections.emptyMap());
+    context.add("region", "eu-west-1");
+
+    assertNotNull(captured.get());
+    assertTrue(captured.get().attrs.isEmpty());
+    assertTrue(captured.get().contextAttributes().isEmpty());
+  }
+
+  @Test
   void ignoresGatewayConsentEvenWhenItDisagreesWithMetadata() {
     // Gateway says on, metadata says off; hook must trust metadata.
     FeatureFlaggingGateway.dispatch(observeConfig(true));
@@ -510,6 +543,12 @@ class FlagEvalLoggingHookTest {
         Collections.emptyMap());
     assertNotNull(captured.get(), "writer.enqueue must be called once");
     return captured.get();
+  }
+
+  private static ImmutableMetadata consentOnMetadata() {
+    return ImmutableMetadata.builder()
+        .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, true)
+        .build();
   }
 
   private static ServerConfiguration observeConfig(final boolean observeFullEvaluationData) {
