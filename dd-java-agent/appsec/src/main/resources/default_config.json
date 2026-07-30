@@ -5682,60 +5682,6 @@
       "transformers": []
     },
     {
-      "id": "dog-920-100",
-      "name": "File upload with double extension",
-      "tags": {
-        "type": "http_protocol_violation",
-        "category": "attack_attempt",
-        "cwe": "176",
-        "capec": "1000/255/153/267/71",
-        "confidence": "0",
-        "module": "waf"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "server.request.body.filenames"
-              },
-              {
-                "address": "server.request.headers.no_cookies",
-                "key_path": [
-                  "x-filename"
-                ]
-              },
-              {
-                "address": "server.request.headers.no_cookies",
-                "key_path": [
-                  "x_filename"
-                ]
-              },
-              {
-                "address": "server.request.headers.no_cookies",
-                "key_path": [
-                  "x.filename"
-                ]
-              },
-              {
-                "address": "server.request.headers.no_cookies",
-                "key_path": [
-                  "x-file-name"
-                ]
-              }
-            ],
-            "regex": "\\w\\.[a-zA-Z0-9]{2,5}\\.[a-zA-Z0-9]{2,5}$",
-            "options": {
-              "case_sensitive": true,
-              "min_length": 6
-            }
-          },
-          "operator": "match_regex"
-        }
-      ],
-      "transformers": []
-    },
-    {
       "id": "dog-920-110",
       "name": "Zipslip Attack - Unsafe Zip extraction",
       "tags": {
@@ -6208,53 +6154,6 @@
         "removeNulls",
         "urlDecodeUni"
       ]
-    },
-    {
-      "id": "dog-942-001",
-      "name": "Blind XSS callback domains",
-      "tags": {
-        "type": "xss",
-        "category": "attack_attempt",
-        "cwe": "83",
-        "capec": "1000/152/242/63/591/243",
-        "confidence": "1",
-        "module": "waf"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "server.request.query"
-              },
-              {
-                "address": "server.request.body"
-              },
-              {
-                "address": "server.request.path_params"
-              },
-              {
-                "address": "server.request.headers.no_cookies"
-              },
-              {
-                "address": "grpc.server.request.message"
-              },
-              {
-                "address": "graphql.server.all_resolvers"
-              },
-              {
-                "address": "graphql.server.resolver"
-              }
-            ],
-            "regex": "https?:\\/\\/(?:.*\\.)?(?:bxss\\.(?:in|me)|xss\\.ht|js\\.rip)",
-            "options": {
-              "case_sensitive": false
-            }
-          },
-          "operator": "match_regex"
-        }
-      ],
-      "transformers": []
     },
     {
       "id": "dog-941-002",
