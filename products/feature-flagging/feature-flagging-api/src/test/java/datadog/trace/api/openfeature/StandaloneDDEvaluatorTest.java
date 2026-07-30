@@ -1,6 +1,7 @@
 package datadog.trace.api.openfeature;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -98,13 +99,38 @@ class StandaloneDDEvaluatorTest {
     }
   }
 
+  @Test
+  void remainsNotReadyWhenCdnReturnsInvalidConfiguration() throws Exception {
+    final HttpServer server = server(new AtomicInteger(), "{");
+    final StandaloneDDEvaluator evaluator = new StandaloneDDEvaluator(() -> {});
+    try {
+      System.setProperty(SOURCE, "agentless");
+      System.setProperty(BASE_URL, "http://127.0.0.1:" + server.getAddress().getPort() + "/config");
+
+      assertFalse(evaluator.initialize(1, MILLISECONDS, new MutableContext("subject")));
+      assertFalse(evaluator.hasConfiguration());
+      final ProviderEvaluation<String> result =
+          evaluator.evaluate(String.class, "message", "default", new MutableContext("subject"));
+      assertEquals("default", result.getValue());
+      assertEquals(ErrorCode.PROVIDER_NOT_READY, result.getErrorCode());
+    } finally {
+      evaluator.shutdown();
+      server.stop(0);
+    }
+  }
+
   private static HttpServer server(final AtomicInteger requests) throws Exception {
+    return server(requests, UFC);
+  }
+
+  private static HttpServer server(final AtomicInteger requests, final String body)
+      throws Exception {
     final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     server.createContext(
         "/config",
         exchange -> {
           requests.incrementAndGet();
-          final byte[] response = UFC.getBytes(UTF_8);
+          final byte[] response = body.getBytes(UTF_8);
           exchange.sendResponseHeaders(200, response.length);
           exchange.getResponseBody().write(response);
           exchange.close();
