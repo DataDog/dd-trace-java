@@ -19,7 +19,8 @@ public final class CdnEndpointResolver {
       }
       final String path = configured.getPath();
       if (path == null || path.isEmpty() || "/".equals(path)) {
-        return configured.resolve(UFC_PATH.substring(1));
+        final String query = configured.getRawQuery();
+        return configured.resolve(URI.create(UFC_PATH + (query == null ? "" : "?" + query)));
       }
       return configured;
     }

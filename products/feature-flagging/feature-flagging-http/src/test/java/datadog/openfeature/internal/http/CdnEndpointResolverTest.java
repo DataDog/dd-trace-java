@@ -26,6 +26,10 @@ class CdnEndpointResolverTest {
         URI.create("http://localhost:8080/api/v2/feature-flagging/config/rules-based/server"),
         CdnEndpointResolver.resolve("http://localhost:8080/", "ignored", "ignored"));
     assertEquals(
+        URI.create(
+            "https://example.test/api/v2/feature-flagging/config/rules-based/server?token=a%2Fb"),
+        CdnEndpointResolver.resolve("https://example.test/?token=a%2Fb", "ignored", "ignored"));
+    assertEquals(
         URI.create("https://example.test/custom?query=true"),
         CdnEndpointResolver.resolve(
             " https://example.test/custom?query=true ", "ignored", "ignored"));
