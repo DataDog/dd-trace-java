@@ -79,13 +79,17 @@ class CdnConfigurationSourceTest {
   }
 
   @Test
-  void startPollsImmediatelyAndCloseCancelsSchedule() {
+  void startPollsImmediatelyAndCloseCancelsSchedule() throws Exception {
     final QueueTransport transport = new QueueTransport();
     transport.responses.add(response(200, null, UFC));
-    final CdnConfigurationSource source = source(new ConfigurationStore(), transport, millis -> {});
+    final ConfigurationStore store = new ConfigurationStore();
+    final CountDownLatch configured = new CountDownLatch(1);
+    store.addListener(ignored -> configured.countDown());
+    final CdnConfigurationSource source = source(store, transport, millis -> {});
 
     source.start();
     source.start();
+    assertTrue(configured.await(1, TimeUnit.SECONDS));
     assertEquals(SourceStatus.READY, source.status());
     assertEquals(1, transport.requestHeaders.size());
 
@@ -95,6 +99,28 @@ class CdnConfigurationSourceTest {
     assertFalse(source.pollOnce());
     source.start();
     assertEquals(1, transport.requestHeaders.size());
+  }
+
+  @Test
+  void startDoesNotBlockOnInitialPoll() throws Exception {
+    final BlockingTransport transport = new BlockingTransport();
+    final CdnConfigurationSource source = source(new ConfigurationStore(), transport, millis -> {});
+    final CountDownLatch returned = new CountDownLatch(1);
+    final Thread start =
+        new Thread(
+            () -> {
+              source.start();
+              returned.countDown();
+            });
+
+    start.start();
+    assertTrue(transport.entered.await(1, TimeUnit.SECONDS));
+    assertTrue(returned.await(1, TimeUnit.SECONDS));
+    assertEquals(SourceStatus.STARTING, source.status());
+
+    source.close();
+    transport.release.countDown();
+    start.join(1_000);
   }
 
   @Test

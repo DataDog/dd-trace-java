@@ -89,16 +89,11 @@ public final class CdnConfigurationSource implements ConfigurationSource {
       status = SourceStatus.STARTING;
     }
 
-    pollOnce();
-
     synchronized (lifecycleLock) {
       if (!closed) {
         scheduledPoll =
             executor.scheduleWithFixedDelay(
-                this::pollOnceSafely,
-                options.pollInterval.toMillis(),
-                options.pollInterval.toMillis(),
-                TimeUnit.MILLISECONDS);
+                this::pollOnceSafely, 0, options.pollInterval.toMillis(), TimeUnit.MILLISECONDS);
       }
     }
   }

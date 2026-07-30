@@ -6,6 +6,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
@@ -13,6 +14,7 @@ import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -119,6 +121,23 @@ class StandaloneDDEvaluatorTest {
     }
   }
 
+  @Test
+  void initializationTimeoutIncludesTheInitialCdnRequest() throws Exception {
+    final HttpServer server = delayedServer(500);
+    final StandaloneDDEvaluator evaluator = new StandaloneDDEvaluator(() -> {});
+    try {
+      System.setProperty(SOURCE, "agentless");
+      System.setProperty(BASE_URL, "http://127.0.0.1:" + server.getAddress().getPort() + "/config");
+
+      assertTimeout(
+          Duration.ofMillis(250),
+          () -> assertFalse(evaluator.initialize(10, MILLISECONDS, new MutableContext("subject"))));
+    } finally {
+      evaluator.shutdown();
+      server.stop(0);
+    }
+  }
+
   private static HttpServer server(final AtomicInteger requests) throws Exception {
     return server(requests, UFC);
   }
@@ -134,6 +153,24 @@ class StandaloneDDEvaluatorTest {
           exchange.sendResponseHeaders(200, response.length);
           exchange.getResponseBody().write(response);
           exchange.close();
+        });
+    server.start();
+    return server;
+  }
+
+  private static HttpServer delayedServer(final long delayMillis) throws Exception {
+    final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/config",
+        exchange -> {
+          try {
+            Thread.sleep(delayMillis);
+            exchange.sendResponseHeaders(304, -1);
+          } catch (final InterruptedException error) {
+            Thread.currentThread().interrupt();
+          } finally {
+            exchange.close();
+          }
         });
     server.start();
     return server;
