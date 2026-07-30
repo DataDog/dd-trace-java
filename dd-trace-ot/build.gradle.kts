@@ -3,7 +3,7 @@ import groovy.lang.Closure
 plugins {
   `java-library`
   id("com.gradleup.shadow")
-  id("me.champeau.jmh")
+  id("dd-trace-java.jmh-conventions")
 }
 
 description = "dd-trace-ot"
