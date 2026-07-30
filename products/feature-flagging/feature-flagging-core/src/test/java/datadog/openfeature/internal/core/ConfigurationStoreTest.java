@@ -36,6 +36,23 @@ class ConfigurationStoreTest {
   }
 
   @Test
+  void rejectsMissingAndNullFlagMapsButAcceptsAnEmptyMap() {
+    final ConfigurationStore store = new ConfigurationStore();
+    assertEquals(ApplyResult.ACCEPTED, store.apply(Fixtures.UFC.getBytes(UTF_8)));
+    final ServerConfiguration accepted = store.current();
+
+    assertEquals(ApplyResult.REJECTED, store.apply("{}".getBytes(UTF_8)));
+    assertSame(accepted, store.current());
+    assertEquals(ApplyResult.REJECTED, store.apply("{\"flags\":null}".getBytes(UTF_8)));
+    assertSame(accepted, store.current());
+    assertEquals(ApplyResult.REJECTED, store.apply("null".getBytes(UTF_8)));
+    assertSame(accepted, store.current());
+
+    assertEquals(ApplyResult.ACCEPTED, store.apply("{\"flags\":{}}".getBytes(UTF_8)));
+    assertTrue(store.current().flags.isEmpty());
+  }
+
+  @Test
   void clearsConfigurationExplicitly() {
     final ConfigurationStore store = new ConfigurationStore();
     store.apply(Fixtures.UFC.getBytes(UTF_8));

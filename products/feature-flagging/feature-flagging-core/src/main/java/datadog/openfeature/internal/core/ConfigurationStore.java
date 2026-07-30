@@ -33,6 +33,9 @@ public final class ConfigurationStore implements ConfigurationSink {
     } catch (final IOException | RuntimeException ignored) {
       return ApplyResult.REJECTED;
     }
+    if (next == null || next.flags == null) {
+      return ApplyResult.REJECTED;
+    }
     current.set(next);
     signalChange(next);
     return ApplyResult.ACCEPTED;
