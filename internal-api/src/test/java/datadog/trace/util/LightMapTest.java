@@ -388,6 +388,54 @@ class LightMapTest {
       assertEquals(15, EmbeddingSupport.size(data));
     }
 
+    // The following three tests drive the wraparound (second) probe loop in the spine, the path
+    // where a probe runs off the end of the table and resumes at slot 0. Integer keys make the home
+    // slot deterministic: for a value v < 2^16, key.hashCode() == v and its high half is zero, so
+    // preferredSlot(8, v) == (v & 7). Keys 7, 15, 23 all home to slot 7 (the last slot), so a probe
+    // starting there must wrap. Distances stay under MAX_PROBES, so an 8-slot table never resizes.
+    @Test
+    void findSlotWrapsPastEndToLocateKey() {
+      Object[] data = null;
+      data = EmbeddingSupport.set(8, data, 7, "A"); // home slot 7
+      data = EmbeddingSupport.set(8, data, 15, "B"); // home slot 7 taken -> wraps to slot 0
+      assertEquals(8, EmbeddingSupport.numSlots(data)); // no resize
+
+      // 15's home (7) is occupied by 7, so the lookup must run off the end and resume the scan at
+      // slot 0 -- the wraparound loop -- to find it. get()/remove() both route through findSlot.
+      assertEquals(0, EmbeddingSupport.findSlot(data, 15));
+      assertTrue(EmbeddingSupport.containsKey(data, 15));
+      assertEquals("B", EmbeddingSupport.get(data, 15));
+    }
+
+    @Test
+    void missTerminatesInWraparoundLoopAtNull() {
+      Object[] data = null;
+      data = EmbeddingSupport.set(8, data, 7, "A"); // home 7 -> slot 7
+      data = EmbeddingSupport.set(8, data, 15, "B"); // home 7 -> wraps to slot 0
+
+      // 23 also homes to slot 7; the probe wraps (slot 7 occupied, no match) and terminates at the
+      // first null in the second loop -- an absent-key miss reached only via wraparound.
+      assertEquals(EmbeddingSupport.SLOT_NOT_FOUND, EmbeddingSupport.findSlot(data, 23));
+      assertFalse(EmbeddingSupport.containsKey(data, 23));
+      assertNull(EmbeddingSupport.get(data, 23));
+    }
+
+    @Test
+    void insertReusesTombstoneFoundAfterWraparound() {
+      Object[] data = null;
+      data = EmbeddingSupport.set(8, data, 7, "A"); // home 7 -> slot 7
+      data = EmbeddingSupport.set(8, data, 15, "B"); // home 7 -> wraps to slot 0
+      assertTrue(EmbeddingSupport.remove(data, 15)); // slot 0 becomes a tombstone
+
+      // 23 homes to slot 7 (occupied), wraps, and meets the tombstone at slot 0 before any null.
+      // findInsertionSlot must reclaim that tombstone in the wraparound loop rather than walk on.
+      data = EmbeddingSupport.set(8, data, 23, "C");
+      assertEquals(8, EmbeddingSupport.numSlots(data)); // reclaimed in place, no resize
+      assertEquals(0, EmbeddingSupport.findSlot(data, 23)); // reused the very slot 15 vacated
+      assertEquals("C", EmbeddingSupport.get(data, 23));
+      assertEquals(2, EmbeddingSupport.size(data));
+    }
+
     @Test
     void expandDiscardsTombstones() {
       Object[] data = null;
