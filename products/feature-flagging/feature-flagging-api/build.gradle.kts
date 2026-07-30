@@ -1,5 +1,7 @@
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import groovy.lang.Closure
+import org.gradle.api.tasks.SourceSetContainer
+import java.util.zip.ZipFile
 
 plugins {
   `java-library`
@@ -42,13 +44,19 @@ java {
 
 dependencies {
   api("dev.openfeature:sdk:1.20.1")
+  implementation(libs.moshi)
+  implementation(libs.slf4j)
 
   compileOnly(project(":products:feature-flagging:feature-flagging-bootstrap"))
   compileOnly(project(":products:feature-flagging:feature-flagging-config"))
+  compileOnly(project(":products:feature-flagging:feature-flagging-core"))
+  compileOnly(project(":products:feature-flagging:feature-flagging-http"))
   compileOnly(project(":utils:config-utils"))
   compileOnly("io.opentelemetry:opentelemetry-api:1.47.0")
 
   testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
+  testImplementation(project(":products:feature-flagging:feature-flagging-core"))
+  testImplementation(project(":products:feature-flagging:feature-flagging-http"))
   testImplementation(project(":utils:config-utils"))
   testImplementation("io.opentelemetry:opentelemetry-api:1.47.0")
   testImplementation(libs.bundles.junit5)
@@ -78,8 +86,52 @@ tasks.withType<Javadoc>().configureEach {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
 }
 
+val coreProject = project(":products:feature-flagging:feature-flagging-core")
+val httpProject = project(":products:feature-flagging:feature-flagging-http")
+
+tasks.named<Jar>("jar") {
+  from(coreProject.extensions.getByType<SourceSetContainer>().named("main").map { it.output })
+  from(httpProject.extensions.getByType<SourceSetContainer>().named("main").map { it.output })
+}
+
+tasks.withType<Test>().configureEach {
+  dependsOn(tasks.named("jar"))
+  systemProperty(
+    "dd.openfeature.test.jar",
+    tasks.named<Jar>("jar").get().archiveFile.get().asFile.absolutePath
+  )
+}
+
 // The dd-openfeature provider jar is not produced by the CI `build` job, so there is no reference
 // artifact to compare against. Disable the release jar comparison gate registered by publish.gradle.
 tasks.named("compareToReferenceJar") {
   enabled = false
+}
+
+tasks.register("verifyDdOpenfeatureArtifact") {
+  dependsOn(tasks.named("jar"), tasks.named("generatePomFileForMavenPublication"))
+  doLast {
+    val providerJar = tasks.named<Jar>("jar").get().archiveFile.get().asFile
+    val requiredEntries = setOf(
+      "datadog/openfeature/internal/core/ConfigurationStore.class",
+      "datadog/openfeature/internal/core/FlagEvaluator.class",
+      "datadog/openfeature/internal/http/CdnConfigurationSource.class",
+      "datadog/openfeature/internal/http/HttpConfigurationOptions.class"
+    )
+    ZipFile(providerJar).use { zip ->
+      val entryNames = zip.entries().asSequence().map { it.name }.toSet()
+      val missing = requiredEntries - entryNames
+      check(missing.isEmpty()) {
+        "dd-openfeature is missing embedded standalone classes: $missing"
+      }
+    }
+
+    val pom = layout.buildDirectory.file("publications/maven/pom-default.xml").get().asFile
+    check(pom.isFile) { "Generated dd-openfeature Maven POM is missing" }
+    val pomText = pom.readText()
+    check(pomText.contains("<artifactId>sdk</artifactId>"))
+    check(pomText.contains("<artifactId>moshi</artifactId>"))
+    check(!pomText.contains("feature-flagging-core"))
+    check(!pomText.contains("feature-flagging-http"))
+  }
 }
