@@ -5,6 +5,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -17,8 +18,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.exposure.ExposureEvent;
+import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Split;
+import datadog.trace.api.featureflag.ufc.v1.ValueType;
+import datadog.trace.api.featureflag.ufc.v1.Variant;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.MutableContext;
@@ -32,6 +38,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -184,6 +191,42 @@ public class DDEvaluatorTest {
     assertThat(details.getValue(), equalTo(23));
     assertThat(details.getReason(), equalTo("DEFAULT"));
     assertThat(details.getErrorCode(), nullValue());
+  }
+
+  @Test
+  public void testDispatchesExposureForSuccessfulEvaluation() {
+    final AtomicReference<ExposureEvent> exposure = new AtomicReference<>();
+    final FeatureFlaggingGateway.ExposureListener listener = exposure::set;
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    final Split split = new Split(emptyList(), "on", emptyMap(), 7);
+    final Allocation allocation =
+        new Allocation("allocation", emptyList(), null, null, singletonList(split), true);
+    final Flag flag =
+        new Flag(
+            "flag",
+            true,
+            ValueType.STRING,
+            singletonMap("on", new Variant("on", "hello")),
+            singletonList(allocation));
+    final Map<String, Value> attributes = new HashMap<>();
+    attributes.put("nullable", new Value());
+    final EvaluationContext context = new MutableContext("subject", attributes);
+    FeatureFlaggingGateway.addExposureListener(listener);
+    try {
+      evaluator.accept(new ServerConfiguration(null, "SERVER", null, singletonMap("flag", flag)));
+
+      assertThat(
+          evaluator.evaluate(String.class, "flag", "default", context).getValue(),
+          equalTo("hello"));
+      assertThat(exposure.get().flag.key, equalTo("flag"));
+      assertThat(exposure.get().allocation.key, equalTo("allocation"));
+      assertThat(exposure.get().variant.key, equalTo("on"));
+      assertThat(exposure.get().subject.id, equalTo("subject"));
+      assertThat(exposure.get().subject.attributes, hasEntry("nullable", null));
+    } finally {
+      FeatureFlaggingGateway.removeExposureListener(listener);
+      evaluator.shutdown();
+    }
   }
 
   private static Arguments[] flatteningTestCases() {

@@ -1,6 +1,7 @@
 package datadog.trace.api.openfeature;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Duration;
@@ -17,6 +18,7 @@ class StandaloneRuntimeConfigurationTest {
       "dd.feature.flags.configuration.source.agentless.poll.interval.seconds";
   private static final String REQUEST_TIMEOUT =
       "dd.feature.flags.configuration.source.agentless.request.timeout.seconds";
+  private static final String API_KEY = "dd.api.key";
 
   @AfterEach
   void clearProperties() {
@@ -26,6 +28,7 @@ class StandaloneRuntimeConfigurationTest {
     System.clearProperty(BASE_URL);
     System.clearProperty(POLL_INTERVAL);
     System.clearProperty(REQUEST_TIMEOUT);
+    System.clearProperty(API_KEY);
   }
 
   @Test
@@ -84,5 +87,52 @@ class StandaloneRuntimeConfigurationTest {
         "http://127.0.0.1:8080/config?tenant=test", configuration.http.endpoint.toString());
     assertEquals(Duration.ofSeconds(7), configuration.http.pollInterval);
     assertEquals(Duration.ofSeconds(2), configuration.http.requestTimeout);
+  }
+
+  @Test
+  void usesDefaultsForInvalidPollingOptions() {
+    System.setProperty(POLL_INTERVAL, "invalid");
+    System.setProperty(REQUEST_TIMEOUT, "0");
+
+    StandaloneRuntimeConfiguration configuration = StandaloneRuntimeConfiguration.resolve();
+
+    assertEquals(Duration.ofSeconds(30), configuration.http.pollInterval);
+    assertEquals(Duration.ofSeconds(5), configuration.http.requestTimeout);
+
+    System.setProperty(POLL_INTERVAL, "-1");
+    System.setProperty(REQUEST_TIMEOUT, "invalid");
+
+    configuration = StandaloneRuntimeConfiguration.resolve();
+
+    assertEquals(Duration.ofSeconds(30), configuration.http.pollInterval);
+    assertEquals(Duration.ofSeconds(5), configuration.http.requestTimeout);
+  }
+
+  @Test
+  void comparesResolvedConfigurationsByEffectiveOptions() {
+    System.setProperty(BASE_URL, "https://example.test/config");
+    System.setProperty(API_KEY, "key");
+    final StandaloneRuntimeConfiguration first = StandaloneRuntimeConfiguration.resolve();
+    final StandaloneRuntimeConfiguration equivalent = StandaloneRuntimeConfiguration.resolve();
+
+    assertEquals(first, first);
+    assertEquals(first, equivalent);
+    assertEquals(first.hashCode(), equivalent.hashCode());
+    assertNotEquals(first, null);
+    assertNotEquals(first, "configuration");
+
+    System.setProperty(API_KEY, "other");
+    assertNotEquals(first, StandaloneRuntimeConfiguration.resolve());
+
+    System.clearProperty(API_KEY);
+    System.clearProperty(BASE_URL);
+    System.setProperty(ENABLED, "false");
+    final StandaloneRuntimeConfiguration disabled = StandaloneRuntimeConfiguration.resolve();
+    assertEquals(disabled, StandaloneRuntimeConfiguration.resolve());
+    assertEquals(disabled.hashCode(), StandaloneRuntimeConfiguration.resolve().hashCode());
+
+    System.clearProperty(ENABLED);
+    System.setProperty(SOURCE, "remote_config");
+    assertNotEquals(disabled, StandaloneRuntimeConfiguration.resolve());
   }
 }
