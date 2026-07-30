@@ -213,27 +213,20 @@ public class DDEvaluatorTest {
     assertThat(details.getErrorCode(), nullValue());
   }
 
-  // ---- observeFullEvaluationData metadata is pinned to the config held by evaluate() ----
-  // Regression guard for the race the hook used to have with FeatureFlaggingGateway: if the
-  // gateway's CURRENT_CONFIG is swapped after the evaluator captures its ServerConfiguration but
-  // before the hook fires, the consent value returned to the hook must still reflect the
-  // configuration the evaluator actually used.
+  // ---- observeFullEvaluationData metadata is stamped from the evaluator's ServerConfiguration
+  // ----
 
   @Test
   public void observeFullEvaluationDataStampedFromEvaluatorConfigOnSuccess() {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("null-allocation", new Flag("target", true, null, null, null));
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    // Consent on in the config the evaluator accepts. We never swap CURRENT_CONFIG on the gateway
-    // (nor call the gateway from the evaluator) — this asserts DDEvaluator stamps the boolean
-    // straight from its captured ServerConfiguration.
     evaluator.accept(new ServerConfiguration("", "", true, null, flags));
 
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("k");
     final ProviderEvaluation<?> details =
         evaluator.evaluate(Integer.class, "unknown-flag", 23, ctx);
 
-    // FLAG_NOT_FOUND path still carries consent metadata from the config in play.
     assertThat(details.getErrorCode(), equalTo(ErrorCode.FLAG_NOT_FOUND));
     assertThat(
         details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
@@ -246,7 +239,6 @@ public class DDEvaluatorTest {
     final ProviderEvaluation<?> details =
         evaluator.evaluate(Integer.class, "test", 23, mock(EvaluationContext.class));
     assertThat(details.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
-    // No config → consent stamped as the privacy-preserving false.
     assertThat(
         details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
         equalTo(false));

@@ -56,11 +56,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   static final String METADATA_SPLIT_SERIAL_ID = "__dd_split_serial_id";
   static final String METADATA_DO_LOG = "__dd_do_log";
 
-  // Consent flag pinned to the ServerConfiguration used by this evaluation. Read by
-  // FlagEvalLoggingHook so the hashed-vs-raw decision follows the config the evaluator actually
-  // used, closing the race where CURRENT_CONFIG can be swapped between evaluate() and the hook
-  // firing. Stamped on every DD-produced evaluation (including PROVIDER_NOT_READY, with false);
-  // a missing key indicates a non-DD provider and the hook falls back to false (fail-closed).
+  // Stamped on every DD-produced evaluation (including PROVIDER_NOT_READY, with false). Missing
+  // key = non-DD provider; the hook falls back to false (fail-closed).
   static final String METADATA_OBSERVE_FULL_EVALUATION_DATA = "observe_full_evaluation_data";
 
   // Read once: when off, the __dd_* span-enrichment metadata is not attached to evaluations, so an
@@ -111,12 +108,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final String key,
       final T defaultValue,
       final EvaluationContext context) {
-    // Snapshot the config once for the entire evaluation and thread its observeFullEvaluationData
-    // through every ProviderEvaluation this call can return. The hook reads the flag from the
-    // resulting evaluation metadata rather than from FeatureFlaggingGateway, so the hashed-vs-raw
-    // decision cannot drift if CURRENT_CONFIG is swapped by a Remote Config update while this
-    // evaluation is in flight. If config is null (PROVIDER_NOT_READY) we default to the
-    // privacy-preserving false — same wire outcome the hook would produce from missing metadata.
+    // Snapshot the config once and thread observeFullEvaluationData through every
+    // ProviderEvaluation returned, so the hook's consent decision is pinned to this evaluation's
+    // config and cannot drift on a concurrent Remote Config swap.
     final ServerConfiguration config = configuration.get();
     final boolean observeFullEvaluationData = config != null && config.observeFullEvaluationData;
     try {

@@ -462,9 +462,7 @@ class FlagEvalLoggingHookTest {
     assertFalse(attrs.containsKey("cohorts[1]"));
   }
 
-  // ---- observeFullEvaluationData is read from evaluation metadata stamped by DDEvaluator ----
-  // The hook must not consult FeatureFlaggingGateway for consent: doing so races against a
-  // Remote Config update that swaps CURRENT_CONFIG between evaluate() and finallyAfter().
+  // ---- observeFullEvaluationData is read from evaluation metadata, never the gateway ----
 
   @Test
   void readsObserveFullEvaluationDataTrueFromEvaluationMetadata() {
@@ -484,8 +482,7 @@ class FlagEvalLoggingHookTest {
 
   @Test
   void ignoresGatewayConsentEvenWhenItDisagreesWithMetadata() {
-    // Gateway says "consent on" (a *later* RC update after the evaluation ran); metadata pins
-    // the evaluator's original view of "consent off". The hook must trust metadata.
+    // Gateway says on, metadata says off; hook must trust metadata.
     FeatureFlaggingGateway.dispatch(observeConfig(true));
     try {
       assertFalse(enqueuedEventWithConsentMetadata(false).observeFullEvaluationData);

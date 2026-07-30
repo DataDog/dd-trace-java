@@ -109,11 +109,8 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
           ctx != null && ctx.getCtx() != null ? ctx.getCtx().getTargetingKey() : null;
       final Map<String, Value> attrs = snapshotAttrs(ctx);
 
-      // Read the PII consent flag from evaluation metadata stamped by DDEvaluator against the
-      // exact ServerConfiguration used for this evaluation. This closes the race where reading
-      // FeatureFlaggingGateway here could see a *later* RC update than the evaluator did.
-      // Missing key (non-DD provider) → false, the privacy-preserving default. DD-produced
-      // evaluations always stamp the key, including PROVIDER_NOT_READY (with false).
+      // Consent is read from metadata stamped by DDEvaluator (pinned to its ServerConfiguration).
+      // Missing key = non-DD provider → false, the privacy-preserving default.
       final Boolean consentFromMetadata =
           metadata != null
               ? metadata.getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA)
