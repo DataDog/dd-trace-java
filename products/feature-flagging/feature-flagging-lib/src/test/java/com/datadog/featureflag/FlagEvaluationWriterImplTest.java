@@ -301,6 +301,7 @@ class FlagEvaluationWriterImplTest {
             "user-1",
             null,
             1000L,
+            true,
             () -> {
               throw new IllegalArgumentException("bad context");
             }));

@@ -44,14 +44,13 @@ final class FlagEvaluationAggregator {
 
   void aggregate(final FlagEvalEvent event) {
     final boolean isDefault = event.variant == null;
-    // Consent is read from the event, where it was snapshotted on the evaluation thread at
-    // evaluation time. We deliberately do NOT read the gateway here: aggregation runs later, on the
-    // serializer thread, by which point a subsequent RC update may have changed CURRENT_CONFIG, and
-    // that must not retroactively alter the hashed-vs-raw decision for an already-evaluated flag.
-    // Existing buckets fold with AND: one no-consent evaluation sinks the bucket to hashed.
     final boolean observeFullEvaluationData = event.observeFullEvaluationData;
-    final Map<String, Object> prunedAttrs = pruneContext(event.contextAttributes());
-    final String ctxKey = canonicalContextKey(prunedAttrs);
+    // On the protected path the context is dropped on emit, so it must not fragment buckets or be
+    // stored — otherwise a high-cardinality field (request_id, timestamp) blows out PER_FLAG_CAP
+    // and spills every subsequent evaluation into the degraded tier.
+    final Map<String, Object> prunedAttrs =
+        observeFullEvaluationData ? pruneContext(event.contextAttributes()) : null;
+    final String ctxKey = observeFullEvaluationData ? canonicalContextKey(prunedAttrs) : "";
     final FullKey fullKey = buildFullKey(event, ctxKey);
 
     EvalBucket bucket = fullTier.get(fullKey);
@@ -283,10 +282,8 @@ final class FlagEvaluationAggregator {
     String targetingKey;
     String errorMessage;
     Map<String, Object> prunedAttrs;
-    // Consent to emit raw PII (targeting key + context), sourced from each event's evaluation-time
-    // snapshot (FlagEvalEvent.observeFullEvaluationData), never read from the gateway at flush. On
-    // merge the value is folded with AND (see aggregate()): if any evaluation in the bucket's
-    // lifetime saw consent off, the whole bucket falls back to hashed/omitted — fail-closed.
+    // Consent to emit raw PII, taken from each event's evaluation-time snapshot. Folded with AND
+    // on merge: any consent-off evaluation sinks the bucket to hashed/omitted (fail-closed).
     boolean observeFullEvaluationData;
 
     EvalBucket(
