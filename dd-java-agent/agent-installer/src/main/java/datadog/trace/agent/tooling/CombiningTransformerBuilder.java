@@ -61,6 +61,7 @@ public final class CombiningTransformerBuilder
 
   private final AgentBuilder agentBuilder;
   private final InstrumenterIndex instrumenterIndex;
+  private final HelpersIndex helpersIndex = HelpersIndex.readIndex();
   private final int knownTransformationCount;
   private final Set<InstrumenterModule.TargetSystem> enabledSystems;
 
@@ -130,9 +131,9 @@ public final class CombiningTransformerBuilder
 
     adviceShader = AdviceShader.with(module);
 
-    String[] helperClassNames =
-        InstrumenterModule.loadStaticMuzzleHelperClassNames(
-            Utils.getExtendedClassLoader(), module.getClass().getName());
+    // Helper names are resolved at build time and read from the index; fall back to the module for
+    // runtime-configured ones.
+    String[] helperClassNames = helpersIndex.helperClassNames(instrumentationId);
     if (null == helperClassNames) {
       helperClassNames = module.helperClassNames();
     }

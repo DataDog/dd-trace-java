@@ -185,3 +185,9 @@ registerIndexTask(
   'datadog.trace.agent.tooling.KnownTypesIndex$IndexGenerator',
   'Generate known-types.index'
   )
+
+registerIndexTask(
+  'generateHelpersIndex',
+  'datadog.trace.agent.tooling.HelpersIndex$IndexGenerator',
+  'Generate helpers.index'
+  )
