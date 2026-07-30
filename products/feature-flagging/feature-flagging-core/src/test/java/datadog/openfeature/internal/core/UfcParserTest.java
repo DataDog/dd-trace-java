@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.squareup.moshi.JsonWriter;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
@@ -163,6 +164,7 @@ class UfcParserTest {
             + "{\"key\":\"negative\",\"startAt\":\"2023-01-01T00:00:00-05:00\","
             + "\"splits\":[]},"
             + "{\"key\":\"invalid\",\"startAt\":\"not-a-date\",\"splits\":[]}"
+            + ",{\"key\":\"null\",\"startAt\":null,\"splits\":[]}"
             + "]"
             + "}}}";
 
@@ -172,6 +174,17 @@ class UfcParserTest {
     assertEquals(Instant.parse("2023-01-01T00:00:00Z"), allocations.get(0).startAt.toInstant());
     assertEquals(Instant.parse("2023-01-01T05:00:00Z"), allocations.get(1).startAt.toInstant());
     assertEquals(null, allocations.get(2).startAt);
+    assertEquals(null, allocations.get(3).startAt);
+  }
+
+  @Test
+  void rejectsSerializationThroughReadOnlyAdapters() {
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> new UfcParser.DateAdapter().toJson((JsonWriter) null, null));
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> new UfcParser.FlagMapAdapter(null).toJson((JsonWriter) null, null));
   }
 
   @Test

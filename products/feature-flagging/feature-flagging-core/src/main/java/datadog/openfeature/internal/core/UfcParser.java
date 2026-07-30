@@ -184,10 +184,10 @@ public final class UfcParser {
 
     @Override
     public Date fromJson(final JsonReader reader) throws IOException {
-      final String date = reader.nextString();
-      if (date == null) {
-        return null;
+      if (reader.peek() == JsonReader.Token.NULL) {
+        return reader.nextNull();
       }
+      final String date = reader.nextString();
       try {
         final Instant instant = DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(date, Instant::from);
         return Date.from(instant);
