@@ -136,7 +136,7 @@ public final class LightMap<K, V> {
   /**
    * A new map sized (and, if the hint carries a {@code maxCapacity}, capped) from {@code hint}.
    * Mint the hint once per construction site via {@link #adaptiveSizingHint()} or {@link
-   * #adaptiveSizingHintBuilder()}, hold it in a {@code static final} field, and pass it to every
+   * AdaptiveSizingHint#builder()}, hold it in a {@code static final} field, and pass it to every
    * map at that site.
    */
   @Nonnull
@@ -156,63 +156,11 @@ public final class LightMap<K, V> {
   }
 
   /**
-   * Opens a builder for an {@link AdaptiveSizingHint} that carries an initial capacity and/or a
-   * hard {@code maxCapacity}. Use this instead of {@link #adaptiveSizingHint()} when a site wants
-   * to bound its maps' worst-case memory: every map built from the returned hint shares the same
-   * cap, and {@link #set} rejects (returns {@code false}) once a map is physically full at that
-   * cap. The hint still self-tunes its seed capacity within the cap.
-   */
-  @Nonnull
-  public static AdaptiveSizingHintBuilder adaptiveSizingHintBuilder() {
-    return new AdaptiveSizingHintBuilder();
-  }
-
-  /** Builds an {@link AdaptiveSizingHint} with an initial and/or maximum capacity. */
-  public static final class AdaptiveSizingHintBuilder {
-    private int initCapacity = DEFAULT_HINT_SLOTS;
-    private int maxCapacity = NO_MAX_SLOTS;
-
-    private AdaptiveSizingHintBuilder() {}
-
-    /** Seed capacity in slots for a cold map (rounded up to a power of two). */
-    @Nonnull
-    public AdaptiveSizingHintBuilder initCapacity(int slots) {
-      this.initCapacity = slots;
-      return this;
-    }
-
-    /**
-     * Hard cap, in slots (rounded up to a power of two), on how large any map built from this hint
-     * may grow. Once a map is physically full at this many slots, {@link #set} rejects a new key
-     * (returns {@code false}) instead of growing further -- bounding worst-case memory.
-     */
-    @Nonnull
-    public AdaptiveSizingHintBuilder maxCapacity(int slots) {
-      this.maxCapacity = slots;
-      return this;
-    }
-
-    @Nonnull
-    public AdaptiveSizingHint build() {
-      int seed = EmbeddingSupport.roundUpToPow2(this.initCapacity);
-      int max =
-          (this.maxCapacity == NO_MAX_SLOTS)
-              ? NO_MAX_SLOTS
-              : EmbeddingSupport.roundUpToPow2(this.maxCapacity);
-      if (max != NO_MAX_SLOTS && seed > max) {
-        throw new IllegalArgumentException(
-            "initCapacity (" + seed + " slots) exceeds maxCapacity (" + max + " slots)");
-      }
-      return new AdaptiveSizingHint(seed, max);
-    }
-  }
-
-  /**
    * Stores {@code value} under {@code key}, growing the backing table if the probe-bound grow
    * trigger fires. Returns {@code true} if the mapping was stored (or overwrote an existing one).
    *
    * <p>Returns {@code false} only for a capped map (one built via {@link #createCapped(int)} /
-   * {@link #createCapped(int, int)}, or from a {@link #adaptiveSizingHintBuilder()}.{@code
+   * {@link #createCapped(int, int)}, or from a {@link AdaptiveSizingHint#builder()}.{@code
    * maxCapacity(...)} hint): once the table is physically full at its cap, a genuinely new key is
    * rejected rather than growing past the cap. The rejection is non-fatal -- the map is unchanged
    * and the caller may ignore the return. An uncapped map always returns {@code true}.
@@ -321,6 +269,18 @@ public final class LightMap<K, V> {
       this.maxSlots = maxSlots;
     }
 
+    /**
+     * Opens a builder for an {@link AdaptiveSizingHint} that carries an initial capacity and/or a
+     * hard {@code maxCapacity}. Use this instead of {@link LightMap#adaptiveSizingHint()} when a
+     * site wants to bound its maps' worst-case memory: every map built from the returned hint
+     * shares the same cap, and {@link LightMap#set} rejects (returns {@code false}) once a map is
+     * physically full at that cap. The hint still self-tunes its seed capacity within the cap.
+     */
+    @Nonnull
+    public static Builder builder() {
+      return new Builder();
+    }
+
     // The hard slot cap for maps built from this hint (NO_MAX_SLOTS when uncapped).
     int maxSlots() {
       return this.maxSlots;
@@ -361,6 +321,47 @@ public final class LightMap<K, V> {
     // Visible for testing: the current learned seed capacity in slots.
     int currentSeedSlots() {
       return this.slots;
+    }
+
+    /** Builds an {@link AdaptiveSizingHint} with an initial and/or maximum capacity. */
+    public static final class Builder {
+      private int initCapacity = DEFAULT_HINT_SLOTS;
+      private int maxCapacity = NO_MAX_SLOTS;
+
+      private Builder() {}
+
+      /** Seed capacity in slots for a cold map (rounded up to a power of two). */
+      @Nonnull
+      public Builder initCapacity(int slots) {
+        this.initCapacity = slots;
+        return this;
+      }
+
+      /**
+       * Hard cap, in slots (rounded up to a power of two), on how large any map built from this
+       * hint may grow. Once a map is physically full at this many slots, {@link LightMap#set}
+       * rejects a new key (returns {@code false}) instead of growing further -- bounding worst-case
+       * memory.
+       */
+      @Nonnull
+      public Builder maxCapacity(int slots) {
+        this.maxCapacity = slots;
+        return this;
+      }
+
+      @Nonnull
+      public AdaptiveSizingHint build() {
+        int seed = EmbeddingSupport.roundUpToPow2(this.initCapacity);
+        int max =
+            (this.maxCapacity == NO_MAX_SLOTS)
+                ? NO_MAX_SLOTS
+                : EmbeddingSupport.roundUpToPow2(this.maxCapacity);
+        if (max != NO_MAX_SLOTS && seed > max) {
+          throw new IllegalArgumentException(
+              "initCapacity (" + seed + " slots) exceeds maxCapacity (" + max + " slots)");
+        }
+        return new AdaptiveSizingHint(seed, max);
+      }
     }
   }
 

@@ -659,7 +659,7 @@ class LightMapTest {
       // Dropping to the spine keeps the hint's sizing: a fresh table seeds from seedSlots(), just
       // like LightMap.create(hint) does through the object tier.
       LightMap.AdaptiveSizingHint hint =
-          LightMap.adaptiveSizingHintBuilder().initCapacity(4).build();
+          LightMap.AdaptiveSizingHint.builder().initCapacity(4).build();
       Object[] data = EmbeddingSupport.set(hint, null, "a", 1);
       assertEquals(4, EmbeddingSupport.numSlots(data));
       assertEquals(1, (Object) EmbeddingSupport.get(data, "a"));
@@ -685,7 +685,7 @@ class LightMapTest {
       // so a capped hint used at the spine grows past its cap and always stores. (Contrast the
       // object tier, which rejects at the cap -- see CapTests.)
       LightMap.AdaptiveSizingHint hint =
-          LightMap.adaptiveSizingHintBuilder().initCapacity(2).maxCapacity(4).build();
+          LightMap.AdaptiveSizingHint.builder().initCapacity(2).maxCapacity(4).build();
       Object[] data = null;
       for (int i = 0; i < 12; i++) {
         data = EmbeddingSupport.set(hint, data, "k" + i, i);
@@ -730,10 +730,10 @@ class LightMapTest {
 
     @Test
     void hintWithoutMaxCapacityIsUncapped() {
-      // adaptiveSizingHintBuilder() with no maxCapacity behaves like the zero-config
+      // AdaptiveSizingHint.builder() with no maxCapacity behaves like the zero-config
       // adaptiveSizingHint(): no cap, so
       // set always stores.
-      LightMap.AdaptiveSizingHint hint = LightMap.adaptiveSizingHintBuilder().build();
+      LightMap.AdaptiveSizingHint hint = LightMap.AdaptiveSizingHint.builder().build();
       LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 100; i++) {
         assertTrue(map.set("k" + i, i));
@@ -747,7 +747,7 @@ class LightMapTest {
       // 8-slot table never trips the probe bound, so it fills before it would grow); a ninth,
       // genuinely new key cannot grow past the cap, so set rejects it and leaves the map unchanged.
       LightMap.AdaptiveSizingHint hint =
-          LightMap.adaptiveSizingHintBuilder().maxCapacity(8).build();
+          LightMap.AdaptiveSizingHint.builder().maxCapacity(8).build();
       LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 8; i++) {
         assertTrue(map.set("k" + i, i), "slot " + i + " should store");
@@ -769,7 +769,7 @@ class LightMapTest {
       // Rejection only applies to a genuinely new key. Overwriting a present key when the table is
       // full at the cap still succeeds -- no new slot is needed.
       LightMap.AdaptiveSizingHint hint =
-          LightMap.adaptiveSizingHintBuilder().maxCapacity(8).build();
+          LightMap.AdaptiveSizingHint.builder().maxCapacity(8).build();
       LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 8; i++) {
         map.set("k" + i, i);
@@ -784,7 +784,7 @@ class LightMapTest {
       // A cap does not pin the seed size: a map started small still grows through the
       // power-of-two classes up to the cap, retaining every entry along the way.
       LightMap.AdaptiveSizingHint hint =
-          LightMap.adaptiveSizingHintBuilder().initCapacity(2).maxCapacity(16).build();
+          LightMap.AdaptiveSizingHint.builder().initCapacity(2).maxCapacity(16).build();
       LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 16; i++) {
         assertTrue(map.set("k" + i, i), "slot " + i + " should store below the cap");
@@ -803,7 +803,7 @@ class LightMapTest {
       // a
       // new key succeeds via the reclaimed tombstone.
       LightMap.AdaptiveSizingHint hint =
-          LightMap.adaptiveSizingHintBuilder().maxCapacity(8).build();
+          LightMap.AdaptiveSizingHint.builder().maxCapacity(8).build();
       LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 8; i++) {
         map.set("k" + i, i);
@@ -818,7 +818,7 @@ class LightMapTest {
     void maxCapacityRoundsUpToPowerOfTwo() {
       // A non-power-of-two cap rounds up: maxCapacity(5) becomes an 8-slot cap.
       LightMap.AdaptiveSizingHint hint =
-          LightMap.adaptiveSizingHintBuilder().maxCapacity(5).build();
+          LightMap.AdaptiveSizingHint.builder().maxCapacity(5).build();
       LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 8; i++) {
         assertTrue(map.set("k" + i, i));
@@ -830,7 +830,7 @@ class LightMapTest {
     void buildThrowsWhenInitCapacityExceedsMaxCapacity() {
       assertThrows(
           IllegalArgumentException.class,
-          () -> LightMap.adaptiveSizingHintBuilder().initCapacity(16).maxCapacity(8).build());
+          () -> LightMap.AdaptiveSizingHint.builder().initCapacity(16).maxCapacity(8).build());
     }
 
     @Test
@@ -839,7 +839,7 @@ class LightMapTest {
       // (which
       // normally reserves a class of headroom) cannot push the seed past maxSlots.
       LightMap.AdaptiveSizingHint hint =
-          LightMap.adaptiveSizingHintBuilder().initCapacity(2).maxCapacity(16).build();
+          LightMap.AdaptiveSizingHint.builder().initCapacity(2).maxCapacity(16).build();
       LightMap<String, Integer> map = LightMap.create(hint);
       for (int i = 0; i < 16; i++) {
         map.set("k" + i, i);
