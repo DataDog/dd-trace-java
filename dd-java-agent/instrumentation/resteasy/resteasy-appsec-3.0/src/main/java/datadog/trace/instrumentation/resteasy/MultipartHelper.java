@@ -91,7 +91,7 @@ public final class MultipartHelper {
   // other multipart integrations).
   private static String contentTypeWithDefaultUtf8(String contentType) {
     return MultipartContentDecoder.extractCharset(contentType) == null
-        ? (contentType == null ? "charset=UTF-8" : contentType + "; charset=UTF-8")
+        ? (contentType == null ? "text/plain; charset=UTF-8" : contentType + "; charset=UTF-8")
         : contentType;
   }
 

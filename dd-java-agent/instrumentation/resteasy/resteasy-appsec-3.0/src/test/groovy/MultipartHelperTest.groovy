@@ -155,6 +155,34 @@ class MultipartHelperTest extends Specification {
     h
   }
 
+  // contentTypeWithDefaultUtf8 (private, tested via reflection)
+  //
+  // Asserted directly rather than only through collectBodyMap's end-to-end decoding, because the
+  // resulting Charset.defaultCharset() fallback on a null/unrecognized charset happens to equal
+  // UTF-8 on JDK 18+ (JEP 400) test environments regardless of whether this method is correct,
+  // which would silently mask a regression here.
+
+  private static String contentTypeWithDefaultUtf8(String contentType) {
+    Method m = MultipartHelper.getDeclaredMethod('contentTypeWithDefaultUtf8', String)
+    m.setAccessible(true)
+    return (String) m.invoke(null, [contentType] as Object[])
+  }
+
+  def "contentTypeWithDefaultUtf8 includes a media type in the fallback for a null content-type"() {
+    expect: "the result must remain a value extractCharset() can parse, i.e. include a media type"
+    contentTypeWithDefaultUtf8(null) == 'text/plain; charset=UTF-8'
+  }
+
+  def "contentTypeWithDefaultUtf8 appends charset to an existing content-type without one"() {
+    expect:
+    contentTypeWithDefaultUtf8('text/plain') == 'text/plain; charset=UTF-8'
+  }
+
+  def "contentTypeWithDefaultUtf8 leaves a content-type with an already declared charset untouched"() {
+    expect:
+    contentTypeWithDefaultUtf8('text/plain; charset=ISO-8859-1') == 'text/plain; charset=ISO-8859-1'
+  }
+
   // collectBodyMap
 
   def "collectBodyMap collects text parts grouped by field name"() {
