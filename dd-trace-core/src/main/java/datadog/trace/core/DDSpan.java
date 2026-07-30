@@ -27,6 +27,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
@@ -119,6 +120,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
 
   private static final List<AgentSpanLink> EMPTY = Collections.emptyList();
   protected volatile List<AgentSpanLink> links;
+
+  private static final List<AgentSpanEvent> NO_EVENTS = Collections.emptyList();
+  protected volatile List<AgentSpanEvent> events = NO_EVENTS;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -781,8 +785,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   }
 
   @Override
-  public void processTagsAndBaggageWithStructuredLinks(final MetadataConsumer consumer) {
-    context.processTagsAndBaggageWithStructuredLinks(consumer, longRunningVersion, this);
+  public void processTagsAndBaggageWithStructuredLinksAndEvents(final MetadataConsumer consumer) {
+    context.processTagsAndBaggageWithStructuredLinksAndEvents(consumer, longRunningVersion, this);
   }
 
   @Override
@@ -933,6 +937,33 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
         links.add(link);
       } else {
         this.links = new CopyOnWriteArrayList<>(Collections.singletonList(link));
+      }
+    }
+  }
+
+  public List<? extends AgentSpanEvent> getEvents() {
+    return this.events;
+  }
+
+  @Override
+  public void addEvent(AgentSpanEvent event) {
+    if (event == null) {
+      return;
+    }
+
+    // Mirrors `addLink()` method thread safety model.
+    List<AgentSpanEvent> events = this.events;
+    if (events != NO_EVENTS) {
+      events.add(event);
+      return;
+    }
+
+    synchronized (this) {
+      events = this.events;
+      if (events != NO_EVENTS) {
+        events.add(event);
+      } else {
+        this.events = new CopyOnWriteArrayList<>(Collections.singletonList(event));
       }
     }
   }
