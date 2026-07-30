@@ -58,6 +58,7 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
   private static final AtomicLongArray appSecSdkEventQueue =
       new AtomicLongArray(LoginEvent.getNumValues() * LoginVersion.getNumValues());
   private static final AtomicInteger wafConfigErrorCounter = new AtomicInteger();
+  private static final AtomicInteger contextClosedRaceCounter = new AtomicInteger();
   private static final AtomicLongArray aiGuardRequests =
       new AtomicLongArray(AIGuard.Action.values().length * 2); // 3 actions * block
   private static final AtomicInteger aiGuardErrors = new AtomicInteger();
@@ -391,6 +392,14 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
       }
     }
 
+    // WafContext closed-concurrently race (APPSEC-69085)
+    int contextClosedRace = contextClosedRaceCounter.getAndSet(0);
+    if (contextClosedRace > 0) {
+      if (!rawMetricsQueue.offer(new ContextClosedRace(contextClosedRace))) {
+        return;
+      }
+    }
+
     // AI Guard successful requests
     for (final AIGuard.Action action : AIGuard.Action.values()) {
       final long blocked = aiGuardRequests.getAndSet(action.ordinal() * 2 + 1, 0);
@@ -523,6 +532,21 @@ public class WafMetricCollector implements MetricCollector<WafMetricCollector.Wa
 
   public void addWafConfigError(int nbErrors) {
     wafConfigErrorCounter.addAndGet(nbErrors);
+  }
+
+  /**
+   * Records that {@code getOrCreateWafContext} rejected a run because the request's {@code
+   * WafContext} was already closed concurrently (APPSEC-69085). Used to measure the frequency of
+   * this race in production.
+   */
+  public void wafContextClosedRace() {
+    contextClosedRaceCounter.incrementAndGet();
+  }
+
+  public static class ContextClosedRace extends WafMetric {
+    public ContextClosedRace(final long counter) {
+      super("waf.context_closed_race", counter);
+    }
   }
 
   public static class WafConfigError extends WafMetric {

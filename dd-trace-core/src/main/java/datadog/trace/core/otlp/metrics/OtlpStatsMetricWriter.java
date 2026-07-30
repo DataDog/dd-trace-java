@@ -228,6 +228,13 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     if (entry.hasGrpcStatusCode()) {
       emitStringAttribute(metric, RPC_RESPONSE_STATUS_CODE, entry.getGrpcStatusCode());
     }
+    // Additional metric tags: user-configured span-derived dimensions, carried as packed
+    // "key:value" UTF8 strings in schema order. Emitted in both modes as plain OTLP string
+    // attributes keyed by the tag name. NOTE: the attribute-key representation (raw tag name vs a
+    // datadog.* namespace) is an open cross-team question with the OTLP/agent side -- see the PR.
+    for (UTF8BytesString additionalTag : entry.getAdditionalTags()) {
+      emitAdditionalTag(metric, additionalTag);
+    }
     // Default (Datadog) mode: emit datadog.* per-point attributes
     if (!otelSemanticsMode) {
       emitStringAttribute(metric, DATADOG_OPERATION_NAME, entry.getOperationName());
@@ -237,6 +244,21 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
         emitStringAttribute(metric, DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
       }
     }
+  }
+
+  // Splits a packed "key:value" additional-tag string at the first ':' (keys cannot contain ':',
+  // values may) and emits it as an OTLP string attribute. Skips only malformed slots with no ':' or
+  // an empty key. An empty value ("key:") is emitted as key="": the aggregation path treats an
+  // explicitly-empty tag as a distinct dimension from an absent one, so dropping it here would
+  // export two separately-aggregated rows with identical OTLP attribute sets.
+  private static void emitAdditionalTag(OtlpMetricVisitor metric, UTF8BytesString additionalTag) {
+    String packed = additionalTag.toString();
+    int separator = packed.indexOf(':');
+    if (separator <= 0) {
+      return;
+    }
+    metric.visitAttribute(
+        STRING_ATTRIBUTE, packed.substring(0, separator), packed.substring(separator + 1));
   }
 
   // accepts both String literals and UTF8BytesString (both CharSequence); skips null values
