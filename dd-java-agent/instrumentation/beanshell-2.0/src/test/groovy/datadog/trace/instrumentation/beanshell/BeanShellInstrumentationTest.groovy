@@ -74,4 +74,25 @@ class BeanShellInstrumentationTest extends InstrumentationSpecification {
     'https://localhost:1/'   | 0
     'ftp://localhost:1/'     | 0
   }
+
+  void 'test Remote.eval reports ssrf even when the script is null'() {
+    given:
+    final codeInjectionModule = Mock(CodeInjectionModule)
+    final ssrfModule = Mock(SsrfModule)
+    InstrumentationBridge.registerIastModule(codeInjectionModule)
+    InstrumentationBridge.registerIastModule(ssrfModule)
+
+    when:
+    // bsh.Remote opens the socket before it dereferences the script, so a null script must not
+    // suppress the SSRF report for a connecting URL scheme.
+    try {
+      Remote.eval('bsh://localhost:1/', (String) null)
+    } catch (Exception ignored) {
+    }
+
+    then:
+    1 * ssrfModule.onURLConnection('bsh://localhost:1/')
+    0 * codeInjectionModule.onEval(_)
+    0 * _
+  }
 }
