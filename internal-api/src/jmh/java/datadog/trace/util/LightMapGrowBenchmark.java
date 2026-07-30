@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import datadog.trace.util.LightMap.EmbeddingSupport;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -270,6 +271,7 @@ public class LightMapGrowBenchmark {
     return (double) sum / xs.length;
   }
 
+  @SuppressForbidden // System.out: this is a CLI analysis report, not agent logging.
   public static void main(String[] args) {
     int[] ks = {4, 8};
     System.out.printf(
@@ -287,6 +289,7 @@ public class LightMapGrowBenchmark {
     }
   }
 
+  @SuppressForbidden // System.out: this is a CLI analysis report, not agent logging.
   static void reportRow(Regime regime, Trigger trigger, int k, String[] keys) {
     Cursor c = new Cursor();
     for (int i = 0; i < keys.length; i++) {
