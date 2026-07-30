@@ -52,7 +52,9 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   private static final String TEST_SERVICE_NAME = "test-gradle-service";
   private static final Path GRADLE_DAEMON_DIAGNOSTICS_DIR =
       Paths.get(
-          System.getProperty("datadog.smoketest.builddir"), "reports", "gradle-daemon-diagnostics");
+          System.getProperty("datadog.smoketest.builddir", "build"),
+          "reports",
+          "gradle-daemon-diagnostics");
   private static final Pattern DAEMON_LOG_PATTERN = Pattern.compile("daemon-(.+)\\.out\\.log");
 
   // Gradle's default timeout is 10s
@@ -489,6 +491,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     }
     summary.add("gradleVersion=" + gradleVersion);
 
+    Path cgroupMembership = Paths.get("/proc/self/cgroup");
     Path daemonLogDir = testKitFolder.resolve("test-kit-daemon/" + gradleVersion);
     Path daemonLog = newestDaemonLog(daemonLogDir);
     if (daemonLog != null) {
@@ -507,7 +510,11 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
             summary.add("daemonProcessPresent=" + Files.isDirectory(processDir));
             copyIfExists(processDir.resolve("status"), failureDir.resolve("proc-status"), summary);
             copyIfExists(processDir.resolve("limits"), failureDir.resolve("proc-limits"), summary);
-            copyIfExists(processDir.resolve("cgroup"), failureDir.resolve("proc-cgroup"), summary);
+            Path daemonCgroupMembership = processDir.resolve("cgroup");
+            copyIfExists(daemonCgroupMembership, failureDir.resolve("proc-cgroup"), summary);
+            if (Files.isRegularFile(daemonCgroupMembership)) {
+              cgroupMembership = daemonCgroupMembership;
+            }
           } else {
             summary.add("daemonProcessPresent=unknown");
           }
@@ -527,21 +534,57 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       summary.add("daemonLog=not found");
     }
 
-    Path cgroupRoot = Paths.get("/sys/fs/cgroup");
+    summary.add("cgroupMembership=" + cgroupMembership);
+    Path cgroupDirectory = resolveCgroupV2Directory(cgroupMembership, summary);
+    summary.add("cgroupDirectory=" + cgroupDirectory);
     copyIfExists(
-        cgroupRoot.resolve("memory.events"), failureDir.resolve("cgroup-memory.events"), summary);
+        cgroupDirectory.resolve("memory.events"),
+        failureDir.resolve("cgroup-memory.events"),
+        summary);
     copyIfExists(
-        cgroupRoot.resolve("memory.current"), failureDir.resolve("cgroup-memory.current"), summary);
+        cgroupDirectory.resolve("memory.current"),
+        failureDir.resolve("cgroup-memory.current"),
+        summary);
     copyIfExists(
-        cgroupRoot.resolve("memory.peak"), failureDir.resolve("cgroup-memory.peak"), summary);
+        cgroupDirectory.resolve("memory.peak"), failureDir.resolve("cgroup-memory.peak"), summary);
     copyIfExists(
-        cgroupRoot.resolve("pids.events"), failureDir.resolve("cgroup-pids.events"), summary);
+        cgroupDirectory.resolve("pids.events"), failureDir.resolve("cgroup-pids.events"), summary);
     copyIfExists(
-        cgroupRoot.resolve("pids.current"), failureDir.resolve("cgroup-pids.current"), summary);
-    copyIfExists(cgroupRoot.resolve("pids.max"), failureDir.resolve("cgroup-pids.max"), summary);
+        cgroupDirectory.resolve("pids.current"),
+        failureDir.resolve("cgroup-pids.current"),
+        summary);
+    copyIfExists(
+        cgroupDirectory.resolve("pids.max"), failureDir.resolve("cgroup-pids.max"), summary);
 
     Files.write(failureDir.resolve("summary.txt"), summary, StandardCharsets.UTF_8);
     System.out.println("Gradle daemon diagnostics written to " + failureDir);
+  }
+
+  private static Path resolveCgroupV2Directory(Path cgroupMembership, List<String> summary) {
+    Path cgroupRoot = Paths.get("/sys/fs/cgroup");
+    if (!Files.isRegularFile(cgroupMembership)) {
+      return cgroupRoot;
+    }
+
+    try {
+      for (String line : Files.readAllLines(cgroupMembership, StandardCharsets.UTF_8)) {
+        if (line.startsWith("0::")) {
+          String relativePath = line.substring(3);
+          if (relativePath.startsWith("/")) {
+            relativePath = relativePath.substring(1);
+          }
+          Path cgroupDirectory = cgroupRoot.resolve(relativePath);
+          if (Files.isDirectory(cgroupDirectory)) {
+            return cgroupDirectory;
+          }
+          summary.add("cgroupDirectoryNotFound=" + cgroupDirectory);
+          break;
+        }
+      }
+    } catch (IOException e) {
+      summary.add("cgroupMembershipReadFailed[" + cgroupMembership + "]=" + e);
+    }
+    return cgroupRoot;
   }
 
   private static Path newestDaemonLog(Path daemonLogDir) throws IOException {
