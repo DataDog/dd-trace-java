@@ -8,12 +8,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * A lightweight {@link String}-keyed map, designed to be small and fast for tiny maps.
+ * A lightweight map, keyed by any type with a stable {@code hashCode}/{@code equals} (typically
+ * {@link String}), designed to be small and fast for tiny maps.
  *
  * <p>Supports the common map operations -- {@code set}, {@code get}, {@code remove}, {@code
  * containsKey}, and {@code forEach} -- as an easy, largely footgun-free stand-in wherever a small
- * {@code Map<String, V>} is needed. It deliberately does <em>not</em> implement {@link
- * java.util.Map}; the surface is intentionally small.
+ * {@code Map<K, V>} is needed. It deliberately does <em>not</em> implement {@link java.util.Map};
+ * the surface is intentionally small.
  *
  * <p>Neither null keys nor null values are supported: {@code set} rejects a null value, so a null
  * {@code get} result unambiguously means "absent". Use {@link #containsKey} if you need to probe
@@ -38,7 +39,7 @@ import javax.annotation.Nullable;
  * In the event of resizing, removal markers are discarded while assigning
  * slots in the new data array.
  */
-public final class LightStringMap<V> {
+public final class LightStringMap<K, V> {
   public static final int DEFAULT_CAPACITY = 8;
 
   // Slots a fresh (un-tuned) hint seeds -- a reasonable default so a cold site behaves like a
@@ -80,7 +81,7 @@ public final class LightStringMap<V> {
 
   /** A new, uncapped map seeded at the default capacity. The "just give me a map" front door. */
   @Nonnull
-  public static <V> LightStringMap<V> createUncapped() {
+  public static <K, V> LightStringMap<K, V> createUncapped() {
     return new LightStringMap<>(DEFAULT_CAPACITY, NO_MAX_SLOTS);
   }
 
@@ -90,7 +91,7 @@ public final class LightStringMap<V> {
    * a {@link #adaptiveSizingHint()}.
    */
   @Nonnull
-  public static <V> LightStringMap<V> createUncapped(int capacity) {
+  public static <K, V> LightStringMap<K, V> createUncapped(int capacity) {
     return new LightStringMap<>(capacity, NO_MAX_SLOTS);
   }
 
@@ -101,7 +102,7 @@ public final class LightStringMap<V> {
    * thought-free way to bound worst-case memory without minting an {@link AdaptiveSizingHint}.
    */
   @Nonnull
-  public static <V> LightStringMap<V> createCapped(int maxCapacity) {
+  public static <K, V> LightStringMap<K, V> createCapped(int maxCapacity) {
     int max = EmbeddingSupport.roundUpToPow2(maxCapacity);
     int seed = Math.min(DEFAULT_CAPACITY, max);
     return new LightStringMap<>(seed, max);
@@ -113,7 +114,7 @@ public final class LightStringMap<V> {
    * seed. Throws {@link IllegalArgumentException} if the rounded seed exceeds the rounded cap.
    */
   @Nonnull
-  public static <V> LightStringMap<V> createCapped(int initialCapacity, int maxCapacity) {
+  public static <K, V> LightStringMap<K, V> createCapped(int initialCapacity, int maxCapacity) {
     int seed = EmbeddingSupport.roundUpToPow2(initialCapacity);
     int max = EmbeddingSupport.roundUpToPow2(maxCapacity);
     if (seed > max) {
@@ -130,7 +131,7 @@ public final class LightStringMap<V> {
    * at that site.
    */
   @Nonnull
-  public static <V> LightStringMap<V> create(@Nonnull AdaptiveSizingHint hint) {
+  public static <K, V> LightStringMap<K, V> create(@Nonnull AdaptiveSizingHint hint) {
     return new LightStringMap<>(hint);
   }
 
@@ -207,7 +208,7 @@ public final class LightStringMap<V> {
    * rejected rather than growing past the cap. The rejection is non-fatal -- the map is unchanged
    * and the caller may ignore the return. An uncapped map always returns {@code true}.
    */
-  public boolean set(@Nonnull String key, @Nonnull V value) {
+  public boolean set(@Nonnull K key, @Nonnull V value) {
     // Null-value rejection is enforced centrally in EmbeddingSupport.setOrReject (the shared insert
     // core), so it holds for the spine entry points too -- not just this object-tier front door.
     // A thin delegate over the shared spine orchestration: it passes this map's cap (NO_MAX_SLOTS
@@ -238,11 +239,11 @@ public final class LightStringMap<V> {
   }
 
   @Nullable
-  public V get(@Nonnull String key) {
+  public V get(@Nonnull K key) {
     return EmbeddingSupport.get(this.data, key);
   }
 
-  public void remove(@Nonnull String key) {
+  public void remove(@Nonnull K key) {
     EmbeddingSupport.remove(this.data, key);
   }
 
@@ -251,19 +252,19 @@ public final class LightStringMap<V> {
     return EmbeddingSupport.size(this.data);
   }
 
-  public boolean containsKey(@Nonnull String key) {
+  public boolean containsKey(@Nonnull K key) {
     return EmbeddingSupport.containsKey(this.data, key);
   }
 
   @SuppressWarnings("unchecked")
-  public void forEach(@Nonnull BiConsumer<? super String, ? super V> consumer) {
+  public void forEach(@Nonnull BiConsumer<? super K, ? super V> consumer) {
     Object[] mapData = this.data;
     if (mapData == null) return;
     int numSlots = mapData.length >> 1;
     for (int slot = 0; slot < numSlots; slot++) {
       Object key = mapData[slot];
       if (key == null || EmbeddingSupport.isRemoved(key)) continue;
-      consumer.accept((String) key, (V) mapData[slot + numSlots]);
+      consumer.accept((K) key, (V) mapData[slot + numSlots]);
     }
   }
 
@@ -454,12 +455,12 @@ public final class LightStringMap<V> {
     }
 
     @Nullable
-    public static String keyAt(@Nullable Object[] mapData, int slotIndex) {
+    public static Object keyAt(@Nullable Object[] mapData, int slotIndex) {
       if (mapData == null) return null;
       if (slotIndex < 0) return null;
 
       Object key = mapData[slotIndex];
-      return (key == REMOVED) ? null : (String) key;
+      return (key == REMOVED) ? null : key;
     }
 
     @SuppressWarnings("unchecked")
@@ -470,7 +471,7 @@ public final class LightStringMap<V> {
       return (V) mapData[slotIndex + numSlots(mapData)];
     }
 
-    public static final boolean containsKey(@Nullable Object[] mapData, @Nonnull String key) {
+    public static final boolean containsKey(@Nullable Object[] mapData, @Nonnull Object key) {
       if (mapData == null) return false;
 
       int numSlots = numSlots(mapData);
@@ -506,13 +507,13 @@ public final class LightStringMap<V> {
 
     @Nonnull
     public static <V> Object[] set(
-        @Nullable Object[] mapData, @Nonnull String key, @Nonnull V value) {
+        @Nullable Object[] mapData, @Nonnull Object key, @Nonnull V value) {
       return set(DEFAULT_CAPACITY, mapData, key, value);
     }
 
     @Nonnull
     public static <V> Object[] set(
-        int initialCapacity, @Nullable Object[] mapData, @Nonnull String key, @Nonnull V value) {
+        int initialCapacity, @Nullable Object[] mapData, @Nonnull Object key, @Nonnull V value) {
       // Uncapped: NO_MAX_SLOTS makes the cap check inert, so setOrReject grows on demand and never
       // rejects -- the result is always non-null.
       return setOrReject(initialCapacity, NO_MAX_SLOTS, mapData, key, value);
@@ -534,7 +535,7 @@ public final class LightStringMap<V> {
     public static <V> Object[] set(
         @Nonnull AdaptiveSizingHint hint,
         @Nullable Object[] mapData,
-        @Nonnull String key,
+        @Nonnull Object key,
         @Nonnull V value) {
       int beforeSlots = numSlots(mapData);
       // Seed a fresh table from the hint (mirrors LightStringMap(hint)); initialCapacity is only
@@ -565,7 +566,7 @@ public final class LightStringMap<V> {
         int initialCapacity,
         int maxSlots,
         @Nullable Object[] mapData,
-        @Nonnull String key,
+        @Nonnull Object key,
         @Nonnull V value) {
       // The map contract forbids null values (a null get() unambiguously means "absent"), so reject
       // one here -- the single chokepoint every set path (object tier and spine) flows through.
@@ -619,7 +620,7 @@ public final class LightStringMap<V> {
 
     @SuppressWarnings("unchecked")
     @Nullable
-    public static <V> V get(@Nullable Object[] mapData, @Nonnull String key) {
+    public static <V> V get(@Nullable Object[] mapData, @Nonnull Object key) {
       if (mapData == null) return null;
 
       int numSlots = numSlots(mapData);
@@ -628,7 +629,7 @@ public final class LightStringMap<V> {
       return (foundIndex >= 0) ? (V) mapData[numSlots + foundIndex] : null;
     }
 
-    public static boolean remove(@Nullable Object[] mapData, @Nonnull String key) {
+    public static boolean remove(@Nullable Object[] mapData, @Nonnull Object key) {
       if (mapData == null) return false;
 
       int numSlots = numSlots(mapData);
@@ -643,7 +644,7 @@ public final class LightStringMap<V> {
       }
     }
 
-    public static <T> int findInsertionSlot(@Nullable Object[] mapData, @Nonnull String key) {
+    public static <T> int findInsertionSlot(@Nullable Object[] mapData, @Nonnull Object key) {
       if (mapData == null) return SLOT_CAPACITY_REACHED;
 
       return findInsertionSlot(mapData, numSlots(mapData), key);
@@ -654,7 +655,7 @@ public final class LightStringMap<V> {
         int initialCapacity,
         @Nullable Object[] mapData,
         int insertionSlot,
-        @Nonnull String key,
+        @Nonnull Object key,
         @Nonnull Object value) {
       // Same null-value invariant as setOrReject; insertAt is a separate spine write path that does
       // not flow through it, so it needs its own guard.
@@ -677,12 +678,12 @@ public final class LightStringMap<V> {
     }
 
     static final <T> int findInsertionSlot(
-        @Nonnull Object[] mapData, int numSlots, @Nonnull String key) {
+        @Nonnull Object[] mapData, int numSlots, @Nonnull Object key) {
       return findInsertionSlot(mapData, numSlots, key, preferredSlot(numSlots, key.hashCode()));
     }
 
     static final <T> int findInsertionSlot(
-        @Nonnull Object[] mapData, int numSlots, @Nonnull String key, int preferredSlot) {
+        @Nonnull Object[] mapData, int numSlots, @Nonnull Object key, int preferredSlot) {
       int availableIndex = SLOT_CAPACITY_REACHED;
       for (int keyIndex = preferredSlot; keyIndex < numSlots; ++keyIndex) {
         Object curKey = mapData[keyIndex];
@@ -738,13 +739,13 @@ public final class LightStringMap<V> {
       return prev;
     }
 
-    public static final int findSlot(@Nullable Object[] mapData, @Nonnull String key) {
+    public static final int findSlot(@Nullable Object[] mapData, @Nonnull Object key) {
       if (mapData == null) return SLOT_NOT_FOUND;
 
       return findSlot(mapData, numSlots(mapData), key);
     }
 
-    static final int findSlot(@Nonnull Object[] mapData, int numSlots, @Nonnull String key) {
+    static final int findSlot(@Nonnull Object[] mapData, int numSlots, @Nonnull Object key) {
       int hash = key.hashCode();
       int preferredSlot = preferredSlot(numSlots, hash);
 
@@ -773,7 +774,7 @@ public final class LightStringMap<V> {
 
     @Nonnull
     static final Object[] newMapData(
-        int initialCapacity, @Nonnull String key, @Nonnull Object value) {
+        int initialCapacity, @Nonnull Object key, @Nonnull Object value) {
       int numSlots = roundUpToPow2(initialCapacity);
       Object[] mapData = new Object[numSlots << 1];
 
@@ -811,8 +812,9 @@ public final class LightStringMap<V> {
       return newMapData;
     }
 
-    public static void forEach(
-        @Nullable Object[] mapData, @Nonnull BiConsumer<String, Object> entryConsumer) {
+    @SuppressWarnings("unchecked")
+    public static <K, V> void forEach(
+        @Nullable Object[] mapData, @Nonnull BiConsumer<? super K, ? super V> entryConsumer) {
       if (mapData == null) return;
 
       int numSlots = numSlots(mapData);
@@ -821,14 +823,15 @@ public final class LightStringMap<V> {
         if (key == null || key == REMOVED) continue;
 
         Object value = mapData[slot + numSlots];
-        entryConsumer.accept((String) key, value);
+        entryConsumer.accept((K) key, (V) value);
       }
     }
 
-    public static <C> void forEach(
+    @SuppressWarnings("unchecked")
+    public static <C, K, V> void forEach(
         @Nullable Object[] mapData,
         @Nullable C ctx,
-        @Nonnull TriConsumer<C, String, Object> entryConsumer) {
+        @Nonnull TriConsumer<? super C, ? super K, ? super V> entryConsumer) {
       if (mapData == null) return;
 
       int numSlots = numSlots(mapData);
@@ -837,7 +840,7 @@ public final class LightStringMap<V> {
         if (key == null || key == REMOVED) continue;
 
         Object value = mapData[slot + numSlots];
-        entryConsumer.accept(ctx, (String) key, value);
+        entryConsumer.accept(ctx, (K) key, (V) value);
       }
     }
 
@@ -866,7 +869,7 @@ public final class LightStringMap<V> {
     }
 
     static void newMapUncheckedInsert(
-        @Nonnull Object[] mapData, int numSlots, @Nonnull String key, @Nonnull Object value) {
+        @Nonnull Object[] mapData, int numSlots, @Nonnull Object key, @Nonnull Object value) {
       int hash = key.hashCode();
       int preferredSlot = preferredSlot(numSlots, hash);
 
