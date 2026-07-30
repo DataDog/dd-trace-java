@@ -213,6 +213,20 @@ class LightMapTest {
     }
 
     @Test
+    void growsAndPreservesAllEntriesWithNonStringKeys() {
+      // A non-String key type must survive resizing: expandMapData copies keys back generically,
+      // so it must not assume String. initial capacity 2 forces several resizes.
+      LightMap<Integer, String> map = LightMap.createUncapped(2);
+      int n = 100;
+      for (int i = 0; i < n; i++) {
+        map.set(i, "value-" + i);
+      }
+      for (int i = 0; i < n; i++) {
+        assertEquals("value-" + i, map.get(i), "key " + i);
+      }
+    }
+
+    @Test
     void forEachVisitsEveryLiveEntry() {
       LightMap<String, Integer> map = LightMap.createUncapped(4);
       for (int i = 0; i < 20; i++) {

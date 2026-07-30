@@ -828,7 +828,7 @@ public final class LightMap<K, V> {
         if (key == null || key == REMOVED) continue;
 
         Object value = origMapData[slot + origNumSlots];
-        newMapUncheckedInsert(newMapData, newCapacity, (String) key, value);
+        newMapUncheckedInsert(newMapData, newCapacity, key, value);
       }
       return newMapData;
     }
