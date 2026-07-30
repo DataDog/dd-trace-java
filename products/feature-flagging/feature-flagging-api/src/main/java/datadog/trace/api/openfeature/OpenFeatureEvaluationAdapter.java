@@ -46,14 +46,23 @@ final class OpenFeatureEvaluationAdapter {
       final String key,
       final T defaultValue,
       final EvaluationContext context) {
-    final EvaluationResult result =
-        evaluator.evaluate(
-            snapshot,
-            valueKind(target),
-            key,
-            unwrapDefaultValue(defaultValue),
-            toCoreContext(context));
-    return toProviderEvaluation(target, key, defaultValue, context, result);
+    try {
+      final EvaluationResult result =
+          evaluator.evaluate(
+              snapshot,
+              valueKind(target),
+              key,
+              unwrapDefaultValue(defaultValue),
+              toCoreContext(context));
+      return toProviderEvaluation(target, key, defaultValue, context, result);
+    } catch (final RuntimeException error) {
+      return ProviderEvaluation.<T>builder()
+          .value(defaultValue)
+          .reason(dev.openfeature.sdk.Reason.ERROR.name())
+          .errorCode(ErrorCode.GENERAL)
+          .errorMessage(error.getMessage())
+          .build();
+    }
   }
 
   private <T> ProviderEvaluation<T> toProviderEvaluation(

@@ -63,6 +63,29 @@ class OpenFeatureEvaluationAdapterTest {
   }
 
   @Test
+  void convertsExposureFailuresToGeneralErrors() {
+    final OpenFeatureEvaluationAdapter adapter =
+        new OpenFeatureEvaluationAdapter(
+            (flagKey, allocationKey, variantKey, context) -> {
+              throw new IllegalStateException("exposure failed");
+            },
+            false);
+
+    final ProviderEvaluation<String> result =
+        adapter.evaluate(
+            configuration(ValueType.STRING, "hello", true, emptyList(), emptyList()),
+            String.class,
+            "flag",
+            "default",
+            new MutableContext("subject"));
+
+    assertEquals("default", result.getValue());
+    assertEquals(dev.openfeature.sdk.Reason.ERROR.name(), result.getReason());
+    assertEquals(ErrorCode.GENERAL, result.getErrorCode());
+    assertEquals("exposure failed", result.getErrorMessage());
+  }
+
+  @Test
   void mapsCoreErrorsToOpenFeatureErrors() {
     final OpenFeatureEvaluationAdapter adapter = new OpenFeatureEvaluationAdapter(null, false);
     final MutableContext context = new MutableContext("subject");
