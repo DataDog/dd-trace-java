@@ -1,5 +1,5 @@
 plugins {
-  id("me.champeau.jmh")
+  id("dd-trace-java.jmh-conventions")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
