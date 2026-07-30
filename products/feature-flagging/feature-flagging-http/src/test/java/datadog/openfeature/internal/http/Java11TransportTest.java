@@ -112,6 +112,27 @@ class Java11TransportTest {
   }
 
   @Test
+  void acceptsEmptyGzipNotModifiedResponses() throws Exception {
+    server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/config",
+        exchange -> {
+          exchange.getResponseHeaders().add("Content-Encoding", "gzip");
+          exchange.sendResponseHeaders(304, -1);
+          exchange.close();
+        });
+    server.start();
+    final CdnConfigurationSource.Java11Transport transport =
+        new CdnConfigurationSource.Java11Transport(HttpClient.newHttpClient());
+
+    final CdnConfigurationSource.TransportResponse response =
+        transport.fetch(options(Duration.ofSeconds(1), false), Map.of());
+
+    assertEquals(304, response.status);
+    assertArrayEquals(new byte[0], response.body);
+  }
+
+  @Test
   void cancelsRequestsBeforeAndDuringFetch() throws Exception {
     final CdnConfigurationSource.Java11Transport closed =
         new CdnConfigurationSource.Java11Transport(HttpClient.newHttpClient());

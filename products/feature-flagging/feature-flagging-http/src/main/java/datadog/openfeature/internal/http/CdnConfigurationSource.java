@@ -297,6 +297,7 @@ public final class CdnConfigurationSource implements ConfigurationSource {
     private static byte[] decodeBody(final byte[] body, final String contentEncoding)
         throws IOException {
       if (body == null
+          || body.length == 0
           || contentEncoding == null
           || !"gzip".equalsIgnoreCase(contentEncoding.trim())) {
         return body;
