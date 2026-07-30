@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -37,6 +38,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String OUTPUT = LLMOBS_TAG_PREFIX + "output";
   private static final String SPAN_KIND = LLMOBS_TAG_PREFIX + Tags.SPAN_KIND;
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA;
+  private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS;
   private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
 
   private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
@@ -183,6 +185,29 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (wrongSpanKind) {
       LOGGER.warn(
           "the span being annotated is an LLM span, it is recommended to use the overload with List<LLMObs.LLMMessage> as arguments");
+    }
+  }
+
+  @Override
+  public void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions) {
+    if (finished || toolDefinitions == null || toolDefinitions.isEmpty()) {
+      return;
+    }
+    List<LLMObs.ToolDefinition> validToolDefinitions = new ArrayList<>(toolDefinitions.size());
+    for (int i = 0; i < toolDefinitions.size(); i++) {
+      LLMObs.ToolDefinition toolDefinition = toolDefinitions.get(i);
+      if (toolDefinition == null) {
+        LOGGER.warn("tool definition at index {} is null; skipping", i);
+        continue;
+      }
+      if (toolDefinition.getName() == null || toolDefinition.getName().isEmpty()) {
+        LOGGER.warn("tool definition at index {} must have a non-empty name; skipping", i);
+        continue;
+      }
+      validToolDefinitions.add(toolDefinition);
+    }
+    if (!validToolDefinitions.isEmpty()) {
+      span.setTag(TOOL_DEFINITIONS, validToolDefinitions);
     }
   }
 

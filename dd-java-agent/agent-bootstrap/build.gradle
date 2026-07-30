@@ -1,7 +1,7 @@
 // The shadowJar of this project will be injected into the JVM's bootstrap classloader
 plugins {
   id 'com.gradleup.shadow'
-  id 'me.champeau.jmh'
+  id 'dd-trace-java.jmh-conventions'
 }
 
 apply from: "$rootDir/gradle/java.gradle"

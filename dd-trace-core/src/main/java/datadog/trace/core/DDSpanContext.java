@@ -923,10 +923,7 @@ public class DDSpanContext
    * If the tag may be intercepted, then boxing is also used.
    */
   private boolean precheckIntercept(String tag) {
-    // Usually only a single instanceof TagMap will be loaded,
-    // so isOptimized is turned into a direct call and then inlines to a constant
-    // Since isOptimized just returns a constant - doesn't require synchronization
-    return !unsafeTags.isOptimized() || tagInterceptor.needsIntercept(tag);
+    return tagInterceptor.needsIntercept(tag);
   }
 
   /*
