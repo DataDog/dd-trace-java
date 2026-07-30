@@ -26,6 +26,7 @@ class FeatureFlaggingRawBridgeTest {
   @AfterEach
   void clear() {
     FeatureFlaggingRawBridge.dispatchConfiguration(null);
+    FeatureFlaggingRawBridge.setRuntimeConfiguration(null);
   }
 
   @Test
@@ -56,6 +57,21 @@ class FeatureFlaggingRawBridgeTest {
     } finally {
       FeatureFlaggingRawBridge.removeConfigurationListener(listener);
     }
+  }
+
+  @Test
+  void copiesRuntimeConfigurationAcrossTheBridge() {
+    final Map<String, Object> configuration = new LinkedHashMap<>();
+    configuration.put("configuration_source", "remote_config");
+
+    FeatureFlaggingRawBridge.setRuntimeConfiguration(configuration);
+    configuration.put("configuration_source", "agentless");
+    final Map<String, Object> received = FeatureFlaggingRawBridge.getRuntimeConfiguration();
+    received.put("configuration_source", "disabled");
+
+    assertEquals(
+        "remote_config",
+        FeatureFlaggingRawBridge.getRuntimeConfiguration().get("configuration_source"));
   }
 
   @Test

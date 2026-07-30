@@ -3,6 +3,7 @@ package datadog.trace.api.openfeature;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -18,7 +19,10 @@ import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +41,7 @@ class ProviderTest {
       second.shutdown();
     }
     FeatureFlaggingRawBridge.dispatchConfiguration(null);
+    FeatureFlaggingRawBridge.setRuntimeConfiguration(null);
   }
 
   @Test
@@ -69,6 +74,42 @@ class ProviderTest {
     assertEquals(
         RuntimeConfiguration.Source.CDN,
         RuntimeConfiguration.resolve(legacyDisabled.configurationSource("agentless")).source);
+  }
+
+  @Test
+  void usesAgentResolvedConfigurationBeforeProcessFallbacks() {
+    final Map<String, Object> remoteConfiguration = new LinkedHashMap<>();
+    remoteConfiguration.put("enabled", true);
+    remoteConfiguration.put("source", "remote_config");
+    FeatureFlaggingRawBridge.setRuntimeConfiguration(remoteConfiguration);
+
+    assertEquals(
+        RuntimeConfiguration.Source.REMOTE_CONFIG,
+        RuntimeConfiguration.resolve(new Provider.Options()).source);
+
+    final Map<String, Object> cdnConfiguration = new LinkedHashMap<>();
+    cdnConfiguration.put("enabled", true);
+    cdnConfiguration.put("source", "agentless");
+    cdnConfiguration.put("cdn_base_url", "https://stable.example/config");
+    cdnConfiguration.put("poll_interval_seconds", 41);
+    cdnConfiguration.put("request_timeout_seconds", 7);
+    cdnConfiguration.put("api_key", "stable-key");
+    cdnConfiguration.put("site", "datadoghq.eu");
+    cdnConfiguration.put("environment", "stable-env");
+    FeatureFlaggingRawBridge.setRuntimeConfiguration(cdnConfiguration);
+
+    final RuntimeConfiguration resolved = RuntimeConfiguration.resolve(new Provider.Options());
+
+    assertEquals(RuntimeConfiguration.Source.CDN, resolved.source);
+    assertEquals(URI.create("https://stable.example/config"), resolved.http.endpoint);
+    assertEquals(Duration.ofSeconds(41), resolved.http.pollInterval);
+    assertEquals(Duration.ofSeconds(7), resolved.http.requestTimeout);
+    assertEquals("stable-key", resolved.http.apiKey);
+    assertFalse(resolved.http.managedEndpoint);
+    assertEquals(
+        RuntimeConfiguration.Source.REMOTE_CONFIG,
+        RuntimeConfiguration.resolve(new Provider.Options().configurationSource("remote_config"))
+            .source);
   }
 
   @Test

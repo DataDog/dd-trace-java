@@ -27,6 +27,7 @@ public final class FeatureFlaggingRawBridge {
   private static final List<ListenerRegistration> CONFIGURATION_LISTENERS = new ArrayList<>();
   private static byte[] currentConfiguration;
   private static long configurationVersion;
+  private static volatile Map<String, Object> runtimeConfiguration = Collections.emptyMap();
 
   private FeatureFlaggingRawBridge() {}
 
@@ -67,6 +68,17 @@ public final class FeatureFlaggingRawBridge {
     for (final ListenerRegistration listener : listeners) {
       listener.deliver(version, retained);
     }
+  }
+
+  public static void setRuntimeConfiguration(final Map<String, Object> configuration) {
+    runtimeConfiguration =
+        configuration == null
+            ? Collections.emptyMap()
+            : Collections.unmodifiableMap(new LinkedHashMap<>(configuration));
+  }
+
+  public static Map<String, Object> getRuntimeConfiguration() {
+    return new LinkedHashMap<>(runtimeConfiguration);
   }
 
   /** Signals that application code initialized a Feature Flagging provider. */

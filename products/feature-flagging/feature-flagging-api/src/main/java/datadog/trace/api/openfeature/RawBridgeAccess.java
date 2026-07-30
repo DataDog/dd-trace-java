@@ -7,6 +7,8 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +26,29 @@ final class RawBridgeAccess {
 
   static ConfigurationSource remoteConfigurationSource(final ConfigurationSink sink) {
     return new RemoteConfigurationSource(sink);
+  }
+
+  static Map<String, Object> runtimeConfiguration() {
+    final Method method = BRIDGE_METHODS.getRuntimeConfiguration;
+    if (method == null) {
+      return Collections.emptyMap();
+    }
+    try {
+      final Object value = method.invoke(null);
+      if (!(value instanceof Map)) {
+        return Collections.emptyMap();
+      }
+      final Map<String, Object> configuration = new LinkedHashMap<>();
+      for (final Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+        if (entry.getKey() instanceof String) {
+          configuration.put((String) entry.getKey(), entry.getValue());
+        }
+      }
+      return configuration;
+    } catch (final ReflectiveOperationException | LinkageError e) {
+      log.debug("Feature Flagging agent bridge runtime configuration lookup failed", e);
+      return Collections.emptyMap();
+    }
   }
 
   static void activateIfPresent() {
@@ -166,6 +191,7 @@ final class RawBridgeAccess {
     private final Method dispatchSpanRuntimeDefault;
     private final Method addConfigurationListener;
     private final Method removeConfigurationListener;
+    private final Method getRuntimeConfiguration;
     private final Throwable unavailableCause;
 
     private BridgeMethods(
@@ -176,6 +202,7 @@ final class RawBridgeAccess {
         final Method dispatchSpanRuntimeDefault,
         final Method addConfigurationListener,
         final Method removeConfigurationListener,
+        final Method getRuntimeConfiguration,
         final Throwable unavailableCause) {
       this.listenerType = listenerType;
       this.activate = activate;
@@ -184,6 +211,7 @@ final class RawBridgeAccess {
       this.dispatchSpanRuntimeDefault = dispatchSpanRuntimeDefault;
       this.addConfigurationListener = addConfigurationListener;
       this.removeConfigurationListener = removeConfigurationListener;
+      this.getRuntimeConfiguration = getRuntimeConfiguration;
       this.unavailableCause = unavailableCause;
     }
 
@@ -207,10 +235,11 @@ final class RawBridgeAccess {
             bridge.getMethod("dispatchSpanRuntimeDefault", String.class, Object.class),
             bridge.getMethod("addConfigurationListener", listenerType),
             bridge.getMethod("removeConfigurationListener", listenerType),
+            bridge.getMethod("getRuntimeConfiguration"),
             null);
       } catch (final ClassNotFoundException | NoSuchMethodException | LinkageError e) {
         // CDN evaluation works without an agent and with agents released before the raw bridge.
-        return new BridgeMethods(null, null, null, null, null, null, null, e);
+        return new BridgeMethods(null, null, null, null, null, null, null, null, e);
       }
     }
 

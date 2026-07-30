@@ -6,6 +6,7 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 /** Immutable provider runtime configuration resolved from explicit options or process settings. */
@@ -26,13 +27,17 @@ final class RuntimeConfiguration {
   }
 
   static RuntimeConfiguration resolve(final Provider.Options options) {
+    final Map<String, Object> agentConfiguration = RawBridgeAccess.runtimeConfiguration();
     final Boolean providerEnabled =
         options.providerEnabled != null
             ? options.providerEnabled
-            : booleanSetting("dd.feature.flags.enabled", "DD_FEATURE_FLAGS_ENABLED");
+            : firstBoolean(
+                booleanValue(agentConfiguration.get("enabled")),
+                booleanSetting("dd.feature.flags.enabled", "DD_FEATURE_FLAGS_ENABLED"));
     final String sourceValue =
         first(
             options.configurationSource,
+            stringValue(agentConfiguration.get("source")),
             setting(
                 "dd.feature.flags.configuration.source", "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE"));
     final Boolean legacyProviderEnabled =
@@ -49,29 +54,47 @@ final class RuntimeConfiguration {
     final String configuredBaseUrl =
         first(
             options.cdnBaseUrl,
+            stringValue(agentConfiguration.get("cdn_base_url")),
             setting(
                 "dd.feature.flags.configuration.source.agentless.base.url",
                 "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL"));
-    final String site = first(options.site, setting("dd.site", "DD_SITE"), "datadoghq.com");
-    final String env = first(options.environment, setting("dd.env", "DD_ENV"));
+    final String site =
+        first(
+            options.site,
+            stringValue(agentConfiguration.get("site")),
+            setting("dd.site", "DD_SITE"),
+            "datadoghq.com");
+    final String env =
+        first(
+            options.environment,
+            stringValue(agentConfiguration.get("environment")),
+            setting("dd.env", "DD_ENV"));
     final URI endpoint = CdnEndpointResolver.resolve(configuredBaseUrl, site, env);
     final Duration pollInterval =
         options.pollInterval != null
             ? options.pollInterval
             : seconds(
-                setting(
-                    "dd.feature.flags.configuration.source.agentless.poll.interval.seconds",
-                    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS"),
+                first(
+                    stringValue(agentConfiguration.get("poll_interval_seconds")),
+                    setting(
+                        "dd.feature.flags.configuration.source.agentless.poll.interval.seconds",
+                        "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS")),
                 30);
     final Duration requestTimeout =
         options.requestTimeout != null
             ? options.requestTimeout
             : seconds(
-                setting(
-                    "dd.feature.flags.configuration.source.agentless.request.timeout.seconds",
-                    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS"),
+                first(
+                    stringValue(agentConfiguration.get("request_timeout_seconds")),
+                    setting(
+                        "dd.feature.flags.configuration.source.agentless.request.timeout.seconds",
+                        "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS")),
                 5);
-    final String apiKey = first(options.apiKey, setting("dd.api.key", "DD_API_KEY"));
+    final String apiKey =
+        first(
+            options.apiKey,
+            stringValue(agentConfiguration.get("api_key")),
+            setting("dd.api.key", "DD_API_KEY"));
     return new RuntimeConfiguration(
         source,
         HttpConfigurationOptions.builder()
@@ -128,6 +151,25 @@ final class RuntimeConfiguration {
   private static Boolean booleanSetting(final String property, final String environment) {
     final String value = setting(property, environment);
     return value == null ? null : Boolean.valueOf(value);
+  }
+
+  private static Boolean booleanValue(final Object value) {
+    return value instanceof Boolean
+        ? (Boolean) value
+        : value == null ? null : Boolean.valueOf(String.valueOf(value));
+  }
+
+  private static String stringValue(final Object value) {
+    return value == null ? null : String.valueOf(value);
+  }
+
+  private static Boolean firstBoolean(final Boolean... values) {
+    for (final Boolean value : values) {
+      if (value != null) {
+        return value;
+      }
+    }
+    return null;
   }
 
   private static String first(final String... values) {
