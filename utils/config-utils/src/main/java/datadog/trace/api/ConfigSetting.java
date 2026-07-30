@@ -25,7 +25,13 @@ public final class ConfigSetting {
 
   private static final Set<String> CONFIG_FILTER_LIST =
       new HashSet<>(
-          Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));
+          Arrays.asList(
+              "DD_API_KEY",
+              "dd.api-key",
+              "dd.profiling.api-key",
+              "dd.profiling.apikey",
+              "test.agent.session.token",
+              "DD_TEST_AGENT_SESSION_TOKEN"));
 
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin) {
     return new ConfigSetting(key, value, origin, ABSENT_SEQ_ID, null);
