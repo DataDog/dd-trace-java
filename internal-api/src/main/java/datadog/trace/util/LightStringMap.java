@@ -261,9 +261,9 @@ public final class LightStringMap<V> {
     if (mapData == null) return;
     int numSlots = mapData.length >> 1;
     for (int slot = 0; slot < numSlots; slot++) {
-      String key = (String) mapData[slot];
+      Object key = mapData[slot];
       if (key == null || EmbeddingSupport.isRemoved(key)) continue;
-      consumer.accept(key, (V) mapData[slot + numSlots]);
+      consumer.accept((String) key, (V) mapData[slot + numSlots]);
     }
   }
 
@@ -394,9 +394,21 @@ public final class LightStringMap<V> {
     // catastrophically, only under genuine hashCode collisions.
     static final int MAX_SLOTS_PER_LIVE_ENTRY = 8;
 
-    // TODO: use of String constructor is deliberate, since this is
-    // an internal marker that we don't want intern-ed
-    static final String REMOVED = new String("\0D\0a\07\04\0\0d\00\0G");
+    // The deletion tombstone. A dedicated singleton *type* rather than a magic String so it is
+    // unmistakable in a heap dump or debugger (a Tombstone instance, not a String of NUL bytes) and
+    // can never collide with a real key of any type. Compared only by identity (==).
+    private static final class RemovedTombstone {
+      static final RemovedTombstone INSTANCE = new RemovedTombstone();
+
+      private RemovedTombstone() {}
+
+      @Override
+      public String toString() {
+        return "--REMOVED--";
+      }
+    }
+
+    static final Object REMOVED = RemovedTombstone.INSTANCE;
 
     @Nullable public static final Object[] EMPTY_DATA = null;
 
@@ -437,7 +449,7 @@ public final class LightStringMap<V> {
       return (slotIndex >= 0);
     }
 
-    public static boolean isRemoved(@Nonnull String key) {
+    public static boolean isRemoved(@Nullable Object key) {
       return (key == REMOVED);
     }
 
@@ -446,8 +458,8 @@ public final class LightStringMap<V> {
       if (mapData == null) return null;
       if (slotIndex < 0) return null;
 
-      String key = str(mapData[slotIndex]);
-      return (key == REMOVED) ? null : key;
+      Object key = mapData[slotIndex];
+      return (key == REMOVED) ? null : (String) key;
     }
 
     @SuppressWarnings("unchecked")
@@ -469,12 +481,12 @@ public final class LightStringMap<V> {
 
       // TODO: check whether fast literal search is worth it
       for (int slot = preferredSlot; slot < numSlots; ++slot) {
-        String curKey = str(mapData[slot]);
+        Object curKey = mapData[slot];
         if (curKey == null) return false;
         if (curKey != REMOVED && key.equals(curKey)) return true;
       }
       for (int slot = 0; slot < preferredSlot; ++slot) {
-        String curKey = str(mapData[slot]);
+        Object curKey = mapData[slot];
         if (curKey == null) return false;
         if (curKey != REMOVED && key.equals(curKey)) return true;
       }
@@ -783,11 +795,11 @@ public final class LightStringMap<V> {
 
       Object[] newMapData = new Object[newSize];
       for (int slot = 0; slot < origNumSlots; ++slot) {
-        String key = str(origMapData[slot]);
+        Object key = origMapData[slot];
         if (key == null || key == REMOVED) continue;
 
         Object value = origMapData[slot + origNumSlots];
-        newMapUncheckedInsert(newMapData, newCapacity, key, value);
+        newMapUncheckedInsert(newMapData, newCapacity, (String) key, value);
       }
       return newMapData;
     }
@@ -798,11 +810,11 @@ public final class LightStringMap<V> {
 
       int numSlots = numSlots(mapData);
       for (int slot = 0; slot < numSlots; ++slot) {
-        String key = str(mapData[slot]);
+        Object key = mapData[slot];
         if (key == null || key == REMOVED) continue;
 
         Object value = mapData[slot + numSlots];
-        entryConsumer.accept(key, value);
+        entryConsumer.accept((String) key, value);
       }
     }
 
@@ -814,11 +826,11 @@ public final class LightStringMap<V> {
 
       int numSlots = numSlots(mapData);
       for (int slot = 0; slot < numSlots; ++slot) {
-        String key = str(mapData[slot]);
+        Object key = mapData[slot];
         if (key == null || key == REMOVED) continue;
 
         Object value = mapData[slot + numSlots];
-        entryConsumer.accept(ctx, key, value);
+        entryConsumer.accept(ctx, (String) key, value);
       }
     }
 
@@ -829,7 +841,7 @@ public final class LightStringMap<V> {
 
       int numSlots = numSlots(mapData);
       for (int slot = 0; slot < numSlots; ++slot) {
-        String key = str(mapData[slot]);
+        Object key = mapData[slot];
         if (key == null) continue;
 
         builder.append('[').append(slot).append("]=");
@@ -879,11 +891,6 @@ public final class LightStringMap<V> {
 
     static int roundUpToPow2(int n) {
       return n <= 1 ? 1 : Integer.highestOneBit(n - 1) << 1;
-    }
-
-    @Nullable
-    static final String str(@Nullable Object key) {
-      return (String) key;
     }
   }
 }
