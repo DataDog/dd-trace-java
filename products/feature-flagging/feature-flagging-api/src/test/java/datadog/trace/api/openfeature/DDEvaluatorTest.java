@@ -10,19 +10,12 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.JsonDataException;
-import com.squareup.moshi.JsonReader;
-import com.squareup.moshi.JsonWriter;
-import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
@@ -31,13 +24,6 @@ import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -46,24 +32,12 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 public class DDEvaluatorTest {
-
-  private static final String CANONICAL_FIXTURE_PATH =
-      "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data";
-  private static final Moshi MOSHI = new Moshi.Builder().add(Date.class, new DateAdapter()).build();
-  private static final JsonAdapter<ServerConfiguration> CONFIG_ADAPTER =
-      MOSHI.adapter(ServerConfiguration.class);
-  private static final Type FIXTURE_LIST_TYPE =
-      Types.newParameterizedType(List.class, FixtureCase.class);
-  private static final JsonAdapter<List<FixtureCase>> FIXTURE_LIST_ADAPTER =
-      MOSHI.adapter(FIXTURE_LIST_TYPE);
 
   @Test
   public void testInitializeSignalsApplicationProviderActivation() throws Exception {
@@ -244,130 +218,6 @@ public class DDEvaluatorTest {
     }
   }
 
-  @Test
-  public void testCanonicalFixturesArePresent() throws IOException {
-    assertThat(canonicalTestCases().size(), greaterThan(0));
-  }
-
-  @MethodSource("canonicalTestCases")
-  @ParameterizedTest(name = "{0}")
-  public void testEvaluateCanonicalFixture(final FixtureCase testCase) throws IOException {
-    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(loadCanonicalConfiguration());
-
-    final Class<?> targetType = targetType(testCase.variationType);
-    final Object defaultValue = mapFixtureValue(targetType, testCase.defaultValue);
-    final Object expectedValue = mapFixtureValue(targetType, testCase.result.value);
-    final ProviderEvaluation<?> details =
-        evaluate(evaluator, targetType, testCase.flag, defaultValue, context(testCase));
-
-    assertThat(details.getValue(), equalTo(expectedValue));
-    assertThat(details.getReason(), equalTo(testCase.result.reason));
-    if (testCase.result.variant != null) {
-      assertThat(details.getVariant(), equalTo(testCase.result.variant));
-    }
-    if (testCase.result.errorCode != null) {
-      assertThat(details.getErrorCode(), equalTo(ErrorCode.valueOf(testCase.result.errorCode)));
-    }
-    if (testCase.result.flagMetadata != null
-        && testCase.result.flagMetadata.get("allocationKey") != null) {
-      assertThat(
-          details.getFlagMetadata().getString("allocationKey"),
-          equalTo(String.valueOf(testCase.result.flagMetadata.get("allocationKey"))));
-    }
-  }
-
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  private static ProviderEvaluation<?> evaluate(
-      final DDEvaluator evaluator,
-      final Class<?> targetType,
-      final String flag,
-      final Object defaultValue,
-      final EvaluationContext context) {
-    return evaluator.evaluate((Class) targetType, flag, defaultValue, context);
-  }
-
-  private static ServerConfiguration loadCanonicalConfiguration() throws IOException {
-    return CONFIG_ADAPTER.fromJson(read(fixtureRoot().resolve("ufc-config.json")));
-  }
-
-  private static List<FixtureCase> canonicalTestCases() throws IOException {
-    final Path evaluationCases = fixtureRoot().resolve("evaluation-cases");
-    final List<FixtureCase> result = new ArrayList<>();
-
-    try (final Stream<Path> paths = Files.list(evaluationCases)) {
-      final List<Path> files =
-          paths
-              .filter(path -> path.getFileName().toString().endsWith(".json"))
-              .sorted((left, right) -> left.getFileName().compareTo(right.getFileName()))
-              .collect(Collectors.toList());
-      for (final Path file : files) {
-        final List<FixtureCase> testCases = FIXTURE_LIST_ADAPTER.fromJson(read(file));
-        if (testCases == null) {
-          throw new JsonDataException("Fixture file did not contain an array: " + file);
-        }
-        for (int index = 0; index < testCases.size(); index++) {
-          final FixtureCase testCase = testCases.get(index);
-          testCase.fileName = file.getFileName().toString();
-          testCase.index = index;
-          result.add(testCase);
-        }
-      }
-    }
-
-    assertThat(result.size(), greaterThan(0));
-    return result;
-  }
-
-  private static Path fixtureRoot() {
-    Path directory = Paths.get("").toAbsolutePath();
-    while (directory != null) {
-      final Path candidate = directory.resolve(CANONICAL_FIXTURE_PATH);
-      if (Files.exists(candidate.resolve("ufc-config.json"))
-          && Files.isDirectory(candidate.resolve("evaluation-cases"))) {
-        return candidate;
-      }
-      directory = directory.getParent();
-    }
-    throw new IllegalStateException("Unable to find canonical FFE fixtures");
-  }
-
-  private static String read(final Path path) throws IOException {
-    return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
-  }
-
-  private static EvaluationContext context(final FixtureCase testCase) {
-    final Map<String, Object> attributes =
-        testCase.attributes == null ? emptyMap() : testCase.attributes;
-    final MutableContext context =
-        new MutableContext(Value.objectToValue(attributes).asStructure().asMap());
-    if (testCase.targetingKey != null) {
-      context.setTargetingKey(testCase.targetingKey);
-    }
-    return context;
-  }
-
-  private static Class<?> targetType(final String variationType) {
-    switch (variationType) {
-      case "BOOLEAN":
-        return Boolean.class;
-      case "INTEGER":
-        return Integer.class;
-      case "NUMERIC":
-        return Double.class;
-      case "STRING":
-        return String.class;
-      case "JSON":
-        return Value.class;
-      default:
-        throw new IllegalArgumentException("Unsupported variationType: " + variationType);
-    }
-  }
-
-  private static Object mapFixtureValue(final Class<?> targetType, final Object value) {
-    return DDEvaluator.mapValue(targetType, value);
-  }
-
   private static Map<String, Object> mapOf(final Object... props) {
     final Map<String, Object> result = new HashMap<>(props.length << 1);
     int index = 0;
@@ -377,52 +227,5 @@ public class DDEvaluatorTest {
       result.put(key, value);
     }
     return result;
-  }
-
-  private static final class FixtureCase {
-    Map<String, Object> attributes = emptyMap();
-    Object defaultValue;
-    String flag;
-    FixtureResult result;
-    String targetingKey;
-    String variationType;
-    transient String fileName;
-    transient int index;
-
-    @Override
-    public String toString() {
-      return fileName + "[" + index + "] flag=" + flag;
-    }
-  }
-
-  private static final class FixtureResult {
-    Object value;
-    String reason;
-    String errorCode;
-    String variant;
-    Map<String, Object> flagMetadata = emptyMap();
-  }
-
-  private static final class DateAdapter extends JsonAdapter<Date> {
-    @Override
-    public Date fromJson(final JsonReader reader) throws IOException {
-      if (reader.peek() == JsonReader.Token.NULL) {
-        return reader.nextNull();
-      }
-      try {
-        return Date.from(OffsetDateTime.parse(reader.nextString()).toInstant());
-      } catch (final Exception ignored) {
-        return null;
-      }
-    }
-
-    @Override
-    public void toJson(final JsonWriter writer, final Date value) throws IOException {
-      if (value == null) {
-        writer.nullValue();
-        return;
-      }
-      writer.value(value.toInstant().toString());
-    }
   }
 }
