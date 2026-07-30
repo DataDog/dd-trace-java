@@ -9,6 +9,7 @@
 - Implement the **narrowest** `Instrumenter` interface possible:
   - Prefer `ForSingleType` > `ForKnownTypes` > `ForTypeHierarchy`
   - **EXCEPTION — API specification / interface-only libraries**: when the target library is a specification JAR containing only interfaces (no concrete classes), `ForSingleType` does not work because there are no concrete types to instrument directly. You MUST use `ForTypeHierarchy` with `implementsInterface(named("the.interface.Fqn"))`. This is how vendor implementations of the specification (ActiveMQ, IBM MQ, EclipseLink, Hibernate, etc.) get instrumented through the common interface contract.
+  - **EXCEPTION applies even when you are handed a CONCRETE implementation, not the spec jar.** The trigger is "does this type implement a shared JDK/spec SPI that other vendors also implement?" — NOT "is the coordinate an interface-only jar?" If you are given a single concrete driver (e.g. `org.postgresql:postgresql`, whose `org.postgresql.jdbc.PgStatement` implements `java.sql.Statement`), you MUST still hook the SPI interface via `ForTypeHierarchy` + `implementsInterface(named("java.sql.Statement"))`, NOT the concrete class via `ForSingleType(named("org.postgresql.jdbc.PgStatement"))`. Hooking the concrete class (a) covers only that one vendor while the SPI hook covers all conforming drivers with one module, and (b) collides at runtime with the existing SPI module that already instruments the same interface — both fire on the same object and mutually suppress spans via the shared `CallDepthThreadLocalMap.incrementCallDepth(<SpiType>.class)` guard. Before instrumenting any concrete class, check whether it implements a type already listed below; if so, the existing SPI module already covers it — do not generate a parallel per-vendor module.
   - Common API JARs that REQUIRE `ForTypeHierarchy` + `implementsInterface`:
     - **JMS**: `javax.jms:javax.jms-api`, `jakarta.jms:jakarta.jms-api` — see `dd-java-agent/instrumentation/jms/javax-jms-1.1/` for the canonical example. Targets `MessageProducer`, `MessageConsumer`, `Message`, `MessageListener` interfaces.
     - **JPA**: `javax.persistence:javax.persistence-api`, `jakarta.persistence:jakarta.persistence-api`
@@ -106,6 +107,15 @@ CallDepthThreadLocalMap.reset(Gson.class);
 ```
 
 A helper class is appropriate when multiple instrumentation classes share the same depth counter — use the shared sentinel class as the key in that case.
+
+### Database clients: populate connection metadata EAGERLY at connect time, not lazily per query
+
+For database-client integrations (`DatabaseClientDecorator` / `DBTypeProcessingDatabaseClientDecorator`), capture connection metadata (host, port, db name, user) at **connection-establishment** time and cache it in a `ContextStore` keyed on the connection object — not lazily on the first query. The canonical pattern is a dedicated instrumentation on the connect/factory method:
+
+- **JDBC** — `dd-java-agent/instrumentation/jdbc/DriverInstrumentation.java` hooks `Driver.connect(url, props)` and populates `InstrumentationContext.get(Connection.class, DBInfo.class)` at open time. Statement advice then reads the already-cached `DBInfo`.
+- **Reactive drivers with an async connect** — the equivalent connect point is the connection FACTORY, not the connection object. For R2DBC, `io.r2dbc.spi.ConnectionFactoryOptions` (available at `ConnectionFactory.create()` / `ConnectionFactories.find(...)`) is the only place host/port/database/user are exposed as structured data; `io.r2dbc.spi.ConnectionMetadata` (on the live `Connection`) exposes ONLY product name/version. Hooking `Connection.createStatement()` + `ConnectionMetadata` therefore CANNOT populate `db.name`/`peer.hostname`/`db.user`/port — you must hook the factory and thread the captured options forward. (OpenTelemetry's R2DBC instrumentation does exactly this; it is a good reference.)
+
+Why eager-at-connect beats lazy-per-query: lazy extraction (e.g. `statement.getConnection().getMetaData().getURL()` on first execute) works for plain JDBC but (a) pays the extraction cost on every connection's first query instead of amortizing at pool-open, and (b) silently yields nothing when the metadata is not reachable from the object the query advice happens to hold — which is exactly what happens for reactive drivers whose statement/connection objects don't carry the factory options.
 
 ## Advanced: Grouping multiple instrumentations under one module
 
