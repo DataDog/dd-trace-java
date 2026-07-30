@@ -4,6 +4,8 @@ import datadog.openfeature.internal.core.ApplyResult;
 import datadog.openfeature.internal.core.ConfigurationSink;
 import datadog.openfeature.internal.core.ConfigurationSource;
 import datadog.openfeature.internal.core.SourceStatus;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.http.HttpClient;
@@ -23,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.DoubleSupplier;
+import java.util.zip.GZIPInputStream;
 
 /** Java 11 HTTP client source for CDN-backed UFC delivery. */
 public final class CdnConfigurationSource implements ConfigurationSource {
@@ -252,7 +255,8 @@ public final class CdnConfigurationSource implements ConfigurationSource {
               .timeout(options.requestTimeout)
               .GET()
               .header("Datadog-Meta-Lang", "java")
-              .header("Accept", "application/json");
+              .header("Accept", "application/json")
+              .header("Accept-Encoding", "gzip");
       if (options.managedEndpoint && options.apiKey != null && !options.apiKey.isEmpty()) {
         request.header("DD-API-KEY", options.apiKey);
       }
@@ -269,7 +273,8 @@ public final class CdnConfigurationSource implements ConfigurationSource {
         return new TransportResponse(
             response.statusCode(),
             response.headers().firstValue("ETag").orElse(null),
-            response.body());
+            decodeBody(
+                response.body(), response.headers().firstValue("Content-Encoding").orElse(null)));
       } catch (final InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new InterruptedIOException("Feature Flagging HTTP request interrupted");
@@ -286,6 +291,24 @@ public final class CdnConfigurationSource implements ConfigurationSource {
         throw new IOException("Feature Flagging HTTP request failed", cause);
       } finally {
         active.compareAndSet(future, null);
+      }
+    }
+
+    private static byte[] decodeBody(final byte[] body, final String contentEncoding)
+        throws IOException {
+      if (body == null
+          || contentEncoding == null
+          || !"gzip".equalsIgnoreCase(contentEncoding.trim())) {
+        return body;
+      }
+      try (GZIPInputStream input = new GZIPInputStream(new ByteArrayInputStream(body));
+          ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+        final byte[] buffer = new byte[8192];
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+          output.write(buffer, 0, read);
+        }
+        return output.toByteArray();
       }
     }
 

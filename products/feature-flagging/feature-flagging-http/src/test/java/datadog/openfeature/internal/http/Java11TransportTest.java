@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.InetSocketAddress;
@@ -17,6 +18,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.zip.GZIPOutputStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -85,6 +87,31 @@ class Java11TransportTest {
   }
 
   @Test
+  void requestsAndDecodesGzipResponses() throws Exception {
+    final AtomicReference<String> acceptEncoding = new AtomicReference<>();
+    server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/config",
+        exchange -> {
+          acceptEncoding.set(exchange.getRequestHeaders().getFirst("Accept-Encoding"));
+          final byte[] body = gzip("compressed".getBytes(UTF_8));
+          exchange.getResponseHeaders().add("Content-Encoding", "gzip");
+          exchange.sendResponseHeaders(200, body.length);
+          exchange.getResponseBody().write(body);
+          exchange.close();
+        });
+    server.start();
+    final CdnConfigurationSource.Java11Transport transport =
+        new CdnConfigurationSource.Java11Transport(HttpClient.newHttpClient());
+
+    final CdnConfigurationSource.TransportResponse response =
+        transport.fetch(options(Duration.ofSeconds(1), false), Map.of());
+
+    assertEquals("gzip", acceptEncoding.get());
+    assertArrayEquals("compressed".getBytes(UTF_8), response.body);
+  }
+
+  @Test
   void cancelsRequestsBeforeAndDuringFetch() throws Exception {
     final CdnConfigurationSource.Java11Transport closed =
         new CdnConfigurationSource.Java11Transport(HttpClient.newHttpClient());
@@ -141,5 +168,13 @@ class Java11TransportTest {
         .apiKey("secret")
         .managedEndpoint(managedEndpoint)
         .build();
+  }
+
+  private static byte[] gzip(final byte[] input) throws IOException {
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
+    try (GZIPOutputStream gzip = new GZIPOutputStream(output)) {
+      gzip.write(input);
+    }
+    return output.toByteArray();
   }
 }
