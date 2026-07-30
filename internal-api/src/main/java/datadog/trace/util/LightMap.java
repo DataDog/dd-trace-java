@@ -97,7 +97,7 @@ public final class LightMap<K, V> {
   /**
    * A new, uncapped map seeded at {@code capacity} (rounded up to a power of two on first write).
    * Use when the caller already knows the rough size; otherwise prefer {@link #createUncapped()} or
-   * a {@link #adaptiveSizingHint()}.
+   * a {@link #createUncappedAdaptiveSizingHint()}.
    */
   @Nonnull
   public static <K, V> LightMap<K, V> createUncapped(int capacity) {
@@ -135,9 +135,9 @@ public final class LightMap<K, V> {
 
   /**
    * A new map sized (and, if the hint carries a {@code maxCapacity}, capped) from {@code hint}.
-   * Mint the hint once per construction site via {@link #adaptiveSizingHint()} or {@link
-   * AdaptiveSizingHint#builder()}, hold it in a {@code static final} field, and pass it to every
-   * map at that site.
+   * Mint the hint once per construction site via {@link #createUncappedAdaptiveSizingHint()},
+   * {@link #createCappedAdaptiveSizingHint(int)}, or {@link AdaptiveSizingHint#builder()}, hold it
+   * in a {@code static final} field, and pass it to every map at that site.
    */
   @Nonnull
   public static <K, V> LightMap<K, V> create(@Nonnull AdaptiveSizingHint hint) {
@@ -145,14 +145,26 @@ public final class LightMap<K, V> {
   }
 
   /**
-   * Mints a self-tuning {@link AdaptiveSizingHint} for a single construction site. Hold it in a
-   * {@code static final} field and pass it to every {@link #create(AdaptiveSizingHint)} at that
-   * site; the map sizes itself from the hint and tunes the hint back on its own. The caller never
-   * touches the hint again.
+   * Mints an uncapped self-tuning {@link AdaptiveSizingHint} for a single construction site. Hold
+   * it in a {@code static final} field and pass it to every {@link #create(AdaptiveSizingHint)} at
+   * that site; the map sizes itself from the hint and tunes the hint back on its own. The caller
+   * never touches the hint again.
    */
   @Nonnull
-  public static AdaptiveSizingHint adaptiveSizingHint() {
-    return new AdaptiveSizingHint();
+  public static AdaptiveSizingHint createUncappedAdaptiveSizingHint() {
+    return AdaptiveSizingHint.builder().build();
+  }
+
+  /**
+   * Mints a self-tuning {@link AdaptiveSizingHint} hard-capped at {@code maxCapacity} slots
+   * (rounded up to a power of two). Like {@link #createUncappedAdaptiveSizingHint()} but every map
+   * built from the hint is bounded: once a map is physically full at the cap, {@link #set} rejects
+   * a new key (returns {@code false}) instead of growing past it. To also set an explicit initial
+   * capacity, use {@link AdaptiveSizingHint#builder()}.
+   */
+  @Nonnull
+  public static AdaptiveSizingHint createCappedAdaptiveSizingHint(int maxCapacity) {
+    return AdaptiveSizingHint.builder().maxCapacity(maxCapacity).build();
   }
 
   /**
@@ -233,9 +245,10 @@ public final class LightMap<K, V> {
 
   /**
    * A self-tuning, per-construction-site sizing estimate. Mint one via {@link
-   * LightMap#adaptiveSizingHint()}, hold it in a {@code static final} field, and pass it to {@link
-   * LightMap#create(AdaptiveSizingHint)}; the map reads it to size itself and tunes it back as it
-   * grows. The caller never updates it.
+   * LightMap#createUncappedAdaptiveSizingHint()}, {@link
+   * LightMap#createCappedAdaptiveSizingHint(int)}, or {@link #builder()}, hold it in a {@code
+   * static final} field, and pass it to {@link LightMap#create(AdaptiveSizingHint)}; the map reads
+   * it to size itself and tunes it back as it grows. The caller never updates it.
    *
    * <p>Opaque by design (no public members). The estimate self-tunes on two events the map already
    * observes -- a new map is started ({@link #seedSlots()}) and a map grows ({@link
@@ -260,21 +273,19 @@ public final class LightMap<K, V> {
     // the cap.
     private final int maxSlots;
 
-    private AdaptiveSizingHint() {
-      this(DEFAULT_HINT_SLOTS, NO_MAX_SLOTS);
-    }
-
     private AdaptiveSizingHint(int seedSlots, int maxSlots) {
       this.slots = seedSlots;
       this.maxSlots = maxSlots;
     }
 
     /**
-     * Opens a builder for an {@link AdaptiveSizingHint} that carries an initial capacity and/or a
-     * hard {@code maxCapacity}. Use this instead of {@link LightMap#adaptiveSizingHint()} when a
-     * site wants to bound its maps' worst-case memory: every map built from the returned hint
-     * shares the same cap, and {@link LightMap#set} rejects (returns {@code false}) once a map is
-     * physically full at that cap. The hint still self-tunes its seed capacity within the cap.
+     * Opens a builder for an {@link AdaptiveSizingHint} that carries an explicit initial capacity
+     * and/or a hard {@code maxCapacity}. Use this instead of {@link
+     * LightMap#createUncappedAdaptiveSizingHint()} / {@link
+     * LightMap#createCappedAdaptiveSizingHint(int)} when a site wants to seed the initial capacity
+     * as well. A {@code maxCapacity} bounds worst-case memory: every map built from the returned
+     * hint shares the same cap, and {@link LightMap#set} rejects (returns {@code false}) once a map
+     * is physically full at that cap. The hint still self-tunes its seed capacity within the cap.
      */
     @Nonnull
     public static Builder builder() {
