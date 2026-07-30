@@ -2,6 +2,7 @@ package datadog.trace.api.openfeature;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -39,8 +40,8 @@ class StandaloneProviderRuntimeTest {
           StandaloneProviderRuntime.acquire(
               StandaloneRuntimeConfiguration.resolve(), ignored -> callbacks.incrementAndGet());
 
+      assertTrue(handle.awaitConfiguration(1, SECONDS));
       assertNotNull(handle.configuration());
-      assertTrue(handle.awaitConfiguration(1, MILLISECONDS));
       assertTrue(callbacks.get() > 0);
 
       handle.close();
@@ -72,6 +73,7 @@ class StandaloneProviderRuntimeTest {
       recovered =
           StandaloneProviderRuntime.acquire(
               StandaloneRuntimeConfiguration.resolve(), ignored -> {});
+      assertTrue(recovered.awaitConfiguration(1, SECONDS));
       assertNotNull(recovered.configuration());
     } finally {
       if (recovered != null) {
