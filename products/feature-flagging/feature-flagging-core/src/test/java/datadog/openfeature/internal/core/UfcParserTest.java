@@ -90,6 +90,66 @@ class UfcParserTest {
   }
 
   @Test
+  void ignoresUnknownAdditiveFieldsAtEveryUfcLevel() throws Exception {
+    final String content =
+        "{"
+            + "\"futureEnvelope\":{\"version\":2},"
+            + "\"data\":{"
+            + "\"type\":\"universal-flag-configuration\","
+            + "\"futureResource\":true,"
+            + "\"attributes\":{"
+            + "\"futureConfiguration\":{\"key\":\"value\"},"
+            + "\"environment\":{\"name\":\"test\",\"futureEnvironment\":true},"
+            + "\"flags\":{\"message\":{"
+            + "\"key\":\"message\","
+            + "\"enabled\":true,"
+            + "\"variationType\":\"STRING\","
+            + "\"futureFlag\":1,"
+            + "\"variations\":{\"on\":{"
+            + "\"key\":\"on\",\"value\":\"hello\",\"futureVariant\":\"ignored\""
+            + "}},"
+            + "\"allocations\":[{"
+            + "\"key\":\"allocation\","
+            + "\"futureAllocation\":{},"
+            + "\"rules\":[{"
+            + "\"futureRule\":true,"
+            + "\"conditions\":[{"
+            + "\"operator\":\"IS_NULL\","
+            + "\"attribute\":\"missing\","
+            + "\"value\":true,"
+            + "\"futureCondition\":[]"
+            + "}]"
+            + "}],"
+            + "\"splits\":[{"
+            + "\"variationKey\":\"on\","
+            + "\"serialId\":7,"
+            + "\"futureSplit\":false,"
+            + "\"shards\":[{"
+            + "\"salt\":\"salt\","
+            + "\"totalShards\":1,"
+            + "\"futureShard\":null,"
+            + "\"ranges\":[{\"start\":0,\"end\":1,\"futureRange\":9}]"
+            + "}]"
+            + "}]"
+            + "}]"
+            + "}}"
+            + "}"
+            + "}"
+            + "}";
+
+    final ServerConfiguration snapshot = parser.parseJsonApi(content.getBytes(UTF_8));
+    final Flag flag = snapshot.flags.get("message");
+    final Allocation allocation = flag.allocations.get(0);
+    final Split split = allocation.splits.get(0);
+
+    assertEquals("test", snapshot.environment.name);
+    assertEquals("hello", flag.variations.get("on").value);
+    assertEquals(ConditionOperator.IS_NULL, allocation.rules.get(0).conditions.get(0).operator);
+    assertEquals(7, split.serialId);
+    assertEquals(1, split.shards.get(0).ranges.get(0).end);
+  }
+
+  @Test
   void parsesOffsetDatesAndMapsInvalidDatesToNull() throws Exception {
     final String content =
         "{"
