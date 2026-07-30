@@ -39,6 +39,18 @@ class LightMapTest {
     }
 
     @Test
+    void noArgCreateUncappedProducesUsableMap() {
+      // The parameterless front door seeds the default capacity; exercise it end-to-end so the
+      // convenience factory doesn't rot uncovered.
+      LightMap<String, Integer> map = LightMap.createUncapped();
+      map.set("a", 1);
+      map.set("b", 2);
+      assertEquals(1, map.get("a"));
+      assertEquals(2, map.get("b"));
+      assertEquals(2, map.size());
+    }
+
+    @Test
     void setOverwritesExistingKey() {
       LightMap<String, Integer> map = LightMap.createUncapped(8);
       map.set("a", 1);
@@ -322,6 +334,14 @@ class LightMapTest {
       assertFalse(EmbeddingSupport.containsKey(null, "x"));
       assertFalse(EmbeddingSupport.containsValue(null, "x"));
       assertEquals(EmbeddingSupport.SLOT_NOT_FOUND, EmbeddingSupport.findSlot(null, "x"));
+    }
+
+    @Test
+    void removedTombstoneRendersDistinctlyForHeapInspection() {
+      // The deletion sentinel is only ever observed by a human reading a heap dump / debugger,
+      // never by production code, so its toString() has no code-path caller. Pin the rendering
+      // here so the debug aid can't silently regress.
+      assertEquals("--REMOVED--", EmbeddingSupport.REMOVED.toString());
     }
 
     @Test
