@@ -267,20 +267,31 @@ class FlagEvaluationAggregatorTest {
   }
 
   @Test
-  void observeFullEvaluationDataFoldsToFalseWhenAnyMergedEvaluationLacksConsent() {
+  void mixedConsentEvaluationsForSameSubjectLandInDistinctBuckets() {
+    // Consent is part of FullKey: two evaluations that differ only in consent produce different
+    // wire rows (raw vs hashed targeting key, context vs no context) and belong in different
+    // buckets. Merging them would silently downgrade the consent-on row to the protected shape.
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
-    // First event consents; a later one (e.g. after RC flipped consent off) folds into the bucket.
     aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 1000L, true, emptyMap()));
     aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 2000L, false, emptyMap()));
 
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        aggregator.snapshot().fullTier.values().iterator().next();
-    assertEquals(2, bucket.count);
-    assertFalse(bucket.observeFullEvaluationData);
+    assertEquals(2, aggregator.fullTierSize());
+    int onCount = 0;
+    int offCount = 0;
+    for (final FlagEvaluationAggregator.EvalBucket bucket :
+        aggregator.snapshot().fullTier.values()) {
+      if (bucket.observeFullEvaluationData) {
+        onCount++;
+      } else {
+        offCount++;
+      }
+    }
+    assertEquals(1, onCount);
+    assertEquals(1, offCount);
   }
 
   @Test
-  void observeFullEvaluationDataStaysTrueWhenEveryMergedEvaluationConsents() {
+  void sameConsentEvaluationsForSameSubjectMergeIntoOneBucket() {
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
     aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 1000L, true, emptyMap()));
     aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 2000L, true, emptyMap()));
@@ -392,7 +403,8 @@ class FlagEvaluationAggregatorTest {
         runtimeDefaultUsed,
         errorMessage,
         targetingKey,
-        contextKey);
+        contextKey,
+        false);
   }
 
   private static FlagEvaluationAggregator.DegradedKey degradedKey(
@@ -402,7 +414,7 @@ class FlagEvaluationAggregatorTest {
       final boolean runtimeDefaultUsed,
       final String errorMessage) {
     return new FlagEvaluationAggregator.DegradedKey(
-        flagKey, variant, allocationKey, runtimeDefaultUsed, errorMessage);
+        flagKey, variant, allocationKey, runtimeDefaultUsed, errorMessage, false);
   }
 
   private static String repeat(final char c, final int count) {

@@ -150,7 +150,7 @@ final class FlagEvaluationAggregator {
     for (int i = globalFullCount.get(); i < GLOBAL_CAP; i++) {
       final String key = "synthetic-full-" + i;
       fullTier.put(
-          new FullKey(key, "on", "alloc", false, null, null, ""),
+          new FullKey(key, "on", "alloc", false, null, null, "", false),
           new EvalBucket(key, "on", "alloc", null, null, 1L, false, null, false));
       globalFullCount.incrementAndGet();
       perFlagCount.merge(key, 1, Integer::sum);
@@ -161,7 +161,7 @@ final class FlagEvaluationAggregator {
     for (int i = degradedTier.size(); i < DEGRADED_CAP; i++) {
       final String key = "synthetic-dg-" + i;
       degradedTier.put(
-          new DegradedKey(key, "on", "alloc", false, null),
+          new DegradedKey(key, "on", "alloc", false, null, false),
           new EvalBucket(key, "on", "alloc", null, null, 1L, false, null, false));
     }
   }
@@ -173,7 +173,7 @@ final class FlagEvaluationAggregator {
       final String errorMessage,
       final long evalTimeMs) {
     degradedTier.put(
-        new DegradedKey(flagKey, variant, allocationKey, variant == null, errorMessage),
+        new DegradedKey(flagKey, variant, allocationKey, variant == null, errorMessage, false),
         new EvalBucket(
             flagKey,
             variant,
@@ -194,7 +194,8 @@ final class FlagEvaluationAggregator {
         event.variant == null,
         event.errorMessage,
         event.targetingKey,
-        ctxKey);
+        ctxKey,
+        event.observeFullEvaluationData);
   }
 
   private static DegradedKey buildDegradedKey(final FlagEvalEvent event) {
@@ -203,7 +204,8 @@ final class FlagEvaluationAggregator {
         event.variant,
         event.allocationKey,
         event.variant == null,
-        event.errorMessage);
+        event.errorMessage,
+        event.observeFullEvaluationData);
   }
 
   static Map<String, Object> pruneContext(final Map<String, Object> attrs) {
@@ -282,8 +284,9 @@ final class FlagEvaluationAggregator {
     String targetingKey;
     String errorMessage;
     Map<String, Object> prunedAttrs;
-    // Consent to emit raw PII, taken from each event's evaluation-time snapshot. Folded with AND
-    // on merge: any consent-off evaluation sinks the bucket to hashed/omitted (fail-closed).
+    // Consent to emit raw PII, uniform per bucket (part of FullKey / DegradedKey). The AND-fold
+    // on merge is now defensive belt-and-suspenders — every event merging into this bucket already
+    // carries the matching consent value by construction.
     boolean observeFullEvaluationData;
 
     EvalBucket(
@@ -335,6 +338,10 @@ final class FlagEvaluationAggregator {
     private final String errorMessage;
     private final String targetingKey;
     private final String contextKey;
+    // Part of the key so consent-on and consent-off evaluations never share a bucket. The
+    // serializer branches on this to hash the targeting key and drop the context, so events with
+    // different consent produce different wire rows and belong in different buckets.
+    private final boolean observeFullEvaluationData;
 
     FullKey(
         final String flagKey,
@@ -343,7 +350,8 @@ final class FlagEvaluationAggregator {
         final boolean runtimeDefaultUsed,
         final String errorMessage,
         final String targetingKey,
-        final String contextKey) {
+        final String contextKey,
+        final boolean observeFullEvaluationData) {
       this.flagKey = flagKey;
       this.variant = variant;
       this.allocationKey = allocationKey;
@@ -351,6 +359,7 @@ final class FlagEvaluationAggregator {
       this.errorMessage = errorMessage;
       this.targetingKey = targetingKey;
       this.contextKey = contextKey;
+      this.observeFullEvaluationData = observeFullEvaluationData;
     }
 
     @Override
@@ -363,6 +372,7 @@ final class FlagEvaluationAggregator {
       }
       final FullKey fullKey = (FullKey) o;
       return runtimeDefaultUsed == fullKey.runtimeDefaultUsed
+          && observeFullEvaluationData == fullKey.observeFullEvaluationData
           && Objects.equals(flagKey, fullKey.flagKey)
           && Objects.equals(variant, fullKey.variant)
           && Objects.equals(allocationKey, fullKey.allocationKey)
@@ -380,7 +390,8 @@ final class FlagEvaluationAggregator {
           runtimeDefaultUsed,
           errorMessage,
           targetingKey,
-          contextKey);
+          contextKey,
+          observeFullEvaluationData);
     }
   }
 
@@ -390,18 +401,21 @@ final class FlagEvaluationAggregator {
     private final String allocationKey;
     private final boolean runtimeDefaultUsed;
     private final String errorMessage;
+    private final boolean observeFullEvaluationData;
 
     DegradedKey(
         final String flagKey,
         final String variant,
         final String allocationKey,
         final boolean runtimeDefaultUsed,
-        final String errorMessage) {
+        final String errorMessage,
+        final boolean observeFullEvaluationData) {
       this.flagKey = flagKey;
       this.variant = variant;
       this.allocationKey = allocationKey;
       this.runtimeDefaultUsed = runtimeDefaultUsed;
       this.errorMessage = errorMessage;
+      this.observeFullEvaluationData = observeFullEvaluationData;
     }
 
     @Override
@@ -414,6 +428,7 @@ final class FlagEvaluationAggregator {
       }
       final DegradedKey that = (DegradedKey) o;
       return runtimeDefaultUsed == that.runtimeDefaultUsed
+          && observeFullEvaluationData == that.observeFullEvaluationData
           && Objects.equals(flagKey, that.flagKey)
           && Objects.equals(variant, that.variant)
           && Objects.equals(allocationKey, that.allocationKey)
@@ -422,7 +437,13 @@ final class FlagEvaluationAggregator {
 
     @Override
     public int hashCode() {
-      return Objects.hash(flagKey, variant, allocationKey, runtimeDefaultUsed, errorMessage);
+      return Objects.hash(
+          flagKey,
+          variant,
+          allocationKey,
+          runtimeDefaultUsed,
+          errorMessage,
+          observeFullEvaluationData);
     }
   }
 
