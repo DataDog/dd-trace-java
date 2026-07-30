@@ -717,7 +717,7 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
       }
     }
 
-    public static <T> int findInsertionSlot(@Nullable Object[] mapData, @Nonnull Object key) {
+    public static int findInsertionSlot(@Nullable Object[] mapData, @Nonnull Object key) {
       if (mapData == null) return SLOT_CAPACITY_REACHED;
 
       return findInsertionSlot(mapData, numSlots(mapData), key);
@@ -750,12 +750,12 @@ public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>
       return mapData;
     }
 
-    static final <T> int findInsertionSlot(
+    static final int findInsertionSlot(
         @Nonnull Object[] mapData, int numSlots, @Nonnull Object key) {
       return findInsertionSlot(mapData, numSlots, key, preferredSlot(numSlots, key.hashCode()));
     }
 
-    static final <T> int findInsertionSlot(
+    static final int findInsertionSlot(
         @Nonnull Object[] mapData, int numSlots, @Nonnull Object key, int preferredSlot) {
       int availableIndex = SLOT_CAPACITY_REACHED;
       for (int keyIndex = preferredSlot; keyIndex < numSlots; ++keyIndex) {
