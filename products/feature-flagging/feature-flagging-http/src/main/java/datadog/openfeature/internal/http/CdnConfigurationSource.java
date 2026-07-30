@@ -158,16 +158,21 @@ public final class CdnConfigurationSource implements ConfigurationSource {
       try {
         final TransportResponse response =
             transport.fetch(options, etag == null ? Collections.emptyMap() : etagHeader(etag));
-        if (response.status == 304) {
-          return true;
-        }
-        if (response.status == 200 && response.body != null) {
-          final ApplyResult result = sink.apply(response.body);
-          if (result == ApplyResult.ACCEPTED) {
-            etag = blankToNull(response.etag);
+        synchronized (lifecycleLock) {
+          if (closed) {
+            return false;
+          }
+          if (response.status == 304) {
             return true;
           }
-          return false;
+          if (response.status == 200 && response.body != null) {
+            final ApplyResult result = sink.apply(response.body);
+            if (result == ApplyResult.ACCEPTED) {
+              etag = blankToNull(response.etag);
+              return true;
+            }
+            return false;
+          }
         }
         if (!retryable(response.status) || attempt == MAX_ATTEMPTS) {
           return false;

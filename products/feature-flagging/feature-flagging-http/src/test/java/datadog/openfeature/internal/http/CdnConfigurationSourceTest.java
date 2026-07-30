@@ -62,7 +62,8 @@ class CdnConfigurationSourceTest {
   @Test
   void preventsOverlappingPollsAndCancelsOnClose() throws Exception {
     final BlockingTransport transport = new BlockingTransport();
-    final CdnConfigurationSource source = source(new ConfigurationStore(), transport, millis -> {});
+    final ConfigurationStore store = new ConfigurationStore();
+    final CdnConfigurationSource source = source(store, transport, millis -> {});
     final Thread first = new Thread(source::pollOnce);
     first.start();
     assertTrue(transport.entered.await(1, TimeUnit.SECONDS));
@@ -74,6 +75,7 @@ class CdnConfigurationSourceTest {
 
     assertTrue(transport.cancelled.get());
     assertEquals(SourceStatus.CLOSED, source.status());
+    assertFalse(store.hasConfiguration());
   }
 
   @Test
