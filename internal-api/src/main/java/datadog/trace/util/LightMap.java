@@ -2,6 +2,8 @@ package datadog.trace.util;
 
 import datadog.trace.api.function.TriConsumer;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
@@ -12,9 +14,10 @@ import javax.annotation.Nullable;
  * {@link String}), designed to be small and fast for tiny maps.
  *
  * <p>Supports the common map operations -- {@code set}, {@code get}, {@code remove}, {@code
- * containsKey}, and {@code forEach} -- as an easy, largely footgun-free stand-in wherever a small
- * {@code Map<K, V>} is needed. It deliberately does <em>not</em> implement {@link java.util.Map};
- * the surface is intentionally small.
+ * containsKey}, {@code forEach}, and for-each iteration ({@link Iterable} of {@link EntryReader})
+ * -- as an easy, largely footgun-free stand-in wherever a small {@code Map<K, V>} is needed. It
+ * deliberately does <em>not</em> implement {@link java.util.Map}; the surface is intentionally
+ * small.
  *
  * <p>Neither null keys nor null values are supported: {@code set} rejects a null value, so a null
  * {@code get} result unambiguously means "absent". Use {@link #containsKey} if you need to probe
@@ -48,7 +51,7 @@ import javax.annotation.Nullable;
  *     parallel deleted-marker structure.
  *   - Embedding is one Object[] field in the host object instead of two.
  */
-public final class LightMap<K, V> {
+public final class LightMap<K, V> implements Iterable<LightMap.EntryReader<K, V>> {
   public static final int DEFAULT_CAPACITY = 8;
 
   // Slots a fresh (un-tuned) hint seeds -- a reasonable default so a cold site behaves like a
@@ -235,6 +238,38 @@ public final class LightMap<K, V> {
       if (key == null || EmbeddingSupport.isRemoved(key)) continue;
       consumer.accept((K) key, (V) mapData[slot + numSlots]);
     }
+  }
+
+  /**
+   * Returns an iterator over the live entries, for use with a for-each loop. Delegates to the spine
+   * ({@link EmbeddingSupport#iterator(Object[])}); the returned object is a reused flyweight -- see
+   * {@link EntryReader} for the retention caveat. Read-only: {@link Iterator#remove()} is
+   * unsupported (throws {@link UnsupportedOperationException}) -- mutate via {@link
+   * #remove(Object)} instead. Not thread-safe; behavior is undefined if the map is structurally
+   * modified during iteration.
+   */
+  @Override
+  @Nonnull
+  public Iterator<EntryReader<K, V>> iterator() {
+    return EmbeddingSupport.iterator(this.data);
+  }
+
+  /**
+   * A read-only view of one entry, yielded by {@link #iterator()} (and the spine's {@link
+   * EmbeddingSupport#iterator(Object[])} / {@link EmbeddingSupport#iterable(Object[])}).
+   *
+   * <p><strong>Reused cursor -- do not retain.</strong> To stay entry-less and allocation-free the
+   * iterator hands back <em>itself</em>, repositioned onto each entry in turn, rather than a fresh
+   * object per entry. A returned reader is therefore valid only until the next {@code next()}:
+   * never stash one or collect the readers into a collection -- every reference would point at the
+   * same flyweight showing the last entry visited. Read {@link #key()}/{@link #value()} into your
+   * own fields if you need a durable copy. The upside of the single reused object is that escape
+   * analysis can eliminate it entirely when a for-each loop does not let it escape.
+   */
+  public interface EntryReader<K, V> {
+    K key();
+
+    V value();
   }
 
   // Visible for testing: the backing spine (null until the first set).
@@ -862,6 +897,88 @@ public final class LightMap<K, V> {
 
         Object value = mapData[slot + numSlots];
         entryConsumer.accept(ctx, (K) key, (V) value);
+      }
+    }
+
+    /**
+     * A read-only iterator over the live entries of a caller-owned spine array -- the spine
+     * counterpart of {@link LightMap#iterator()}, for a caller that embeds the {@code Object[]}
+     * directly. The returned object is a reused flyweight; see {@link EntryReader} for the
+     * retention caveat. {@link Iterator#remove()} is unsupported.
+     */
+    @Nonnull
+    public static <K, V> Iterator<EntryReader<K, V>> iterator(@Nullable Object[] mapData) {
+      return new SlotIterator<>(mapData);
+    }
+
+    /**
+     * An {@link Iterable} view of a caller-owned spine array so the spine can be driven by a
+     * for-each loop directly: {@code for (EntryReader<K, V> e : EmbeddingSupport.iterable(data))}.
+     * Each {@link Iterable#iterator()} call mints a fresh flyweight, so the view is re-iterable.
+     * The wrapper is a tiny object escape analysis can eliminate when the loop does not let it
+     * escape.
+     */
+    @Nonnull
+    public static <K, V> Iterable<EntryReader<K, V>> iterable(@Nullable Object[] mapData) {
+      return () -> iterator(mapData);
+    }
+
+    // Flyweight that is both the Iterator and the EntryReader it yields: next() advances to the
+    // next
+    // live slot and returns this. No per-entry object, so a for-each loop that does not let it
+    // escape scalar-replaces the whole thing away. Fields are one array reference plus two ints for
+    // exactly that reason. Read-only: the inherited Iterator.remove() default throws.
+    private static final class SlotIterator<K, V>
+        implements Iterator<EntryReader<K, V>>, EntryReader<K, V> {
+      private final Object[] mapData;
+      private final int numSlots;
+      // Index of the next live key slot (== numSlots once exhausted), and the slot the reader
+      // currently points at (set by next()).
+      private int nextSlot;
+      private int slot;
+
+      SlotIterator(@Nullable Object[] mapData) {
+        this.mapData = mapData;
+        this.numSlots = numSlots(mapData);
+        this.nextSlot = nextLiveSlot(0);
+      }
+
+      // The first live slot at or after `from`, skipping empty (null) and tombstone (REMOVED)
+      // slots.
+      private int nextLiveSlot(int from) {
+        Object[] data = this.mapData;
+        int n = this.numSlots;
+        for (int i = from; i < n; ++i) {
+          Object key = data[i];
+          if (key != null && key != REMOVED) return i;
+        }
+        return n;
+      }
+
+      @Override
+      public boolean hasNext() {
+        return this.nextSlot < this.numSlots;
+      }
+
+      @Override
+      public EntryReader<K, V> next() {
+        int cur = this.nextSlot;
+        if (cur >= this.numSlots) throw new NoSuchElementException();
+        this.slot = cur;
+        this.nextSlot = nextLiveSlot(cur + 1);
+        return this;
+      }
+
+      @SuppressWarnings("unchecked")
+      @Override
+      public K key() {
+        return (K) this.mapData[this.slot];
+      }
+
+      @SuppressWarnings("unchecked")
+      @Override
+      public V value() {
+        return (V) this.mapData[this.slot + this.numSlots];
       }
     }
 
