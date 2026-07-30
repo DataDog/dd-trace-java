@@ -8,10 +8,13 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.util.LightMap.EntryReader;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -317,6 +320,75 @@ class LightMapTest {
       map.set("k1", 99);
       assertEquals(99, map.get("k1"));
     }
+
+    @Test
+    void forEachLoopVisitsAllLiveEntries() {
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
+      map.set("a", 1);
+      map.set("b", 2);
+      map.set("c", 3);
+
+      Map<String, Integer> seen = new HashMap<>();
+      for (EntryReader<String, Integer> e : map) {
+        seen.put(e.key(), e.value());
+      }
+      assertEquals(3, seen.size());
+      assertEquals(1, seen.get("a"));
+      assertEquals(2, seen.get("b"));
+      assertEquals(3, seen.get("c"));
+    }
+
+    @Test
+    void iterationSkipsRemovedAndEmptySlots() {
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
+      for (int i = 0; i < 5; i++) {
+        map.set("k" + i, i);
+      }
+      map.remove("k2"); // leaves a tombstone the iterator must skip
+
+      Map<String, Integer> seen = new HashMap<>();
+      for (EntryReader<String, Integer> e : map) {
+        seen.put(e.key(), e.value());
+      }
+      assertEquals(4, seen.size());
+      assertNull(seen.get("k2"));
+      assertEquals(0, seen.get("k0"));
+      assertEquals(4, seen.get("k4"));
+    }
+
+    @Test
+    void iterationOverEmptyMapYieldsNothing() {
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
+      Iterator<EntryReader<String, Integer>> it = map.iterator();
+      assertFalse(it.hasNext());
+      assertThrows(NoSuchElementException.class, it::next);
+    }
+
+    @Test
+    void iteratorReusesASingleFlyweight() {
+      // The reader handed back is the iterator itself, repositioned in place -- the same object
+      // each
+      // step. This pins the deliberate zero-allocation contract (and the "do not retain" caveat).
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
+      map.set("a", 1);
+      map.set("b", 2);
+
+      Iterator<EntryReader<String, Integer>> it = map.iterator();
+      EntryReader<String, Integer> first = it.next();
+      EntryReader<String, Integer> second = it.next();
+      assertSame(first, second);
+      assertSame(it, first);
+      assertFalse(it.hasNext());
+    }
+
+    @Test
+    void iteratorRemoveIsUnsupported() {
+      LightMap<String, Integer> map = LightMap.createUncapped(8);
+      map.set("a", 1);
+      Iterator<EntryReader<String, Integer>> it = map.iterator();
+      it.next();
+      assertThrows(UnsupportedOperationException.class, it::remove);
+    }
   }
 
   // ============ EmbeddingSupport spine ============
@@ -434,6 +506,51 @@ class LightMapTest {
       assertEquals(0, EmbeddingSupport.findSlot(data, 23)); // reused the very slot 15 vacated
       assertEquals("C", EmbeddingSupport.get(data, 23));
       assertEquals(2, EmbeddingSupport.size(data));
+    }
+
+    @Test
+    void spineIteratorVisitsAllLiveEntriesAndSkipsTombstones() {
+      Object[] data = null;
+      for (int i = 0; i < 5; i++) {
+        data = EmbeddingSupport.set(8, data, "k" + i, i);
+      }
+      EmbeddingSupport.remove(data, "k3"); // tombstone to skip
+
+      Map<String, Integer> seen = new HashMap<>();
+      Iterator<EntryReader<String, Integer>> it = EmbeddingSupport.iterator(data);
+      while (it.hasNext()) {
+        EntryReader<String, Integer> e = it.next();
+        seen.put(e.key(), e.value());
+      }
+      assertEquals(4, seen.size());
+      assertNull(seen.get("k3"));
+      assertEquals(0, seen.get("k0"));
+    }
+
+    @Test
+    void spineIterableDrivesForEachLoopAndIsReIterable() {
+      Object[] data = null;
+      data = EmbeddingSupport.set(8, data, "a", 1);
+      data = EmbeddingSupport.set(8, data, "b", 2);
+
+      Iterable<EntryReader<String, Integer>> view = EmbeddingSupport.iterable(data);
+      // A fresh flyweight per iterator() call, so the view survives a second pass.
+      for (int pass = 0; pass < 2; pass++) {
+        Map<String, Integer> seen = new HashMap<>();
+        for (EntryReader<String, Integer> e : view) {
+          seen.put(e.key(), e.value());
+        }
+        assertEquals(2, seen.size(), "pass " + pass);
+        assertEquals(1, seen.get("a"));
+        assertEquals(2, seen.get("b"));
+      }
+    }
+
+    @Test
+    void spineIteratorOverNullDataYieldsNothing() {
+      Iterator<EntryReader<String, Integer>> it = EmbeddingSupport.iterator(null);
+      assertFalse(it.hasNext());
+      assertThrows(NoSuchElementException.class, it::next);
     }
 
     @Test
