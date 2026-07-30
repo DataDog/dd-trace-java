@@ -1115,7 +1115,7 @@ test_debugger_arm64:
     - !reference [.test_job_arm64, script]
 
 test_smoke:
-  extends: .test_job
+  extends: .test_job_with_test_agent
   # needs:parallel:matrix limits this job to a specific build_tests combination.
   # Keep matrix vars exact and in build_tests declaration order:
   # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
@@ -1135,7 +1135,7 @@ test_smoke:
     matrix: *test_matrix_8
 
 test_smoke_arm64:
-  extends: .test_job_arm64
+  extends: .test_job_arm64_with_test_agent
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :smokeTest"
