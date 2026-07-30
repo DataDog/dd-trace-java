@@ -1,0 +1,48 @@
+[
+  [
+    {
+      "service": "my-service",
+      "name": "servlet.request",
+      "resource": "GET /greeting",
+      "type": "web",
+      "trace_id": 1234567890,
+      "span_id": 111,
+      "parent_id": 0,
+      "start": 1600000000000000000,
+      "duration": 500000,
+      "error": 0,
+      "meta": {"http.method": "GET", "http.status_code": "200"},
+      "metrics": {"_dd.top_level": 1, "_dd.agent_psr": 0.75}
+    },
+    {
+      "service": "my-service",
+      "name": "repository.query",
+      "resource": "SELECT users",
+      "type": "sql",
+      "trace_id": 1234567890,
+      "span_id": 222,
+      "parent_id": 111,
+      "start": 1600000000000100000,
+      "duration": 200000,
+      "error": 1,
+      "meta": {"db.type": "postgres"},
+      "metrics": {}
+    }
+  ],
+  [
+    {
+      "service": "batch",
+      "name": "scheduled.job",
+      "resource": "nightly",
+      "type": "custom",
+      "trace_id": 42,
+      "span_id": 7,
+      "parent_id": 0,
+      "start": 1,
+      "duration": 1,
+      "error": 0,
+      "meta": {},
+      "metrics": {}
+    }
+  ]
+]
