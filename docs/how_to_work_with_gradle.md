@@ -161,12 +161,12 @@ Only tasks required to complete the requested goal are executed.
 
 In a well-organized Gradle project, build logic lives in specific places:
 
-| Location              | Purpose                                                                                                                                       |
-|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| `settings.gradle.kts` | Project structure, repository settings, plugin management                                                                                     |
-| `build.gradle.kts`    | Project-specific build configuration                                                                                                          |
+| Location              | Purpose                                                                                                                                                                                 |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `settings.gradle.kts` | Project structure, repository settings, plugin management                                                                                                                               |
+| `build.gradle.kts`    | Project-specific build configuration                                                                                                                                                    |
 | `buildSrc/`           | Build logic automatically included by Gradle; contains convention plugins and shared configuration. It's possible to use different location(s) but it requires explicit declaration(s). |
-| `gradle/`             | Version catalogs and wrapper files and script plugins                                                                                         |
+| `gradle/`             | Version catalogs and wrapper files and script plugins                                                                                                                                   |
 
 > [!CAUTION]
 > Script plugins are not recommended. The best practice for developing our build logic in plugins is 
@@ -469,15 +469,15 @@ graph LR
 | 🔵 Blue     | Declarable | Where you add dependencies (`api`, `implementation`, `compileOnly`, `runtimeOnly`) |
 | 🟢 Green    | Resolvable | Used by tasks to get files (`compileClasspath`, `runtimeClasspath`)                |
 | 🟡 Yellow   | Consumable | Exposed to consumer projects (`apiElements`, `runtimeElements`)                    |
-| ⬜ Gray      | Tasks      | Gradle tasks that use the configurations                                           |
+| ⬜ Gray     | Tasks      | Gradle tasks that use the configurations                                           |
 
 | Configuration    | Compile Classpath | Runtime Classpath | Exposed to Consumers | Use Case                                                      |
 |------------------|:-----------------:|:-----------------:|:--------------------:|---------------------------------------------------------------|
-| `api`            |         ✅         |         ✅         |          ✅           | Types in your public API (method signatures, return types)    |
-| `implementation` |         ✅         |         ✅         |          ❌           | Internal dependencies not exposed to consumers                |
-| `compileOnly`    |         ✅         |         ❌         |          ❌           | Provided at runtime by the environment (e.g., `servlet-api`)  |
-| `compileOnlyApi` |         ✅         |         ❌         |          ✅           | Compile-only dependency that's part of the public API         |
-| `runtimeOnly`    |         ❌         |         ✅         |          ❌           | Needed only at runtime (e.g., JDBC drivers, logging backends) |
+| `api`            |        ✅         |        ✅         |          ✅          | Types in your public API (method signatures, return types)    |
+| `implementation` |        ✅         |        ✅         |          ❌          | Internal dependencies not exposed to consumers                |
+| `compileOnly`    |        ✅         |        ❌         |          ❌          | Provided at runtime by the environment (e.g., `servlet-api`)  |
+| `compileOnlyApi` |        ✅         |        ❌         |          ✅          | Compile-only dependency that's part of the public API         |
+| `runtimeOnly`    |        ❌         |        ✅         |          ❌          | Needed only at runtime (e.g., JDBC drivers, logging backends) |
 
 > [!NOTE]
 > `compileOnlyApi` flows to `apiElements` (so consumers see it at compile time), i.e. the existing `apiElements` 
@@ -1148,25 +1148,26 @@ that build logic is migrated.
 
 Use the most specific module plugin instead of applying `gradle/java.gradle` directly:
 
-| Module kind                     | Plugin ID                                |
-|---------------------------------|------------------------------------------|
-| Agent product modules           | `dd-trace-java.module.agent-product`     |
-| Annotation processors           | `dd-trace-java.module.annotation-processor` |
-| Bootstrap components            | `dd-trace-java.module.bootstrap-component` |
-| Published APIs                  | `dd-trace-java.module.distributable.api` |
-| Instrumentation modules         | `dd-trace-java.module.instrumentation`   |
-| Internal API modules            | `dd-trace-java.module.internal-api`      |
-| Product libraries               | `dd-trace-java.module.product-library`   |
-| Internal implementation libraries | `dd-trace-java.module.internal-library` |
-| Platform components             | `dd-trace-java.module.platform-component` |
-| Smoke-test modules              | `dd-trace-java.module.smoke-test`        |
-| Testing support modules         | `dd-trace-java.module.testing-support`   |
+| Module kind                       | Plugin ID                                   |
+|-----------------------------------|---------------------------------------------|
+| Agent product modules             | `dd-trace-java.module.agent-product`        |
+| Annotation processors             | `dd-trace-java.module.annotation-processor` |
+| Bootstrap components              | `dd-trace-java.module.bootstrap-component`  |
+| Published APIs                    | `dd-trace-java.module.distributable.api`    |
+| Instrumentation modules           | `dd-trace-java.module.instrumentation`      |
+| Internal API modules              | `dd-trace-java.module.internal-api`         |
+| Product libraries                 | `dd-trace-java.module.product-library`      |
+| Internal implementation libraries | `dd-trace-java.module.internal-library`     |
+| Platform components               | `dd-trace-java.module.platform-component`   |
+| Smoke-test modules                | `dd-trace-java.module.smoke-test`           |
+| Testing support modules           | `dd-trace-java.module.testing-support`      |
 
-Use `internal-api` for internal API surfaces such as product `*-api` modules or `remote-config-api`. Use
-`product-library` for product implementation modules such as product `*-lib` modules. Use `internal-library` for shared,
-non-product-specific modules such as `:communication`, `:telemetry`, agent helpers, and `:utils:*`. Use
-`platform-component` only for platform modules under `:components`; those modules are kept separate because they can
-grow stricter dependency and testing constraints than general internal libraries.
+> [!TIP]
+> * Use `internal-api` for internal API surfaces such as product `*-api` modules or `remote-config-api`. 
+> * Use `internal-library` for internal implementation modules such as product `*-lib` modules, `:communication`, 
+>   `:telemetry`, `:utils:*`, and similar shared libraries. 
+> * Use `platform-component` only for platform modules under `:components`; those modules are kept separate 
+>   because they can grow stricter dependency and testing constraints than general internal libraries.
 
 For example:
 
@@ -1245,7 +1246,7 @@ When you use eager APIs, values are computed immediately during configuration—
 
 ### Eager vs Lazy API Comparison
 
-| Eager (Don't ❌)                 | Lazy (Prefer ✅)                        | Notes                                                                  |
+| Eager (Don't ❌)                | Lazy (Prefer ✅)                       | Notes                                                                  |
 |---------------------------------|----------------------------------------|------------------------------------------------------------------------|
 | `configurations.getByName("x")` | `configurations.named("x")`            | Returns a `NamedDomainObjectProvider` instead of resolving immediately |
 | `tasks.getByName("x")`          | `tasks.named("x")`                     | Avoids triggering task creation/configuration                          |
