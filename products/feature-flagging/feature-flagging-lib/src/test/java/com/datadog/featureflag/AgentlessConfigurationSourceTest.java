@@ -178,7 +178,7 @@ class AgentlessConfigurationSourceTest {
         assertEquals("etag-b", response.etag);
         assertEquals(emptyConfig(), new String(response.body, UTF_8));
         assertNull(server.getLastRequest().getHeader("DD-API-KEY"));
-        assertNull(server.getLastRequest().getHeader("DD-Api-Key-Fingerprint"));
+        assertNull(server.getLastRequest().getHeader("DD-API-KEY-FINGERPRINT"));
         assertEquals("etag-a", server.getLastRequest().getHeader("If-None-Match"));
         assertEquals("java", server.getLastRequest().getHeader("Datadog-Meta-Lang"));
         assertEquals("gzip", server.getLastRequest().getHeader("Accept-Encoding"));
@@ -201,7 +201,7 @@ class AgentlessConfigurationSourceTest {
     assertEquals("test-api-key", requests.get(0).header("DD-API-KEY"));
     assertEquals(
         "rijn_i8Jug5ocjALL7JZiV1a8HzXqkwDRKcE7hK9IouPQwio",
-        requests.get(0).header("DD-Api-Key-Fingerprint"));
+        requests.get(0).header("DD-API-KEY-FINGERPRINT"));
   }
 
   @Test
@@ -218,7 +218,7 @@ class AgentlessConfigurationSourceTest {
     client.fetch(endpoint, config, null);
 
     assertNull(requests.get(0).header("DD-API-KEY"));
-    assertNull(requests.get(0).header("DD-Api-Key-Fingerprint"));
+    assertNull(requests.get(0).header("DD-API-KEY-FINGERPRINT"));
   }
 
   @Test
@@ -231,7 +231,7 @@ class AgentlessConfigurationSourceTest {
     client.fetch(endpoint, config(), null);
 
     assertNull(requests.get(0).header("DD-API-KEY"));
-    assertNull(requests.get(0).header("DD-Api-Key-Fingerprint"));
+    assertNull(requests.get(0).header("DD-API-KEY-FINGERPRINT"));
   }
 
   @Test

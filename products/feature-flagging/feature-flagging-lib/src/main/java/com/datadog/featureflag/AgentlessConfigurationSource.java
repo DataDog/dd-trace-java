@@ -47,7 +47,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       "/api/v2/feature-flagging/config/rules-based/server";
   private static final String BASE62_ALPHABET =
       "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  private static final String API_KEY_FINGERPRINT_HEADER = "DD-Api-Key-Fingerprint";
+  private static final String API_KEY_FINGERPRINT_HEADER = "DD-API-KEY-FINGERPRINT";
   private static final String CLIFFORD_SHA256_PREFIX = "rijn_";
   private static final int CLIFFORD_SHA256_BASE62_LENGTH = 43;
   private static final BigInteger BASE_62 = BigInteger.valueOf(62);
