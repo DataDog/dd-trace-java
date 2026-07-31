@@ -241,6 +241,14 @@
         "aliases": []
       }
     ],
+    "DD_APPSEC_AGENTIC_ONBOARDING": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "",
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING": [
       {
         "version": "C",
@@ -702,6 +710,14 @@
         "version": "A",
         "type": "int",
         "default": "60000",
+        "aliases": []
+      }
+    ],
+    "DD_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
         "aliases": []
       }
     ],
@@ -1502,6 +1518,46 @@
         "version": "A",
         "type": "string",
         "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "agentless",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "30",
+        "aliases": []
+      }
+    ],
+    "DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "5",
         "aliases": []
       }
     ],
@@ -3889,6 +3945,14 @@
         "aliases": []
       }
     ],
+    "DD_SPRING_SCHEDULING_MEASURED_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_STACK_TRACE_LENGTH_LIMIT": [
       {
         "version": "A",
@@ -4054,6 +4118,14 @@
         "version": "A",
         "type": "decimal",
         "default": "10.0",
+        "aliases": []
+      }
+    ],
+    "DD_TEST_AGENT_SESSION_TOKEN": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
         "aliases": []
       }
     ],
@@ -8673,7 +8745,7 @@
         "aliases": []
       }
     ],
-    "DD_TRACES_SPAN_METRICS_ENABLED": [
+    "DD_OTEL_TRACES_SPAN_METRICS_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
@@ -10745,6 +10817,22 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS": [
+      {
+        "version": "A",
+        "type": "array",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "100",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_STATUS404DECORATOR_ENABLED": [
       {
         "version": "A",
@@ -11962,5 +12050,7 @@
       }
     ]
   },
-  "deprecations": {}
+  "deprecations": {
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": "DD_FEATURE_FLAGS_ENABLED"
+  }
 }

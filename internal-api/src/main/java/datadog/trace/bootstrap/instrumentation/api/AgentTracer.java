@@ -225,31 +225,6 @@ public class AgentTracer {
     return NoopSpanContext.INSTANCE;
   }
 
-  /**
-   * Returns the noop scope instance.
-   *
-   * <p>This instance will always be the same, and can be safely tested using object identity (ie
-   * {@code ==}).
-   *
-   * @return the noop scope instance.
-   */
-  public static AgentScope noopScope() {
-    return NoopScope.INSTANCE;
-  }
-
-  /**
-   * Returns the noop continuation instance.
-   *
-   * <p>This instance will always be the same, and can be safely tested using object identity (ie
-   * {@code ==}).
-   *
-   * @return the noop continuation instance.
-   */
-  @SuppressWarnings("deprecation")
-  public static AgentScope.Continuation noopContinuation() {
-    return NoopContinuation.INSTANCE;
-  }
-
   public static final TracerAPI NOOP_TRACER = new NoopTracerAPI();
 
   private static volatile TracerAPI provider = NOOP_TRACER;
@@ -690,7 +665,7 @@ public class AgentTracer {
 
     @Override
     public ContextScope attach(Context context) {
-      return noopScope();
+      return NoopScope.INSTANCE;
     }
 
     @Override
@@ -700,7 +675,7 @@ public class AgentTracer {
 
     @Override
     public ContextContinuation capture(Context context) {
-      return noopContinuation();
+      return NoopContinuation.INSTANCE;
     }
   }
 

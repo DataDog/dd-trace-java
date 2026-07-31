@@ -1,6 +1,5 @@
 package datadog.trace.core.scopemanager;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.core.scopemanager.ScopeManagerForkedTest.EVENT.ACTIVATE;
 import static datadog.trace.core.scopemanager.ScopeManagerForkedTest.EVENT.CLOSE;
@@ -205,12 +204,12 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     tracer.setAsyncPropagationEnabled(false);
     ContextContinuation continuation = tracer.captureActiveSpan();
 
-    assertSame(noopContinuation(), continuation);
+    assertSame(Context.root(), continuation.context());
 
     tracer.setAsyncPropagationEnabled(true);
     continuation = tracer.captureActiveSpan();
 
-    assertNotSame(noopContinuation(), continuation);
+    assertNotSame(Context.root(), continuation.context());
     assertNotNull(continuation);
 
     continuation.release();

@@ -4,11 +4,9 @@ import datadog.trace.civisibility.codeowners.matcher.CharacterMatcher;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,12 +18,9 @@ import javax.annotation.Nullable;
 
 public class CodeownersImpl implements Codeowners {
 
-  // Entries grouped by section in order of appearance (the unnamed section that precedes the first
-  // header comes first). Within a section, the highest-priority (last in the file) matching entry
-  // wins and owners from every matching section are then combined.
-  private final Collection<Deque<Entry>> sections;
+  private final List<Section> sections;
 
-  private CodeownersImpl(Collection<Deque<Entry>> sections) {
+  private CodeownersImpl(List<Section> sections) {
     this.sections = sections;
   }
 
@@ -35,17 +30,30 @@ public class CodeownersImpl implements Codeowners {
    */
   @Override
   public @Nullable Collection<String> getOwners(@Nonnull String path) {
-    char[] pathCharacters = path.toCharArray();
+    if (sections.size() == 1) {
+      Section section = sections.get(0);
+      if (section.isExcluded(path)) {
+        return new ArrayList<>();
+      }
+      Entry entry = section.findMatchingEntry(path);
+      return entry != null ? new ArrayList<>(entry.getOwners()) : null;
+    }
+
     Set<String> owners = null;
-    for (Deque<Entry> section : sections) {
-      for (Entry entry : section) {
-        if (entry.getMatcher().consume(pathCharacters, 0) >= 0) {
-          if (owners == null) {
-            owners = new LinkedHashSet<>();
-          }
-          owners.addAll(entry.getOwners());
-          break; // highest-priority match within a section wins
+    for (Section section : sections) {
+      if (section.isExcluded(path)) {
+        if (owners == null) {
+          owners = new LinkedHashSet<>();
         }
+        continue;
+      }
+
+      Entry entry = section.findMatchingEntry(path);
+      if (entry != null) {
+        if (owners == null) {
+          owners = new LinkedHashSet<>();
+        }
+        owners.addAll(entry.getOwners());
       }
     }
     return owners != null ? new ArrayList<>(owners) : null;
@@ -57,9 +65,9 @@ public class CodeownersImpl implements Codeowners {
   }
 
   public static Codeowners parse(Reader r) throws IOException {
-    Deque<Entry> defaultSection = new ArrayDeque<>();
-    Map<String, Deque<Entry>> namedSections = new LinkedHashMap<>();
-    Deque<Entry> currentSection = defaultSection;
+    Section defaultSection = new Section();
+    Map<String, Section> namedSections = new LinkedHashMap<>();
+    Section currentSection = defaultSection;
 
     CharacterMatcher.Factory characterMatcherFactory = new CharacterMatcher.Factory();
     BufferedReader br = new BufferedReader(r);
@@ -73,19 +81,17 @@ public class CodeownersImpl implements Codeowners {
       if (header != null) {
         sectionDefaultOwners = header.getDefaultOwners();
         String key = header.getName().trim().toLowerCase(Locale.ROOT);
-        currentSection = namedSections.computeIfAbsent(key, k -> new ArrayDeque<>());
+        currentSection = namedSections.computeIfAbsent(key, k -> new Section());
         continue;
       }
 
       Entry entry = entryBuilder.parse(sectionDefaultOwners);
       if (entry != null) {
-        // within a section, the last entry in the file has the highest priority
-        currentSection.offerFirst(entry);
+        currentSection.add(entry);
       }
     }
 
-    // Unnamed section is evaluated first, then named sections in order of first appearance
-    List<Deque<Entry>> sections = new ArrayList<>(namedSections.size() + 1);
+    List<Section> sections = new ArrayList<>(namedSections.size() + 1);
     sections.add(defaultSection);
     sections.addAll(namedSections.values());
     return new CodeownersImpl(sections);

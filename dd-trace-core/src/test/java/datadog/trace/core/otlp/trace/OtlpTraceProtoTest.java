@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUME
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_INTERNAL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
+import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.emptyList;
@@ -15,7 +16,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
@@ -28,6 +32,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.common.writer.LoggingWriter;
+import datadog.trace.core.CoreSpan;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
@@ -422,6 +427,11 @@ class OtlpTraceProtoTest {
             asList(
                 span("anchor.op", "anchor.op", "web"),
                 linkedSpanWithFlags("flags.linked", 0, (byte) 0x02))),
+        Arguments.of(
+            "span link with high-bit flags — flags written as unsigned byte, not sign-extended",
+            asList(
+                span("anchor.op", "anchor.op", "web"),
+                linkedSpanWithFlags("flags.highbit.linked", 0, (byte) 0x82))),
 
         // ── metadata paths ────────────────────────────────────────────────────
         Arguments.of(
@@ -620,6 +630,30 @@ class OtlpTraceProtoTest {
         expectedTraceIds.size(),
         parsedTraceIds.size(),
         "payload must contain spans with all three distinct trace IDs");
+  }
+
+  @Test
+  void poisonedSpanResetsCollectorForNextTrace() {
+    // mid-trace exception (e.g. from a malformed span) must not leave partial state behind
+    DDSpan realSpan = buildSpans(asList(span("first.span", "op.first", "web"))).get(0);
+
+    CoreSpan<?> poison = mock(CoreSpan.class);
+    when(poison.samplingPriority()).thenReturn(1);
+    when(poison.getTraceId()).thenThrow(new RuntimeException("boom"));
+
+    List<CoreSpan<?>> poisonedTrace = new ArrayList<>();
+    poisonedTrace.add(poison);
+    poisonedTrace.add(realSpan);
+
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    assertThrows(RuntimeException.class, () -> collector.addTrace(poisonedTrace));
+
+    // a normal trace collected afterwards must not see any leftover state from the poisoned one
+    List<DDSpan> normalTrace = buildSpans(asList(span("normal.op", "op.normal", "web")));
+    collector.addTrace(normalTrace);
+    OtlpPayload payload = collector.collectTraces();
+
+    assertTrue(payload.getContentLength() > 0, "normal trace after reset must still export");
   }
 
   @Test
@@ -966,7 +1000,7 @@ class OtlpTraceProtoTest {
     // absent otherwise because the default sampler may still set a positive priority.
     if (spec.samplingPriority > 0) {
       assertTrue(
-          (parsedFlags & OtlpTraceProto.SAMPLED_TRACE_FLAG) != 0,
+          (parsedFlags & SAMPLED_TRACE_FLAG) != 0,
           "SAMPLED flag must be set in flags [" + caseName + "]");
     }
 
@@ -1082,6 +1116,8 @@ class OtlpTraceProtoTest {
     if (!linkSpec.traceState.isEmpty()) {
       assertEquals(
           linkSpec.traceState, parsedTraceState, "Link.trace_state mismatch [" + caseName + "]");
+    } else {
+      assertNull(parsedTraceState, "empty Link.trace_state should be omitted [" + caseName + "]");
     }
     // SpanLink.from() ORs in the SAMPLED_FLAG (0x01) when the target context has positive
     // sampling priority, which all test anchor spans have via the default tracer sampler.
