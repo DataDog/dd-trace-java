@@ -55,6 +55,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -66,6 +67,8 @@ import java.util.OptionalLong;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.Assertions;
@@ -753,6 +756,52 @@ public class SnapshotSerializationTest {
         locals, "strMap", "foo0", "bar0", "foo1", "bar1", "foo2", "bar2", "foo3", "bar3", "foo4",
         "bar4", "foo5", "bar5", "foo6", "bar6", "foo7", "bar7", "foo8", "bar8", "foo9", "bar9");
     assertSize(locals, "strMap", "10");
+  }
+
+  @Test
+  public void synchronizedMapLockedByAnotherThread() throws Exception {
+    Map<String, String> syncMap = Collections.synchronizedMap(new HashMap<>());
+    syncMap.put("foo", "bar");
+    CountDownLatch locked = new CountDownLatch(1);
+    CountDownLatch release = new CountDownLatch(1);
+    Thread holder =
+        new Thread(
+            () -> {
+              synchronized (syncMap) {
+                locked.countDown();
+                try {
+                  release.await();
+                } catch (InterruptedException ignored) {
+                }
+              }
+            },
+            "mutex-holder");
+    // daemon: a failed await below would otherwise leave the mutex held and block the test JVM
+    holder.setDaemon(true);
+    holder.start();
+    try {
+      assertTrue(locked.await(5, TimeUnit.SECONDS));
+      JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+      Snapshot snapshot = createSnapshot();
+      CapturedContext context = new CapturedContext();
+      context.addLocals(
+          new CapturedContext.CapturedValue[] {
+            capturedValueDepth("syncMap", syncMap.getClass().getTypeName(), syncMap, 1)
+          });
+      snapshot.setExit(context);
+      String buffer =
+          CompletableFuture.supplyAsync(() -> adapter.toJson(snapshot)).get(30, TimeUnit.SECONDS);
+      Map<String, Object> local = (Map<String, Object>) getLocalsFromJson(buffer).get("syncMap");
+      assertNull(local.get(ENTRIES));
+      assertNull(local.get(SIZE));
+      Map<String, Object> fields = (Map<String, Object>) local.get(FIELDS);
+      Assertions.assertNotNull(fields);
+      // serialized through the object path: the backing map is a field, not entries
+      assertTrue(fields.containsKey("m"));
+    } finally {
+      release.countDown();
+      holder.join();
+    }
   }
 
   private Map<String, Object> doMapSize(int maxColSize) throws IOException {
