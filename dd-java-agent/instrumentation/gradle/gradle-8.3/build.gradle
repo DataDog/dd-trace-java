@@ -8,4 +8,6 @@ repositories {
 
 dependencies {
   compileOnly gradleApi()
+  testImplementation gradleApi()
+  testImplementation libs.junit.jupiter
 }

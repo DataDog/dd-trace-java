@@ -99,6 +99,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     "succeed-new-8.3            | 8.3           | test-succeed-new-instrumentation              | {false, true}      | true            | false        | 5              | 1                ",
     "succeed-new-8.9            | 8.9           | test-succeed-new-instrumentation              | {false, true}      | true            | false        | 5              | 1                ",
     "succeed-new-latest         | latest        | test-succeed-new-instrumentation              | {false, true}      | true            | false        | 5              | 1                ",
+    "android-variant-api-latest | latest        | test-android-variant-api                      | false              | true            | false        | 22             | 1                ",
     "succeed-multi-module-new   | latest        | test-succeed-multi-module-new-instrumentation | false              | true            | false        | 7              | 2                ",
     "succeed-multi-forks-new    | latest        | test-succeed-multi-forks-new-instrumentation  | false              | true            | false        | 6              | 2                ",
     "skip-new                   | latest        | test-skip-new-instrumentation                 | false              | true            | false        | 2              | 0                ",
