@@ -245,6 +245,17 @@ public final class JsonWriter implements Flushable, AutoCloseable {
     }
   }
 
+  /**
+   * Returns the current JSON size in bytes.
+   *
+   * @return The JSON size in bytes.
+   * @see #toByteArray()
+   */
+  public int size() {
+    flush();
+    return this.outputStream.size();
+  }
+
   @Override
   public void close() {
     try {

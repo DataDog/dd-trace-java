@@ -1,6 +1,6 @@
 plugins {
   id 'com.gradleup.shadow'
-  id 'me.champeau.jmh'
+  id 'dd-trace-java.jmh-conventions'
 }
 
 ext {

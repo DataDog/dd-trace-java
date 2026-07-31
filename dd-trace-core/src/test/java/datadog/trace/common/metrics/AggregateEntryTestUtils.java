@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -45,6 +46,43 @@ public final class AggregateEntryTestUtils {
       @Nullable CharSequence httpMethod,
       @Nullable CharSequence httpEndpoint,
       @Nullable CharSequence grpcStatusCode) {
+    return of(
+        resource,
+        service,
+        operationName,
+        serviceSource,
+        type,
+        httpStatusCode,
+        synthetic,
+        traceRoot,
+        spanKind,
+        peerTags,
+        httpMethod,
+        httpEndpoint,
+        grpcStatusCode,
+        null);
+  }
+
+  /**
+   * Same as {@link #of} but also carries pre-packed {@code "key:value"} additional metric tags (in
+   * schema order), letting the OTLP/serializing writer tests exercise the additional-tags path
+   * without driving a full {@code AggregateTable}/{@code AdditionalTagsSchema} canonicalization.
+   */
+  public static AggregateEntry of(
+      CharSequence resource,
+      CharSequence service,
+      CharSequence operationName,
+      @Nullable CharSequence serviceSource,
+      CharSequence type,
+      int httpStatusCode,
+      boolean synthetic,
+      boolean traceRoot,
+      CharSequence spanKind,
+      @Nullable List<UTF8BytesString> peerTags,
+      @Nullable CharSequence httpMethod,
+      @Nullable CharSequence httpEndpoint,
+      @Nullable CharSequence grpcStatusCode,
+      @Nullable UTF8BytesString[] additionalTags) {
     UTF8BytesString resourceUtf = AggregateEntry.createUtf8(resource);
     UTF8BytesString serviceUtf = AggregateEntry.createUtf8(service);
     UTF8BytesString operationNameUtf = AggregateEntry.createUtf8(operationName);
@@ -56,6 +94,8 @@ public final class AggregateEntryTestUtils {
     UTF8BytesString grpcUtf = AggregateEntry.createUtf8(grpcStatusCode);
     List<UTF8BytesString> peerTagsList = peerTags == null ? Collections.emptyList() : peerTags;
     UTF8BytesString[] peerTagsArr = peerTagsList.toArray(new UTF8BytesString[0]);
+    UTF8BytesString[] additionalTagsArr =
+        additionalTags == null ? new UTF8BytesString[0] : additionalTags;
     long keyHash =
         AggregateEntry.hashOf(
             resourceUtf,
@@ -71,7 +111,9 @@ public final class AggregateEntryTestUtils {
             synthetic,
             traceRoot,
             peerTagsArr,
-            peerTagsArr.length);
+            peerTagsArr.length,
+            additionalTagsArr,
+            additionalTagsArr.length);
     return new AggregateEntry(
         keyHash,
         resourceUtf,
@@ -86,7 +128,8 @@ public final class AggregateEntryTestUtils {
         (short) httpStatusCode,
         synthetic,
         traceRoot,
-        peerTagsList);
+        peerTagsList,
+        additionalTagsArr);
   }
 
   /**
@@ -110,7 +153,7 @@ public final class AggregateEntryTestUtils {
 
   /** Clears the per-cycle counters and histograms on {@code e}. See {@link #recordOk}. */
   public static void clear(AggregateEntry e) {
-    e.clear();
+    e.clearAggregate();
   }
 
   /**
@@ -132,7 +175,10 @@ public final class AggregateEntryTestUtils {
         && a.getPeerTags().equals(b.getPeerTags())
         && Objects.equals(a.getHttpMethod(), b.getHttpMethod())
         && Objects.equals(a.getHttpEndpoint(), b.getHttpEndpoint())
-        && Objects.equals(a.getGrpcStatusCode(), b.getGrpcStatusCode());
+        && Objects.equals(a.getGrpcStatusCode(), b.getGrpcStatusCode())
+        // Additional tags are part of the key (folded into keyHash in schema order), so entries
+        // that differ only in additional tags must not compare equal.
+        && Arrays.equals(a.getAdditionalTags(), b.getAdditionalTags());
   }
 
   /**
