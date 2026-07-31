@@ -5687,6 +5687,7 @@ public class Config {
     return "otlp".equalsIgnoreCase(traceOtelExporter);
   }
 
+  @SuppressForbidden // split on single-character uses a fast path
   public boolean isOtlpTracesExportEnabled() {
     if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
       return OTLP_WRITER_TYPE.equals(writerType);
