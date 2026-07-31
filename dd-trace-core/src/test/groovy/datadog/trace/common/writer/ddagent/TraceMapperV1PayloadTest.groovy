@@ -99,8 +99,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
       (Tags.SPAN_KIND): Tags.SPAN_KIND_CLIENT,
       "attr.string": "value",
       "attr.bool"  : true,
-      "attr.number": 12.5d,
-      "_dd.p.dm"   : "-3"
+      "attr.number": 12.5d
     ]
     def span = new TraceGenerator.PojoSpan(
       "service-a",
@@ -112,7 +111,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
       1000L,
       2000L,
       1,
-      [:],
+      ["_dd.p.dm": "-3"],
       tags,
       "web",
       false,
@@ -184,8 +183,8 @@ class TraceMapperV1PayloadTest extends DDSpecification {
       1000L,
       2000L,
       0,
-      [:],
       decisionMakerTag == null ? [:] : ["_dd.p.dm": decisionMakerTag],
+      [:],
       "custom",
       false,
       PrioritySampling.SAMPLER_KEEP,
@@ -884,7 +883,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     assertEquals(1, chunkAttributes.size())
     assertEqualsWithNullAsEmpty(firstSpan.getLocalRootSpan().getServiceName(), chunkAttributes.get("service"))
     assertArrayEquals(traceIdBytes(firstSpan.getTraceId()), traceId)
-    assertEquals(expectedSamplingMechanism(firstSpan.getTags()), samplingMechanism)
+    assertEquals(expectedSamplingMechanism(firstSpan.getBaggage()), samplingMechanism)
   }
 
   private static byte[] traceIdBytes(DDTraceId traceId) {
@@ -1064,8 +1063,8 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     }
   }
 
-  private static int expectedSamplingMechanism(Map<String, Object> tags) {
-    Object decisionMakerRaw = tags.get("_dd.p.dm")
+  private static int expectedSamplingMechanism(Map<String, String> propagationMetadata) {
+    Object decisionMakerRaw = propagationMetadata.get("_dd.p.dm")
     if (decisionMakerRaw == null) {
       return SamplingMechanism.DEFAULT
     }

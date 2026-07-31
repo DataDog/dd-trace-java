@@ -109,6 +109,8 @@ dependencies {
   implementation("com.fasterxml.jackson.core:jackson-core")
 
   compileOnly(libs.develocity)
+
+  testImplementation("me.champeau.jmh:jmh-gradle-plugin:0.7.3")
 }
 
 tasks.compileKotlin {
