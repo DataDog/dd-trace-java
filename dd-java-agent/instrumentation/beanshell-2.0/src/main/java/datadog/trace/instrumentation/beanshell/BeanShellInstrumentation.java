@@ -134,17 +134,17 @@ public class BeanShellInstrumentation extends InstrumenterModule.Iast
     @Sink(VulnerabilityTypes.CODE_INJECTION)
     public static void onEnter(
         @Advice.Argument(0) final String url, @Advice.Argument(1) final String text) {
-      if (url == null) {
+      // Remote.eval dispatches on the URL scheme: "http:" opens a URL connection and "bsh:" opens a
+      // raw socket; every other scheme throws before any I/O or script dispatch, so neither the URL
+      // nor the script reaches a sink. bsh.* is excluded from call-site instrumentation, so neither
+      // the URL/URLConnection nor the socket SSRF call-site sink fires inside bsh either.
+      if (url == null || !(url.startsWith("http:") || url.startsWith("bsh:"))) {
         return;
       }
-      // Two schemes: "http:" (via URL.openConnection) and "bsh:" (via a raw socket); any other
-      // scheme throws before any I/O. bsh.* is excluded from call-site instrumentation,
-      // so neither the URL nor the socket SSRF call-site sink fires inside bsh.
-      if (url.startsWith("http:") || url.startsWith("bsh:")) {
-        final SsrfModule ssrfModule = InstrumentationBridge.SSRF;
-        if (ssrfModule != null) {
-          ssrfModule.onURLConnection(url);
-        }
+
+      final SsrfModule ssrfModule = InstrumentationBridge.SSRF;
+      if (ssrfModule != null) {
+        ssrfModule.onURLConnection(url);
       }
 
       if (text == null) {

@@ -61,14 +61,14 @@ class BeanShellInstrumentationTest extends InstrumentationSpecification {
     }
 
     then:
-    1 * codeInjectionModule.onEval('2 + 2;')
-    ssrfCalls * ssrfModule.onURLConnection(url)
+    sinkCalls * codeInjectionModule.onEval('2 + 2;')
+    sinkCalls * ssrfModule.onURLConnection(url)
     0 * _
 
     where:
-    // bsh.Remote connects only for the "http:" and "bsh:" schemes; every other scheme throws
-    // before any I/O, so no SSRF should be reported for it.
-    url                      | ssrfCalls
+    // bsh.Remote dispatches only for the "http:" and "bsh:" schemes; every other scheme throws
+    // before any I/O or script dispatch, so neither SSRF nor code injection should be reported.
+    url                      | sinkCalls
     'bsh://localhost:1/'     | 1
     'http://localhost:1/'    | 1
     'https://localhost:1/'   | 0

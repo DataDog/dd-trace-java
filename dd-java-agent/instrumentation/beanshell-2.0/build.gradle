@@ -20,6 +20,13 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+// latestDepTest extends test (see gradle/test-suites.gradle), which drags in the org.beanshell:bsh
+// 2.0b4 floor. Drop that coordinate here so its duplicate bsh.* classes don't collide with — or
+// shadow on the classpath — the org.apache-extras.beanshell:bsh artifact we actually want to validate.
+configurations.latestDepTestImplementation {
+  exclude group: 'org.beanshell', module: 'bsh'
+}
+
 dependencies {
   compileOnly group: 'org.beanshell', name: 'bsh', version: '2.0b4'
 
