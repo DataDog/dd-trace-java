@@ -21,9 +21,9 @@ import org.slf4j.LoggerFactory;
  * Maps each {@link InstrumenterModule} to the helper classes it injects, resolved at build time so
  * the agent does not have to load every module's {@code $Muzzle} class at install to read them.
  *
- * <p>Entries are positional and share {@link InstrumenterIndex}'s module ordering (both iterate
- * {@link InstrumenterIndex#loadModules}), so a module's {@code instrumentationId} indexes into this
- * table directly.
+ * <p>Based on {@link InstrumenterIndex} and its module ordering (both iterate {@link
+ * InstrumenterIndex#loadModules}), so a module's {@code instrumentationId} indexes into this table
+ * directly.
  */
 final class HelpersIndex {
   private static final Logger log = LoggerFactory.getLogger(HelpersIndex.class);
