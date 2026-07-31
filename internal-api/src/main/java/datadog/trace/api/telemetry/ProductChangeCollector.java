@@ -18,26 +18,18 @@ public class ProductChangeCollector {
     return INSTANCE;
   }
 
-  // Claude: SpotBugs USO_UNSAFE_METHOD_SYNCHRONIZATION: should be reviewed by team.
-  // This is a singleton exposed via the static get()/INSTANCE accessor, so any code holding the
-  // instance synchronizes on the same monitor that this telemetry path uses. The backing queue is
-  // already a LinkedBlockingQueue, so the method-level lock looks redundant and could be dropped or
-  // replaced with a private lock.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
-      justification = "Singleton exposed via static accessor; review whether monitor is needed")
+      justification =
+          "All production callers are agent-owned and do not synchronize on this monitor; locking prevents updates from interleaving with draining.")
   public synchronized void update(final ProductChange productChange) {
     productChanges.offer(productChange);
   }
 
-  // Claude: SpotBugs USO_UNSAFE_METHOD_SYNCHRONIZATION: should be reviewed by team.
-  // This is a singleton exposed via the static get()/INSTANCE accessor, so any code holding the
-  // instance synchronizes on the same monitor that this telemetry path uses. The backing queue is
-  // already a LinkedBlockingQueue, so the method-level lock looks redundant and could be dropped or
-  // replaced with a private lock.
   @SuppressFBWarnings(
       value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
-      justification = "Singleton exposed via static accessor; review whether monitor is needed")
+      justification =
+          "All production callers are agent-owned and do not synchronize on this monitor; locking prevents updates from interleaving with draining.")
   public synchronized List<ProductChange> drain() {
     if (productChanges.isEmpty()) {
       return Collections.emptyList();

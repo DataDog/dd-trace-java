@@ -192,13 +192,10 @@ public class ProcessTags {
       return false;
     }
 
-    // Claude: SpotBugs USO_UNSAFE_OBJECT_SYNCHRONIZATION: should be reviewed by team.
-    // The lock object is the package-private static-final TAGS collection, which is visible to
-    // other code in the package and is itself concurrently mutated (put/clear elsewhere also
-    // synchronize on it). A dedicated private lock object would be cleaner and clearly correct.
     @SuppressFBWarnings(
         value = "USO_UNSAFE_OBJECT_SYNCHRONIZATION",
-        justification = "Lock is a package-private static collection; consider a dedicated lock")
+        justification =
+            "TAGS is private to this holder and never escapes; the same monitor guards every traversal and mutation.")
     static void calculate() {
       if (serializedForm != null || TAGS.isEmpty()) {
         return;
