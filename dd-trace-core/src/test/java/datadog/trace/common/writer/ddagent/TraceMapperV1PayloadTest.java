@@ -98,6 +98,27 @@ class TraceMapperV1PayloadTest {
               PayloadField.ATTRIBUTES,
               PayloadField.CHUNKS));
 
+  /** Every field a v1 span carries, mirroring {@code TraceMapperV1.encodeSpans}. */
+  private static final Set<Integer> EXPECTED_SPAN_FIELD_IDS =
+      new HashSet<>(
+          asList(
+              SpanField.SERVICE,
+              SpanField.NAME,
+              SpanField.RESOURCE,
+              SpanField.SPAN_ID,
+              SpanField.PARENT_ID,
+              SpanField.START,
+              SpanField.DURATION,
+              SpanField.ERROR,
+              SpanField.ATTRIBUTES,
+              SpanField.TYPE,
+              SpanField.LINKS,
+              SpanField.EVENTS,
+              SpanField.ENV,
+              SpanField.VERSION,
+              SpanField.COMPONENT,
+              SpanField.KIND));
+
   // Keep the ProcessTags static in sync with the (per-test rebuilt) Config, the way DDSpecification
   // did for the original Spock tests. Runs after WithConfigExtension has rebuilt Config.
   @BeforeEach
@@ -645,8 +666,9 @@ class TraceMapperV1PayloadTest {
       MessageUnpacker unpacker, PojoSpan expectedSpan, List<String> stringTable)
       throws IOException {
     int spanFieldCount = unpacker.unpackMapHeader();
-    assertEquals(16, spanFieldCount);
+    assertEquals(EXPECTED_SPAN_FIELD_IDS.size(), spanFieldCount);
 
+    Set<Integer> spanFieldsSeen = new HashSet<>();
     String service = null;
     String name = null;
     String resource = null;
@@ -666,6 +688,7 @@ class TraceMapperV1PayloadTest {
 
     for (int i = 0; i < spanFieldCount; i++) {
       int fieldId = unpacker.unpackInt();
+      spanFieldsSeen.add(fieldId);
       switch (fieldId) {
         case SpanField.SERVICE:
           service = readStreamingString(unpacker, stringTable);
@@ -719,6 +742,11 @@ class TraceMapperV1PayloadTest {
           fail("Unexpected span field id: " + fieldId);
       }
     }
+
+    // A 16-entry map could still repeat one field id and omit another, which would leave a decoded
+    // value at its initial sentinel. Pinning the id set makes each field present exactly once, so
+    // the value assertions below cannot pass on an unwritten field (e.g. parentId 0, error false).
+    assertEquals(EXPECTED_SPAN_FIELD_IDS, spanFieldsSeen);
 
     assertEqualsWithNullAsEmpty(expectedSpan.getServiceName(), service);
     assertEqualsWithNullAsEmpty(expectedSpan.getOperationName(), name);
