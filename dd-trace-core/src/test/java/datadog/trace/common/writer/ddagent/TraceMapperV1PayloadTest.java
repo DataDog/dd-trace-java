@@ -188,38 +188,39 @@ class TraceMapperV1PayloadTest {
             "rum");
 
     byte[] encoded = serializeV1Payload(span);
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded);
     List<String> stringTable = newStringTable();
 
-    int payloadFieldCount = unpacker.unpackMapHeader();
-    Set<Integer> payloadFieldsSeen = new HashSet<>();
-    int chunkCount = -1;
-    Map<String, Object> payloadAttributes = null;
+    try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)) {
+      int payloadFieldCount = unpacker.unpackMapHeader();
+      Set<Integer> payloadFieldsSeen = new HashSet<>();
+      int chunkCount = -1;
+      Map<String, Object> payloadAttributes = null;
 
-    for (int i = 0; i < payloadFieldCount; i++) {
-      int fieldId = unpacker.unpackInt();
-      payloadFieldsSeen.add(fieldId);
-      if (fieldId == PayloadField.CHUNKS) {
-        chunkCount = unpacker.unpackArrayHeader();
-        assertEquals(1, chunkCount);
-        verifyChunk(unpacker, singletonList(span), stringTable);
-      } else if (fieldId == PayloadField.ATTRIBUTES) {
-        payloadAttributes = readAttributes(unpacker, stringTable);
-      } else {
-        skipPayloadField(unpacker, fieldId, stringTable);
+      for (int i = 0; i < payloadFieldCount; i++) {
+        int fieldId = unpacker.unpackInt();
+        payloadFieldsSeen.add(fieldId);
+        if (fieldId == PayloadField.CHUNKS) {
+          chunkCount = unpacker.unpackArrayHeader();
+          assertEquals(1, chunkCount);
+          verifyChunk(unpacker, singletonList(span), stringTable);
+        } else if (fieldId == PayloadField.ATTRIBUTES) {
+          payloadAttributes = readAttributes(unpacker, stringTable);
+        } else {
+          skipPayloadField(unpacker, fieldId, stringTable);
+        }
       }
-    }
 
-    assertEquals(EXPECTED_PAYLOAD_FIELD_IDS.size(), payloadFieldCount);
-    assertEquals(EXPECTED_PAYLOAD_FIELD_IDS, payloadFieldsSeen);
-    assertEquals(1, chunkCount);
-    assertNotNull(payloadAttributes);
-    CharSequence processTags = ProcessTags.getTagsForSerialization();
-    if (processTags == null) {
-      assertEquals(0, payloadAttributes.size());
-    } else {
-      assertEquals(1, payloadAttributes.size());
-      assertEquals(processTags.toString(), payloadAttributes.get(PROCESS_TAGS));
+      assertEquals(EXPECTED_PAYLOAD_FIELD_IDS.size(), payloadFieldCount);
+      assertEquals(EXPECTED_PAYLOAD_FIELD_IDS, payloadFieldsSeen);
+      assertEquals(1, chunkCount);
+      assertNotNull(payloadAttributes);
+      CharSequence processTags = ProcessTags.getTagsForSerialization();
+      if (processTags == null) {
+        assertEquals(0, payloadAttributes.size());
+      } else {
+        assertEquals(1, payloadAttributes.size());
+        assertEquals(processTags.toString(), payloadAttributes.get(PROCESS_TAGS));
+      }
     }
   }
 
@@ -249,39 +250,42 @@ class TraceMapperV1PayloadTest {
     long parentId = Long.MIN_VALUE + 456L;
 
     byte[] encoded = serializeV1Payload(spanWithIds(spanId, parentId));
-    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded);
     List<String> stringTable = newStringTable();
 
     Long actualSpanId = null;
     Long actualParentId = null;
-    int payloadFieldCount = unpacker.unpackMapHeader();
-    for (int i = 0; i < payloadFieldCount; i++) {
-      int payloadFieldId = unpacker.unpackInt();
-      if (payloadFieldId != PayloadField.CHUNKS) {
-        skipPayloadField(unpacker, payloadFieldId, stringTable);
-        continue;
-      }
-      assertEquals(1, unpacker.unpackArrayHeader());
-      int chunkFieldCount = unpacker.unpackMapHeader();
-      for (int j = 0; j < chunkFieldCount; j++) {
-        int chunkFieldId = unpacker.unpackInt();
-        if (chunkFieldId != ChunkField.SPANS) {
-          skipChunkField(unpacker, chunkFieldId, stringTable);
+    try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)) {
+      int payloadFieldCount = unpacker.unpackMapHeader();
+      for (int i = 0; i < payloadFieldCount; i++) {
+        int payloadFieldId = unpacker.unpackInt();
+        if (payloadFieldId != PayloadField.CHUNKS) {
+          skipPayloadField(unpacker, payloadFieldId, stringTable);
           continue;
         }
         assertEquals(1, unpacker.unpackArrayHeader());
-        int spanFieldCount = unpacker.unpackMapHeader();
-        for (int k = 0; k < spanFieldCount; k++) {
-          int spanFieldId = unpacker.unpackInt();
-          switch (spanFieldId) {
-            case SpanField.SPAN_ID:
-              actualSpanId = unpackUint64(unpacker);
-              break;
-            case SpanField.PARENT_ID:
-              actualParentId = unpackUint64(unpacker);
-              break;
-            default:
-              skipSpanField(unpacker, spanFieldId, stringTable);
+
+        int chunkFieldCount = unpacker.unpackMapHeader();
+        for (int j = 0; j < chunkFieldCount; j++) {
+          int chunkFieldId = unpacker.unpackInt();
+          if (chunkFieldId != ChunkField.SPANS) {
+            skipChunkField(unpacker, chunkFieldId, stringTable);
+            continue;
+          }
+          assertEquals(1, unpacker.unpackArrayHeader());
+
+          int spanFieldCount = unpacker.unpackMapHeader();
+          for (int k = 0; k < spanFieldCount; k++) {
+            int spanFieldId = unpacker.unpackInt();
+            switch (spanFieldId) {
+              case SpanField.SPAN_ID:
+                actualSpanId = unpackUint64(unpacker);
+                break;
+              case SpanField.PARENT_ID:
+                actualParentId = unpackUint64(unpacker);
+                break;
+              default:
+                skipSpanField(unpacker, spanFieldId, stringTable);
+            }
           }
         }
       }
@@ -406,21 +410,22 @@ class TraceMapperV1PayloadTest {
     byte[] metaStructBytes = (byte[]) attributes.get("meta_key");
     assertNotNull(metaStructBytes);
 
-    MessageUnpacker metaStructUnpacker = MessagePack.newDefaultUnpacker(metaStructBytes);
-    int metaStructFieldCount = metaStructUnpacker.unpackMapHeader();
     Map<String, Object> decodedMetaStruct = new HashMap<>();
-    for (int i = 0; i < metaStructFieldCount; i++) {
-      String key = metaStructUnpacker.unpackString();
-      ValueType valueType = metaStructUnpacker.getNextFormat().getValueType();
-      switch (valueType) {
-        case INTEGER:
-          decodedMetaStruct.put(key, metaStructUnpacker.unpackLong());
-          break;
-        case STRING:
-          decodedMetaStruct.put(key, metaStructUnpacker.unpackString());
-          break;
-        default:
-          fail("Unexpected meta_struct value type for key " + key);
+    try (MessageUnpacker metaStructUnpacker = MessagePack.newDefaultUnpacker(metaStructBytes)) {
+      int metaStructFieldCount = metaStructUnpacker.unpackMapHeader();
+      for (int i = 0; i < metaStructFieldCount; i++) {
+        String key = metaStructUnpacker.unpackString();
+        ValueType valueType = metaStructUnpacker.getNextFormat().getValueType();
+        switch (valueType) {
+          case INTEGER:
+            decodedMetaStruct.put(key, metaStructUnpacker.unpackLong());
+            break;
+          case STRING:
+            decodedMetaStruct.put(key, metaStructUnpacker.unpackString());
+            break;
+          default:
+            fail("Unexpected meta_struct value type for key " + key);
+        }
       }
     }
 
@@ -528,32 +533,33 @@ class TraceMapperV1PayloadTest {
       try {
         Payload payload = mapper.newPayload().withBody(messageCount, buffer);
         payload.writeTo(channel);
-        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(channel.flipForReading());
-        if (messageCount == 0) {
-          assertEquals(0, unpacker.unpackMapHeader());
-          return;
-        }
-
-        List<String> stringTable = newStringTable();
-        int payloadFieldCount = unpacker.unpackMapHeader();
-        assertEquals(EXPECTED_PAYLOAD_FIELD_IDS.size(), payloadFieldCount);
-
-        boolean seenChunks = false;
-        for (int i = 0; i < payloadFieldCount; i++) {
-          int fieldId = unpacker.unpackInt();
-          if (fieldId == PayloadField.CHUNKS) {
-            int traceCount = unpacker.unpackArrayHeader();
-            assertEquals(messageCount, traceCount);
-            seenChunks = true;
-            for (int traceIndex = 0; traceIndex < traceCount; traceIndex++) {
-              verifyChunk(unpacker, expectedTraces.get(position++), stringTable);
-            }
-          } else {
-            skipPayloadField(unpacker, fieldId, stringTable);
+        try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(channel.flipForReading())) {
+          if (messageCount == 0) {
+            assertEquals(0, unpacker.unpackMapHeader());
+            return;
           }
-        }
 
-        assertTrue(seenChunks);
+          List<String> stringTable = newStringTable();
+          int payloadFieldCount = unpacker.unpackMapHeader();
+          assertEquals(EXPECTED_PAYLOAD_FIELD_IDS.size(), payloadFieldCount);
+
+          boolean seenChunks = false;
+          for (int i = 0; i < payloadFieldCount; i++) {
+            int fieldId = unpacker.unpackInt();
+            if (fieldId == PayloadField.CHUNKS) {
+              int traceCount = unpacker.unpackArrayHeader();
+              assertEquals(messageCount, traceCount);
+              seenChunks = true;
+              for (int traceIndex = 0; traceIndex < traceCount; traceIndex++) {
+                verifyChunk(unpacker, expectedTraces.get(position++), stringTable);
+              }
+            } else {
+              skipPayloadField(unpacker, fieldId, stringTable);
+            }
+          }
+
+          assertTrue(seenChunks);
+        }
       } catch (IOException e) {
         fail(e.getMessage());
       } finally {
@@ -725,11 +731,10 @@ class TraceMapperV1PayloadTest {
     assertEqualsWithNullAsEmpty(expectedSpan.getType(), type);
     assertEquals(0, linksCount);
     assertEquals(0, eventsCount);
-    assertEqualsWithNullAsEmpty(expectedSpan.<CharSequence>getTag(ENV), env);
-    assertEqualsWithNullAsEmpty(expectedSpan.<CharSequence>getTag(VERSION), version);
-    assertEqualsWithNullAsEmpty(expectedSpan.<CharSequence>getTag(COMPONENT), component);
-    assertEquals(
-        TraceMapperV1.getSpanKindValue(expectedSpan.<CharSequence>getTag(SPAN_KIND)), spanKind);
+    assertEqualsWithNullAsEmpty(expectedSpan.getTag(ENV), env);
+    assertEqualsWithNullAsEmpty(expectedSpan.getTag(VERSION), version);
+    assertEqualsWithNullAsEmpty(expectedSpan.getTag(COMPONENT), component);
+    assertEquals(TraceMapperV1.getSpanKindValue(expectedSpan.getTag(SPAN_KIND)), spanKind);
 
     assertNotNull(attributes);
     int expectedHttpStatusCode = expectedSpan.getHttpStatusCode();
@@ -781,7 +786,7 @@ class TraceMapperV1PayloadTest {
     }
     for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
       addFlattenedExpectedAttribute(
-          expectedAttributes, key + "." + String.valueOf(entry.getKey()), entry.getValue());
+          expectedAttributes, key + "." + entry.getKey(), entry.getValue());
     }
   }
 
@@ -849,7 +854,7 @@ class TraceMapperV1PayloadTest {
     return span(123L, 0L, emptyMap(), emptyMap(), 200, spanLinks);
   }
 
-  /** A span carrying the fields shared by every test; only the varying pieces are parameters. */
+  /** A span carrying the fields shared by most tests; only the varying pieces are parameters. */
   private static PojoSpan span(
       long spanId,
       long parentId,
