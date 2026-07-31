@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.junit.utils.converter.TraceIdConverter;
+import datadog.trace.test.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.params.converter.ConvertWith;

@@ -1,12 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
+import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.util.concurrent.RunnableFuture;
 
 public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
@@ -19,8 +19,8 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
         || exclude(RUNNABLE, task)) {
       return task;
     }
-    AgentScope.Continuation continuation = captureActiveSpan();
-    if (continuation != noopContinuation()) {
+    ContextContinuation continuation = captureActiveSpan();
+    if (continuation.context() != Context.root()) {
       if (task instanceof Comparable) {
         return new ComparableRunnable(task, continuation);
       }
@@ -35,9 +35,9 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
   }
 
   protected final T delegate;
-  private final AgentScope.Continuation continuation;
+  private final ContextContinuation continuation;
 
-  public Wrapper(T delegate, AgentScope.Continuation continuation) {
+  public Wrapper(T delegate, ContextContinuation continuation) {
     this.delegate = delegate;
     this.continuation = continuation;
   }
@@ -51,7 +51,7 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
 
   public void cancel() {
     if (null != continuation) {
-      continuation.cancel();
+      continuation.release();
     }
   }
 
@@ -59,8 +59,8 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
     return delegate;
   }
 
-  private AgentScope activate() {
-    return null == continuation ? null : continuation.activate();
+  private ContextScope activate() {
+    return null == continuation ? null : continuation.resume();
   }
 
   @Override

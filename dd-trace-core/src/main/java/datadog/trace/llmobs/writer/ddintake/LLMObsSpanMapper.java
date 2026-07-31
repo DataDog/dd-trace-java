@@ -394,6 +394,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
             writable.writeString("value", null);
             writable.writeObject(val, null);
           }
+        } else if (key.equals(LLMObsTags.TOOL_DEFINITIONS) && val instanceof List) {
+          writable.writeString(key, null);
+          writeToolDefinitions((List<?>) val);
         } else if (key.equals(LLMObsTags.METADATA) && val instanceof Map) {
           Map<String, Object> metadataMap = (Map) val;
           writable.writeUTF8(METADATA);
@@ -405,6 +408,38 @@ public class LLMObsSpanMapper implements RemoteMapper {
         } else {
           writable.writeString(key, null);
           writable.writeObject(val, null);
+        }
+      }
+    }
+
+    private void writeToolDefinitions(List<?> toolDefinitions) {
+      writable.startArray(toolDefinitions.size());
+      for (Object toolDefinitionObject : toolDefinitions) {
+        if (!(toolDefinitionObject instanceof LLMObs.ToolDefinition)) {
+          writable.writeObject(toolDefinitionObject, null);
+          continue;
+        }
+
+        LLMObs.ToolDefinition toolDefinition = (LLMObs.ToolDefinition) toolDefinitionObject;
+        int mapSize = 1;
+        if (toolDefinition.getDescription() != null) mapSize++;
+        if (toolDefinition.getSchema() != null) mapSize++;
+        if (toolDefinition.getVersion() != null) mapSize++;
+
+        writable.startMap(mapSize);
+        writable.writeString("name", null);
+        writable.writeString(toolDefinition.getName(), null);
+        if (toolDefinition.getDescription() != null) {
+          writable.writeString("description", null);
+          writable.writeString(toolDefinition.getDescription(), null);
+        }
+        if (toolDefinition.getSchema() != null) {
+          writable.writeString("schema", null);
+          writable.writeObject(toolDefinition.getSchema(), null);
+        }
+        if (toolDefinition.getVersion() != null) {
+          writable.writeString("version", null);
+          writable.writeString(toolDefinition.getVersion(), null);
         }
       }
     }

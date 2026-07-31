@@ -79,8 +79,6 @@ public abstract class PropagationTags {
 
   public abstract CharSequence getLastParentId();
 
-  public abstract void updateLastParentId(CharSequence lastParentId);
-
   /**
    * Gets the original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C
    * tracestate header</a> value.
@@ -103,6 +101,15 @@ public abstract class PropagationTags {
    * exceeds a configured limit or empty.
    */
   public abstract String headerValue(HeaderType headerType);
+
+  /**
+   * Like {@link #headerValue(HeaderType)} but uses {@code lastParentIdOverride} for the W3C {@code
+   * p:} (last-parent-id) instead of the stored {@link #getLastParentId() last-parent-id}. Used at
+   * inject so the injecting span's id is supplied as a parameter rather than mutated into these
+   * (possibly trace-level, shared) tags — keeping transient per-injection identity out of shared
+   * state. A {@code null} override falls back to {@link #headerValue(HeaderType)}.
+   */
+  public abstract String headerValue(HeaderType headerType, CharSequence lastParentIdOverride);
 
   /**
    * Fills a provided tagMap with valid propagated _dd.p.* tags and possibly a new sampling decision

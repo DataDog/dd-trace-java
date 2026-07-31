@@ -84,7 +84,7 @@ public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClien
     }
   }
 
-  public AgentSpan onRequest(
+  public void onRequest(
       final AgentSpan span,
       final String method,
       final String endpoint,
@@ -125,14 +125,13 @@ public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClien
         span.setTag("opensearch.params", queryParametersStringBuilder.toString());
       }
     }
-    return HTTP_RESOURCE_DECORATOR.withClientPath(span, method, endpoint);
+    HTTP_RESOURCE_DECORATOR.withClientPath(span, method, endpoint);
   }
 
-  public AgentSpan onResponse(final AgentSpan span, final Response response) {
+  public void onResponse(final AgentSpan span, final Response response) {
     if (response != null && response.getHost() != null) {
       span.setTag(Tags.PEER_HOSTNAME, response.getHost().getHostName());
       setPeerPort(span, response.getHost().getPort());
     }
-    return span;
   }
 }

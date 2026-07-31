@@ -8,7 +8,7 @@ import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
-import static datadog.trace.junit.utils.converter.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
+import static datadog.trace.test.junit.utils.converter.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -20,7 +20,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
-import datadog.trace.junit.utils.converter.TraceIdConverter;
+import datadog.trace.test.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;

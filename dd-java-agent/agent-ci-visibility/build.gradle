@@ -20,8 +20,8 @@ dependencies {
 
   implementation libs.bundles.asm
   implementation libs.instrument.java
-  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.14'
-  implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.14'
+  implementation group: 'org.jacoco', name: 'org.jacoco.core', version: '0.8.15'
+  implementation group: 'org.jacoco', name: 'org.jacoco.report', version: '0.8.15'
 
   implementation project(':communication')
   implementation project(':components:json')
@@ -46,16 +46,6 @@ tasks.named("shadowJar", ShadowJar) {
 
 tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
-}
-
-tasks.named("compileTestGroovy") {
-  configureCompiler(
-    it,
-    8,
-    JavaVersion.VERSION_1_8,
-    "Groovy generates synthetic accessors methods from superclass, we don't want that for `MisbehavingClassLoader`," +
-    " otherwise anonymous class has one `loadClass` accessor's signature has `java.lang.Module`"
-    )
 }
 
 kotlin {

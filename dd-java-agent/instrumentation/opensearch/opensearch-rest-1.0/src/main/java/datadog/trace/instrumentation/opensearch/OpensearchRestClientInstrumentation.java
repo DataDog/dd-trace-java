@@ -92,6 +92,7 @@ public class OpensearchRestClientInstrumentation extends InstrumenterModule.Trac
         final AgentSpan span = scope.span();
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
+        scope.close();
         span.finish();
       } else if (result instanceof Response) {
         final AgentSpan span = scope.span();
@@ -99,11 +100,12 @@ public class OpensearchRestClientInstrumentation extends InstrumenterModule.Trac
           DECORATE.onResponse(span, ((Response) result));
         }
         DECORATE.beforeFinish(span);
+        scope.close();
         span.finish();
       } else {
+        scope.close();
         // async call, span finished by RestResponseListener
       }
-      scope.close();
     }
   }
 }

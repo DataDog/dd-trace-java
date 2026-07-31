@@ -8,7 +8,7 @@ import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,9 +45,9 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
-import datadog.trace.junit.utils.config.WithConfig;
-import datadog.trace.junit.utils.converter.ConfigDefaultsConverter;
-import datadog.trace.junit.utils.converter.TagsConverter;
+import datadog.trace.test.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.converter.ConfigDefaultsConverter;
+import datadog.trace.test.junit.utils.converter.TagsConverter;
 import java.util.Collections;
 import java.util.Map;
 import java.util.function.Function;
@@ -389,6 +389,13 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
         arguments("asm.keep / 'true'", Tags.ASM_KEEP, "true", (int) PrioritySampling.USER_KEEP),
         arguments("asm.keep / 'false'", Tags.ASM_KEEP, "false", null),
         arguments("asm.keep / 'asdf'", Tags.ASM_KEEP, "asdf", null),
+        arguments(
+            "ai_guard.keep / true", Tags.AI_GUARD_KEEP, true, (int) PrioritySampling.USER_KEEP),
+        arguments("ai_guard.keep / false", Tags.AI_GUARD_KEEP, false, null),
+        arguments(
+            "ai_guard.keep / 'true'", Tags.AI_GUARD_KEEP, "true", (int) PrioritySampling.USER_KEEP),
+        arguments("ai_guard.keep / 'false'", Tags.AI_GUARD_KEEP, "false", null),
+        arguments("ai_guard.keep / 'asdf'", Tags.AI_GUARD_KEEP, "asdf", null),
         arguments(
             "sampling.priority / -1", Tags.SAMPLING_PRIORITY, -1, (int) PrioritySampling.USER_DROP),
         arguments(

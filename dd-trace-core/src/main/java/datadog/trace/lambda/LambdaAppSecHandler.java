@@ -6,8 +6,11 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
+import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
@@ -19,19 +22,26 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +60,10 @@ public class LambdaAppSecHandler {
 
   private static final int MAX_EVENT_SIZE = Config.get().getAppSecBodyParsingSizeLimit();
 
+  // Carries the detected trigger type from processRequestStart to processResponseData within the
+  // same Lambda invocation. Cleared in processRequestEnd.
+  private static final ThreadLocal<LambdaTriggerType> CURRENT_TRIGGER_TYPE = new ThreadLocal<>();
+
   /**
    * Process AppSec request data at the start of a Lambda invocation. Extract event data and invokes
    * all relevant AppSec gateway callbacks.
@@ -64,6 +78,8 @@ public class LambdaAppSecHandler {
       return null;
     }
 
+    CURRENT_TRIGGER_TYPE.set(LambdaTriggerType.UNKNOWN);
+
     if (!(event instanceof ByteArrayInputStream)) {
       log.debug(
           "Event is not a ByteArrayInputStream, type: {}",
@@ -76,6 +92,7 @@ public class LambdaAppSecHandler {
       if (eventData == LambdaEventData.EMPTY) {
         return null;
       }
+      CURRENT_TRIGGER_TYPE.set(eventData.triggerType);
       return processAppSecRequestData(eventData);
     } catch (Exception e) {
       log.debug("Failed to process AppSec request data", e);
@@ -89,6 +106,8 @@ public class LambdaAppSecHandler {
    * @param span the current span
    */
   public static void processRequestEnd(AgentSpan span) {
+    CURRENT_TRIGGER_TYPE.remove();
+
     if (!ActiveSubsystems.APPSEC_ACTIVE || span == null) {
       return;
     }
@@ -103,6 +122,205 @@ public class LambdaAppSecHandler {
       } else {
         log.debug("requestEnded callback is null");
       }
+
+      // In Lambda, the WAF runs in processRequestStart before the span exists.
+      // GatewayBridge propagates ASM_KEEP based on WAF attack events, but not on
+      // isManuallyKept(), which is set by trace-tagging rules that produce no events.
+      // Apply it here so those traces are not silently dropped.
+      Object rawAppSecCtx = requestContext.getData(RequestContextSlot.APPSEC);
+      AppSecContext appSecCtx =
+          rawAppSecCtx instanceof AppSecContext ? (AppSecContext) rawAppSecCtx : null;
+      if (appSecCtx != null && appSecCtx.isManuallyKept()) {
+        TraceSegment traceSeg = requestContext.getTraceSegment();
+        traceSeg.setTagTop(Tags.ASM_KEEP, true);
+        traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+      }
+    }
+  }
+
+  /**
+   * Process response data through WAF before the request context is closed. Extracts status code,
+   * headers, and body from the Lambda response and fires the corresponding gateway events.
+   *
+   * @param span the current span
+   * @param result the Lambda handler result (expected to be a ByteArrayOutputStream)
+   */
+  public static void processResponseData(AgentSpan span, Object result) {
+    if (!ActiveSubsystems.APPSEC_ACTIVE
+        || span == null
+        || !(result instanceof ByteArrayOutputStream)) {
+      return;
+    }
+
+    try {
+      byte[] bytes = ((ByteArrayOutputStream) result).toByteArray();
+      if (bytes.length == 0 || bytes.length > MAX_EVENT_SIZE) {
+        log.debug(
+            "Response size {} exceeds limit {} or is empty, skipping response processing",
+            bytes.length,
+            MAX_EVENT_SIZE);
+        return;
+      }
+
+      String json = new String(bytes, StandardCharsets.UTF_8);
+      LambdaResponseData responseData = extractResponseData(json);
+
+      // Only process responses for known HTTP trigger types
+      LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
+      if (triggerType == null || !triggerType.isHttp()) {
+        return;
+      }
+
+      if (responseData == null || responseData.statusCode == 0) {
+        // No statusCode means this is not an API-GW formatted response, or JSON parsing failed.
+        if (responseData == null || (responseData.headers.isEmpty() && responseData.body == null)) {
+          // Parse failed or response has no API-GW structure (plain JSON body).
+          // Treat the full response as the body
+          Object fallbackBody;
+          String fallbackContentType;
+          try {
+            fallbackBody = OBJECT_ADAPTER.fromJson(json);
+            fallbackContentType = "application/json";
+          } catch (Exception e) {
+            fallbackBody = json;
+            fallbackContentType = "text/plain";
+          }
+          Map<String, String> fallbackHeaders =
+              Collections.singletonMap("content-type", fallbackContentType);
+          responseData = new LambdaResponseData(0, fallbackHeaders, fallbackBody);
+        }
+        // else: responseData has explicit headers/body fields — keep them, just skip
+        // responseStarted
+        // (statusCode remains 0, so the responseStarted guard below will not fire).
+      }
+
+      RequestContext requestContext = span.getRequestContext();
+      if (requestContext == null) {
+        log.debug("Span has no RequestContext, skipping response processing");
+        return;
+      }
+
+      AgentTracer.TracerAPI tracer = AgentTracer.get();
+      CallbackProvider cbp = tracer.getCallbackProvider(RequestContextSlot.APPSEC);
+
+      // Fire response gateway events. Flow results are intentionally ignored: blocking on response
+      // is not supported for Lambda because remote config is unavailable in that environment.
+
+      // Fire responseStarted
+      if (responseData.statusCode > 0) {
+        BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCb =
+            cbp.getCallback(EVENTS.responseStarted());
+        if (responseStartedCb != null) {
+          responseStartedCb.apply(requestContext, responseData.statusCode);
+        }
+      }
+
+      // Fire responseHeader for each allowed header
+      if (responseData.headers != null && !responseData.headers.isEmpty()) {
+        TriConsumer<RequestContext, String, String> responseHeaderCb =
+            cbp.getCallback(EVENTS.responseHeader());
+        if (responseHeaderCb != null) {
+          for (Map.Entry<String, String> header : responseData.headers.entrySet()) {
+            responseHeaderCb.accept(requestContext, header.getKey(), header.getValue());
+          }
+        }
+      }
+
+      // Fire responseHeaderDone
+      Function<RequestContext, Flow<Void>> responseHeaderDoneCb =
+          cbp.getCallback(EVENTS.responseHeaderDone());
+      if (responseHeaderDoneCb != null) {
+        responseHeaderDoneCb.apply(requestContext);
+      }
+
+      // Fire responseBody
+      if (responseData.body != null) {
+        BiFunction<RequestContext, Object, Flow<Void>> responseBodyCb =
+            cbp.getCallback(EVENTS.responseBody());
+        if (responseBodyCb != null) {
+          responseBodyCb.apply(requestContext, responseData.body);
+        }
+      }
+    } catch (Exception e) {
+      log.debug("Failed to process AppSec response data", e);
+    }
+  }
+
+  static LambdaResponseData extractResponseData(String json) {
+    try {
+      Map<String, Object> response = MAP_ADAPTER.fromJson(json);
+      if (response == null) {
+        return null;
+      }
+
+      // Extract status code
+      int statusCode = 0;
+      Object statusCodeObj = response.get("statusCode");
+      if (statusCodeObj instanceof Number) {
+        statusCode = ((Number) statusCodeObj).intValue();
+      }
+
+      // Extract headers — keys are lowercased to normalise casing across API GW / ALB variants
+      Map<String, String> headers = new HashMap<>();
+      Map<String, String> rawHeaders = extractStringMap(response.get("headers"));
+      for (Map.Entry<String, String> entry : rawHeaders.entrySet()) {
+        headers.put(entry.getKey().toLowerCase(Locale.ROOT), entry.getValue());
+      }
+
+      // Merge multiValueHeaders if present (API GW v1 / ALB), also lowercasing keys
+      Object multiValueHeadersObj = response.get("multiValueHeaders");
+      if (multiValueHeadersObj instanceof Map) {
+        Map<?, ?> multiValueHeaders = (Map<?, ?>) multiValueHeadersObj;
+        for (Map.Entry<?, ?> entry : multiValueHeaders.entrySet()) {
+          if (entry.getKey() != null && entry.getValue() instanceof List) {
+            String key = String.valueOf(entry.getKey()).toLowerCase(Locale.ROOT);
+            List<?> values = (List<?>) entry.getValue();
+            String joinedValue =
+                values.stream().map(String::valueOf).collect(Collectors.joining(", "));
+            headers.put(key, joinedValue);
+          }
+        }
+      }
+
+      // Extract body
+      Object body = null;
+      Object bodyObj = response.get("body");
+      if (bodyObj != null) {
+        String bodyString = String.valueOf(bodyObj);
+
+        // Handle base64 encoding
+        Object isBase64EncodedObj = response.get("isBase64Encoded");
+        if (Boolean.TRUE.equals(isBase64EncodedObj) || "true".equals(isBase64EncodedObj)) {
+          try {
+            bodyString = new String(Base64.getDecoder().decode(bodyString), StandardCharsets.UTF_8);
+          } catch (Exception e) {
+            log.debug("Failed to decode base64 response body", e);
+            bodyString = null;
+          }
+        }
+
+        if (bodyString != null) {
+          String contentType = headers.get("content-type");
+
+          // If JSON content-type or unknown, attempt JSON parsing
+          // Normalise casing: media type tokens are case-insensitive per RFC 7231
+          String contentTypeLower =
+              contentType == null ? null : contentType.toLowerCase(Locale.ROOT);
+          if (contentTypeLower == null
+              || contentTypeLower.contains("json")
+              || contentTypeLower.contains("javascript")) {
+            Object parsed = parseBodyAsJson(bodyString);
+            body = parsed != null ? parsed : bodyString;
+          } else {
+            body = bodyString;
+          }
+        }
+      }
+
+      return new LambdaResponseData(statusCode, headers, body);
+    } catch (Exception e) {
+      log.debug("Failed to parse response data from JSON", e);
+      return null;
     }
   }
 
@@ -459,20 +677,18 @@ public class LambdaAppSecHandler {
 
     if (triggerType == LambdaTriggerType.ALB_MULTI_VALUE) {
       // Handle multi-value headers (combine multiple values with comma)
-      headers = new java.util.HashMap<>();
+      headers = new HashMap<>();
       Object multiValueHeadersObj = event.get("multiValueHeaders");
       if (multiValueHeadersObj instanceof Map) {
         Map<?, ?> rawHeaders = (Map<?, ?>) multiValueHeadersObj;
         for (Map.Entry<?, ?> entry : rawHeaders.entrySet()) {
           if (entry.getKey() != null && entry.getValue() != null) {
             String key = String.valueOf(entry.getKey());
-            if (entry.getValue() instanceof java.util.List) {
-              java.util.List<?> values = (java.util.List<?>) entry.getValue();
+            if (entry.getValue() instanceof List) {
+              List<?> values = (List<?>) entry.getValue();
               // Join multiple values with comma
               String joinedValue =
-                  values.stream()
-                      .map(String::valueOf)
-                      .collect(java.util.stream.Collectors.joining(", "));
+                  values.stream().map(String::valueOf).collect(Collectors.joining(", "));
               headers.put(key, joinedValue);
             } else {
               headers.put(key, String.valueOf(entry.getValue()));
@@ -578,7 +794,7 @@ public class LambdaAppSecHandler {
    * values to strings, filtering out null entries.
    */
   private static Map<String, String> extractStringMap(Object mapObj) {
-    Map<String, String> result = new java.util.HashMap<>();
+    Map<String, String> result = new HashMap<>();
     if (mapObj instanceof Map) {
       Map<?, ?> rawMap = (Map<?, ?>) mapObj;
       for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
@@ -614,14 +830,14 @@ public class LambdaAppSecHandler {
    * Map<String, List<String>> format expected by AppSec.
    */
   private static Map<String, List<String>> extractQueryParameters(Object queryParamsObj) {
-    Map<String, List<String>> result = new java.util.HashMap<>();
+    Map<String, List<String>> result = new HashMap<>();
     if (queryParamsObj instanceof Map) {
       Map<?, ?> rawMap = (Map<?, ?>) queryParamsObj;
       for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
         if (entry.getKey() != null && entry.getValue() != null) {
           String key = String.valueOf(entry.getKey());
           String value = String.valueOf(entry.getValue());
-          result.put(key, java.util.Collections.singletonList(value));
+          result.put(key, Collections.singletonList(value));
         }
       }
     }
@@ -634,15 +850,15 @@ public class LambdaAppSecHandler {
    * List<String>> format directly.
    */
   private static Map<String, List<String>> extractMultiValueQueryParameters(Object queryParamsObj) {
-    Map<String, List<String>> result = new java.util.HashMap<>();
+    Map<String, List<String>> result = new HashMap<>();
     if (queryParamsObj instanceof Map) {
       Map<?, ?> rawMap = (Map<?, ?>) queryParamsObj;
       for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
         if (entry.getKey() != null && entry.getValue() != null) {
           String key = String.valueOf(entry.getKey());
-          if (entry.getValue() instanceof java.util.List) {
-            java.util.List<?> values = (java.util.List<?>) entry.getValue();
-            java.util.List<String> stringValues = new java.util.ArrayList<>();
+          if (entry.getValue() instanceof List) {
+            List<?> values = (List<?>) entry.getValue();
+            List<String> stringValues = new ArrayList<>();
             for (Object value : values) {
               if (value != null) {
                 stringValues.add(String.valueOf(value));
@@ -650,7 +866,7 @@ public class LambdaAppSecHandler {
             }
             result.put(key, stringValues);
           } else {
-            result.put(key, java.util.Collections.singletonList(String.valueOf(entry.getValue())));
+            result.put(key, Collections.singletonList(String.valueOf(entry.getValue())));
           }
         }
       }
@@ -679,9 +895,19 @@ public class LambdaAppSecHandler {
           fullPath.append('&');
         }
         first = false;
-        fullPath.append(key);
-        if (value != null) {
-          fullPath.append('=').append(value);
+        try {
+          // URL-encode key and value so that special characters (e.g. '&' inside a value) are not
+          // mistaken for query string delimiters when AppSec parses the raw query string.
+          fullPath.append(URLEncoder.encode(key, "UTF-8"));
+          if (value != null) {
+            fullPath.append('=').append(URLEncoder.encode(value, "UTF-8"));
+          }
+        } catch (java.io.UnsupportedEncodingException e) {
+          // UTF-8 is always available; fall back to unencoded
+          fullPath.append(key);
+          if (value != null) {
+            fullPath.append('=').append(value);
+          }
         }
       }
     }
@@ -698,14 +924,12 @@ public class LambdaAppSecHandler {
 
     // API Gateway v2 provides a pre-parsed cookies array
     Object cookiesObj = event.get("cookies");
-    if (cookiesObj instanceof java.util.List) {
-      java.util.List<?> cookiesList = (java.util.List<?>) cookiesObj;
+    if (cookiesObj instanceof List) {
+      List<?> cookiesList = (List<?>) cookiesObj;
       if (!cookiesList.isEmpty()) {
         // Join cookies with "; " separator per RFC 6265
         String cookieValue =
-            cookiesList.stream()
-                .map(String::valueOf)
-                .collect(java.util.stream.Collectors.joining("; "));
+            cookiesList.stream().map(String::valueOf).collect(Collectors.joining("; "));
 
         // Merge with existing cookie header if present
         String existingCookie = headers.get("cookie");
@@ -730,8 +954,8 @@ public class LambdaAppSecHandler {
     String bodyString = String.valueOf(bodyObj);
 
     // Check if body is base64 encoded (API Gateway feature)
-    Boolean isBase64Encoded = (Boolean) event.get("isBase64Encoded");
-    if (Boolean.TRUE.equals(isBase64Encoded)) {
+    Object isBase64EncodedObj = event.get("isBase64Encoded");
+    if (Boolean.TRUE.equals(isBase64EncodedObj) || "true".equals(isBase64EncodedObj)) {
       try {
         bodyString = new String(Base64.getDecoder().decode(bodyString), StandardCharsets.UTF_8);
       } catch (Exception e) {
@@ -762,6 +986,15 @@ public class LambdaAppSecHandler {
       return OBJECT_ADAPTER.fromJson(body);
     } catch (Exception e) {
       return null;
+    }
+  }
+
+  /** Sets the current trigger type thread-local. Package-private for use in tests only. */
+  static void setCurrentTriggerType(LambdaTriggerType type) {
+    if (type == null) {
+      CURRENT_TRIGGER_TYPE.remove();
+    } else {
+      CURRENT_TRIGGER_TYPE.set(type);
     }
   }
 
@@ -827,7 +1060,11 @@ public class LambdaAppSecHandler {
     ALB, // Application Load Balancer
     ALB_MULTI_VALUE, // ALB with multi-value headers
     LAMBDA_URL, // Lambda Function URL
-    UNKNOWN // Unknown or unsupported trigger
+    UNKNOWN; // Unknown or unsupported trigger
+
+    boolean isHttp() {
+      return this != UNKNOWN;
+    }
   }
 
   /** Object for Lambda event data needed for AppSec processing */
@@ -872,6 +1109,19 @@ public class LambdaAppSecHandler {
       this.triggerType = triggerType;
       this.pathParameters = pathParameters;
       this.queryParameters = queryParameters;
+      this.body = body;
+    }
+  }
+
+  /** Data extracted from a Lambda response for WAF analysis */
+  static class LambdaResponseData {
+    final int statusCode;
+    final Map<String, String> headers;
+    final Object body;
+
+    LambdaResponseData(int statusCode, Map<String, String> headers, Object body) {
+      this.statusCode = statusCode;
+      this.headers = headers;
       this.body = body;
     }
   }

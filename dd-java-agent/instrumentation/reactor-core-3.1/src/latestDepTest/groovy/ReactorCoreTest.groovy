@@ -383,6 +383,50 @@ class ReactorCoreTest extends InstrumentationSpecification {
     "immediate"   | Schedulers.immediate()
   }
 
+  def "subscribe-time context propagates across threads with #name"() {
+    // Guards that the thread-confined publisher hand-off (HandoffContext) does not break cross-thread
+    // propagation: the @Trace "addOne" spans run in map's onNext on scheduler threads and must still
+    // be children of the subscribe-time parent.
+    when:
+    runUnderTrace("parent") {
+      pipeline.call().collectList().block()
+    }
+
+    then:
+    assertTraces(1) {
+      trace(3) {
+        sortSpansByStart()
+        span {
+          operationName "parent"
+          parent()
+        }
+        span {
+          operationName "addOne"
+          childOf span(0)
+        }
+        span {
+          operationName "addOne"
+          childOf span(0)
+        }
+      }
+    }
+
+    where:
+    name                    | pipeline
+    "publishOn"             | {
+      Flux.just(1, 2).publishOn(Schedulers.parallel()).map(addOne)
+    }
+    "subscribeOn"           | {
+      Flux.just(1, 2).subscribeOn(Schedulers.single()).map(addOne)
+    }
+    "subscribeOn+publishOn" | {
+      Flux.just(1, 2)
+      .subscribeOn(Schedulers.single())
+      .publishOn(Schedulers.parallel())
+      .map(addOne)
+    }
+  }
+
   def "Context propagation through reactor context with span #spanType"() {
     when:
     runUnderTrace("parent", {

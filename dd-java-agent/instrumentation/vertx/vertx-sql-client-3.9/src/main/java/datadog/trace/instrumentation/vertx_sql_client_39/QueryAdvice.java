@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.vertx_sql_client_39.VertxSqlClientDecorator.DECORATE;
 
+import datadog.context.ContextContinuation;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -42,7 +43,7 @@ public class QueryAdvice {
       final boolean prepared = !(maybeHandler instanceof Handler);
 
       final AgentSpan parentSpan = activeSpan();
-      final AgentScope.Continuation parentContinuation =
+      final ContextContinuation parentContinuation =
           null == parentSpan ? null : captureSpan(parentSpan);
       final AgentSpan clientSpan =
           DECORATE.startAndDecorateSpanForStatement(

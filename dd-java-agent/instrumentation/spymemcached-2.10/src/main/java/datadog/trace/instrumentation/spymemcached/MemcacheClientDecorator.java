@@ -59,7 +59,7 @@ public class MemcacheClientDecorator
     return null;
   }
 
-  public AgentSpan onOperation(final AgentSpan span, final String methodName) {
+  public void onOperation(final AgentSpan span, final String methodName) {
 
     // optimization over string.replaceFirst()
     StringBuilder builder = new StringBuilder(methodName);
@@ -68,6 +68,5 @@ public class MemcacheClientDecorator
     builder.replace(0, 1, String.valueOf(Character.toLowerCase(builder.charAt(0))));
 
     span.setResourceName(builder.toString());
-    return span;
   }
 }

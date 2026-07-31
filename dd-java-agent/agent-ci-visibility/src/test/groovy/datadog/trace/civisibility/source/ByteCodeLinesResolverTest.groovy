@@ -81,28 +81,5 @@ class ByteCodeLinesResolverTest extends Specification {
 
     abstract void abstractMethod()
   }
-
-  private static final class MisbehavingClassLoader extends ClassLoader {
-
-    private final Map<String, byte[]> classes = new HashMap<>()
-
-    @Override
-    InputStream getResourceAsStream(String name) {
-      throw new RuntimeException("Something went wrong")
-    }
-
-    @Override
-    Class<?> loadClass(String name) throws ClassNotFoundException {
-      def bytes = classes.get(name)
-      if (bytes != null) {
-        return defineClass(name, bytes, 0, bytes.length)
-      }
-      return super.loadClass(name)
-    }
-
-    void putClass(String name, byte[] bytes) {
-      classes.put(name, bytes)
-    }
-  }
 }
 

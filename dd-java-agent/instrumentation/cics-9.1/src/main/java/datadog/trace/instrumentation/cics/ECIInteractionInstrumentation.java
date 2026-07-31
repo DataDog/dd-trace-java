@@ -50,10 +50,11 @@ public final class ECIInteractionInstrumentation
       CallDepthThreadLocalMap.decrementCallDepth(ECIInteraction.class);
 
       if (null != scope) {
-        DECORATE.onError(scope.span(), throwable);
-        DECORATE.beforeFinish(scope.span());
-        scope.span().finish();
+        AgentSpan span = scope.span();
+        DECORATE.onError(span, throwable);
+        DECORATE.beforeFinish(span);
         scope.close();
+        span.finish();
       }
     }
   }

@@ -32,6 +32,7 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.time.Instant;
@@ -174,6 +175,11 @@ class RemoteConfigServiceImplTest {
   }
 
   @Test
+  void rejectsTrailingJson() {
+    assertThrows(IOException.class, () -> deserialize(emptyConfig() + "{}"));
+  }
+
+  @Test
   void skipsUnknownOperatorFlagAndKeepsValidFlag() throws Exception {
     final ServerConfiguration config =
         deserialize(
@@ -225,14 +231,14 @@ class RemoteConfigServiceImplTest {
     final Type flagsType = Types.newParameterizedType(Map.class, String.class, Flag.class);
 
     final JsonAdapter<?> adapter =
-        RemoteConfigServiceImpl.FlagMapAdapter.FACTORY.create(flagsType, emptySet(), moshi);
+        UniversalFlagConfigParser.FlagMapAdapter.FACTORY.create(flagsType, emptySet(), moshi);
 
     assertNotNull(adapter);
-    assertTrue(adapter instanceof RemoteConfigServiceImpl.FlagMapAdapter);
+    assertTrue(adapter instanceof UniversalFlagConfigParser.FlagMapAdapter);
     assertNull(
-        RemoteConfigServiceImpl.FlagMapAdapter.FACTORY.create(String.class, emptySet(), moshi));
+        UniversalFlagConfigParser.FlagMapAdapter.FACTORY.create(String.class, emptySet(), moshi));
     assertNull(
-        RemoteConfigServiceImpl.FlagMapAdapter.FACTORY.create(
+        UniversalFlagConfigParser.FlagMapAdapter.FACTORY.create(
             flagsType, singleton(mock(Annotation.class)), moshi));
   }
 
@@ -284,8 +290,8 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void flagMapAdapterIsReadOnly() {
-    final RemoteConfigServiceImpl.FlagMapAdapter adapter =
-        new RemoteConfigServiceImpl.FlagMapAdapter(moshi().adapter(Flag.class));
+    final UniversalFlagConfigParser.FlagMapAdapter adapter =
+        new UniversalFlagConfigParser.FlagMapAdapter(moshi().adapter(Flag.class));
 
     assertThrows(
         UnsupportedOperationException.class,
@@ -316,7 +322,8 @@ class RemoteConfigServiceImplTest {
   void testDateParsing(final String value, final String expectedInstant) throws Exception {
     final JsonReader reader = mock(JsonReader.class);
     when(reader.nextString()).thenReturn(value);
-    final RemoteConfigServiceImpl.DateAdapter adapter = new RemoteConfigServiceImpl.DateAdapter();
+    final UniversalFlagConfigParser.DateAdapter adapter =
+        new UniversalFlagConfigParser.DateAdapter();
 
     final Date parsed = adapter.fromJson(reader);
     if (expectedInstant == null) {
@@ -329,7 +336,8 @@ class RemoteConfigServiceImplTest {
 
   @Test
   void testParsingOnlyAdapter() {
-    final RemoteConfigServiceImpl.DateAdapter adapter = new RemoteConfigServiceImpl.DateAdapter();
+    final UniversalFlagConfigParser.DateAdapter adapter =
+        new UniversalFlagConfigParser.DateAdapter();
 
     assertThrows(
         UnsupportedOperationException.class,
@@ -342,12 +350,11 @@ class RemoteConfigServiceImplTest {
   }
 
   private static ServerConfiguration deserialize(final String json) throws Exception {
-    return RemoteConfigServiceImpl.UniversalFlagConfigDeserializer.INSTANCE.deserialize(
-        json.getBytes(UTF_8));
+    return UniversalFlagConfigParser.INSTANCE.deserialize(json.getBytes(UTF_8));
   }
 
   private static Moshi moshi() {
-    return new Moshi.Builder().add(Date.class, new RemoteConfigServiceImpl.DateAdapter()).build();
+    return new Moshi.Builder().add(Date.class, new UniversalFlagConfigParser.DateAdapter()).build();
   }
 
   private static String emptyConfig() {

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.netty40.server;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.ANALYZED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.BLOCKED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
@@ -59,7 +58,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     Channel channel = ctx.channel();
 
     Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
-    AgentSpan span = spanFromContext(storedContext);
+    AgentSpan span = AgentSpan.fromContext(storedContext);
     RequestContext requestContext;
     if (span == null
         || (requestContext = span.getRequestContext()) == null
@@ -71,7 +70,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
     if (isAnalyzedResponse(channel)) {
       if (isBlockedResponse(channel)) {
         // block further writes
-        log.debug("Write suppressed, msg {} dropped", msg);
+        log.debug("Write suppressed; dropped outbound message");
         ReferenceCountUtil.release(msg);
       } else {
         super.write(ctx, msg, prm);

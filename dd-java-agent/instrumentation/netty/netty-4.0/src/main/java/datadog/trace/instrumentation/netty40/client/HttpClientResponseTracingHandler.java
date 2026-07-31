@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.netty40.client;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.client.NettyHttpClientDecorator.DECORATE;
@@ -27,7 +26,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     parentAttr.setIfAbsent(noopSpan());
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
-    final AgentSpan span = spanFromContext(storedContext);
+    final AgentSpan span = AgentSpan.fromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {
@@ -56,7 +55,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     parentAttr.setIfAbsent(noopSpan());
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
-    final AgentSpan span = spanFromContext(storedContext);
+    final AgentSpan span = AgentSpan.fromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {
@@ -84,7 +83,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     parentAttr.setIfAbsent(noopSpan());
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
-    final AgentSpan span = spanFromContext(storedContext);
+    final AgentSpan span = AgentSpan.fromContext(storedContext);
 
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {

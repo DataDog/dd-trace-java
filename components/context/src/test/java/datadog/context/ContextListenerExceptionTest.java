@@ -2,7 +2,6 @@ package datadog.context;
 
 import static datadog.context.Context.current;
 import static datadog.context.Context.root;
-import static datadog.context.ContextTest.STRING_KEY;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -17,16 +16,11 @@ class ContextListenerExceptionTest extends ContextTestBase {
     ContextManager.register(
         new ContextListener() {
           @Override
-          public void onAttach(Context c) {
-            throw new RuntimeException("listener failure");
-          }
-
-          @Override
-          public void onDetach(Context c) {
+          public void onUpdate(Context before, Context after) {
             throw new RuntimeException("listener failure");
           }
         });
-    Context context = root().with(STRING_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     assertDoesNotThrow(
         () -> {
           try (ContextScope scope = context.attach()) {
@@ -44,7 +38,7 @@ class ContextListenerExceptionTest extends ContextTestBase {
             throw new RuntimeException("listener failure on capture");
           }
         });
-    Context context = root().with(STRING_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     try (ContextScope scope = context.attach()) {
       assertDoesNotThrow(
           () -> {
@@ -65,7 +59,7 @@ class ContextListenerExceptionTest extends ContextTestBase {
             throw new RuntimeException("listener failure on release");
           }
         });
-    Context context = root().with(STRING_KEY, "value");
+    Context context = root().with(TEST_KEY, "value");
     try (ContextScope scope = context.attach()) {
       ContextContinuation continuation = context.capture();
       assertDoesNotThrow(continuation::release);
