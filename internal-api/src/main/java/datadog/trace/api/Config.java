@@ -5692,7 +5692,7 @@ public class Config {
     if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
       return OTLP_WRITER_TYPE.equals(writerType);
     }
-    String multiWriterConfig = Strings.replace(writerType, MULTI_WRITER_TYPE + ":", "");
+    String multiWriterConfig = Strings.substring(writerType, MULTI_WRITER_TYPE.length() + 1);
     for (String subWriterType : multiWriterConfig.split(",")) {
       if (OTLP_WRITER_TYPE.equals(subWriterType)) {
         return true;
