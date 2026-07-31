@@ -34,10 +34,6 @@ import net.bytebuddy.pool.TypePool;
 
 /** Generates a 'Muzzle' side-class for each {@link InstrumenterModule}. */
 public class MuzzleGenerator implements AsmVisitorWrapper {
-  /**
-   * The engine's source folder, fully populated before processing. OwnOutput is decided against it
-   * rather than the target folder, which is written incrementally as classes are processed.
-   */
   private final File sourceDir;
 
   private final File targetDir;
@@ -131,7 +127,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
 
     AdviceShader adviceShader = AdviceShader.with(module.adviceShading());
 
-    // Crawl advice for muzzle references (only recursing into the instrumentation package).
+    // Collect the muzzle references from every advice the module defines.
     Set<String> adviceClasses = new HashSet<>();
     List<Reference> allReferences = new ArrayList<>();
     for (Instrumenter instrumenter : module.typeInstrumentations()) {
@@ -238,7 +234,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       }
     }
 
-    // Manual additions cover helpers the crawl can't see.
+    // Add manually defined helpers.
     Set<String> manualHelpers = new LinkedHashSet<>(asList(module.helperClassNames()));
     Set<String> initialHelpers = new LinkedHashSet<>(inferredHelpers);
     initialHelpers.addAll(manualHelpers);
@@ -252,7 +248,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     String[] orderedHelpers =
         discoverAndOrderHelpers(initialHelpers, manualHelpers, helperPredicate, contextClassLoader);
 
-    // Drop build-time-only muzzle providers; injecting them fails the application.
+    // Drop build-time-only muzzle providers.
     ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(contextClassLoader);
     List<String> injectableHelpers = new ArrayList<>(orderedHelpers.length);
     for (String helper : orderedHelpers) {
@@ -297,7 +293,8 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
 
   /**
    * {@code true} if the class uses the muzzle {@link Reference} API (as a {@link ReferenceProvider}
-   * or via {@code compileReferences}). Use this method to avoid injecting build-time-only classes.
+   * or via {@code compileReferences}). This method is used to avoid injecting build-time-only
+   * classes.
    */
   static boolean isBuildTimeOnly(String className, ClassFileLocator locator) {
     try {
@@ -315,10 +312,9 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
 
   /**
    * Expands the given helpers with any helper classes they depend on and returns them in
-   * dependency-first load order (as required by {@link
-   * datadog.trace.agent.tooling.HelperInjector}), via {@link HelperScanner}. Library classes the
-   * scanner pulls in are dropped; helpers that could not be located are still kept (appended,
-   * unordered).
+   * dependency-first load order (required by {@link datadog.trace.agent.tooling.HelperInjector})
+   * via {@link HelperScanner}. Library classes the scanner pulls in are dropped, but helpers that
+   * could not be located are kept (appended, unordered).
    */
   private static String[] discoverAndOrderHelpers(
       Set<String> initialHelpers,
@@ -350,9 +346,9 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   }
 
   /**
-   * Writes an advisory report classifying each declared helper as inferred vs. manual-only. Used to
-   * guide migration from manually listed helpers to auto-inferred ones. TODO: Remove this method
-   * after all instrumentations are migrated!
+   * TODO: Remove this method after all instrumentations are migrated! Writes an advisory report
+   * classifying each declared helper as inferred vs. manual-only. Used to help with migration from
+   * manually listed helpers to auto-inferred ones.
    */
   private void writeInferenceReport(
       InstrumenterModule module,
