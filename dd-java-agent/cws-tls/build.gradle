@@ -4,7 +4,7 @@ import org.apache.maven.model.License
 plugins {
   id 'com.gradleup.shadow'
   id 'dd-trace-java.version-file'
-  id 'dd-trace-java.module.agent-product'
+  id 'dd-trace-java.module.product-subsystem'
 }
 
 excludedClassesCoverage += ['datadog.cws.erpc.*', 'datadog.cws.tls.*',]

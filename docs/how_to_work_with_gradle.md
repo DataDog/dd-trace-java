@@ -1150,7 +1150,7 @@ Use the most specific module plugin instead of applying `gradle/java.gradle` dir
 
 | Module kind                       | Plugin ID                                   |
 |-----------------------------------|---------------------------------------------|
-| Agent product modules             | `dd-trace-java.module.agent-product`        |
+| Product subsystem modules         | `dd-trace-java.module.product-subsystem`    |
 | Annotation processors             | `dd-trace-java.module.annotation-processor` |
 | Bootstrap components              | `dd-trace-java.module.bootstrap-component`  |
 | Published APIs                    | `dd-trace-java.module.distributable.api`    |

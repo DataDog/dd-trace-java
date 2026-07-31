@@ -5,7 +5,7 @@ import org.gradle.api.Action
 plugins {
   `java-library`
   id("com.gradleup.shadow")
-  id("dd-trace-java.module.agent-product")
+  id("dd-trace-java.module.product-subsystem")
 }
 
 description = "StatsD client"

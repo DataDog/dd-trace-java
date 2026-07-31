@@ -7,7 +7,7 @@ import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 
 plugins {
   id 'com.gradleup.shadow'
-  id 'dd-trace-java.module.agent-product'
+  id 'dd-trace-java.module.product-subsystem'
   id("dd-trace-java.instrumentation-naming")
 }
 

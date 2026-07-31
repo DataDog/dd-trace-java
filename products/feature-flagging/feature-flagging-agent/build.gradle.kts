@@ -7,7 +7,7 @@ plugins {
   `java-library`
   id("com.gradleup.shadow")
   id("dd-trace-java.version-file")
-  id("dd-trace-java.module.agent-product")
+  id("dd-trace-java.module.product-subsystem")
 }
 
 description = "Feature flagging agent system"
