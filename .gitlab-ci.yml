@@ -782,8 +782,11 @@ muzzle-dep-report:
     DEFAULT_TEST_JVMS: /^(8|11|17|21|25|27|tip)$/ # Java 27 TODO: remove 27 after GA (tip will move to 27)
     TEST_JVM_ARGS: "-Xshare:off"
   rules:
-    # `ibm8`/`oracle8` have no arm64 images published upstream — never run them on arm64.
-    - if: '$testJvm == "ibm8" || $testJvm == "oracle8"'
+    # IBM 8 has no arm64 image published upstream.
+    - if: '$testJvm == "ibm8"'
+      when: never
+    # Oracle 8 is available on arm64 but too flaky to run in CI.
+    - if: '$testJvm == "oracle8"'
       when: never
     # arm64 tests are newly introduced to the merge queue and master. Keep them
     # non-blocking (allow_failure) for now so we can collect stability stats and
@@ -802,8 +805,9 @@ muzzle-dep-report:
     - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
       when: on_success
       allow_failure: true
+    # Feature branches/PRs run only the default JVM subset.
     - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
-      when: manual
+      when: on_success
       allow_failure: true
   cache:
     - key: dependency-$CACHE_TYPE
