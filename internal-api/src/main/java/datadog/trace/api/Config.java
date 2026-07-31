@@ -5687,14 +5687,13 @@ public class Config {
     return "otlp".equalsIgnoreCase(traceOtelExporter);
   }
 
-  @SuppressForbidden // split on single-character uses a fast path
   public boolean isOtlpTracesExportEnabled() {
     if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
       return OTLP_WRITER_TYPE.equals(writerType);
     }
-    String multiWriterConfig = Strings.substring(writerType, MULTI_WRITER_TYPE.length() + 1);
-    for (String subWriterType : multiWriterConfig.split(",")) {
-      if (OTLP_WRITER_TYPE.equals(subWriterType)) {
+    String multiWriterConfig = writerType.substring(MULTI_WRITER_TYPE.length() + 1);
+    for (CharSequence subWriterType : Strings.split(multiWriterConfig, ',')) {
+      if (OTLP_WRITER_TYPE.contentEquals(subWriterType)) {
         return true;
       }
     }

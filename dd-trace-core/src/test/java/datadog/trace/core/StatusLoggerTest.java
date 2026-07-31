@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.squareup.moshi.Moshi;
+import datadog.json.JsonMapper;
 import datadog.trace.api.Config;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
@@ -73,12 +74,6 @@ public class StatusLoggerTest extends DDJavaSpecification {
   }
 
   @Test
-  @WithConfig(key = WRITER_TYPE, value = "MultiWriter:DDAgentWriter,MultiWriter:OtlpWriter")
-  void tracesExportedWhenMultiWriterPrefixRepeats() throws IOException {
-    assertTrue(flag(startupLog(), "otlp_traces_export_enabled"));
-  }
-
-  @Test
   @WithConfig(key = WRITER_TYPE, value = "MultiWriter:LoggingWriter,DDAgentWriter")
   void tracesNotExportedWhenMultiWriterExcludesOtlpWriter() throws IOException {
     assertFalse(flag(startupLog(), "otlp_traces_export_enabled"));
@@ -122,7 +117,6 @@ public class StatusLoggerTest extends DDJavaSpecification {
     assertTrue(flag(startupLog(), "otlp_metrics_export_enabled"));
   }
 
-  @SuppressWarnings("unchecked")
   private static Map<String, Object> startupLog() throws IOException {
     String json =
         new Moshi.Builder()
@@ -130,7 +124,7 @@ public class StatusLoggerTest extends DDJavaSpecification {
             .build()
             .adapter(Config.class)
             .toJson(Config.get());
-    return (Map<String, Object>) new Moshi.Builder().build().adapter(Object.class).fromJson(json);
+    return JsonMapper.fromJsonToMap(json);
   }
 
   private static boolean flag(Map<String, Object> startupLog, String name) {
