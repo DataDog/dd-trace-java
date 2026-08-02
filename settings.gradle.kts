@@ -378,6 +378,7 @@ include(
   ":dd-java-agent:instrumentation:grpc-1.5",
   ":dd-java-agent:instrumentation:gson-1.6",
   ":dd-java-agent:instrumentation:guava-10.0",
+  ":dd-java-agent:instrumentation:guidewire-10.0",
   ":dd-java-agent:instrumentation:hazelcast:hazelcast-3.6",
   ":dd-java-agent:instrumentation:hazelcast:hazelcast-3.9",
   ":dd-java-agent:instrumentation:hazelcast:hazelcast-4.0",
