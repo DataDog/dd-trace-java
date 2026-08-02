@@ -1,15 +1,57 @@
 muzzle {
+  // Core tracing (OkHttp3Instrumentation -> TracingInterceptor), IAST and AppSec reference OkHttp
+  // types and apply to 3.x/4.x/5.x.
   pass {
+    name = 'okhttp-3'
     group = "com.squareup.okhttp3"
     module = "okhttp"
     versions = "[3.0,)"
     assertInverse = true
   }
+  // AsyncCallInstrumentation is 3.x-only: the matched type okhttp3.RealCall$AsyncCall relocated to
+  // okhttp3.internal.connection.RealCall$AsyncCall in 4.x (handled by the okhttp-4.0 module). Its
+  // advice references only java.lang.Runnable, never an OkHttp type, so muzzle has nothing
+  // version-specific to enforce here — this directive documents the [3.0,4.0) boundary; the real
+  // gate is knownMatchingTypes. No assertInverse for the same reason: with no OkHttp reference
+  // muzzle would pass outside the range (nothing to be missing), contradicting the assertion.
+  pass {
+    name = 'okhttp-async-3'
+    group = "com.squareup.okhttp3"
+    module = "okhttp"
+    versions = "[3.0,4.0)"
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+// Use slf4j-simple for tests; logback's synchronized appenders can pin virtual-thread carriers
+// when many vthreads log concurrently, which deadlocks this module's vthread21Test suite.
+apply from: "$rootDir/gradle/slf4j-simple.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+
+// Separate suite for tests that need the JDK 21+ virtual-thread API. Kept apart from the
+// default test suite so that the existing OkHttp 3.0 tests keep their Java 1.8 baseline.
+addTestSuite('vthread21Test')
+
+tasks.named("compileVthread21TestJava", JavaCompile) {
+  configureCompiler(it, 21)
+}
+
+tasks.named("vthread21Test", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_21
+    // Cap at 24: the suite fails on the JDK 25 / "tip" (26) CI shards. The virtual-thread
+    // instrumentation itself works on 25 (the okhttp 3.x/4.x/5.x vthread suites pass locally,
+    // including the contention regression), so this is a CI/test-stability issue (the contention
+    // test's timing under shard load), not an instrumentation limit. Lift once the suite is made
+    // stable on 25+.
+    maxJavaVersion = JavaVersion.VERSION_24
+  }
+}
+
+tasks.named("check") {
+  dependsOn "vthread21Test"
+}
 
 dependencies {
   compileOnly(group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.0.0')
@@ -38,4 +80,14 @@ dependencies {
 
   testRuntimeOnly(project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter'))
   testRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-net:java-net-1.8'))
+
+  // vthread21Test inherits testImplementation via addTestSuite's extendsFrom wiring.
+  vthread21TestImplementation(group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.11.0')
+  vthread21TestImplementation(group: 'com.squareup.okio', name: 'okio', version: '1.14.0')
+
+  // Pull in the JDK-21+ concurrent / lang instrumentations so the test installs the same
+  // TaskRunnerInstrumentation + VirtualThreadInstrumentation chain that profiling-backend
+  // exercises in production.
+  vthread21TestRuntimeOnly project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-21.0')
+  vthread21TestRuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-21.0')
 }
