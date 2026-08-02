@@ -156,8 +156,8 @@ class RemoteConfigServiceImplTest {
                 + "\"allocations\":[{"
                 + "\"key\":\"dated-allocation\","
                 + "\"rules\":[],"
-                + "\"startAt\":\"2023-01-01T01:00:00+01:00\","
-                + "\"endAt\":\"2023-01-02T00:00:00Z\","
+                + "\"startAt\":\"2023-01-01T01:00:00.123456+01:00\","
+                + "\"endAt\":\"2023-01-02T00:00:00.987654Z\","
                 + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]}],"
                 + "\"doLog\":true"
                 + "}]"
@@ -168,10 +168,10 @@ class RemoteConfigServiceImplTest {
     final Allocation allocation = config.flags.get("dated-flag").allocations.get(0);
     assertEquals(Date.class, Allocation.class.getField("startAt").getType());
     assertEquals(Date.class, Allocation.class.getField("endAt").getType());
-    assertEquals(Instant.parse("2023-01-01T00:00:00Z"), allocation.startAt.toInstant());
-    assertEquals(Instant.parse("2023-01-02T00:00:00Z"), allocation.endAt.toInstant());
-    assertEquals(Instant.parse("2023-01-01T00:00:00Z"), allocation.startAtInstant());
-    assertEquals(Instant.parse("2023-01-02T00:00:00Z"), allocation.endAtInstant());
+    assertEquals(Instant.parse("2023-01-01T00:00:00.123Z"), allocation.startAt.toInstant());
+    assertEquals(Instant.parse("2023-01-02T00:00:00.987Z"), allocation.endAt.toInstant());
+    assertEquals(Instant.parse("2023-01-01T00:00:00.123456Z"), allocation.startAtInstant());
+    assertEquals(Instant.parse("2023-01-02T00:00:00.987654Z"), allocation.endAtInstant());
   }
 
   @Test
@@ -299,49 +299,49 @@ class RemoteConfigServiceImplTest {
   }
 
   @TableTest({
-    "scenario                       | value                            | expectedInstant           ",
-    "utc second                     | '2023-01-01T00:00:00Z'           | '2023-01-01T00:00:00Z'    ",
-    "utc end of year                | '2023-12-31T23:59:59Z'           | '2023-12-31T23:59:59Z'    ",
-    "leap day                       | '2024-02-29T12:00:00Z'           | '2024-02-29T12:00:00Z'    ",
-    "millisecond precision          | '2023-01-01T00:00:00.000Z'       | '2023-01-01T00:00:00Z'    ",
-    "three fractional digits        | '2023-06-15T14:30:45.123Z'       | '2023-06-15T14:30:45.123Z'",
-    "six fractional digits          | '2023-06-15T14:30:45.123456Z'    | '2023-06-15T14:30:45.123Z'",
-    "six fractional digits distinct | '2023-06-15T14:30:45.235982Z'    | '2023-06-15T14:30:45.235Z'",
-    "nine fractional digits         | '2023-06-15T14:30:45.123456789Z' | '2023-06-15T14:30:45.123Z'",
-    "one fractional digit           | '2023-06-15T14:30:45.1Z'         | '2023-06-15T14:30:45.100Z'",
-    "two fractional digits          | '2023-06-15T14:30:45.12Z'        | '2023-06-15T14:30:45.120Z'",
-    "positive offset                | '2023-01-01T01:00:00+01:00'      | '2023-01-01T00:00:00Z'    ",
-    "negative offset                | '2023-01-01T00:00:00-05:00'      | '2023-01-01T05:00:00Z'    ",
-    "date only                      | '2023-01-01'                     |                           ",
-    "invalid                        | 'invalid-date'                   |                           ",
-    "empty string                   | ''                               |                           ",
-    "not a date                     | 'not-a-date'                     |                           ",
-    "slash date                     | '2023/01/01T00:00:00Z'           |                           ",
-    "null                           |                                  |                           "
+    "scenario                       | value                            | expectedInstant                 ",
+    "utc second                     | '2023-01-01T00:00:00Z'           | '2023-01-01T00:00:00Z'          ",
+    "utc end of year                | '2023-12-31T23:59:59Z'           | '2023-12-31T23:59:59Z'          ",
+    "leap day                       | '2024-02-29T12:00:00Z'           | '2024-02-29T12:00:00Z'          ",
+    "millisecond precision          | '2023-01-01T00:00:00.000Z'       | '2023-01-01T00:00:00Z'          ",
+    "three fractional digits        | '2023-06-15T14:30:45.123Z'       | '2023-06-15T14:30:45.123Z'      ",
+    "six fractional digits          | '2023-06-15T14:30:45.123456Z'    | '2023-06-15T14:30:45.123456Z'   ",
+    "six fractional digits distinct | '2023-06-15T14:30:45.235982Z'    | '2023-06-15T14:30:45.235982Z'   ",
+    "nine fractional digits         | '2023-06-15T14:30:45.123456789Z' | '2023-06-15T14:30:45.123456789Z'",
+    "one fractional digit           | '2023-06-15T14:30:45.1Z'         | '2023-06-15T14:30:45.100Z'      ",
+    "two fractional digits          | '2023-06-15T14:30:45.12Z'        | '2023-06-15T14:30:45.120Z'      ",
+    "positive offset                | '2023-01-01T01:00:00+01:00'      | '2023-01-01T00:00:00Z'          ",
+    "negative offset                | '2023-01-01T00:00:00-05:00'      | '2023-01-01T05:00:00Z'          ",
+    "date only                      | '2023-01-01'                     |                                 ",
+    "invalid                        | 'invalid-date'                   |                                 ",
+    "empty string                   | ''                               |                                 ",
+    "not a date                     | 'not-a-date'                     |                                 ",
+    "slash date                     | '2023/01/01T00:00:00Z'           |                                 ",
+    "null                           |                                  |                                 "
   })
-  void testDateParsing(final String value, final String expectedInstant) throws Exception {
+  void testInstantParsing(final String value, final String expectedInstant) throws Exception {
     final JsonReader reader = mock(JsonReader.class);
     when(reader.nextString()).thenReturn(value);
-    final UniversalFlagConfigParser.DateAdapter adapter =
-        new UniversalFlagConfigParser.DateAdapter();
+    final UniversalFlagConfigParser.InstantAdapter adapter =
+        new UniversalFlagConfigParser.InstantAdapter();
 
-    final Date parsed = adapter.fromJson(reader);
+    final Instant parsed = adapter.fromJson(reader);
     if (expectedInstant == null) {
       assertNull(parsed);
     } else {
       assertNotNull(parsed);
-      assertEquals(expectedInstant, parsed.toInstant().toString());
+      assertEquals(expectedInstant, parsed.toString());
     }
   }
 
   @Test
   void testParsingOnlyAdapter() {
-    final UniversalFlagConfigParser.DateAdapter adapter =
-        new UniversalFlagConfigParser.DateAdapter();
+    final UniversalFlagConfigParser.InstantAdapter adapter =
+        new UniversalFlagConfigParser.InstantAdapter();
 
     assertThrows(
         UnsupportedOperationException.class,
-        () -> adapter.toJson(mock(JsonWriter.class), Date.from(Instant.EPOCH)));
+        () -> adapter.toJson(mock(JsonWriter.class), Instant.EPOCH));
   }
 
   @SuppressWarnings("unchecked")
@@ -354,7 +354,10 @@ class RemoteConfigServiceImplTest {
   }
 
   private static Moshi moshi() {
-    return new Moshi.Builder().add(Date.class, new UniversalFlagConfigParser.DateAdapter()).build();
+    return new Moshi.Builder()
+        .add(Instant.class, new UniversalFlagConfigParser.InstantAdapter())
+        .add(UniversalFlagConfigParser.AllocationAdapter.FACTORY)
+        .build();
   }
 
   private static String emptyConfig() {

@@ -7,16 +7,19 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.remoteconfig.ConfigurationDeserializer;
+import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Split;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -33,7 +36,11 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
   static final UniversalFlagConfigParser INSTANCE = new UniversalFlagConfigParser();
 
   private static final Moshi MOSHI =
-      new Moshi.Builder().add(Date.class, new DateAdapter()).add(FlagMapAdapter.FACTORY).build();
+      new Moshi.Builder()
+          .add(Instant.class, new InstantAdapter())
+          .add(AllocationAdapter.FACTORY)
+          .add(FlagMapAdapter.FACTORY)
+          .build();
   private static final JsonAdapter<ServerConfiguration> V1_ADAPTER =
       MOSHI.adapter(ServerConfiguration.class);
 
@@ -119,30 +126,89 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
     }
   }
 
-  static final class DateAdapter extends JsonAdapter<Date> {
+  static final class InstantAdapter extends JsonAdapter<Instant> {
 
     @Nullable
     @Override
-    public Date fromJson(@Nonnull final JsonReader reader) throws IOException {
+    public Instant fromJson(@Nonnull final JsonReader reader) throws IOException {
       if (reader.peek() == JsonReader.Token.NULL) {
         return reader.nextNull();
       }
-      final String date = reader.nextString();
-      if (date == null) {
-        return null;
-      }
-      try {
-        return Date.from(DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(date, Instant::from));
-      } catch (Exception e) {
-        // ignore wrongly set dates
-        return null;
-      }
+      return parseInstant(reader.nextString());
     }
 
     @Override
-    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Date value)
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Instant value)
         throws IOException {
       throw new UnsupportedOperationException("Reading only adapter");
+    }
+  }
+
+  static final class AllocationAdapter extends JsonAdapter<Allocation> {
+
+    static final Factory FACTORY =
+        new Factory() {
+          @Nullable
+          @Override
+          public JsonAdapter<?> create(
+              @Nonnull final Type type,
+              @Nonnull final Set<? extends Annotation> annotations,
+              @Nonnull final Moshi moshi) {
+            if (!annotations.isEmpty() || !Types.equals(type, Allocation.class)) {
+              return null;
+            }
+            return new AllocationAdapter(moshi.adapter(AllocationJson.class));
+          }
+        };
+
+    private final JsonAdapter<AllocationJson> delegate;
+
+    AllocationAdapter(final JsonAdapter<AllocationJson> delegate) {
+      this.delegate = delegate;
+    }
+
+    @Nullable
+    @Override
+    public Allocation fromJson(@Nonnull final JsonReader reader) throws IOException {
+      final AllocationJson allocation = delegate.fromJson(reader);
+      if (allocation == null) {
+        return null;
+      }
+      return Allocation.fromInstants(
+          allocation.key,
+          allocation.rules,
+          allocation.startAt,
+          allocation.endAt,
+          allocation.splits,
+          allocation.doLog);
+    }
+
+    @Override
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Allocation value)
+        throws IOException {
+      throw new UnsupportedOperationException("Reading only adapter");
+    }
+  }
+
+  static final class AllocationJson {
+    String key;
+    List<Rule> rules;
+    Instant startAt;
+    Instant endAt;
+    List<Split> splits;
+    Boolean doLog;
+  }
+
+  @Nullable
+  private static Instant parseInstant(@Nullable final String date) {
+    if (date == null) {
+      return null;
+    }
+    try {
+      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(date, Instant::from);
+    } catch (Exception e) {
+      // ignore wrongly set dates
+      return null;
     }
   }
 }

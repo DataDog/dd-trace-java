@@ -227,6 +227,20 @@ public class DDEvaluatorTest {
     assertThat(allocation.endAtInstant(), equalTo(endAt.toInstant()));
   }
 
+  @Test
+  public void testAllocationWindowHonorsMicrosecondPrecision() {
+    final Instant startAt = Instant.parse("2024-01-01T00:00:00.123456Z");
+    final Instant endAt = Instant.parse("2024-01-01T00:00:00.987654Z");
+    final Allocation allocation =
+        Allocation.fromInstants("allocation", emptyList(), startAt, endAt, emptyList(), true);
+
+    assertThat(
+        DDEvaluator.isAllocationActive(allocation, startAt.minusNanos(1_000)), equalTo(false));
+    assertThat(DDEvaluator.isAllocationActive(allocation, startAt), equalTo(true));
+    assertThat(DDEvaluator.isAllocationActive(allocation, endAt), equalTo(true));
+    assertThat(DDEvaluator.isAllocationActive(allocation, endAt.plusNanos(1_000)), equalTo(false));
+  }
+
   private static Arguments[] flatteningTestCases() {
     final List<Arguments> arguments = new ArrayList<>();
     arguments.add(Arguments.of(emptyMap(), emptyMap()));
