@@ -6281,6 +6281,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_GUAVA_ENABLED", "DD_INTEGRATION_GUAVA_ENABLED"]
       }
     ],
+    "DD_TRACE_GUIDEWIRE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_GUIDEWIRE_ENABLED", "DD_INTEGRATION_GUIDEWIRE_ENABLED"]
+      }
+    ],
     "DD_TRACE_HAZELCAST_ENABLED": [
       {
         "version": "A",
