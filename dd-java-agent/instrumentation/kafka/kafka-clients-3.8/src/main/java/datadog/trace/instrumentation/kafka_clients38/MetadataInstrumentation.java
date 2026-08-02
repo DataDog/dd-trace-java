@@ -66,5 +66,7 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
             .and(named("update"))
             .and(takesArgument(1, named("org.apache.kafka.common.requests.MetadataResponse"))),
         packageName + ".MetadataUpdate22AndAfterAdvice");
+    transformer.applyAdvice(
+        isMethod().and(named("failedUpdate")), packageName + ".MetadataFailedUpdateAdvice");
   }
 }

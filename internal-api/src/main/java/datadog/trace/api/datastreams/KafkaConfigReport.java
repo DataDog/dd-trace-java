@@ -12,6 +12,7 @@ public class KafkaConfigReport implements InboxItem {
   private final String kafkaClusterId;
   private final String consumerGroup;
   private final Map<String, String> config;
+  private final String connectionStatus; // "connected" or "failed"
   private final long timestampNanos;
   private final String serviceNameOverride;
 
@@ -20,12 +21,14 @@ public class KafkaConfigReport implements InboxItem {
       String kafkaClusterId,
       String consumerGroup,
       Map<String, String> config,
+      String connectionStatus,
       long timestampNanos,
       String serviceNameOverride) {
     this.type = type;
     this.kafkaClusterId = kafkaClusterId != null ? kafkaClusterId : "";
     this.consumerGroup = consumerGroup != null ? consumerGroup : "";
     this.config = config;
+    this.connectionStatus = connectionStatus != null ? connectionStatus : "";
     this.timestampNanos = timestampNanos;
     this.serviceNameOverride = serviceNameOverride;
   }
@@ -46,6 +49,10 @@ public class KafkaConfigReport implements InboxItem {
     return config;
   }
 
+  public String getConnectionStatus() {
+    return connectionStatus;
+  }
+
   public long getTimestampNanos() {
     return timestampNanos;
   }
@@ -62,7 +69,8 @@ public class KafkaConfigReport implements InboxItem {
     return Objects.equals(type, that.type)
         && Objects.equals(kafkaClusterId, that.kafkaClusterId)
         && Objects.equals(consumerGroup, that.consumerGroup)
-        && Objects.equals(config, that.config);
+        && Objects.equals(config, that.config)
+        && Objects.equals(connectionStatus, that.connectionStatus);
   }
 
   @Override
@@ -71,6 +79,7 @@ public class KafkaConfigReport implements InboxItem {
     result = 31 * result + (kafkaClusterId != null ? kafkaClusterId.hashCode() : 0);
     result = 31 * result + (consumerGroup != null ? consumerGroup.hashCode() : 0);
     result = 31 * result + (config != null ? config.hashCode() : 0);
+    result = 31 * result + (connectionStatus != null ? connectionStatus.hashCode() : 0);
     return result;
   }
 }
