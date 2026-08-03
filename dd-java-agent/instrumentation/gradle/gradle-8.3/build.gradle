@@ -6,6 +6,10 @@ repositories {
   }
 }
 
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
+
 dependencies {
   compileOnly gradleApi()
   testImplementation gradleApi()
