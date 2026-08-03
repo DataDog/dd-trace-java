@@ -3,8 +3,9 @@ name: fix-latest-deps-pr
 description: >-
   Triage and unblock the weekly "Update Gradle dependencies" PR when GitLab CI is red from `latestDepTest` breakages.
   Use when asked to "fix the latest deps PR", "unblock the gradle dependencies PR", "fix update-gradle-dependencies", or
-  when given a GitLab pipeline id + PR number. Rolls back the conflicting module lockfiles to make CI green, then
-  optionally ships per-module real fixes as separate PRs.
+  when given a GitLab pipeline id + PR number. Rolls back the conflicting module lockfiles to make CI green — including
+  modules a Codex review flagged as bumped to a pre-release (alpha/beta/RC) version — then optionally ships per-module
+  real fixes as separate PRs.
 user-invocable: true
 ---
 
@@ -14,16 +15,26 @@ The weekly GitHub Action `.github/workflows/update-gradle-dependencies.yaml` bum
 to two PRs (core + instrumentation). These PRs can go red on GitLab CI because a newly-updated *latest* dependency is
 incompatible with current `dd-trace-java` code — the failures surface as `latestDepTest` task failures.
 
-This skill has two phases:
+The work has two goals, delivered by the phases below:
 
-1. **Unblock (always):** roll back only the `gradle.lockfile`s of modules whose `latestDep*Test` failed, one commit per
-   module, then push once. This restores CI so the (still-valuable) lockfile updates for the other modules can merge.
-2. **Real fix (opt-in, per module):** actually make the code compatible with the new dependency version, verified
-   locally, shipped as a separate PR off `master`.
+- **Unblock (always, Phase 3):** roll back only the `gradle.lockfile`s of the in-scope modules, one commit per module,
+  then push once. This restores CI so the (still-valuable) lockfile updates for the other modules can merge.
+- **Real fix (opt-in, per module, Phase 4):** actually make the code compatible with the new dependency version, verified
+  locally, shipped as a separate PR off `master`. Only **CI-failed** modules are eligible — pre-release rollbacks never
+  get a real-fix PR (see below).
 
-Only failures of a module's **latest-dep source set** are in scope — its `latestDep*Test` suites *and* their
-compile/resolution tasks (e.g. `compileLatestDep*`). Ignore all other red jobs (flaky, infra, unrelated test failures)
-— do not touch them.
+A module is in scope for rollback in exactly two cases:
+
+- **(A) CI-failed latest-dep source set** — its `latestDep*Test` suites *and* their compile/resolution tasks
+  (e.g. `compileLatestDep*`). Ignore all other red jobs (flaky, infra, unrelated test failures) — do not touch them.
+- **(B) Codex flagged a pre-release bump** — an automated Codex review on the PR raises a risk about a module being moved
+  to an alpha/beta/RC/milestone/snapshot version, *even though CI is green*. Prefer safety: roll it back and wait for the
+  GA release.
+
+Case B is rolled back **exactly the same way** as case A, but it never gets a Phase 4 real-fix PR. Rationale: pre-release
+artifacts aren't what users run, so a green latest-dep suite on a beta buys nothing and a subtly broken one costs real
+triage time; and the API can still change before GA, so any fix written against a beta is likely throwaway work. Roll
+back, wait for the final release — the next weekly run picks it up.
 
 ---
 
@@ -41,9 +52,10 @@ expired/missing
   probe below) and, if it 401s, run the auth-recovery recipe.
 - **`ddtool` — required (for GitLab auth).** Datadog-internal CLI that mints the GitLab project access token. If the
   binary is missing, tell the user to install it manually and stop.
-- **GitHub CLI (`gh`) — required, authenticated.** Resolves, checks out, and opens PRs. Run `gh auth status` to verify.
+- **GitHub CLI (`gh`) — required, authenticated.** Resolves, checks out, and opens PRs, and reads the Codex review
+  comments in Phase 2. Run `gh auth status` to verify.
 - **`jq` — required.** Every GitLab API call is parsed with it; confirm it is on `PATH`.
-- **Git remote `origin` with `master` — required.** The rollback baseline and the Phase 3 branch base come from the
+- **Git remote `origin` with `master` — required.** The rollback baseline and the Phase 4 branch base come from the
   latest `origin/master` — always `git fetch origin master` first so they aren't computed against a stale local ref.
 - **Module-specific credentials — conditional.** Some optional instrumentations are excluded from the Gradle build
   unless a property is set, so their project path is unresolvable — e.g. `akka-http-10.6` needs
@@ -85,7 +97,9 @@ glab auth login --hostname gitlab.ddbuild.io --token "$TOKEN"
 
 ## Phase 0 — Preflight
 
-1. **Collect inputs.** Ask the user for the **GitLab pipeline id** and the **PR number**.
+1. **Collect inputs.** Ask the user for the **GitLab pipeline id** and the **PR number**. The PR number is always
+   required. The pipeline id is only needed for Phase 1 — if CI is green and the user only wants the Codex pre-release
+   check, take the PR number, skip Phase 1, and go straight to Phase 2.
 
 2. **Confirm GitLab auth** by running the readiness probe from
    [GitLab auth readiness probe & recovery](#gitlab-auth-readiness-probe--recovery); if it 401s, run the recovery recipe
@@ -100,8 +114,8 @@ glab auth login --hostname gitlab.ddbuild.io --token "$TOKEN"
    handles (the whole skill assumes an `origin/master` baseline and lockfile-only diffs).
 
 4. **Record the broken head SHA** as session context — call it `ORIG_PR_HEAD`. Substitute the literal 40-char SHA into
-   every command below rather than a shell variable (each command may run in a separate shell). Phase 3 needs it to
-   retrieve the *broken* lockfiles after Phase 2 rolls them back.
+   every command below rather than a shell variable (each command may run in a separate shell). Phase 4 needs it to
+   retrieve the *broken* lockfiles after Phase 3 rolls them back.
 
 5. **Check out the PR branch at its head.**
 
@@ -115,9 +129,9 @@ glab auth login --hostname gitlab.ddbuild.io --token "$TOKEN"
   git fetch origin && git reset --hard <ORIG_PR_HEAD-sha>   # only if HEAD != ORIG_PR_HEAD
   ```
 
-Do not triage or commit until `HEAD` equals the PR head — otherwise Phase 2 builds commits on the wrong tree.
+Do not triage or commit until `HEAD` equals the PR head — otherwise Phase 3 builds commits on the wrong tree.
 
-6. **Sync the master reference** (rollback + Phase 2/3 base):
+6. **Sync the master reference** (rollback + Phase 3/4 base):
    ```bash
    git fetch origin master
    ```
@@ -157,8 +171,8 @@ Do not triage or commit until `HEAD` equals the PR head — otherwise Phase 2 bu
   `latestDep` — e.g. `latestDepTest`, `latestDepForkedTest`, `compileLatestDepJava`. **Ignore** everything else
   (`:test`, `:forkedTest`, muzzle, infra, …).
 - **Record the exact failing task name (s)** per module — don't assume `latestDepTest`; some modules define only
-  `latestDepForkedTest`, and Phase 3 reuses the real name to verify.
-- **Record the JVM** the job ran on (the job name encodes it, e.g. a `j17`/`jdk17` segment). Phase 3 reproduces with
+  `latestDepForkedTest`, and Phase 4 reuses the real name to verify.
+- **Record the JVM** the job ran on (the job name encodes it, e.g. a `j17`/`jdk17` segment). Phase 4 reproduces with
   `-PtestJvm=<jvm>`. If a module failed on more than one JVM, record each — verify them all.
 - A single job can contain multiple failing latest-dep tasks — collect them **all**, across all jobs, deduped by module.
 
@@ -174,15 +188,77 @@ Do not triage or commit until `HEAD` equals the PR head — otherwise Phase 2 bu
      && echo "UNCHANGED — exclude (flaky/unrelated)" || echo "changed — in scope"
    ```
 
-4. **Report the triage** to the user before making any change: each failed latestDep module with its Gradle path,
-   lockfile, failing task (s), and JVM (s).
+4. **Record the triage** for each failed latestDep module: Gradle path, lockfile, failing task (s), and JVM (s). Tag every
+   one of them **category A** (CI-failed → Phase 4 eligible). Don't report yet — Phase 2 adds category B, and the user
+   gets one combined table.
 
 ---
 
-## Phase 2 — Unblock (rollback lockfiles)
+## Phase 2 — Triage Codex-flagged pre-release bumps
 
-For **each** failed module, create **one commit** rolling its lockfile back to the pre-update state. Do **not** push
-between commits.
+Codex reviews these PRs automatically and its findings land as **inline review comments on the lockfiles**, not as the
+review body (the body is just a banner). A recurring finding is a module bumped to a pre-release version — e.g. PR 12131,
+where `wildfly-9.0` moved `wildfly-embedded`/WildFly Core to `34.0.0.Beta3` while the same lockfile still unpacked the GA
+`wildfly-dist:41.0.0.Final`, mixing two different core releases. CI was green; the combination is one no user runs.
+
+Run this **even when Phase 1 found nothing** — case B is independent of CI status.
+
+1. **Fetch the Codex inline comments** (the review body carries no findings, so read the comments endpoint):
+   ```bash
+   gh api repos/DataDog/dd-trace-java/pulls/<PR>/comments --paginate \
+     | jq -r '.[] | select(.user.login | test("codex"; "i")) | "=== \(.path):\(.line // .original_line)\n\(.body)\n"'
+   ```
+   Also skim the top-level ones for anything Codex left outside a diff hunk:
+   ```bash
+   gh pr view <PR> --json comments,reviews \
+     | jq -r '(.comments + .reviews)[] | select(.author.login | test("codex"; "i")) | .body'
+   ```
+
+- Empty output means Codex found nothing (it reacts 👍 instead of commenting) — skip to Phase 3 with category A only.
+- Codex prefixes findings with a `P1`/`P2`/`P3` badge. Severity does **not** gate the rollback: any pre-release finding is
+  rolled back regardless.
+- Codex comments can be wrong or stale. Verify each one against the lockfile in the diff (step 2) before acting; never
+  roll back on the comment's word alone.
+
+2. **Keep only pre-release findings.** A finding qualifies for case B when the version Codex is complaining about is a
+   pre-release. Read the actual version out of the lockfile at the comment's path and check it, rather than trusting the
+   prose:
+   ```bash
+   BASE=$(git merge-base HEAD origin/master)
+   git diff "$BASE" HEAD -- <module>/gradle.lockfile | grep '^+' \
+     | grep -inE '[.-](alpha|beta|rc|cr|m[0-9]|milestone|snapshot|preview|dev|pre|ea)[0-9._-]*(=|$)'
+   ```
+   Pre-release markers are separated by `.` or `-` (WildFly/JBoss use `.Beta3`, `.CR1`; most others use `-beta.1`,
+   `-RC1`, `-M2`, `-SNAPSHOT`). `.Final`, `.GA`, `.RELEASE`, `.SP1` and plain `1.2.3` are **GA — not in scope**.
+
+- If the added version is GA, the finding is *not* case B. Do **not** roll it back — surface it to the user verbatim in
+  the report as an unhandled Codex finding for them to judge.
+- If the **baseline** version was already a pre-release (`git show "$BASE:<module>/gradle.lockfile" | grep ...` matches
+  too), rolling back does not remove the pre-release. Flag that module to the user and let them decide instead of rolling
+  back silently.
+- Findings unrelated to versions (style, logic, anything else) are out of scope for this skill entirely — list them in the
+  report and move on.
+
+3. **Map each qualifying comment → module.** The comment's `path` *is* the lockfile, so the module is that path minus
+   `/gradle.lockfile` and the Gradle path is the same with `/` → `:` and a leading `:`. Confirm the PR actually changed the
+   lockfile with the same `git diff --quiet` check as Phase 1 step 3 — if unchanged, the finding is stale (Codex reviewed
+   an older commit); exclude and flag it.
+
+4. **Dedupe against category A** — a module can be both CI-failed and Codex-flagged. It gets **one** rollback commit, and
+   category A wins for Phase 4 eligibility (a real CI failure is worth fixing even if it also happens to be a beta,
+   though the beta itself is usually the cause — say so in the report and let the user choose).
+
+5. **Report the combined triage** to the user before making any change: one table of every in-scope module with its
+   category (A / B), Gradle path, lockfile, and — for A — failing task (s) and JVM (s), or — for B — the pre-release
+   version and a one-line summary of the Codex finding. Add a separate list of Codex findings you did **not** act on and
+   why.
+
+---
+
+## Phase 3 — Unblock (rollback lockfiles)
+
+For **each** in-scope module — category A *and* category B — create **one commit** rolling its lockfile back to the
+pre-update state. Do **not** push between commits.
 
 **Approval model:** the rollback commits are local and fully reversible, so create them without prompting. The one
 action that needs the user's go-ahead is the **push** (step 4) — where changes leave the machine and re-trigger CI.
@@ -199,12 +275,17 @@ action that needs the user's go-ahead is the **push** (step 4) — where changes
    fi
    ```
 
-2. Commit that single module's already-staged change (restore or deletion — no `git add` needed):
+2. Commit that single module's already-staged change (restore or deletion — no `git add` needed), with the message for its
+   category so the history says *why* it was rolled back:
    ```bash
-   git commit -m "temporary fix: rolled back conflicting latest dependencies for module: <gradle-task-path-without-task> to unblock PR merging"
+   # category A — CI-failed latest-dep source set
+   git commit -m "temporary fix: rolled back conflicting latest dependencies for module: <gradle-path> to unblock PR merging"
+
+   # category B — Codex-flagged pre-release bump (CI was green)
+   git commit -m "temporary fix: rolled back pre-release latest dependencies (<dep>:<version>) for module: <gradle-path>, waiting for the final release"
    ```
 
-3. Repeat for every failed module — one commit each.
+3. Repeat for every in-scope module — one commit each.
 
 4. **Verify, then push once** (after all commits exist). One diff per module confirms the lockfile now matches the
    baseline — this covers both cases (a restored file has no diff vs `BASE`; a correctly-deleted new file is absent in
@@ -224,12 +305,21 @@ action that needs the user's go-ahead is the **push** (step 4) — where changes
 
 One push (not per commit) triggers a single CI run. Report the pushed commits and remind the user CI will re-run.
 
+If a category-B rollback also drags an unrelated GA bump in the same lockfile back to baseline, that's acceptable — the
+next weekly run re-applies it. Don't hand-edit a lockfile to keep part of the update; whole-file rollback is the only
+supported operation.
+
 ---
 
-## Phase 3 — Real fix (opt-in, per module)
+## Phase 4 — Real fix (opt-in, per module)
 
-After unblocking, **ask** the user whether to create separate real-fix PRs (one per failed module). If no, stop and hand
-them the module list. If yes, work modules **one at a time** — fully finish and verify one before starting the next.
+**Category-B (Codex pre-release) modules are excluded from this phase — never open a real-fix PR for them.** Say so
+explicitly when reporting; the resolution is "wait for the GA release", not a code change. If the user asks for one
+anyway, tell them once why it's likely throwaway (the pre-release API can still change), then do it if they confirm.
+
+After unblocking, **ask** the user whether to create separate real-fix PRs (one per **category-A** module). If no, stop
+and hand them the module list. If yes, work modules **one at a time** — fully finish and verify one before starting the
+next.
 
 For each module:
 
@@ -316,14 +406,19 @@ For each module:
    git checkout <PR-branch-or-master>
    ```
 
-When done, summarize: unblock commits pushed, and for each module either the fix PR URL or that it was skipped.
+When done, summarize: unblock commits pushed, and for each module either the fix PR URL, that it was skipped, or — for
+category B — that it was rolled back and is intentionally waiting for the dependency's GA release.
 
 ---
 
 ## Guardrails
 
-- **Scope:** only modules whose latest-dep source set failed. Phase 2 changes **only** those modules' `gradle.lockfile`
-  s — never source code, never another module. Phase 3 may extend beyond the failed module only with clear
-  justification, and verification must then cover every module you touched.
-- **Approvals:** get the user's go-ahead before the Phase 2 push and before committing/opening any Phase 3 PR.
+- **Scope:** only modules whose latest-dep source set failed (A) or that Codex flagged as bumped to a pre-release (B).
+  Phase 3 changes **only** those modules' `gradle.lockfile`s — never source code, never another module. Phase 4 may
+  extend beyond the failed module only with clear justification, and verification must then cover every module you
+  touched.
+- **Pre-release modules get no fix PR.** Rollback only — the fix is the upstream GA release.
+- **Never act on a Codex comment without verifying it** against the actual lockfile diff, and never silently discard the
+  ones you didn't act on — list them for the user.
+- **Approvals:** get the user's go-ahead before the Phase 3 push and before committing/opening any Phase 4 PR.
 - Keep Gradle runs sequential.
