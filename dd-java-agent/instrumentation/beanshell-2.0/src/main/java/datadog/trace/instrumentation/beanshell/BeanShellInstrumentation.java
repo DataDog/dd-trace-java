@@ -144,8 +144,9 @@ public class BeanShellInstrumentation extends InstrumenterModule.Iast
         return;
       }
 
-      // @Sink only declares CODE_INJECTION (it is single-valued), so this SSRF report is not counted
-      // in the instrumented/executed-sink telemetry; the vulnerability itself is still reported.
+      // @Sink only declares CODE_INJECTION (it is single-valued), so this SSRF report is not
+      // counted in the instrumented/executed-sink telemetry; the vulnerability itself is still
+      // reported.
       final SsrfModule ssrfModule = InstrumentationBridge.SSRF;
       if (ssrfModule != null) {
         ssrfModule.onURLConnection(url);
