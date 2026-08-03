@@ -3,77 +3,47 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 class TaskBlockHelperTest {
   private static final long TOKEN = 313L;
 
   @Test
-  void nullIntegrationDoesNotArmState() {
-    assertNull(TaskBlockHelper.captureForSleep(null));
+  void nullIntegrationRejectsEntry() {
+    assertEquals(0L, TaskBlockHelper.begin(null));
   }
 
   @Test
-  void zeroIsTheOnlyInvalidToken() {
+  void zeroTokenDoesNotDispatchCompletion() {
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
     when(profiling.beginTaskBlock()).thenReturn(0L);
 
-    assertNull(TaskBlockHelper.captureForSleep(profiling));
+    long token = TaskBlockHelper.begin(profiling);
+    TaskBlockHelper.finish(profiling, token);
+
     verify(profiling).beginTaskBlock();
     verify(profiling, never()).endTaskBlock(0L, 0L, 0L);
   }
 
   @Test
-  void positiveTokenIsRetainedWithItsIntegration() {
+  void nonzeroTokensAreCompletedWithTheAcceptingIntegration() {
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
-    when(profiling.beginTaskBlock()).thenReturn(TOKEN);
 
-    TaskBlockHelper.State state = TaskBlockHelper.captureForSleep(profiling);
-
-    assertNotNull(state);
-    assertEquals(profiling, state.profiling);
-    assertEquals(TOKEN, state.token);
-  }
-
-  @Test
-  void negativeNonzeroTokenIsValid() {
-    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
-    when(profiling.beginTaskBlock()).thenReturn(Long.MIN_VALUE);
-
-    TaskBlockHelper.State state = TaskBlockHelper.captureForSleep(profiling);
-    TaskBlockHelper.finish(state);
-
-    assertNotNull(state);
-    verify(profiling).endTaskBlock(Long.MIN_VALUE, 0L, 0L);
-  }
-
-  @Test
-  void finishAlwaysBalancesAcceptedToken() {
-    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
-    TaskBlockHelper.State state = new TaskBlockHelper.State(profiling, TOKEN);
-
-    TaskBlockHelper.finish(state);
+    TaskBlockHelper.finish(profiling, TOKEN);
+    TaskBlockHelper.finish(profiling, Long.MIN_VALUE);
 
     verify(profiling).endTaskBlock(TOKEN, 0L, 0L);
-  }
-
-  @Test
-  void finishIgnoresNullState() {
-    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
-
-    TaskBlockHelper.finish(null);
-
-    verifyNoInteractions(profiling);
+    verify(profiling).endTaskBlock(Long.MIN_VALUE, 0L, 0L);
   }
 
   @Test
@@ -83,7 +53,54 @@ class TaskBlockHelperTest {
     ProfilingContextIntegration exitFailure = mock(ProfilingContextIntegration.class);
     doThrow(new IllegalStateException("exit")).when(exitFailure).endTaskBlock(TOKEN, 0L, 0L);
 
-    assertDoesNotThrow(() -> TaskBlockHelper.captureForSleep(entryFailure));
-    assertDoesNotThrow(() -> TaskBlockHelper.finish(new TaskBlockHelper.State(exitFailure, TOKEN)));
+    assertEquals(0L, TaskBlockHelper.begin(entryFailure));
+    assertDoesNotThrow(() -> TaskBlockHelper.finish(exitFailure, TOKEN));
+  }
+
+  @Test
+  void normalSleepBalancesAcceptedToken() throws InterruptedException {
+    ProfilingContextIntegration profiling = acceptedIntegration();
+
+    TaskBlockHelper.sleep(profiling, 0L);
+
+    verify(profiling).endTaskBlock(TOKEN, 0L, 0L);
+  }
+
+  @Test
+  void interruptedSleepBalancesAcceptedTokenBeforeRethrowing() {
+    ProfilingContextIntegration profiling = acceptedIntegration();
+    Thread.currentThread().interrupt();
+    try {
+      assertThrows(InterruptedException.class, () -> TaskBlockHelper.sleep(profiling, 1_000L));
+    } finally {
+      Thread.interrupted();
+    }
+
+    verify(profiling).endTaskBlock(TOKEN, 0L, 0L);
+  }
+
+  @Test
+  void invalidSleepArgumentsBalanceAcceptedToken() {
+    ProfilingContextIntegration profiling = acceptedIntegration();
+
+    assertThrows(IllegalArgumentException.class, () -> TaskBlockHelper.sleep(profiling, -1L));
+
+    verify(profiling).endTaskBlock(TOKEN, 0L, 0L);
+  }
+
+  @Test
+  void longIntAndTimeUnitSleepsBalanceAcceptedTokens() throws InterruptedException {
+    ProfilingContextIntegration profiling = acceptedIntegration();
+
+    TaskBlockHelper.sleep(profiling, 0L, 1);
+    TaskBlockHelper.sleep(profiling, TimeUnit.NANOSECONDS, 1L);
+
+    verify(profiling, times(2)).endTaskBlock(TOKEN, 0L, 0L);
+  }
+
+  private static ProfilingContextIntegration acceptedIntegration() {
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+    when(profiling.beginTaskBlock()).thenReturn(TOKEN);
+    return profiling;
   }
 }
