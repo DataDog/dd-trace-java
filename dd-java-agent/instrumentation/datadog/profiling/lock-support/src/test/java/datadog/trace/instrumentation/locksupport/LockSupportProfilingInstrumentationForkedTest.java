@@ -42,8 +42,8 @@ class LockSupportProfilingInstrumentationForkedTest extends AbstractInstrumentat
 
     LockSupport.parkNanos(blocker, TimeUnit.MILLISECONDS.toNanos(1));
 
-    assertTrue(testProfilingContextIntegration.getParkEnterCalls().get() >= 1);
-    assertTrue(testProfilingContextIntegration.getParkExitCalls().get() >= 1);
+    assertEquals(1, testProfilingContextIntegration.getAcceptedParkEnterCalls(callingThread));
+    assertEquals(1, testProfilingContextIntegration.getParkExitCalls(callingThread));
     assertTrue(testProfilingContextIntegration.getParkExitThreads().contains(callingThread));
     assertEquals(
         Integer.toUnsignedLong(System.identityHashCode(blocker)),
@@ -61,13 +61,38 @@ class LockSupportProfilingInstrumentationForkedTest extends AbstractInstrumentat
   }
 
   @Test
+  void delegatedParkUntilWithBlockerDispatchesOneLifecycle() {
+    Object blocker = new Object();
+    Thread callingThread = Thread.currentThread();
+
+    LockSupport.parkUntil(blocker, System.currentTimeMillis() + 1L);
+
+    assertEquals(1, testProfilingContextIntegration.getAcceptedParkEnterCalls(callingThread));
+    assertEquals(1, testProfilingContextIntegration.getParkExitCalls(callingThread));
+    assertEquals(
+        Integer.toUnsignedLong(System.identityHashCode(blocker)),
+        testProfilingContextIntegration.getLastParkBlocker().get());
+  }
+
+  @Test
+  void nonPositiveParkNanosDoesNotDispatchLifecycle() {
+    Thread callingThread = Thread.currentThread();
+
+    LockSupport.parkNanos(0L);
+    LockSupport.parkNanos(new Object(), -1L);
+
+    assertEquals(0, testProfilingContextIntegration.getParkEnterCalls(callingThread));
+    assertEquals(0, testProfilingContextIntegration.getParkExitCalls(callingThread));
+  }
+
+  @Test
   void rejectedEntryIsNotFollowedByAnExit() {
     testProfilingContextIntegration.setAcceptParkEntries(false);
     Thread callingThread = Thread.currentThread();
 
     LockSupport.parkNanos(1L);
 
-    assertTrue(testProfilingContextIntegration.getParkEnterCalls().get() >= 1);
+    assertEquals(1, testProfilingContextIntegration.getParkEnterCalls(callingThread));
     assertFalse(testProfilingContextIntegration.getParkExitThreads().contains(callingThread));
   }
 }

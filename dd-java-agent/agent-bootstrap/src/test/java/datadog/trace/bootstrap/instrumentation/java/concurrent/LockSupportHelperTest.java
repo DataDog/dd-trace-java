@@ -3,8 +3,8 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -40,7 +40,7 @@ class LockSupportHelperTest {
 
   @Test
   void nullIntegrationDoesNotAcceptEntry() {
-    assertNull(LockSupportHelper.captureState(new Object(), null));
+    assertNull(LockSupportHelper.parkEnter(null));
   }
 
   @Test
@@ -48,10 +48,10 @@ class LockSupportHelperTest {
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
     when(profiling.parkEnter()).thenReturn(false);
 
-    LockSupportHelper.ParkState state = LockSupportHelper.captureState(new Object(), profiling);
-    LockSupportHelper.finish(state, 17L);
+    ProfilingContextIntegration accepted = LockSupportHelper.parkEnter(profiling);
+    LockSupportHelper.parkExit(accepted, 0L, 17L);
 
-    assertNull(state);
+    assertNull(accepted);
     verify(profiling).parkEnter();
     verify(profiling, never()).parkExit(0L, 17L);
   }
@@ -60,14 +60,12 @@ class LockSupportHelperTest {
   void acceptedEntryIsAlwaysPairedWithExit() {
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
     when(profiling.parkEnter()).thenReturn(true);
-    Object blocker = new Object();
+    ProfilingContextIntegration accepted = LockSupportHelper.parkEnter(profiling);
+    LockSupportHelper.parkExit(accepted, 19L, 23L);
 
-    LockSupportHelper.ParkState state = LockSupportHelper.captureState(blocker, profiling);
-    LockSupportHelper.finish(state, 23L);
-
-    assertNotNull(state);
+    assertSame(profiling, accepted);
     verify(profiling).parkEnter();
-    verify(profiling).parkExit(Integer.toUnsignedLong(System.identityHashCode(blocker)), 23L);
+    verify(profiling).parkExit(19L, 23L);
   }
 
   @Test
@@ -75,7 +73,7 @@ class LockSupportHelperTest {
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
     when(profiling.parkEnter()).thenReturn(true);
 
-    LockSupportHelper.finish(LockSupportHelper.captureState(null, profiling), 0L);
+    LockSupportHelper.parkExit(LockSupportHelper.parkEnter(profiling), 0L, 0L);
 
     verify(profiling).parkExit(0L, 0L);
   }
@@ -84,24 +82,36 @@ class LockSupportHelperTest {
   void entryAndExitFailuresDoNotEscapeInstrumentation() {
     ProfilingContextIntegration entryFailure = mock(ProfilingContextIntegration.class);
     doThrow(new IllegalStateException("enter")).when(entryFailure).parkEnter();
-    assertNull(LockSupportHelper.captureState(null, entryFailure));
+    assertNull(LockSupportHelper.parkEnter(entryFailure));
 
     ProfilingContextIntegration exitFailure = mock(ProfilingContextIntegration.class);
     when(exitFailure.parkEnter()).thenReturn(true);
     doThrow(new IllegalStateException("exit")).when(exitFailure).parkExit(0L, 0L);
-    LockSupportHelper.ParkState state = LockSupportHelper.captureState(null, exitFailure);
+    ProfilingContextIntegration accepted = LockSupportHelper.parkEnter(exitFailure);
 
-    assertDoesNotThrow(() -> LockSupportHelper.finish(state, 0L));
+    assertDoesNotThrow(() -> LockSupportHelper.parkExit(accepted, 0L, 0L));
   }
 
   @Test
-  void finishAlwaysDrainsUnparkAttribution() {
+  void acceptedExitDrainsUnparkAttribution() {
     Thread current = Thread.currentThread();
     LockSupportHelper.UNPARKING_SPAN.put(current, 31L);
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
 
-    LockSupportHelper.finish(null);
+    LockSupportHelper.parkExit(profiling, 0L);
 
     assertNull(LockSupportHelper.UNPARKING_SPAN.get(current));
+    verify(profiling).parkExit(0L, 31L);
+  }
+
+  @Test
+  void rejectedNestedExitDoesNotDrainOwnerAttribution() {
+    Thread current = Thread.currentThread();
+    LockSupportHelper.UNPARKING_SPAN.put(current, 32L);
+
+    LockSupportHelper.parkExit(null, 0L);
+
+    assertEquals(32L, LockSupportHelper.UNPARKING_SPAN.get(current));
   }
 
   @Test
