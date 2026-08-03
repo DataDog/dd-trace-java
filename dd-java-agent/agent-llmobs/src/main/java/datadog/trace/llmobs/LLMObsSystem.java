@@ -9,7 +9,9 @@ import datadog.trace.api.llmobs.LLMObsTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.llmobs.domain.DDLLMObsSpan;
 import datadog.trace.llmobs.domain.LLMObsEval;
+import datadog.trace.llmobs.domain.LLMObsFeedbackEvent;
 import datadog.trace.llmobs.domain.LLMObsInternal;
+import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -22,6 +24,13 @@ public class LLMObsSystem {
   private static final Logger LOGGER = LoggerFactory.getLogger(LLMObsSystem.class);
 
   private static final String CUSTOM_MODEL_VAL = "custom";
+
+  private static final String EVAL_METRIC_API_PATH = "api/intake/llm-obs/v1/eval-metric";
+  // Feedback is a v2 concept: event_kind, submitter and the non-score value types only exist there.
+  private static final String FEEDBACK_API_PATH = "api/intake/llm-obs/v2/eval-metric";
+
+  private static final int QUEUE_CAPACITY = 1024;
+  private static final long FLUSH_INTERVAL_MS = 100;
 
   public static void start(Instrumentation inst, SharedCommunicationObjects sco) {
     Config config = Config.get();
@@ -37,18 +46,75 @@ public class LLMObsSystem {
     LLMObsInternal.setLLMObsSpanFactory(new LLMObsManualSpanFactory(mlApp, wellKnownTags));
 
     LLMObsInternal.setLLMObsEvalProcessor(new LLMObsCustomEvalProcessor(mlApp, sco, config));
+
+    LLMObsInternal.setLLMObsFeedbackProcessor(
+        new LLMObsCustomFeedbackProcessor(mlApp, sco, config));
+  }
+
+  private static class LLMObsCustomFeedbackProcessor implements LLMObs.LLMObsFeedbackProcessor {
+    private final String defaultMLApp;
+    private final LLMObsIntakeWorker<LLMObsFeedbackEvent> feedbackProcessingWorker;
+
+    public LLMObsCustomFeedbackProcessor(
+        String defaultMLApp, SharedCommunicationObjects sco, Config config) {
+
+      this.defaultMLApp = defaultMLApp;
+      this.feedbackProcessingWorker =
+          new LLMObsIntakeWorker<>(
+              "feedback",
+              FEEDBACK_API_PATH,
+              AgentThread.LLMOBS_FEEDBACK_PROCESSOR,
+              QUEUE_CAPACITY,
+              FLUSH_INTERVAL_MS,
+              TimeUnit.MILLISECONDS,
+              sco,
+              config,
+              LLMObsFeedbackEvent.batchSerializer());
+      this.feedbackProcessingWorker.start();
+    }
+
+    @Override
+    public void submitFeedback(LLMObs.Feedback feedback) {
+      if (feedback == null) {
+        LOGGER.error("null feedback provided, feedback not recorded");
+        return;
+      }
+
+      String mlApp = feedback.getMlApp();
+      if (mlApp == null || mlApp.isEmpty()) {
+        mlApp = defaultMLApp;
+      }
+
+      if (!this.feedbackProcessingWorker.addToQueue(new LLMObsFeedbackEvent(feedback, mlApp))) {
+        LOGGER.warn(
+            "queue full, failed to add feedback, ml_app={}, {}={}, label={}",
+            mlApp,
+            feedback.getTargetType().getWireKey(),
+            feedback.getTargetValue(),
+            feedback.getLabel());
+      }
+    }
   }
 
   private static class LLMObsCustomEvalProcessor implements LLMObs.LLMObsEvalProcessor {
     private final String defaultMLApp;
-    private final EvalProcessingWorker evalProcessingWorker;
+    private final LLMObsIntakeWorker<LLMObsEval> evalProcessingWorker;
 
     public LLMObsCustomEvalProcessor(
         String defaultMLApp, SharedCommunicationObjects sco, Config config) {
 
       this.defaultMLApp = defaultMLApp;
       this.evalProcessingWorker =
-          new EvalProcessingWorker(1024, 100, TimeUnit.MILLISECONDS, sco, config);
+          new LLMObsIntakeWorker<>(
+              "eval metrics",
+              EVAL_METRIC_API_PATH,
+              AgentThread.LLMOBS_EVALS_PROCESSOR,
+              QUEUE_CAPACITY,
+              FLUSH_INTERVAL_MS,
+              TimeUnit.MILLISECONDS,
+              sco,
+              config,
+              LLMObsEval.batchSerializer());
       this.evalProcessingWorker.start();
     }
 

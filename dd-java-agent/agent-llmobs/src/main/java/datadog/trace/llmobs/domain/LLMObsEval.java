@@ -5,6 +5,7 @@ import com.squareup.moshi.JsonDataException;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
+import datadog.trace.llmobs.LLMObsIntakeWorker;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +47,17 @@ public abstract class LLMObsEval {
     } else {
       this.tags = null;
     }
+  }
+
+  /**
+   * Returns a serializer turning a batch of evaluations into an intake request body.
+   *
+   * @return the batch serializer
+   */
+  public static LLMObsIntakeWorker.BatchSerializer<LLMObsEval> batchSerializer() {
+    Moshi moshi = new Moshi.Builder().add(LLMObsEval.class, new Adapter()).build();
+    JsonAdapter<Request> requestAdapter = moshi.adapter(Request.class);
+    return batch -> requestAdapter.toJson(new Request(batch));
   }
 
   public static final class Adapter extends JsonAdapter<LLMObsEval> {
