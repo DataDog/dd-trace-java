@@ -156,6 +156,18 @@ public class LambdaAppSecHandler {
     RequestContext requestContext = span.getRequestContext();
     if (requestContext != null) {
       AgentTracer.TracerAPI tracer = AgentTracer.get();
+
+      // Apply HTTP span tags before firing requestEnded: GatewayBridge.onRequestEnded samples API
+      // Security from spanInfo.getTags() and needs http.route/http.url for endpoint inference, so
+      // the tags must already be on the span when the callback runs.
+      if (eventData != null) {
+        if (!isSupportedHttpEvent(eventData)) {
+          span.setMetric(TAG_UNSUPPORTED_EVENT_TYPE, 1);
+        } else {
+          applyHttpSpanTags(span, eventData);
+        }
+      }
+
       BiFunction<RequestContext, IGSpanInfo, Flow<Void>> requestEndedCallback =
           tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestEnded());
       if (requestEndedCallback != null) {
@@ -175,14 +187,6 @@ public class LambdaAppSecHandler {
         TraceSegment traceSeg = requestContext.getTraceSegment();
         traceSeg.setTagTop(Tags.ASM_KEEP, true);
         traceSeg.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
-      }
-
-      if (eventData != null) {
-        if (!isSupportedHttpEvent(eventData)) {
-          span.setMetric(TAG_UNSUPPORTED_EVENT_TYPE, 1);
-        } else {
-          applyHttpSpanTags(span, eventData);
-        }
       }
     }
   }
@@ -209,22 +213,36 @@ public class LambdaAppSecHandler {
     }
 
     if (eventData.path != null && !eventData.path.isEmpty()) {
+      // Keep http.url query-less so QueryObfuscator can redact the query before the backend
+      // re-appends it. Known event formats give a query-less path, but split defensively in case a
+      // query is folded into the path (e.g. generic-fallback events).
+      String path = eventData.path;
+      String pathQuery = null;
+      int queryIdx = path.indexOf('?');
+      if (queryIdx >= 0) {
+        pathQuery = path.substring(queryIdx + 1);
+        path = path.substring(0, queryIdx);
+      }
+
       String host = eventData.headers != null ? eventData.headers.get(HEADER_HOST) : null;
       String scheme = firstForwardedValue(eventData.headers, HEADER_X_FORWARDED_PROTO);
       if (scheme == null || scheme.isEmpty()) {
         scheme = SCHEME_HTTPS;
       }
       // buildURL omits the port when it is <= 0 or the scheme's default (80/443), so a missing or
-      // default X-Forwarded-Port yields a clean URL while a non-standard port is preserved.
-      int port = forwardedPort(eventData.headers);
+      // default X-Forwarded-Port yields a clean URL while a non-standard port is preserved. If the
+      // Host header already carries a port (e.g. "api.example.com:8443" or "[::1]:8443"), pass -1
+      // so the forwarded port is not appended a second time.
+      int port = hostHasPort(host) ? -1 : forwardedPort(eventData.headers);
       String url =
-          (host != null && !host.isEmpty())
-              ? URIUtils.buildURL(scheme, host, port, eventData.path)
-              : eventData.path;
+          (host != null && !host.isEmpty()) ? URIUtils.buildURL(scheme, host, port, path) : path;
       span.setTag(Tags.HTTP_URL, url);
 
       if (Config.get().isHttpServerTagQueryString()) {
-        String query = buildQueryString(eventData.queryParameters);
+        String query = effectiveQueryString(eventData);
+        if (query == null || query.isEmpty()) {
+          query = pathQuery;
+        }
         if (query != null && !query.isEmpty()) {
           span.setTag(DDTags.HTTP_QUERY, query);
         }
@@ -264,6 +282,23 @@ public class LambdaAppSecHandler {
     } catch (NumberFormatException ignored) {
       return -1;
     }
+  }
+
+  /**
+   * Returns true if the Host header authority already carries an explicit port. Handles bracketed
+   * IPv6 literals ({@code [::1]:8443} has a port, {@code [::1]} does not) and distinguishes an
+   * unbracketed {@code host:port} (single colon) from a bare IPv6 literal (multiple colons).
+   */
+  private static boolean hostHasPort(String host) {
+    if (host == null || host.isEmpty()) {
+      return false;
+    }
+    if (host.charAt(0) == '[') {
+      int bracket = host.indexOf(']');
+      return bracket >= 0 && bracket + 1 < host.length() && host.charAt(bracket + 1) == ':';
+    }
+    int firstColon = host.indexOf(':');
+    return firstColon >= 0 && host.indexOf(':', firstColon + 1) < 0;
   }
 
   /**
@@ -499,7 +534,7 @@ public class LambdaAppSecHandler {
                     .getCallback(EVENTS.requestMethodUriRaw());
         if (methodUriCallback != null) {
           // Reconstruct full path with query string for AppSec analysis
-          String fullPath = buildFullPath(eventData.path, eventData.queryParameters);
+          String fullPath = buildFullPath(eventData.path, effectiveQueryString(eventData));
           LambdaURIDataAdapter uriAdapter = new LambdaURIDataAdapter(fullPath, eventData.headers);
           methodUriCallback.apply(requestContext, eventData.method, uriAdapter);
         } else {
@@ -708,7 +743,8 @@ public class LambdaAppSecHandler {
         pathParameters,
         queryParameters,
         body,
-        route);
+        route,
+        null);
   }
 
   /** Extracts data from API Gateway v2 (HTTP API) or Lambda URL event */
@@ -726,6 +762,11 @@ public class LambdaAppSecHandler {
     String method = (String) http.get("method");
     String path = (String) http.get("path");
     String sourceIp = (String) http.get("sourceIp");
+
+    // API Gateway v2 / Lambda URL provide the query verbatim; prefer it over the flattened
+    // queryStringParameters map, which collapses repeated keys and re-encodes.
+    Object rawQueryStringObj = event.get("rawQueryString");
+    String rawQueryString = rawQueryStringObj instanceof String ? (String) rawQueryStringObj : null;
 
     // Extract port if available
     Integer sourcePort = null;
@@ -757,7 +798,8 @@ public class LambdaAppSecHandler {
         pathParameters,
         queryParameters,
         body,
-        route);
+        route,
+        rawQueryString);
   }
 
   /** Extracts data from API Gateway v2 WebSocket event */
@@ -791,6 +833,7 @@ public class LambdaAppSecHandler {
         pathParameters,
         queryParameters,
         body,
+        null,
         null);
   }
 
@@ -852,6 +895,7 @@ public class LambdaAppSecHandler {
         pathParameters,
         queryParameters,
         body,
+        null,
         null);
   }
 
@@ -916,6 +960,7 @@ public class LambdaAppSecHandler {
         pathParameters,
         queryParameters,
         body,
+        null,
         null);
   }
 
@@ -1014,11 +1059,22 @@ public class LambdaAppSecHandler {
   }
 
   /**
-   * Helper method to build full path including query string. Lambda events provide path and query
-   * parameters separately, so we need to reconstruct the full URI for AppSec to parse.
+   * Returns the query string to use for HTTP tagging and WAF analysis: the event's verbatim {@code
+   * rawQueryString} when present (preserving repeated params and exact encoding), otherwise
+   * reconstructed from the flattened query-parameter map. May be null.
    */
-  private static String buildFullPath(String path, Map<String, List<String>> queryParameters) {
-    String query = buildQueryString(queryParameters);
+  private static String effectiveQueryString(LambdaEventData eventData) {
+    if (eventData.rawQueryString != null && !eventData.rawQueryString.isEmpty()) {
+      return eventData.rawQueryString;
+    }
+    return buildQueryString(eventData.queryParameters);
+  }
+
+  /**
+   * Helper method to build full path including query string. Lambda events provide path and query
+   * separately, so we need to reconstruct the full URI for AppSec to parse.
+   */
+  private static String buildFullPath(String path, String query) {
     if (query == null || query.isEmpty()) {
       return path;
     }
@@ -1295,6 +1351,11 @@ public class LambdaAppSecHandler {
     final Map<String, List<String>> queryParameters;
     final Object body;
     final String route;
+    // Verbatim query string as received on the wire (API Gateway v2 / Lambda URL "rawQueryString").
+    // Preferred over reconstructing from queryParameters, which loses repeated params and
+    // re-encodes.
+    // Null for event formats that do not provide a raw query field.
+    final String rawQueryString;
 
     static final LambdaEventData EMPTY =
         new LambdaEventData(
@@ -1306,6 +1367,7 @@ public class LambdaAppSecHandler {
             LambdaTriggerType.UNKNOWN,
             Collections.emptyMap(),
             Collections.emptyMap(),
+            null,
             null,
             null);
 
@@ -1319,7 +1381,8 @@ public class LambdaAppSecHandler {
         Map<String, String> pathParameters,
         Map<String, List<String>> queryParameters,
         Object body,
-        String route) {
+        String route,
+        String rawQueryString) {
       this.headers = headers;
       this.method = method;
       this.path = path;
@@ -1330,6 +1393,7 @@ public class LambdaAppSecHandler {
       this.queryParameters = queryParameters;
       this.body = body;
       this.route = route;
+      this.rawQueryString = rawQueryString;
     }
   }
 

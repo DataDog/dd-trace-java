@@ -1448,6 +1448,75 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void processRequestEndPrefersV2RawQueryStringPreservingRepeatedParams() {
+    // API Gateway v2 flattens repeated params into queryStringParameters ("value": "one,two"), but
+    // rawQueryString keeps them distinct. http.query.string must use the verbatim rawQueryString.
+    String eventJson =
+        "{\"version\": \"2.0\",\"rawQueryString\": \"value=one&value=two\","
+            + "\"queryStringParameters\": {\"value\": \"one,two\"},"
+            + "\"headers\": {\"host\": \"api.example.com\"},"
+            + "\"requestContext\": {\"domainName\": \"api.example.com\","
+            + " \"http\": {\"method\": \"GET\", \"path\": \"/items\"}}}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+    setupMockCallbacks(new Callbacks());
+    LambdaAppSecHandler.processRequestStart(event);
+
+    AgentSpan span = setupSpanForRequestEnd();
+    LambdaAppSecHandler.processRequestEnd(span);
+
+    verify(span).setTag(Tags.HTTP_URL, "https://api.example.com/items");
+    verify(span).setTag(DDTags.HTTP_QUERY, "value=one&value=two");
+  }
+
+  @Test
+  void processRequestEndPreservesV2RawQueryStringEncoding() {
+    // rawQueryString keeps the client's exact percent-encoding; reconstructing from the decoded map
+    // would canonicalize it (space -> '+', etc.), corrupting exact URL search/grouping.
+    String eventJson =
+        "{\"version\": \"2.0\",\"rawQueryString\": \"q=hello%20world\","
+            + "\"queryStringParameters\": {\"q\": \"hello world\"},"
+            + "\"headers\": {\"host\": \"api.example.com\"},"
+            + "\"requestContext\": {\"domainName\": \"api.example.com\","
+            + " \"http\": {\"method\": \"GET\", \"path\": \"/search\"}}}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+    setupMockCallbacks(new Callbacks());
+    LambdaAppSecHandler.processRequestStart(event);
+
+    AgentSpan span = setupSpanForRequestEnd();
+    LambdaAppSecHandler.processRequestEnd(span);
+
+    verify(span).setTag(DDTags.HTTP_QUERY, "q=hello%20world");
+  }
+
+  @Test
+  void v2RawQueryStringIsUsedForWafUri() {
+    // The WAF URI must also see the verbatim raw query rather than the reconstructed one.
+    String eventJson =
+        "{\"version\": \"2.0\",\"rawQueryString\": \"value=one&value=two\","
+            + "\"queryStringParameters\": {\"value\": \"one,two\"},"
+            + "\"headers\": {\"host\": \"api.example.com\"},"
+            + "\"requestContext\": {\"domainName\": \"api.example.com\","
+            + " \"http\": {\"method\": \"GET\", \"path\": \"/items\"}}}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+
+    String[] capturedQuery = {null};
+    String[] capturedRawQuery = {null};
+    setupMockCallbacks(
+        new Callbacks()
+            .onMethodUri(
+                (method, uri) -> {
+                  capturedQuery[0] = uri.query();
+                  capturedRawQuery[0] = uri.rawQuery();
+                }));
+
+    AgentSpanContext result = LambdaAppSecHandler.processRequestStart(event);
+
+    assertNotNull(result);
+    assertEquals("value=one&value=two", capturedQuery[0]);
+    assertEquals("value=one&value=two", capturedRawQuery[0]);
+  }
+
+  @Test
   void processRequestEndUsesFirstForwardedProtoValueForUrlScheme() {
     // A double-proxy hop can produce a comma-separated X-Forwarded-Proto; only the first value is
     // a valid scheme.
@@ -1497,6 +1566,43 @@ class LambdaAppSecHandlerTest extends DDCoreJavaSpecification {
     LambdaAppSecHandler.processRequestEnd(span);
 
     verify(span).setTag(Tags.HTTP_URL, "https://api.example.com/pets/123");
+  }
+
+  @Test
+  void processRequestEndDoesNotDuplicatePortWhenHostAlreadyHasOne() {
+    // When the Host header already carries a port and X-Forwarded-Port repeats it, http.url must
+    // not
+    // end up with two ports (e.g. api.example.com:8443:8443).
+    String eventJson =
+        "{\"resource\": \"/pets/{petId}\",\"path\": \"/pets/123\",\"httpMethod\":"
+            + " \"GET\",\"headers\": {\"Host\": \"api.example.com:8443\", \"X-Forwarded-Port\":"
+            + " \"8443\"},\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-1\"}}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+    setupMockCallbacks(new Callbacks());
+    LambdaAppSecHandler.processRequestStart(event);
+
+    AgentSpan span = setupSpanForRequestEnd();
+    LambdaAppSecHandler.processRequestEnd(span);
+
+    verify(span).setTag(Tags.HTTP_URL, "https://api.example.com:8443/pets/123");
+  }
+
+  @Test
+  void processRequestEndKeepsPortFromBracketedIpv6Host() {
+    // A bracketed IPv6 Host with an explicit port must be preserved verbatim and not gain a second
+    // port from X-Forwarded-Port.
+    String eventJson =
+        "{\"resource\": \"/pets/{petId}\",\"path\": \"/pets/123\",\"httpMethod\":"
+            + " \"GET\",\"headers\": {\"Host\": \"[::1]:8443\", \"X-Forwarded-Port\":"
+            + " \"8443\"},\"requestContext\": {\"httpMethod\": \"GET\", \"requestId\": \"req-1\"}}";
+    ByteArrayInputStream event = createInputStream(eventJson);
+    setupMockCallbacks(new Callbacks());
+    LambdaAppSecHandler.processRequestStart(event);
+
+    AgentSpan span = setupSpanForRequestEnd();
+    LambdaAppSecHandler.processRequestEnd(span);
+
+    verify(span).setTag(Tags.HTTP_URL, "https://[::1]:8443/pets/123");
   }
 
   @SuppressWarnings("unchecked")

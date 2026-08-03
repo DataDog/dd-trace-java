@@ -62,6 +62,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
   Map<String, String> capturedResponseHeaders;
   Object capturedResponseBody;
   boolean responseHeaderDoneCalled;
+  Map<String, Object> capturedRequestEndTags;
 
   abstract int version();
 
@@ -84,6 +85,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     capturedResponseHeaders = new HashMap<>();
     capturedResponseBody = null;
     responseHeaderDoneCalled = false;
+    capturedRequestEndTags = null;
 
     ss.registerCallback(
         EVENTS.requestStarted(),
@@ -119,6 +121,7 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
         (BiFunction<RequestContext, IGSpanInfo, Flow<Void>>)
             (ctx2, spanInfo) -> {
               appSecEnded = true;
+              capturedRequestEndTags = spanInfo.getTags();
               return Flow.ResultFlow.empty();
             });
 
@@ -498,6 +501,56 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
                 .tags(
                     defaultTags(),
                     tag("request_id", is(REQUEST_ID)),
+                    error(Error.class, "Some error"))));
+  }
+
+  @Test
+  void requestMetadataIsFinalizedWhenHttpHandlerThrows() {
+    // A failed HTTP invocation must still receive http.* tags and have AppSec finalized
+    // (requestEnded fired); only response processing is skipped.
+    String eventJson =
+        "{"
+            + "\"resource\": \"/pets/{petId}\","
+            + "\"path\": \"/pets/123\","
+            + "\"httpMethod\": \"GET\","
+            + "\"headers\": {\"Host\": \"api.example.com\", \"User-Agent\": \"curl/8.0\"},"
+            + "\"requestContext\": {"
+            + "  \"httpMethod\": \"GET\","
+            + "  \"requestId\": \"req-1\","
+            + "  \"identity\": {\"sourceIp\": \"1.2.3.4\"}"
+            + "}"
+            + "}";
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+    assertThrows(
+        Error.class,
+        () -> new HandlerStreamingWithError().handleRequest(input, output, newContext()));
+
+    // AppSec finalized despite the throw.
+    assertTrue(appSecEnded, "requestEnded should fire when the handler throws");
+    // Response processing skipped (no valid handler response).
+    assertNull(capturedResponseStatus, "response status should not be set when handler throws");
+    assertNull(capturedResponseBody, "response body should not be set when handler throws");
+    // HTTP request tags applied to the errored span, and visible when requestEnded fires.
+    assertEquals("GET", capturedRequestEndTags.get("http.method"));
+    assertEquals("https://api.example.com/pets/123", capturedRequestEndTags.get("http.url"));
+    assertEquals("/pets/{petId}", capturedRequestEndTags.get("http.route"));
+    assertEquals("curl/8.0", capturedRequestEndTags.get("http.useragent"));
+
+    assertTraces(
+        trace(
+            span()
+                .type(DDSpanTypes.SERVERLESS)
+                .error(true)
+                .tags(
+                    defaultTags(),
+                    tag("request_id", is(REQUEST_ID)),
+                    tag("http.method", is("GET")),
+                    tag("http.url", is("https://api.example.com/pets/123")),
+                    tag("http.route", is("/pets/{petId}")),
+                    tag("http.useragent", is("curl/8.0")),
                     error(Error.class, "Some error"))));
   }
 
