@@ -583,11 +583,7 @@ public final class DatadogProfiler {
   }
 
   boolean parkEnter() {
-    if (!RECORDING.get()) {
-      return false;
-    }
-    taskBlockBridge.parkEnter();
-    return true;
+    return RECORDING.get() && taskBlockBridge.parkEnter();
   }
 
   void parkExit(long blocker, long unblockingSpanId) {
