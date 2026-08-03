@@ -65,6 +65,10 @@ public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
     return new String[] {
       packageName + ".TestDataFactory",
       packageName + ".JUnitPlatformUtils",
+      packageName + ".execution.RetryDescriptorFactory",
+      packageName + ".execution.RetryDescriptorFactories",
+      packageName + ".EmptyConfigurationParameters",
+      packageName + ".CucumberRetryDescriptorFactory",
       packageName + ".CucumberUtils",
       packageName + ".TestEventsHandlerHolder",
     };

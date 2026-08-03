@@ -3,10 +3,11 @@ package datadog.trace.instrumentation.undertow;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DATADOG_UNDERTOW_CONTINUATION;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.context.ContextContinuation;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.AttachmentKey;
@@ -117,9 +118,12 @@ public class UndertowBlockingHandler implements HttpHandler {
   }
 
   private static void markAsEffectivelyBlocked(HttpServerExchange xchg) {
-    AgentScope.Continuation continuation = xchg.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
+    ContextContinuation continuation = xchg.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
     if (continuation != null) {
-      continuation.span().getRequestContext().getTraceSegment().effectivelyBlocked();
+      AgentSpan.fromContext(continuation.context())
+          .getRequestContext()
+          .getTraceSegment()
+          .effectivelyBlocked();
     }
   }
 }

@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.play24;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.play24.PlayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.play24.PlayHttpServerDecorator.PLAY_ACTION;
@@ -41,7 +41,7 @@ public class PlayAdvice {
       // Do not extract the context.
       span = startSpan(PLAY_ACTION.toString(), PLAY_REQUEST);
       span.setMeasured(true);
-      scope = span.attachWithCurrent();
+      scope = span.attachWithContext();
     }
 
     DECORATE.afterStart(span);
@@ -50,7 +50,7 @@ public class PlayAdvice {
 
     // Moved from OnMethodExit
     // Call onRequest on return after tags are populated.
-    DECORATE.onRequest(span, req, req, getRootContext());
+    DECORATE.onRequest(span, req, req, rootContext());
 
     return scope;
   }
@@ -87,7 +87,7 @@ public class PlayAdvice {
     final AgentSpan rootSpan = activeSpan();
     // set the resource name on the upstream akka/netty span if there is one
     if (rootSpan != null) {
-      DECORATE.onRequest(rootSpan, req, req, getRootContext());
+      DECORATE.onRequest(rootSpan, req, req, rootContext());
     }
   }
 

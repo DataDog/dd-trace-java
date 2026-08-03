@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.grizzly;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 
 import datadog.appsec.api.blocking.BlockingContentType;
@@ -60,7 +59,7 @@ public class GrizzlyBlockingHelper {
       return false;
     }
 
-    AgentSpan span = spanFromContext(context);
+    AgentSpan span = AgentSpan.fromContext(context);
     try {
       OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(response);
       response.setStatus(BlockingActionHelper.getHttpCode(statusCode));

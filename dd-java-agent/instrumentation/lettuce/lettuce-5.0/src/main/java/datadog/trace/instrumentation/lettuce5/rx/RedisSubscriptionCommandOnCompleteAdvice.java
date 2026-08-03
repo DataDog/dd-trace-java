@@ -13,7 +13,7 @@ import org.reactivestreams.Subscription;
 /** Instrumentation for SubscriptionCommand in version 5.3.6 and later */
 public class RedisSubscriptionCommandOnCompleteAdvice {
 
-  @Advice.OnMethodExit(suppress = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterComplete(
       @Advice.This RedisCommand command,
       @Advice.FieldValue("subscription") Subscription subscription) {

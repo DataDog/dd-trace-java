@@ -24,7 +24,7 @@ public class TracingOutputStream extends OutputStream {
   public void write(int b) throws IOException {
     final boolean doTrace = CallDepthThreadLocalMap.incrementCallDepth(HandlerContext.class) == 0;
     if (doTrace) {
-      DECORATE.onSendFrameStart(handlerContext, MESSAGE_TYPE_BINARY, 1);
+      DECORATE.startOutboundFrameSpan(handlerContext, MESSAGE_TYPE_BINARY, 1);
     }
     try (final ContextScope ignored = activateSpan(handlerContext.getWebsocketSpan())) {
       delegate.write(b);
@@ -39,7 +39,7 @@ public class TracingOutputStream extends OutputStream {
   public void write(byte[] b, int off, int len) throws IOException {
     final boolean doTrace = CallDepthThreadLocalMap.incrementCallDepth(HandlerContext.class) == 0;
     if (doTrace) {
-      DECORATE.onSendFrameStart(handlerContext, MESSAGE_TYPE_BINARY, len);
+      DECORATE.startOutboundFrameSpan(handlerContext, MESSAGE_TYPE_BINARY, len);
     }
     try (final ContextScope ignored = activateSpan(handlerContext.getWebsocketSpan())) {
       delegate.write(b, off, len);

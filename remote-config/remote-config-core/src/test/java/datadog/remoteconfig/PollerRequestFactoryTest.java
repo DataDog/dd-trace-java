@@ -1,7 +1,7 @@
 package datadog.remoteconfig;
 
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -14,7 +14,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.Collections;
 import java.util.List;

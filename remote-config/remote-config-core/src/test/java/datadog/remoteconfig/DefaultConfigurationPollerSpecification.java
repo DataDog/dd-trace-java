@@ -1,7 +1,7 @@
 package datadog.remoteconfig;
 
 import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientState.ConfigState.APPLY_STATE_ERROR;
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
@@ -30,7 +30,7 @@ import cafe.cryptography.ed25519.Ed25519Signature;
 import com.squareup.moshi.Moshi;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.File;

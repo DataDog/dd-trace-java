@@ -9,10 +9,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -61,13 +61,13 @@ public final class ThreadedActionListenerInstrumentation extends InstrumenterMod
   @SuppressWarnings("rawtypes")
   public static final class OnResponse {
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This ThreadedActionListener listener) {
+    public static ContextScope before(@Advice.This ThreadedActionListener listener) {
       return startTaskScope(
           InstrumentationContext.get(ThreadedActionListener.class, State.class), listener);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }

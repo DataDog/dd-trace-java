@@ -1,7 +1,7 @@
 package datadog.trace.test.util;
 
-import datadog.trace.junit.utils.config.WithConfigExtension;
-import datadog.trace.junit.utils.context.AllowContextTestingExtension;
+import datadog.trace.test.junit.utils.config.WithConfigExtension;
+import datadog.trace.test.junit.utils.context.AllowContextTestingExtension;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.List;
 import java.util.Set;

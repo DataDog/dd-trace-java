@@ -1,14 +1,14 @@
 package datadog.trace.agent.test.assertions;
 
-import static datadog.trace.agent.test.assertions.Matchers.assertValue;
-import static datadog.trace.agent.test.assertions.Matchers.is;
-import static datadog.trace.agent.test.assertions.Matchers.isFalse;
-import static datadog.trace.agent.test.assertions.Matchers.isNonNull;
-import static datadog.trace.agent.test.assertions.Matchers.isNull;
-import static datadog.trace.agent.test.assertions.Matchers.isTrue;
-import static datadog.trace.agent.test.assertions.Matchers.matches;
-import static datadog.trace.agent.test.assertions.Matchers.validates;
 import static datadog.trace.core.DDSpanAccessor.spanLinks;
+import static datadog.trace.test.junit.utils.assertions.Matchers.assertValue;
+import static datadog.trace.test.junit.utils.assertions.Matchers.is;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isFalse;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isNonNull;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isNull;
+import static datadog.trace.test.junit.utils.assertions.Matchers.isTrue;
+import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
+import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
 import static java.time.Duration.ofNanos;
 import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 
@@ -16,6 +16,10 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.core.DDSpan;
+import datadog.trace.test.junit.utils.assertions.Any;
+import datadog.trace.test.junit.utils.assertions.IsNull;
+import datadog.trace.test.junit.utils.assertions.Matcher;
+import datadog.trace.test.junit.utils.assertions.Matchers;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,6 +49,8 @@ import org.opentest4j.AssertionFailedError;
  *       #durationLongerThan(Duration)}
  *   <li>span type with {@link #type(String)}
  *   <li>span error status with {@link #error()} and {@link #error(boolean)}
+ *   <li>span measured status with {@link #measured()} and {@link #measured(boolean)}
+ *   <li>span top-level status with {@link #topLevel()} and {@link #topLevel(boolean)}
  *   <li>span tags with {@link #tags(TagsMatcher...)}
  *   <li>span links with {@link #links(SpanLinkMatcher...)}
  * </ul>
@@ -60,6 +66,8 @@ public final class SpanMatcher {
   private Matcher<Duration> durationMatcher;
   private Matcher<String> typeMatcher;
   private Matcher<Boolean> errorMatcher;
+  private Matcher<Boolean> measuredMatcher;
+  private Matcher<Boolean> topLevelMatcher;
   private TagsMatcher[] tagMatchers;
   private SpanLinkMatcher[] linkMatchers;
 
@@ -300,6 +308,50 @@ public final class SpanMatcher {
     return this;
   }
 
+  /**
+   * Checks the span is measured.
+   *
+   * @return The current {@link SpanMatcher} instance updated with the specified measured
+   *     constraint.
+   */
+  public SpanMatcher measured() {
+    return measured(true);
+  }
+
+  /**
+   * Checks the span measured status matches the given value.
+   *
+   * @param measured The expected measured status.
+   * @return The current {@link SpanMatcher} instance updated with the specified measured
+   *     constraint.
+   */
+  public SpanMatcher measured(boolean measured) {
+    this.measuredMatcher = measured ? isTrue() : isFalse();
+    return this;
+  }
+
+  /**
+   * Checks the span is a top-level span.
+   *
+   * @return The current {@link SpanMatcher} instance updated with the specified top-level
+   *     constraint.
+   */
+  public SpanMatcher topLevel() {
+    return topLevel(true);
+  }
+
+  /**
+   * Checks the span top-level status matches the given value.
+   *
+   * @param topLevel The expected top-level status.
+   * @return The current {@link SpanMatcher} instance updated with the specified top-level
+   *     constraint.
+   */
+  public SpanMatcher topLevel(boolean topLevel) {
+    this.topLevelMatcher = topLevel ? isTrue() : isFalse();
+    return this;
+  }
+
   public SpanMatcher tags(TagsMatcher... matchers) {
     this.tagMatchers = matchers;
     return this;
@@ -341,6 +393,8 @@ public final class SpanMatcher {
     assertValue(this.durationMatcher, ofNanos(span.getDurationNano()), "Unexpected duration");
     assertValue(this.typeMatcher, span.getSpanType(), "Unexpected span type");
     assertValue(this.errorMatcher, span.isError(), "Unexpected error status");
+    assertValue(this.measuredMatcher, span.isMeasured(), "Unexpected measured status");
+    assertValue(this.topLevelMatcher, span.isTopLevel(), "Unexpected top-level status");
     assertSpanTags(span.getTags());
     assertSpanLinks(spanLinks(span));
   }
@@ -399,7 +453,7 @@ public final class SpanMatcher {
           .buildAndThrow();
     }
     for (int i = 0; i < expectedLinkCount; i++) {
-      SpanLinkMatcher linkMatcher = this.linkMatchers[expectedLinkCount];
+      SpanLinkMatcher linkMatcher = this.linkMatchers[i];
       AgentSpanLink link = links.get(i);
       linkMatcher.assertLink(link);
     }

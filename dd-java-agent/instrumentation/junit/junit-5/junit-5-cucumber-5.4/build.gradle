@@ -13,6 +13,8 @@ muzzle {
   }
 }
 
+addTestSuiteForDir('cucumber723Test', 'test')
+addTestSuiteForDir('cucumber76Test', 'test')
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
@@ -33,9 +35,15 @@ dependencies {
 
   latestDepTestImplementation group: 'io.cucumber', name: 'cucumber-java', version: '+'
   latestDepTestImplementation group: 'io.cucumber', name: 'cucumber-junit-platform-engine', version: '+'
+
+  cucumber76TestImplementation group: 'io.cucumber', name: 'cucumber-java', version: '7.6.0'
+  cucumber76TestImplementation group: 'io.cucumber', name: 'cucumber-junit-platform-engine', version: '7.6.0'
+
+  cucumber723TestImplementation group: 'io.cucumber', name: 'cucumber-java', version: '7.23.0'
+  cucumber723TestImplementation group: 'io.cucumber', name: 'cucumber-junit-platform-engine', version: '7.23.0'
 }
 
-configurations.matching({ it.name.startsWith('test') }).configureEach({
+configurations.matching({ it.name.startsWith('test') || it.name.startsWith('cucumber') }).configureEach({
   it.resolutionStrategy {
     force group: 'org.junit.platform', name: 'junit-platform-launcher', version: libs.versions.junit.platform.get()
     force group: 'org.junit.platform', name: 'junit-platform-suite', version: libs.versions.junit.platform.get()

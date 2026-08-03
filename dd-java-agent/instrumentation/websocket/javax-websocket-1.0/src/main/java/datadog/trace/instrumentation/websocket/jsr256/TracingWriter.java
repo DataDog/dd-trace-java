@@ -24,7 +24,7 @@ public class TracingWriter extends Writer {
   public void write(char[] cbuf, int off, int len) throws IOException {
     final boolean doTrace = CallDepthThreadLocalMap.incrementCallDepth(HandlerContext.class) == 0;
     if (doTrace) {
-      DECORATE.onSendFrameStart(handlerContext, MESSAGE_TYPE_TEXT, len);
+      DECORATE.startOutboundFrameSpan(handlerContext, MESSAGE_TYPE_TEXT, len);
     }
     try (final ContextScope ignored = activateSpan(handlerContext.getWebsocketSpan())) {
       delegate.write(cbuf, off, len);

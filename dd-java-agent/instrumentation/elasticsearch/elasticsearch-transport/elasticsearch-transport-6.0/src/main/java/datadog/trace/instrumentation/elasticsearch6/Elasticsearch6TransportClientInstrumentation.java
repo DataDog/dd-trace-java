@@ -84,9 +84,11 @@ public class Elasticsearch6TransportClientInstrumentation extends InstrumenterMo
         final AgentSpan span = scope.span();
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
+        scope.close();
         span.finish();
+      } else {
+        scope.close();
       }
-      scope.close();
       // span finished by TransportActionListener
     }
   }

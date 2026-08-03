@@ -1,6 +1,6 @@
 package datadog.trace.core;
 
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -37,7 +37,7 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
 import datadog.trace.core.tagprocessor.TagsPostProcessorFactory;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;

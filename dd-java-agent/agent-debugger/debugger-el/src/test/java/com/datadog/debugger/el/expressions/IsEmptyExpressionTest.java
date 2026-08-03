@@ -15,8 +15,10 @@ import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.NumericValue;
 import com.datadog.debugger.el.values.StringValue;
 import datadog.trace.bootstrap.debugger.el.Values;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import org.junit.jupiter.api.Test;
 
@@ -136,6 +138,24 @@ class IsEmptyExpressionTest {
     assertEquals("isEmpty(Set)", print(isEmpty5));
     assertTrue(isEmpty6.evaluate(evalContext));
     assertEquals("isEmpty(Set)", print(isEmpty6));
+  }
+
+  @Test
+  void testSynchronizedCollection() {
+    // calling isEmpty() on those wrappers takes the wrapper mutex and can deadlock the application
+    IsEmptyExpression syncList =
+        new IsEmptyExpression(new ListValue(Collections.synchronizedList(new ArrayList<>())));
+    UnsupportedOperationException exception =
+        assertThrows(UnsupportedOperationException.class, () -> syncList.evaluate(evalContext));
+    assertEquals(
+        "Unsupported Collection class: java.util.Collections$SynchronizedRandomAccessList",
+        exception.getMessage());
+    IsEmptyExpression syncMap =
+        new IsEmptyExpression(new MapValue(Collections.synchronizedMap(new HashMap<>())));
+    exception =
+        assertThrows(UnsupportedOperationException.class, () -> syncMap.evaluate(evalContext));
+    assertEquals(
+        "Unsupported Map class: java.util.Collections$SynchronizedMap", exception.getMessage());
   }
 
   @Test

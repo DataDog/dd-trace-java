@@ -54,7 +54,7 @@ public class MethodExpressionInstrumentation extends InstrumenterModule.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class PopulatePathParamsAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Argument(0) HttpRequest req,
         @ActiveRequestContext RequestContext reqCtx,

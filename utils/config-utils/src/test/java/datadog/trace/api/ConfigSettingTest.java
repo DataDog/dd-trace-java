@@ -3,7 +3,7 @@ package datadog.trace.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-import datadog.trace.junit.utils.tabletest.ConfigValueConverter;
+import datadog.trace.test.junit.utils.tabletest.ConfigValueConverter;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.converter.ArgumentConversionException;
 import org.junit.jupiter.params.converter.ArgumentConverter;
@@ -44,12 +44,14 @@ public class ConfigSettingTest {
   }
 
   @TableTest({
-    "scenario             | key                  | value     | filteredValue",
-    "DD_API_KEY           | DD_API_KEY           | somevalue | <hidden>     ",
-    "dd.api-key           | dd.api-key           | somevalue | <hidden>     ",
-    "dd.profiling.api-key | dd.profiling.api-key | somevalue | <hidden>     ",
-    "dd.profiling.apikey  | dd.profiling.apikey  | somevalue | <hidden>     ",
-    "some.other.key       | some.other.key       | somevalue | somevalue    "
+    "scenario             | key                         | value     | filteredValue",
+    "DD_API_KEY           | DD_API_KEY                  | somevalue | <hidden>     ",
+    "dd.api-key           | dd.api-key                  | somevalue | <hidden>     ",
+    "dd.profiling.api-key | dd.profiling.api-key        | somevalue | <hidden>     ",
+    "dd.profiling.apikey  | dd.profiling.apikey         | somevalue | <hidden>     ",
+    "session token prop   | test.agent.session.token    | somevalue | <hidden>     ",
+    "session token env    | DD_TEST_AGENT_SESSION_TOKEN | somevalue | <hidden>     ",
+    "some.other.key       | some.other.key              | somevalue | somevalue    "
   })
   void filtersKeyValues(String key, String value, String filteredValue) {
     assertEquals(filteredValue, ConfigSetting.of(key, value, ConfigOrigin.DEFAULT).stringValue());

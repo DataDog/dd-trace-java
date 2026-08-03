@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.AKKA_HTTP_CLIENT;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.DECORATE;
@@ -98,12 +98,13 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
 
       if (throwable == null) {
         responseFuture.onComplete(new OnCompleteHandler(span), thiz.system().dispatcher());
+        scope.close();
       } else {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
+        scope.close();
         span.finish();
       }
-      scope.close();
     }
   }
 
@@ -116,7 +117,7 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
         return;
       }
       final AkkaHttpHeaders headers = new AkkaHttpHeaders(request);
-      DECORATE.injectContext(getCurrentContext(), request, headers);
+      DECORATE.injectContext(currentContext(), request, headers);
       request = headers.getRequest();
     }
   }

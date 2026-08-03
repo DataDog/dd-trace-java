@@ -101,7 +101,7 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
     return request.getHeader(key);
   }
 
-  public AgentSpan onResponse(AgentSpan span, HttpChannel<?> channel) {
+  public void onResponse(AgentSpan span, HttpChannel<?> channel) {
     Request request = channel.getRequest();
     Response response = channel.getResponse();
     if (Config.get().isServletPrincipalEnabled() && request.getUserPrincipal() != null) {
@@ -115,7 +115,7 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
       }
       onError(span, throwable);
     }
-    return super.onResponse(span, response);
+    super.onResponse(span, response);
   }
 
   @Override

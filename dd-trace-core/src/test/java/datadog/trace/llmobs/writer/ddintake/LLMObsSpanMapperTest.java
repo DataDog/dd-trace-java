@@ -100,11 +100,11 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     Map<String, Object> schema = new LinkedHashMap<>();
     schema.put("type", "object");
     schema.put("properties", properties);
-    Map<String, Object> toolDef = new LinkedHashMap<>();
-    toolDef.put("name", "get_weather");
-    toolDef.put("description", "Get weather by city");
-    toolDef.put("schema", schema);
-    llmSpan.setTag("_ml_obs_tag.tool_definitions", Collections.singletonList(toolDef));
+    LLMObs.ToolDefinition toolDefinition =
+        LLMObs.ToolDefinition.from("get_weather", "Get weather by city", schema, "1.2.3");
+    llmSpan.setTag(
+        "_ml_obs_tag.tool_definitions",
+        Arrays.asList(toolDefinition, LLMObs.ToolDefinition.from("get_time")));
 
     llmSpan.setError(true);
     llmSpan.setTag(DDTags.ERROR_MSG, "boom");
@@ -204,9 +204,12 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     assertEquals("assistant", outputMsgs.get(0).get("role"));
     List<Map<String, Object>> toolDefsResult =
         (List<Map<String, Object>>) meta.get("tool_definitions");
+    assertEquals(2, toolDefsResult.size());
     assertEquals("get_weather", toolDefsResult.get(0).get("name"));
     assertEquals("Get weather by city", toolDefsResult.get(0).get("description"));
     assertEquals(schema, toolDefsResult.get(0).get("schema"));
+    assertEquals("1.2.3", toolDefsResult.get(0).get("version"));
+    assertEquals(Collections.singletonMap("name", "get_time"), toolDefsResult.get(1));
     assertTrue(meta.containsKey("metadata"));
 
     assertTrue(spanData.containsKey("metrics"));

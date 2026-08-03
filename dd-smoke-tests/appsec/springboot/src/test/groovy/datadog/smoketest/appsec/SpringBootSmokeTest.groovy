@@ -699,7 +699,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
-    rootSpan.span.metaStruct != null
+    !rootSpan.span.metaStruct.isEmpty()
     def stack = rootSpan.span.metaStruct.get('_dd.stack')
     assert stack != null, 'stack is not set'
     def exploit = stack.get('exploit')
@@ -774,7 +774,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
-    rootSpan.span.metaStruct == null
+    rootSpan.span.metaStruct.isEmpty()
 
     where:
     variant               | _
@@ -814,7 +814,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
-    rootSpan.span.metaStruct == null
+    rootSpan.span.metaStruct.isEmpty()
 
     where:
     variant | _
@@ -853,7 +853,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
-    rootSpan.span.metaStruct == null
+    rootSpan.span.metaStruct.isEmpty()
   }
 
   def findFirstMatchingSpan(String resource) {
@@ -939,7 +939,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
-    rootSpan.span.metaStruct == null
+    rootSpan.span.metaStruct.isEmpty()
 
     where:
     endpoint                    | cmd                              | params
@@ -990,7 +990,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
       }
     }
     assert trigger != null, 'test trigger not found'
-    rootSpan.span.metaStruct == null
+    rootSpan.span.metaStruct.isEmpty()
 
     where:
     endpoint           | cmd                                  | params

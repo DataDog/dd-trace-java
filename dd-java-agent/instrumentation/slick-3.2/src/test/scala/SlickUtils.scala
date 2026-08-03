@@ -53,6 +53,14 @@ class SlickUtils(TEST_WRITER: ListWriter) {
     Await.result(future, Duration.Inf).head
   }
 
+  /** Runs the given task directly on the database's Slick {@code AsyncExecutor}, the same thread
+    * pool used to run query actions. This exercises {@code SlickRunnableInstrumentation} without
+    * requiring a full query round-trip.
+    */
+  def runOnAsyncExecutor(task: Runnable): Unit = {
+    database.executor.executionContext.execute(task)
+  }
+
 }
 
 object SlickUtils {

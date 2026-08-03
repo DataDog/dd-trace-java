@@ -13,7 +13,9 @@ import org.junit.jupiter.api.Test;
 class FeatureFlaggingGatewayTest {
 
   private FeatureFlaggingGateway.ConfigListener configListener;
+  private FeatureFlaggingGateway.ActivationListener activationListener;
   private FeatureFlaggingGateway.ExposureListener exposureListener;
+  private FeatureFlaggingGateway.SpanEnrichmentListener spanEnrichmentListener;
   private ServerConfiguration firstConfiguration;
   private ServerConfiguration secondConfiguration;
   private ExposureEvent firstExposure;
@@ -22,7 +24,9 @@ class FeatureFlaggingGatewayTest {
   @BeforeEach
   void setUp() {
     configListener = mock(FeatureFlaggingGateway.ConfigListener.class);
+    activationListener = mock(FeatureFlaggingGateway.ActivationListener.class);
     exposureListener = mock(FeatureFlaggingGateway.ExposureListener.class);
+    spanEnrichmentListener = mock(FeatureFlaggingGateway.SpanEnrichmentListener.class);
     firstConfiguration = mock(ServerConfiguration.class);
     secondConfiguration = mock(ServerConfiguration.class);
     firstExposure = mock(ExposureEvent.class);
@@ -32,7 +36,19 @@ class FeatureFlaggingGatewayTest {
   @AfterEach
   void tearDown() {
     FeatureFlaggingGateway.removeConfigListener(configListener);
+    FeatureFlaggingGateway.removeActivationListener(activationListener);
     FeatureFlaggingGateway.removeExposureListener(exposureListener);
+    FeatureFlaggingGateway.removeSpanEnrichmentListener(spanEnrichmentListener);
+  }
+
+  @Test
+  void testProviderActivationListener() {
+    FeatureFlaggingGateway.addActivationListener(activationListener);
+
+    FeatureFlaggingGateway.activate();
+
+    verify(activationListener).activate();
+    verifyNoMoreInteractions(activationListener);
   }
 
   @Test
@@ -72,6 +88,23 @@ class FeatureFlaggingGatewayTest {
 
     verify(exposureListener).accept(secondExposure);
     verifyNoMoreInteractions(exposureListener);
+  }
+
+  @Test
+  void testAttachingASpanEnrichmentListener() {
+    final SpanEnrichmentEvent firstEvent = SpanEnrichmentEvent.serialId(42, true, "user-1");
+    final SpanEnrichmentEvent secondEvent = SpanEnrichmentEvent.runtimeDefault("flag", "value");
+
+    FeatureFlaggingGateway.addSpanEnrichmentListener(spanEnrichmentListener);
+    FeatureFlaggingGateway.dispatch(firstEvent);
+
+    verify(spanEnrichmentListener).accept(firstEvent);
+    verifyNoMoreInteractions(spanEnrichmentListener);
+
+    FeatureFlaggingGateway.dispatch(secondEvent);
+
+    verify(spanEnrichmentListener).accept(secondEvent);
+    verifyNoMoreInteractions(spanEnrichmentListener);
   }
 
   private static void clearCurrentServerConfiguration() {

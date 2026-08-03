@@ -4,18 +4,12 @@ package datadog.context;
 public interface ContextListener {
 
   /**
-   * Notifies that the given context has been attached to the current execution unit.
+   * Notifies that the context has been updated for the current execution unit.
    *
-   * @param context the attached context.
+   * @param before the context before.
+   * @param after the context after.
    */
-  default void onAttach(Context context) {}
-
-  /**
-   * Notifies that the given context has been detached from the current execution unit.
-   *
-   * @param context the detached context.
-   */
-  default void onDetach(Context context) {}
+  default void onUpdate(Context before, Context after) {}
 
   /**
    * Notifies that the given context has been captured by a continuation.

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.vertx_sql_client_39;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -10,12 +11,12 @@ public class QueryResultHandlerWrapper<T, R extends SqlResult<T>>
     implements Handler<AsyncResult<R>> {
   private final Handler<AsyncResult<R>> handler;
   private final AgentSpan clientSpan;
-  private final AgentScope.Continuation parentContinuation;
+  private final ContextContinuation parentContinuation;
 
   public QueryResultHandlerWrapper(
       final Handler<AsyncResult<R>> handler,
       final AgentSpan clientSpan,
-      final AgentScope.Continuation parentContinuation) {
+      final ContextContinuation parentContinuation) {
     this.handler = handler;
     this.clientSpan = clientSpan;
     this.parentContinuation = parentContinuation;
@@ -23,13 +24,13 @@ public class QueryResultHandlerWrapper<T, R extends SqlResult<T>>
 
   @Override
   public void handle(final AsyncResult<R> event) {
-    AgentScope scope = null;
+    ContextScope scope = null;
     try {
       if (null != clientSpan) {
         clientSpan.finish();
       }
       if (null != parentContinuation) {
-        scope = parentContinuation.activate();
+        scope = parentContinuation.resume();
       }
       handler.handle(event);
     } finally {

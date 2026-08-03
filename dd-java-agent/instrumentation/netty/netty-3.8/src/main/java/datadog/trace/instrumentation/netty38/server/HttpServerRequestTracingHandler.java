@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.netty38.server;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.DECORATE;
 
 import datadog.context.Context;
@@ -51,7 +50,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
     channelTraceContext.setRequestHeaders(headers);
 
     try (final ContextScope scope = context.attach()) {
-      final AgentSpan span = spanFromContext(context);
+      final AgentSpan span = AgentSpan.fromContext(context);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, ctx.getChannel(), request, parentContext);
 

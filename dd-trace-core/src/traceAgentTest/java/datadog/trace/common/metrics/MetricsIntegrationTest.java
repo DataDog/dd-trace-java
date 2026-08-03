@@ -1,7 +1,7 @@
 package datadog.trace.common.metrics;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT;
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -15,7 +15,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.config.TracerConfig;
-import datadog.trace.junit.utils.config.WithConfigExtension;
+import datadog.trace.test.junit.utils.config.WithConfigExtension;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
@@ -76,7 +76,6 @@ class MetricsIntegrationTest {
 
   @BeforeEach
   void setup() {
-    AggregateEntry.resetCardinalityHandlers();
     injectSysConfig(TracerConfig.AGENT_HOST, agentHost());
     injectSysConfig(TracerConfig.TRACE_AGENT_PORT, agentPort());
   }
@@ -134,6 +133,7 @@ class MetricsIntegrationTest {
             null,
             null,
             null,
+            null,
             0L);
     AggregateEntry entry1 = table.findOrInsert(snap1);
     for (long duration : new long[] {2, 1, 2, 250, 4}) {
@@ -153,6 +153,7 @@ class MetricsIntegrationTest {
             "xyzzy",
             schema,
             new String[] {"quux"},
+            null,
             null,
             null,
             null,
