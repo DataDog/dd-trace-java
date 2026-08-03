@@ -59,7 +59,7 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
 
   @Override
   public void setInput(List<LLMObs.LLMMessage> input) {
-    this.input = copyMessages(requireNonNull(input, "input"));
+    this.input = new ArrayList<>(requireNonNull(input, "input"));
   }
 
   @Override
@@ -69,7 +69,7 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
 
   @Override
   public void setOutput(List<LLMObs.LLMMessage> output) {
-    this.output = copyMessages(requireNonNull(output, "output"));
+    this.output = new ArrayList<>(requireNonNull(output, "output"));
   }
 
   @Override
@@ -90,13 +90,13 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
         INPUT_TAG,
         originalInput,
         inputType,
-        copyMessages(requireNonNull(processedSpan.getInput(), "processed input")));
+        new ArrayList<>(requireNonNull(processedSpan.getInput(), "processed input")));
     applyIO(
         span,
         OUTPUT_TAG,
         originalOutput,
         outputType,
-        copyMessages(requireNonNull(processedSpan.getOutput(), "processed output")));
+        new ArrayList<>(requireNonNull(processedSpan.getOutput(), "processed output")));
   }
 
   private static IOType ioType(String kind, Object value, boolean input) {
@@ -118,12 +118,13 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
     return IOType.VALUE;
   }
 
+  @SuppressWarnings("unchecked")
   private static List<LLMObs.LLMMessage> asMessages(Object value, IOType type) {
     if (type == IOType.NONE) {
       return new ArrayList<>();
     }
     if (type == IOType.MESSAGES) {
-      return copyMessages((List<?>) unwrapMessages(value));
+      return new ArrayList<>((List<LLMObs.LLMMessage>) unwrapMessages(value));
     }
     if (type == IOType.DOCUMENTS) {
       List<LLMObs.LLMMessage> messages = new ArrayList<>(((List<?>) value).size());
@@ -135,18 +136,6 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
     }
     List<LLMObs.LLMMessage> messages = new ArrayList<>(1);
     messages.add(LLMObs.LLMMessage.from("", String.valueOf(value)));
-    return messages;
-  }
-
-  private static List<LLMObs.LLMMessage> copyMessages(List<?> values) {
-    List<LLMObs.LLMMessage> messages = new ArrayList<>(values.size());
-    for (Object value : values) {
-      if (!(value instanceof LLMObs.LLMMessage)) {
-        throw new IllegalArgumentException(
-            "LLM Observability input and output must contain messages");
-      }
-      messages.add((LLMObs.LLMMessage) value);
-    }
     return messages;
   }
 

@@ -486,18 +486,22 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     LLMObs.registerProcessor(
         span -> {
           calls.incrementAndGet();
-          return span;
+          return "true".equals(span.getTag("drop")) ? null : span;
         });
 
     try {
       CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
       AgentSpan first = newLlmObsSpan(tracer, "first", false);
-      AgentSpan second = newLlmObsSpan(tracer, "second", false);
+      AgentSpan dropped = newLlmObsSpan(tracer, "dropped", true);
+      AgentSpan retained = newLlmObsSpan(tracer, "retained", false);
       String largeInput = String.join("", Collections.nCopies(600, "x"));
       first.setTag(
           "_ml_obs_tag.input",
           Collections.singletonList(LLMObs.LLMMessage.from("user", largeInput)));
-      second.setTag(
+      dropped.setTag(
+          "_ml_obs_tag.input",
+          Collections.singletonList(LLMObs.LLMMessage.from("user", largeInput)));
+      retained.setTag(
           "_ml_obs_tag.input",
           Collections.singletonList(LLMObs.LLMMessage.from("user", largeInput)));
 
@@ -506,11 +510,11 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
       MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, sink));
 
       assertTrue(packer.format(Collections.singletonList((DDSpan) first), mapper));
-      assertTrue(packer.format(Collections.singletonList((DDSpan) second), mapper));
+      assertTrue(packer.format(Arrays.asList((DDSpan) dropped, (DDSpan) retained), mapper));
       assertEquals(1, sink.accepts);
-      assertEquals(2, calls.get());
+      assertEquals(3, calls.get());
       assertEquals(
-          2,
+          3,
           LLMObsMetricCollector.get().drain().stream()
               .filter(
                   metric ->

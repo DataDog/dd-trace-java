@@ -2,7 +2,6 @@ package datadog.trace.llmobs.writer.ddintake;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -69,10 +68,9 @@ class LLMObsSpanDataAdapterTest {
   }
 
   @Test
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  void rejectsInvalidMessagesAndIgnoresMalformedLlmIo() {
+  void ignoresMalformedLlmIo() {
     CoreSpan<?> span = mock(CoreSpan.class);
-    List invalidMessages = Collections.singletonList("not a message");
+    List<String> invalidMessages = Collections.singletonList("not a message");
     when(span.getTag(SPAN_KIND_TAG)).thenReturn(Tags.LLMOBS_LLM_SPAN_KIND);
     when(span.getTag(INPUT_TAG)).thenReturn(invalidMessages);
     when(span.getTag(OUTPUT_TAG)).thenReturn(Collections.singletonMap("messages", invalidMessages));
@@ -81,8 +79,6 @@ class LLMObsSpanDataAdapterTest {
 
     assertEquals(Collections.emptyList(), adapter.getInput());
     assertEquals(Collections.emptyList(), adapter.getOutput());
-    assertThrows(IllegalArgumentException.class, () -> adapter.setInput(invalidMessages));
-    assertThrows(IllegalArgumentException.class, () -> adapter.setOutput(invalidMessages));
     adapter.apply(adapter);
   }
 
