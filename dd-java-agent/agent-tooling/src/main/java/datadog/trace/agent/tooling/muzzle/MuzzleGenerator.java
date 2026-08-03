@@ -77,14 +77,33 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       throw new RuntimeException(e);
     }
 
+    AdviceShader adviceShader = AdviceShader.with(module.adviceShading());
+
+    // Collect the muzzle references from every advice the module defines.
+    Set<String> adviceClasses = new HashSet<>();
+    List<Reference> allReferences = new ArrayList<>();
+    for (Instrumenter instrumenter : module.typeInstrumentations()) {
+      if (instrumenter instanceof Instrumenter.HasMethodAdvice) {
+        Collections.addAll(
+            allReferences,
+            generateReferences(
+                (Instrumenter.HasMethodAdvice) instrumenter, adviceShader, adviceClasses));
+      }
+    }
+
+    String[] orderedHelpers = computeInjectedHelpers(module, allReferences, adviceClasses);
+
     File muzzleClass = new File(targetDir, moduleDefinition.getInternalName() + "$Muzzle.class");
     try {
       muzzleClass.getParentFile().mkdirs();
-      Files.write(muzzleClass.toPath(), generateMuzzleClass(module));
+      Files.write(muzzleClass.toPath(), generateMuzzleClass(module, allReferences, orderedHelpers));
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    return classVisitor;
+
+    // Set resolved helpers directly in the module's helperClassNames() so agent reads
+    // them directly without loading the $Muzzle class.
+    return new HelperClassNamesWriter(classVisitor, orderedHelpers);
   }
 
   private static Reference[] generateReferences(
@@ -123,23 +142,8 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   }
 
   /** This code is generated in a separate side-class. */
-  private byte[] generateMuzzleClass(InstrumenterModule module) {
-
-    AdviceShader adviceShader = AdviceShader.with(module.adviceShading());
-
-    // Collect the muzzle references from every advice the module defines.
-    Set<String> adviceClasses = new HashSet<>();
-    List<Reference> allReferences = new ArrayList<>();
-    for (Instrumenter instrumenter : module.typeInstrumentations()) {
-      if (instrumenter instanceof Instrumenter.HasMethodAdvice) {
-        Collections.addAll(
-            allReferences,
-            generateReferences(
-                (Instrumenter.HasMethodAdvice) instrumenter, adviceShader, adviceClasses));
-      }
-    }
-
-    String[] orderedHelpers = computeInjectedHelpers(module, allReferences, adviceClasses);
+  private byte[] generateMuzzleClass(
+      InstrumenterModule module, List<Reference> allReferences, String[] orderedHelpers) {
 
     // Injected helpers are our own classes, so they don't need to be asserted as library
     // references.
@@ -201,24 +205,46 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     mv.visitMaxs(0, 0);
     mv.visitEnd();
 
-    // Generate helperClassNames() with resolved helpers for the agent to read at load time;
-    // skip the method entirely when the module injects nothing.
-    if (orderedHelpers.length > 0) {
-      MethodVisitor hv =
-          cw.visitMethod(
-              Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
-              "helperClassNames",
-              "()[Ljava/lang/String;",
-              null,
-              null);
-      hv.visitCode();
-      writeStrings(hv, orderedHelpers);
-      hv.visitInsn(Opcodes.ARETURN);
-      hv.visitMaxs(0, 0);
-      hv.visitEnd();
+    return cw.toByteArray();
+  }
+
+  /**
+   * Rewrite a module's {@code helperClassNames()} to return the build-time-resolved helper list.
+   */
+  private static final class HelperClassNamesWriter extends ClassVisitor {
+    private static final String HELPER_METHOD = "helperClassNames";
+    private static final String HELPER_DESCRIPTOR = "()[Ljava/lang/String;";
+
+    private final String[] helpers;
+
+    HelperClassNamesWriter(ClassVisitor classVisitor, String[] helpers) {
+      super(Opcodes.ASM7, classVisitor);
+      this.helpers = helpers;
     }
 
-    return cw.toByteArray();
+    @Override
+    public MethodVisitor visitMethod(
+        int access, String name, String descriptor, String signature, String[] exceptions) {
+      // Drop any existing helperClassNames() - resolved version will be re-added in visitEnd.
+      if (HELPER_METHOD.equals(name) && HELPER_DESCRIPTOR.equals(descriptor)) {
+        return null;
+      }
+      return super.visitMethod(access, name, descriptor, signature, exceptions);
+    }
+
+    @Override
+    public void visitEnd() {
+      if (helpers.length > 0) {
+        MethodVisitor mv =
+            super.visitMethod(Opcodes.ACC_PUBLIC, HELPER_METHOD, HELPER_DESCRIPTOR, null, null);
+        mv.visitCode();
+        writeStrings(mv, helpers);
+        mv.visitInsn(Opcodes.ARETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+      }
+      super.visitEnd();
+    }
   }
 
   /** Resolves the ordered set of helper classes to inject for a module. */
