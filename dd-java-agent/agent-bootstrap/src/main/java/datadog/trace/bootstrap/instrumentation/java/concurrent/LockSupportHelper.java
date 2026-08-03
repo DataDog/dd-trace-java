@@ -1,23 +1,31 @@
 // Copyright 2026 Datadog, Inc.
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import java.util.Collections;
-import java.util.Map;
-import java.util.WeakHashMap;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /** Helper for profiling {@code LockSupport.park*} intervals from bootstrap instrumentation. */
 public final class LockSupportHelper {
+  private static final int MAX_UNPARKING_STATES = 50_000;
+
   /**
    * Best-effort association between a parked thread and the most recent {@code unpark} caller's
-   * active span. Weak keys avoid retaining terminated threads; the synchronized wrapper protects
-   * calls made concurrently by parked and unparking threads.
+   * active span. Weak keys avoid retaining terminated threads and each target reuses a primitive
+   * state holder to avoid boxing span identifiers.
    */
-  static final Map<Thread, Long> UNPARKING_SPAN = Collections.synchronizedMap(new WeakHashMap<>());
+  static final WeakMap<Thread, UnparkState> UNPARKING_STATE = WeakMap.Supplier.newWeakMap();
+
+  private static final AtomicLongFieldUpdater<UnparkState> UNBLOCKING_SPAN_ID =
+      AtomicLongFieldUpdater.newUpdater(UnparkState.class, "unblockingSpanId");
+
+  static final class UnparkState {
+    volatile long unblockingSpanId;
+  }
 
   private LockSupportHelper() {}
 
@@ -42,8 +50,9 @@ public final class LockSupportHelper {
     if (profiling == null) {
       return;
     }
-    Long unblockingSpanId = UNPARKING_SPAN.remove(Thread.currentThread());
-    parkExit(profiling, blockerHash, unblockingSpanId == null ? 0L : unblockingSpanId);
+    UnparkState state = UNPARKING_STATE.get(Thread.currentThread());
+    long unblockingSpanId = state == null ? 0L : UNBLOCKING_SPAN_ID.getAndSet(state, 0L);
+    parkExit(profiling, blockerHash, unblockingSpanId);
   }
 
   static void parkExit(
@@ -68,9 +77,22 @@ public final class LockSupportHelper {
     AgentSpan span = AgentTracer.activeSpan();
     AgentSpanContext context = span == null ? null : span.spanContext();
     if (context instanceof ProfilerContext) {
-      UNPARKING_SPAN.put(thread, ((ProfilerContext) context).getSpanId());
+      UnparkState state = UNPARKING_STATE.get(thread);
+      if (state == null) {
+        if (UNPARKING_STATE.size() >= MAX_UNPARKING_STATES) {
+          return;
+        }
+        UNPARKING_STATE.putIfAbsent(thread, new UnparkState());
+        state = UNPARKING_STATE.get(thread);
+      }
+      if (state != null) {
+        UNBLOCKING_SPAN_ID.set(state, ((ProfilerContext) context).getSpanId());
+      }
     } else {
-      UNPARKING_SPAN.remove(thread);
+      UnparkState state = UNPARKING_STATE.get(thread);
+      if (state != null) {
+        UNBLOCKING_SPAN_ID.set(state, 0L);
+      }
     }
   }
 }
