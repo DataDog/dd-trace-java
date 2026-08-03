@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
 import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -25,6 +26,13 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
   private final AtomicInteger counter = new AtomicInteger();
   private final AtomicInteger parkEnterCalls = new AtomicInteger();
   private final AtomicInteger parkExitCalls = new AtomicInteger();
+  private final ConcurrentMap<Thread, AtomicInteger> parkEnterCallsByThread =
+      new ConcurrentHashMap<>();
+  private final ConcurrentMap<Thread, AtomicInteger> acceptedParkEnterCallsByThread =
+      new ConcurrentHashMap<>();
+  private final ConcurrentMap<Thread, AtomicInteger> parkExitCallsByThread =
+      new ConcurrentHashMap<>();
+  private final Set<Thread> activeParkEntries = ConcurrentHashMap.newKeySet();
   private final AtomicLong lastParkBlocker = new AtomicLong();
   private final AtomicLong lastUnblockingSpanId = new AtomicLong();
   private final Set<Thread> parkExitThreads = ConcurrentHashMap.newKeySet();
@@ -47,6 +55,10 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
     detachments.set(0);
     parkEnterCalls.set(0);
     parkExitCalls.set(0);
+    parkEnterCallsByThread.clear();
+    acceptedParkEnterCallsByThread.clear();
+    parkExitCallsByThread.clear();
+    activeParkEntries.clear();
     lastParkBlocker.set(0);
     lastUnblockingSpanId.set(0);
     parkExitThreads.clear();
@@ -56,12 +68,25 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
   @Override
   public boolean parkEnter() {
     parkEnterCalls.incrementAndGet();
-    return acceptParkEntries;
+    parkEnterCallsByThread
+        .computeIfAbsent(Thread.currentThread(), ignored -> new AtomicInteger())
+        .incrementAndGet();
+    boolean accepted = acceptParkEntries && activeParkEntries.add(Thread.currentThread());
+    if (accepted) {
+      acceptedParkEnterCallsByThread
+          .computeIfAbsent(Thread.currentThread(), ignored -> new AtomicInteger())
+          .incrementAndGet();
+    }
+    return accepted;
   }
 
   @Override
   public void parkExit(long blocker, long unblockingSpanId) {
+    activeParkEntries.remove(Thread.currentThread());
     parkExitCalls.incrementAndGet();
+    parkExitCallsByThread
+        .computeIfAbsent(Thread.currentThread(), ignored -> new AtomicInteger())
+        .incrementAndGet();
     lastParkBlocker.set(blocker);
     lastUnblockingSpanId.set(unblockingSpanId);
     parkExitThreads.add(Thread.currentThread());
@@ -118,6 +143,21 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
     return parkExitCalls;
   }
 
+  public int getParkEnterCalls(Thread thread) {
+    AtomicInteger calls = parkEnterCallsByThread.get(thread);
+    return calls == null ? 0 : calls.get();
+  }
+
+  public int getParkExitCalls(Thread thread) {
+    AtomicInteger calls = parkExitCallsByThread.get(thread);
+    return calls == null ? 0 : calls.get();
+  }
+
+  public int getAcceptedParkEnterCalls(Thread thread) {
+    AtomicInteger calls = acceptedParkEnterCallsByThread.get(thread);
+    return calls == null ? 0 : calls.get();
+  }
+
   public AtomicLong getLastParkBlocker() {
     return lastParkBlocker;
   }
@@ -136,14 +176,6 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
 
   public Logger getLogger() {
     return logger;
-  }
-
-  public boolean getAcceptParkEntries() {
-    return acceptParkEntries;
-  }
-
-  public boolean isAcceptParkEntries() {
-    return acceptParkEntries;
   }
 
   public void setAcceptParkEntries(boolean acceptParkEntries) {

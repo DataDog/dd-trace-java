@@ -5,9 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
-import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
-import static net.bytebuddy.matcher.ElementMatchers.not;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -15,6 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.profiling.TaskBlockInstrumentationConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.LockSupportHelper;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -48,11 +47,15 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        parkMethod().and(takesArgument(0, named("java.lang.Object"))),
+        parkMethod("park", 1).or(parkMethod("parkUntil", 2)),
         getClass().getName() + "$ParkWithBlockerAdvice");
     transformer.applyAdvice(
-        parkMethod().and(not(takesArgument(0, named("java.lang.Object")))),
+        parkMethod("park", 0).or(parkMethod("parkUntil", 1)),
         getClass().getName() + "$ParkWithoutBlockerAdvice");
+    transformer.applyAdvice(
+        parkMethod("parkNanos", 2), getClass().getName() + "$ParkNanosWithBlockerAdvice");
+    transformer.applyAdvice(
+        parkMethod("parkNanos", 1), getClass().getName() + "$ParkNanosWithoutBlockerAdvice");
     transformer.applyAdvice(
         isMethod()
             .and(isStatic())
@@ -61,10 +64,11 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
         getClass().getName() + "$UnparkAdvice");
   }
 
-  private static ElementMatcher.Junction<MethodDescription> parkMethod() {
+  private static ElementMatcher.Junction<MethodDescription> parkMethod(String name, int arguments) {
     return isMethod()
         .and(isStatic())
-        .and(nameStartsWith("park"))
+        .and(named(name))
+        .and(takesArguments(arguments))
         .and(isDeclaredBy(named("java.util.concurrent.locks.LockSupport")));
   }
 
@@ -72,14 +76,21 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
   public static final class ParkWithBlockerAdvice {
     /** Starts the paired profiling lifecycle before the park. */
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static LockSupportHelper.ParkState before(@Advice.Argument(0) Object blocker) {
-      return LockSupportHelper.captureState(blocker);
+    public static ProfilingContextIntegration before(
+        @Advice.Argument(0) Object blocker, @Advice.Local("blockerHash") long blockerHash) {
+      ProfilingContextIntegration profiling = LockSupportHelper.parkEnter();
+      if (profiling != null) {
+        blockerHash = Integer.toUnsignedLong(System.identityHashCode(blocker));
+      }
+      return profiling;
     }
 
     /** Completes an accepted profiling lifecycle after the park. */
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void after(@Advice.Enter LockSupportHelper.ParkState state) {
-      LockSupportHelper.finish(state);
+    public static void after(
+        @Advice.Enter ProfilingContextIntegration profiling,
+        @Advice.Local("blockerHash") long blockerHash) {
+      LockSupportHelper.parkExit(profiling, blockerHash);
     }
   }
 
@@ -87,14 +98,52 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
   public static final class ParkWithoutBlockerAdvice {
     /** Starts the paired profiling lifecycle before the park. */
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static LockSupportHelper.ParkState before() {
-      return LockSupportHelper.captureState(null);
+    public static ProfilingContextIntegration before() {
+      return LockSupportHelper.parkEnter();
     }
 
     /** Completes an accepted profiling lifecycle after the park. */
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void after(@Advice.Enter LockSupportHelper.ParkState state) {
-      LockSupportHelper.finish(state);
+    public static void after(@Advice.Enter ProfilingContextIntegration profiling) {
+      LockSupportHelper.parkExit(profiling, 0L);
+    }
+  }
+
+  /** Advice for timed park variants whose first argument is the blocker object. */
+  public static final class ParkNanosWithBlockerAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ProfilingContextIntegration before(
+        @Advice.Argument(0) Object blocker,
+        @Advice.Argument(1) long nanos,
+        @Advice.Local("blockerHash") long blockerHash) {
+      if (nanos <= 0) {
+        return null;
+      }
+      ProfilingContextIntegration profiling = LockSupportHelper.parkEnter();
+      if (profiling != null) {
+        blockerHash = Integer.toUnsignedLong(System.identityHashCode(blocker));
+      }
+      return profiling;
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void after(
+        @Advice.Enter ProfilingContextIntegration profiling,
+        @Advice.Local("blockerHash") long blockerHash) {
+      LockSupportHelper.parkExit(profiling, blockerHash);
+    }
+  }
+
+  /** Advice for timed park variants without an explicit blocker object. */
+  public static final class ParkNanosWithoutBlockerAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static ProfilingContextIntegration before(@Advice.Argument(0) long nanos) {
+      return nanos > 0 ? LockSupportHelper.parkEnter() : null;
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void after(@Advice.Enter ProfilingContextIntegration profiling) {
+      LockSupportHelper.parkExit(profiling, 0L);
     }
   }
 

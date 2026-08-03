@@ -21,50 +21,38 @@ public final class LockSupportHelper {
 
   private LockSupportHelper() {}
 
-  /** State required to balance a park entry accepted by a profiling integration. */
-  public static final class ParkState {
-    private final ProfilingContextIntegration profiling;
-    private final long blockerHash;
-
-    ParkState(ProfilingContextIntegration profiling, long blockerHash) {
-      this.profiling = profiling;
-      this.blockerHash = blockerHash;
-    }
+  /** Returns the profiling integration when it accepts ownership of the park interval. */
+  public static ProfilingContextIntegration parkEnter() {
+    return parkEnter(AgentTracer.get().getProfilingContext());
   }
 
-  /** Captures a park entry through the currently installed profiling integration. */
-  public static ParkState captureState(Object blocker) {
-    return captureState(blocker, AgentTracer.get().getProfilingContext());
-  }
-
-  static ParkState captureState(Object blocker, ProfilingContextIntegration profiling) {
+  static ProfilingContextIntegration parkEnter(ProfilingContextIntegration profiling) {
     if (profiling == null) {
       return null;
     }
     try {
-      if (!profiling.parkEnter()) {
-        return null;
-      }
-      return new ParkState(
-          profiling,
-          blocker == null ? 0L : Integer.toUnsignedLong(System.identityHashCode(blocker)));
+      return profiling.parkEnter() ? profiling : null;
     } catch (Throwable ignored) {
       return null;
     }
   }
 
   /** Drains unpark attribution and balances an accepted park entry. */
-  public static void finish(ParkState state) {
+  public static void parkExit(ProfilingContextIntegration profiling, long blockerHash) {
+    if (profiling == null) {
+      return;
+    }
     Long unblockingSpanId = UNPARKING_SPAN.remove(Thread.currentThread());
-    finish(state, unblockingSpanId == null ? 0L : unblockingSpanId);
+    parkExit(profiling, blockerHash, unblockingSpanId == null ? 0L : unblockingSpanId);
   }
 
-  static void finish(ParkState state, long unblockingSpanId) {
-    if (state == null) {
+  static void parkExit(
+      ProfilingContextIntegration profiling, long blockerHash, long unblockingSpanId) {
+    if (profiling == null) {
       return;
     }
     try {
-      state.profiling.parkExit(state.blockerHash, unblockingSpanId);
+      profiling.parkExit(blockerHash, unblockingSpanId);
     } catch (Throwable ignored) {
     }
   }
