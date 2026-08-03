@@ -27,7 +27,7 @@ class IastSpringBootSmokeTest extends AbstractIastSpringBootTest {
 
     hasTainted {
       it.value == 'jackie' &&
-      it.ranges[0].source.origin == 'http.request.header'
+        it.ranges[0].source.origin == 'http.request.header'
     }
   }
 

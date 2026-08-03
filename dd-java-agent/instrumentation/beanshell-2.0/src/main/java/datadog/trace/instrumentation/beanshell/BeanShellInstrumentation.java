@@ -81,6 +81,8 @@ public class BeanShellInstrumentation extends InstrumenterModule.Iast
     // bsh.Interpreter.eval(Reader, NameSpace, String): shared core reached by public eval(Reader).
     // Only reports when the caller supplied a tainted Reader; the Reader built internally by
     // eval(String, NameSpace) is untainted, so the String path above does not double-report.
+    // NOTE: this non-duplication relies on bsh.* staying in iast_exclusion.trie; removing it would
+    // taint the internally built reader and make eval(String) double-report CODE_INJECTION.
     transformer.applyAdvice(
         named("eval")
             .and(isMethod())
@@ -142,6 +144,8 @@ public class BeanShellInstrumentation extends InstrumenterModule.Iast
         return;
       }
 
+      // @Sink only declares CODE_INJECTION (it is single-valued), so this SSRF report is not counted
+      // in the instrumented/executed-sink telemetry; the vulnerability itself is still reported.
       final SsrfModule ssrfModule = InstrumentationBridge.SSRF;
       if (ssrfModule != null) {
         ssrfModule.onURLConnection(url);
