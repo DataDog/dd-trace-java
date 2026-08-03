@@ -33,6 +33,10 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_CAPACITY;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_MEMLEAK_INTERVAL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SAFEMODE_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT;
@@ -288,6 +292,28 @@ public class DatadogProfilerConfig {
 
   public static int getMemleakCapacity() {
     return getMemleakCapacity(ConfigProvider.getInstance());
+  }
+
+  public static boolean isNativeMemoryProfilingEnabled(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED,
+        PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED_DEFAULT);
+  }
+
+  public static boolean isNativeMemoryProfilingEnabled() {
+    return isNativeMemoryProfilingEnabled(ConfigProvider.getInstance());
+  }
+
+  public static int getNativeMemoryInterval(ConfigProvider configProvider) {
+    return getInteger(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL,
+        PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL_DEFAULT);
+  }
+
+  public static int getNativeMemoryInterval() {
+    return getNativeMemoryInterval(ConfigProvider.getInstance());
   }
 
   public static int getStackDepth(ConfigProvider configProvider) {

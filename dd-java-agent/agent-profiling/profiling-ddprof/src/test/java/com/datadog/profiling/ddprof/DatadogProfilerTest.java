@@ -118,11 +118,38 @@ class DatadogProfilerTest {
     DatadogProfiler profiler =
         DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
 
-    Path dir = Paths.get("/tmp");
-    Path targetFile = Files.createTempFile(dir, "target_", ".jfr");
-    String cmd = profiler.cmdStartProfiling(targetFile);
+    assertTrue(startCmd(profiler).contains(",fjmethodid=false"));
+  }
 
-    assertTrue(cmd.contains(",fjmethodid=false"), cmd);
+  @Test
+  void testStartCmdNativeMemDisabledByDefault() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    DatadogProfiler profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
+    assertFalse(profiler.enabledModes().contains(ProfilingMode.NATIVEMEM));
+
+    assertFalse(startCmd(profiler).contains(",nativemem="));
+  }
+
+  @Test
+  void testStartCmdNativeMemEnabled() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL, "131072");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.NATIVEMEM));
+
+    assertTrue(startCmd(profiler).contains(",nativemem=131072"));
+  }
+
+  private static String startCmd(DatadogProfiler profiler) throws Exception {
+    Path targetFile = Files.createTempFile(Paths.get("/tmp"), "target_", ".jfr");
+    return profiler.cmdStartProfiling(targetFile);
   }
 
   @ParameterizedTest
