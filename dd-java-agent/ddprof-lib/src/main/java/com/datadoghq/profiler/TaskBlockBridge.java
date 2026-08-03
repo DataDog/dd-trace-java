@@ -14,7 +14,7 @@ import java.lang.invoke.MethodType;
  * handles are cached and invoked directly on the hot path.
  */
 public final class TaskBlockBridge {
-  private static final MethodHandle PARK_ENTER = findVirtual("parkEnter", void.class);
+  private static final MethodHandle PARK_ENTER = findVirtual("parkEnter", boolean.class);
   private static final MethodHandle PARK_EXIT =
       findVirtual("parkExit", void.class, long.class, long.class);
   private static final MethodHandle BEGIN_TASK_BLOCK = findVirtual("beginTaskBlock", long.class);
@@ -44,8 +44,7 @@ public final class TaskBlockBridge {
       return false;
     }
     try {
-      PARK_ENTER.invokeExact(profiler);
-      return true;
+      return (boolean) PARK_ENTER.invokeExact(profiler);
     } catch (Throwable throwable) {
       throw propagate(throwable);
     }
