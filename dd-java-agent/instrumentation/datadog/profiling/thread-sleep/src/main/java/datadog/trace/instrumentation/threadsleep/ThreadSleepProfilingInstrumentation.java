@@ -52,7 +52,8 @@ public class ThreadSleepProfilingInstrumentation extends InstrumenterModule.Prof
       "datadog/trace/bootstrap/instrumentation/java/concurrent/TaskBlockHelper";
 
   public ThreadSleepProfilingInstrumentation() {
-    super("thread-sleep");
+    // This is part of wall-clock profiling, not a separately configurable tracing integration.
+    super("wallclock");
   }
 
   @Override
