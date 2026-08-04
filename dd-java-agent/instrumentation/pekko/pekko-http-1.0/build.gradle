@@ -39,8 +39,28 @@ configurations {
 sourceSets {
   latestDepTest.groovy.srcDir sourceSets.baseTest.groovy
   latestDepTest.scala.srcDir sourceSets.baseTest.scala
+  latestDepTest.java.srcDir sourceSets.baseTest.java
   latestPekko10Test.groovy.srcDir sourceSets.baseTest.groovy
   latestPekko10Test.scala.srcDir sourceSets.baseTest.scala
+  latestPekko10Test.java.srcDir sourceSets.baseTest.java
+}
+
+[baseTest: "baseCompletionPriorityForkedTest", latestDepTest: "latestDepCompletionPriorityForkedTest"].each { suiteName, forkedTaskName ->
+  // Deliberately reuse each suite's compiled output. The ForkedTest task-name suffix supplies
+  // forkEvery=1 and the shared forked-test concurrency limit from the test convention plugin.
+  tasks.register(forkedTaskName, Test) {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    useJUnitPlatform()
+    testClassesDirs = sourceSets[suiteName].output.classesDirs
+    classpath = sourceSets[suiteName].runtimeClasspath
+    // Scoped to this regression test; this module does not provide a general forked-test suite.
+    setIncludes(["**/PekkoHttpAsyncHandlerWrapperForkedTest.class"])
+    systemProperty "dd.trace.integration.scala_promise_completion_priority.enabled", "true"
+  }
+  tasks.named(suiteName, Test) {
+    // finalizedBy, not dependsOn, so that a failure is reported against the task that actually ran.
+    finalizedBy forkedTaskName
+  }
 }
 
 dependencies {
