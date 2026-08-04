@@ -97,6 +97,20 @@ public interface AgentSpan
 
   AgentSpan setAllTags(Map<String, ?> map);
 
+  /**
+   * Sets tags on this span by applying a {@link TagExtractor} to a foreign source — the span-first,
+   * product-dev-facing form of {@code extractor.extract(source, this)} (matches {@code
+   * setTag}/{@code setAllTags}). The extra indirection inlines away at a monomorphic call site.
+   * This is also the seam where the whole extraction can be coarse-locked (one critical section) —
+   * an implementer may override to do so.
+   */
+  default <T> AgentSpan setTags(final T source, final TagExtractor<T> extractor) {
+    if (source != null) {
+      extractor.extract(source, this);
+    }
+    return this;
+  }
+
   @Override
   AgentSpan setTag(String key, Number value);
 
