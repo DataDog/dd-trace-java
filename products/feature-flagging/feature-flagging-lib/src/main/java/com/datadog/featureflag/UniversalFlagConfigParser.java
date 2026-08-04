@@ -29,7 +29,11 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
   static final UniversalFlagConfigParser INSTANCE = new UniversalFlagConfigParser();
 
   private static final Moshi MOSHI =
-      new Moshi.Builder().add(Date.class, new DateAdapter()).add(FlagMapAdapter.FACTORY).build();
+      new Moshi.Builder()
+          .add(Date.class, new DateAdapter())
+          .add(FlagMapAdapter.FACTORY)
+          .add(LenientBooleanAdapter.FACTORY)
+          .build();
   private static final JsonAdapter<ServerConfiguration> V1_ADAPTER =
       MOSHI.adapter(ServerConfiguration.class);
 
@@ -107,6 +111,50 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
 
     @Override
     public void toJson(@Nonnull final JsonWriter writer, @Nullable final Map<String, Flag> value)
+        throws IOException {
+      throw new UnsupportedOperationException("Reading only adapter");
+    }
+  }
+
+  /**
+   * Reads a boxed Boolean tolerantly: JSON null / wrong-typed values (string, number, object,
+   * array) map to null rather than aborting the enclosing object's parse. Downstream reads must use
+   * {@code Boolean.TRUE.equals(field)} so null resolves to the privacy-preserving default.
+   *
+   * <p>Only applies to {@code Boolean.class} (not primitive {@code boolean}), so mandatory
+   * primitive-boolean fields (e.g. {@code Flag.enabled}) keep their strict parse.
+   */
+  static final class LenientBooleanAdapter extends JsonAdapter<Boolean> {
+
+    static final Factory FACTORY =
+        new Factory() {
+          @Nullable
+          @Override
+          public JsonAdapter<?> create(
+              @Nonnull final Type type,
+              @Nonnull final Set<? extends Annotation> annotations,
+              @Nonnull final Moshi moshi) {
+            if (!annotations.isEmpty() || type != Boolean.class) {
+              return null;
+            }
+            return new LenientBooleanAdapter();
+          }
+        };
+
+    @Nullable
+    @Override
+    public Boolean fromJson(@Nonnull final JsonReader reader) throws IOException {
+      if (reader.peek() == JsonReader.Token.BOOLEAN) {
+        return reader.nextBoolean();
+      }
+      // null and every wrong-typed value collapse to null so the caller falls back to its default
+      // rather than the enclosing config being rejected wholesale.
+      reader.skipValue();
+      return null;
+    }
+
+    @Override
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Boolean value)
         throws IOException {
       throw new UnsupportedOperationException("Reading only adapter");
     }

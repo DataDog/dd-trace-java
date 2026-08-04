@@ -333,6 +333,26 @@ public class DDEvaluatorTest {
         equalTo(false));
   }
 
+  @Test
+  public void observeFullEvaluationDataNullConfigFieldTreatedAsFalse() {
+    // The field is boxed so Moshi tolerates a malformed consent value in the UFC JSON without
+    // aborting the whole parse. The evaluator must then interpret null as the privacy-preserving
+    // default. An auto-unbox at the read site (config.observeFullEvaluationData) would NPE here.
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("target", new Flag("target", true, ValueType.INTEGER, emptyMap(), emptyList()));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", null, null, flags));
+
+    final EvaluationContext ctx = new MutableContext("target").setTargetingKey("k");
+    final ProviderEvaluation<?> details = evaluator.evaluate(Integer.class, "target", 23, ctx);
+
+    // Flags still evaluate — availability preserved despite the malformed consent field.
+    assertThat(details.getReason(), equalTo("DEFAULT"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
   // Builds a flag that reaches resolveVariant: enabled, one allocation with no rules, one split
   // with empty shards (so the shard-match branch is skipped and the split is picked immediately),
   // and a single "on" variant whose value maps to the requested Integer type.

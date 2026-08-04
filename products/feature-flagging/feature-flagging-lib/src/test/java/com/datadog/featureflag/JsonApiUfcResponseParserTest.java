@@ -78,9 +78,12 @@ class JsonApiUfcResponseParserTest {
 
   @Test
   void observeFullEvaluationDataDefaultsToFalseWhenAbsent() throws Exception {
+    // Absent → Moshi leaves the boxed field null; the read site's Boolean.TRUE.equals(...) then
+    // resolves to the privacy-preserving default (consent-off). Either null-or-false is the
+    // documented invariant; assert the field never reads as true.
     final ServerConfiguration configuration = parse(wrap(emptyConfig()));
     assertNotNull(configuration);
-    assertFalse(configuration.observeFullEvaluationData);
+    assertFalse(Boolean.TRUE.equals(configuration.observeFullEvaluationData));
   }
 
   @ParameterizedTest
@@ -93,14 +96,44 @@ class JsonApiUfcResponseParserTest {
   }
 
   @Test
-  void observeFullEvaluationDataRejectsExplicitNull() {
-    // An explicit null for this boolean is malformed input. Parsing rejects the whole
-    // configuration, which is the fail-closed outcome we want: full evaluation data is never
-    // observed off the back of a malformed config. Callers (AgentlessConfigurationSource and the
-    // remote-config poller) swallow the failure and keep the last-known-good config, and the
-    // gateway defaults to the privacy-preserving behaviour when no valid config was dispatched.
-    // Servers send true/false or omit the field; null is not a value they emit.
-    assertThrows(Exception.class, () -> parse(wrap(configWithNullObserveFullEvaluationData())));
+  void observeFullEvaluationDataExplicitNullDefaultsToFalseWithoutRejectingConfig()
+      throws Exception {
+    // An explicit null (or a wrong-typed value) for this field must not abort the whole UFC parse.
+    // A pod that starts after a malformed UFC has no last-known-good, so aborting would strand
+    // every flag on PROVIDER_NOT_READY (its default value). We fail closed on privacy (consent
+    // stays false) but preserve availability: flags parse and evaluate.
+    final ServerConfiguration configuration =
+        parse(wrap(configWithRawObserveFullEvaluationData("null")));
+
+    assertNotNull(configuration);
+    assertFalse(
+        configuration.observeFullEvaluationData != null && configuration.observeFullEvaluationData);
+    assertNotNull(configuration.flags);
+  }
+
+  @Test
+  void observeFullEvaluationDataWrongTypedStringDefaultsToFalse() throws Exception {
+    // Moshi tolerates a stringified boolean like "true" via nullSafe/boxed handling: it either
+    // parses as null or throws locally and leaves the field null. Either way, downstream reads
+    // via Boolean.TRUE.equals(...) treat it as consent-off. The rest of the config must parse.
+    final ServerConfiguration configuration =
+        parse(wrap(configWithRawObserveFullEvaluationData("\"true\"")));
+
+    assertNotNull(configuration);
+    assertFalse(
+        configuration.observeFullEvaluationData != null && configuration.observeFullEvaluationData);
+    assertNotNull(configuration.flags);
+  }
+
+  @Test
+  void observeFullEvaluationDataWrongTypedNumberDefaultsToFalse() throws Exception {
+    final ServerConfiguration configuration =
+        parse(wrap(configWithRawObserveFullEvaluationData("1")));
+
+    assertNotNull(configuration);
+    assertFalse(
+        configuration.observeFullEvaluationData != null && configuration.observeFullEvaluationData);
+    assertNotNull(configuration.flags);
   }
 
   private static ServerConfiguration parse(final String json) throws Exception {
@@ -124,10 +157,15 @@ class JsonApiUfcResponseParserTest {
         + "}";
   }
 
-  private static String configWithNullObserveFullEvaluationData() {
+  private static String configWithRawObserveFullEvaluationData(final String rawJsonValue) {
+    // Emit the field with a caller-controlled raw JSON value (null / "true" / 1 / ...) so we can
+    // assert the parser's tolerance of malformed shapes without going through configWith's
+    // boolean-typed helper.
     return "{"
         + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-        + "\"observeFullEvaluationData\":null,"
+        + "\"observeFullEvaluationData\":"
+        + rawJsonValue
+        + ","
         + "\"environment\":{\"name\":\"Test\"},"
         + "\"flags\":{}"
         + "}";

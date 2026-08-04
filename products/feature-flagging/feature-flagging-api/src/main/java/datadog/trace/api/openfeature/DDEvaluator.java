@@ -112,7 +112,10 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     // ProviderEvaluation returned, so the hook's consent decision is pinned to this evaluation's
     // config and cannot drift on a concurrent Remote Config swap.
     final ServerConfiguration config = configuration.get();
-    final boolean observeFullEvaluationData = config != null && config.observeFullEvaluationData;
+    // Boolean.TRUE.equals covers both null (privacy-preserving default) and Boolean.FALSE without
+    // an NPE — the field is boxed so a malformed UFC message doesn't abort the whole parse.
+    final boolean observeFullEvaluationData =
+        config != null && Boolean.TRUE.equals(config.observeFullEvaluationData);
     try {
       if (config == null) {
         return error(defaultValue, ErrorCode.PROVIDER_NOT_READY, null, observeFullEvaluationData);
