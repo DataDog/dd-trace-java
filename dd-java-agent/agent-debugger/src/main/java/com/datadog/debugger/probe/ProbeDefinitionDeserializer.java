@@ -3,6 +3,7 @@ package com.datadog.debugger.probe;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.util.MoshiHelper;
 import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import okio.Okio;
@@ -29,8 +30,18 @@ public class ProbeDefinitionDeserializer {
     return deserialize(METRIC_PROBE_JSON_ADAPTER, content);
   }
 
+  public static MetricProbe deserializeMetricProbe(JsonReader reader) throws IOException {
+    return METRIC_PROBE_JSON_ADAPTER.fromJson(reader);
+  }
+
   public static LogProbe deserializeLogProbe(byte[] content) throws IOException {
     LogProbe logProbe = deserialize(LOG_PROBE_JSON_ADAPTER, content);
+    logProbe.initSamplers();
+    return logProbe;
+  }
+
+  public static LogProbe deserializeLogProbe(JsonReader reader) throws IOException {
+    LogProbe logProbe = LOG_PROBE_JSON_ADAPTER.fromJson(reader);
     logProbe.initSamplers();
     return logProbe;
   }
@@ -39,8 +50,18 @@ public class ProbeDefinitionDeserializer {
     return deserialize(SPAN_PROBE_JSON_ADAPTER, content);
   }
 
+  public static SpanProbe deserializeSpanProbe(JsonReader reader) throws IOException {
+    return SPAN_PROBE_JSON_ADAPTER.fromJson(reader);
+  }
+
   public static TriggerProbe deserializeTriggerProbe(byte[] content) throws IOException {
     TriggerProbe triggerProbe = deserialize(TRIGGER_PROBE_JSON_ADAPTER, content);
+    triggerProbe.initSamplers();
+    return triggerProbe;
+  }
+
+  public static TriggerProbe deserializeTriggerProbe(JsonReader jsonReader) throws IOException {
+    TriggerProbe triggerProbe = TRIGGER_PROBE_JSON_ADAPTER.fromJson(jsonReader);
     triggerProbe.initSamplers();
     return triggerProbe;
   }
@@ -49,6 +70,14 @@ public class ProbeDefinitionDeserializer {
       throws IOException {
     SpanDecorationProbe spanDecorationProbe =
         deserialize(SPAN_DECORATION_PROBE_JSON_ADAPTER, content);
+    spanDecorationProbe.initSamplers();
+    return spanDecorationProbe;
+  }
+
+  public static SpanDecorationProbe deserializeSpanDecorationProbe(JsonReader jsonReader)
+      throws IOException {
+    SpanDecorationProbe spanDecorationProbe =
+        SPAN_DECORATION_PROBE_JSON_ADAPTER.fromJson(jsonReader);
     spanDecorationProbe.initSamplers();
     return spanDecorationProbe;
   }

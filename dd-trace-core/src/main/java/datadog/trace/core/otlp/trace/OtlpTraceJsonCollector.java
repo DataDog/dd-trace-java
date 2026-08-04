@@ -68,7 +68,7 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
 
   @Override
   public int sizeInBytes() {
-    return writer == null ? 0 : writer.sizeInBytes();
+    return writer == null ? 0 : writer.size();
   }
 
   /**
@@ -129,17 +129,18 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
   }
 
   private void visitSpan(CoreSpan<?> span) {
-    if (shouldExport(span)) {
-      if (currentSpan != null) {
-        // ensure last span written at trace boundary includes sampling tags
-        if (!span.getTraceId().equals(currentSpan.getTraceId())) {
-          metaWriter.includeSamplingTags();
-        }
-        completeSpan();
-      }
-      currentSpan = (DDSpan) span;
-      currentSpanLinks = currentSpan.getLinks();
+    if (!shouldExport(span)) {
+      return;
     }
+    if (currentSpan != null) {
+      // ensure last span written at trace boundary includes sampling tags
+      if (!span.getTraceId().equals(currentSpan.getTraceId())) {
+        metaWriter.includeSamplingTags();
+      }
+      completeSpan();
+    }
+    currentSpan = (DDSpan) span;
+    currentSpanLinks = currentSpan.getLinks();
   }
 
   // called once we've processed all scopes and span messages
@@ -191,7 +192,7 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     currentSpan = null;
     currentSpanLinks = Collections.emptyList();
 
-    if (writer.sizeInBytes() > MAX_CAPACITY_BYTES) {
+    if (writer.size() > MAX_CAPACITY_BYTES) {
       throw new IllegalStateException(
           "OTLP payload exceeds maximum buffer size of " + MAX_CAPACITY_BYTES + " bytes");
     }

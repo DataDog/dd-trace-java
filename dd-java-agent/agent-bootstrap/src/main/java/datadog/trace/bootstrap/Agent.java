@@ -233,6 +233,8 @@ public class Agent {
 
     createAgentClassloader(agentJarURL);
 
+    AgentTracer.maybeInstallLegacyContextManager();
+
     if (Platform.isNativeImageBuilder()) {
       // these default services are not used during native-image builds
       remoteConfigEnabled = false;
@@ -336,8 +338,6 @@ public class Agent {
       startCrashTracking();
       StaticEventLogger.end("crashtracking");
     }
-
-    AgentTracer.maybeInstallLegacyContextManager();
 
     startDatadogAgent(initTelemetry, inst);
 
@@ -523,9 +523,6 @@ public class Agent {
 
     if (profilingEnabled) {
       shutdownProfilingAgent(sync);
-    }
-    if (featureFlaggingEnabled) {
-      shutdownFeatureFlagging();
     }
     if (telemetryEnabled) {
       stopTelemetry();
@@ -1338,22 +1335,6 @@ public class Agent {
       shutdownMethod.invoke(null);
     } catch (final Throwable ex) {
       log.error("Throwable thrown while shutting down logs intake", ex);
-    }
-  }
-
-  private static void shutdownFeatureFlagging() {
-    if (AGENT_CLASSLOADER == null) {
-      // It wasn't started, so no need to shut it down
-      return;
-    }
-    try {
-      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
-      final Class<?> ffSysClass =
-          AGENT_CLASSLOADER.loadClass("com.datadog.featureflag.FeatureFlaggingSystem");
-      final Method shutdownMethod = ffSysClass.getMethod("shutdown");
-      shutdownMethod.invoke(null);
-    } catch (final Throwable ex) {
-      log.error("Throwable thrown while shutting down Feature Flagging", ex);
     }
   }
 

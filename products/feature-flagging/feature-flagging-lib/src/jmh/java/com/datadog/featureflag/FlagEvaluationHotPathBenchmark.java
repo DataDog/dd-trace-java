@@ -23,12 +23,17 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Hot-path benchmark for EVP {@code flagevaluation} recording.
+ * Writer-side benchmark for EVP {@code flagevaluation} recording: the bounded-queue enqueue and the
+ * worker-thread aggregation of already-captured events.
  *
- * <p>The OpenFeature {@code finally} hook runs synchronously on the caller's evaluation thread. The
- * evaluation thread should only pay for scalar capture, lazy context supplier capture, and the
- * non-blocking writer enqueue. Recursive context flattening, pruning, canonical-key construction,
- * and aggregation are characterized separately as worker-thread cost.
+ * <p><strong>Scope limitation:</strong> this benchmark starts from a pre-built {@link
+ * FlagEvalEvent} whose attribute supplier returns a ready-made flat map. It therefore does NOT
+ * cover the OpenFeature hook's own inline capture cost - in particular the recursive
+ * evaluation-context deep copy that {@code FlagEvalLoggingHook.finallyAfter} performs synchronously
+ * on the evaluation thread. That cost scales with context size and nesting depth and is not
+ * measured here or anywhere else; the hook and the OpenFeature context types live in {@code
+ * feature-flagging-api}, which has no benchmark source set. Do not read {@link #writerEnqueue} as
+ * the total per-evaluation cost paid by the caller.
  *
  * <p>Run: {@code ./gradlew :products:feature-flagging:feature-flagging-lib:jmh
  * -PjmhIncludes=FlagEvaluationHotPathBenchmark}.
@@ -77,9 +82,12 @@ public class FlagEvaluationHotPathBenchmark {
     writer = new FlagEvaluationWriterImpl(1 << 20, Long.MAX_VALUE, NANOSECONDS, factory, config);
   }
 
-  /** Evaluation-thread cost: lazy capture snapshot plus non-blocking enqueue. */
+  /**
+   * Queue-mechanics cost only: event allocation plus the non-blocking bounded-queue offer. Excludes
+   * the hook's inline context snapshot - see the class javadoc.
+   */
   @Benchmark
-  public void evalThreadCapture(final Blackhole blackhole) {
+  public void writerEnqueue(final Blackhole blackhole) {
     final FlagEvalEvent event = nextLazyEvent();
     writer.enqueue(event);
     blackhole.consume(writer.pollQueuedEventForTest());

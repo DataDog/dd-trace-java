@@ -185,10 +185,6 @@ public class FeatureFlaggingSystem {
     LOGGER.debug("Feature Flagging system stopped");
   }
 
-  public static void shutdown() {
-    stop();
-  }
-
   static boolean isAwaitingApplicationActivation() {
     return ACTIVATION_LISTENER != null;
   }

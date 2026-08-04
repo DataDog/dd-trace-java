@@ -51,8 +51,13 @@ import org.slf4j.LoggerFactory;
  *   <li>Queue: bounded MessagePassingBlockingQueue (capacity 2^16), non-blocking offer; on overflow
  *       the event is dropped and the {@code droppedQueueOverflow} counter is incremented and
  *       surfaced on flush.
+ *   <li>Enqueue: lock-free. Producers contend only on the MPSC queue, never on a monitor, so
+ *       evaluation threads do not serialize against each other.
  *   <li>Shutdown: {@link #close()} drains the queue and performs a final flush before the worker
- *       thread exits.
+ *       thread exits. Because enqueue is lock-free, a producer can still offer during shutdown; the
+ *       worker makes {@link #SHUTDOWN_DRAIN_PASSES} drain passes and {@code close()} sweeps once
+ *       the worker has been joined, counting any remainder as a {@code closed} drop so shutdown
+ *       loss is observable rather than silent.
  * </ul>
  */
 public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
@@ -61,6 +66,12 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
   static final int DEFAULT_CAPACITY = 1 << 16; // 65536 elements
   static final int FLUSH_INTERVAL_SECONDS = 10;
+
+  /**
+   * Drain passes the worker makes on shutdown, to catch offers from lock-free producers in flight.
+   */
+  static final int SHUTDOWN_DRAIN_PASSES = 3;
+
   static final int EVAL_SCALE_FULL_BUCKET_TARGET =
       FlagEvaluationAggregator.EVAL_SCALE_FULL_BUCKET_TARGET;
   static final int EVAL_SCALE_PER_FLAG_BUCKET_TARGET =
@@ -169,6 +180,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
   @Override
   public void close() {
+    final boolean workerRunning;
     synchronized (lifecycleLock) {
       if (!closed.compareAndSet(false, true)) {
         return;
@@ -176,22 +188,44 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       // Disable and deregister from the gateway so no new events are enqueued.
       FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
       FeatureFlaggingGateway.setFlagEvalWriter(null);
-      if (!this.serializerThread.isAlive()) {
-        return;
+      workerRunning = this.serializerThread.isAlive();
+      if (workerRunning) {
+        // Ask the worker to drain the queue and final-flush, then interrupt to wake it from poll().
+        serializer.requestShutdown();
+        this.serializerThread.interrupt();
       }
-      // Ask the worker to drain the queue and final-flush, then interrupt to wake it from poll().
-      serializer.requestShutdown();
-      this.serializerThread.interrupt();
     }
     if (Thread.currentThread() == this.serializerThread) {
       return;
     }
-    try {
-      // Bounded wait for the worker's final flush so queued events are not lost on shutdown.
-      this.serializerThread.join(TimeUnit.SECONDS.toMillis(5));
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
+    if (workerRunning) {
+      try {
+        // Bounded wait for the worker's final flush so queued events are not lost on shutdown.
+        this.serializerThread.join(TimeUnit.SECONDS.toMillis(5));
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
     }
+    // enqueue() is lock-free, so a producer that passed the closed check before close() ran can
+    // still land an event after the worker's final drain. Sweep the remainder so that loss is
+    // counted rather than silently stranded in a queue nobody polls again. Only safe once the
+    // worker is gone: the queue is single-consumer, so sweeping alongside a live worker would
+    // break that contract. If join() timed out the worker is still draining, so skip the sweep.
+    if (!this.serializerThread.isAlive()) {
+      sweepAndCountResidualEvents();
+    }
+  }
+
+  /**
+   * Counts events left in the queue after the worker has exited. Must only be called when the
+   * serializer thread is not alive - the queue permits a single consumer.
+   */
+  private void sweepAndCountResidualEvents() {
+    long residual = 0;
+    while (queue.poll() != null) {
+      residual++;
+    }
+    countMetric(FLAG_EVALUATION_DROPPED_METRIC, residual, DROP_REASON_CLOSED);
   }
 
   @Override
@@ -203,16 +237,19 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       countClosedDropIfClosed();
       return;
     }
-    synchronized (lifecycleLock) {
-      if (isClosedOrEnqueueDisabled()) {
-        countClosedDropIfClosed();
-        return;
-      }
-      // Non-blocking offer. Count overflow so loss is observable rather than silent; the count is
-      // surfaced on the next flush.
-      if (!queue.offer(event)) {
-        droppedQueueOverflow.incrementAndGet();
-      }
+    // Deliberately lock-free: the hand-off queue is MPSC by design, so serializing producers on a
+    // monitor here would negate that and turn every evaluation in every application thread into
+    // contention on one lock. A producer that passed the check above can still offer after close()
+    // has started; that residue is accounted for by the worker's bounded post-drain passes and by
+    // close()'s post-join sweep, so shutdown loss stays observable.
+    //
+    // Safe publication of the event (including the context snapshot built by the hook) comes from
+    // the queue's own offer/poll ordering, not from any monitor held here.
+    //
+    // Non-blocking offer. Count overflow so loss is observable rather than silent; the count is
+    // surfaced on the next flush.
+    if (!queue.offer(event)) {
+      droppedQueueOverflow.incrementAndGet();
     }
   }
 
@@ -369,11 +406,25 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       }
     }
 
-    /** Drains all remaining queued events and performs a final flush. Used on shutdown. */
+    /**
+     * Drains all remaining queued events and performs a final flush. Used on shutdown.
+     *
+     * <p>{@code enqueue()} is lock-free, so a producer that had already passed the closed check
+     * when {@code close()} ran can still offer after the first pass empties the queue. A bounded
+     * number of extra passes, with a yield between them, catches those in-flight offers. On the
+     * normal shutdown path {@code close()} also sweeps after joining this thread, but when the
+     * worker closes itself through the error callback nobody joins it, so these passes are the only
+     * sweep.
+     */
     void drainAndFlush() {
-      FlagEvalEvent event;
-      while ((event = queue.poll()) != null) {
-        aggregateEvent(event);
+      for (int pass = 0; pass < SHUTDOWN_DRAIN_PASSES; pass++) {
+        FlagEvalEvent event;
+        while ((event = queue.poll()) != null) {
+          aggregateEvent(event);
+        }
+        if (pass < SHUTDOWN_DRAIN_PASSES - 1) {
+          Thread.yield();
+        }
       }
       flush();
     }

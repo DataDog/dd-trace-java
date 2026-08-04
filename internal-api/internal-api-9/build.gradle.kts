@@ -1,17 +1,16 @@
 import groovy.lang.Closure
-import java.nio.file.Paths
 
 plugins {
   `java-library`
   id("de.thetaphi.forbiddenapis") version "3.10"
-  id("me.champeau.jmh")
+  id("dd-trace-java.jmh-conventions")
   idea
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
 
-extensions.getByName("tracerJava").withGroovyBuilder {
-  invokeMethod("addSourceSetFor", JavaVersion.VERSION_17)
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
 }
 
 java {
@@ -53,7 +52,4 @@ idea {
 jmh {
   jmhVersion = libs.versions.jmh
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-  jvm = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(11) }.map {
-    it.executablePath.asFile.toString()
-  }
 }
