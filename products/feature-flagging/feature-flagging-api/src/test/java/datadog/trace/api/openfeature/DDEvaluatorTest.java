@@ -32,7 +32,9 @@ import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Split;
 import datadog.trace.api.featureflag.ufc.v1.ValueType;
+import datadog.trace.api.featureflag.ufc.v1.Variant;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.MutableContext;
@@ -222,13 +224,93 @@ public class DDEvaluatorTest {
 
   // ---- observeFullEvaluationData metadata is stamped from the evaluator's ServerConfiguration
   // ----
+  //
+  // Every code path that returns a ProviderEvaluation must stamp the consent boolean so downstream
+  // hooks can honour it. These tests exercise each stamp site with both consent values (on/off) so
+  // a mutation to any stamp — deleting the line, hardcoding the value — flips at least one
+  // assertion.
+
+  // -- success path: resolveVariant (variant metadata builder) --
 
   @Test
-  public void observeFullEvaluationDataStampedFromEvaluatorConfigOnSuccess() {
-    final Map<String, Flag> flags = new HashMap<>();
-    flags.put("null-allocation", new Flag("target", true, null, null, null));
+  public void observeFullEvaluationDataStampedTrueOnResolvedVariant() {
+    final ProviderEvaluation<?> details = evaluateMatchingFlag(true);
+
+    assertThat(details.getReason(), equalTo("STATIC"));
+    assertThat(details.getVariant(), equalTo("on"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(true));
+  }
+
+  @Test
+  public void observeFullEvaluationDataStampedFalseOnResolvedVariant() {
+    // Symmetric consent-off assertion. Paired with the consent-on test above this pins the
+    // resolveVariant metadata line (DDEvaluator.java: METADATA_OBSERVE_FULL_EVALUATION_DATA) so
+    // deleting it or hardcoding either value would fail at least one assertion.
+    final ProviderEvaluation<?> details = evaluateMatchingFlag(false);
+
+    assertThat(details.getReason(), equalTo("STATIC"));
+    assertThat(details.getVariant(), equalTo("on"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
+  // -- DISABLED path: flag.enabled=false --
+
+  @Test
+  public void observeFullEvaluationDataStampedTrueOnDisabledFlag() {
+    final ProviderEvaluation<?> details = evaluateDisabledFlag(true);
+
+    assertThat(details.getReason(), equalTo("DISABLED"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(true));
+  }
+
+  @Test
+  public void observeFullEvaluationDataStampedFalseOnDisabledFlag() {
+    final ProviderEvaluation<?> details = evaluateDisabledFlag(false);
+
+    assertThat(details.getReason(), equalTo("DISABLED"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
+  // -- DEFAULT path: no allocation matches --
+
+  @Test
+  public void observeFullEvaluationDataStampedTrueOnDefault() {
+    // Allocation exists but has empty splits, so the loop finishes without returning and we fall
+    // through to the DEFAULT branch.
+    final ProviderEvaluation<?> details = evaluateWithEmptySplits(true);
+
+    assertThat(details.getReason(), equalTo("DEFAULT"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(true));
+  }
+
+  @Test
+  public void observeFullEvaluationDataStampedFalseOnDefault() {
+    final ProviderEvaluation<?> details = evaluateWithEmptySplits(false);
+
+    assertThat(details.getReason(), equalTo("DEFAULT"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
+  // -- error paths: FLAG_NOT_FOUND / PROVIDER_NOT_READY (via consentMetadata in error()) --
+
+  @Test
+  public void observeFullEvaluationDataStampedOnFlagNotFoundError() {
+    // Was previously named "…OnSuccess" but actually exercises the error() helper's stamp via
+    // FLAG_NOT_FOUND — kept for that stamp site, correctly named.
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", true, null, flags));
+    evaluator.accept(new ServerConfiguration("", "", true, null, new HashMap<>()));
 
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("k");
     final ProviderEvaluation<?> details =
@@ -249,6 +331,49 @@ public class DDEvaluatorTest {
     assertThat(
         details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
         equalTo(false));
+  }
+
+  // Builds a flag that reaches resolveVariant: enabled, one allocation with no rules, one split
+  // with empty shards (so the shard-match branch is skipped and the split is picked immediately),
+  // and a single "on" variant whose value maps to the requested Integer type.
+  private static ProviderEvaluation<?> evaluateMatchingFlag(
+      final boolean observeFullEvaluationData) {
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", 1));
+    final Split split = new Split(emptyList(), "on", emptyMap(), null);
+    final Allocation allocation =
+        new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.FALSE);
+    return evaluateFlag(
+        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)),
+        observeFullEvaluationData);
+  }
+
+  private static ProviderEvaluation<?> evaluateDisabledFlag(
+      final boolean observeFullEvaluationData) {
+    return evaluateFlag(
+        new Flag("target", false, ValueType.INTEGER, emptyMap(), null), observeFullEvaluationData);
+  }
+
+  private static ProviderEvaluation<?> evaluateWithEmptySplits(
+      final boolean observeFullEvaluationData) {
+    // Enabled, allocations present, allocation active, no rules, empty splits → falls through the
+    // for-loop to the DEFAULT return.
+    final Allocation allocation =
+        new Allocation("alloc-1", null, null, null, emptyList(), Boolean.FALSE);
+    return evaluateFlag(
+        new Flag("target", true, ValueType.INTEGER, emptyMap(), singletonList(allocation)),
+        observeFullEvaluationData);
+  }
+
+  private static ProviderEvaluation<?> evaluateFlag(
+      final Flag flag, final boolean observeFullEvaluationData) {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("target", flag);
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", observeFullEvaluationData, null, flags));
+
+    final EvaluationContext ctx = new MutableContext("target").setTargetingKey("user-1");
+    return evaluator.evaluate(Integer.class, "target", 23, ctx);
   }
 
   // ---- error message redaction respects observeFullEvaluationData ----
