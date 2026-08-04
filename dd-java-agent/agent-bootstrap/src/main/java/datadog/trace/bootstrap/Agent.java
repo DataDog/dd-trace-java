@@ -233,6 +233,8 @@ public class Agent {
 
     createAgentClassloader(agentJarURL);
 
+    AgentTracer.maybeInstallLegacyContextManager();
+
     if (Platform.isNativeImageBuilder()) {
       // these default services are not used during native-image builds
       remoteConfigEnabled = false;
@@ -336,8 +338,6 @@ public class Agent {
       startCrashTracking();
       StaticEventLogger.end("crashtracking");
     }
-
-    AgentTracer.maybeInstallLegacyContextManager();
 
     startDatadogAgent(initTelemetry, inst);
 

@@ -713,6 +713,14 @@
         "aliases": []
       }
     ],
+    "DD_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_CIVISIBILITY_GRADLE_SOURCESETS": [
       {
         "version": "A",
@@ -3945,6 +3953,14 @@
         "aliases": []
       }
     ],
+    "DD_SPRING_SCHEDULING_MEASURED_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_STACK_TRACE_LENGTH_LIMIT": [
       {
         "version": "A",
@@ -4110,6 +4126,14 @@
         "version": "A",
         "type": "decimal",
         "default": "10.0",
+        "aliases": []
+      }
+    ],
+    "DD_TEST_AGENT_SESSION_TOKEN": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
         "aliases": []
       }
     ],

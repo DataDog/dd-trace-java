@@ -35,6 +35,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_REMOTE_N
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UNSHALLOW_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_RESOURCE_FOLDER_NAMES;
@@ -279,6 +280,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHA
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UNSHALLOW_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GIT_UPLOAD_TIMEOUT_MILLIS;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_GRADLE_SOURCE_SETS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_IMPACTED_TESTS_DETECTION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_INJECTED_TRACER_VERSION;
@@ -628,6 +630,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ROOT_C
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_APP_NAME_AS_SERVICE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPARK_TASK_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_SCHEDULING_MEASURED_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.SQS_BODY_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING;
@@ -671,6 +674,7 @@ import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
+import static datadog.trace.api.config.TracerConfig.TEST_AGENT_SESSION_TOKEN;
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
@@ -737,6 +741,7 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.isSupportedConfigurationSource;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfiguration;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
@@ -1162,6 +1167,7 @@ public class Config {
   private final boolean ciVisibilityAutoConfigurationEnabled;
   private final String ciVisibilityAdditionalChildProcessJvmArgs;
   private final boolean ciVisibilityCompilerPluginAutoConfigurationEnabled;
+  private final boolean ciVisibilityGradleDependencyVerificationEnabled;
   private final boolean ciVisibilityCodeCoverageEnabled;
   private final Boolean ciVisibilityCoverageLinesEnabled;
   private final String ciVisibilityCodeCoverageReportDumpDir;
@@ -1310,6 +1316,8 @@ public class Config {
   private final boolean hystrixTagsEnabled;
   private final boolean hystrixMeasuredEnabled;
 
+  private final boolean springSchedulingMeasuredEnabled;
+
   private final boolean resilience4jMeasuredEnabled;
   private final boolean resilience4jTagMetricsEnabled;
 
@@ -1383,6 +1391,7 @@ public class Config {
   private final boolean azureFunctions;
   private final boolean awsServerless;
   private final String traceAgentPath;
+  private final String testAgentSessionToken;
   private final List<String> traceAgentArgs;
   private final String dogStatsDPath;
   private final List<String> dogStatsDArgs;
@@ -2728,6 +2737,10 @@ public class Config {
         configProvider.getBoolean(
             CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED,
             DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED);
+    ciVisibilityGradleDependencyVerificationEnabled =
+        configProvider.getBoolean(
+            CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED,
+            DEFAULT_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED);
     ciVisibilityCodeCoverageEnabled =
         configProvider.getBoolean(CIVISIBILITY_CODE_COVERAGE_ENABLED, true);
     ciVisibilityCoverageLinesEnabled =
@@ -3126,6 +3139,9 @@ public class Config {
     hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
     hystrixMeasuredEnabled = configProvider.getBoolean(HYSTRIX_MEASURED_ENABLED, false);
 
+    springSchedulingMeasuredEnabled =
+        configProvider.getBoolean(SPRING_SCHEDULING_MEASURED_ENABLED, false);
+
     resilience4jMeasuredEnabled = configProvider.getBoolean(RESILIENCE4J_MEASURED_ENABLED, false);
     resilience4jTagMetricsEnabled =
         configProvider.getBoolean(RESILIENCE4J_TAG_METRICS_ENABLED, false);
@@ -3186,6 +3202,7 @@ public class Config {
 
     azureAppServices = configProvider.getBoolean(AZURE_APP_SERVICES, false);
     traceAgentPath = configProvider.getString(TRACE_AGENT_PATH);
+    testAgentSessionToken = configProvider.getString(TEST_AGENT_SESSION_TOKEN);
     String traceAgentArgsString = configProvider.getString(TRACE_AGENT_ARGS);
     if (traceAgentArgsString == null) {
       traceAgentArgs = Collections.emptyList();
@@ -4565,6 +4582,10 @@ public class Config {
     return ciVisibilityJacocoGradleSourceSets;
   }
 
+  public boolean isCiVisibilityGradleDependencyVerificationEnabled() {
+    return ciVisibilityGradleDependencyVerificationEnabled;
+  }
+
   public boolean isCiVisibilityCodeCoverageReportUploadEnabled() {
     return ciVisibilityCodeCoverageReportUploadEnabled;
   }
@@ -5067,6 +5088,10 @@ public class Config {
     return resilience4jMeasuredEnabled;
   }
 
+  public boolean isSpringSchedulingMeasuredEnabled() {
+    return springSchedulingMeasuredEnabled;
+  }
+
   public boolean isResilience4jTagMetricsEnabled() {
     return resilience4jTagMetricsEnabled;
   }
@@ -5163,6 +5188,10 @@ public class Config {
 
   public String getTraceAgentPath() {
     return traceAgentPath;
+  }
+
+  public String getTestAgentSessionToken() {
+    return testAgentSessionToken;
   }
 
   public List<String> getTraceAgentArgs() {
@@ -5719,6 +5748,10 @@ public class Config {
     return "otlp".equalsIgnoreCase(logsOtelExporter);
   }
 
+  public boolean isOtlpLogsExportEnabled() {
+    return isLogsOtelEnabled() && isLogsOtlpExporterEnabled();
+  }
+
   public int getLogsOtelInterval() {
     return logsOtelInterval;
   }
@@ -5761,6 +5794,11 @@ public class Config {
 
   public boolean isMetricsOtlpExporterEnabled() {
     return "otlp".equalsIgnoreCase(metricsOtelExporter);
+  }
+
+  public boolean isOtlpMetricsExportEnabled() {
+    return (isMetricsOtelEnabled() && isMetricsOtlpExporterEnabled())
+        || isOtelTracesSpanMetricsEnabled();
   }
 
   public boolean isMetricsOtelExperimentalEnabled() {
@@ -5817,6 +5855,19 @@ public class Config {
 
   public boolean isTraceOtlpExporterEnabled() {
     return "otlp".equalsIgnoreCase(traceOtelExporter);
+  }
+
+  public boolean isOtlpTracesExportEnabled() {
+    if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
+      return OTLP_WRITER_TYPE.equals(writerType);
+    }
+    String multiWriterConfig = writerType.substring(MULTI_WRITER_TYPE.length() + 1);
+    for (CharSequence subWriterType : Strings.split(multiWriterConfig, ',')) {
+      if (OTLP_WRITER_TYPE.contentEquals(subWriterType)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public String getOtlpTracesEndpoint() {
@@ -6770,6 +6821,8 @@ public class Config {
         + hystrixTagsEnabled
         + ", hystrixMeasuredEnabled="
         + hystrixMeasuredEnabled
+        + ", springSchedulingMeasuredEnabled="
+        + springSchedulingMeasuredEnabled
         + ", resilience4jMeasuredEnable="
         + resilience4jMeasuredEnabled
         + ", resilience4jTagMetricsEnabled="
@@ -6974,6 +7027,8 @@ public class Config {
         + otlpTracesCompression
         + ", otlpTracesTimeout="
         + otlpTracesTimeout
+        + ", ciVisibilityGradleDependencyVerificationEnabled="
+        + ciVisibilityGradleDependencyVerificationEnabled
         + ", serviceDiscoveryEnabled="
         + serviceDiscoveryEnabled
         + ", sfnInjectDatadogAttributeEnabled="
