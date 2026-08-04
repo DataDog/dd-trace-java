@@ -51,6 +51,16 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
 
+  /**
+   * Maximum evaluation-context nesting depth captured by {@link #snapshotValues}. The snapshot
+   * recurses on the caller's evaluation thread over a caller-owned {@link Value} tree, so an
+   * arbitrarily deep list/structure would overflow that thread's stack - and a {@code
+   * StackOverflowError} is not caught by the {@code LinkageError | Exception} guards that keep
+   * telemetry from breaking an evaluation. Values below the limit are truncated to null, the same
+   * way the cycle guard truncates. No realistic evaluation context nests this deeply.
+   */
+  static final int MAX_SNAPSHOT_DEPTH = 32;
+
   // Evaluation-metadata keys consumed by the span-enrichment capture hook (see
   // SpanEnrichmentHook). Emitted only when the span-enrichment gate is on.
   static final String METADATA_SPLIT_SERIAL_ID = "__dd_split_serial_id";
@@ -538,12 +548,13 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     final HashMap<String, Value> values = new HashMap<>();
     final Set<Object> seenContainers = Collections.newSetFromMap(new IdentityHashMap<>());
     for (final String key : context.keySet()) {
-      values.put(key, snapshotValue(context.getValue(key), seenContainers));
+      values.put(key, snapshotValue(context.getValue(key), seenContainers, 0));
     }
     return values;
   }
 
-  private static Value snapshotValue(final Value value, final Set<Object> seenContainers) {
+  private static Value snapshotValue(
+      final Value value, final Set<Object> seenContainers, final int depth) {
     if (value == null) {
       return null;
     } else if (value.isNull()) {
@@ -561,23 +572,23 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       return new Value(value.asInstant());
     } else if (value.isList()) {
       final List<Value> list = value.asList();
-      if (!seenContainers.add(list)) {
+      if (depth >= MAX_SNAPSHOT_DEPTH || !seenContainers.add(list)) {
         return new Value();
       }
       final List<Value> snapshot = new ArrayList<>(list.size());
       for (final Value item : list) {
-        snapshot.add(snapshotValue(item, seenContainers));
+        snapshot.add(snapshotValue(item, seenContainers, depth + 1));
       }
       seenContainers.remove(list);
       return new Value(Collections.unmodifiableList(snapshot));
     } else if (value.isStructure()) {
       final Structure structure = value.asStructure();
-      if (!seenContainers.add(structure)) {
+      if (depth >= MAX_SNAPSHOT_DEPTH || !seenContainers.add(structure)) {
         return new Value();
       }
       final Map<String, Value> snapshot = new HashMap<>();
       for (final String key : structure.keySet()) {
-        snapshot.put(key, snapshotValue(structure.getValue(key), seenContainers));
+        snapshot.put(key, snapshotValue(structure.getValue(key), seenContainers, depth + 1));
       }
       seenContainers.remove(structure);
       return new Value(new ImmutableStructure(snapshot));

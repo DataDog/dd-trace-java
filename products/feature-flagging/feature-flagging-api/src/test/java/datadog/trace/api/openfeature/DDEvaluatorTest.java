@@ -251,6 +251,24 @@ public class DDEvaluatorTest {
   }
 
   @Test
+  public void testDeeplyNestedContextIsTruncatedRatherThanOverflowingTheStack() {
+    Value nested = new Value("leaf");
+    for (int i = 0; i < 10_000; i++) {
+      nested = new Value(singletonList(nested));
+    }
+    final EvaluationContext context = new MutableContext().add("deep", singletonList(nested));
+
+    final Map<String, Object> result = DDEvaluator.flattenContext(context);
+
+    final StringBuilder truncatedKey = new StringBuilder("deep");
+    for (int i = 0; i < DDEvaluator.MAX_SNAPSHOT_DEPTH; i++) {
+      truncatedKey.append("[0]");
+    }
+    assertThat(result.size(), equalTo(1));
+    assertThat(result, hasEntry(truncatedKey.toString(), null));
+  }
+
+  @Test
   public void testCanonicalFixturesArePresent() throws IOException {
     assertThat(canonicalTestCases().size(), greaterThan(0));
   }
