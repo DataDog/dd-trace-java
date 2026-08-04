@@ -3201,22 +3201,6 @@
         "aliases": []
       }
     ],
-    "DD_PROFILING_EXPERIMENTAL_ASYNC_NATIVEMEM_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
-        "aliases": []
-      }
-    ],
-    "DD_PROFILING_EXPERIMENTAL_ASYNC_NATIVEMEM_INTERVAL": [
-      {
-        "version": "A",
-        "type": "int",
-        "default": "524288",
-        "aliases": []
-      }
-    ],
     "DD_PROFILING_EXPERIMENTAL_ASYNC_SCHEDULING_EVENT": [
       {
         "version": "A",
