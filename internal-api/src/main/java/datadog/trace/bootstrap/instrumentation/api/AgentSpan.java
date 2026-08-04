@@ -218,6 +218,46 @@ public interface AgentSpan
 
   boolean isOutbound();
 
+  /**
+   * Applies a {@link SpanPrototype} as fallback defaults: stamps its span type, constant tags, and
+   * integration name only where this span has not already set them. Prototype values are the lowest
+   * precedence -- anything explicitly set wins -- so {@code apply} never clobbers, is
+   * order-independent, and self-neutralizes once construction has already seeded the same
+   * prototype.
+   *
+   * <p>This is the single seam through which a prototype's constant initial state is applied,
+   * shared by the construction path (buildSpan/startSpan) and decorator {@code afterStart}. Core
+   * spans override to route straight to the context, which owns the tag map and will host the
+   * eventual fast path (bulk share / identity short-circuit); this default is the best-effort
+   * fallback for other span implementations.
+   */
+  default void apply(@Nonnull final SpanPrototype prototype) {
+    if (getSpanType() == null) {
+      final CharSequence spanType = prototype.spanType();
+      if (spanType != null) {
+        setSpanType(spanType);
+      }
+    }
+
+    // Prototype tags are fallback defaults: only fill keys this span has not already set.
+    prototype
+        .tags()
+        .forEach(
+            (tag, value) -> {
+              if (getTag(tag) == null) {
+                setTag(tag, value);
+              }
+            });
+
+    // Never-clobber: only stamp the integration name when the context reports none.
+    if (spanContext().getIntegrationName() == null) {
+      final CharSequence integrationName = prototype.integrationName();
+      if (integrationName != null) {
+        spanContext().setIntegrationName(integrationName);
+      }
+    }
+  }
+
   default AgentSpan asAgentSpan() {
     return this;
   }
