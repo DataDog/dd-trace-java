@@ -48,6 +48,8 @@ jobs:
   trivy:
     name: Analyze changes with Trivy
     runs-on: ubuntu-latest
+    environment:
+      name: protected-main-env
     permissions:
       actions: read
       contents: read
