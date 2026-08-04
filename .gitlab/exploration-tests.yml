@@ -19,7 +19,7 @@ build-exploration-tests-image:
       --push 
       --metadata-file ${METADATA_FILE}
       dd-java-agent/agent-debugger/exploration-tests
-    - ddsign $EXPLORATION_TESTS_IMAGE --docker-metadata-file ${METADATA_FILE}
+    - ddsign sign $EXPLORATION_TESTS_IMAGE --docker-metadata-file ${METADATA_FILE}
 
 .common-exploration-tests: &common-exploration-tests
   rules:
