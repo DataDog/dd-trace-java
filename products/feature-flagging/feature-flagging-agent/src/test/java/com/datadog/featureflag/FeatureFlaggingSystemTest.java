@@ -117,10 +117,10 @@ class FeatureFlaggingSystemTest {
     assertTrue(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
     assertNotNull(FeatureFlaggingGateway.getFlagEvalWriter());
 
-    FeatureFlaggingSystem.shutdown();
+    FeatureFlaggingSystem.stop();
     assertFalse(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
     assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
-    // stop() is idempotent: a second call after shutdown must be a safe no-op.
+    // stop() is idempotent: a second call must be a safe no-op.
     FeatureFlaggingSystem.stop();
 
     verify(poller).removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
@@ -147,7 +147,7 @@ class FeatureFlaggingSystemTest {
       assertFalse(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
       assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
     } finally {
-      FeatureFlaggingSystem.shutdown();
+      FeatureFlaggingSystem.stop();
     }
   }
 
@@ -156,7 +156,7 @@ class FeatureFlaggingSystemTest {
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
     FeatureFlaggingGateway.setFlagEvalWriter(mock(FlagEvaluationWriter.class));
 
-    FeatureFlaggingSystem.shutdown();
+    FeatureFlaggingSystem.stop();
 
     assertFalse(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
     assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
@@ -173,7 +173,7 @@ class FeatureFlaggingSystemTest {
           IllegalStateException.class,
           () -> FeatureFlaggingSystem.start(sharedCommunicationObjects));
     } finally {
-      FeatureFlaggingSystem.shutdown();
+      FeatureFlaggingSystem.stop();
     }
   }
 
@@ -206,7 +206,7 @@ class FeatureFlaggingSystemTest {
       assertTrue(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
       assertNotNull(FeatureFlaggingGateway.getFlagEvalWriter());
     } finally {
-      FeatureFlaggingSystem.shutdown();
+      FeatureFlaggingSystem.stop();
     }
   }
 
