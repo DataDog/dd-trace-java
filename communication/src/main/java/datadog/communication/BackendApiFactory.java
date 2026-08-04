@@ -24,11 +24,10 @@ public class BackendApiFactory {
   }
 
   public @Nullable BackendApi createBackendApi(Intake intake) {
-    return createBackendApi(intake, null, true);
+    return createBackendApi(intake, true);
   }
 
-  public @Nullable BackendApi createBackendApi(
-      Intake intake, @Nullable String preferredEvpProxyEndpoint, boolean responseCompression) {
+  public @Nullable BackendApi createBackendApi(Intake intake, boolean responseCompression) {
     HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
     if (intake.isAgentlessEnabled(config)) {
@@ -51,25 +50,13 @@ public class BackendApiFactory {
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
     featuresDiscovery.discoverIfOutdated();
-    String evpProxyEndpoint;
-    if (preferredEvpProxyEndpoint != null) {
-      if (!featuresDiscovery.supportsEvpProxyEndpoint(preferredEvpProxyEndpoint)) {
-        log.warn(
-            "Cannot create backend API client for {} since agent does not support requested EVP"
-                + " proxy endpoint {}",
-            intake,
-            preferredEvpProxyEndpoint);
-        return null;
-      }
-      evpProxyEndpoint = preferredEvpProxyEndpoint;
-    } else if (featuresDiscovery.supportsEvpProxy()) {
-      evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
-    } else {
+    if (!featuresDiscovery.supportsEvpProxy()) {
       log.warn(
           "Cannot create backend API client since agentless mode is disabled, "
               + "and agent does not support EVP proxy");
       return null;
     }
+    String evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
 
     String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
     log.debug(

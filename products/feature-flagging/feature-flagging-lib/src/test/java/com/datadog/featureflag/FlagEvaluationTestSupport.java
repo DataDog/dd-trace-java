@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -91,8 +92,7 @@ final class FlagEvaluationTestSupport {
 
   static TestWriterSetup buildTestWriter(final BackendApi mockEvp) {
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any())).thenReturn(mockEvp);
-    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
 
     final Map<String, String> context = new HashMap<>();
     context.put("service", "test-service");
@@ -106,8 +106,7 @@ final class FlagEvaluationTestSupport {
   static TestWriterSetup buildTestWriter(
       final BackendApi mockEvp, final int payloadSizeLimitBytes) {
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any())).thenReturn(mockEvp);
-    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
 
     final Map<String, String> context = new HashMap<>();
     context.put("service", "test-service");

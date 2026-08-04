@@ -15,40 +15,26 @@ final class FeatureFlagEvpPublisher<T> {
   private static final MediaType JSON = MediaType.parse("application/json");
 
   private final BackendApiFactory backendApiFactory;
-  private final String preferredEvpProxyEndpoint;
   private final boolean responseCompression;
   private final JsonAdapter<T> jsonAdapter;
   private BackendApi evp;
 
   FeatureFlagEvpPublisher(final BackendApiFactory backendApiFactory, final Class<T> requestType) {
-    this(backendApiFactory, requestType, null, true);
+    this(backendApiFactory, requestType, true);
   }
 
   FeatureFlagEvpPublisher(
       final BackendApiFactory backendApiFactory,
       final Class<T> requestType,
-      final boolean responseCompression) {
-    this(backendApiFactory, requestType, null, responseCompression);
-  }
-
-  FeatureFlagEvpPublisher(
-      final BackendApiFactory backendApiFactory,
-      final Class<T> requestType,
-      final String preferredEvpProxyEndpoint,
       final boolean responseCompression) {
     this.backendApiFactory = backendApiFactory;
-    this.preferredEvpProxyEndpoint = preferredEvpProxyEndpoint;
     this.responseCompression = responseCompression;
     this.jsonAdapter = new Moshi.Builder().build().adapter(requestType);
   }
 
   boolean start() {
     if (evp == null) {
-      evp =
-          preferredEvpProxyEndpoint == null && responseCompression
-              ? backendApiFactory.createBackendApi(Intake.EVENT_PLATFORM)
-              : backendApiFactory.createBackendApi(
-                  Intake.EVENT_PLATFORM, preferredEvpProxyEndpoint, responseCompression);
+      evp = backendApiFactory.createBackendApi(Intake.EVENT_PLATFORM, responseCompression);
     }
     return evp != null;
   }

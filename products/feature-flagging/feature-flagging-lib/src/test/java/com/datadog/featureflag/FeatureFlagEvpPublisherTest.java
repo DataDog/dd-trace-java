@@ -1,6 +1,5 @@
 package com.datadog.featureflag;
 
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V4_EVP_PROXY_ENDPOINT;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -20,46 +19,32 @@ import org.junit.jupiter.api.Test;
 class FeatureFlagEvpPublisherTest {
 
   @Test
-  void defaultPublisherUsesDefaultBackendApiFactoryPath() {
+  void defaultPublisherRequestsResponseCompression() {
     final BackendApi backendApi = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(Intake.EVENT_PLATFORM)).thenReturn(backendApi);
+    when(factory.createBackendApi(Intake.EVENT_PLATFORM, true)).thenReturn(backendApi);
 
     final FeatureFlagEvpPublisher<TestRequest> publisher =
         new FeatureFlagEvpPublisher<>(factory, TestRequest.class);
 
     publisher.start();
 
-    verify(factory).createBackendApi(Intake.EVENT_PLATFORM);
+    verify(factory).createBackendApi(Intake.EVENT_PLATFORM, true);
     verifyNoMoreInteractions(factory);
   }
 
   @Test
-  void responseCompressionCanBeDisabledWithoutPinnedEndpoint() {
+  void responseCompressionCanBeDisabled() throws Exception {
     final BackendApi backendApi = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(Intake.EVENT_PLATFORM, null, false)).thenReturn(backendApi);
+    when(factory.createBackendApi(Intake.EVENT_PLATFORM, false)).thenReturn(backendApi);
 
     final FeatureFlagEvpPublisher<TestRequest> publisher =
         new FeatureFlagEvpPublisher<>(factory, TestRequest.class, false);
 
-    publisher.start();
-
-    verify(factory).createBackendApi(Intake.EVENT_PLATFORM, null, false);
-  }
-
-  @Test
-  void preferredEndpointAndRequestCompressionAreForwardedToBackendApi() throws Exception {
-    final BackendApi backendApi = mock(BackendApi.class);
-    final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(Intake.EVENT_PLATFORM, V4_EVP_PROXY_ENDPOINT, false))
-        .thenReturn(backendApi);
-    final FeatureFlagEvpPublisher<TestRequest> publisher =
-        new FeatureFlagEvpPublisher<>(factory, TestRequest.class, V4_EVP_PROXY_ENDPOINT, false);
-
     publisher.post("flagevaluation", new TestRequest("value"));
 
-    verify(factory).createBackendApi(Intake.EVENT_PLATFORM, V4_EVP_PROXY_ENDPOINT, false);
+    verify(factory).createBackendApi(Intake.EVENT_PLATFORM, false);
     verify(backendApi)
         .post(eq("flagevaluation"), any(RequestBody.class), any(), isNull(), eq(false));
   }

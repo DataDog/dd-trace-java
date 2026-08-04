@@ -98,7 +98,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     String debuggerSnapshotEndpoint;
     String debuggerDiagnosticsEndpoint;
     String evpProxyEndpoint;
-    Set<String> evpProxyEndpoints = emptySet();
     String version;
     String telemetryProxyEndpoint;
     Set<String> peerTags = emptySet();
@@ -290,7 +289,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           break;
         }
       }
-      newState.evpProxyEndpoints = unmodifiableSet(endpoints);
 
       for (String endpoint : telemetryProxyEndpoints) {
         if (containsEndpoint(endpoints, endpoint)) {
@@ -423,10 +421,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public String getEvpProxyEndpoint() {
     return discoveryState.evpProxyEndpoint;
-  }
-
-  public boolean supportsEvpProxyEndpoint(String endpoint) {
-    return containsEndpoint(discoveryState.evpProxyEndpoints, endpoint);
   }
 
   public HttpUrl buildUrl(String endpoint) {

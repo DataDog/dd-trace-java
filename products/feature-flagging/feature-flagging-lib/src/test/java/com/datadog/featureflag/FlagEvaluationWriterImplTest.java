@@ -19,8 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -111,8 +111,7 @@ class FlagEvaluationWriterImplTest {
   void startRegistersWriterAndCloseDeregistersIt() {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any())).thenReturn(mockEvp);
-    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
     final FlagEvaluationWriterImpl writer =
         new FlagEvaluationWriterImpl(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg());
 
@@ -130,8 +129,7 @@ class FlagEvaluationWriterImplTest {
   void queueOverflowIncrementsObservableDropCounter() {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any())).thenReturn(mockEvp);
-    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
     final FlagEvaluationWriterImpl writer =
         new FlagEvaluationWriterImpl(2, 10L, TimeUnit.SECONDS, factory, cfg());
 
@@ -156,8 +154,7 @@ class FlagEvaluationWriterImplTest {
   void enqueueAfterCloseIsDroppedAndCounted() {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any())).thenReturn(mockEvp);
-    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
     final FlagEvaluationWriterImpl writer =
         new FlagEvaluationWriterImpl(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg());
 
@@ -176,11 +173,12 @@ class FlagEvaluationWriterImplTest {
   }
 
   @Test
-  void enqueueDisabledDropsWithoutQueueingOrCountingClosedDrop() {
+  void enqueueDisabledDropsAndCountsAsClosedDrop() {
+    // FeatureFlaggingSystem.stop() flips the gate before this writer's close() runs. Producers
+    // that race the gate flip must count the drop, otherwise shutdown loss stays invisible.
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any())).thenReturn(mockEvp);
-    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
     final FlagEvaluationWriterImpl writer =
         new FlagEvaluationWriterImpl(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg());
 
@@ -190,7 +188,7 @@ class FlagEvaluationWriterImplTest {
     final Collection<? extends MetricCollector.Metric> metrics =
         CoreMetricCollector.getInstance().drain();
     assertEquals(
-        0,
+        1,
         metricSum(
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
@@ -202,8 +200,7 @@ class FlagEvaluationWriterImplTest {
   void closeSweepsAndCountsEventsLeftInTheQueue() {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any())).thenReturn(mockEvp);
-    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
     final FlagEvaluationWriterImpl writer =
         new FlagEvaluationWriterImpl(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg());
 
@@ -229,8 +226,7 @@ class FlagEvaluationWriterImplTest {
   void enqueueIgnoresNullEvent() {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any())).thenReturn(mockEvp);
-    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
     final FlagEvaluationWriterImpl writer =
         new FlagEvaluationWriterImpl(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg());
 
@@ -244,8 +240,7 @@ class FlagEvaluationWriterImplTest {
   void enqueueDoesNotAggregateOnTheCallingThread() {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any())).thenReturn(mockEvp);
-    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
     final FlagEvaluationWriterImpl writer =
         new FlagEvaluationWriterImpl(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg());
 
@@ -260,8 +255,7 @@ class FlagEvaluationWriterImplTest {
   void enqueueDoesNotResolveContextBeforeBuffering() {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any())).thenReturn(mockEvp);
-    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
     final FlagEvaluationWriterImpl writer =
         new FlagEvaluationWriterImpl(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg());
     final AtomicInteger resolutions = new AtomicInteger();
@@ -364,8 +358,7 @@ class FlagEvaluationWriterImplTest {
   void workerHandlesEmptyPolls() throws Exception {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any())).thenReturn(mockEvp);
-    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
     final MessagePassingBlockingQueue<FlagEvalEvent> queue =
         mock(MessagePassingBlockingQueue.class);
     when(queue.poll(100, TimeUnit.MILLISECONDS))
@@ -448,8 +441,7 @@ class FlagEvaluationWriterImplTest {
               return null;
             });
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any())).thenReturn(mockEvp);
-    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
     final FlagEvaluationWriterImpl writer =
         new FlagEvaluationWriterImpl(
             64, TimeUnit.DAYS.toSeconds(1), TimeUnit.SECONDS, factory, cfg());
@@ -470,8 +462,7 @@ class FlagEvaluationWriterImplTest {
   void continuousTrafficFlushesWithoutWaitingForIdle() throws Exception {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any())).thenReturn(mockEvp);
-    when(factory.createBackendApi(any(), any(), eq(false))).thenReturn(mockEvp);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
     final FlagEvaluationWriterImpl writer =
         new FlagEvaluationWriterImpl(1 << 12, 1, TimeUnit.MILLISECONDS, factory, cfg());
 
@@ -506,7 +497,7 @@ class FlagEvaluationWriterImplTest {
     setup.handler.drainAndAggregate();
     setup.handler.flush();
 
-    verify(setup.factory).createBackendApi(eq(Intake.EVENT_PLATFORM), isNull(), eq(false));
+    verify(setup.factory).createBackendApi(Intake.EVENT_PLATFORM, false);
     verify(mockEvp).post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
   }
 
@@ -674,6 +665,28 @@ class FlagEvaluationWriterImplTest {
     assertFalse(
         captured.raw.contains("For input string"),
         "no exception-message-shaped text may reach the wire under consent-off");
+  }
+
+  @Test
+  void encodeFailureClearsAggregatorSoLaterFlushesRecover() throws Exception {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+
+    // Moshi rejects non-finite JSON numbers. A NaN in the context poisons buildPayloads for this
+    // bucket. Before the fix, the aggregator kept the bucket and every later flush re-threw.
+    final Map<String, Object> poison = new HashMap<>();
+    poison.put("bad-number", Double.NaN);
+    setup.handler.add(event("poison-flag", "on", "alloc1", "user-1", 1000L, poison));
+    setup.handler.drainAndAggregate();
+    setup.handler.flush();
+    verify(mockEvp, org.mockito.Mockito.never())
+        .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
+
+    // The bucket must not survive the failed flush. A follow-up healthy event flushes cleanly.
+    setup.handler.add(simpleEvent("healthy-flag", "on"));
+    setup.handler.drainAndAggregate();
+    setup.handler.flush();
+    verify(mockEvp).post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
   }
 
   private void assertHashedTargetingKeyAndOmittedContext(final FlagEvalEvent piiEvent)

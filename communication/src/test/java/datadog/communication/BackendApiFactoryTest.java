@@ -1,6 +1,5 @@
 package datadog.communication;
 
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V4_EVP_PROXY_ENDPOINT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -13,10 +12,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.intake.Intake;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -31,90 +26,25 @@ class BackendApiFactoryTest {
   private static final MediaType JSON = MediaType.parse("application/json");
 
   @Test
-  void preferredEvpProxyEndpointMustBeAdvertisedByAgent() {
-    final FakeFeaturesDiscovery discovery =
-        new FakeFeaturesDiscovery(
-            V4_EVP_PROXY_ENDPOINT, Collections.singleton(V4_EVP_PROXY_ENDPOINT));
+  void noBackendApiWhenAgentDoesNotAdvertiseEvpProxy() {
+    final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(null);
     final BackendApiFactory factory =
         new BackendApiFactory(Config.get(), sharedCommunicationObjects(discovery, null));
 
-    assertNull(factory.createBackendApi(Intake.EVENT_PLATFORM, V2_EVP_PROXY_ENDPOINT, false));
+    assertNull(factory.createBackendApi(Intake.EVENT_PLATFORM, false));
   }
 
   @Test
-  void preferredEvpProxyEndpointUsesRequestedRouteWhenAdvertised() throws Exception {
+  void advertisedEvpProxyEndpointSupportsDisabledResponseCompression() throws Exception {
     final MockWebServer agent = new MockWebServer();
     agent.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
     agent.start();
     try {
-      final FakeFeaturesDiscovery discovery =
-          new FakeFeaturesDiscovery(
-              V4_EVP_PROXY_ENDPOINT,
-              new HashSet<>(Arrays.asList(V4_EVP_PROXY_ENDPOINT, V2_EVP_PROXY_ENDPOINT)));
+      final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(V4_EVP_PROXY_ENDPOINT);
       final BackendApiFactory factory =
           new BackendApiFactory(
               Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
-      final BackendApi api =
-          factory.createBackendApi(Intake.EVENT_PLATFORM, V2_EVP_PROXY_ENDPOINT, false);
-
-      assertNotNull(api);
-      api.post(
-          "flagevaluation",
-          RequestBody.create(JSON, "{}".getBytes(StandardCharsets.UTF_8)),
-          stream -> null,
-          null,
-          false);
-
-      final RecordedRequest request = agent.takeRequest();
-      assertEquals("/evp_proxy/v2/api/v2/flagevaluation", request.getPath());
-    } finally {
-      agent.shutdown();
-    }
-  }
-
-  @Test
-  void preferredEvpProxyEndpointDoesNotRequireLegacyDefaultRoute() throws Exception {
-    final String futureEndpoint = "evp_proxy/v9/";
-    final MockWebServer agent = new MockWebServer();
-    agent.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
-    agent.start();
-    try {
-      final FakeFeaturesDiscovery discovery =
-          new FakeFeaturesDiscovery(null, Collections.singleton(futureEndpoint));
-      final BackendApiFactory factory =
-          new BackendApiFactory(
-              Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
-      final BackendApi api = factory.createBackendApi(Intake.EVENT_PLATFORM, futureEndpoint, false);
-
-      assertNotNull(api);
-      api.post(
-          "flagevaluation",
-          RequestBody.create(JSON, "{}".getBytes(StandardCharsets.UTF_8)),
-          stream -> null,
-          null,
-          false);
-
-      final RecordedRequest request = agent.takeRequest();
-      assertEquals("/evp_proxy/v9/api/v2/flagevaluation", request.getPath());
-    } finally {
-      agent.shutdown();
-    }
-  }
-
-  @Test
-  void defaultEvpProxyEndpointSupportsDisabledResponseCompression() throws Exception {
-    final MockWebServer agent = new MockWebServer();
-    agent.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
-    agent.start();
-    try {
-      final FakeFeaturesDiscovery discovery =
-          new FakeFeaturesDiscovery(
-              V4_EVP_PROXY_ENDPOINT,
-              new HashSet<>(Arrays.asList(V4_EVP_PROXY_ENDPOINT, V2_EVP_PROXY_ENDPOINT)));
-      final BackendApiFactory factory =
-          new BackendApiFactory(
-              Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
-      final BackendApi api = factory.createBackendApi(Intake.EVENT_PLATFORM, null, false);
+      final BackendApi api = factory.createBackendApi(Intake.EVENT_PLATFORM, false);
 
       assertNotNull(api);
       api.post(
@@ -154,10 +84,8 @@ class BackendApiFactoryTest {
 
   private static final class FakeFeaturesDiscovery extends DDAgentFeaturesDiscovery {
     private final String evpProxyEndpoint;
-    private final Set<String> evpProxyEndpoints;
 
-    private FakeFeaturesDiscovery(
-        final String evpProxyEndpoint, final Set<String> evpProxyEndpoints) {
+    private FakeFeaturesDiscovery(final String evpProxyEndpoint) {
       super(
           new OkHttpClient(),
           Monitoring.DISABLED,
@@ -166,7 +94,6 @@ class BackendApiFactoryTest {
           true,
           false);
       this.evpProxyEndpoint = evpProxyEndpoint;
-      this.evpProxyEndpoints = evpProxyEndpoints;
     }
 
     @Override
@@ -175,11 +102,6 @@ class BackendApiFactoryTest {
     @Override
     public String getEvpProxyEndpoint() {
       return evpProxyEndpoint;
-    }
-
-    @Override
-    public boolean supportsEvpProxyEndpoint(final String endpoint) {
-      return evpProxyEndpoints.contains(endpoint) || evpProxyEndpoints.contains("/" + endpoint);
     }
 
     @Override
