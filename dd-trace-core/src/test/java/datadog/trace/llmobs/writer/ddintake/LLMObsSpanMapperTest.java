@@ -434,6 +434,36 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void testLLMObsSpanProcessorAddsMissingInputAndOutput() throws Exception {
+    LLMObs.registerProcessor(
+        span -> {
+          span.setInput(Collections.singletonList(LLMObs.LLMMessage.from("user", "added input")));
+          span.setOutput(
+              Collections.singletonList(LLMObs.LLMMessage.from("assistant", "added output")));
+          return span;
+        });
+
+    try {
+      CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+      AgentSpan llmSpan = newLlmObsSpan(tracer, "processed", false);
+
+      List<Map<String, Object>> spans =
+          serialize(Collections.singletonList((DDSpan) llmSpan), new LLMObsSpanMapper());
+      Map<String, Object> meta = (Map<String, Object>) spans.get(0).get("meta");
+      Map<String, Object> input = (Map<String, Object>) meta.get("input");
+      Map<String, Object> output = (Map<String, Object>) meta.get("output");
+      List<Map<String, Object>> inputMessages = (List<Map<String, Object>>) input.get("messages");
+      List<Map<String, Object>> outputMessages = (List<Map<String, Object>>) output.get("messages");
+
+      assertEquals("added input", inputMessages.get(0).get("content"));
+      assertEquals("added output", outputMessages.get(0).get("content"));
+      tracer.close();
+    } finally {
+      LLMObs.deregisterProcessor();
+    }
+  }
+
+  @Test
   void testLLMObsSpanProcessorCanDropSpan() throws Exception {
     LLMObs.registerProcessor(span -> "true".equals(span.getTag("drop")) ? null : span);
 

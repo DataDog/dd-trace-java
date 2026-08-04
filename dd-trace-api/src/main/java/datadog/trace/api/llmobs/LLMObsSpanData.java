@@ -28,6 +28,8 @@ public interface LLMObsSpanData {
   /**
    * Replaces the input content associated with the span.
    *
+   * <p>Other input metadata, including prompt tracking information, is preserved.
+   *
    * @param input the new input represented as messages
    * @throws NullPointerException if {@code input} is {@code null}
    */

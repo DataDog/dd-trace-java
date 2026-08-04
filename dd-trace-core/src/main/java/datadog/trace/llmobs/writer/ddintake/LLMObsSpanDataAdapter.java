@@ -101,7 +101,14 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
 
   private static IOType ioType(String kind, Object value, boolean input) {
     if (value == null) {
-      return IOType.NONE;
+      if (Tags.LLMOBS_LLM_SPAN_KIND.equals(kind)) {
+        return IOType.MESSAGES;
+      }
+      if ((input && Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(kind))
+          || (!input && Tags.LLMOBS_RETRIEVAL_SPAN_KIND.equals(kind))) {
+        return IOType.DOCUMENTS;
+      }
+      return IOType.VALUE;
     }
     Object unwrapped = unwrapMessages(value);
     if (Tags.LLMOBS_LLM_SPAN_KIND.equals(kind)) {
@@ -109,8 +116,8 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
           ? IOType.MESSAGES
           : IOType.NONE;
     }
-    if (input
-        && Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(kind)
+    if (((input && Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(kind))
+            || (!input && Tags.LLMOBS_RETRIEVAL_SPAN_KIND.equals(kind)))
         && value instanceof List
         && allDocuments((List<?>) value)) {
       return IOType.DOCUMENTS;
@@ -120,7 +127,7 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
 
   @SuppressWarnings("unchecked")
   private static List<LLMObs.LLMMessage> asMessages(Object value, IOType type) {
-    if (type == IOType.NONE) {
+    if (value == null || type == IOType.NONE) {
       return new ArrayList<>();
     }
     if (type == IOType.MESSAGES) {
@@ -174,6 +181,9 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
       return;
     }
     if (messages.isEmpty()) {
+      if (originalValue == null) {
+        return;
+      }
       if (type == IOType.MESSAGES && originalValue instanceof Map) {
         Map<Object, Object> updatedValue = new HashMap<>((Map<?, ?>) originalValue);
         updatedValue.remove("messages");

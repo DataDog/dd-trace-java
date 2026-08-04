@@ -49,6 +49,26 @@ class LLMObsSpanDataAdapterTest {
   }
 
   @Test
+  void convertsAndAppliesRetrievalOutputDocuments() {
+    CoreSpan<?> span = mock(CoreSpan.class);
+    when(span.getTag(SPAN_KIND_TAG)).thenReturn(Tags.LLMOBS_RETRIEVAL_SPAN_KIND);
+    when(span.getTag(OUTPUT_TAG))
+        .thenReturn(Collections.singletonList(LLMObs.Document.from("original document")));
+
+    LLMObsSpanDataAdapter adapter = new LLMObsSpanDataAdapter(span);
+
+    assertEquals("original document", adapter.getOutput().get(0).getContent());
+
+    adapter.setOutput(Collections.singletonList(LLMObs.LLMMessage.from("", "processed document")));
+    adapter.apply(adapter);
+
+    ArgumentCaptor<Object> outputCaptor = ArgumentCaptor.forClass(Object.class);
+    verify(span).setTag(eq(OUTPUT_TAG), outputCaptor.capture());
+    List<?> documents = (List<?>) outputCaptor.getValue();
+    assertEquals("processed document", ((LLMObs.Document) documents.get(0)).getText());
+  }
+
+  @Test
   void removesEmptyMessageInputAndOutput() {
     CoreSpan<?> span = mock(CoreSpan.class);
     Map<String, Object> input = new LinkedHashMap<>();
@@ -80,6 +100,24 @@ class LLMObsSpanDataAdapterTest {
     assertEquals(Collections.emptyList(), adapter.getInput());
     assertEquals(Collections.emptyList(), adapter.getOutput());
     adapter.apply(adapter);
+  }
+
+  @Test
+  void addsMissingInputAndOutput() {
+    CoreSpan<?> span = mock(CoreSpan.class);
+    when(span.getTag(SPAN_KIND_TAG)).thenReturn(Tags.LLMOBS_LLM_SPAN_KIND);
+
+    LLMObsSpanDataAdapter adapter = new LLMObsSpanDataAdapter(span);
+    List<LLMObs.LLMMessage> input =
+        Collections.singletonList(LLMObs.LLMMessage.from("user", "input"));
+    List<LLMObs.LLMMessage> output =
+        Collections.singletonList(LLMObs.LLMMessage.from("assistant", "output"));
+    adapter.setInput(input);
+    adapter.setOutput(output);
+    adapter.apply(adapter);
+
+    verify(span).setTag(INPUT_TAG, input);
+    verify(span).setTag(OUTPUT_TAG, output);
   }
 
   @Test
