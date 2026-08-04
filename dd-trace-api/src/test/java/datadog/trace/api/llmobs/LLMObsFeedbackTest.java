@@ -3,6 +3,7 @@ package datadog.trace.api.llmobs;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -48,14 +49,46 @@ class LLMObsFeedbackTest {
         .submitter("user-123", "end_user");
   }
 
+  /**
+   * Asserts that a builder produces an invalid feedback, without ever throwing. Validation is
+   * deferred to {@link LLMObs#submitFeedback} so that instrumented code stays safe when LLM
+   * Observability is disabled or the agent is not attached.
+   *
+   * @return the validation error, for further assertions on its message
+   */
+  private static LLMObs.Feedback.ValidationError assertRejected(
+      String expectedCode, LLMObs.Feedback.Builder builder) {
+    LLMObs.Feedback feedback = assertDoesNotThrow(builder::build);
+    LLMObs.Feedback.ValidationError error = feedback.validate();
+    assertNotNull(error, "expected the feedback to be rejected with " + expectedCode);
+    assertEquals(expectedCode, error.getCode(), error.getMessage());
+    return error;
+  }
+
+  // --- deferred validation ---
+
+  @Test
+  void testAValidFeedbackHasNoValidationError() {
+    assertNull(validBuilder().build().validate());
+  }
+
+  @Test
+  void testTheFirstProblemWinsOverLaterOnes() {
+    // The empty span id is reported even though the label and the value are missing too.
+    assertRejected("invalid_span_id", LLMObs.Feedback.builder().spanId("").label("thumbs.up"));
+  }
+
   // --- targets ---
 
   @Test
   void testMissingTargetIsRejected() {
-    LLMObs.Feedback.Builder builder =
-        LLMObs.Feedback.builder().label("thumbs").booleanValue(true).submitter("user-123", null);
-
-    IllegalArgumentException error = assertThrows(IllegalArgumentException.class, builder::build);
+    LLMObs.Feedback.ValidationError error =
+        assertRejected(
+            "invalid_target_count",
+            LLMObs.Feedback.builder()
+                .label("thumbs")
+                .booleanValue(true)
+                .submitter("user-123", null));
     assertTrue(error.getMessage().contains("feedbackJoinKey"), error.getMessage());
   }
 
@@ -119,58 +152,52 @@ class LLMObsFeedbackTest {
 
   @Test
   void testNullSpanIsRejected() {
-    assertThrows(
-        IllegalArgumentException.class, () -> LLMObs.Feedback.builder().span((LLMObsSpan) null));
+    assertRejected("invalid_span", LLMObs.Feedback.builder().span((LLMObsSpan) null));
   }
 
   @Test
   void testTwoDifferentTargetsAreRejected() {
-    IllegalArgumentException error =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> LLMObs.Feedback.builder().spanId("123").sessionId("session-2"));
+    LLMObs.Feedback.ValidationError error =
+        assertRejected(
+            "invalid_target_count", LLMObs.Feedback.builder().spanId("123").sessionId("session-2"));
     assertTrue(error.getMessage().contains("span_id"), error.getMessage());
   }
 
   @Test
   void testSameTargetSetTwiceIsRejected() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> LLMObs.Feedback.builder().spanId("123").spanId("456"));
+    assertRejected("invalid_target_count", LLMObs.Feedback.builder().spanId("123").spanId("456"));
   }
 
   @Test
   void testEmptyAndNullTargetValuesAreRejected() {
-    assertThrows(IllegalArgumentException.class, () -> LLMObs.Feedback.builder().spanId(""));
-    assertThrows(IllegalArgumentException.class, () -> LLMObs.Feedback.builder().spanId(null));
-    assertThrows(IllegalArgumentException.class, () -> LLMObs.Feedback.builder().traceId(""));
-    assertThrows(IllegalArgumentException.class, () -> LLMObs.Feedback.builder().sessionId(""));
-    assertThrows(
-        IllegalArgumentException.class, () -> LLMObs.Feedback.builder().feedbackJoinKey(""));
+    assertRejected("invalid_span_id", LLMObs.Feedback.builder().spanId(""));
+    assertRejected("invalid_span_id", LLMObs.Feedback.builder().spanId(null));
+    assertRejected("invalid_trace_id", LLMObs.Feedback.builder().traceId(""));
+    assertRejected("invalid_session_id", LLMObs.Feedback.builder().sessionId(""));
+    assertRejected("invalid_feedback_join_key", LLMObs.Feedback.builder().feedbackJoinKey(""));
   }
 
   // --- label ---
 
   @Test
   void testMissingAndEmptyLabelsAreRejected() {
-    LLMObs.Feedback.Builder missing =
-        LLMObs.Feedback.builder().spanId("123").booleanValue(true).submitter("user-123", null);
-    assertThrows(IllegalArgumentException.class, missing::build);
+    assertRejected(
+        "invalid_metric_label",
+        LLMObs.Feedback.builder().spanId("123").booleanValue(true).submitter("user-123", null));
 
-    LLMObs.Feedback.Builder empty =
+    assertRejected(
+        "invalid_metric_label",
         LLMObs.Feedback.builder()
             .spanId("123")
             .label("")
             .booleanValue(true)
-            .submitter("user-123", null);
-    assertThrows(IllegalArgumentException.class, empty::build);
+            .submitter("user-123", null));
   }
 
   @Test
   void testDottedLabelIsRejected() {
-    LLMObs.Feedback.Builder builder = validBuilder().label("thumbs.up");
-
-    IllegalArgumentException error = assertThrows(IllegalArgumentException.class, builder::build);
+    LLMObs.Feedback.ValidationError error =
+        assertRejected("invalid_label_value", validBuilder().label("thumbs.up"));
     assertEquals("label must not contain a '.'", error.getMessage());
   }
 
@@ -178,10 +205,10 @@ class LLMObsFeedbackTest {
 
   @Test
   void testMissingValueIsRejected() {
-    LLMObs.Feedback.Builder builder =
-        LLMObs.Feedback.builder().spanId("123").label("thumbs").submitter("user-123", null);
-
-    IllegalArgumentException error = assertThrows(IllegalArgumentException.class, builder::build);
+    LLMObs.Feedback.ValidationError error =
+        assertRejected(
+            "invalid_metric_type",
+            LLMObs.Feedback.builder().spanId("123").label("thumbs").submitter("user-123", null));
     assertTrue(error.getMessage().contains("booleanValue"), error.getMessage());
   }
 
@@ -240,47 +267,43 @@ class LLMObsFeedbackTest {
 
   @Test
   void testTwoValuesAreRejected() {
-    IllegalArgumentException error =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> LLMObs.Feedback.builder().booleanValue(true).textValue("also this"));
+    LLMObs.Feedback.ValidationError error =
+        assertRejected(
+            "invalid_metric_type",
+            LLMObs.Feedback.builder().booleanValue(true).textValue("also this"));
     assertTrue(error.getMessage().contains("boolean"), error.getMessage());
   }
 
   @Test
   void testSameValueKindSetTwiceIsRejected() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> LLMObs.Feedback.builder().scoreValue(0.1).scoreValue(0.2));
+    assertRejected(
+        "invalid_metric_type", LLMObs.Feedback.builder().scoreValue(0.1).scoreValue(0.2));
   }
 
   @Test
   void testNullValuesAreRejected() {
-    assertThrows(
-        IllegalArgumentException.class, () -> LLMObs.Feedback.builder().categoricalValue(null));
-    assertThrows(IllegalArgumentException.class, () -> LLMObs.Feedback.builder().textValue(null));
-    assertThrows(IllegalArgumentException.class, () -> LLMObs.Feedback.builder().jsonValue(null));
+    assertRejected("invalid_metric_value", LLMObs.Feedback.builder().categoricalValue(null));
+    assertRejected("invalid_metric_value", LLMObs.Feedback.builder().textValue(null));
+    assertRejected("invalid_metric_value", LLMObs.Feedback.builder().jsonValue(null));
   }
 
   // --- submitter ---
 
   @Test
   void testMissingSubmitterIsRejected() {
-    LLMObs.Feedback.Builder builder =
-        LLMObs.Feedback.builder().spanId("123").label("thumbs").booleanValue(true);
-
-    IllegalArgumentException error = assertThrows(IllegalArgumentException.class, builder::build);
+    LLMObs.Feedback.ValidationError error =
+        assertRejected(
+            "invalid_submitter",
+            LLMObs.Feedback.builder().spanId("123").label("thumbs").booleanValue(true));
     assertTrue(error.getMessage().contains("submitter"), error.getMessage());
   }
 
   @Test
   void testSubmitterIdIsRequired() {
-    assertThrows(
-        IllegalArgumentException.class, () -> LLMObs.Feedback.builder().submitter("", "end_user"));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> LLMObs.Feedback.builder().submitter(null, "end_user"));
-    assertThrows(IllegalArgumentException.class, () -> new LLMObs.Feedback.Submitter("", null));
+    assertRejected("invalid_submitter", validBuilder().submitter("", "end_user"));
+    assertRejected("invalid_submitter", validBuilder().submitter(null, "end_user"));
+    assertRejected(
+        "invalid_submitter", validBuilder().submitter(new LLMObs.Feedback.Submitter("", null)));
   }
 
   @Test
@@ -364,9 +387,7 @@ class LLMObsFeedbackTest {
 
   @Test
   void testNegativeTimestampIsRejected() {
-    LLMObs.Feedback.Builder builder = validBuilder().timestampMs(-1L);
-
-    assertThrows(IllegalArgumentException.class, builder::build);
+    assertRejected("invalid_timestamp", validBuilder().timestampMs(-1L));
   }
 
   @Test
@@ -428,6 +449,14 @@ class LLMObsFeedbackTest {
           LLMObs.submitFeedback(validBuilder().build());
           LLMObs.submitFeedback(null);
         });
+  }
+
+  @Test
+  void testAnInvalidFeedbackIsSilentWhenNoProcessorIsInstalled() {
+    // Without the agent, or with LLM Observability disabled, submitting garbage must not break the
+    // host application. The real processor is the one that rejects it.
+    assertDoesNotThrow(
+        () -> LLMObs.submitFeedback(LLMObs.Feedback.builder().label("thumbs.up").build()));
   }
 
   @Test

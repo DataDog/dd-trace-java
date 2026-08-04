@@ -6,6 +6,7 @@ import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.api.llmobs.LLMObsTags;
+import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.llmobs.domain.DDLLMObsSpan;
 import datadog.trace.llmobs.domain.LLMObsEval;
@@ -26,7 +27,9 @@ public class LLMObsSystem {
   private static final String CUSTOM_MODEL_VAL = "custom";
 
   private static final String EVAL_METRIC_API_PATH = "api/intake/llm-obs/v1/eval-metric";
-  // Feedback is a v2 concept: event_kind, submitter and the non-score value types only exist there.
+  // Feedback is a v2 concept: submitter, the feedback-only targets and the non-score value types
+  // only exist there. Evaluations deliberately stay on v1 with their existing flat payload; both
+  // now carry event_kind, so the two are told apart the same way as in dd-trace-py and dd-trace-js.
   private static final String FEEDBACK_API_PATH = "api/intake/llm-obs/v2/eval-metric";
 
   private static final int QUEUE_CAPACITY = 1024;
@@ -76,8 +79,17 @@ public class LLMObsSystem {
     @Override
     public void submitFeedback(LLMObs.Feedback feedback) {
       if (feedback == null) {
+        LLMObsMetricCollector.get().recordFeedbackSubmitted(null, null, "invalid_feedback");
         LOGGER.error("null feedback provided, feedback not recorded");
         return;
+      }
+
+      // The builder never throws so that instrumented code stays safe when the agent is absent;
+      // validation happens here instead, only once LLM Observability is actually enabled.
+      LLMObs.Feedback.ValidationError error = feedback.validate();
+      if (error != null) {
+        recordFeedbackTelemetry(feedback, error.getCode());
+        throw new IllegalArgumentException(error.getMessage());
       }
 
       String mlApp = feedback.getMlApp();
@@ -86,13 +98,28 @@ public class LLMObsSystem {
       }
 
       if (!this.feedbackProcessingWorker.addToQueue(new LLMObsFeedbackEvent(feedback, mlApp))) {
+        recordFeedbackTelemetry(feedback, "queue_full");
         LOGGER.warn(
             "queue full, failed to add feedback, ml_app={}, {}={}, label={}",
             mlApp,
             feedback.getTargetType().getWireKey(),
             feedback.getTargetValue(),
             feedback.getLabel());
+        return;
       }
+
+      recordFeedbackTelemetry(feedback, null);
+    }
+
+    private static void recordFeedbackTelemetry(
+        LLMObs.Feedback feedback, @Nullable String errorCode) {
+      LLMObs.Feedback.MetricType metricType = feedback.getMetricType();
+      LLMObs.Feedback.TargetType targetType = feedback.getTargetType();
+      LLMObsMetricCollector.get()
+          .recordFeedbackSubmitted(
+              metricType == null ? null : metricType.toString(),
+              targetType == null ? null : targetType.getWireKey(),
+              errorCode);
     }
   }
 

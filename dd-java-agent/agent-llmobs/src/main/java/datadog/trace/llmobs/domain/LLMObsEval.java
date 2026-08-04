@@ -16,6 +16,14 @@ public abstract class LLMObsEval {
   private static final String METRIC_TYPE_SCORE = "score";
   private static final String METRIC_TYPE_CATEGORICAL = "categorical";
 
+  private static final String EVENT_KIND_EVALUATION = "evaluation";
+
+  /**
+   * Discriminates evaluations from feedback, mirroring dd-trace-py and dd-trace-js. Purely
+   * additive: the rest of the v1 payload is unchanged.
+   */
+  public final String event_kind = EVENT_KIND_EVALUATION;
+
   public final String trace_id;
   public final String span_id;
   public final long timestamp_ms;

@@ -19,7 +19,10 @@ import org.junit.jupiter.api.Test;
  * <p>Evaluations and feedback now share {@link datadog.trace.llmobs.LLMObsIntakeWorker}, so the
  * eval payload reaches the intake through {@link LLMObsEval#batchSerializer()} rather than through
  * an adapter held by the worker. These tests exist to prove that indirection changed nothing on the
- * wire: no {@code event_kind}, no {@code submitter}, and the same key set as before.
+ * wire: the same key set as before, no {@code submitter}, no feedback-only target.
+ *
+ * <p>The single intentional addition is {@code event_kind:"evaluation"}, which discriminates
+ * evaluations from feedback the way dd-trace-py and dd-trace-js do.
  */
 class LLMObsEvalTest {
 
@@ -66,8 +69,10 @@ class LLMObsEvalTest {
     assertEquals(0.75, metric.get("score_value"));
     assertEquals(Collections.singletonList("source:web-ui"), metric.get("tags"));
 
+    // The only addition to the v1 payload.
+    assertEquals("evaluation", metric.get("event_kind"));
+
     // Feedback-only keys must never leak into the v1 payload.
-    assertFalse(metric.containsKey("event_kind"), metric.toString());
     assertFalse(metric.containsKey("submitter"), metric.toString());
     assertFalse(metric.containsKey("session_id"), metric.toString());
     assertFalse(metric.containsKey("feedback_join_key"), metric.toString());
@@ -89,7 +94,7 @@ class LLMObsEvalTest {
     assertFalse(metric.containsKey("score_value"), metric.toString());
     // A null tag map is omitted rather than serialized as an empty list.
     assertFalse(metric.containsKey("tags"), metric.toString());
-    assertFalse(metric.containsKey("event_kind"), metric.toString());
+    assertEquals("evaluation", metric.get("event_kind"));
   }
 
   @Test

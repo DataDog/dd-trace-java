@@ -114,7 +114,13 @@ public class LLMObs {
    *         .build());
    * }</pre>
    *
+   * <p>This is where the feedback is validated. When LLM Observability is disabled, or the agent is
+   * not attached, the call is a no-op and an invalid feedback goes unnoticed rather than breaking
+   * the host application.
+   *
    * @param feedback the feedback to submit, built with {@link Feedback#builder()}
+   * @throws IllegalArgumentException if LLM Observability is enabled and the feedback is invalid,
+   *     e.g. no target, no value, no submitter, or a label containing a {@code '.'}
    */
   public static void submitFeedback(Feedback feedback) {
     FEEDBACK_PROCESSOR.submitFeedback(feedback);
@@ -177,9 +183,11 @@ public class LLMObs {
   /**
    * End-user feedback on a span, trace, session or customer-defined join key.
    *
-   * <p>Instances are immutable and built through {@link #builder()}. The builder validates the
-   * feedback as a whole in {@link Builder#build()}, so an invalid combination fails at the call
-   * site rather than being silently dropped by the submission worker.
+   * <p>Instances are immutable and built through {@link #builder()}. Neither the builder nor {@link
+   * Builder#build()} ever throws: the first problem found is recorded and surfaced by {@link
+   * #validate()}, which {@link LLMObs#submitFeedback(Feedback)} runs. Validation therefore only
+   * fires when LLM Observability is actually enabled, matching dd-trace-py — instrumented code that
+   * runs without the agent attached never sees an exception it would not see in production.
    */
   public static class Feedback {
 
@@ -254,20 +262,16 @@ public class LLMObs {
 
     /** Who submitted a feedback. */
     public static class Submitter {
-      private final String id;
+      @Nullable private final String id;
       @Nullable private final String type;
 
       /**
-       * Creates a submitter.
+       * Creates a submitter. An invalid id is not rejected here but by {@link Feedback#validate()}.
        *
        * @param id the identifier of the submitter, must not be null or empty
        * @param type an optional free-form qualifier, e.g. {@code "end_user"}
-       * @throws IllegalArgumentException if {@code id} is null or empty
        */
       public Submitter(@Nonnull String id, @Nullable String type) {
-        if (id == null || id.isEmpty()) {
-          throw new IllegalArgumentException("submitter id must be a non-empty string");
-        }
         this.id = id;
         this.type = type;
       }
@@ -275,9 +279,9 @@ public class LLMObs {
       /**
        * Returns the submitter identifier.
        *
-       * @return the identifier, never null nor empty
+       * @return the identifier, never null nor empty once {@link Feedback#validate()} returned null
        */
-      @Nonnull
+      @Nullable
       public String getId() {
         return id;
       }
@@ -293,19 +297,55 @@ public class LLMObs {
       }
     }
 
-    private final TargetType targetType;
-    private final String targetValue;
-    private final String label;
-    private final MetricType metricType;
-    private final Object value;
-    private final Submitter submitter;
+    /**
+     * Why a feedback cannot be submitted. The code is a stable, low cardinality identifier reported
+     * as telemetry; the message is meant for humans.
+     */
+    public static final class ValidationError {
+      private final String code;
+      private final String message;
+
+      private ValidationError(String code, String message) {
+        this.code = code;
+        this.message = message;
+      }
+
+      /**
+       * Returns the telemetry code of this error, e.g. {@code "invalid_submitter"}.
+       *
+       * @return the error code, never null
+       */
+      @Nonnull
+      public String getCode() {
+        return code;
+      }
+
+      /**
+       * Returns the human readable description of this error.
+       *
+       * @return the error message, never null
+       */
+      @Nonnull
+      public String getMessage() {
+        return message;
+      }
+    }
+
+    @Nullable private final TargetType targetType;
+    @Nullable private final String targetValue;
+    @Nullable private final String label;
+    @Nullable private final MetricType metricType;
+    @Nullable private final Object value;
+    @Nullable private final Submitter submitter;
     @Nullable private final String mlApp;
     @Nullable private final Assessment assessment;
     @Nullable private final String reasoning;
     private final long timestampMs;
     @Nullable private final Map<String, Object> tags;
+    @Nullable private final ValidationError validationError;
 
-    private Feedback(Builder builder, long timestampMs) {
+    private Feedback(Builder builder, long timestampMs, @Nullable ValidationError validationError) {
+      this.validationError = validationError;
       this.timestampMs = timestampMs;
       this.targetType = builder.targetType;
       this.targetValue = builder.targetValue;
@@ -330,11 +370,23 @@ public class LLMObs {
     }
 
     /**
+     * Checks whether this feedback can be submitted. Called by {@link
+     * LLMObs#submitFeedback(Feedback)}; the getters below are only guaranteed non-null once it
+     * returned null.
+     *
+     * @return the first problem found while building this feedback, or null if it is valid
+     */
+    @Nullable
+    public ValidationError validate() {
+      return validationError;
+    }
+
+    /**
      * Returns which kind of entity this feedback targets.
      *
-     * @return the target type
+     * @return the target type, never null once {@link #validate()} returned null
      */
-    @Nonnull
+    @Nullable
     public TargetType getTargetType() {
       return targetType;
     }
@@ -342,9 +394,9 @@ public class LLMObs {
     /**
      * Returns the identifier of the targeted entity.
      *
-     * @return the target value, never null nor empty
+     * @return the target value, never null nor empty once {@link #validate()} returned null
      */
-    @Nonnull
+    @Nullable
     public String getTargetValue() {
       return targetValue;
     }
@@ -352,9 +404,9 @@ public class LLMObs {
     /**
      * Returns the name of the feedback metric.
      *
-     * @return the label, never null nor empty
+     * @return the label, never null nor empty once {@link #validate()} returned null
      */
-    @Nonnull
+    @Nullable
     public String getLabel() {
       return label;
     }
@@ -362,9 +414,9 @@ public class LLMObs {
     /**
      * Returns the kind of value this feedback carries.
      *
-     * @return the metric type
+     * @return the metric type, never null once {@link #validate()} returned null
      */
-    @Nonnull
+    @Nullable
     public MetricType getMetricType() {
       return metricType;
     }
@@ -372,9 +424,9 @@ public class LLMObs {
     /**
      * Returns the feedback value. Its runtime type matches {@link #getMetricType()}.
      *
-     * @return the value, never null
+     * @return the value, never null once {@link #validate()} returned null
      */
-    @Nonnull
+    @Nullable
     public Object getValue() {
       return value;
     }
@@ -382,9 +434,9 @@ public class LLMObs {
     /**
      * Returns who submitted this feedback.
      *
-     * @return the submitter, never null
+     * @return the submitter, never null once {@link #validate()} returned null
      */
-    @Nonnull
+    @Nullable
     public Submitter getSubmitter() {
       return submitter;
     }
@@ -443,6 +495,9 @@ public class LLMObs {
      * Builds a {@link Feedback}. Exactly one target and exactly one value must be set; setting
      * either twice, even to the same kind, is rejected so that a silently overwritten target cannot
      * ship.
+     *
+     * <p>No method on this builder throws. The first problem found is remembered and reported by
+     * {@link Feedback#validate()} at submission time.
      */
     public static class Builder {
       private TargetType targetType;
@@ -456,6 +511,7 @@ public class LLMObs {
       private String reasoning;
       private long timestampMs;
       private Map<String, Object> tags;
+      private ValidationError error;
 
       private Builder() {}
 
@@ -464,11 +520,10 @@ public class LLMObs {
        *
        * @param span the span to attach the feedback to
        * @return this builder
-       * @throws IllegalArgumentException if a target was already set, or {@code span} is null
        */
       public Builder span(@Nonnull LLMObsSpan span) {
         if (span == null) {
-          throw new IllegalArgumentException("span must not be null");
+          return fail("invalid_span", "span must not be null");
         }
         return target(TargetType.SPAN_ID, String.valueOf(span.getSpanId()));
       }
@@ -478,7 +533,6 @@ public class LLMObs {
        *
        * @param spanId the span identifier
        * @return this builder
-       * @throws IllegalArgumentException if a target was already set, or the id is null or empty
        */
       public Builder spanId(@Nonnull String spanId) {
         return target(TargetType.SPAN_ID, spanId);
@@ -489,7 +543,6 @@ public class LLMObs {
        *
        * @param traceId the trace identifier
        * @return this builder
-       * @throws IllegalArgumentException if a target was already set, or the id is null or empty
        */
       public Builder traceId(@Nonnull String traceId) {
         return target(TargetType.TRACE_ID, traceId);
@@ -500,7 +553,6 @@ public class LLMObs {
        *
        * @param sessionId the session identifier
        * @return this builder
-       * @throws IllegalArgumentException if a target was already set, or the id is null or empty
        */
       public Builder sessionId(@Nonnull String sessionId) {
         return target(TargetType.SESSION_ID, sessionId);
@@ -512,7 +564,6 @@ public class LLMObs {
        *
        * @param feedbackJoinKey the business entity key
        * @return this builder
-       * @throws IllegalArgumentException if a target was already set, or the key is null or empty
        */
       public Builder feedbackJoinKey(@Nonnull String feedbackJoinKey) {
         return target(TargetType.FEEDBACK_JOIN_KEY, feedbackJoinKey);
@@ -534,7 +585,6 @@ public class LLMObs {
        *
        * @param value the value
        * @return this builder
-       * @throws IllegalArgumentException if a value was already set, or the value is null
        */
       public Builder categoricalValue(@Nonnull String value) {
         return value(MetricType.CATEGORICAL, value);
@@ -545,7 +595,6 @@ public class LLMObs {
        *
        * @param value the value
        * @return this builder
-       * @throws IllegalArgumentException if a value was already set
        */
       public Builder scoreValue(double value) {
         return value(MetricType.SCORE, value);
@@ -556,7 +605,6 @@ public class LLMObs {
        *
        * @param value the value
        * @return this builder
-       * @throws IllegalArgumentException if a value was already set
        */
       public Builder booleanValue(boolean value) {
         return value(MetricType.BOOLEAN, value);
@@ -567,7 +615,6 @@ public class LLMObs {
        *
        * @param value the value, serialized as a JSON object
        * @return this builder
-       * @throws IllegalArgumentException if a value was already set, or the value is null
        */
       public Builder jsonValue(@Nonnull Map<String, Object> value) {
         return value(MetricType.JSON, value);
@@ -578,7 +625,6 @@ public class LLMObs {
        *
        * @param value the value
        * @return this builder
-       * @throws IllegalArgumentException if a value was already set, or the value is null
        */
       public Builder textValue(@Nonnull String value) {
         return value(MetricType.TEXT, value);
@@ -590,7 +636,6 @@ public class LLMObs {
        * @param id the identifier of the submitter
        * @param type an optional qualifier, e.g. {@code "end_user"}
        * @return this builder
-       * @throws IllegalArgumentException if {@code id} is null or empty
        */
       public Builder submitter(@Nonnull String id, @Nullable String type) {
         this.submitter = new Submitter(id, type);
@@ -679,48 +724,76 @@ public class LLMObs {
       }
 
       /**
-       * Validates and builds the feedback.
+       * Builds the feedback. Never throws: any problem is carried by the returned instance and
+       * reported by {@link Feedback#validate()} when it is submitted.
        *
        * @return the built feedback
-       * @throws IllegalArgumentException if no target, no label, no value or no submitter was set,
-       *     if the label contains a {@code '.'}, or if the timestamp is negative
        */
       public Feedback build() {
+        return new Feedback(
+            this, timestampMs == 0 ? System.currentTimeMillis() : timestampMs, validationError());
+      }
+
+      /**
+       * Returns the first problem preventing submission, earlier builder errors taking priority.
+       */
+      @Nullable
+      private ValidationError validationError() {
+        if (error != null) {
+          return error;
+        }
         if (targetType == null) {
-          throw new IllegalArgumentException(
+          return new ValidationError(
+              "invalid_target_count",
               "exactly one of span, spanId, traceId, sessionId or feedbackJoinKey must be specified"
                   + " to submit feedback");
         }
         if (label == null || label.isEmpty()) {
-          throw new IllegalArgumentException(
-              "label must be the specified name of the feedback metric");
+          return new ValidationError(
+              "invalid_metric_label", "label must be the specified name of the feedback metric");
         }
         if (label.indexOf('.') >= 0) {
-          throw new IllegalArgumentException("label must not contain a '.'");
+          return new ValidationError("invalid_label_value", "label must not contain a '.'");
         }
         if (metricType == null) {
-          throw new IllegalArgumentException(
+          return new ValidationError(
+              "invalid_metric_type",
               "exactly one of categoricalValue, scoreValue, booleanValue, jsonValue or textValue"
                   + " must be specified to submit feedback");
         }
         if (submitter == null) {
-          throw new IllegalArgumentException("submitter must be specified to submit feedback");
+          return new ValidationError(
+              "invalid_submitter", "submitter must be specified to submit feedback");
+        }
+        if (submitter.getId() == null || submitter.getId().isEmpty()) {
+          return new ValidationError(
+              "invalid_submitter", "submitter id must be a non-empty string");
         }
         if (timestampMs < 0) {
-          throw new IllegalArgumentException("timestampMs must be a non-negative long");
+          return new ValidationError(
+              "invalid_timestamp", "timestampMs must be a non-negative long");
         }
-        return new Feedback(this, timestampMs == 0 ? System.currentTimeMillis() : timestampMs);
+        return null;
+      }
+
+      private Builder fail(String code, String message) {
+        if (this.error == null) {
+          this.error = new ValidationError(code, message);
+        }
+        return this;
       }
 
       private Builder target(TargetType type, String value) {
         if (targetType != null) {
-          throw new IllegalArgumentException(
+          return fail(
+              "invalid_target_count",
               "a feedback target was already set to "
                   + targetType.getWireKey()
                   + ", exactly one target must be specified");
         }
         if (value == null || value.isEmpty()) {
-          throw new IllegalArgumentException(type.getWireKey() + " must be a non-empty string");
+          return fail(
+              "invalid_" + type.getWireKey(), type.getWireKey() + " must be a non-empty string");
         }
         this.targetType = type;
         this.targetValue = value;
@@ -729,13 +802,14 @@ public class LLMObs {
 
       private Builder value(MetricType type, Object value) {
         if (metricType != null) {
-          throw new IllegalArgumentException(
+          return fail(
+              "invalid_metric_type",
               "a feedback value was already set as "
                   + metricType
                   + ", exactly one value must be specified");
         }
         if (value == null) {
-          throw new IllegalArgumentException("value must not be null for a " + type + " metric");
+          return fail("invalid_metric_value", "value must not be null for a " + type + " metric");
         }
         this.metricType = type;
         this.value = value;
