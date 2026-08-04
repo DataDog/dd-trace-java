@@ -25,6 +25,7 @@ public class EvpProxyApi implements BackendApi {
   private static final String ACCEPT_ENCODING_HEADER = "Accept-Encoding";
   private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
   private static final String GZIP_ENCODING = "gzip";
+  private static final String IDENTITY_ENCODING = "identity";
 
   private final String traceId;
   private final HttpRetryPolicy.Factory retryPolicyFactory;
@@ -73,8 +74,13 @@ public class EvpProxyApi implements BackendApi {
       requestBuilder.addHeader(CONTENT_ENCODING_HEADER, GZIP_ENCODING);
     }
 
+    // OkHttp's BridgeInterceptor adds a transparent Accept-Encoding: gzip when the caller does not
+    // set one. Set the header explicitly on both paths so responseCompression=false actually
+    // suppresses gzip negotiation on the wire.
     if (responseCompression) {
       requestBuilder.addHeader(ACCEPT_ENCODING_HEADER, GZIP_ENCODING);
+    } else {
+      requestBuilder.addHeader(ACCEPT_ENCODING_HEADER, IDENTITY_ENCODING);
     }
 
     final Request request = requestBuilder.post(requestBody).build();
