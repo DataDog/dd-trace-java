@@ -464,6 +464,41 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void testLLMObsSpanProcessorModifiesRetrievalOutputDocuments() throws Exception {
+    LLMObs.registerProcessor(
+        span -> {
+          span.setOutput(
+              Collections.singletonList(LLMObs.LLMMessage.from("", "processed document")));
+          return span;
+        });
+
+    try {
+      CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+      AgentSpan retrievalSpan =
+          tracer
+              .buildSpan("datadog", "retrieval")
+              .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_RETRIEVAL_SPAN_KIND)
+              .withTag(
+                  "_ml_obs_tag.output",
+                  Collections.singletonList(LLMObs.Document.from("original document")))
+              .start();
+      retrievalSpan.setSpanType(InternalSpanTypes.LLMOBS);
+      retrievalSpan.finish();
+
+      List<Map<String, Object>> spans =
+          serialize(Collections.singletonList((DDSpan) retrievalSpan), new LLMObsSpanMapper());
+      Map<String, Object> meta = (Map<String, Object>) spans.get(0).get("meta");
+      Map<String, Object> output = (Map<String, Object>) meta.get("output");
+      List<Map<String, Object>> documents = (List<Map<String, Object>>) output.get("documents");
+
+      assertEquals("processed document", documents.get(0).get("text"));
+      tracer.close();
+    } finally {
+      LLMObs.deregisterProcessor();
+    }
+  }
+
+  @Test
   void testLLMObsSpanProcessorCanDropSpan() throws Exception {
     LLMObs.registerProcessor(span -> "true".equals(span.getTag("drop")) ? null : span);
 
