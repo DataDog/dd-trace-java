@@ -35,6 +35,12 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
     for (SpanMetricsImpl spanMetrics : this.spanMetricRegistry.getSpanMetrics()) {
       String tag = INTEGRATION_NAME_TAG + spanMetrics.getInstrumentationName();
       for (CoreCounter counter : spanMetrics.getCounters()) {
+        if (this.metricsQueue.remainingCapacity() == 0) {
+          // Queue full: stop before reading any more counters. getValueAndReset() below resets the
+          // counter's delta baseline, so resetting one we then fail to enqueue would drop that
+          // delta for good; the untouched counters are picked up on the next collection cycle.
+          break;
+        }
         long value = counter.getValueAndReset();
         if (value == 0) {
           // Skip not updated counters
@@ -51,6 +57,12 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
 
     // Collect baggage metrics
     for (BaggageMetrics.TaggedCounter counter : this.baggageMetrics.getTaggedCounters()) {
+      if (this.metricsQueue.remainingCapacity() == 0) {
+        // Queue full: stop before reading any more counters. getValueAndReset() below resets the
+        // counter's delta baseline, so resetting one we then fail to enqueue would drop that
+        // delta for good; the untouched counters are picked up on the next collection cycle.
+        break;
+      }
       long value = counter.getValueAndReset();
       if (value == 0) {
         // Skip not updated counters
