@@ -295,8 +295,9 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isNativeMemoryProfilingEnabled(ConfigProvider configProvider) {
-    return getBoolean(
-        configProvider,
+    // nativemem never shipped under the legacy '.async.' naming, so it has no async-translated
+    // form to fall back to — call the provider directly instead of the ddprof->async helper.
+    return configProvider.getBoolean(
         PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED,
         PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED_DEFAULT);
   }
@@ -306,8 +307,9 @@ public class DatadogProfilerConfig {
   }
 
   public static int getNativeMemoryInterval(ConfigProvider configProvider) {
-    return getInteger(
-        configProvider,
+    // nativemem never shipped under the legacy '.async.' naming, so it has no async-translated
+    // form to fall back to — call the provider directly instead of the ddprof->async helper.
+    return configProvider.getInteger(
         PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL,
         PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL_DEFAULT);
   }
