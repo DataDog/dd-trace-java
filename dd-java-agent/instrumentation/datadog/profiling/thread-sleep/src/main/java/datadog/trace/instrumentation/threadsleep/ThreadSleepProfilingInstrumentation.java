@@ -83,7 +83,7 @@ public class ThreadSleepProfilingInstrumentation extends InstrumenterModule.Prof
     return Advices.fromCallSites(new ThreadSleepCallSites());
   }
 
-  private static final class ThreadSleepCallSites implements CallSites {
+  public static final class ThreadSleepCallSites implements CallSites {
     @Override
     public void accept(Container container) {
       container.addAdvice(

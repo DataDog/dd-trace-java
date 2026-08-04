@@ -1,10 +1,7 @@
 // Copyright 2026 Datadog, Inc.
 package com.datadog.smoketest.profiling;
 
-import io.opentracing.Scope;
-import io.opentracing.Span;
-import io.opentracing.Tracer;
-import io.opentracing.util.GlobalTracer;
+import datadog.trace.api.Trace;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.concurrent.CountDownLatch;
@@ -19,15 +16,13 @@ public final class ThreadSleepTaskBlockForkedApp {
 
   private static final int SLEEP_ITERATIONS = 20;
   private static final long SLEEP_MILLIS = 50L;
+  private static final long PROFILING_STARTUP_DELAY_MILLIS = 1500L;
 
-  private final Tracer tracer;
-
-  private ThreadSleepTaskBlockForkedApp(Tracer tracer) {
-    this.tracer = tracer;
-  }
+  private ThreadSleepTaskBlockForkedApp() {}
 
   public static void main(String[] args) throws Exception {
-    ThreadSleepTaskBlockForkedApp app = new ThreadSleepTaskBlockForkedApp(GlobalTracer.get());
+    ThreadSleepTaskBlockForkedApp app = new ThreadSleepTaskBlockForkedApp();
+    Thread.sleep(PROFILING_STARTUP_DELAY_MILLIS);
     Thread spanless = new Thread(app::runSpanlessSleeps, SPANLESS_PLATFORM_THREAD);
     Thread active = new Thread(app::runActiveSpanSleeps, ACTIVE_PLATFORM_THREAD);
     spanless.start();
@@ -59,14 +54,10 @@ public final class ThreadSleepTaskBlockForkedApp {
     }
   }
 
+  @Trace
   private void runActiveSpanSleeps() {
     for (int i = 0; i < SLEEP_ITERATIONS; i++) {
-      Span span = tracer.buildSpan("threadsleep.active").start();
-      try (Scope ignored = tracer.activateSpan(span)) {
-        sleep();
-      } finally {
-        span.finish();
-      }
+      sleep();
     }
   }
 

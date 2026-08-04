@@ -194,6 +194,7 @@ final class BlockingMixTaskBlockProfilingTest {
                 "-Ddd." + ProfilingConfig.PROFILING_AUXILIARY_TYPE + "=async",
                 "-Ddd." + ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED + "=true",
                 "-Ddd." + ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL + "=10ms",
+                "-Ddd." + ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER + "=false",
                 "-Ddd.profiling.agentless=false",
                 "-Ddd.profiling.start-delay=0",
                 "-Ddd." + ProfilingConfig.PROFILING_START_FORCE_FIRST + "=true",
