@@ -36,10 +36,7 @@ final class OtlpResourceAttributes {
               "telemetry.sdk.version",
               "telemetry.sdk.language"));
 
-  /**
-   * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code
-   * List<String>}.
-   */
+  /** {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}. */
   static void visitResourceAttributes(
       Config config, Map<String, Object> extraAttributes, BiConsumer<String, Object> visitor) {
     String serviceName = config.getServiceName();

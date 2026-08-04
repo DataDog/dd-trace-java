@@ -654,8 +654,19 @@ class OtlpStatsMetricWriterTest {
   void defaultModeEmitsIsTraceRoot(boolean traceRoot) throws IOException {
     AggregateEntry e =
         AggregateEntryTestUtils.of(
-            "GET /users", "web", "servlet.request", null, "web", 0, false, traceRoot, "server",
-            null, null, null, null);
+            "GET /users",
+            "web",
+            "servlet.request",
+            null,
+            "web",
+            0,
+            false,
+            traceRoot,
+            "server",
+            null,
+            null,
+            null,
+            null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
@@ -664,10 +675,7 @@ class OtlpStatsMetricWriterTest {
 
   @Test
   void otelSemanticsModeOmitsIsTraceRoot() throws IOException {
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users", "web", "servlet.request", null, "web", 0, false, true, "server", null,
-            null, null, null);
+    AggregateEntry e = entry("GET /users", false, 0, null, null, null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(true, e).dataPoints.get(0).attributes;
@@ -687,8 +695,19 @@ class OtlpStatsMetricWriterTest {
       throws IOException {
     AggregateEntry e =
         AggregateEntryTestUtils.of(
-            "GET /users", "web", "servlet.request", null, "web", 0, false, true, spanKind, null,
-            null, null, null);
+            "GET /users",
+            "web",
+            "servlet.request",
+            null,
+            "web",
+            0,
+            false,
+            true,
+            spanKind,
+            null,
+            null,
+            null,
+            null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;

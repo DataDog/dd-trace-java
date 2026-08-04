@@ -1,7 +1,7 @@
 package datadog.trace.core.otlp.common;
 
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.writeAttribute;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.datadogResourceAttributes;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.traceResourceAttributes;
@@ -51,10 +51,7 @@ public final class OtlpResourceJson {
     }
   }
 
-  /**
-   * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code
-   * List<String>}.
-   */
+  /** {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}. */
   @SuppressWarnings("unchecked")
   private static void writeResourceAttribute(JsonWriter writer, String key, Object value) {
     if (value instanceof List) {
