@@ -14,6 +14,8 @@ public final class ThreadSleepTaskBlockForkedApp {
   public static final String SPANLESS_PLATFORM_THREAD = "threadsleep-spanless";
   public static final String ACTIVE_PLATFORM_THREAD = "threadsleep-active";
   public static final String VIRTUAL_THREAD = "threadsleep-virtual";
+  public static final String CROSS_ROTATION_THREAD = "threadsleep-cross-rotation";
+  public static final long CROSS_ROTATION_SLEEP_MILLIS = 2500L;
 
   private static final int SLEEP_ITERATIONS = 20;
   private static final long SLEEP_MILLIS = 50L;
@@ -31,12 +33,24 @@ public final class ThreadSleepTaskBlockForkedApp {
     spanless.start();
     active.start();
     Thread virtual = app.startVirtualWorkerIfSupported();
+    Thread crossRotation = new Thread(app::runCrossRotationSleep, CROSS_ROTATION_THREAD);
+    crossRotation.start();
     spanless.join();
     active.join();
+    crossRotation.join();
     if (virtual != null) {
       virtual.join();
     }
     Thread.sleep(1500L);
+  }
+
+  private void runCrossRotationSleep() {
+    try {
+      Thread.sleep(CROSS_ROTATION_SLEEP_MILLIS);
+    } catch (InterruptedException error) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(error);
+    }
   }
 
   private void runSpanlessSleeps() {

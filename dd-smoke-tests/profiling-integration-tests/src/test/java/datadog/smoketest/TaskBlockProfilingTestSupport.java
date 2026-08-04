@@ -50,6 +50,7 @@ final class TaskBlockProfilingTestSupport {
               "blocker",
               "unblockingSpanId",
               "stackTrace",
+              "correlationId",
               "observedBlockingState",
               "spanId",
               "localRootSpanId"));
