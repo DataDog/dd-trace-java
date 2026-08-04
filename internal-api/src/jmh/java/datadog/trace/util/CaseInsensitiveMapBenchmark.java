@@ -7,6 +7,8 @@ import java.util.function.Supplier;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
@@ -15,42 +17,49 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  *
  * <ul>
- *   Benchmark to illustrate the trade-offs around case-insensitive Map look-ups - using either...
- *   <li>(RECOMMENDED) TreeMap with Comparator of String::compareToIgnoreCase
- *   <li>HashMap with look-ups using String::to<X>Case
+ *   Benchmark for the trade-offs around case-insensitive Map look-ups, comparing:
+ *   <li>TreeMap with a {@code String::compareToIgnoreCase} comparator — allocation-free, O(log n)
+ *   <li>HashMap keyed on {@code toLowerCase()} — O(1) but allocates a folded String per look-up
+ *   <li>FlatHashtable with a {@link FlatHashtable.CaseInsensitiveStringKeyStrategy} — O(1) probe,
+ *       allocation-free (case folded inside hash/matches), value stored unboxed
  * </ul>
  *
- * <p>For case-insensitive lookups, TreeMap map creation is consistently faster because it avoids
- * String::to<X>Case calls.
+ * <p><b>Takeaways.</b> FlatHashtable is ~2x the (previously recommended) TreeMap at the same zero
+ * allocation, and matches HashMap's look-up throughput <i>without</i> HashMap's per-look-up folded
+ * String (which drives the multi-threaded GC pressure). The case-insensitive hash is the
+ * consistent-for-all-inputs two-way fold ({@link
+ * datadog.trace.util.Strings#caseInsensitiveHashCode} — see its note); a cheaper ASCII-only fold
+ * would recover a few percent for header-name-only hot paths, deliberately not the default. {@code
+ * LOW_LOAD_FACTOR} makes no difference here (the fold, not the probe count, dominates), so the
+ * default 0.5 is used.
  *
- * <p>Despite calls to String::to<X>Case, HashMap lookups are faster in single threaded
- * microbenchmark by 50% but are worse when frequently called in a multi-threaded system.
+ * <p>Numbers below: MacBook M1, Zulu 21, per-thread lookup index, @Fork(5). <code>
+ * 1 thread
  *
- * <p>With many threads, the extra allocation from calling String::to<X>Case leads to frequent GCs
- * which has adverse impacts on the whole system. <code>
- * MacBook M1 with 1 thread (Java 21)
+ * Benchmark                                     Mode  Cnt          Score        Error  Units
+ * create_flatHashtable                         thrpt   15     2158595.7 ±    73576.7  ops/s
+ * create_hashMap                               thrpt   15      944890.9 ±    34398.7  ops/s
+ * create_treeMap                               thrpt   15     1285085.3 ±   133648.6  ops/s
  *
- * Benchmark                                     Mode  Cnt           Score         Error  Units
- * CaseInsensitiveMapBenchmark.create_hashMap   thrpt    6      994213.041 ±   15718.903  ops/s
- * CaseInsensitiveMapBenchmark.create_treeMap   thrpt    6     1522900.015 ±   21646.688  ops/s
- *
- * CaseInsensitiveMapBenchmark.get_hashMap      thrpt    6    69149862.293 ± 9168648.566  ops/s
- * CaseInsensitiveMapBenchmark.get_treeMap      thrpt    6    42796699.230 ± 9029447.805  ops/s
+ * lookup_flatHashtable                         thrpt   15    75350287.4 ±  4128577.5  ops/s
+ * lookup_flatHashtable_lowLoad                 thrpt   15    77127204.7 ±  2546322.0  ops/s
+ * lookup_hashMap                               thrpt   15    76615721.1 ±  4615488.0  ops/s
+ * lookup_treeMap                               thrpt   15    45777645.5 ±  4551223.1  ops/s
  * </code> <code>
- * MacBook M1 with 8 threads (Java 21)
+ * 8 threads (with -prof gc; alloc = gc.alloc.rate.norm)
  *
- * Benchmark                                     Mode  Cnt           Score          Error  Units
- * CaseInsensitiveMapBenchmark.create_hashMap   thrpt    6     6641003.483 ±   543210.409  ops/s
- * CaseInsensitiveMapBenchmark.create_treeMap   thrpt    6    10030191.764 ±  1308865.113  ops/s
- *
- * CaseInsensitiveMapBenchmark.get_hashMap      thrpt    6    38748031.837 ±  9012072.804  ops/s
- * CaseInsensitiveMapBenchmark.get_treeMap      thrpt    6   173495470.789 ± 27824904.999  ops/s
+ * Benchmark                          Mode  Cnt          Score         Error  Units      alloc
+ * lookup_flatHashtable              thrpt   15  537007985.7 ±  21864181.3  ops/s     ~0 B/op
+ * lookup_flatHashtable_lowLoad      thrpt   15  540434673.5 ±  20451984.4  ops/s     ~0 B/op
+ * lookup_hashMap                    thrpt   15  441875038.1 ± 110408182.2  ops/s   24.0 B/op (129 GCs)
+ * lookup_treeMap                    thrpt   15  251195415.1 ±  14662568.3  ops/s     ~0 B/op
  * </code>
  */
 @Fork(2)
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @Threads(8)
+@State(Scope.Thread)
 public class CaseInsensitiveMapBenchmark {
   static final String[] PREFIXES = {"foo", "bar", "baz", "quux"};
 
@@ -87,12 +96,17 @@ public class CaseInsensitiveMapBenchmark {
             return keys;
           });
 
-  static int sharedLookupIndex = 0;
+  // Per-thread (@State(Scope.Thread)) so cycling the lookup key doesn't contend a shared counter.
+  // The maps stay static/shared (read-only after class-init); only the index is per-thread. A
+  // shared
+  // counter's cache-line ping-pong would floor the fastest lookups (the flat probe) at @Threads(8),
+  // masking exactly the differences this benchmark compares.
+  int lookupIndex = 0;
 
-  static String nextLookupKey() {
-    int localIndex = ++sharedLookupIndex;
+  String nextLookupKey() {
+    int localIndex = ++lookupIndex;
     if (localIndex >= LOOKUP_KEYS.length) {
-      sharedLookupIndex = localIndex = 0;
+      lookupIndex = localIndex = 0;
     }
     return LOOKUP_KEYS[localIndex];
   }
@@ -176,6 +190,91 @@ public class CaseInsensitiveMapBenchmark {
     // This benchmark is still "correct" in multi-threaded context,
     // Map is populated under the initial class initialization lock and not changed thereafter
     return TREE_MAP.get(nextLookupKey());
+  }
+
+  // FlatHashtable with a case-insensitive KeyStrategy: the strategy folds case inside hash/matches,
+  // so lookups are O(1) (single probe) AND allocation-free (no String::to<X>Case) — TreeMap's zero-
+  // alloc property without TreeMap's O(log n) comparison walk. Value is stored unboxed. Read-only
+  // after build, so reads are lock-free (see FlatHashtable / ThreadSafeMapBenchmark).
+  static final class CIEntry extends FlatHashtable.Entry {
+    final String key; // original case preserved
+    final int value;
+
+    CIEntry(String key, long hash, int value) {
+      super(hash); // cache the (char-by-char) case-insensitive hash
+      this.key = key;
+      this.value = value;
+    }
+  }
+
+  // Dogfoods the shared toolbox pieces: the CI hash is Strings.caseInsensitiveHashCode (sealed by
+  // CaseInsensitiveStringStrategy), the table owns the spread. Only matches/hashOf are bespoke.
+  static final class CaseInsensitiveKeyStrategy
+      extends FlatHashtable.CaseInsensitiveStringStrategy<CIEntry> {
+    static final CaseInsensitiveKeyStrategy INSTANCE = new CaseInsensitiveKeyStrategy();
+
+    private CaseInsensitiveKeyStrategy() {}
+
+    @Override
+    public boolean matches(CIEntry entry, String key) {
+      return key.equalsIgnoreCase(entry.key); // case-folded, allocation-free
+    }
+
+    @Override
+    public long hashOf(CIEntry entry) {
+      return entry.hash; // CIEntry caches its (raw, case-insensitive) hash
+    }
+  }
+
+  // Never fires here (the mirror loop below only hits already-present keys), so it neither
+  // allocates nor captures; the value is unused. Kept static/non-capturing to avoid per-call cost.
+  static final FlatHashtable.CreateStrategy<CIEntry, String> CI_CREATE =
+      key -> new CIEntry(key, CaseInsensitiveKeyStrategy.INSTANCE.hashKey(key), 0);
+
+  static CIEntry[] _create_flat(float loadFactor) {
+    // 16 distinct case-insensitive keys (foo-0..quux-3).
+    CIEntry[] table =
+        FlatHashtable.create(CIEntry.class, PREFIXES.length * NUM_SUFFIXES, loadFactor);
+    for (int suffix = 0; suffix < NUM_SUFFIXES; ++suffix) {
+      for (String prefix : PREFIXES) {
+        String key = prefix + "-" + suffix;
+        long hash = CaseInsensitiveKeyStrategy.INSTANCE.hashKey(key);
+        FlatHashtable.insert(
+            table, new CIEntry(key, hash, suffix), CaseInsensitiveKeyStrategy.INSTANCE);
+      }
+    }
+    // Mirror the HashMap/TreeMap builds' second loop (UPPER_PREFIXES, suffix 0 & 2): 8 case-
+    // insensitive collisions. getOrCreate finds the already-present lower-case entry (a hit -> the
+    // create never fires, nothing allocates), doing the same probe/match work the maps' overwrite
+    // puts do — so all three create arms perform the same 24 operations and are comparable.
+    for (int suffix = 0; suffix < NUM_SUFFIXES; suffix += 2) {
+      for (String prefix : UPPER_PREFIXES) {
+        FlatHashtable.getOrCreate(
+            table, prefix + "-" + suffix, CaseInsensitiveKeyStrategy.INSTANCE, CI_CREATE);
+      }
+    }
+    return table;
+  }
+
+  @Benchmark
+  public CIEntry[] create_flatHashtable() {
+    return _create_flat(FlatHashtable.DEFAULT_LOAD_FACTOR);
+  }
+
+  static final CIEntry[] FLAT_TABLE = _create_flat(FlatHashtable.DEFAULT_LOAD_FACTOR);
+  static final CIEntry[] FLAT_TABLE_LOW = _create_flat(FlatHashtable.LOW_LOAD_FACTOR);
+
+  @Benchmark
+  public CIEntry lookup_flatHashtable() {
+    // Lock-free, allocation-free, single-probe case-insensitive lookup.
+    return FlatHashtable.get(FLAT_TABLE, nextLookupKey(), CaseInsensitiveKeyStrategy.INSTANCE);
+  }
+
+  @Benchmark
+  public CIEntry lookup_flatHashtable_lowLoad() {
+    // Same, but at LOW_LOAD_FACTOR (4x): does the sparser table shave probes for the (mostly
+    // hash-fold-dominated) CI lookup, or is it a wash? — see the delta to lookup_flatHashtable.
+    return FlatHashtable.get(FLAT_TABLE_LOW, nextLookupKey(), CaseInsensitiveKeyStrategy.INSTANCE);
   }
 
   // TODO: Add ConcurrentSkipListMap & synchronized HashMap & TreeMap
