@@ -741,6 +741,7 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.isSupportedConfigurationSource;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.resolveConfiguration;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
@@ -5747,6 +5748,10 @@ public class Config {
     return "otlp".equalsIgnoreCase(logsOtelExporter);
   }
 
+  public boolean isOtlpLogsExportEnabled() {
+    return isLogsOtelEnabled() && isLogsOtlpExporterEnabled();
+  }
+
   public int getLogsOtelInterval() {
     return logsOtelInterval;
   }
@@ -5789,6 +5794,11 @@ public class Config {
 
   public boolean isMetricsOtlpExporterEnabled() {
     return "otlp".equalsIgnoreCase(metricsOtelExporter);
+  }
+
+  public boolean isOtlpMetricsExportEnabled() {
+    return (isMetricsOtelEnabled() && isMetricsOtlpExporterEnabled())
+        || isOtelTracesSpanMetricsEnabled();
   }
 
   public boolean isMetricsOtelExperimentalEnabled() {
@@ -5845,6 +5855,19 @@ public class Config {
 
   public boolean isTraceOtlpExporterEnabled() {
     return "otlp".equalsIgnoreCase(traceOtelExporter);
+  }
+
+  public boolean isOtlpTracesExportEnabled() {
+    if (!writerType.startsWith(MULTI_WRITER_TYPE)) {
+      return OTLP_WRITER_TYPE.equals(writerType);
+    }
+    String multiWriterConfig = writerType.substring(MULTI_WRITER_TYPE.length() + 1);
+    for (CharSequence subWriterType : Strings.split(multiWriterConfig, ',')) {
+      if (OTLP_WRITER_TYPE.contentEquals(subWriterType)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public String getOtlpTracesEndpoint() {
