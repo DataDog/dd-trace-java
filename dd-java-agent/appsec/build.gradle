@@ -15,6 +15,7 @@ dependencies {
   implementation project(':communication')
   implementation project(':products:metrics:metrics-api')
   implementation project(':telemetry')
+  implementation project(':dd-java-agent:agent-crashtracking')
   implementation group: 'io.sqreen', name: 'libsqreen', version: '17.4.0'
   implementation libs.moshi
 
