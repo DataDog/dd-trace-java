@@ -10,9 +10,11 @@ import java.net.Socket;
 /** Forked workload that blocks a platform thread in native accept and socket-read calls. */
 public final class NativeIoTaskBlockForkedApp {
   private static final int ITERATIONS = 20;
+  private static final long PROFILING_STARTUP_DELAY_MILLIS = 5000L;
 
   public static void main(String[] args) throws Exception {
     Thread.currentThread().setName("native-io-spanless");
+    Thread.sleep(PROFILING_STARTUP_DELAY_MILLIS);
     for (int i = 0; i < ITERATIONS; i++) {
       runBlockingAcceptAndRead();
     }

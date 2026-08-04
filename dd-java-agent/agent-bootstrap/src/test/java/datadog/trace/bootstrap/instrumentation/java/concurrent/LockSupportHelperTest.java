@@ -188,6 +188,13 @@ class LockSupportHelperTest {
     assertEquals(0, LockSupportHelper.UNPARKING_STATE.size());
   }
 
+  @Test
+  void unavailableStateMapDuringRecursiveInitializationIsNoOp() {
+    installActiveSpan(72L);
+
+    assertDoesNotThrow(() -> LockSupportHelper.recordUnpark(newTargetThread(), null));
+  }
+
   private Thread newTargetThread() {
     Thread thread = new Thread(() -> {});
     targetThreads.add(thread);

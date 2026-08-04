@@ -50,7 +50,8 @@ public final class LockSupportHelper {
     if (profiling == null) {
       return;
     }
-    UnparkState state = UNPARKING_STATE.get(Thread.currentThread());
+    WeakMap<Thread, UnparkState> unparkingState = UNPARKING_STATE;
+    UnparkState state = unparkingState == null ? null : unparkingState.get(Thread.currentThread());
     long unblockingSpanId = state == null ? 0L : UNBLOCKING_SPAN_ID.getAndSet(state, 0L);
     parkExit(profiling, blockerHash, unblockingSpanId);
   }
@@ -71,25 +72,29 @@ public final class LockSupportHelper {
    * older traced caller so the association follows last-writer semantics.
    */
   public static void recordUnpark(Thread thread) {
-    if (thread == null) {
+    recordUnpark(thread, UNPARKING_STATE);
+  }
+
+  static void recordUnpark(Thread thread, WeakMap<Thread, UnparkState> unparkingState) {
+    if (thread == null || unparkingState == null) {
       return;
     }
     AgentSpan span = AgentTracer.activeSpan();
     AgentSpanContext context = span == null ? null : span.spanContext();
     if (context instanceof ProfilerContext) {
-      UnparkState state = UNPARKING_STATE.get(thread);
+      UnparkState state = unparkingState.get(thread);
       if (state == null) {
-        if (UNPARKING_STATE.size() >= MAX_UNPARKING_STATES) {
+        if (unparkingState.size() >= MAX_UNPARKING_STATES) {
           return;
         }
-        UNPARKING_STATE.putIfAbsent(thread, new UnparkState());
-        state = UNPARKING_STATE.get(thread);
+        unparkingState.putIfAbsent(thread, new UnparkState());
+        state = unparkingState.get(thread);
       }
       if (state != null) {
         UNBLOCKING_SPAN_ID.set(state, ((ProfilerContext) context).getSpanId());
       }
     } else {
-      UnparkState state = UNPARKING_STATE.get(thread);
+      UnparkState state = unparkingState.get(thread);
       if (state != null) {
         UNBLOCKING_SPAN_ID.set(state, 0L);
       }
