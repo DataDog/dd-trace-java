@@ -9,7 +9,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.function.Function;
 
 /** Helper for profiling {@code LockSupport.park*} intervals from bootstrap instrumentation. */
 public final class LockSupportHelper {
@@ -17,8 +16,6 @@ public final class LockSupportHelper {
 
   private static final AtomicLongFieldUpdater<UnparkState> UNBLOCKING_SPAN_ID =
       AtomicLongFieldUpdater.newUpdater(UnparkState.class, "unblockingSpanId");
-
-  private static final Function<Thread, UnparkState> NEW_UNPARK_STATE = thread -> new UnparkState();
 
   /**
    * Best-effort association between a parked thread and the most recent {@code unpark} caller's
@@ -59,8 +56,8 @@ public final class LockSupportHelper {
     if (profiling == null) {
       return;
     }
-    WeakMap<Thread, UnparkState> states = UNPARKING_STATE;
-    UnparkState state = states == null ? null : states.get(Thread.currentThread());
+    WeakMap<Thread, UnparkState> unparkingState = UNPARKING_STATE;
+    UnparkState state = unparkingState == null ? null : unparkingState.get(Thread.currentThread());
     long unblockingSpanId = state == null ? 0L : UNBLOCKING_SPAN_ID.getAndSet(state, 0L);
     parkExit(profiling, blockerHash, unblockingSpanId);
   }
@@ -87,30 +84,35 @@ public final class LockSupportHelper {
     if (thread == null || ThreadSupport.isVirtual(thread)) {
       return;
     }
-    WeakMap<Thread, UnparkState> states = UNPARKING_STATE;
-    if (states == null) {
-      // Re-entered from the map's own initialization; nothing can consume the attribution yet.
-      return;
-    }
     // unpark is extremely hot; skip the active span lookup (which installs a scope stack thread
     // local on every unparking thread) unless the profiler can actually consume the attribution.
     ProfilingContextIntegration profiling = AgentTracer.get().getProfilingContext();
     if (profiling == null || !profiling.isUnparkAttributionEnabled()) {
       return;
     }
+    recordUnpark(thread, UNPARKING_STATE);
+  }
+
+  static void recordUnpark(Thread thread, WeakMap<Thread, UnparkState> unparkingState) {
+    if (thread == null || unparkingState == null) {
+      return;
+    }
     AgentSpan span = AgentTracer.activeSpan();
     AgentSpanContext context = span == null ? null : span.spanContext();
     if (context instanceof ProfilerContext) {
-      UnparkState state = states.get(thread);
+      UnparkState state = unparkingState.get(thread);
       if (state == null) {
-        if (states.size() >= MAX_UNPARKING_STATES) {
+        if (unparkingState.size() >= MAX_UNPARKING_STATES) {
           return;
         }
-        state = states.computeIfAbsent(thread, NEW_UNPARK_STATE);
+        unparkingState.putIfAbsent(thread, new UnparkState());
+        state = unparkingState.get(thread);
       }
-      UNBLOCKING_SPAN_ID.set(state, ((ProfilerContext) context).getSpanId());
-    } else if (states.size() != 0) {
-      UnparkState state = states.get(thread);
+      if (state != null) {
+        UNBLOCKING_SPAN_ID.set(state, ((ProfilerContext) context).getSpanId());
+      }
+    } else {
+      UnparkState state = unparkingState.get(thread);
       if (state != null) {
         UNBLOCKING_SPAN_ID.set(state, 0L);
       }

@@ -28,6 +28,11 @@ class ThreadSleepCallSiteTest {
       "datadog/trace/bootstrap/instrumentation/java/concurrent/TaskBlockHelper";
 
   @Test
+  void usesExistingWallclockIntegrationConfiguration() {
+    assertEquals("wallclock", new ThreadSleepProfilingInstrumentation().name());
+  }
+
+  @Test
   void registersEverySupportedExactCallSite() {
     Advices advices = ThreadSleepProfilingInstrumentation.createAdvices();
 
