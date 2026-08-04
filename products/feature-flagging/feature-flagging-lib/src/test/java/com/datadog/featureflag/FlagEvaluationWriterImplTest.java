@@ -521,6 +521,28 @@ class FlagEvaluationWriterImplTest {
     assertEquals(2, posts.get());
   }
 
+  @Test
+  void encodeFailureClearsAggregatorSoLaterFlushesRecover() throws Exception {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+
+    // Moshi rejects non-finite JSON numbers. A NaN in the context poisons buildPayloads for this
+    // bucket. Before the fix, the aggregator kept the bucket and every later flush re-threw.
+    final Map<String, Object> poison = new HashMap<>();
+    poison.put("bad-number", Double.NaN);
+    setup.handler.add(event("poison-flag", "on", "alloc1", "user-1", 1000L, poison));
+    setup.handler.drainAndAggregate();
+    setup.handler.flush();
+    verify(mockEvp, org.mockito.Mockito.never())
+        .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
+
+    // The bucket must not survive the failed flush. A follow-up healthy event flushes cleanly.
+    setup.handler.add(simpleEvent("healthy-flag", "on"));
+    setup.handler.drainAndAggregate();
+    setup.handler.flush();
+    verify(mockEvp).post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
+  }
+
   private static Map<String, String> context() {
     final Map<String, String> context = new HashMap<>();
     context.put("service", "test-service");

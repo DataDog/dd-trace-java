@@ -475,7 +475,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       if (aggregator.isEmpty()) {
         return;
       }
-      boolean aggregatesWereEncoded = false;
       try {
         countMetric(
             FLAG_EVALUATION_DEGRADED_METRIC,
@@ -487,7 +486,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         }
         final FlagEvaluationPayloads.EncodedPayloads payloads =
             FlagEvaluationPayloads.buildPayloads(events, context, payloadSizeLimitBytes);
-        aggregatesWereEncoded = true;
         countMetric(
             FLAG_EVALUATION_DROPPED_METRIC,
             payloads.droppedPayloadLimit,
@@ -511,12 +509,11 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       } catch (Exception e) {
         LOGGER.error("Could not submit flag evaluations", e);
       } finally {
-        if (aggregatesWereEncoded) {
-          // Once payload bytes are built, this writer is best-effort: clear encoded aggregates even
-          // if one split post fails so a later flush cannot duplicate already-sent rows.
-          aggregator.clear();
-          lastTicks = System.nanoTime();
-        }
+        // Best-effort: always clear the aggregator after a flush attempt. Retaining buckets across
+        // flushes on encode failure would let one unserializable value (for example a NaN Double a
+        // customer put in the context) permanently block every subsequent flush.
+        aggregator.clear();
+        lastTicks = System.nanoTime();
       }
     }
 
