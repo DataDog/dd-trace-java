@@ -7,8 +7,19 @@ build-exploration-tests-image:
   needs: []
   tags: [ "arch:amd64" ]
   image: $REGISTRY/docker:27.3.1
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
   script:
-    - docker buildx build --tag $EXPLORATION_TESTS_IMAGE -f dd-java-agent/agent-debugger/exploration-tests/Dockerfile.exploration-tests --push dd-java-agent/agent-debugger/exploration-tests
+    - METADATA_FILE=$(mktemp)
+    - >
+      docker buildx build 
+      --tag $EXPLORATION_TESTS_IMAGE 
+      --file dd-java-agent/agent-debugger/exploration-tests/Dockerfile.exploration-tests 
+      --push 
+      --metadata-file ${METADATA_FILE}
+      dd-java-agent/agent-debugger/exploration-tests
+    - ddsign $EXPLORATION_TESTS_IMAGE --docker-metadata-file ${METADATA_FILE}
 
 .common-exploration-tests: &common-exploration-tests
   rules:
