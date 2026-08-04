@@ -167,7 +167,9 @@ class FlagEvaluationWriterImplTest {
   }
 
   @Test
-  void enqueueDisabledDropsWithoutQueueingOrCountingClosedDrop() {
+  void enqueueDisabledDropsAndCountsAsClosedDrop() {
+    // FeatureFlaggingSystem.stop() flips the gate before this writer's close() runs. Producers
+    // that race the gate flip must count the drop, otherwise shutdown loss stays invisible.
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
@@ -180,7 +182,7 @@ class FlagEvaluationWriterImplTest {
     final Collection<? extends MetricCollector.Metric> metrics =
         CoreMetricCollector.getInstance().drain();
     assertEquals(
-        0,
+        1,
         metricSum(
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,

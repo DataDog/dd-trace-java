@@ -234,7 +234,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       return;
     }
     if (isClosedOrEnqueueDisabled()) {
-      countClosedDropIfClosed();
+      countClosedDrop();
       return;
     }
     // Deliberately lock-free: the hand-off queue is MPSC by design, so serializing producers on a
@@ -257,10 +257,12 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     return closed.get() || !FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled();
   }
 
-  private void countClosedDropIfClosed() {
-    if (closed.get()) {
-      countMetric(FLAG_EVALUATION_DROPPED_METRIC, 1, DROP_REASON_CLOSED);
-    }
+  private void countClosedDrop() {
+    // Count the drop for any early exit from enqueue, whether closed=true or the gate was disabled
+    // by the surrounding subsystem. FeatureFlaggingSystem.stop() flips the gate before this
+    // writer's close() runs, so an in-flight enqueue could race that flip and see gate=false while
+    // closed=false. Counting on either condition keeps shutdown-loss observable.
+    countMetric(FLAG_EVALUATION_DROPPED_METRIC, 1, DROP_REASON_CLOSED);
   }
 
   /** Returns the count of events dropped due to queue-overflow backpressure (observable). */
