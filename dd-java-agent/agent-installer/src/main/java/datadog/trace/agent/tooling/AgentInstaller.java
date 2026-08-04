@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.environment.SystemProperties;
+import datadog.instrument.fieldinject.GlobalObjectStore;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyListener;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
@@ -59,7 +60,8 @@ public class AgentInstaller {
     enableByteBuddyRawTypes();
     disableByteBuddyNexus();
     // register weak map supplier as early as possible
-    WeakMaps.registerAsSupplier();
+    // WeakMaps.registerAsSupplier();
+    AgentTaskScheduler.get().scheduleAtFixedRate(GlobalObjectStore::removeStaleEntries, 1, 1, TimeUnit.SECONDS);
     circularityErrorWorkaround();
   }
 
