@@ -98,7 +98,7 @@ public class FlagEvaluationEnqueueContentionBenchmark {
    * numbers no longer describe the enqueue path - is visible in the benchmark output.
    */
   @org.openjdk.jmh.annotations.TearDown(Level.Iteration)
-  @SuppressForbidden // stdout is the benchmark harness's own output channel
+  @SuppressForbidden
   public void reportOverflow() {
     final long dropped = writer.droppedQueueOverflow();
     if (dropped > 0) {
