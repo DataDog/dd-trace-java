@@ -634,7 +634,11 @@ tasks.register('verifyAgentJarIntegrations', JavaExec) {
   errorOutput = capturedError
 
   doLast {
-    def stderr = capturedError.toString()
+    // The JVM prints this diagnostic line to stderr whenever JAVA_TOOL_OPTIONS is set in the
+    // environment (e.g. CI proxy configuration) — it is not a module load failure.
+    def stderr = capturedError.toString().readLines()
+      .findAll { !it.startsWith('Picked up JAVA_TOOL_OPTIONS:') }
+      .join('\n')
     if (!stderr.isBlank()) {
       throw new GradleException(
       "--list-integrations produced unexpected stderr output " +
