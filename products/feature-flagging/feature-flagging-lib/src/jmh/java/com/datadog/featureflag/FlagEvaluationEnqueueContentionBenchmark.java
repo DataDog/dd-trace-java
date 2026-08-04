@@ -7,6 +7,7 @@ import datadog.communication.BackendApiFactory;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.HashMap;
 import java.util.Map;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -97,6 +98,7 @@ public class FlagEvaluationEnqueueContentionBenchmark {
    * numbers no longer describe the enqueue path - is visible in the benchmark output.
    */
   @org.openjdk.jmh.annotations.TearDown(Level.Iteration)
+  @SuppressForbidden // stdout is the benchmark harness's own output channel
   public void reportOverflow() {
     final long dropped = writer.droppedQueueOverflow();
     if (dropped > 0) {
