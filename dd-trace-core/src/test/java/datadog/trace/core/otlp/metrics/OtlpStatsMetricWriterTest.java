@@ -337,7 +337,7 @@ class OtlpStatsMetricWriterTest {
   private static DecodedMetric writeAndDecode(boolean otelSemanticsMode, AggregateEntry entry)
       throws IOException {
     CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, otelSemanticsMode, null);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, otelSemanticsMode);
     writer.startBucket(1, BUCKET_START, BUCKET_DURATION);
     writer.add(entry);
     writer.finishBucket();
@@ -396,7 +396,7 @@ class OtlpStatsMetricWriterTest {
   @Test
   void errorSeriesDoesNotLingerAfterClearWhenBucketHasOnlyOkHits() throws IOException {
     CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false, null);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
 
     // Bucket 1: the entry sees an error, so its error histogram is allocated and emits a point.
     AggregateEntry e = entry("GET /users", false, 0, null, null, null);
@@ -550,39 +550,35 @@ class OtlpStatsMetricWriterTest {
   }
 
   @Test
-  void serviceNameEmittedOnlyForNonDefaultService() throws IOException {
+  void serviceNameAlwaysEmittedOnDataPoint() throws IOException {
     CapturingSender sender = new CapturingSender();
-    // The configured default service ("web") is reported on the resource; only a span whose service
-    // differs from it repeats service.name on its own data point.
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false, "web");
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
 
     long start = SECONDS.toNanos(1_700_000_000L);
     writer.startBucket(2, start, SECONDS.toNanos(10));
-    writer.add(serviceEntry("web.request", "web")); // default service
-    writer.add(serviceEntry("db.query", "postgres")); // custom service
+    writer.add(serviceEntry("web.request", "web"));
+    writer.add(serviceEntry("db.query", "postgres"));
     writer.finishBucket();
 
     DecodedMetric metric = decode(sender.lastPayload);
     assertEquals(2, metric.dataPoints.size());
 
-    Map<String, Object> defaultAttrs = null;
-    Map<String, Object> customAttrs = null;
+    Map<String, Object> webAttrs = null;
+    Map<String, Object> postgresAttrs = null;
     for (DataPoint dp : metric.dataPoints) {
       if ("db.query".equals(dp.attributes.get("datadog.operation.name"))) {
-        customAttrs = dp.attributes;
+        postgresAttrs = dp.attributes;
       } else {
-        defaultAttrs = dp.attributes;
+        webAttrs = dp.attributes;
       }
     }
-    assertNotNull(customAttrs, "custom-service data point present");
-    assertNotNull(defaultAttrs, "default-service data point present");
+    assertNotNull(postgresAttrs, "postgres data point present");
+    assertNotNull(webAttrs, "web data point present");
+    assertEquals("postgres", postgresAttrs.get("service.name"));
     assertEquals(
-        "postgres",
-        customAttrs.get("service.name"),
-        "non-default service is carried on its own data point");
-    assertFalse(
-        defaultAttrs.containsKey("service.name"),
-        "default service must not be repeated on its data point");
+        "web",
+        webAttrs.get("service.name"),
+        "service.name is emitted unconditionally, even matching the tracer's own default service");
   }
 
   /** An ok-only entry on the given service and operation name, recording a single 1s hit. */
@@ -609,7 +605,7 @@ class OtlpStatsMetricWriterTest {
   @Test
   void emptyBucketSendsNothing() {
     CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false, null);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
 
     writer.startBucket(0, BUCKET_START, BUCKET_DURATION);
     writer.finishBucket(); // no add()
@@ -621,7 +617,7 @@ class OtlpStatsMetricWriterTest {
   @Test
   void nullSenderDoesNotThrowOnNonEmptyBucket() {
     // mirrors the HTTP_JSON path where createSender(config) returns null.
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(null, false, null);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(null, false);
     writer.startBucket(1, BUCKET_START, BUCKET_DURATION);
     writer.add(okEntry(SECONDS.toNanos(1), 2));
     try {
@@ -760,7 +756,7 @@ class OtlpStatsMetricWriterTest {
     // (and the top-level count) at add() time; if it deferred reading to finishBucket() it would
     // encode the already-cleared (empty, zero-count) entry.
     CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false, null);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
 
     AggregateEntry e = entry("servlet.request", false, 0, null, null, null);
     AggregateEntryTestUtils.recordTopLevel(e, SECONDS.toNanos(1));
@@ -788,7 +784,7 @@ class OtlpStatsMetricWriterTest {
     // runtime-id is enabled by default, so default-mode payloads carry datadog.runtime_id on the
     // Resource.
     CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false, null);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
     writer.startBucket(1, SECONDS.toNanos(1_700_000_000L), SECONDS.toNanos(10));
     writer.add(okEntry(SECONDS.toNanos(1), 1));
     writer.finishBucket();
@@ -805,7 +801,7 @@ class OtlpStatsMetricWriterTest {
   @Test
   void otelSemanticsModeResourceOmitsDatadogAttributes() throws IOException {
     CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, true, null);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, true);
     writer.startBucket(1, SECONDS.toNanos(1_700_000_000L), SECONDS.toNanos(10));
     writer.add(okEntry(SECONDS.toNanos(1), 1));
     writer.finishBucket();

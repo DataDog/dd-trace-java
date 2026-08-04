@@ -69,8 +69,6 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   @Nullable private final OtlpSender sender;
   private final boolean otelSemanticsMode;
 
-  @Nullable private final String defaultService;
-
   // own single-thread collector; forced to DELTA since trace-stats buckets are per-interval deltas.
   private final OtlpMetricsCollector collector;
 
@@ -100,25 +98,19 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     this(
         OtlpMetricsSenderFactory.create(config),
         config.getOtlpMetricsProtocol(),
-        config.isTraceOtelSemanticsEnabled(),
-        config.getServiceName());
+        config.isTraceOtelSemanticsEnabled());
   }
 
   // visible for testing: lets tests inject a capturing sender to decode the emitted payload and
-  // control the semantics mode and default service
-  OtlpStatsMetricWriter(
-      @Nullable OtlpSender sender, boolean otelSemanticsMode, @Nullable String defaultService) {
-    this(sender, OtlpConfig.Protocol.HTTP_PROTOBUF, otelSemanticsMode, defaultService);
+  // control the semantics mode
+  OtlpStatsMetricWriter(@Nullable OtlpSender sender, boolean otelSemanticsMode) {
+    this(sender, OtlpConfig.Protocol.HTTP_PROTOBUF, otelSemanticsMode);
   }
 
   private OtlpStatsMetricWriter(
-      @Nullable OtlpSender sender,
-      OtlpConfig.Protocol protocol,
-      boolean otelSemanticsMode,
-      @Nullable String defaultService) {
+      @Nullable OtlpSender sender, OtlpConfig.Protocol protocol, boolean otelSemanticsMode) {
     this.sender = sender;
     this.otelSemanticsMode = otelSemanticsMode;
-    this.defaultService = defaultService;
     // Default mode carries datadog.runtime_id / process tags on the Resource; OTel-semantics mode
     // uses the plain vendor-neutral resource (no datadog.*).
     this.collector =
@@ -218,10 +210,7 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     emitStringAttribute(metric, STATUS_CODE, error ? STATUS_CODE_ERROR : STATUS_CODE_OK);
     emitStringAttribute(metric, SPAN_NAME, entry.getResource());
     emitStringAttribute(metric, SPAN_KIND, canonicalSpanKind(entry.getSpanKind()));
-    UTF8BytesString service = entry.getService();
-    if (service != null && service.length() > 0 && !service.toString().equals(defaultService)) {
-      emitStringAttribute(metric, SERVICE_NAME, service);
-    }
+    emitStringAttribute(metric, SERVICE_NAME, entry.getService());
     if (entry.hasHttpMethod()) {
       emitStringAttribute(metric, HTTP_REQUEST_METHOD, entry.getHttpMethod());
     }
