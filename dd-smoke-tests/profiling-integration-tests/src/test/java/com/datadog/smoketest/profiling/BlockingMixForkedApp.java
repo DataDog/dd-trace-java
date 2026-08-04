@@ -17,11 +17,12 @@ public final class BlockingMixForkedApp {
   private static final long PARK_NANOS = 50_000_000L;
   private static final long SLEEP_MILLIS = 50L;
   private static final long SYNC_HOLD_MILLIS = 50L;
+  private static final long PROFILING_STARTUP_DELAY_MILLIS = 1500L;
 
   public static void main(String[] args) throws Exception {
     BlockingMixForkedApp app = new BlockingMixForkedApp();
+    Thread.sleep(PROFILING_STARTUP_DELAY_MILLIS);
     runWorker(THREAD_SLEEP, app::runSleeps);
-    Thread.sleep(1500);
     runWorker(THREAD_PARK, app::runParks);
     runWorker(THREAD_SYNC, app::runSyncContention);
     Thread.sleep(1500);

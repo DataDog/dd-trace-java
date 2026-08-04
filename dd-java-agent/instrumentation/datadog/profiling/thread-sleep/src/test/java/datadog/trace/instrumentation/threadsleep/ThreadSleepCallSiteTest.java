@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices;
 import datadog.trace.agent.tooling.bytebuddy.csi.CallSiteTransformer;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import net.bytebuddy.ByteBuddy;
@@ -40,6 +41,14 @@ class ThreadSleepCallSiteTest {
     assertNotNull(advices.findAdvice("java/lang/Thread", "sleep", "(JI)V"));
     assertNotNull(advices.findAdvice("java/lang/Thread", "sleep", "(Ljava/time/Duration;)V"));
     assertNotNull(advices.findAdvice("java/util/concurrent/TimeUnit", "sleep", "(J)V"));
+  }
+
+  @Test
+  void callSiteProviderIsAccessibleAcrossAgentClassLoaders() {
+    Class<?> provider = ThreadSleepProfilingInstrumentation.ThreadSleepCallSites.class;
+
+    assertTrue(Modifier.isPublic(provider.getModifiers()));
+    assertTrue(Modifier.isStatic(provider.getModifiers()));
   }
 
   @Test

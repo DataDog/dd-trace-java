@@ -15,7 +15,9 @@ import com.datadog.smoketest.profiling.ThreadSleepTaskBlockForkedApp;
 import datadog.trace.test.util.Flaky;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,7 +74,10 @@ final class ThreadSleepTaskBlockProfilingTest {
     assertTrue(
         stats.spanlessPlatformCount > 0,
         "Expected spanless platform sleep TaskBlocks; observed threads=" + stats.observedThreads);
-    assertEquals(0, stats.activePlatformCount, "Active-context sleeps must not emit TaskBlocks");
+    assertEquals(
+        0,
+        stats.activePlatformCount,
+        "Active-context sleeps must not emit TaskBlocks; observed=" + stats.activeEvents);
     assertEquals(0, stats.virtualCount, "Virtual-thread sleeps must not emit TaskBlocks");
     assertFalse(stats.spanlessHasContext, "Spanless sleep TaskBlocks must keep zero span context");
     assertFalse(stats.spanlessMissingThread, "Sleep TaskBlocks must resolve Event Thread");
@@ -97,6 +102,7 @@ final class ThreadSleepTaskBlockProfilingTest {
   private static final class Stats {
     private long spanlessPlatformCount;
     private long activePlatformCount;
+    private final List<String> activeEvents = new ArrayList<>();
     private long virtualCount;
     private boolean spanlessHasContext;
     private boolean spanlessMissingThread;
@@ -124,6 +130,13 @@ final class ThreadSleepTaskBlockProfilingTest {
             spanlessMissingThread |= thread == null || thread.isEmpty();
           } else if (ThreadSleepTaskBlockForkedApp.ACTIVE_PLATFORM_THREAD.equals(thread)) {
             activePlatformCount++;
+            activeEvents.add(
+                "spanId="
+                    + spanAccessor.getMember(item).longValue()
+                    + ", localRootSpanId="
+                    + rootAccessor.getMember(item).longValue()
+                    + ", durationNanos="
+                    + durationAccessor.getMember(item).doubleValueIn(NANOSECOND));
           } else if (ThreadSleepTaskBlockForkedApp.VIRTUAL_THREAD.equals(thread)) {
             virtualCount++;
           } else if (ThreadSleepTaskBlockForkedApp.CROSS_ROTATION_THREAD.equals(thread)) {
