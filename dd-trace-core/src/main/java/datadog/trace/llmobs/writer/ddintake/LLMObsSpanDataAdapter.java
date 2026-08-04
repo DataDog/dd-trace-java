@@ -34,6 +34,8 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
   private final IOType outputType;
   private List<LLMObs.LLMMessage> input;
   private List<LLMObs.LLMMessage> output;
+  private boolean inputModified;
+  private boolean outputModified;
 
   LLMObsSpanDataAdapter(CoreSpan<?> span) {
     this.span = span;
@@ -60,6 +62,7 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
   @Override
   public void setInput(List<LLMObs.LLMMessage> input) {
     this.input = new ArrayList<>(requireNonNull(input, "input"));
+    inputModified = true;
   }
 
   @Override
@@ -70,6 +73,7 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
   @Override
   public void setOutput(List<LLMObs.LLMMessage> output) {
     this.output = new ArrayList<>(requireNonNull(output, "output"));
+    outputModified = true;
   }
 
   @Override
@@ -85,18 +89,22 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
   }
 
   void apply(LLMObsSpanData processedSpan) {
-    applyIO(
-        span,
-        INPUT_TAG,
-        originalInput,
-        inputType,
-        new ArrayList<>(requireNonNull(processedSpan.getInput(), "processed input")));
-    applyIO(
-        span,
-        OUTPUT_TAG,
-        originalOutput,
-        outputType,
-        new ArrayList<>(requireNonNull(processedSpan.getOutput(), "processed output")));
+    if (processedSpan != this || inputModified) {
+      applyIO(
+          span,
+          INPUT_TAG,
+          originalInput,
+          inputType,
+          new ArrayList<>(requireNonNull(processedSpan.getInput(), "processed input")));
+    }
+    if (processedSpan != this || outputModified) {
+      applyIO(
+          span,
+          OUTPUT_TAG,
+          originalOutput,
+          outputType,
+          new ArrayList<>(requireNonNull(processedSpan.getOutput(), "processed output")));
+    }
   }
 
   private static IOType ioType(String kind, Object value, boolean input) {
@@ -112,6 +120,9 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
     }
     Object unwrapped = unwrapMessages(value);
     if (Tags.LLMOBS_LLM_SPAN_KIND.equals(kind)) {
+      if (input && value instanceof Map && !((Map<?, ?>) value).containsKey("messages")) {
+        return IOType.MESSAGES;
+      }
       return unwrapped instanceof List && allMessages((List<?>) unwrapped)
           ? IOType.MESSAGES
           : IOType.NONE;
@@ -131,7 +142,10 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
       return new ArrayList<>();
     }
     if (type == IOType.MESSAGES) {
-      return new ArrayList<>((List<LLMObs.LLMMessage>) unwrapMessages(value));
+      Object messages = unwrapMessages(value);
+      return messages == null
+          ? new ArrayList<>()
+          : new ArrayList<>((List<LLMObs.LLMMessage>) messages);
     }
     if (type == IOType.DOCUMENTS) {
       List<LLMObs.LLMMessage> messages = new ArrayList<>(((List<?>) value).size());

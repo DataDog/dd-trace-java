@@ -446,16 +446,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
                   val.getClass().getName());
               continue;
             }
-          } else if ((spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT))
-              || (spanKind.equals(Tags.LLMOBS_RETRIEVAL_SPAN_KIND) && key.equals(OUTPUT))) {
-            if (!(val instanceof List)) {
-              LOGGER.warn(
-                  "unexpectedly found incorrect type for {} span {} {}, expecting list",
-                  spanKind,
-                  key,
-                  val.getClass().getName());
-              continue;
-            }
+          } else if (((spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT))
+                  || (spanKind.equals(Tags.LLMOBS_RETRIEVAL_SPAN_KIND) && key.equals(OUTPUT)))
+              && val instanceof List) {
             writable.writeString(key, null);
             writable.startMap(1);
             List<LLMObs.Document> documents = (List<LLMObs.Document>) val;

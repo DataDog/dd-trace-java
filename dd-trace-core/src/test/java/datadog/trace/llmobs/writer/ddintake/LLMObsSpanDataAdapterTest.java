@@ -3,8 +3,10 @@ package datadog.trace.llmobs.writer.ddintake;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.DDTags;
@@ -118,6 +120,39 @@ class LLMObsSpanDataAdapterTest {
 
     verify(span).setTag(INPUT_TAG, input);
     verify(span).setTag(OUTPUT_TAG, output);
+  }
+
+  @Test
+  void addsMessagesToPromptOnlyInput() {
+    CoreSpan<?> span = mock(CoreSpan.class);
+    Map<String, Object> prompt = Collections.singletonMap("id", "prompt-id");
+    when(span.getTag(SPAN_KIND_TAG)).thenReturn(Tags.LLMOBS_LLM_SPAN_KIND);
+    when(span.getTag(INPUT_TAG)).thenReturn(Collections.singletonMap("prompt", prompt));
+
+    LLMObsSpanDataAdapter adapter = new LLMObsSpanDataAdapter(span);
+    adapter.setInput(Collections.singletonList(LLMObs.LLMMessage.from("user", "input")));
+    adapter.apply(adapter);
+
+    ArgumentCaptor<Object> inputCaptor = ArgumentCaptor.forClass(Object.class);
+    verify(span).setTag(eq(INPUT_TAG), inputCaptor.capture());
+    Map<?, ?> input = (Map<?, ?>) inputCaptor.getValue();
+    assertEquals(prompt, input.get("prompt"));
+    assertEquals(adapter.getInput(), input.get("messages"));
+  }
+
+  @Test
+  void preservesIoWhenProcessorDoesNotModifyIt() {
+    CoreSpan<?> span = mock(CoreSpan.class);
+    Map<String, Object> input = Collections.singletonMap("key", "input");
+    List<String> output = Collections.singletonList("output");
+    when(span.getTag(INPUT_TAG)).thenReturn(input);
+    when(span.getTag(OUTPUT_TAG)).thenReturn(output);
+
+    LLMObsSpanDataAdapter adapter = new LLMObsSpanDataAdapter(span);
+    clearInvocations(span);
+    adapter.apply(adapter);
+
+    verifyNoInteractions(span);
   }
 
   @Test
