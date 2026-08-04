@@ -1009,10 +1009,6 @@ public final class TagMap implements Map<String, Object>, Iterable<TagMap.EntryR
     this.frozen = true;
   }
 
-  public boolean isOptimized() {
-    return true;
-  }
-
   @Override
   public int size() {
     return this.size;

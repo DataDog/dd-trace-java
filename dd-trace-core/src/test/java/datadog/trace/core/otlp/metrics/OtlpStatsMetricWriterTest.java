@@ -1,5 +1,6 @@
 package datadog.trace.core.otlp.metrics;
 
+import static datadog.trace.common.writer.RemoteApi.Response.success;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -12,8 +13,10 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.AggregateEntry;
 import datadog.trace.common.metrics.AggregateEntryTestUtils;
+import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import java.io.IOException;
@@ -64,12 +67,13 @@ class OtlpStatsMetricWriterTest {
     byte[] lastPayload;
 
     @Override
-    public void send(OtlpPayload payload) {
+    public RemoteApi.Response send(OtlpPayload payload) {
       sendCount++;
       java.nio.ByteBuffer content = payload.getContent();
       byte[] bytes = new byte[content.remaining()];
       content.get(bytes);
       lastPayload = bytes;
+      return success(200);
     }
 
     @Override
@@ -422,6 +426,103 @@ class OtlpStatsMetricWriterTest {
     assertFalse(bareAttrs.containsKey("http.response.status_code"));
     assertFalse(bareAttrs.containsKey("http.route"));
     assertFalse(bareAttrs.containsKey("rpc.response.status_code"));
+  }
+
+  @Test
+  void additionalMetricTagsEmittedAsStringAttributes() throws IOException {
+    // Additional tags arrive on the entry pre-packed as "key:value" UTF8 strings in schema order;
+    // the writer splits each at the first ':' and emits it as a plain OTLP string attribute keyed
+    // by the tag name, in both semantics modes.
+    AggregateEntry e =
+        AggregateEntryTestUtils.of(
+            "GET /users",
+            "web",
+            "servlet.request",
+            null,
+            "web",
+            0,
+            false,
+            true,
+            "server",
+            null,
+            null,
+            null,
+            null,
+            new UTF8BytesString[] {
+              UTF8BytesString.create("region:us-east-1"),
+              UTF8BytesString.create("tenant_id:acme:corp")
+            });
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+
+    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    assertEquals("us-east-1", attrs.get("region"));
+    // value may itself contain ':' — only the first ':' separates key from value
+    assertEquals("acme:corp", attrs.get("tenant_id"));
+  }
+
+  @Test
+  void additionalMetricTagsEmittedInOtelSemanticsMode() throws IOException {
+    // Unlike datadog.* attributes, additional tags are user-configured dimensions and are emitted
+    // in otel-semantics mode too.
+    AggregateEntry e =
+        AggregateEntryTestUtils.of(
+            "GET /users",
+            "web",
+            "servlet.request",
+            null,
+            "web",
+            0,
+            false,
+            true,
+            "server",
+            null,
+            null,
+            null,
+            null,
+            new UTF8BytesString[] {UTF8BytesString.create("region:us-east-1")});
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+
+    Map<String, Object> attrs = writeAndDecode(true, e).dataPoints.get(0).attributes;
+    assertEquals("us-east-1", attrs.get("region"));
+    assertFalse(
+        attrs.containsKey("datadog.operation.name"), "datadog.* still absent in otel-semantics");
+  }
+
+  @Test
+  void emptyValueEmittedButMalformedSlotsSkipped() throws IOException {
+    // A slot with no ':' or an empty key is dropped as malformed. An empty value ("key:") is NOT
+    // malformed -- aggregation treats an explicitly-empty tag as a distinct dimension from an
+    // absent
+    // one, so it is emitted as key="" to keep the OTLP attributes faithful to the aggregate key.
+    AggregateEntry e =
+        AggregateEntryTestUtils.of(
+            "GET /users",
+            "web",
+            "servlet.request",
+            null,
+            "web",
+            0,
+            false,
+            true,
+            "server",
+            null,
+            null,
+            null,
+            null,
+            new UTF8BytesString[] {
+              UTF8BytesString.create("noseparator"),
+              UTF8BytesString.create(":emptykey"),
+              UTF8BytesString.create("emptyvalue:"),
+              UTF8BytesString.create("region:us-east-1")
+            });
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+
+    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    assertEquals("us-east-1", attrs.get("region"), "well-formed tag still emitted");
+    assertFalse(attrs.containsKey("noseparator"), "no-separator slot skipped");
+    assertFalse(attrs.containsKey(""), "empty-key slot skipped");
+    assertTrue(attrs.containsKey("emptyvalue"), "empty-value slot emitted");
+    assertEquals("", attrs.get("emptyvalue"), "empty value emitted as empty string");
   }
 
   @Test
