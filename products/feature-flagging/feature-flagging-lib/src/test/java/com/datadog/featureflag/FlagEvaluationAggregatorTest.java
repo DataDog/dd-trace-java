@@ -99,6 +99,30 @@ class FlagEvaluationAggregatorTest {
   }
 
   @Test
+  void mixedConsentDegradedEvaluationsMergeIntoOneBucket() {
+    // Mirror of mixedConsentEvaluationsForSameSubjectLandInDistinctBuckets, but for the degraded
+    // tier: the wire serializer for degraded rows drops the targeting key and context regardless
+    // of consent, so two events differing only in consent emit byte-identical JSON. They must
+    // share a bucket, otherwise DEGRADED_CAP is effectively halved for zero wire fidelity gain.
+    // The AND-fold on EvalBucket.observeFullEvaluationData still runs but the value has no
+    // downstream effect for degraded rows.
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    aggregator.perFlagCount.put("hot-flag", FlagEvaluationAggregator.PER_FLAG_CAP);
+
+    aggregator.aggregate(event("hot-flag", "on", "alloc1", "user-1", 1000L, true, emptyMap()));
+    aggregator.aggregate(event("hot-flag", "on", "alloc1", "user-2", 2000L, false, emptyMap()));
+
+    final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
+    assertEquals(0, state.fullTier.size());
+    assertEquals(1, state.degradedTier.size());
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        state.degradedTier.values().iterator().next();
+    assertEquals(2, bucket.count);
+    // AND-fold collapses to consent-off; benign for degraded rows but a documented invariant.
+    assertFalse(bucket.observeFullEvaluationData);
+  }
+
+  @Test
   void absentVariantSetsRuntimeDefaultUsed() {
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
 
@@ -414,7 +438,7 @@ class FlagEvaluationAggregatorTest {
       final boolean runtimeDefaultUsed,
       final String errorMessage) {
     return new FlagEvaluationAggregator.DegradedKey(
-        flagKey, variant, allocationKey, runtimeDefaultUsed, errorMessage, false);
+        flagKey, variant, allocationKey, runtimeDefaultUsed, errorMessage);
   }
 
   private static String repeat(final char c, final int count) {
