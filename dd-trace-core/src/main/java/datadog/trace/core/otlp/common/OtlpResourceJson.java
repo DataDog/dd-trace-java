@@ -1,6 +1,7 @@
 package datadog.trace.core.otlp.common;
 
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.writeAttribute;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.datadogResourceAttributes;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.traceResourceAttributes;
@@ -9,6 +10,7 @@ import static datadog.trace.core.otlp.common.OtlpResourceAttributes.visitResourc
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /** Provides a canned JSON fragment for OpenTelemetry's "resource.proto" JSON encoding. */
@@ -35,7 +37,7 @@ public final class OtlpResourceJson {
   public static final String TRACE_RESOURCE_FRAGMENT =
       buildResourceFragment(Config.get(), traceResourceAttributes(Config.get()));
 
-  static String buildResourceFragment(Config config, Map<String, String> extraAttributes) {
+  static String buildResourceFragment(Config config, Map<String, Object> extraAttributes) {
     try (JsonWriter writer = new JsonWriter()) {
       writer.beginObject();
       writer.name("attributes").beginArray();
@@ -49,7 +51,16 @@ public final class OtlpResourceJson {
     }
   }
 
-  private static void writeResourceAttribute(JsonWriter writer, String key, String value) {
-    writeAttribute(writer, STRING_ATTRIBUTE, key, value);
+  /**
+   * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code
+   * List<String>}.
+   */
+  @SuppressWarnings("unchecked")
+  private static void writeResourceAttribute(JsonWriter writer, String key, Object value) {
+    if (value instanceof List) {
+      writeAttribute(writer, STRING_ARRAY_ATTRIBUTE, key, (List<String>) value);
+    } else {
+      writeAttribute(writer, STRING_ATTRIBUTE, key, value);
+    }
   }
 }

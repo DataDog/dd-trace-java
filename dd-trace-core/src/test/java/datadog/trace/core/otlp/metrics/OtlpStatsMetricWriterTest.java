@@ -295,14 +295,36 @@ class OtlpStatsMetricWriterTest {
         case 1: // string_value
           value = any.readString();
           break;
+        case 2: // bool_value
+          value = any.readBool();
+          break;
         case 3: // int_value
           value = any.readInt64();
+          break;
+        case 5: // array_value
+          value = readArrayValue(any.readBytes().newCodedInput());
           break;
         default:
           any.skipField(tag);
       }
     }
     return value;
+  }
+
+  /**
+   * Decodes an {@code ArrayValue.values} (field 1, repeated {@code AnyValue}) into a string list.
+   */
+  private static List<String> readArrayValue(CodedInputStream arrayValue) throws IOException {
+    List<String> values = new ArrayList<>();
+    while (!arrayValue.isAtEnd()) {
+      int tag = arrayValue.readTag();
+      if (WireFormat.getTagFieldNumber(tag) == 1) {
+        values.add((String) readAnyValue(arrayValue.readBytes().newCodedInput()));
+      } else {
+        arrayValue.skipField(tag);
+      }
+    }
+    return values;
   }
 
   // ── writer driver ─────────────────────────────────────────────────────────
@@ -338,7 +360,7 @@ class OtlpStatsMetricWriterTest {
     assertEquals(BUCKET_START, dp.start, "start_time_unix_nano == startBucket start");
     assertEquals(BUCKET_START + BUCKET_DURATION, dp.end, "time_unix_nano == start + duration");
     assertEquals(3L, dp.count);
-    assertFalse(dp.attributes.containsKey("status.code"), "ok point carries no status.code");
+    assertEquals("STATUS_CODE_OK", dp.attributes.get("status.code"), "ok point → STATUS_CODE_OK");
   }
 
   @Test
@@ -356,7 +378,7 @@ class OtlpStatsMetricWriterTest {
     DataPoint errorPoint = null;
     DataPoint okPoint = null;
     for (DataPoint dp : metric.dataPoints) {
-      if ("ERROR".equals(dp.attributes.get("status.code"))) {
+      if ("STATUS_CODE_ERROR".equals(dp.attributes.get("status.code"))) {
         errorPoint = dp;
         errorCount = dp.count;
       } else {
@@ -364,8 +386,9 @@ class OtlpStatsMetricWriterTest {
         okCount = dp.count;
       }
     }
-    assertNotNull(errorPoint, "one data point must carry status.code=ERROR");
-    assertNotNull(okPoint, "one data point must omit status.code");
+    assertNotNull(errorPoint, "one data point must carry status.code=STATUS_CODE_ERROR");
+    assertNotNull(okPoint, "one data point must carry status.code=STATUS_CODE_OK");
+    assertEquals("STATUS_CODE_OK", okPoint.attributes.get("status.code"));
     assertEquals(e.getOkLatencies().getCount(), (double) okCount, 1e-9);
     assertEquals(e.getErrorLatencies().getCount(), (double) errorCount, 1e-9);
   }
@@ -387,8 +410,8 @@ class OtlpStatsMetricWriterTest {
     assertEquals(2, bucket1.dataPoints.size(), "bucket with an error → ok+error data points");
     assertTrue(
         bucket1.dataPoints.stream()
-            .anyMatch(dp -> "ERROR".equals(dp.attributes.get("status.code"))),
-        "bucket 1 must carry a status.code=ERROR point");
+            .anyMatch(dp -> "STATUS_CODE_ERROR".equals(dp.attributes.get("status.code"))),
+        "bucket 1 must carry a status.code=STATUS_CODE_ERROR point");
 
     // Bucket 2: same entry, reset then only OK hits. errorLatencies survives clear() (cleared, not
     // nulled), so a non-null-but-empty histogram must NOT emit a phantom zero-count error series.
@@ -400,9 +423,10 @@ class OtlpStatsMetricWriterTest {
     writer.finishBucket();
     DecodedMetric bucket2 = decode(sender.lastPayload);
     assertEquals(1, bucket2.dataPoints.size(), "ok-only bucket → exactly one data point");
-    assertFalse(
-        bucket2.dataPoints.get(0).attributes.containsKey("status.code"),
-        "recovered entry must not emit a lingering status.code=ERROR series");
+    assertEquals(
+        "STATUS_CODE_OK",
+        bucket2.dataPoints.get(0).attributes.get("status.code"),
+        "recovered entry must not emit a lingering status.code=STATUS_CODE_ERROR series");
   }
 
   @Test
@@ -623,6 +647,52 @@ class OtlpStatsMetricWriterTest {
     // OTel-semconv attrs are present in both modes
     assertTrue(attrs.containsKey("span.name"), "span.name present in both modes");
     // datadog.origin presence/absence is covered by defaultModeEmitsSyntheticOrigin
+  }
+
+  @ParameterizedTest
+  @CsvSource({"true", "false"})
+  void defaultModeEmitsIsTraceRoot(boolean traceRoot) throws IOException {
+    AggregateEntry e =
+        AggregateEntryTestUtils.of(
+            "GET /users", "web", "servlet.request", null, "web", 0, false, traceRoot, "server",
+            null, null, null, null);
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+
+    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    assertEquals(traceRoot, attrs.get("datadog.is_trace_root"));
+  }
+
+  @Test
+  void otelSemanticsModeOmitsIsTraceRoot() throws IOException {
+    AggregateEntry e =
+        AggregateEntryTestUtils.of(
+            "GET /users", "web", "servlet.request", null, "web", 0, false, true, "server", null,
+            null, null, null);
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+
+    Map<String, Object> attrs = writeAndDecode(true, e).dataPoints.get(0).attributes;
+    assertFalse(attrs.containsKey("datadog.is_trace_root"));
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "server, SPAN_KIND_SERVER",
+    "client, SPAN_KIND_CLIENT",
+    "producer, SPAN_KIND_PRODUCER",
+    "consumer, SPAN_KIND_CONSUMER",
+    "broker, SPAN_KIND_INTERNAL",
+    "'', SPAN_KIND_INTERNAL",
+  })
+  void spanKindIsCanonicalizedToUppercaseEnumName(String spanKind, String expected)
+      throws IOException {
+    AggregateEntry e =
+        AggregateEntryTestUtils.of(
+            "GET /users", "web", "servlet.request", null, "web", 0, false, true, spanKind, null,
+            null, null, null);
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+
+    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    assertEquals(expected, attrs.get("span.kind"));
   }
 
   /**

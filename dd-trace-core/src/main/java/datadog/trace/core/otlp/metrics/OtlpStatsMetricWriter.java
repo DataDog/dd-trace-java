@@ -1,6 +1,7 @@
 package datadog.trace.core.otlp.metrics;
 
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 
@@ -9,6 +10,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
@@ -49,12 +51,20 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private static final String HTTP_ROUTE = "http.route";
   private static final String RPC_RESPONSE_STATUS_CODE = "rpc.response.status_code";
   private static final String STATUS_CODE = "status.code";
-  private static final String STATUS_CODE_ERROR = "ERROR";
+  private static final String STATUS_CODE_OK = "STATUS_CODE_OK";
+  private static final String STATUS_CODE_ERROR = "STATUS_CODE_ERROR";
   private static final String DATADOG_OPERATION_NAME = "datadog.operation.name";
   private static final String DATADOG_SPAN_TYPE = "datadog.span.type";
   private static final String DATADOG_SPAN_TOP_LEVEL = "datadog.span.top_level";
+  private static final String DATADOG_IS_TRACE_ROOT = "datadog.is_trace_root";
   private static final String DATADOG_ORIGIN = "datadog.origin";
   private static final String SYNTHETICS_ORIGIN = "synthetics";
+
+  private static final String SPAN_KIND_SERVER = "SPAN_KIND_SERVER";
+  private static final String SPAN_KIND_CLIENT = "SPAN_KIND_CLIENT";
+  private static final String SPAN_KIND_PRODUCER = "SPAN_KIND_PRODUCER";
+  private static final String SPAN_KIND_CONSUMER = "SPAN_KIND_CONSUMER";
+  private static final String SPAN_KIND_INTERNAL = "SPAN_KIND_INTERNAL";
 
   @Nullable private final OtlpSender sender;
   private final boolean otelSemanticsMode;
@@ -205,13 +215,9 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
 
   private void emitDataPointAttributes(
       OtlpMetricVisitor metric, AggregateEntry entry, boolean error, boolean allTopLevel) {
-    if (error) {
-      emitStringAttribute(metric, STATUS_CODE, STATUS_CODE_ERROR);
-    }
-    // OTel semconv attrs are emitted in both modes
+    emitStringAttribute(metric, STATUS_CODE, error ? STATUS_CODE_ERROR : STATUS_CODE_OK);
     emitStringAttribute(metric, SPAN_NAME, entry.getResource());
-    emitStringAttribute(metric, SPAN_KIND, entry.getSpanKind());
-    // service.name on the point only when the span's service differs from the resource's default
+    emitStringAttribute(metric, SPAN_KIND, canonicalSpanKind(entry.getSpanKind()));
     UTF8BytesString service = entry.getService();
     if (service != null && service.length() > 0 && !service.toString().equals(defaultService)) {
       emitStringAttribute(metric, SERVICE_NAME, service);
@@ -228,10 +234,7 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     if (entry.hasGrpcStatusCode()) {
       emitStringAttribute(metric, RPC_RESPONSE_STATUS_CODE, entry.getGrpcStatusCode());
     }
-    // Additional metric tags: user-configured span-derived dimensions, carried as packed
-    // "key:value" UTF8 strings in schema order. Emitted in both modes as plain OTLP string
-    // attributes keyed by the tag name. NOTE: the attribute-key representation (raw tag name vs a
-    // datadog.* namespace) is an open cross-team question with the OTLP/agent side -- see the PR.
+    // additional_metric_tags support is still evolving/TBD across most tracer SDKs.
     for (UTF8BytesString additionalTag : entry.getAdditionalTags()) {
       emitAdditionalTag(metric, additionalTag);
     }
@@ -240,17 +243,27 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
       emitStringAttribute(metric, DATADOG_OPERATION_NAME, entry.getOperationName());
       emitStringAttribute(metric, DATADOG_SPAN_TYPE, entry.getType());
       emitLongAttribute(metric, DATADOG_SPAN_TOP_LEVEL, allTopLevel ? 1L : 0L);
+      emitBooleanAttribute(metric, DATADOG_IS_TRACE_ROOT, entry.isTraceRoot());
       if (entry.isSynthetics()) {
         emitStringAttribute(metric, DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
       }
     }
   }
 
-  // Splits a packed "key:value" additional-tag string at the first ':' (keys cannot contain ':',
-  // values may) and emits it as an OTLP string attribute. Skips only malformed slots with no ':' or
-  // an empty key. An empty value ("key:") is emitted as key="": the aggregation path treats an
-  // explicitly-empty tag as a distinct dimension from an absent one, so dropping it here would
-  // export two separately-aggregated rows with identical OTLP attribute sets.
+  private static String canonicalSpanKind(CharSequence spanKind) {
+    if (Tags.SPAN_KIND_SERVER.contentEquals(spanKind)) {
+      return SPAN_KIND_SERVER;
+    } else if (Tags.SPAN_KIND_CLIENT.contentEquals(spanKind)) {
+      return SPAN_KIND_CLIENT;
+    } else if (Tags.SPAN_KIND_PRODUCER.contentEquals(spanKind)) {
+      return SPAN_KIND_PRODUCER;
+    } else if (Tags.SPAN_KIND_CONSUMER.contentEquals(spanKind)) {
+      return SPAN_KIND_CONSUMER;
+    } else {
+      return SPAN_KIND_INTERNAL;
+    }
+  }
+
   private static void emitAdditionalTag(OtlpMetricVisitor metric, UTF8BytesString additionalTag) {
     String packed = additionalTag.toString();
     int separator = packed.indexOf(':');
@@ -261,7 +274,6 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
         STRING_ATTRIBUTE, packed.substring(0, separator), packed.substring(separator + 1));
   }
 
-  // accepts both String literals and UTF8BytesString (both CharSequence); skips null values
   private static void emitStringAttribute(
       OtlpMetricVisitor metric, String key, @Nullable CharSequence value) {
     if (value != null) {
@@ -271,5 +283,9 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
 
   private static void emitLongAttribute(OtlpMetricVisitor metric, String key, long value) {
     metric.visitAttribute(LONG_ATTRIBUTE, key, value);
+  }
+
+  private static void emitBooleanAttribute(OtlpMetricVisitor metric, String key, boolean value) {
+    metric.visitAttribute(BOOLEAN_ATTRIBUTE, key, value);
   }
 }
