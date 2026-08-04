@@ -226,11 +226,16 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final ErrorCode code,
       final String errorMessage,
       final boolean observeFullEvaluationData) {
+    // Under consent-off the errorMessage is dropped: exception messages from the outer catch blocks
+    // (NumberFormatException, generic Exception) can echo raw evaluation-context values, so they
+    // must never reach any consumer of ProviderEvaluation.getErrorMessage() — not just our own
+    // wire hook. Downstream (FlagEvalLoggingHook) falls back to ErrorCode.name(), so operators
+    // still get a stable signal like "TYPE_MISMATCH".
     return ProviderEvaluation.<T>builder()
         .value(defaultValue)
         .reason(Reason.ERROR.name())
         .errorCode(code)
-        .errorMessage(errorMessage)
+        .errorMessage(observeFullEvaluationData ? errorMessage : null)
         .flagMetadata(consentMetadata(observeFullEvaluationData))
         .build();
   }
@@ -397,13 +402,11 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final boolean observeFullEvaluationData) {
     final Variant variant = flag.variations.get(variationKey);
     if (variant == null) {
-      return ProviderEvaluation.<T>builder()
-          .value(defaultValue)
-          .reason(Reason.ERROR.name())
-          .errorCode(ErrorCode.GENERAL)
-          .errorMessage("Variant not found for: " + variationKey)
-          .flagMetadata(consentMetadata(observeFullEvaluationData))
-          .build();
+      return error(
+          defaultValue,
+          ErrorCode.GENERAL,
+          "Variant not found for: " + variationKey,
+          observeFullEvaluationData);
     }
 
     if (!isTypeCompatible(target, flag.variationType)) {

@@ -641,6 +641,41 @@ class FlagEvaluationWriterImplTest {
     assertNotNull(ctx.get("evaluation"));
   }
 
+  @Test
+  void consentOffPreservesErrorCodeSignalAndNeverLeaksPiiInErrorMessage() throws Exception {
+    // Upstream contract: the hook substitutes the ErrorCode name for the raw exception message
+    // under consent-off (see
+    // FlagEvalLoggingHookTest#errorMessageReplacedByErrorCodeUnderConsentOff).
+    // This wire-level guard pins that a properly-formed consent-off event (a) still surfaces the
+    // stable ErrorCode signal for operators and (b) never lets a PII-shaped string escape onto the
+    // wire. Mirrors the existing PII guards on the targeting_key axis.
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
+    setup.handler.add(
+        new FlagEvalEvent(
+            "err-flag",
+            null,
+            "alloc1",
+            "jane.doe@datadoghq.com",
+            "TYPE_MISMATCH",
+            1000L,
+            false,
+            emptyMap()));
+
+    final FlagEvaluationTestSupport.CapturedJson captured = flushAndCapture(setup);
+
+    final Map<String, Object> ev = eventForFlag(captured.parsed, "err-flag");
+    assertNotNull(ev);
+    final Map<?, ?> error = (Map<?, ?>) ev.get("error");
+    assertNotNull(error, "error object must be present so operators keep the ErrorCode signal");
+    assertEquals("TYPE_MISMATCH", error.get("message"));
+    assertEquals(HASHED_JANE_DOE, ev.get("targeting_key"));
+    assertFalse(captured.raw.contains("jane.doe@datadoghq.com"));
+    assertFalse(
+        captured.raw.contains("For input string"),
+        "no exception-message-shaped text may reach the wire under consent-off");
+  }
+
   private void assertHashedTargetingKeyAndOmittedContext(final FlagEvalEvent piiEvent)
       throws Exception {
     final BackendApi mockEvp = mock(BackendApi.class);

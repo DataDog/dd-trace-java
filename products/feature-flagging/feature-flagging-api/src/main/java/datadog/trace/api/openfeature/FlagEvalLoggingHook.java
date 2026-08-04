@@ -94,16 +94,6 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // evaluated value. A null variant means no variant was selected (runtime default).
       final String variant = details.getVariant();
 
-      // error message: prefer the human-readable message; fall back to the error code name when
-      // the message is empty (some providers populate only the code). null on success.
-      String errorMessage = details.getErrorMessage();
-      if ((errorMessage == null || errorMessage.isEmpty()) && details.getErrorCode() != null) {
-        errorMessage = details.getErrorCode().name();
-      }
-      if (errorMessage != null && errorMessage.isEmpty()) {
-        errorMessage = null;
-      }
-
       // targetingKey from evaluation context
       final String targetingKey =
           ctx != null && ctx.getCtx() != null ? ctx.getCtx().getTargetingKey() : null;
@@ -115,6 +105,19 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
               ? metadata.getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA)
               : null;
       final boolean observeFullEvaluationData = consentFromMetadata != null && consentFromMetadata;
+
+      // Error message: prefer the human-readable message under consent-on; under consent-off the
+      // provider's raw message can echo evaluation-context values (e.g. NumberFormatException:
+      // "For input string: \"jane.doe@...\""), so replace it with the ErrorCode name — a stable,
+      // PII-free signal. Same substitution path is used when the message is absent regardless of
+      // consent (some providers populate only the code). Null on success.
+      String errorMessage = observeFullEvaluationData ? details.getErrorMessage() : null;
+      if ((errorMessage == null || errorMessage.isEmpty()) && details.getErrorCode() != null) {
+        errorMessage = details.getErrorCode().name();
+      }
+      if (errorMessage != null && errorMessage.isEmpty()) {
+        errorMessage = null;
+      }
 
       // On the protected path the evaluation context is dropped on emit and never consulted by
       // the aggregator, so skip the snapshot + supplier allocation entirely.

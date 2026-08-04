@@ -12,6 +12,8 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -24,8 +26,13 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.ufc.v1.Allocation;
+import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.ValueType;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.MutableContext;
@@ -242,6 +249,67 @@ public class DDEvaluatorTest {
     assertThat(
         details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
         equalTo(false));
+  }
+
+  // ---- error message redaction respects observeFullEvaluationData ----
+
+  @Test
+  public void numericConditionOnTargetingKeyDropsExceptionMessageUnderConsentOff() {
+    // Rule {attribute:"id", operator:GT, value:0} + "id" not in context →
+    // DDEvaluator.resolveAttribute
+    // falls back to the targeting key, so Double.parseDouble("jane.doe@datadoghq.com") throws
+    // NumberFormatException. The exception message echoes the raw context value verbatim, so it
+    // must be dropped when observeFullEvaluationData=false.
+    final ProviderEvaluation<?> details =
+        evaluateWithNumericRuleOnId("jane.doe@datadoghq.com", false);
+
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.TYPE_MISMATCH));
+    assertNull(details.getErrorMessage(), "consent-off must not surface the raw exception message");
+  }
+
+  @Test
+  public void numericConditionOnTargetingKeyPreservesExceptionMessageUnderConsentOn() {
+    // Symmetric case: with consent on, the raw exception message flows through unchanged so
+    // operators keep the diagnostic detail they opted in to.
+    final ProviderEvaluation<?> details =
+        evaluateWithNumericRuleOnId("jane.doe@datadoghq.com", true);
+
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.TYPE_MISMATCH));
+    assertThat(details.getErrorMessage(), equalTo("For input string: \"jane.doe@datadoghq.com\""));
+  }
+
+  @Test
+  public void numericConditionOnTargetingKeyErrorMessageNeverContainsPiiUnderConsentOff() {
+    // Belt-and-suspenders: independent of the exact null/empty form, the raw PII value must never
+    // appear in the message under consent-off. Guards against future changes that might replace
+    // null with a redacted string or a code-name suffix.
+    final ProviderEvaluation<?> details =
+        evaluateWithNumericRuleOnId("jane.doe@datadoghq.com", false);
+
+    final String message = details.getErrorMessage();
+    assertFalse(
+        message != null && message.contains("jane.doe@datadoghq.com"),
+        "consent-off errorMessage must not contain raw context values");
+  }
+
+  private static ProviderEvaluation<?> evaluateWithNumericRuleOnId(
+      final String targetingKey, final boolean observeFullEvaluationData) {
+    final Map<String, Flag> flags = new HashMap<>();
+    final List<Rule> rules =
+        singletonList(
+            new Rule(singletonList(new ConditionConfiguration(ConditionOperator.GT, "id", 0))));
+    // Split must be non-empty so the allocation is considered a match target; its contents don't
+    // matter because the rule throws before a split is picked.
+    final Allocation allocation =
+        new Allocation("alloc", rules, null, null, emptyList(), Boolean.FALSE);
+    flags.put(
+        "num-rule",
+        new Flag("num-rule", true, ValueType.INTEGER, emptyMap(), singletonList(allocation)));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", observeFullEvaluationData, null, flags));
+
+    final EvaluationContext ctx = new MutableContext(targetingKey);
+    return evaluator.evaluate(Integer.class, "num-rule", 23, ctx);
   }
 
   private static Arguments[] flatteningTestCases() {

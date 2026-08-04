@@ -226,7 +226,9 @@ class FlagEvalLoggingHookTest {
   // ---- test: error message captured from details (error object support) ----
 
   @Test
-  void errorMessageCapturedFromDetails() {
+  void errorMessageCapturedFromDetailsUnderConsentOn() {
+    // With observeFullEvaluationData=true the provider's raw message is preserved verbatim so
+    // operators keep the diagnostic detail they opted in to.
     final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
@@ -237,6 +239,7 @@ class FlagEvalLoggingHookTest {
             .reason(Reason.ERROR.name())
             .errorCode(ErrorCode.TYPE_MISMATCH)
             .errorMessage("value does not match declared type")
+            .flagMetadata(consentOnMetadata())
             .build();
 
     hook.finallyAfter(null, det, Collections.emptyMap());
@@ -245,7 +248,61 @@ class FlagEvalLoggingHookTest {
     assertEquals(
         "value does not match declared type",
         captured.get().errorMessage,
-        "errorMessage must be captured from the evaluation details");
+        "errorMessage must be captured from the evaluation details under consent-on");
+  }
+
+  @Test
+  void errorMessageReplacedByErrorCodeUnderConsentOff() {
+    // Defense-in-depth: even if a provider hands us a raw message under consent-off (a bug in the
+    // provider, or a third-party provider that doesn't distinguish consent tiers), the hook must
+    // substitute the ErrorCode name so raw PII from exception messages never reaches the wire.
+    // Uses a PII-looking marker exactly like the wire-level guards in FlagEvaluationWriterImplTest.
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+
+    final FlagEvaluationDetails<Object> det =
+        FlagEvaluationDetails.<Object>builder()
+            .flagKey("err-flag")
+            .value("default")
+            .reason(Reason.ERROR.name())
+            .errorCode(ErrorCode.TYPE_MISMATCH)
+            .errorMessage("For input string: \"jane.doe@datadoghq.com\"")
+            .flagMetadata(consentOffMetadata())
+            .build();
+
+    hook.finallyAfter(null, det, Collections.emptyMap());
+
+    assertNotNull(captured.get());
+    assertEquals(
+        "TYPE_MISMATCH",
+        captured.get().errorMessage,
+        "consent-off must replace the raw message with the ErrorCode name");
+    assertFalse(
+        captured.get().errorMessage.contains("jane.doe@datadoghq.com"),
+        "raw PII must never survive into the enqueued event under consent-off");
+  }
+
+  @Test
+  void errorMessageDroppedWhenConsentOffAndNoErrorCode() {
+    // Edge case: no ErrorCode available (unusual — providers should set one for ERROR reason).
+    // Consent-off drops the message and there's nothing to substitute, so the enqueued event has
+    // no error message at all. This is the strictest privacy-preserving outcome.
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+
+    final FlagEvaluationDetails<Object> det =
+        FlagEvaluationDetails.<Object>builder()
+            .flagKey("err-flag")
+            .value("default")
+            .reason(Reason.ERROR.name())
+            .errorMessage("For input string: \"jane.doe@datadoghq.com\"")
+            .flagMetadata(consentOffMetadata())
+            .build();
+
+    hook.finallyAfter(null, det, Collections.emptyMap());
+
+    assertNotNull(captured.get());
+    assertNull(captured.get().errorMessage);
   }
 
   // ---- test: error code used as fallback message when error message is empty ----
@@ -548,6 +605,12 @@ class FlagEvalLoggingHookTest {
   private static ImmutableMetadata consentOnMetadata() {
     return ImmutableMetadata.builder()
         .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, true)
+        .build();
+  }
+
+  private static ImmutableMetadata consentOffMetadata() {
+    return ImmutableMetadata.builder()
+        .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, false)
         .build();
   }
 
