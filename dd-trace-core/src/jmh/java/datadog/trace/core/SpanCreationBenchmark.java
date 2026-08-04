@@ -56,6 +56,14 @@ import org.openjdk.jmh.infra.Blackhole;
  * drop is the TagMap 1.0 shared-Entry default flip; the ~1.61 drop is the interceptor/links
  * cluster. Net 1.53 &rarr; 1.64 is -20% to -31% per arm.
  *
+ * <p><b>Note — baseline reset.</b> The table below was measured on a <em>bare</em> ({@code
+ * CoreTracer.builder().build()}) tracer. As of this commit the fork is production-shaped ({@code
+ * dd.service}/{@code dd.env}/{@code dd.version} + 6 global {@code dd.tags}), which enlarges {@code
+ * mergedTracerTags} — the trace-level bundle every span merges — so tag-scaling wins are actually
+ * exercised. That raises absolute B/op across all arms, so the numbers below are a <em>pre-config
+ * baseline, not comparable</em> to runs on this branch onward; re-baseline going forward rather
+ * than stitching new points onto this curve.
+ *
  * <pre>
  * ver    bareStart bareBuild webServer viaBuilder jdbcClient
  * 1.53      1330.7    1331.1    2058.7     2434.7     1821.3
@@ -98,7 +106,18 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.Throughput)
 @Threads(8)
 @OutputTimeUnit(MICROSECONDS)
-@Fork(value = 3, jvmArgsAppend = "-DTEST_LOG_LEVEL=warn")
+@Fork(
+    value = 3,
+    jvmArgsAppend = {
+      "-DTEST_LOG_LEVEL=warn",
+      // Production-shaped tracer config so mergedTracerTags is a realistically-sized shared bundle
+      // (env + 6 global DD_TAGS + runtime-id/language) — the trace-level tags every span merges.
+      // A bare tracer leaves it near-empty, hiding any win that scales with tags-per-span.
+      "-Ddd.service=petclinic",
+      "-Ddd.env=staging",
+      "-Ddd.version=1.2.3",
+      "-Ddd.tags=team:apm,dc:us1,cluster:prod-1,owner:tracing,tier:backend,region:us-east-1"
+    })
 public class SpanCreationBenchmark {
   private static final String INSTRUMENTATION_NAME = "bench";
   private static final String SERVER_OPERATION_NAME = "servlet.request";
