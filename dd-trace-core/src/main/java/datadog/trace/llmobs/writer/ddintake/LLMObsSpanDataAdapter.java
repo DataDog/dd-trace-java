@@ -14,6 +14,7 @@ import java.util.Map;
 
 /** Adapts the internal tag representation of an LLM Observability span to the public API. */
 final class LLMObsSpanDataAdapter implements LLMObsSpanData {
+  private static final LLMObs.LLMMessage[] NO_MESSAGES = new LLMObs.LLMMessage[0];
   private static final String LLMOBS_TAG_PREFIX = "_ml_obs_tag.";
   private static final String INPUT_TAG = LLMOBS_TAG_PREFIX + "input";
   private static final String OUTPUT_TAG = LLMOBS_TAG_PREFIX + "output";
@@ -32,6 +33,8 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
   private final Object originalOutput;
   private final IOType inputType;
   private final IOType outputType;
+  private final LLMObs.LLMMessage[] initialInput;
+  private final LLMObs.LLMMessage[] initialOutput;
   private List<LLMObs.LLMMessage> input;
   private List<LLMObs.LLMMessage> output;
   private boolean inputModified;
@@ -47,6 +50,8 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
     outputType = ioType(kind, originalOutput, false);
     input = asMessages(originalInput, inputType);
     output = asMessages(originalOutput, outputType);
+    initialInput = snapshot(input);
+    initialOutput = snapshot(output);
   }
 
   @Override
@@ -80,7 +85,8 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
   public String getTag(String key) {
     Object value = span.getTag(LLMOBS_TAG_PREFIX + key);
     if (value == null && "error".equals(key)) {
-      return String.valueOf(span.getError());
+      int error = span.getError();
+      value = error == 0 ? null : error;
     }
     if (value == null && "error_type".equals(key)) {
       value = span.getTag(DDTags.ERROR_TYPE);
@@ -89,7 +95,7 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
   }
 
   void apply(LLMObsSpanData processedSpan) {
-    if (processedSpan != this || inputModified) {
+    if (processedSpan != this || inputModified || wasModified(input, initialInput)) {
       applyIO(
           span,
           INPUT_TAG,
@@ -97,7 +103,7 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
           inputType,
           new ArrayList<>(requireNonNull(processedSpan.getInput(), "processed input")));
     }
-    if (processedSpan != this || outputModified) {
+    if (processedSpan != this || outputModified || wasModified(output, initialOutput)) {
       applyIO(
           span,
           OUTPUT_TAG,
@@ -183,6 +189,25 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
       }
     }
     return true;
+  }
+
+  private static LLMObs.LLMMessage[] snapshot(List<LLMObs.LLMMessage> messages) {
+    return messages.isEmpty()
+        ? NO_MESSAGES
+        : messages.toArray(new LLMObs.LLMMessage[messages.size()]);
+  }
+
+  private static boolean wasModified(
+      List<LLMObs.LLMMessage> messages, LLMObs.LLMMessage[] initialMessages) {
+    if (messages.size() != initialMessages.length) {
+      return true;
+    }
+    for (int i = 0; i < initialMessages.length; i++) {
+      if (messages.get(i) != initialMessages[i]) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static void applyIO(

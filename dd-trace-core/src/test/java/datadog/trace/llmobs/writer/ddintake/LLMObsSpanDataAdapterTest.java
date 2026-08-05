@@ -71,7 +71,7 @@ class LLMObsSpanDataAdapterTest {
   }
 
   @Test
-  void removesEmptyMessageInputAndOutput() {
+  void appliesInPlaceClearToMessageInputAndOutput() {
     CoreSpan<?> span = mock(CoreSpan.class);
     Map<String, Object> input = new LinkedHashMap<>();
     input.put("messages", Collections.singletonList(LLMObs.LLMMessage.from("user", "input")));
@@ -81,8 +81,8 @@ class LLMObsSpanDataAdapterTest {
         .thenReturn(Collections.singletonList(LLMObs.LLMMessage.from("assistant", "output")));
 
     LLMObsSpanDataAdapter adapter = new LLMObsSpanDataAdapter(span);
-    adapter.setInput(Collections.emptyList());
-    adapter.setOutput(Collections.emptyList());
+    adapter.getInput().clear();
+    adapter.getOutput().clear();
     adapter.apply(adapter);
 
     verify(span).removeTag(INPUT_TAG);
@@ -169,5 +169,14 @@ class LLMObsSpanDataAdapterTest {
     assertEquals("1", adapter.getTag("error"));
     assertEquals("java.lang.IllegalStateException", adapter.getTag("error_type"));
     assertNull(adapter.getTag("missing"));
+  }
+
+  @Test
+  void returnsNullForAbsentErrorTag() {
+    CoreSpan<?> span = mock(CoreSpan.class);
+
+    LLMObsSpanDataAdapter adapter = new LLMObsSpanDataAdapter(span);
+
+    assertNull(adapter.getTag("error"));
   }
 }

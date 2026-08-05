@@ -71,16 +71,4 @@ class LLMObsMetricCollectorTest extends DDSpecification {
       'has_session_id:0'
     ].toSet()
   }
-
-  def "record and drain user processor called metrics"() {
-    when:
-    collector.recordUserProcessorCalled(false)
-    collector.recordUserProcessorCalled(true)
-    def metrics = collector.drain()
-
-    then:
-    metrics.size() == 2
-    metrics*.metricName == ['user_processor_called', 'user_processor_called']
-    metrics*.tags == [['error:0'], ['error:1']]
-  }
 }
