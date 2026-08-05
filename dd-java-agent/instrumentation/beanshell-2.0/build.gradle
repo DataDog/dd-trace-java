@@ -1,0 +1,40 @@
+muzzle {
+  // BeanShell ships under two coordinates over its lifetime: the original org.beanshell:bsh
+  // (up to 2.0b5) and the later org.apache-extras.beanshell:bsh (2.0b5, 2.0b6). Cover both.
+  // 2.0b4 is the supported floor.
+  pass {
+    group = 'org.beanshell'
+    module = 'bsh'
+    versions = '[2.0b4,]'
+    assertInverse = true
+  }
+  pass {
+    group = 'org.apache-extras.beanshell'
+    module = 'bsh'
+    versions = '[2.0b4,]'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+// latestDepTest extends test (see gradle/test-suites.gradle), which drags in the org.beanshell:bsh
+// 2.0b4 floor. Drop that coordinate here so its duplicate bsh.* classes don't collide with — or
+// shadow on the classpath — the org.apache-extras.beanshell:bsh artifact we actually want to validate.
+configurations.latestDepTestImplementation {
+  exclude group: 'org.beanshell', module: 'bsh'
+}
+
+dependencies {
+  compileOnly group: 'org.beanshell', name: 'bsh', version: '2.0b4'
+
+  // Unit/instrumentation tests run against the supported floor (2.0b4); latestDepTest re-runs the
+  // same suite against the newest published version to guard against future regressions.
+  testImplementation group: 'org.beanshell', name: 'bsh', version: '2.0b4'
+
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
+
+  latestDepTestImplementation group: 'org.apache-extras.beanshell', name: 'bsh', version: '+'
+}
