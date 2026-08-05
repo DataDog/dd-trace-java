@@ -179,7 +179,9 @@ abstract class NestedGradleBuild @Inject constructor(
     val appBuildDirFile = applicationBuildDir.get().asFile
     val daemonJavaHome = javaLauncher.get().metadata.installationPath.asFile
     val gradleUserHomeDir = createGradleUserHome()
-    val initScriptFiles = writeInitScripts()
+    val declaredProperties = gradleProperties.get()
+    val proxyProperties = proxyProperties(declaredProperties)
+    val initScriptFiles = writeInitScripts(proxyProperties.isNotEmpty())
 
     val args = buildList {
       initScriptFiles.forEach { script ->
@@ -188,13 +190,12 @@ abstract class NestedGradleBuild @Inject constructor(
       }
       add(if (buildCacheEnabled.get()) "--build-cache" else "--no-build-cache")
       add("-PappBuildDir=${appBuildDirFile.absolutePath}")
-      val declaredProperties = gradleProperties.get()
       declaredProperties.forEach { (name, value) ->
         addGradleProperty(name, value)
       }
       // Forward the proxies unless the caller already declared them, so that every nested build
       // resolves the same way as the outer one.
-      proxyProperties()
+      proxyProperties
         .filterKeys { !declaredProperties.containsKey(it) }
         .forEach { (name, value) -> addGradleProperty(name, value) }
       projectJars.get().forEach { entry ->
@@ -298,21 +299,26 @@ abstract class NestedGradleBuild @Inject constructor(
     }
   }
 
-  private fun proxyProperties(): Map<String, String> = buildMap {
-    mavenRepositoryProxy.orNull
-      ?.takeIf { it.isNotBlank() }
-      ?.let { put(MAVEN_REPOSITORY_PROXY_PROPERTY, it) }
-    gradlePluginProxy.orNull
-      ?.takeIf { it.isNotBlank() }
-      ?.let { put(GRADLE_PLUGIN_PROXY_PROPERTY, it) }
-  }
+  private fun proxyProperties(declaredProperties: Map<String, String>): Map<String, String> =
+    buildMap {
+      addProxyProperty(
+        MAVEN_REPOSITORY_PROXY_PROPERTY,
+        declaredProperties,
+        mavenRepositoryProxy.orNull,
+      )
+      addProxyProperty(
+        GRADLE_PLUGIN_PROXY_PROPERTY,
+        declaredProperties,
+        gradlePluginProxy.orNull,
+      )
+    }
 
-  private fun writeInitScripts(): List<File> {
+  private fun writeInitScripts(hasProxy: Boolean): List<File> {
     val declared = initScripts.get()
     // Nested build scripts are not required to read the proxy properties themselves, so inject the
     // repositories as well. Skipped when the caller already declared this script.
     val effective =
-      if (proxyProperties().isEmpty() || declared.contains(PROXY_REPOSITORIES_INIT_SCRIPT)) {
+      if (!hasProxy || declared.contains(PROXY_REPOSITORIES_INIT_SCRIPT)) {
         declared
       } else {
         listOf(PROXY_REPOSITORIES_INIT_SCRIPT) + declared
@@ -356,6 +362,20 @@ abstract class NestedGradleBuild @Inject constructor(
         "gradle"
       }
   }
+}
+
+private fun MutableMap<String, String>.addProxyProperty(
+  name: String,
+  declaredProperties: Map<String, String>,
+  defaultValue: String?,
+) {
+  val value =
+    if (declaredProperties.containsKey(name)) {
+      declaredProperties[name]
+    } else {
+      defaultValue
+    }
+  value?.takeIf { it.isNotBlank() }?.let { put(name, it) }
 }
 
 private fun MutableList<String>.addGradleProperty(name: String, value: String?) {
