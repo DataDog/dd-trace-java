@@ -5,7 +5,6 @@ import static java.util.Arrays.asList;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,31 +36,31 @@ final class OtlpResourceAttributes {
               "telemetry.sdk.version",
               "telemetry.sdk.language"));
 
+  /**
+   * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
+   */
   static void visitResourceAttributes(
-      Config config,
-      ExtraAttributes extraAttributes,
-      BiConsumer<String, String> stringVisitor,
-      BiConsumer<String, List<String>> stringArrayVisitor) {
+      Config config, Map<String, Object> extraAttributes, BiConsumer<String, Object> visitor) {
     String serviceName = config.getServiceName();
     String env = config.getEnv();
     String version = config.getVersion();
 
-    stringVisitor.accept("service.name", serviceName);
+    visitor.accept("service.name", serviceName);
     if (!env.isEmpty()) {
-      stringVisitor.accept("deployment.environment.name", env);
+      visitor.accept("deployment.environment.name", env);
     }
     if (!version.isEmpty()) {
-      stringVisitor.accept("service.version", version);
+      visitor.accept("service.version", version);
     }
     if (config.isReportHostName()) {
       String hostName = config.getHostName();
       if (hostName != null && !hostName.isEmpty()) {
-        stringVisitor.accept("host.name", hostName);
+        visitor.accept("host.name", hostName);
       }
     }
-    stringVisitor.accept("telemetry.sdk.name", "datadog");
-    stringVisitor.accept("telemetry.sdk.version", TRACER_VERSION);
-    stringVisitor.accept("telemetry.sdk.language", "java");
+    visitor.accept("telemetry.sdk.name", "datadog");
+    visitor.accept("telemetry.sdk.version", TRACER_VERSION);
+    visitor.accept("telemetry.sdk.language", "java");
 
     config
         .getGlobalTags()
@@ -69,14 +68,11 @@ final class OtlpResourceAttributes {
             (key, value) -> {
               // ignore datadog tags and their otel equivalents that we map above
               if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))) {
-                stringVisitor.accept(key, value);
+                visitor.accept(key, value);
               }
             });
 
-    extraAttributes.stringAttributes.forEach(stringVisitor);
-    if (!extraAttributes.processTags.isEmpty()) {
-      stringArrayVisitor.accept(PROCESS_TAGS_KEY, extraAttributes.processTags);
-    }
+    extraAttributes.forEach(visitor);
   }
 
   private static final String PROCESS_TAGS_KEY = DATADOG_PREFIX + "process_tags";
@@ -86,16 +82,16 @@ final class OtlpResourceAttributes {
    * marker when the SDK is computing OTLP span metrics, so a downstream Agent does not recompute
    * them from the exported spans.
    */
-  static ExtraAttributes traceResourceAttributes(Config config) {
-    Map<String, String> attributes = new LinkedHashMap<>();
+  static Map<String, Object> traceResourceAttributes(Config config) {
+    Map<String, Object> attributes = new LinkedHashMap<>();
     if (config.isOtelTracesSpanMetricsEnabled()) {
       attributes.put(STATS_COMPUTED_KEY, "true");
     }
-    return new ExtraAttributes(attributes, Collections.emptyList());
+    return attributes;
   }
 
-  static ExtraAttributes datadogResourceAttributes(Config config) {
-    Map<String, String> attributes = new LinkedHashMap<>();
+  static Map<String, Object> datadogResourceAttributes(Config config) {
+    Map<String, Object> attributes = new LinkedHashMap<>();
     String runtimeId = config.getRuntimeId();
     if (runtimeId != null && !runtimeId.isEmpty()) {
       attributes.put(DATADOG_PREFIX + "runtime_id", runtimeId);
@@ -103,21 +99,8 @@ final class OtlpResourceAttributes {
     // Mirrors SerializingMetricWriter's v0.6 ProcessTags shape; keep both in sync if that changes.
     List<String> processTags = ProcessTags.getTagsAsStringList();
     if (processTags != null && !processTags.isEmpty()) {
-      return new ExtraAttributes(attributes, processTags);
+      attributes.put(PROCESS_TAGS_KEY, processTags);
     }
-    return new ExtraAttributes(attributes, Collections.emptyList());
-  }
-
-  static final class ExtraAttributes {
-    static final ExtraAttributes EMPTY =
-        new ExtraAttributes(Collections.emptyMap(), Collections.emptyList());
-
-    private final Map<String, String> stringAttributes;
-    private final List<String> processTags;
-
-    private ExtraAttributes(Map<String, String> stringAttributes, List<String> processTags) {
-      this.stringAttributes = stringAttributes;
-      this.processTags = processTags;
-    }
+    return attributes;
   }
 }
