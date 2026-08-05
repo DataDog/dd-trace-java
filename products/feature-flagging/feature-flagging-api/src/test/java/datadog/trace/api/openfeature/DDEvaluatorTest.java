@@ -256,6 +256,8 @@ public class DDEvaluatorTest {
         Arguments.of(
             mapOf("map", mapOf("key1", 1, "key2", 2, "key3", mapOf("key4", 4))),
             mapOf("map.key1", 1, "map.key2", 2, "map.key3.key4", 4)));
+    final Instant instant = Instant.parse("2026-07-10T12:34:56Z");
+    arguments.add(Arguments.of(mapOf("instant", instant), mapOf("instant", instant.toString())));
     return arguments.toArray(new Arguments[0]);
   }
 

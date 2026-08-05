@@ -546,7 +546,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
                   new FlattenEntry(entry.key + "." + property, structure.getValue(property)));
             }
           } else {
-            result.put(entry.key, context.convertValue(value));
+            result.put(
+                entry.key,
+                value.isInstant() ? value.asInstant().toString() : context.convertValue(value));
           }
         }
       }

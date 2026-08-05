@@ -178,11 +178,18 @@ public class ExposureWriterImpl implements ExposureWriter {
         return;
       }
       if (shouldFlush()) {
+        final String requestBodyJson;
         try {
           final ExposuresRequest exposures = new ExposuresRequest(this.context, this.buffer);
-          final String reqBod = jsonAdapter.toJson(exposures);
+          requestBodyJson = jsonAdapter.toJson(exposures);
+        } catch (RuntimeException e) {
+          LOGGER.error("Could not serialize exposures; dropping batch", e);
+          this.buffer.clear();
+          return;
+        }
+        try {
           final RequestBody requestBody =
-              RequestBody.create(okhttp3.MediaType.parse("application/json"), reqBod);
+              RequestBody.create(okhttp3.MediaType.parse("application/json"), requestBodyJson);
           evp.post("exposures", requestBody, stream -> null, null, false);
           this.buffer.clear();
         } catch (Exception e) {
