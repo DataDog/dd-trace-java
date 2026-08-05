@@ -270,8 +270,8 @@ abstract class SmokeTestAppExtension @Inject constructor(
 
   private fun proxyGradleProperties(): Map<String, String> {
     val properties = mutableMapOf<String, String>()
-    addGradleProperty(properties, "gradlePluginProxy")
-    addGradleProperty(properties, "mavenRepositoryProxy")
+    addGradleProperty(properties, GRADLE_PLUGIN_PROXY_PROPERTY)
+    addGradleProperty(properties, MAVEN_REPOSITORY_PROXY_PROPERTY)
     return properties
   }
 
