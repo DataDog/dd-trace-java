@@ -321,11 +321,20 @@ class RemoteConfigServiceImplTest {
   })
   void testInstantParsing(final String value, final String expectedInstant) throws Exception {
     final JsonReader reader = mock(JsonReader.class);
-    when(reader.nextString()).thenReturn(value);
+    if (value == null) {
+      when(reader.peek()).thenReturn(JsonReader.Token.NULL);
+      when(reader.nextNull()).thenReturn(null);
+    } else {
+      when(reader.peek()).thenReturn(JsonReader.Token.STRING);
+      when(reader.nextString()).thenReturn(value);
+    }
     final UniversalFlagConfigParser.InstantAdapter adapter =
         new UniversalFlagConfigParser.InstantAdapter();
 
     final Instant parsed = adapter.fromJson(reader);
+    if (value == null) {
+      verify(reader).nextNull();
+    }
     if (expectedInstant == null) {
       assertNull(parsed);
     } else {
