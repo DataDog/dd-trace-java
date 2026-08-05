@@ -81,7 +81,7 @@ class DDLLMObsSpanDocumentIOTest {
             LLMObs.Document.from("first input", "first.txt", "input-1", 0.5),
             LLMObs.Document.from("second input"));
     try {
-      llmObsSpan.annotateIO(documents, "embedding output");
+      llmObsSpan.annotateEmbeddingIO(documents, "embedding output");
 
       AgentSpan span = (AgentSpan) SPAN_FIELD.get(llmObsSpan);
       assertEquals(documents, span.getTag(INPUT_TAG));
@@ -100,7 +100,7 @@ class DDLLMObsSpanDocumentIOTest {
             LLMObs.Document.from("first output", "result.txt", "output-1", 0.95),
             LLMObs.Document.from("second output"));
     try {
-      llmObsSpan.annotateIO("retrieval input", documents);
+      llmObsSpan.annotateRetrievalIO("retrieval input", documents);
 
       AgentSpan span = (AgentSpan) SPAN_FIELD.get(llmObsSpan);
       assertEquals("retrieval input", span.getTag(INPUT_TAG));

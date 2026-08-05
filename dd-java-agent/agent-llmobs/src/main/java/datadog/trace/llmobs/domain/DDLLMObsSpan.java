@@ -156,7 +156,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   }
 
   @Override
-  public void annotateIO(List<LLMObs.Document> inputDocuments, String outputData) {
+  public void annotateEmbeddingIO(List<LLMObs.Document> inputDocuments, String outputData) {
     if (finished) {
       return;
     }
@@ -169,7 +169,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   }
 
   @Override
-  public void annotateIO(String inputData, List<LLMObs.Document> outputDocuments) {
+  public void annotateRetrievalIO(String inputData, List<LLMObs.Document> outputDocuments) {
     if (finished) {
       return;
     }
@@ -209,20 +209,20 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(spanKind)) {
       List<LLMObs.Document> inputDocuments =
           hasInput ? Collections.singletonList(LLMObs.Document.from(inputData)) : null;
-      annotateIO(inputDocuments, outputData);
+      annotateEmbeddingIO(inputDocuments, outputData);
       if (hasInput) {
         LOGGER.warn(
-            "the span being annotated is an embedding span, it is recommended to use the overload with List<LLMObs.Document> as the input argument");
+            "the span being annotated is an embedding span, it is recommended to use annotateEmbeddingIO");
       }
       return;
     }
     if (Tags.LLMOBS_RETRIEVAL_SPAN_KIND.equals(spanKind)) {
       List<LLMObs.Document> outputDocuments =
           hasOutput ? Collections.singletonList(LLMObs.Document.from(outputData)) : null;
-      annotateIO(inputData, outputDocuments);
+      annotateRetrievalIO(inputData, outputDocuments);
       if (hasOutput) {
         LOGGER.warn(
-            "the span being annotated is a retrieval span, it is recommended to use the overload with List<LLMObs.Document> as the output argument");
+            "the span being annotated is a retrieval span, it is recommended to use annotateRetrievalIO");
       }
       return;
     }

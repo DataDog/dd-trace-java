@@ -21,7 +21,7 @@ public interface LLMObsSpan {
    * @param inputDocuments The input documents of the span
    * @param outputData The output data of the span in the form of a string
    */
-  default void annotateIO(List<LLMObs.Document> inputDocuments, String outputData) {
+  default void annotateEmbeddingIO(List<LLMObs.Document> inputDocuments, String outputData) {
     annotateIO((String) null, outputData);
   }
 
@@ -31,7 +31,7 @@ public interface LLMObsSpan {
    * @param inputData The input data of the span in the form of a string
    * @param outputDocuments The output documents of the span
    */
-  default void annotateIO(String inputData, List<LLMObs.Document> outputDocuments) {
+  default void annotateRetrievalIO(String inputData, List<LLMObs.Document> outputDocuments) {
     annotateIO(inputData, (String) null);
   }
 

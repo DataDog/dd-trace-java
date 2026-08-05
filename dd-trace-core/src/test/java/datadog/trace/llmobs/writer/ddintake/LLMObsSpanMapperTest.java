@@ -414,7 +414,21 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     retrievalSpan.setSpanType(InternalSpanTypes.LLMOBS);
     retrievalSpan.finish();
 
-    List<DDSpan> trace = Arrays.asList((DDSpan) embeddingSpan, (DDSpan) retrievalSpan);
+    List<String> nonDocumentOutput = Arrays.asList("first raw result", "second raw result");
+    AgentSpan retrievalWithNonDocumentOutput =
+        tracer
+            .buildSpan("datadog", "retrieval")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_RETRIEVAL_SPAN_KIND)
+            .withTag("_ml_obs_tag.output", nonDocumentOutput)
+            .start();
+    retrievalWithNonDocumentOutput.setSpanType(InternalSpanTypes.LLMOBS);
+    retrievalWithNonDocumentOutput.finish();
+
+    List<DDSpan> trace =
+        Arrays.asList(
+            (DDSpan) embeddingSpan,
+            (DDSpan) retrievalSpan,
+            (DDSpan) retrievalWithNonDocumentOutput);
     CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer();
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, sink));
     packer.format(trace, mapper);
@@ -448,6 +462,11 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     assertEquals("retrieval-1", retrievalDocuments.get(0).get("id"));
     assertEquals(0.9, retrievalDocuments.get(0).get("score"));
     assertFalse(retrievalOutput.containsKey("value"));
+
+    Map<String, Object> fallbackMeta = (Map<String, Object>) spans.get(2).get("meta");
+    Map<String, Object> fallbackOutput = (Map<String, Object>) fallbackMeta.get("output");
+    assertEquals(nonDocumentOutput, fallbackOutput.get("value"));
+    assertFalse(fallbackOutput.containsKey("documents"));
 
     tracer.close();
   }

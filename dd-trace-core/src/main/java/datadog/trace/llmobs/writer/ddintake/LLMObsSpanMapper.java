@@ -372,7 +372,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
               continue;
             }
           } else if ((spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT))
-              || (spanKind.equals(Tags.LLMOBS_RETRIEVAL_SPAN_KIND) && key.equals(OUTPUT))) {
+              || (spanKind.equals(Tags.LLMOBS_RETRIEVAL_SPAN_KIND)
+                  && key.equals(OUTPUT)
+                  && isDocumentList(val))) {
             if (!(val instanceof List)) {
               LOGGER.warn(
                   "unexpectedly found incorrect type for {} span {} {}, expecting list",
@@ -461,6 +463,18 @@ public class LLMObsSpanMapper implements RemoteMapper {
           writable.writeString(toolDefinition.getVersion(), null);
         }
       }
+    }
+
+    private static boolean isDocumentList(Object value) {
+      if (!(value instanceof List)) {
+        return false;
+      }
+      for (Object item : (List<?>) value) {
+        if (!(item instanceof LLMObs.Document)) {
+          return false;
+        }
+      }
+      return true;
     }
 
     private void writeLlmInputMap(Map<?, ?> inputMap) {
