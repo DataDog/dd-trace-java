@@ -198,7 +198,7 @@ class LLMObsFeedbackTest {
   void testDottedLabelIsRejected() {
     LLMObs.Feedback.ValidationError error =
         assertRejected("invalid_label_value", validBuilder().label("thumbs.up"));
-    assertEquals("label must not contain a '.'", error.getMessage());
+    assertEquals("label value must not contain a '.'", error.getMessage());
   }
 
   // --- values ---

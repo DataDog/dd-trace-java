@@ -753,7 +753,7 @@ public class LLMObs {
               "invalid_metric_label", "label must be the specified name of the feedback metric");
         }
         if (label.indexOf('.') >= 0) {
-          return new ValidationError("invalid_label_value", "label must not contain a '.'");
+          return new ValidationError("invalid_label_value", "label value must not contain a '.'");
         }
         if (metricType == null) {
           return new ValidationError(
