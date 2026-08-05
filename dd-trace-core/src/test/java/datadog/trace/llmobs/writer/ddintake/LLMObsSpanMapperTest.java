@@ -414,6 +414,16 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     retrievalSpan.setSpanType(InternalSpanTypes.LLMOBS);
     retrievalSpan.finish();
 
+    List<String> nonDocumentInput = Arrays.asList("first raw input", "second raw input");
+    AgentSpan embeddingWithNonDocumentInput =
+        tracer
+            .buildSpan("datadog", "embedding")
+            .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_EMBEDDING_SPAN_KIND)
+            .withTag("_ml_obs_tag.input", nonDocumentInput)
+            .start();
+    embeddingWithNonDocumentInput.setSpanType(InternalSpanTypes.LLMOBS);
+    embeddingWithNonDocumentInput.finish();
+
     List<String> nonDocumentOutput = Arrays.asList("first raw result", "second raw result");
     AgentSpan retrievalWithNonDocumentOutput =
         tracer
@@ -428,6 +438,7 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
         Arrays.asList(
             (DDSpan) embeddingSpan,
             (DDSpan) retrievalSpan,
+            (DDSpan) embeddingWithNonDocumentInput,
             (DDSpan) retrievalWithNonDocumentOutput);
     CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer();
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, sink));
@@ -463,8 +474,13 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     assertEquals(0.9, retrievalDocuments.get(0).get("score"));
     assertFalse(retrievalOutput.containsKey("value"));
 
-    Map<String, Object> fallbackMeta = (Map<String, Object>) spans.get(2).get("meta");
-    Map<String, Object> fallbackOutput = (Map<String, Object>) fallbackMeta.get("output");
+    Map<String, Object> fallbackEmbeddingMeta = (Map<String, Object>) spans.get(2).get("meta");
+    Map<String, Object> fallbackInput = (Map<String, Object>) fallbackEmbeddingMeta.get("input");
+    assertEquals(nonDocumentInput, fallbackInput.get("value"));
+    assertFalse(fallbackInput.containsKey("documents"));
+
+    Map<String, Object> fallbackRetrievalMeta = (Map<String, Object>) spans.get(3).get("meta");
+    Map<String, Object> fallbackOutput = (Map<String, Object>) fallbackRetrievalMeta.get("output");
     assertEquals(nonDocumentOutput, fallbackOutput.get("value"));
     assertFalse(fallbackOutput.containsKey("documents"));
 

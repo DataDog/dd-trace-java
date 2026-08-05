@@ -357,6 +357,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
         String key = tag.getKey().substring(LLMOBS_TAG_PREFIX.length());
         Object val = tag.getValue();
         if (key.equals(INPUT) || key.equals(OUTPUT)) {
+          boolean isDocumentIO =
+              (spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT))
+                  || (spanKind.equals(Tags.LLMOBS_RETRIEVAL_SPAN_KIND) && key.equals(OUTPUT));
           if (spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
             writable.writeString(key, null);
             if (val instanceof List) {
@@ -371,18 +374,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
                   val.getClass().getName());
               continue;
             }
-          } else if ((spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT))
-              || (spanKind.equals(Tags.LLMOBS_RETRIEVAL_SPAN_KIND)
-                  && key.equals(OUTPUT)
-                  && isDocumentList(val))) {
-            if (!(val instanceof List)) {
-              LOGGER.warn(
-                  "unexpectedly found incorrect type for {} span {} {}, expecting list",
-                  spanKind,
-                  key,
-                  val.getClass().getName());
-              continue;
-            }
+          } else if (isDocumentIO && isDocumentList(val)) {
             writable.writeString(key, null);
             writable.startMap(1);
             List<LLMObs.Document> documents = (List<LLMObs.Document>) val;
@@ -410,6 +402,12 @@ public class LLMObsSpanMapper implements RemoteMapper {
               }
             }
           } else {
+            if (isDocumentIO) {
+              LOGGER.warn(
+                  "unexpectedly found invalid document data for {} span {}, serializing as value",
+                  spanKind,
+                  key);
+            }
             writable.writeString(key, null);
             writable.startMap(1);
             writable.writeString("value", null);
