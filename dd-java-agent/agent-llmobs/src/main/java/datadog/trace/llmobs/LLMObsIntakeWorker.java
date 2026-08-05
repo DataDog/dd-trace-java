@@ -175,7 +175,20 @@ public class LLMObsIntakeWorker<T> implements AutoCloseable {
       if (shouldFlush()) {
         HttpRetryPolicy.Factory retryPolicyFactory = new HttpRetryPolicy.Factory(5, 100, 2.0, true);
 
-        String reqBod = serializer.toJson(this.buffer);
+        String reqBod;
+        try {
+          reqBod = serializer.toJson(this.buffer);
+        } catch (Exception e) {
+          // A batch that cannot be serialized will never serialize, so it is dropped rather than
+          // retried. Letting this escape would kill the worker and strand every later payload.
+          log.error(
+              "Could not serialize {} payloads, dropping {} of them",
+              payloadDescription,
+              this.buffer.size(),
+              e);
+          this.buffer.clear();
+          return;
+        }
 
         RequestBody requestBody =
             RequestBody.create(okhttp3.MediaType.parse("application/json"), reqBod);
