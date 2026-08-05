@@ -1,6 +1,9 @@
 package datadog.trace.util;
 
 import datadog.trace.api.TagMap;
+import datadog.trace.util.LightMap.AdaptiveSizingHint;
+import datadog.trace.util.LightMap.EmbeddingSupport;
+import datadog.trace.util.LightMap.EntryReader;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -33,10 +36,25 @@ import org.openjdk.jmh.infra.Blackhole;
  *   <li>(RECOMMENDED) HashMap — fastest general-purpose lookups
  *   <li>(RECOMMENDED) TagMap — preferred for storing tags; excels at primitives, copying, and
  *       builder idioms
+ *   <li>LightMap — a tiny, entry-less open-addressed map for short-lived, miss-dominated maps that
+ *       do not need the {@code java.util.Map} interface; allocation-light, and its for-each
+ *       iteration is shaped so escape analysis eliminates the iterator (see {@code
+ *       iterate_lightMap})
  *   <li>TreeMap — when a custom Comparator is needed (see CaseInsensitiveMapBenchmark)
  *   <li>LinkedHashMap — only when insertion-order iteration is required; cost is paid at
  *       construction and in per-entry memory
  * </ul>
+ *
+ * <p><b>Allocation-free iteration.</b> {@code iterate_lightMap} exercises the entry-less {@link
+ * LightMap} for-each: the flyweight iterator is both the {@code Iterator} and the {@code
+ * EntryReader} it yields, so with a concretely-typed map that lets it stay non-escaping, escape
+ * analysis scalar-replaces it. Measured (JDK 17, {@code -prof gc}, {@code -t 1}) at {@code
+ * gc.alloc.rate.norm ≈ 10^-5 B/op} -- i.e. zero. The point is <em>not</em> that this beats {@code
+ * iterate_hashMap}: HashMap's iterator likewise scalar-replaces and reuses its stored {@code Node}
+ * as the entry, so it is also ~0 B/op. The point is that LightMap's entry-less layout (no per-entry
+ * object to hand out) costs nothing at iteration time -- the flyweight matches HashMap's zero-alloc
+ * traversal rather than paying to materialize entries. Re-run with {@code -prof gc} to confirm both
+ * arms stay at ~0 B/op.
  *
  * <p><b>Uncontended synchronization tax.</b> A {@link Collections#synchronizedMap} case is included
  * to measure what synchronization costs when there is <i>no</i> contention: because each thread
@@ -81,12 +99,47 @@ public class SingleThreadedMapBenchmark {
     return map;
   }
 
+  static LightMap<String, Integer> fillLightMap(LightMap<String, Integer> map) {
+    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
+      map.set(INSERTION_KEYS[i], i);
+    }
+    return map;
+  }
+
+  // The "embedded" analog of fillLightMap: no LightMap wrapper object at all -- the caller owns a
+  // raw Object[] spine and drives EmbeddingSupport static functions over it. set() returns the
+  // (possibly grown) array, mirroring how a consumer that has "dropped a level" would hold it.
+  static Object[] fillLightMapEmbedded() {
+    Object[] data = null;
+    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
+      data = EmbeddingSupport.set(data, INSERTION_KEYS[i], i);
+    }
+    return data;
+  }
+
+  // Embedded fill seeded from a self-tuning hint (spine counterpart of LightMap.create(hint)).
+  static Object[] fillLightMapEmbedded(AdaptiveSizingHint hint) {
+    Object[] data = null;
+    for (int i = 0; i < INSERTION_KEYS.length; ++i) {
+      data = EmbeddingSupport.set(hint, data, INSERTION_KEYS[i], i);
+    }
+    return data;
+  }
+
   // Per-thread prebuilt maps for the read + clone benchmarks (built once per trial, per thread).
   HashMap<String, Integer> hashMap;
   Map<String, Integer> synchronizedHashMap;
   TreeMap<String, Integer> treeMap;
   LinkedHashMap<String, Integer> linkedHashMap;
   TagMap tagMap;
+  LightMap<String, Integer> lightMap;
+  // Minted once and reused across every create_lightMap_adaptive invocation, mirroring the intended
+  // static-final-per-site usage. Warmup iterations let it converge to the fill size, so the
+  // measured
+  // creates seed a right-sized table instead of resizing up from the small createUncapped() seed.
+  AdaptiveSizingHint lightMapSizingHint;
+  // Prebuilt raw spine (no wrapper) for the embedded get / iterate arms.
+  Object[] lightMapData;
   int index = 0;
 
   @Setup(Level.Trial)
@@ -99,6 +152,9 @@ public class SingleThreadedMapBenchmark {
     linkedHashMap = new LinkedHashMap<>();
     fill(linkedHashMap);
     tagMap = fillTagMap(TagMap.create());
+    lightMap = fillLightMap(LightMap.createUncapped());
+    lightMapSizingHint = LightMap.createUncappedAdaptiveSizingHint();
+    lightMapData = fillLightMapEmbedded();
   }
 
   String nextLookupKey() {
@@ -159,6 +215,32 @@ public class SingleThreadedMapBenchmark {
     return ledger.build();
   }
 
+  @Benchmark
+  public LightMap<String, Integer> create_lightMap() {
+    return fillLightMap(LightMap.createUncapped());
+  }
+
+  @Benchmark
+  public LightMap<String, Integer> create_lightMap_adaptive() {
+    // Same fill, but seeded from the self-tuning hint held across invocations -- isolates how much
+    // of create_lightMap's cost is resize churn from the small createUncapped() seed.
+    return fillLightMap(LightMap.create(lightMapSizingHint));
+  }
+
+  @Benchmark
+  public Object[] create_lightMap_embedded() {
+    // No wrapper object -- build straight over a raw Object[] spine. The delta to create_lightMap
+    // is
+    // the LightMap wrapper's own allocation/overhead.
+    return fillLightMapEmbedded();
+  }
+
+  @Benchmark
+  public Object[] create_lightMap_embedded_adaptive() {
+    // Embedded + hint-seeded: the leanest create path (no wrapper, right-sized first table).
+    return fillLightMapEmbedded(lightMapSizingHint);
+  }
+
   // ---- copy ----
 
   @Benchmark
@@ -201,10 +283,45 @@ public class SingleThreadedMapBenchmark {
   }
 
   @Benchmark
+  public Integer get_lightMap() {
+    return lightMap.get(nextLookupKey());
+  }
+
+  @Benchmark
+  public Object get_lightMap_embedded() {
+    return EmbeddingSupport.get(lightMapData, nextLookupKey());
+  }
+
+  @Benchmark
   public void iterate_hashMap(Blackhole blackhole) {
     for (Map.Entry<String, Integer> entry : hashMap.entrySet()) {
       blackhole.consume(entry.getKey());
       blackhole.consume(entry.getValue());
+    }
+  }
+
+  @Benchmark
+  public void iterate_lightMap(Blackhole blackhole) {
+    // LightMap is concretely typed here so the for-each call sites devirtualize and inline; the
+    // flyweight iterator never escapes this method, so escape analysis scalar-replaces it entirely
+    // -- measured ~0 B/op under -prof gc. iterate_hashMap is the peer: it too is ~0 B/op (its
+    // iterator scalar-replaces and reuses the stored Node as the entry), so this arm confirms the
+    // entry-less flyweight matches that zero-alloc traversal rather than paying to materialize.
+    for (LightMap.EntryReader<String, Integer> entry : lightMap) {
+      blackhole.consume(entry.key());
+      blackhole.consume(entry.value());
+    }
+  }
+
+  @Benchmark
+  public void iterate_lightMap_embedded(Blackhole blackhole) {
+    // Embedded for-each over the raw spine via EmbeddingSupport.iterable(). This adds an Iterable
+    // lambda on top of the flyweight iterator versus the object tier's direct iterator(); -prof gc
+    // shows whether escape analysis still folds both away to ~0 B/op.
+    for (EntryReader<String, Integer> entry :
+        EmbeddingSupport.<String, Integer>iterable(lightMapData)) {
+      blackhole.consume(entry.key());
+      blackhole.consume(entry.value());
     }
   }
 
