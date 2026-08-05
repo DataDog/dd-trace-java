@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -486,9 +487,7 @@ class OtlpStatsMetricWriterTest {
   }
 
   @Test
-  void additionalMetricTagsEmittedInOtelSemanticsMode() throws IOException {
-    // Unlike datadog.* attributes, additional tags are user-configured dimensions and are emitted
-    // in otel-semantics mode too.
+  void otelSemanticsModeEmitsOnlyDefaultConnectorAttributes() throws IOException {
     AggregateEntry e =
         AggregateEntryTestUtils.of(
             "GET /users",
@@ -496,21 +495,25 @@ class OtlpStatsMetricWriterTest {
             "servlet.request",
             null,
             "web",
-            0,
-            false,
+            200,
+            true,
             true,
             "server",
-            null,
-            null,
-            null,
-            null,
+            Arrays.asList(UTF8BytesString.create("peer.service:downstream")),
+            "GET",
+            "/users/{id}",
+            "0",
             new UTF8BytesString[] {UTF8BytesString.create("region:us-east-1")});
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(true, e).dataPoints.get(0).attributes;
-    assertEquals("us-east-1", attrs.get("region"));
-    assertFalse(
-        attrs.containsKey("datadog.operation.name"), "datadog.* still absent in otel-semantics");
+    assertEquals(
+        new HashSet<>(Arrays.asList("service.name", "span.name", "span.kind", "status.code")),
+        attrs.keySet());
+    assertEquals("web", attrs.get("service.name"));
+    assertEquals("GET /users", attrs.get("span.name"));
+    assertEquals("SPAN_KIND_SERVER", attrs.get("span.kind"));
+    assertEquals("STATUS_CODE_OK", attrs.get("status.code"));
   }
 
   @Test
