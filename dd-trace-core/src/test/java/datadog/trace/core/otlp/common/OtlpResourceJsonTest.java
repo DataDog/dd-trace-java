@@ -170,10 +170,16 @@ class OtlpResourceJsonTest {
   }
 
   @Test
-  void datadogResourceAttributesVariantCarriesProcessTagsAsOneArrayValue() throws IOException {
+  void datadogResourceAttributesOverrideCollidingGlobalProcessTag() throws IOException {
     Config config =
         Config.get(
-            props(SERVICE_NAME, "my-service", EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true"));
+            props(
+                SERVICE_NAME,
+                "my-service",
+                TAGS,
+                "datadog.process_tags:user-value",
+                EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED,
+                "true"));
     ProcessTags.reset(config);
     ProcessTags.addTag("entrypoint.name", "app");
     ProcessTags.addTag("entrypoint.type", "web");
@@ -231,7 +237,9 @@ class OtlpResourceJsonTest {
     for (Object attribute : attributes) {
       Map<String, Object> keyValue = (Map<String, Object>) attribute;
       Map<String, Object> value = (Map<String, Object>) keyValue.get("value");
-      result.put((String) keyValue.get("key"), readAnyValue(value));
+      String key = (String) keyValue.get("key");
+      assertFalse(result.containsKey(key), "duplicate resource attribute key: " + key);
+      result.put(key, readAnyValue(value));
     }
     return result;
   }

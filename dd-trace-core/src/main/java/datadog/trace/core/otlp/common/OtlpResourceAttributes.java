@@ -66,8 +66,9 @@ final class OtlpResourceAttributes {
         .getGlobalTags()
         .forEach(
             (key, value) -> {
-              // ignore datadog tags and their otel equivalents that we map above
-              if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))) {
+              // ignore global tags replaced by canonical or extra resource attributes
+              if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))
+                  && !extraAttributes.containsKey(key)) {
                 visitor.accept(key, value);
               }
             });
