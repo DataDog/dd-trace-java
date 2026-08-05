@@ -205,6 +205,8 @@ public class WellKnownClasses {
           "org.agrona.collections." // Agrona
           );
 
+  private static final String SYNCHRONIZED_WRAPPER_PREFIX = "java.util.Collections$Synchronized";
+
   /**
    * @return true if type is a final class and toString implementation is well known and side effect
    *     free
@@ -223,24 +225,25 @@ public class WellKnownClasses {
   }
 
   /**
-   * @return true if collection implementation is safe to call (only in-memory)
+   * @return true if collection implementation is safe to call (only in-memory and lock free)
    */
   public static boolean isSafe(Collection<?> collection) {
-    String className = collection.getClass().getTypeName();
-    for (String safePackage : SAFE_COLLECTION_PACKAGES) {
-      if (className.startsWith(safePackage)) {
-        return true;
-      }
-    }
-    return false;
+    return isSafe(collection.getClass().getTypeName(), SAFE_COLLECTION_PACKAGES);
   }
 
   /**
-   * @return true if map implementation is safe to call (only in-memory)
+   * @return true if map implementation is safe to call (only in-memory and lock free)
    */
   public static boolean isSafe(Map<?, ?> map) {
-    String className = map.getClass().getTypeName();
-    for (String safePackage : SAFE_MAP_PACKAGES) {
+    return isSafe(map.getClass().getTypeName(), SAFE_MAP_PACKAGES);
+  }
+
+  private static boolean isSafe(String className, List<String> safePackages) {
+    // synchronized wrappers lock on their mutex: calling them can deadlock the instrumented thread
+    if (className.startsWith(SYNCHRONIZED_WRAPPER_PREFIX)) {
+      return false;
+    }
+    for (String safePackage : safePackages) {
       if (className.startsWith(safePackage)) {
         return true;
       }
