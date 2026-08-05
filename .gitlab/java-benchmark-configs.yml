@@ -57,10 +57,16 @@ linux-java-spring-petclinic-sca-load-parallel:
 linux-java-insecure-bank-startup-parallel:
   needs: ["publish-artifacts-to-s3"]
   rules: *parallel_startup_benchmark_rules
+  variables:
+    APM_SDKS_BENCHMARKS_BRANCH: "sarahchen6/fallback-to-master"
+    DD_BENCHMARK_FORCE_NO_MERGE_BASE: "true"
 
 linux-java-spring-petclinic-startup-parallel:
   needs: ["publish-artifacts-to-s3"]
   rules: *parallel_startup_benchmark_rules
+  variables:
+    APM_SDKS_BENCHMARKS_BRANCH: "sarahchen6/fallback-to-master"
+    DD_BENCHMARK_FORCE_NO_MERGE_BASE: "true"
 
 linux-java-dacapo-parallel-1:
   needs: ["publish-artifacts-to-s3"]
