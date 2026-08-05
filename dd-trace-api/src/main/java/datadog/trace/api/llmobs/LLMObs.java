@@ -593,10 +593,13 @@ public class LLMObs {
       /**
        * Sets a numeric value.
        *
-       * @param value the value
+       * @param value the value, must be finite as JSON has no representation for NaN nor infinity
        * @return this builder
        */
       public Builder scoreValue(double value) {
+        if (!Double.isFinite(value)) {
+          return fail("invalid_metric_value", "score value must be finite");
+        }
         return value(MetricType.SCORE, value);
       }
 
@@ -617,7 +620,11 @@ public class LLMObs {
        * @return this builder
        */
       public Builder jsonValue(@Nonnull Map<String, Object> value) {
-        return value(MetricType.JSON, value);
+        // Serialization happens later, on the submission worker, so the caller-owned map is
+        // snapshotted here to keep the submitted value stable, the same way tags are.
+        return value(
+            MetricType.JSON,
+            value == null ? null : Collections.unmodifiableMap(new HashMap<>(value)));
       }
 
       /**

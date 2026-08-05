@@ -281,6 +281,24 @@ class LLMObsFeedbackTest {
   }
 
   @Test
+  void testNonFiniteScoresAreRejected() {
+    assertRejected("invalid_metric_value", LLMObs.Feedback.builder().scoreValue(Double.NaN));
+    assertRejected(
+        "invalid_metric_value", LLMObs.Feedback.builder().scoreValue(Double.POSITIVE_INFINITY));
+    assertRejected(
+        "invalid_metric_value", LLMObs.Feedback.builder().scoreValue(Double.NEGATIVE_INFINITY));
+    LLMObs.Feedback largest =
+        LLMObs.Feedback.builder()
+            .spanId("123")
+            .label("thumbs")
+            .scoreValue(Double.MAX_VALUE)
+            .submitter("user-123", null)
+            .build();
+    assertNull(largest.validate());
+    assertEquals(Double.MAX_VALUE, largest.getValue());
+  }
+
+  @Test
   void testNullValuesAreRejected() {
     assertRejected("invalid_metric_value", LLMObs.Feedback.builder().categoricalValue(null));
     assertRejected("invalid_metric_value", LLMObs.Feedback.builder().textValue(null));
