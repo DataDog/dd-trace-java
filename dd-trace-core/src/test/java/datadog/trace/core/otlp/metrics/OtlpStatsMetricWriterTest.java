@@ -21,6 +21,7 @@ import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -676,6 +677,42 @@ class OtlpStatsMetricWriterTest {
 
     Map<String, Object> attrs = writeAndDecode(true, e).dataPoints.get(0).attributes;
     assertFalse(attrs.containsKey("datadog.is_trace_root"));
+  }
+
+  @Test
+  void defaultModeEmitsPeerTags() throws IOException {
+    AggregateEntry e =
+        AggregateEntryTestUtils.of(
+            "GET /users",
+            "web",
+            "servlet.request",
+            null,
+            "web",
+            0,
+            false,
+            true,
+            "client",
+            Arrays.asList(
+                UTF8BytesString.create("peer.service:downstream"),
+                UTF8BytesString.create("net.peer.name:downstream.example.com")),
+            null,
+            null,
+            null);
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+
+    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    assertEquals(
+        Arrays.asList("peer.service:downstream", "net.peer.name:downstream.example.com"),
+        attrs.get("datadog.peer_tags"));
+  }
+
+  @Test
+  void defaultModeOmitsPeerTagsWhenEmpty() throws IOException {
+    AggregateEntry e = entry("GET /users", false, 0, null, null, null);
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+
+    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    assertFalse(attrs.containsKey("datadog.peer_tags"));
   }
 
   @ParameterizedTest

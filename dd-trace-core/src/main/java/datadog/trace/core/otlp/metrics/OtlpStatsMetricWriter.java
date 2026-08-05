@@ -3,6 +3,7 @@ package datadog.trace.core.otlp.metrics;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 
 import datadog.metrics.api.Histogram;
@@ -58,6 +59,7 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private static final String DATADOG_SPAN_TOP_LEVEL = "datadog.span.top_level";
   private static final String DATADOG_IS_TRACE_ROOT = "datadog.is_trace_root";
   private static final String DATADOG_ORIGIN = "datadog.origin";
+  private static final String DATADOG_PEER_TAGS = "datadog.peer_tags";
   private static final String SYNTHETICS_ORIGIN = "synthetics";
 
   private static final String SPAN_KIND_SERVER = "SPAN_KIND_SERVER";
@@ -236,7 +238,19 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
       if (entry.isSynthetics()) {
         emitStringAttribute(metric, DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
       }
+      emitPeerTags(metric, entry.getPeerTags());
     }
+  }
+
+  private static void emitPeerTags(OtlpMetricVisitor metric, List<UTF8BytesString> peerTags) {
+    if (peerTags.isEmpty()) {
+      return;
+    }
+    List<String> peerTagValues = new ArrayList<>(peerTags.size());
+    for (UTF8BytesString peerTag : peerTags) {
+      peerTagValues.add(peerTag.toString());
+    }
+    metric.visitAttribute(STRING_ARRAY_ATTRIBUTE, DATADOG_PEER_TAGS, peerTagValues);
   }
 
   private static String canonicalSpanKind(CharSequence spanKind) {
