@@ -24,8 +24,7 @@ public class JoinGroupAdvice {
     if (kafkaConsumerInfo == null) {
       return;
     }
-    if (memberId.equals(kafkaConsumerInfo.getLastReportedMemberId().orElse(null))
-        && generationId == kafkaConsumerInfo.getLastReportedGenerationId()) {
+    if (!kafkaConsumerInfo.hasMembershipChanged(memberId, generationId)) {
       return;
     }
 

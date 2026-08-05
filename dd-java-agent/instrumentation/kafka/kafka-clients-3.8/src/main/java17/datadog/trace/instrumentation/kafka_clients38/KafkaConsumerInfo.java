@@ -35,12 +35,9 @@ public class KafkaConsumerInfo {
     return Optional.ofNullable(bootstrapServers);
   }
 
-  public Optional<String> getLastReportedMemberId() {
-    return Optional.ofNullable(lastReportedMemberId);
-  }
-
-  public int getLastReportedGenerationId() {
-    return lastReportedGenerationId;
+  public boolean hasMembershipChanged(String memberId, int generationId) {
+    return !Objects.equals(memberId, lastReportedMemberId)
+        || generationId != lastReportedGenerationId;
   }
 
   public void setLastReportedMembership(String memberId, int generationId) {

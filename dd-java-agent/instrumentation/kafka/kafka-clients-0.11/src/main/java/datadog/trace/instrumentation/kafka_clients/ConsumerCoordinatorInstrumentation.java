@@ -149,8 +149,7 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       if (kafkaConsumerInfo == null) {
         return;
       }
-      if (memberId.equals(kafkaConsumerInfo.getLastReportedMemberId())
-          && generationId == kafkaConsumerInfo.getLastReportedGenerationId()) {
+      if (!kafkaConsumerInfo.hasMembershipChanged(memberId, generationId)) {
         return;
       }
 
