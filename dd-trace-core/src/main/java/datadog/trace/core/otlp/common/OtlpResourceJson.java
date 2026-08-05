@@ -54,10 +54,9 @@ public final class OtlpResourceJson {
   /**
    * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
    */
-  @SuppressWarnings("unchecked")
   private static void writeResourceAttribute(JsonWriter writer, String key, Object value) {
     if (value instanceof List) {
-      writeAttribute(writer, STRING_ARRAY_ATTRIBUTE, key, (List<String>) value);
+      writeAttribute(writer, STRING_ARRAY_ATTRIBUTE, key, value);
     } else {
       writeAttribute(writer, STRING_ATTRIBUTE, key, value);
     }

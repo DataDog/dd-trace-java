@@ -57,11 +57,10 @@ public final class OtlpResourceProto {
   /**
    * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
    */
-  @SuppressWarnings("unchecked")
   private static void writeResourceAttribute(StreamingBuffer buf, String key, Object value) {
     writeTag(buf, 1, LEN_WIRE_TYPE);
     if (value instanceof List) {
-      writeAttribute(buf, STRING_ARRAY_ATTRIBUTE, key, (List<String>) value);
+      writeAttribute(buf, STRING_ARRAY_ATTRIBUTE, key, value);
     } else {
       writeAttribute(buf, STRING_ATTRIBUTE, key, value);
     }
