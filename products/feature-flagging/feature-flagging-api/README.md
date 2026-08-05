@@ -85,19 +85,23 @@ OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 ## Requirements
 
 - Java 11+
-- `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` uses the Datadog agentless
-  backend. Set `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` to a
-  different HTTP backend while keeping agentless delivery semantics. A bare
-  host uses the standard rules-based server path; a URL with a path is used as
-  the exact UFC endpoint. Configured URLs are opaque: the SDK does not add the
-  Datadog-managed `dd_env` query parameter, so custom backends must include any
-  required tenant or environment scope in the configured URL. The derived
-  Datadog-managed endpoint is
-  `https://ufc-server.ff-cdn.<site>/api/v2/feature-flagging/config/rules-based/server`
-  and expects UFC under the JSON:API `data.attributes` response member. It is
-  intended for supported commercial sites; use an explicit base URL elsewhere.
-  Agentless responses do not have an SDK-imposed payload-size limit.
-  `remote_config` uses the existing Agent Remote
-  Configuration path. `offline` is reserved for startup-provided UFC bytes;
-  until those bytes are implemented, no network source starts and evaluations
-  use defaults.
+
+CDN delivery is the default configuration source. It requires `dd-openfeature`. It does not
+require the Datadog Java agent.
+
+`DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=agentless` selects the same CDN delivery mode. Set
+`DD_FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL` to use a different HTTP endpoint.
+A root URL uses the standard rules-based server path. A URL with a path is the exact UFC endpoint.
+
+The managed endpoint is:
+
+`https://ufc-server.ff-cdn.<site>/api/v2/feature-flagging/config/rules-based/server`
+
+The managed endpoint returns UFC under the JSON:API `data.attributes` member.
+
+`DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config` selects Remote Configuration. This mode
+requires a compatible Datadog Java agent. Java agent version 1.65.0 adds the raw UFC bridge for this
+provider version. An older agent produces a clear provider initialization error.
+
+Offline startup bytes are a future configuration source. This version does not support offline
+delivery.

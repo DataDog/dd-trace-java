@@ -4,6 +4,7 @@ import static datadog.trace.api.config.RemoteConfigConfig.REMOTE_CONFIGURATION_E
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -21,11 +22,12 @@ import static org.mockito.Mockito.when;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.Capabilities;
-import datadog.remoteconfig.ConfigurationDeserializer;
+import datadog.remoteconfig.ConfigurationChangesListener;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.Product;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.FeatureFlaggingRawBridge;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -46,6 +48,10 @@ class FeatureFlaggingSystemTest {
       FeatureFlaggingSystem.start(sharedCommunicationObjects);
 
       assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+      assertEquals("agentless", FeatureFlaggingRawBridge.getRuntimeConfiguration().get("source"));
+      assertEquals(
+          "http://127.0.0.1:1",
+          FeatureFlaggingRawBridge.getRuntimeConfiguration().get("cdn_base_url"));
       verifyNoInteractions(sharedCommunicationObjects);
 
       FeatureFlaggingGateway.activate();
@@ -99,7 +105,7 @@ class FeatureFlaggingSystemTest {
     FeatureFlaggingSystem.start(sharedCommunicationObjects);
 
     verify(poller).addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
-    verify(poller).addListener(eq(Product.FFE_FLAGS), any(ConfigurationDeserializer.class), any());
+    verify(poller).addListener(eq(Product.FFE_FLAGS), any(ConfigurationChangesListener.class));
     verify(poller).start();
 
     FeatureFlaggingSystem.stop();
@@ -128,9 +134,8 @@ class FeatureFlaggingSystemTest {
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
-  void agentlessConfigurationSourceUsesHttpServiceWithoutRemoteConfig() {
-    assertInstanceOf(
-        AgentlessConfigurationSource.class,
+  void agentlessConfigurationSourceIsProviderOwned() {
+    assertNull(
         FeatureFlaggingSystem.createConfigurationSourceService(
             sharedCommunicationObjects(), Config.get()));
   }

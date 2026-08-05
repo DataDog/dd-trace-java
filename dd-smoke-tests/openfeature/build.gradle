@@ -21,7 +21,7 @@ smokeTestApp {
 
 dependencies {
   testImplementation project(':dd-smoke-tests')
-  testImplementation project(':products:feature-flagging:feature-flagging-lib')
+  testImplementation project(':products:feature-flagging:feature-flagging-agent-runtime')
 }
 
 spotless {

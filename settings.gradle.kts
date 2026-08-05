@@ -159,10 +159,13 @@ include(":dd-java-agent:agent-aiguard")
 // Feature Flagging
 include(
   ":products:feature-flagging:feature-flagging-agent",
+  ":products:feature-flagging:feature-flagging-agent-runtime",
   ":products:feature-flagging:feature-flagging-api",
   ":products:feature-flagging:feature-flagging-bootstrap",
   ":products:feature-flagging:feature-flagging-config",
-  ":products:feature-flagging:feature-flagging-lib"
+  ":products:feature-flagging:feature-flagging-core",
+  ":products:feature-flagging:feature-flagging-http",
+  ":products:feature-flagging:feature-flagging-telemetry"
 )
 
 // misc

@@ -6,6 +6,9 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGU
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.FeatureFlaggingRawBridge;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +31,7 @@ public class FeatureFlaggingSystem {
     }
     LOGGER.debug("Feature Flagging system starting");
     final Config config = Config.get();
+    publishRuntimeConfiguration(config);
     STARTED = true;
 
     if (!config.isFeatureFlaggingProviderEnabled()) {
@@ -70,10 +74,6 @@ public class FeatureFlaggingSystem {
 
   private static void initializeSystem(final SharedCommunicationObjects sco, final Config config) {
     final ConfigurationSourceService configService = createConfigurationSourceService(sco, config);
-    if (configService == null) {
-      LOGGER.debug("Feature Flagging system disabled by unsupported configuration source");
-      return;
-    }
     final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
     initialize(configService, exposureWriter);
 
@@ -109,6 +109,23 @@ public class FeatureFlaggingSystem {
     }
   }
 
+  private static void publishRuntimeConfiguration(final Config config) {
+    final Map<String, Object> runtimeConfiguration = new LinkedHashMap<>();
+    runtimeConfiguration.put("enabled", config.isFeatureFlaggingProviderEnabled());
+    runtimeConfiguration.put("source", config.getFeatureFlaggingConfigurationSource());
+    runtimeConfiguration.put(
+        "cdn_base_url", config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl());
+    runtimeConfiguration.put(
+        "poll_interval_seconds", config.getFeatureFlaggingConfigurationSourcePollIntervalSeconds());
+    runtimeConfiguration.put(
+        "request_timeout_seconds",
+        config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds());
+    runtimeConfiguration.put("api_key", config.getApiKey());
+    runtimeConfiguration.put("site", config.getSite());
+    runtimeConfiguration.put("environment", config.getEnv());
+    FeatureFlaggingRawBridge.setRuntimeConfiguration(runtimeConfiguration);
+  }
+
   static ConfigurationSourceService createConfigurationSourceService(
       final SharedCommunicationObjects sco, final Config config) {
     final String configurationSource = config.getFeatureFlaggingConfigurationSource();
@@ -119,7 +136,8 @@ public class FeatureFlaggingSystem {
       return new RemoteConfigServiceImpl(sco, config);
     }
     if (CONFIGURATION_SOURCE_AGENTLESS.equals(configurationSource)) {
-      return new AgentlessConfigurationSource(config);
+      // CDN delivery belongs to the application provider. The agent owns telemetry only.
+      return null;
     }
     return null;
   }
@@ -134,6 +152,7 @@ public class FeatureFlaggingSystem {
     SPAN_ENRICHMENT_WRITER = null;
     EXPOSURE_WRITER = null;
     CONFIG_SERVICE = null;
+    FeatureFlaggingRawBridge.setRuntimeConfiguration(null);
     if (activationListener != null) {
       FeatureFlaggingGateway.removeActivationListener(activationListener);
     }
