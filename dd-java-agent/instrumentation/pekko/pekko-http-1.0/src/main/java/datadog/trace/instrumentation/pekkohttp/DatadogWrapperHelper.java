@@ -22,18 +22,22 @@ public class DatadogWrapperHelper {
 
   public static void finishSpan(final Context context, final HttpResponse response) {
     final AgentSpan span = fromContext(context);
-    DECORATE.onResponse(span, response);
-    DECORATE.beforeFinish(context);
-
-    span.finish();
+    try {
+      DECORATE.onResponse(span, response);
+      DECORATE.beforeFinish(context);
+    } finally {
+      span.finish();
+    }
   }
 
   public static void finishSpan(final Context context, final Throwable t) {
     final AgentSpan span = fromContext(context);
-    DECORATE.onError(span, t);
-    span.setHttpStatusCode(500);
-    DECORATE.beforeFinish(context);
-
-    span.finish();
+    try {
+      DECORATE.onError(span, t);
+      span.setHttpStatusCode(500);
+      DECORATE.beforeFinish(context);
+    } finally {
+      span.finish();
+    }
   }
 }

@@ -39,8 +39,25 @@ configurations {
 sourceSets {
   latestDepTest.groovy.srcDir sourceSets.baseTest.groovy
   latestDepTest.scala.srcDir sourceSets.baseTest.scala
+  latestDepTest.java.srcDir sourceSets.baseTest.java
   latestPekko10Test.groovy.srcDir sourceSets.baseTest.groovy
   latestPekko10Test.scala.srcDir sourceSets.baseTest.scala
+  latestPekko10Test.java.srcDir sourceSets.baseTest.java
+}
+
+// This module has no 'test' source set, so the default forked test task runs nothing here. Register
+// one per Scala generation instead.
+['baseTest', 'latestDepTest'].each { suiteName ->
+  addForkedTestTask(suiteName).configure {
+    // The other *ForkedTest classes in this module have never run, and the client ones currently
+    // fail on an unrelated NPE in PekkoHttpClientHelpers$PekkoHttpHeaders during Data Streams
+    // injection. Keep these tasks scoped until that is fixed separately.
+    setIncludes(['**/PekkoHttpAsyncHandlerWrapper*ForkedTest.class'])
+  }
+  tasks.named(suiteName, Test) {
+    // finalizedBy, not dependsOn, so a failure is reported against the task that actually ran.
+    finalizedBy "${suiteName}ForkedTest"
+  }
 }
 
 dependencies {

@@ -44,7 +44,6 @@ public final class PekkoHttp2ServerInstrumentation extends InstrumenterModule.Tr
       packageName + ".DatadogWrapperHelper",
       packageName + ".DatadogAsyncHandlerWrapper",
       packageName + ".DatadogAsyncHandlerWrapper$1",
-      packageName + ".DatadogAsyncHandlerWrapper$2",
       packageName + ".PekkoHttpServerHeaders",
       packageName + ".PekkoHttpServerDecorator",
       packageName + ".UriAdapter",
