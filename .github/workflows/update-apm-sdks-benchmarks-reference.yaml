@@ -1,0 +1,110 @@
+name: Update apm-sdks-benchmarks reference
+
+on:
+  schedule:
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+
+jobs:
+  update-apm-sdks-benchmarks-reference:
+    runs-on: ubuntu-latest
+    name: Update APM SDK benchmarks reference
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC token federation
+    steps:
+      - name: Get token for apm-sdks-benchmarks
+        id: benchmarks-token
+        uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
+        with:
+          scope: DataDog/apm-sdks-benchmarks
+          policy: dd-trace-java.update-apm-sdks-benchmarks-reference.read
+
+      - name: Get token for dd-trace-java
+        id: dd-trace-java-token
+        uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
+        with:
+          scope: DataDog/dd-trace-java
+          policy: self.update-apm-sdks-benchmarks-reference.create-pr
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 7.0.1
+
+      - name: Resolve latest apm-sdks-benchmarks main commit
+        id: latest
+        env:
+          GH_TOKEN: ${{ steps.benchmarks-token.outputs.token }}
+        run: |
+          SHA=$(gh api repos/DataDog/apm-sdks-benchmarks/commits/main --jq .sha)
+          if [[ ! "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Could not resolve a full commit SHA for apm-sdks-benchmarks main." >&2
+            exit 1
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Update pinned reference
+        run: |
+          ./tooling/update_apm_sdks_benchmarks_reference.sh "${{ steps.latest.outputs.sha }}"
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if git diff --quiet -- .gitlab-ci.yml; then
+            echo "The apm-sdks-benchmarks reference is already up to date."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            git diff -- .gitlab-ci.yml
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Define branch name
+        if: steps.check-changes.outputs.has_changes == 'true'
+        id: define-branch
+        run: |
+          echo "branch=ci/update-apm-sdks-benchmarks-reference-$(date +'%Y%m%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Create commit
+        if: steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .gitlab-ci.yml
+          git commit -m "chore: Update APM SDK benchmarks reference"
+
+      - name: Push changes
+        if: steps.check-changes.outputs.has_changes == 'true'
+        uses: DataDog/commit-headless@2801f6e08acb3a69b6c4d7b0d5deef27c1a15bc7 # action/v3.3.1
+        with:
+          token: "${{ steps.dd-trace-java-token.outputs.token }}"
+          branch: "${{ steps.define-branch.outputs.branch }}"
+          head-sha: "${{ github.sha }}"
+          create-branch: true
+          command: push
+
+      - name: Create pull request
+        if: steps.check-changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ steps.dd-trace-java-token.outputs.token }}
+        run: |
+          gh pr create --title "Update APM SDK benchmarks reference" \
+            --base master \
+            --head "${{ steps.define-branch.outputs.branch }}" \
+            --label "comp: testing" \
+            --label "type: feature" \
+            --label "tag: dependencies" \
+            --label "tag: no release notes" \
+            --body "$(cat <<EOF
+          # What Does This Do
+
+          This PR updates the pinned apm-sdks-benchmarks GitLab CI includes to
+          [DataDog/apm-sdks-benchmarks@${{ steps.latest.outputs.sha }}](https://github.com/DataDog/apm-sdks-benchmarks/commit/${{ steps.latest.outputs.sha }}).
+
+          # Motivation
+
+          Keep Java SDK benchmarks current while retaining reproducible CI configuration.
+
+          # Contributor Checklist
+
+          - [ ] Verify CI passes successfully
+          EOF
+          )"
