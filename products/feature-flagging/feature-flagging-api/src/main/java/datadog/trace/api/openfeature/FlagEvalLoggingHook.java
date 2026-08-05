@@ -21,16 +21,19 @@ import java.util.function.Supplier;
  * evaluation context, and a non-blocking offer to the writer's bounded queue. Flattening,
  * aggregation, and posting are deferred to the writer's worker thread.
  *
- * <p><strong>Hot-path cost:</strong> the context snapshot is NOT free. {@link
- * DDEvaluator#snapshotValues} deep-copies every context attribute (a fresh {@code Value} per
- * attribute, plus {@code ArrayList}/{@code ImmutableStructure} copies for nested lists and
- * structures, plus an {@code IdentityHashMap} for cycle detection) synchronously on the evaluation
- * thread. Cost is proportional to the size and nesting depth of the evaluation context, so it is
- * measurable for large or deeply nested contexts. Some copy is required - {@link EvaluationContext}
- * is caller-owned and mutable, so its values must be captured before the event is handed to another
- * thread - but this one is unbounded: the writer later prunes the context to 256 fields, so a
- * narrower snapshot could cap the inline cost. Only the {@link DDEvaluator#flattenValues} step is
- * deferred, via the event's attribute supplier.
+ * <p><strong>Hot-path cost:</strong> under consent-on ({@code observeFullEvaluationData=true}) the
+ * context snapshot is NOT free. {@link DDEvaluator#snapshotValues} deep-copies every context
+ * attribute (a fresh {@code Value} per attribute, plus {@code ArrayList}/{@code ImmutableStructure}
+ * copies for nested lists and structures, plus an {@code IdentityHashMap} for cycle detection)
+ * synchronously on the evaluation thread. Cost is proportional to the size and nesting depth of the
+ * evaluation context, so it is measurable for large or deeply nested contexts. Some copy is
+ * required - {@link EvaluationContext} is caller-owned and mutable, so its values must be captured
+ * before the event is handed to another thread - but this one is unbounded: the writer later prunes
+ * the context to 256 fields, so a narrower snapshot could cap the inline cost. Only the {@link
+ * DDEvaluator#flattenValues} step is deferred, via the event's attribute supplier.
+ *
+ * <p>Under consent-off the context is dropped on emit, so the snapshot is skipped entirely and the
+ * hot path is scalar-only.
  *
  * <p>This hook is registered alongside the existing OTel {@link FlagEvalMetricsHook} - it does NOT
  * replace it (the existing OTel metrics hook is left unchanged).
@@ -109,9 +112,24 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // evaluated value. A null variant means no variant was selected (runtime default).
       final String variant = details.getVariant();
 
-      // error message: prefer the human-readable message; fall back to the error code name when
-      // the message is empty (some providers populate only the code). null on success.
-      String errorMessage = details.getErrorMessage();
+      // targetingKey from evaluation context
+      final String targetingKey =
+          ctx != null && ctx.getCtx() != null ? ctx.getCtx().getTargetingKey() : null;
+
+      // Consent is read from metadata stamped by DDEvaluator (pinned to its ServerConfiguration).
+      // Missing key = non-DD provider → false, the privacy-preserving default.
+      final Boolean consentFromMetadata =
+          metadata != null
+              ? metadata.getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA)
+              : null;
+      final boolean observeFullEvaluationData = consentFromMetadata != null && consentFromMetadata;
+
+      // Error message: prefer the human-readable message under consent-on; under consent-off the
+      // provider's raw message can echo evaluation-context values (e.g. NumberFormatException:
+      // "For input string: \"jane.doe@...\""), so replace it with the ErrorCode name — a stable,
+      // PII-free signal. Same substitution path is used when the message is absent regardless of
+      // consent (some providers populate only the code). Null on success.
+      String errorMessage = observeFullEvaluationData ? details.getErrorMessage() : null;
       if ((errorMessage == null || errorMessage.isEmpty()) && details.getErrorCode() != null) {
         errorMessage = details.getErrorCode().name();
       }
@@ -119,23 +137,35 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
         errorMessage = null;
       }
 
-      // targetingKey from evaluation context
-      final String targetingKey =
-          ctx != null && ctx.getCtx() != null ? ctx.getCtx().getTargetingKey() : null;
-
-      // Deep-copies the caller's mutable context. This is the dominant cost of the hook for
-      // large/nested contexts; it must happen inline, before the async handoff below.
-      final Map<String, Value> attrs = snapshotAttrs(ctx);
-
-      w.enqueue(
-          new FlagEvalEvent(
-              flagKey,
-              variant,
-              allocationKey,
-              targetingKey,
-              errorMessage,
-              evalTimeMs,
-              () -> extractAttrs(attrs)));
+      // On the protected path (consent-off) the evaluation context is dropped on emit and never
+      // consulted by the aggregator, so skip the snapshot + supplier allocation entirely — the
+      // deep-copy cost documented in the class javadoc only applies under consent-on.
+      if (observeFullEvaluationData) {
+        // Deep-copies the caller's mutable context. This is the dominant cost of the hook for
+        // large/nested contexts; it must happen inline, before the async handoff below.
+        final Map<String, Value> attrs = snapshotAttrs(ctx);
+        w.enqueue(
+            new FlagEvalEvent(
+                flagKey,
+                variant,
+                allocationKey,
+                targetingKey,
+                errorMessage,
+                evalTimeMs,
+                true,
+                () -> extractAttrs(attrs)));
+      } else {
+        w.enqueue(
+            new FlagEvalEvent(
+                flagKey,
+                variant,
+                allocationKey,
+                targetingKey,
+                errorMessage,
+                evalTimeMs,
+                false,
+                Collections.<String, Object>emptyMap()));
+      }
     } catch (LinkageError | Exception e) {
       // Never let EVP recording break flag evaluation
     }

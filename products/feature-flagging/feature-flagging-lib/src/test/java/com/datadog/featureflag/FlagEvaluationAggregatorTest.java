@@ -38,8 +38,8 @@ class FlagEvaluationAggregatorTest {
     final Map<String, Object> attrsStr = new HashMap<>();
     attrsStr.put("score", "1");
 
-    aggregator.aggregate(event("flag-b", "on", "alloc1", "user-1", 1000L, attrsInt));
-    aggregator.aggregate(event("flag-b", "on", "alloc1", "user-1", 1000L, attrsStr));
+    aggregator.aggregate(event("flag-b", "on", "alloc1", "user-1", 1000L, true, attrsInt));
+    aggregator.aggregate(event("flag-b", "on", "alloc1", "user-1", 1000L, true, attrsStr));
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     assertEquals(2, state.fullTier.size());
@@ -99,6 +99,30 @@ class FlagEvaluationAggregatorTest {
   }
 
   @Test
+  void mixedConsentDegradedEvaluationsMergeIntoOneBucket() {
+    // Mirror of mixedConsentEvaluationsForSameSubjectLandInDistinctBuckets, but for the degraded
+    // tier: the wire serializer for degraded rows drops the targeting key and context regardless
+    // of consent, so two events differing only in consent emit byte-identical JSON. They must
+    // share a bucket, otherwise DEGRADED_CAP is effectively halved for zero wire fidelity gain.
+    // The AND-fold on EvalBucket.observeFullEvaluationData still runs but the value has no
+    // downstream effect for degraded rows.
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    aggregator.perFlagCount.put("hot-flag", FlagEvaluationAggregator.PER_FLAG_CAP);
+
+    aggregator.aggregate(event("hot-flag", "on", "alloc1", "user-1", 1000L, true, emptyMap()));
+    aggregator.aggregate(event("hot-flag", "on", "alloc1", "user-2", 2000L, false, emptyMap()));
+
+    final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
+    assertEquals(0, state.fullTier.size());
+    assertEquals(1, state.degradedTier.size());
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        state.degradedTier.values().iterator().next();
+    assertEquals(2, bucket.count);
+    // AND-fold collapses to consent-off; benign for degraded rows but a documented invariant.
+    assertFalse(bucket.observeFullEvaluationData);
+  }
+
+  @Test
   void absentVariantSetsRuntimeDefaultUsed() {
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
 
@@ -118,7 +142,7 @@ class FlagEvaluationAggregatorTest {
       hugeAttrs.put("key" + i, "v" + i);
     }
 
-    aggregator.aggregate(event("flag-d", "on", "alloc1", "user-1", 1000L, hugeAttrs));
+    aggregator.aggregate(event("flag-d", "on", "alloc1", "user-1", 1000L, true, hugeAttrs));
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
@@ -179,7 +203,7 @@ class FlagEvaluationAggregatorTest {
     attrs.put("long-val", repeat('x', 300));
     attrs.put("short-val", "ok");
 
-    aggregator.aggregate(event("flag-e", "on", "alloc1", "user-1", 1000L, attrs));
+    aggregator.aggregate(event("flag-e", "on", "alloc1", "user-1", 1000L, true, attrs));
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
@@ -212,7 +236,7 @@ class FlagEvaluationAggregatorTest {
   void evalBucketTracksBoundsDefaultStateAndNullContextFieldCount() {
     final FlagEvaluationAggregator.EvalBucket bucket =
         new FlagEvaluationAggregator.EvalBucket(
-            "bucket-flag", "on", "alloc1", "user-1", null, 1000L, false, null);
+            "bucket-flag", "on", "alloc1", "user-1", null, 1000L, false, null, false);
 
     assertEquals(0, bucket.prunedContextFieldCount());
 
@@ -266,6 +290,114 @@ class FlagEvaluationAggregatorTest {
     assertNotEquals(base, degradedKey("flag", "on", "alloc", false, "other"));
   }
 
+  @Test
+  void mixedConsentEvaluationsForSameSubjectLandInDistinctBuckets() {
+    // Consent is part of FullKey: two evaluations that differ only in consent produce different
+    // wire rows (raw vs hashed targeting key, context vs no context) and belong in different
+    // buckets. Merging them would silently downgrade the consent-on row to the protected shape.
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 1000L, true, emptyMap()));
+    aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 2000L, false, emptyMap()));
+
+    assertEquals(2, aggregator.fullTierSize());
+    int onCount = 0;
+    int offCount = 0;
+    for (final FlagEvaluationAggregator.EvalBucket bucket :
+        aggregator.snapshot().fullTier.values()) {
+      if (bucket.observeFullEvaluationData) {
+        onCount++;
+      } else {
+        offCount++;
+      }
+    }
+    assertEquals(1, onCount);
+    assertEquals(1, offCount);
+  }
+
+  @Test
+  void sameConsentEvaluationsForSameSubjectMergeIntoOneBucket() {
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 1000L, true, emptyMap()));
+    aggregator.aggregate(event("fold-flag", "on", "alloc1", "user-1", 2000L, true, emptyMap()));
+
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        aggregator.snapshot().fullTier.values().iterator().next();
+    assertEquals(2, bucket.count);
+    assertTrue(bucket.observeFullEvaluationData);
+  }
+
+  @Test
+  void protectedPathCollapsesDifferingContextIntoOneBucket() {
+    // Same subject, different request-id contexts, consent off: the context is dropped on emit so
+    // it must not fragment full-tier buckets or the per-flag cap blows out under real traffic.
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    final Map<String, Object> ctx1 = new HashMap<>();
+    ctx1.put("request_id", "req-1");
+    final Map<String, Object> ctx2 = new HashMap<>();
+    ctx2.put("request_id", "req-2");
+    final Map<String, Object> ctx3 = new HashMap<>();
+    ctx3.put("request_id", "req-3");
+
+    aggregator.aggregate(event("checkout", "on", "alloc1", "alice", 1000L, false, ctx1));
+    aggregator.aggregate(event("checkout", "on", "alloc1", "alice", 2000L, false, ctx2));
+    aggregator.aggregate(event("checkout", "on", "alloc1", "alice", 3000L, false, ctx3));
+
+    assertEquals(1, aggregator.fullTierSize());
+    final FlagEvaluationAggregator.EvalBucket bucket =
+        aggregator.snapshot().fullTier.values().iterator().next();
+    assertEquals(3, bucket.count);
+    assertFalse(bucket.observeFullEvaluationData);
+    assertEquals(0, bucket.prunedContextFieldCount());
+  }
+
+  @Test
+  void protectedPathSeparatesDifferentSubjects() {
+    // Different targeting keys must still fall into distinct buckets on the protected path — the
+    // (hashed) targeting key stays part of the aggregation identity.
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    aggregator.aggregate(event("checkout", "on", "alloc1", "alice", 1000L, false, emptyMap()));
+    aggregator.aggregate(event("checkout", "on", "alloc1", "bob", 2000L, false, emptyMap()));
+
+    assertEquals(2, aggregator.fullTierSize());
+  }
+
+  @Test
+  void fullPathStillSplitsBucketsOnDifferingContext() {
+    // Consent-on preserves the previous behaviour: distinct contexts remain distinct buckets so
+    // each raw context is emitted verbatim.
+    final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
+    final Map<String, Object> ctx1 = new HashMap<>();
+    ctx1.put("plan", "pro");
+    ctx1.put("request_id", "req-1");
+    final Map<String, Object> ctx2 = new HashMap<>();
+    ctx2.put("plan", "pro");
+    ctx2.put("request_id", "req-2");
+
+    aggregator.aggregate(event("checkout", "on", "alloc1", "alice", 1000L, true, ctx1));
+    aggregator.aggregate(event("checkout", "on", "alloc1", "alice", 2000L, true, ctx2));
+
+    assertEquals(2, aggregator.fullTierSize());
+  }
+
+  private static FlagEvalEvent event(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final String targetingKey,
+      final long evalTimeMs,
+      final boolean observeFullEvaluationData,
+      final Map<String, Object> attrs) {
+    return new FlagEvalEvent(
+        flagKey,
+        variant,
+        allocationKey,
+        targetingKey,
+        null,
+        evalTimeMs,
+        observeFullEvaluationData,
+        attrs);
+  }
+
   private static FlagEvalEvent event(
       final String flagKey,
       final String variant,
@@ -295,7 +427,8 @@ class FlagEvaluationAggregatorTest {
         runtimeDefaultUsed,
         errorMessage,
         targetingKey,
-        contextKey);
+        contextKey,
+        false);
   }
 
   private static FlagEvaluationAggregator.DegradedKey degradedKey(

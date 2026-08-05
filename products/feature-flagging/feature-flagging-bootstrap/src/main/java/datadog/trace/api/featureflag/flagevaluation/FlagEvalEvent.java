@@ -50,8 +50,16 @@ public final class FlagEvalEvent {
    */
   public final Map<String, Object> attrs;
 
+  /**
+   * PII consent from the {@code ServerConfiguration} used by the evaluation. When {@code false}
+   * (privacy-preserving default), the targeting key is hashed and the per-evaluation context is
+   * omitted on emission.
+   */
+  public final boolean observeFullEvaluationData;
+
   private final Supplier<Map<String, Object>> attrsSupplier;
 
+  /** Convenience constructor; consent defaults to the privacy-preserving {@code false}. */
   public FlagEvalEvent(
       final String flagKey,
       final String variant,
@@ -59,7 +67,19 @@ public final class FlagEvalEvent {
       final String targetingKey,
       final long evalTimeMs,
       final Map<String, Object> attrs) {
-    this(flagKey, variant, allocationKey, targetingKey, null, evalTimeMs, attrs);
+    this(flagKey, variant, allocationKey, targetingKey, null, evalTimeMs, false, attrs);
+  }
+
+  /** Convenience constructor; consent defaults to the privacy-preserving {@code false}. */
+  public FlagEvalEvent(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final String targetingKey,
+      final String errorMessage,
+      final long evalTimeMs,
+      final Map<String, Object> attrs) {
+    this(flagKey, variant, allocationKey, targetingKey, errorMessage, evalTimeMs, false, attrs);
   }
 
   public FlagEvalEvent(
@@ -69,6 +89,7 @@ public final class FlagEvalEvent {
       final String targetingKey,
       final String errorMessage,
       final long evalTimeMs,
+      final boolean observeFullEvaluationData,
       final Map<String, Object> attrs) {
     this.flagKey = flagKey;
     this.variant = variant;
@@ -76,10 +97,12 @@ public final class FlagEvalEvent {
     this.targetingKey = targetingKey;
     this.errorMessage = errorMessage;
     this.evalTimeMs = evalTimeMs;
+    this.observeFullEvaluationData = observeFullEvaluationData;
     this.attrs = attrs != null ? attrs : Collections.emptyMap();
     this.attrsSupplier = null;
   }
 
+  /** Convenience constructor; consent defaults to the privacy-preserving {@code false}. */
   public FlagEvalEvent(
       final String flagKey,
       final String variant,
@@ -88,12 +111,33 @@ public final class FlagEvalEvent {
       final String errorMessage,
       final long evalTimeMs,
       final Supplier<Map<String, Object>> attrsSupplier) {
+    this(
+        flagKey,
+        variant,
+        allocationKey,
+        targetingKey,
+        errorMessage,
+        evalTimeMs,
+        false,
+        attrsSupplier);
+  }
+
+  public FlagEvalEvent(
+      final String flagKey,
+      final String variant,
+      final String allocationKey,
+      final String targetingKey,
+      final String errorMessage,
+      final long evalTimeMs,
+      final boolean observeFullEvaluationData,
+      final Supplier<Map<String, Object>> attrsSupplier) {
     this.flagKey = flagKey;
     this.variant = variant;
     this.allocationKey = allocationKey;
     this.targetingKey = targetingKey;
     this.errorMessage = errorMessage;
     this.evalTimeMs = evalTimeMs;
+    this.observeFullEvaluationData = observeFullEvaluationData;
     this.attrs = Collections.emptyMap();
     this.attrsSupplier = attrsSupplier;
   }

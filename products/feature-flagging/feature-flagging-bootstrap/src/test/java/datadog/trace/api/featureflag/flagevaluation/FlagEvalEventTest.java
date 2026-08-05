@@ -1,6 +1,7 @@
 package datadog.trace.api.featureflag.flagevaluation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -69,5 +70,24 @@ class FlagEvalEventTest {
         new FlagEvalEvent("my-flag", "on", null, null, null, 789L, () -> null);
 
     assertTrue(event.contextAttributes().isEmpty());
+  }
+
+  @Test
+  void observeFullEvaluationDataDefaultsToFalseOnConvenienceConstructors() {
+    final Map<String, Object> attrs = Collections.emptyMap();
+    assertFalse(new FlagEvalEvent("f", "on", "a", "t", 1L, attrs).observeFullEvaluationData);
+    assertFalse(new FlagEvalEvent("f", "on", "a", "t", null, 1L, attrs).observeFullEvaluationData);
+    assertFalse(
+        new FlagEvalEvent("f", "on", "a", "t", null, 1L, () -> attrs).observeFullEvaluationData);
+  }
+
+  @Test
+  void storesExplicitObserveFullEvaluationData() {
+    final Map<String, Object> attrs = Collections.emptyMap();
+    assertTrue(
+        new FlagEvalEvent("f", "on", "a", "t", null, 1L, true, attrs).observeFullEvaluationData);
+    assertTrue(
+        new FlagEvalEvent("f", "on", "a", "t", null, 1L, true, () -> attrs)
+            .observeFullEvaluationData);
   }
 }
