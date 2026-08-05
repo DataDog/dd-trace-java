@@ -371,10 +371,13 @@ public class LLMObsSpanMapper implements RemoteMapper {
                   val.getClass().getName());
               continue;
             }
-          } else if (spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT)) {
+          } else if ((spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT))
+              || (spanKind.equals(Tags.LLMOBS_RETRIEVAL_SPAN_KIND) && key.equals(OUTPUT))) {
             if (!(val instanceof List)) {
               LOGGER.warn(
-                  "unexpectedly found incorrect type for embedding span input {}, expecting list",
+                  "unexpectedly found incorrect type for {} span {} {}, expecting list",
+                  spanKind,
+                  key,
                   val.getClass().getName());
               continue;
             }
@@ -384,9 +387,25 @@ public class LLMObsSpanMapper implements RemoteMapper {
             writable.writeString("documents", null);
             writable.startArray(documents.size());
             for (LLMObs.Document document : documents) {
-              writable.startMap(1);
+              int documentSize = 1;
+              if (document.getName() != null) documentSize++;
+              if (document.getId() != null) documentSize++;
+              if (document.getScore() != null) documentSize++;
+              writable.startMap(documentSize);
               writable.writeString("text", null);
               writable.writeString(document.getText(), null);
+              if (document.getName() != null) {
+                writable.writeString("name", null);
+                writable.writeString(document.getName(), null);
+              }
+              if (document.getId() != null) {
+                writable.writeString("id", null);
+                writable.writeString(document.getId(), null);
+              }
+              if (document.getScore() != null) {
+                writable.writeString("score", null);
+                writable.writeObject(document.getScore(), null);
+              }
             }
           } else {
             writable.writeString(key, null);
