@@ -5,24 +5,21 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_AT
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeAttribute;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
+import static datadog.trace.core.otlp.common.OtlpResourceAttributes.ExtraAttributes.EMPTY;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.datadogResourceAttributes;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.traceResourceAttributes;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.visitResourceAttributes;
 
 import datadog.communication.serialization.GrowableBuffer;
-import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import datadog.trace.core.otlp.common.OtlpResourceAttributes.ExtraAttributes;
 
 /** Provides a canned message for OpenTelemetry's "resource.proto" wire protocol. */
 public final class OtlpResourceProto {
   private OtlpResourceProto() {}
 
   /** Vendor-neutral resource (no {@code datadog.*}). Used by the OTLP metric export. */
-  public static final byte[] RESOURCE_MESSAGE =
-      buildResourceMessage(Config.get(), Collections.emptyMap());
+  public static final byte[] RESOURCE_MESSAGE = buildResourceMessage(Config.get(), EMPTY);
 
   /**
    * Resource that additionally carries {@code datadog.runtime_id} and process tags (each prefixed
@@ -40,11 +37,20 @@ public final class OtlpResourceProto {
   public static final byte[] TRACE_RESOURCE_MESSAGE =
       buildResourceMessage(Config.get(), traceResourceAttributes(Config.get()));
 
-  static byte[] buildResourceMessage(Config config, Map<String, Object> extraAttributes) {
+  static byte[] buildResourceMessage(Config config, ExtraAttributes extraAttributes) {
     GrowableBuffer buf = new GrowableBuffer(512);
 
     visitResourceAttributes(
-        config, extraAttributes, (key, value) -> writeResourceAttribute(buf, key, value));
+        config,
+        extraAttributes,
+        (key, value) -> {
+          writeTag(buf, 1, LEN_WIRE_TYPE);
+          writeAttribute(buf, STRING_ATTRIBUTE, key, value);
+        },
+        (key, value) -> {
+          writeTag(buf, 1, LEN_WIRE_TYPE);
+          writeAttribute(buf, STRING_ARRAY_ATTRIBUTE, key, value);
+        });
 
     OtlpProtoBuffer protobuf = new OtlpProtoBuffer(buf.capacity());
     int numBytes = protobuf.recordMessage(buf, 1);
@@ -52,18 +58,5 @@ public final class OtlpResourceProto {
     protobuf.flip().get(resourceMessage);
 
     return resourceMessage;
-  }
-
-  /**
-   * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
-   */
-  @SuppressWarnings("unchecked")
-  private static void writeResourceAttribute(StreamingBuffer buf, String key, Object value) {
-    writeTag(buf, 1, LEN_WIRE_TYPE);
-    if (value instanceof List) {
-      writeAttribute(buf, STRING_ARRAY_ATTRIBUTE, key, (List<String>) value);
-    } else {
-      writeAttribute(buf, STRING_ATTRIBUTE, key, value);
-    }
   }
 }

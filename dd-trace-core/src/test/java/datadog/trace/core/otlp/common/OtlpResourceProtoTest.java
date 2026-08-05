@@ -8,6 +8,7 @@ import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
+import static datadog.trace.core.otlp.common.OtlpResourceAttributes.ExtraAttributes.EMPTY;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.datadogResourceAttributes;
 import static datadog.trace.core.otlp.common.OtlpResourceAttributes.traceResourceAttributes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,7 +21,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -163,7 +163,7 @@ class OtlpResourceProtoTest {
       String caseName, Properties properties, Map<String, Object> expectedAttributes)
       throws IOException {
     Config config = Config.get(properties);
-    byte[] bytes = OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap());
+    byte[] bytes = OtlpResourceProto.buildResourceMessage(config, EMPTY);
 
     Map<String, Object> actualAttributes = parseResourceAttributes(bytes);
     assertEquals(expectedAttributes, actualAttributes, "For case: " + caseName);
@@ -181,8 +181,7 @@ class OtlpResourceProtoTest {
         parseResourceAttributes(
             OtlpResourceProto.buildResourceMessage(config, datadogResourceAttributes(config)));
     Map<String, Object> plain =
-        parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap()));
+        parseResourceAttributes(OtlpResourceProto.buildResourceMessage(config, EMPTY));
 
     assertTrue(
         withDatadog.containsKey("datadog.runtime_id"),
