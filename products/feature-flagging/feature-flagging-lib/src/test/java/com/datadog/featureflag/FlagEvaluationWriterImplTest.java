@@ -676,7 +676,7 @@ class FlagEvaluationWriterImplTest {
     // bucket. Before the fix, the aggregator kept the bucket and every later flush re-threw.
     final Map<String, Object> poison = new HashMap<>();
     poison.put("bad-number", Double.NaN);
-    setup.handler.add(event("poison-flag", "on", "alloc1", "user-1", 1000L, poison));
+    setup.handler.add(event("poison-flag", "on", "alloc1", "user-1", 1000L, true, poison));
     setup.handler.drainAndAggregate();
     setup.handler.flush();
     verify(mockEvp, org.mockito.Mockito.never())
