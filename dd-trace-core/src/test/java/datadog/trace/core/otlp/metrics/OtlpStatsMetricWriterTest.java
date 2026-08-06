@@ -477,8 +477,7 @@ class OtlpStatsMetricWriterTest {
             new UTF8BytesString[] {
               UTF8BytesString.create("region:us-east-1"),
               UTF8BytesString.create("tenant_id:acme:corp"),
-              UTF8BytesString.create("datadog.custom:visible"),
-              UTF8BytesString.create("_datadog.custom:visible")
+              UTF8BytesString.create("datadog.custom:visible")
             });
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
@@ -487,7 +486,6 @@ class OtlpStatsMetricWriterTest {
     // value may itself contain ':' — only the first ':' separates key from value
     assertEquals("acme:corp", attrs.get("tenant_id"));
     assertEquals("visible", attrs.get("datadog.custom"));
-    assertEquals("visible", attrs.get("_datadog.custom"));
   }
 
   @Test
@@ -510,8 +508,7 @@ class OtlpStatsMetricWriterTest {
             new UTF8BytesString[] {
               UTF8BytesString.create("region:us-east-1"),
               UTF8BytesString.create("custom.tag:custom-value"),
-              UTF8BytesString.create("datadog.custom:hidden"),
-              UTF8BytesString.create("_datadog.custom:hidden")
+              UTF8BytesString.create("datadog.custom:hidden")
             });
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
@@ -540,9 +537,7 @@ class OtlpStatsMetricWriterTest {
     assertEquals("0", attrs.get("rpc.response.status_code"));
     assertEquals("us-east-1", attrs.get("region"));
     assertEquals("custom-value", attrs.get("custom.tag"));
-    assertFalse(
-        attrs.keySet().stream()
-            .anyMatch(key -> key.startsWith("datadog.") || key.startsWith("_datadog.")));
+    assertFalse(attrs.keySet().stream().anyMatch(key -> key.startsWith("datadog.")));
   }
 
   @Test

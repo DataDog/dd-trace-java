@@ -55,7 +55,6 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private static final String STATUS_CODE_OK = "STATUS_CODE_OK";
   private static final String STATUS_CODE_ERROR = "STATUS_CODE_ERROR";
   private static final String DATADOG_ATTRIBUTE_PREFIX = "datadog.";
-  private static final String INTERNAL_DATADOG_ATTRIBUTE_PREFIX = "_datadog.";
   private static final String DATADOG_OPERATION_NAME = "datadog.operation.name";
   private static final String DATADOG_SPAN_TYPE = "datadog.span.type";
   private static final String DATADOG_SPAN_TOP_LEVEL = "datadog.span.top_level";
@@ -276,9 +275,7 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
       return;
     }
     String key = packed.substring(0, separator);
-    if (suppressDatadogAttributes
-        && (key.startsWith(DATADOG_ATTRIBUTE_PREFIX)
-            || key.startsWith(INTERNAL_DATADOG_ATTRIBUTE_PREFIX))) {
+    if (suppressDatadogAttributes && key.startsWith(DATADOG_ATTRIBUTE_PREFIX)) {
       return;
     }
     metric.visitAttribute(STRING_ATTRIBUTE, key, packed.substring(separator + 1));
