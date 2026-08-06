@@ -99,16 +99,22 @@ public class W3CPTagsCodec extends PTagsCodec {
     int maxUnknownSize = 0;
     CharSequence lastParentId = null;
     TagValue orgPropagationMarkerTagValue = null;
-    while (tagPos < ddMemberValueEnd) {
+    // Strip trailing OWS from dd header. OWS can either come after a trailing ';' or the last
+    // submember value. Note that whitespace between submember key/values are not permitted.
+    int ddTagsEnd = ddMemberValueEnd;
+    if (ddMemberValueStart < ddMemberValueEnd) {
+      ddTagsEnd = stripTrailingOWC(value, ddMemberValueStart, ddMemberValueEnd);
+    }
+    while (tagPos < ddTagsEnd) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
               value,
               tagPos,
-              ddMemberValueEnd,
+              ddTagsEnd,
               KEY_VALUE_SEPARATOR,
               false,
               W3CPTagsCodec::isAllowedKeyChar);
-      if (tagKeyEndsAt < 0 || tagKeyEndsAt == ddMemberValueEnd) {
+      if (tagKeyEndsAt < 0 || tagKeyEndsAt == ddTagsEnd) {
         log.warn("Invalid datadog tags header value: '{}' at {}", value, tagPos);
         // TODO drop parts?
         return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
@@ -118,7 +124,7 @@ public class W3CPTagsCodec extends PTagsCodec {
           validateCharsUntilSeparatorOrEnd(
               value,
               tagValuePos,
-              ddMemberValueEnd,
+              ddTagsEnd,
               ELEMENT_SEPARATOR,
               true,
               W3CPTagsCodec::isAllowedValueChar);
@@ -128,9 +134,6 @@ public class W3CPTagsCodec extends PTagsCodec {
         return empty(tagsFactory, value, firstMemberStart, ddMemberStart, ddMemberValueEnd);
       }
       int nextTagPos = tagValueEndsAt + 1;
-      if (tagValueEndsAt == ddMemberValueEnd) {
-        tagValueEndsAt = stripTrailingOWC(value, tagValuePos, tagValueEndsAt);
-      }
       int keyLength = tagKeyEndsAt - tagPos;
       char c = value.charAt(tagPos);
       if (keyLength == 1 && c == 's') {
@@ -193,7 +196,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         value,
         firstMemberStart,
         ddMemberStart,
-        ddMemberValueEnd,
+        ddTagsEnd,
         maxUnknownSize,
         lastParentId,
         orgPropagationMarkerTagValue);
@@ -351,9 +354,10 @@ public class W3CPTagsCodec extends PTagsCodec {
       pos++;
       if (pos < end) {
         c = s.charAt(pos);
-        // It's not allowed to have the separator as the last character so only check
-        // if there is something after the separator
-        if (pos < end - 1 && c == separator) {
+        // Stop at the separator wherever it appears, including as the last character. A
+        // trailing separator (e.g. a tracestate "dd=p:<id>;") yields an empty final element
+        // that we tolerate and ignore, rather than treating the header as malformed.
+        if (c == separator) {
           break;
         }
       }
