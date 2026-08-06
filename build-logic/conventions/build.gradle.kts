@@ -1,5 +1,6 @@
 plugins {
   `kotlin-dsl`
+  `jvm-test-suite`
 }
 
 java {
@@ -10,5 +11,19 @@ java {
 kotlin {
   compilerOptions {
     jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+  }
+}
+
+@Suppress("UnstableApiUsage")
+testing {
+  suites {
+    named<JvmTestSuite>("test") {
+      useJUnitJupiter(libs.versions.junit5)
+      dependencies {
+        implementation(libs.junit.jupiter)
+        implementation(libs.junit.jupiter.engine)
+        implementation(libs.assertj.core)
+      }
+    }
   }
 }

@@ -34,10 +34,6 @@ import org.gradle.testkit.runner.GradleRunner;
 import org.gradle.testkit.runner.TaskOutcome;
 import org.gradle.tooling.internal.consumer.DefaultGradleConnector;
 import org.gradle.util.GradleVersion;
-import org.gradle.wrapper.Download;
-import org.gradle.wrapper.Install;
-import org.gradle.wrapper.PathAssembler;
-import org.gradle.wrapper.WrapperConfiguration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.io.CleanupMode;
@@ -56,9 +52,6 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
           "reports",
           "gradle-daemon-diagnostics");
   private static final Pattern DAEMON_LOG_PATTERN = Pattern.compile("daemon-(.+)\\.out\\.log");
-
-  // Gradle's default timeout is 10s
-  private static final int GRADLE_DISTRIBUTION_NETWORK_TIMEOUT = 30_000;
 
   // Cleanup is handled manually in stopGradleTestKitDaemons() instead of by JUnit: the TestKit
   // daemons may still hold file handles on this directory at class teardown, which would make
@@ -161,7 +154,6 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
     givenGradleProjectFiles(projectName);
     givenGradleProjectProperties();
-    ensureDependenciesDownloaded(gradleVersion);
 
     BuildResult buildResult = runGradleTests(gradleVersion, true, false);
     assertBuildSuccessful(buildResult);
@@ -232,7 +224,6 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
     givenGradleProjectFiles(projectName);
     givenGradleProjectProperties();
-    ensureDependenciesDownloaded(gradleVersion);
 
     mockBackend.givenKnownTests(true);
     for (TestFQN flakyTest : flakyTests) {
@@ -295,7 +286,6 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache);
     givenGradleProjectFiles(projectName);
     givenGradleProjectProperties();
-    ensureDependenciesDownloaded(gradleVersion);
 
     mockBackend.givenFlakyRetries(flakyRetries);
     mockBackend.givenFlakyTest(":test", "datadog.smoke.TestFailed", "test_failed");
@@ -382,39 +372,6 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     return runGradle(gradleVersion, arguments, successExpected);
   }
 
-  /**
-   * Sometimes Gradle Test Kit fails because it cannot download the required Gradle distribution due
-   * to intermittent network issues. This method performs the download manually (if needed) with
-   * increased timeout (30s vs default 10s). Retry logic (3 retries) is already present in {@code
-   * org.gradle.wrapper.Install}.
-   */
-  private void ensureDependenciesDownloaded(String gradleVersion) {
-    try {
-      org.gradle.wrapper.Logger logger = new org.gradle.wrapper.Logger(false);
-      Download download =
-          new Download(
-              logger,
-              "Gradle Tooling API",
-              GradleVersion.current().getVersion(),
-              GRADLE_DISTRIBUTION_NETWORK_TIMEOUT);
-
-      java.io.File userHomeDir = testKitFolder.toFile();
-      java.io.File projectDir = projectFolder.toFile();
-      Install install = new Install(logger, download, new PathAssembler(userHomeDir, projectDir));
-
-      WrapperConfiguration configuration = new WrapperConfiguration();
-      configuration.setDistribution(GradleDistribution.uriFor(gradleVersion));
-      configuration.setNetworkTimeout(GRADLE_DISTRIBUTION_NETWORK_TIMEOUT);
-
-      // This will download distribution (if not downloaded yet to userHomeDir) and verify its SHA.
-      install.createDist(configuration);
-    } catch (Exception e) {
-      System.out.println(
-          "Failed to install Gradle distribution, will proceed to run test kit hoping for the best: "
-              + e);
-    }
-  }
-
   private BuildResult runGradle(
       String gradleVersion, List<String> arguments, boolean successExpected) throws IOException {
     Map<String, String> buildEnv = new HashMap<>();
@@ -422,9 +379,6 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     buildEnv.put("GRADLE_OPTS", "");
     buildEnv.put("GRADLE_USER_HOME", testKitFolder.toString());
     buildEnv.put("GRADLE_VERSION", gradleVersion);
-    buildEnv.put(
-        GradleDistribution.GRADLE_DISTRIBUTION_URL_ENV,
-        GradleDistribution.uriFor(gradleVersion).toString());
 
     String mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY");
     if (mavenRepositoryProxy != null) {
@@ -437,7 +391,9 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
                 GradleRunner.create()
                     .withTestKitDir(testKitFolder.toFile())
                     .withProjectDir(projectFolder.toFile()),
-                gradleVersion)
+                gradleVersion,
+                projectFolder,
+                buildEnv)
             .withArguments(arguments)
             .withEnvironment(buildEnv)
             .forwardOutput();

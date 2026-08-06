@@ -216,8 +216,8 @@
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id_2},
-      "test.source.end" : 58,
-      "test.source.start" : 20
+      "test.source.end" : 57,
+      "test.source.start" : 19
     },
     "name" : "junit5.test_suite",
     "resource" : "datadog.smoke.HelloPluginFunctionalTest",
@@ -278,8 +278,8 @@
       "_dd.profiling.enabled" : 0,
       "_dd.trace_span_attribute_schema" : 0,
       "process_id" : ${content_metrics_process_id_2},
-      "test.source.end" : 49,
-      "test.source.start" : 36
+      "test.source.end" : 48,
+      "test.source.start" : 35
     },
     "name" : "junit5.test",
     "parent_id" : ${content_parent_id},

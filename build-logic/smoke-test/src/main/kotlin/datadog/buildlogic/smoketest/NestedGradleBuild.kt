@@ -54,6 +54,11 @@ abstract class NestedGradleBuild @Inject constructor(
     gradleDistributionBaseUrl.convention(
       project.providers.environmentVariable(MASS_READ_URL_ENV),
     )
+    gradleDistributionCacheDir.convention(
+      objects.directoryProperty().fileValue(
+        File(project.gradle.gradleUserHomeDir, NESTED_DISTRIBUTIONS_DIR),
+      ),
+    )
     initScripts.convention(emptyList())
     gradleProperties.convention(emptyMap())
     javaLauncher.convention(
@@ -79,12 +84,15 @@ abstract class NestedGradleBuild @Inject constructor(
   abstract val gradleVersion: Property<String>
 
   /**
-   * Optional base URL for Gradle distribution downloads. CI sets this to MASS so nested builds
-   * download through the pull-through cache instead of directly from services.gradle.org.
+   * Optional MASS base URL for Gradle distributions. Upstream remains the fallback.
    */
   @get:Input
   @get:Optional
   abstract val gradleDistributionBaseUrl: Property<String>
+
+  /** Shared distribution cache; excluded as an input to avoid hashing unpacked files. */
+  @get:Internal
+  abstract val gradleDistributionCacheDir: DirectoryProperty
 
   @get:Input
   abstract val initScripts: ListProperty<String>
@@ -157,6 +165,15 @@ abstract class NestedGradleBuild @Inject constructor(
     val daemonJavaHome = javaLauncher.get().metadata.installationPath.asFile
     val gradleUserHomeDir = createGradleUserHome()
     val initScriptFiles = writeInitScripts()
+    val distributionRoot = provisionGradleDistribution(
+      cacheDir = gradleDistributionCacheDir.get().asFile,
+      gradleVersion = gradleVersion.get(),
+      distributionUris = gradleDistributionUris(
+        gradleDistributionBaseUrl.orNull,
+        gradleVersion.get(),
+      ),
+      logger = logger,
+    )
 
     val args = buildList {
       initScriptFiles.forEach { script ->
@@ -174,19 +191,11 @@ abstract class NestedGradleBuild @Inject constructor(
       addAll(buildArguments.get())
     }
 
+    // Use the shared install instead of downloading into the temporary Gradle home.
     val connector = GradleConnector.newConnector()
       .forProjectDirectory(appDir)
       .useGradleUserHomeDir(gradleUserHomeDir)
-      .apply {
-        val distributionBaseUrl = gradleDistributionBaseUrl.orNull
-        if (distributionBaseUrl.isNullOrBlank()) {
-          useGradleVersion(gradleVersion.get())
-        } else {
-          useDistribution(
-            gradleDistributionUri(distributionBaseUrl, gradleVersion.get()),
-          )
-        }
-      }
+      .useInstallation(distributionRoot)
 
     val mergedEnv =
       System.getenv() +
@@ -209,22 +218,22 @@ abstract class NestedGradleBuild @Inject constructor(
           .run()
       }
     } finally {
-      stopGradleDaemon(appDir, gradleUserHomeDir, daemonJavaHome, mergedEnv)
+      stopGradleDaemon(appDir, distributionRoot, daemonJavaHome, mergedEnv)
       deleteGradleUserHome(gradleUserHomeDir)
     }
   }
 
   private fun stopGradleDaemon(
     appDir: File,
-    gradleUserHomeDir: File,
+    distributionRoot: File,
     daemonJavaHome: File,
     environment: Map<String, String>,
   ) {
-    val gradleExecutable = findGradleExecutable(gradleUserHomeDir)
-    if (gradleExecutable == null) {
+    val gradleExecutable = File(distributionRoot, "bin/${gradleExecutableName()}")
+    if (!gradleExecutable.isFile) {
       logger.warn(
-        "Could not find nested Gradle executable under {} to stop its daemon",
-        gradleUserHomeDir.absolutePath,
+        "Could not find nested Gradle executable at {} to stop its daemon",
+        gradleExecutable.absolutePath,
       )
       return
     }
@@ -274,13 +283,6 @@ abstract class NestedGradleBuild @Inject constructor(
       temporaryDir.resolve("init-$index.init.gradle.kts").also { file ->
         file.writeText(script)
       }
-    }
-
-  private fun findGradleExecutable(gradleUserHomeDir: File): File? =
-    gradleUserHomeDir.walkTopDown().firstOrNull { file ->
-      file.isFile &&
-        file.name == gradleExecutableName() &&
-        file.parentFile?.name == "bin"
     }
 
   private fun createGradleUserHome(): File {
