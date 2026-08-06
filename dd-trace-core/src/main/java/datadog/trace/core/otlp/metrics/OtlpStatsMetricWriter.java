@@ -242,7 +242,9 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   }
 
   private static String canonicalSpanKind(CharSequence spanKind) {
-    if (Tags.SPAN_KIND_SERVER.contentEquals(spanKind)) {
+    if (spanKind == null) {
+      return SPAN_KIND_INTERNAL;
+    } else if (Tags.SPAN_KIND_SERVER.contentEquals(spanKind)) {
       return SPAN_KIND_SERVER;
     } else if (Tags.SPAN_KIND_CLIENT.contentEquals(spanKind)) {
       return SPAN_KIND_CLIENT;

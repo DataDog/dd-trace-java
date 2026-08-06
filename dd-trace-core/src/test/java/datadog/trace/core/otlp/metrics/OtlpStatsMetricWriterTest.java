@@ -710,14 +710,17 @@ class OtlpStatsMetricWriterTest {
   }
 
   @ParameterizedTest
-  @CsvSource({
-    "server, SPAN_KIND_SERVER",
-    "client, SPAN_KIND_CLIENT",
-    "producer, SPAN_KIND_PRODUCER",
-    "consumer, SPAN_KIND_CONSUMER",
-    "broker, SPAN_KIND_INTERNAL",
-    "'', SPAN_KIND_INTERNAL",
-  })
+  @CsvSource(
+      value = {
+        "server, SPAN_KIND_SERVER",
+        "client, SPAN_KIND_CLIENT",
+        "producer, SPAN_KIND_PRODUCER",
+        "consumer, SPAN_KIND_CONSUMER",
+        "broker, SPAN_KIND_INTERNAL",
+        "'', SPAN_KIND_INTERNAL",
+        "NULL, SPAN_KIND_INTERNAL",
+      },
+      nullValues = "NULL")
   void spanKindIsCanonicalizedToUppercaseEnumName(String spanKind, String expected)
       throws IOException {
     AggregateEntry e =
