@@ -1438,12 +1438,10 @@ verify_maven_central_deployment:
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/${VERSION}/dd-trace-api-${VERSION}.jar"
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-ot/${VERSION}/dd-trace-ot-${VERSION}.jar"
       )
-      # Try once immediately (fast path on job retry), then wait 5 mins for initial propagation,
-      # then try 4 more times with a minute delay between each retry.
+      # Try once immediately (fast path on job retry), then every 5 mins for 45 mins.
       TRY=0
-      MAX_TRIES=6
-      INITIAL_DELAY=300
-      RETRY_DELAY=60
+      MAX_TRIES=10
+      RETRY_DELAY=300
       while [ $TRY -lt $MAX_TRIES ]; do
         ARTIFACTS_AVAILABLE=true
         for URL in "${ARTIFACT_URLS[@]}"; do
@@ -1457,14 +1455,10 @@ verify_maven_central_deployment:
         fi
         TRY=$((TRY + 1))
         if [ $TRY -eq $MAX_TRIES ]; then
-          echo "The release was not available after 10 mins. Manually re-run the job to try again."
+          echo "The release was not available after 45 mins. Manually re-run the job to try again."
           exit 1
         fi
-        if [ $TRY -eq 1 ]; then
-          sleep $INITIAL_DELAY
-        else
-          sleep $RETRY_DELAY
-        fi
+        sleep $RETRY_DELAY
       done
 
 publishing-gate:
