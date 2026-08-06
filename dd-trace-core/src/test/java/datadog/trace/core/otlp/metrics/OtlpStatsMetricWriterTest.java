@@ -476,7 +476,9 @@ class OtlpStatsMetricWriterTest {
             null,
             new UTF8BytesString[] {
               UTF8BytesString.create("region:us-east-1"),
-              UTF8BytesString.create("tenant_id:acme:corp")
+              UTF8BytesString.create("tenant_id:acme:corp"),
+              UTF8BytesString.create("datadog.custom:visible"),
+              UTF8BytesString.create("_datadog.custom:visible")
             });
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
@@ -484,10 +486,12 @@ class OtlpStatsMetricWriterTest {
     assertEquals("us-east-1", attrs.get("region"));
     // value may itself contain ':' — only the first ':' separates key from value
     assertEquals("acme:corp", attrs.get("tenant_id"));
+    assertEquals("visible", attrs.get("datadog.custom"));
+    assertEquals("visible", attrs.get("_datadog.custom"));
   }
 
   @Test
-  void otelSemanticsModeEmitsOnlyDefaultConnectorAttributes() throws IOException {
+  void otelSemanticsModeEmitsAllNonDatadogAttributes() throws IOException {
     AggregateEntry e =
         AggregateEntryTestUtils.of(
             "GET /users",
@@ -503,17 +507,42 @@ class OtlpStatsMetricWriterTest {
             "GET",
             "/users/{id}",
             "0",
-            new UTF8BytesString[] {UTF8BytesString.create("region:us-east-1")});
+            new UTF8BytesString[] {
+              UTF8BytesString.create("region:us-east-1"),
+              UTF8BytesString.create("custom.tag:custom-value"),
+              UTF8BytesString.create("datadog.custom:hidden"),
+              UTF8BytesString.create("_datadog.custom:hidden")
+            });
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(true, e).dataPoints.get(0).attributes;
     assertEquals(
-        new HashSet<>(Arrays.asList("service.name", "span.name", "span.kind", "status.code")),
+        new HashSet<>(
+            Arrays.asList(
+                "service.name",
+                "span.name",
+                "span.kind",
+                "status.code",
+                "http.request.method",
+                "http.response.status_code",
+                "http.route",
+                "rpc.response.status_code",
+                "region",
+                "custom.tag")),
         attrs.keySet());
     assertEquals("web", attrs.get("service.name"));
     assertEquals("GET /users", attrs.get("span.name"));
     assertEquals("SPAN_KIND_SERVER", attrs.get("span.kind"));
     assertEquals("STATUS_CODE_OK", attrs.get("status.code"));
+    assertEquals("GET", attrs.get("http.request.method"));
+    assertEquals(200L, attrs.get("http.response.status_code"));
+    assertEquals("/users/{id}", attrs.get("http.route"));
+    assertEquals("0", attrs.get("rpc.response.status_code"));
+    assertEquals("us-east-1", attrs.get("region"));
+    assertEquals("custom-value", attrs.get("custom.tag"));
+    assertFalse(
+        attrs.keySet().stream()
+            .anyMatch(key -> key.startsWith("datadog.") || key.startsWith("_datadog.")));
   }
 
   @Test
@@ -631,11 +660,15 @@ class OtlpStatsMetricWriterTest {
     }
   }
 
-  @Test
-  void defaultModeCarriesDatadogAttributes() throws IOException {
-    // use an entry where all hits are top-level: OR in TOP_LEVEL_TAG
+  @ParameterizedTest
+  @CsvSource({"true", "false"})
+  void defaultModeCarriesDatadogAttributes(boolean topLevel) throws IOException {
     AggregateEntry e = entry("servlet.request", false, 0, null, null, null);
-    AggregateEntryTestUtils.recordTopLevel(e, SECONDS.toNanos(1));
+    if (topLevel) {
+      AggregateEntryTestUtils.recordTopLevel(e, SECONDS.toNanos(1));
+    } else {
+      AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+    }
 
     Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
     assertTrue(
@@ -643,7 +676,8 @@ class OtlpStatsMetricWriterTest {
     assertTrue(attrs.containsKey("datadog.span.type"), "span type present in default mode");
     assertTrue(
         attrs.containsKey("datadog.span.top_level"), "span top-level present in default mode");
-    assertEquals(1L, attrs.get("datadog.span.top_level"), "all hits top-level → 1");
+    assertTrue(attrs.get("datadog.span.top_level") instanceof Boolean);
+    assertEquals(topLevel, attrs.get("datadog.span.top_level"));
     // OTel-semconv attrs are present in both modes
     assertTrue(attrs.containsKey("span.name"), "span.name present in both modes");
     // datadog.origin presence/absence is covered by defaultModeEmitsSyntheticOrigin
@@ -670,6 +704,7 @@ class OtlpStatsMetricWriterTest {
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    assertTrue(attrs.get("datadog.is_trace_root") instanceof Boolean);
     assertEquals(traceRoot, attrs.get("datadog.is_trace_root"));
   }
 
@@ -814,7 +849,9 @@ class OtlpStatsMetricWriterTest {
     DataPoint dp = metric.dataPoints.get(0);
     assertEquals(3L, dp.count, "count must reflect the pre-clear snapshot, not the cleared entry");
     assertEquals(
-        1L, dp.attributes.get("datadog.span.top_level"), "all pre-clear hits were top-level");
+        Boolean.TRUE,
+        dp.attributes.get("datadog.span.top_level"),
+        "all pre-clear hits were top-level");
   }
 
   // ── resource attributes (datadog.runtime_id / process tags) ────────────────

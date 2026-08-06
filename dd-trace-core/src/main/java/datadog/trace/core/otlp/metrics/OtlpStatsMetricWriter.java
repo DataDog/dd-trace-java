@@ -54,6 +54,8 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private static final String STATUS_CODE = "status.code";
   private static final String STATUS_CODE_OK = "STATUS_CODE_OK";
   private static final String STATUS_CODE_ERROR = "STATUS_CODE_ERROR";
+  private static final String DATADOG_ATTRIBUTE_PREFIX = "datadog.";
+  private static final String INTERNAL_DATADOG_ATTRIBUTE_PREFIX = "_datadog.";
   private static final String DATADOG_OPERATION_NAME = "datadog.operation.name";
   private static final String DATADOG_SPAN_TYPE = "datadog.span.type";
   private static final String DATADOG_SPAN_TOP_LEVEL = "datadog.span.top_level";
@@ -213,9 +215,6 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     emitStringAttribute(metric, SPAN_NAME, entry.getResource());
     emitStringAttribute(metric, SPAN_KIND, canonicalSpanKind(entry.getSpanKind()));
     emitStringAttribute(metric, SERVICE_NAME, entry.getService());
-    if (otelSemanticsMode) {
-      return;
-    }
     if (entry.hasHttpMethod()) {
       emitStringAttribute(metric, HTTP_REQUEST_METHOD, entry.getHttpMethod());
     }
@@ -230,16 +229,18 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     }
     // additional_metric_tags support is still evolving/TBD across most tracer SDKs.
     for (UTF8BytesString additionalTag : entry.getAdditionalTags()) {
-      emitAdditionalTag(metric, additionalTag);
+      emitAdditionalTag(metric, additionalTag, otelSemanticsMode);
     }
-    emitStringAttribute(metric, DATADOG_OPERATION_NAME, entry.getOperationName());
-    emitStringAttribute(metric, DATADOG_SPAN_TYPE, entry.getType());
-    emitLongAttribute(metric, DATADOG_SPAN_TOP_LEVEL, allTopLevel ? 1L : 0L);
-    emitBooleanAttribute(metric, DATADOG_IS_TRACE_ROOT, entry.isTraceRoot());
-    if (entry.isSynthetics()) {
-      emitStringAttribute(metric, DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
+    if (!otelSemanticsMode) {
+      emitStringAttribute(metric, DATADOG_OPERATION_NAME, entry.getOperationName());
+      emitStringAttribute(metric, DATADOG_SPAN_TYPE, entry.getType());
+      emitBooleanAttribute(metric, DATADOG_SPAN_TOP_LEVEL, allTopLevel);
+      emitBooleanAttribute(metric, DATADOG_IS_TRACE_ROOT, entry.isTraceRoot());
+      if (entry.isSynthetics()) {
+        emitStringAttribute(metric, DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
+      }
+      emitPeerTags(metric, entry.getPeerTags());
     }
-    emitPeerTags(metric, entry.getPeerTags());
   }
 
   private static void emitPeerTags(OtlpMetricVisitor metric, List<UTF8BytesString> peerTags) {
@@ -267,14 +268,20 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     }
   }
 
-  private static void emitAdditionalTag(OtlpMetricVisitor metric, UTF8BytesString additionalTag) {
+  private static void emitAdditionalTag(
+      OtlpMetricVisitor metric, UTF8BytesString additionalTag, boolean suppressDatadogAttributes) {
     String packed = additionalTag.toString();
     int separator = packed.indexOf(':');
     if (separator <= 0) {
       return;
     }
-    metric.visitAttribute(
-        STRING_ATTRIBUTE, packed.substring(0, separator), packed.substring(separator + 1));
+    String key = packed.substring(0, separator);
+    if (suppressDatadogAttributes
+        && (key.startsWith(DATADOG_ATTRIBUTE_PREFIX)
+            || key.startsWith(INTERNAL_DATADOG_ATTRIBUTE_PREFIX))) {
+      return;
+    }
+    metric.visitAttribute(STRING_ATTRIBUTE, key, packed.substring(separator + 1));
   }
 
   private static void emitStringAttribute(
