@@ -298,6 +298,35 @@ class RemoteConfigServiceImplTest {
         () -> adapter.toJson(mock(JsonWriter.class), emptyMap()));
   }
 
+  @Test
+  void allocationAdapterFactoryOnlyCreatesAllocationAdapterForAllocationType() {
+    final Moshi moshi = moshi();
+
+    final JsonAdapter<?> adapter =
+        UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
+            Allocation.class, emptySet(), moshi);
+
+    assertNotNull(adapter);
+    assertTrue(adapter instanceof UniversalFlagConfigParser.AllocationAdapter);
+    assertNull(
+        UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
+            String.class, emptySet(), moshi));
+    assertNull(
+        UniversalFlagConfigParser.AllocationAdapter.FACTORY.create(
+            Allocation.class, singleton(mock(Annotation.class)), moshi));
+  }
+
+  @Test
+  void allocationAdapterHandlesNullAndIsReadOnly() throws Exception {
+    final UniversalFlagConfigParser.AllocationAdapter adapter =
+        new UniversalFlagConfigParser.AllocationAdapter(
+            moshi().adapter(UniversalFlagConfigParser.AllocationJson.class));
+
+    assertNull(adapter.fromJson("null"));
+    assertThrows(
+        UnsupportedOperationException.class, () -> adapter.toJson(mock(JsonWriter.class), null));
+  }
+
   @TableTest({
     "scenario                       | value                            | expectedInstant                 ",
     "utc second                     | '2023-01-01T00:00:00Z'           | '2023-01-01T00:00:00Z'          ",

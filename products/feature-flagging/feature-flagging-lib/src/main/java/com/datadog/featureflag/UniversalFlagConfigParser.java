@@ -200,10 +200,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
   }
 
   @Nullable
-  private static Instant parseInstant(@Nullable final String date) {
-    if (date == null) {
-      return null;
-    }
+  private static Instant parseInstant(final String date) {
     try {
       return DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(date, Instant::from);
     } catch (Exception e) {
