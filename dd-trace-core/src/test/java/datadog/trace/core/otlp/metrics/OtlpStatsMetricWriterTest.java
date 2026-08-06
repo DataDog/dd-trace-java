@@ -162,7 +162,7 @@ class OtlpStatsMetricWriterTest {
   /**
    * Decodes the {@code Resource.attributes} ({@code ResourceMetrics.resource = 1} → {@code
    * Resource.attributes = 1}) into a key→value map, for asserting the {@code datadog.*} resource
-   * attributes emitted in default mode.
+   * attributes emitted by the trace-metrics exporter.
    */
   private static Map<String, Object> decodeResourceAttributes(byte[] payload) throws IOException {
     CodedInputStream metricsData = CodedInputStream.newInstance(payload);

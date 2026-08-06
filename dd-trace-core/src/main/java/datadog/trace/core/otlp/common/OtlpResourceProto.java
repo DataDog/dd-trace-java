@@ -26,8 +26,7 @@ public final class OtlpResourceProto {
 
   /**
    * Resource that additionally carries {@code datadog.runtime_id} and process tags (each prefixed
-   * {@code datadog.}). Used by the default-mode SDK trace-metrics export; omitted in OTel-semantics
-   * mode.
+   * {@code datadog.}). Used by the SDK trace-metrics export.
    */
   public static final byte[] RESOURCE_MESSAGE_WITH_DATADOG_ATTRS =
       buildResourceMessage(Config.get(), datadogResourceAttributes(Config.get()));

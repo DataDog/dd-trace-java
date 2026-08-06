@@ -23,8 +23,7 @@ public final class OtlpResourceJson {
 
   /**
    * Resource that additionally carries {@code datadog.runtime_id} and process tags (each prefixed
-   * {@code datadog.}). Used by the default-mode SDK trace-metrics export; omitted in OTel-semantics
-   * mode.
+   * {@code datadog.}). Used by the SDK trace-metrics export.
    */
   public static final String RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS =
       buildResourceFragment(Config.get(), datadogResourceAttributes(Config.get()));
