@@ -4,10 +4,12 @@ import static datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes.MESS
 import static datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes.MESSAGE_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_BROKER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
+import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import java.util.function.Supplier;
@@ -83,12 +85,25 @@ public class SqsDecorator extends MessagingClientDecorator {
     span.setTag("aws.operation", "ReceiveMessage");
     span.setTag("aws.agent", COMPONENT_NAME);
     span.setTag("aws.queue.url", queueUrl);
+    setQueueName(span, queueUrl);
     span.setTag("aws.requestId", requestId);
   }
 
   public void onTimeInQueue(final AgentSpan span, final String queueUrl, String requestId) {
     span.setResourceName(SQS_DELIVER);
     span.setTag("aws.queue.url", queueUrl);
+    setQueueName(span, queueUrl);
     span.setTag("aws.requestId", requestId);
+  }
+
+  private static void setQueueName(final AgentSpan span, final String queueUrl) {
+    if (queueUrl == null) {
+      return;
+    }
+    String queueName = urlFileName(queueUrl);
+    if (!queueName.isEmpty()) {
+      span.setTag(InstrumentationTags.AWS_QUEUE_NAME, queueName);
+      span.setTag(InstrumentationTags.QUEUE_NAME, queueName);
+    }
   }
 }
