@@ -42,7 +42,7 @@ jobs:
           fi
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Update pinned reference
+      - name: Update pinned references
         run: |
           ./tooling/update_apm_sdks_benchmarks_reference.sh "${{ steps.latest.outputs.sha }}"
 
@@ -50,7 +50,7 @@ jobs:
         id: check-changes
         run: |
           if git diff --quiet -- .gitlab-ci.yml; then
-            echo "The apm-sdks-benchmarks reference is already up to date."
+            echo "The apm-sdks-benchmarks references are already up to date."
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
           else
             git diff -- .gitlab-ci.yml
@@ -96,7 +96,7 @@ jobs:
             --body "$(cat <<EOF
           # What Does This Do
 
-          This PR updates the pinned apm-sdks-benchmarks GitLab CI includes to
+          This PR updates the pinned apm-sdks-benchmarks GitLab CI includes and runtime clones to
           [DataDog/apm-sdks-benchmarks@${{ steps.latest.outputs.sha }}](https://github.com/DataDog/apm-sdks-benchmarks/commit/${{ steps.latest.outputs.sha }}).
 
           # Motivation

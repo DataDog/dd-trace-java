@@ -6,19 +6,19 @@ include:
   # Refs pinned by the "Update apm-sdks-benchmarks reference" workflow
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: '96181a9ef761407d0919fd728f749fb6202ae8ae'
+    ref: 'f59ec6a23d07cb63650a2c8c694a45e479ab0dc2'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
-    ref: '96181a9ef761407d0919fd728f749fb6202ae8ae'
+    ref: 'f59ec6a23d07cb63650a2c8c694a45e479ab0dc2'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-startup-parallel.yml'
-    ref: '96181a9ef761407d0919fd728f749fb6202ae8ae'
+    ref: 'f59ec6a23d07cb63650a2c8c694a45e479ab0dc2'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-dacapo-parallel.yml'
-    ref: '96181a9ef761407d0919fd728f749fb6202ae8ae'
+    ref: 'f59ec6a23d07cb63650a2c8c694a45e479ab0dc2'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-post-pr-comment.yml'
-    ref: '96181a9ef761407d0919fd728f749fb6202ae8ae'
+    ref: 'f59ec6a23d07cb63650a2c8c694a45e479ab0dc2'
   - local: ".gitlab/java-benchmark-configs.yml"
 
 stages:
@@ -46,6 +46,7 @@ stages:
   - generate-signing-key
 
 variables:
+  APM_SDKS_BENCHMARKS_SHA: "f59ec6a23d07cb63650a2c8c694a45e479ab0dc2" # pinned by "Update apm-sdks-benchmarks reference" workflow
   # Gitlab runner features; see https://docs.gitlab.com/runner/configuration/feature-flags.html
   # Fold and time all script sections
   FF_SCRIPT_SECTIONS: 1

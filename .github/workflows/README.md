@@ -167,7 +167,7 @@ _Recovery:_ Manually trigger the action again.
 
 _Trigger:_ Every week or manually.
 
-_Action:_ Create a PR pinning our `apm-sdks-benchmarks` reference to the latest commit on the `apm-sdks-benchmarks` GitHub `main` branch.
+_Action:_ Create a PR pinning our `apm-sdks-benchmarks` CI includes and runtime clones to the latest commit on the `apm-sdks-benchmarks` GitHub `main` branch.
 
 _Recovery:_ Manually trigger the action again.
 
