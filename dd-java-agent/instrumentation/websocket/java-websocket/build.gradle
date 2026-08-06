@@ -9,9 +9,11 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+addTestSuiteForDir("latestDepTest", "test")
 
 dependencies {
   compileOnly group: 'org.java-websocket', name: 'Java-WebSocket', version: '1.5.3'
 
   testImplementation group: 'org.java-websocket', name: 'Java-WebSocket', version: '1.5.3'
+  latestDepTestImplementation group: 'org.java-websocket', name: 'Java-WebSocket', version: '+'
 }
