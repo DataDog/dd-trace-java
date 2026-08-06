@@ -57,14 +57,10 @@ linux-java-spring-petclinic-sca-load-parallel:
 linux-java-insecure-bank-startup-parallel:
   needs: ["publish-artifacts-to-s3"]
   rules: *parallel_startup_benchmark_rules
-  variables:
-    APM_SDKS_BENCHMARKS_SHA: "b21651591ca72c13ac20ec284abe6d12ce27df61"
 
 linux-java-spring-petclinic-startup-parallel:
   needs: ["publish-artifacts-to-s3"]
   rules: *parallel_startup_benchmark_rules
-  variables:
-    APM_SDKS_BENCHMARKS_SHA: "b21651591ca72c13ac20ec284abe6d12ce27df61"
 
 linux-java-dacapo-parallel-1:
   needs: ["publish-artifacts-to-s3"]
