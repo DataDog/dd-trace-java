@@ -84,11 +84,23 @@ public class SqsDecorator extends MessagingClientDecorator {
     span.setTag("aws.agent", COMPONENT_NAME);
     span.setTag("aws.queue.url", queueUrl);
     span.setTag("aws.requestId", requestId);
+    setQueueNameFromUrl(span, queueUrl);
   }
 
   public void onTimeInQueue(final AgentSpan span, final String queueUrl, String requestId) {
     span.setResourceName(SQS_DELIVER);
     span.setTag("aws.queue.url", queueUrl);
     span.setTag("aws.requestId", requestId);
+    setQueueNameFromUrl(span, queueUrl);
+  }
+
+  private static void setQueueNameFromUrl(final AgentSpan span, final String queueUrl) {
+    if (queueUrl == null) return;
+    int lastSlash = queueUrl.lastIndexOf('/');
+    if (lastSlash >= 0 && lastSlash < queueUrl.length() - 1) {
+      String queueName = queueUrl.substring(lastSlash + 1);
+      span.setTag("aws.queue.name", queueName);
+      span.setTag("queuename", queueName);
+    }
   }
 }

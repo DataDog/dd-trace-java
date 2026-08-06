@@ -153,6 +153,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
             url -> {
               span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
               setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
+              int lastSlash = url.lastIndexOf('/');
+              if (lastSlash >= 0 && lastSlash < url.length() - 1) {
+                setQueueName(span, url.substring(lastSlash + 1));
+              }
             });
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 

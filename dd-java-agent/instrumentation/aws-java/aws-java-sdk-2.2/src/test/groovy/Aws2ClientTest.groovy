@@ -41,6 +41,8 @@ import software.amazon.awssdk.services.sns.model.PublishRequest
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest
+import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -153,9 +155,11 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               "queuename" "somequeue"
               peerServiceFrom("aws.queue.name")
               checkPeerService = true
-            } else if (service == "Sqs" && operation == "SendMessage") {
-              "aws.queue.url" "someurl"
-              peerServiceFrom("aws.queue.url")
+            } else if (service == "Sqs" && (operation == "SendMessage" || operation == "SendMessageBatch")) {
+              "aws.queue.url" "https://sqs.us-east-1.amazonaws.com/123456789012/somequeue"
+              "aws.queue.name" "somequeue"
+              "queuename" "somequeue"
+              peerServiceFrom("aws.queue.name")
               checkPeerService = true
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
@@ -202,7 +206,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             <ResponseMetadata><RequestId>7a62c49f-347e-4fc4-9331-6e8e7a96aa73</RequestId></ResponseMetadata>
         </CreateQueueResponse>
         """
-    "Sqs"      | "SendMessage"       | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a0" | SqsClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("someurl").messageBody("").build()) }                                                                | """
+    "Sqs"      | "SendMessage"       | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a0" | SqsClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/somequeue").messageBody("").build()) }                                                                | """
         <SendMessageResponse>
             <SendMessageResult>
                 <MD5OfMessageBody>d41d8cd98f00b204e9800998ecf8427e</MD5OfMessageBody>
@@ -211,6 +215,18 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             </SendMessageResult>
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
+        """
+    "Sqs"      | "SendMessageBatch"  | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a1" | SqsClient.builder()      | { c -> c.sendMessageBatch(SendMessageBatchRequest.builder().queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/somequeue").entries(SendMessageBatchRequestEntry.builder().id("1").messageBody("body1").build()).build()) } | """
+        <SendMessageBatchResponse>
+            <SendMessageBatchResult>
+                <SendMessageBatchResultEntry>
+                    <Id>1</Id>
+                    <MD5OfMessageBody>d41d8cd98f00b204e9800998ecf8427e</MD5OfMessageBody>
+                    <MessageId>5fea7756-0ea4-451a-a703-a558b933e274</MessageId>
+                </SendMessageBatchResultEntry>
+            </SendMessageBatchResult>
+            <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a1</RequestId></ResponseMetadata>
+        </SendMessageBatchResponse>
         """
     "Sns"      | "Publish"           | "POST" | "/"                   | "d74b8436-ae13-5ab4-a9ff-ce54dfea72a0" | SnsClient.builder()      | { c -> c.publish(PublishRequest.builder().topicArn("arn:aws:sns::123:some-topic").message("").build()) }                                                        | """
         <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
@@ -293,9 +309,11 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               "queuename" "somequeue"
               peerServiceFrom("aws.queue.name")
               checkPeerService = true
-            } else if (service == "Sqs" && operation == "SendMessage") {
-              "aws.queue.url" "someurl"
-              peerServiceFrom("aws.queue.url")
+            } else if (service == "Sqs" && (operation == "SendMessage" || operation == "SendMessageBatch")) {
+              "aws.queue.url" "https://sqs.us-east-1.amazonaws.com/123456789012/somequeue"
+              "aws.queue.name" "somequeue"
+              "queuename" "somequeue"
+              peerServiceFrom("aws.queue.name")
               checkPeerService = true
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "some-topic"
@@ -342,7 +360,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             <ResponseMetadata><RequestId>7a62c49f-347e-4fc4-9331-6e8e7a96aa73</RequestId></ResponseMetadata>
         </CreateQueueResponse>
         """
-    "Sqs"      | "SendMessage"       | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a0" | SqsAsyncClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("someurl").messageBody("").build()) }                                 | """
+    "Sqs"      | "SendMessage"       | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a0" | SqsAsyncClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/somequeue").messageBody("").build()) }                                 | """
         <SendMessageResponse>
             <SendMessageResult>
                 <MD5OfMessageBody>d41d8cd98f00b204e9800998ecf8427e</MD5OfMessageBody>
@@ -351,6 +369,18 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             </SendMessageResult>
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
+        """
+    "Sqs"      | "SendMessageBatch"  | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a1" | SqsAsyncClient.builder()      | { c -> c.sendMessageBatch(SendMessageBatchRequest.builder().queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/somequeue").entries(SendMessageBatchRequestEntry.builder().id("1").messageBody("body1").build()).build()) } | """
+        <SendMessageBatchResponse>
+            <SendMessageBatchResult>
+                <SendMessageBatchResultEntry>
+                    <Id>1</Id>
+                    <MD5OfMessageBody>d41d8cd98f00b204e9800998ecf8427e</MD5OfMessageBody>
+                    <MessageId>5fea7756-0ea4-451a-a703-a558b933e274</MessageId>
+                </SendMessageBatchResultEntry>
+            </SendMessageBatchResult>
+            <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a1</RequestId></ResponseMetadata>
+        </SendMessageBatchResponse>
         """
     "Sns"      | "Publish"           | "POST" | "/"                   | "d74b8436-ae13-5ab4-a9ff-ce54dfea72a0" | SnsAsyncClient.builder()      | { c -> c.publish(PublishRequest.builder().topicArn("arn:aws:sns::123:some-topic").message("").build()) }                         | """
         <PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/">
@@ -511,7 +541,9 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               "aws.queue.name" "test-queue"
               "queuename" "test-queue"
             } else if (service == "Sqs" && operation == "SendMessage") {
-              "aws.queue.url" "test-queue-url"
+              "aws.queue.url" "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue"
+              "aws.queue.name" "test-queue"
+              "queuename" "test-queue"
             } else if (service == "Sns" && operation == "Publish") {
               "aws.topic.name" "test-topic"
               "topicname" "test-topic"
@@ -537,7 +569,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
     service    | operation      | method | path                  | builder                  | call                                                                                                              | body                                                                                                                               | requestId
     "S3"       | "CreateBucket" | "PUT"  | "/test-bucket"        | S3Client.builder()       | { c -> c.createBucket(CreateBucketRequest.builder().bucket("test-bucket").build()) }                              | ""                                                                                                                                 | "UNKNOWN"
     "Sqs"      | "CreateQueue"  | "POST" | "/"                   | SqsClient.builder()      | { c -> c.createQueue(CreateQueueRequest.builder().queueName("test-queue").build()) }                              | """<CreateQueueResponse><CreateQueueResult><QueueUrl>https://queue.amazonaws.com/123456789012/test-queue</QueueUrl></CreateQueueResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></CreateQueueResponse>""" | "test-request-id"
-    "Sqs"      | "SendMessage"  | "POST" | "/"                   | SqsClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("test-queue-url").messageBody("test").build()) }       | """<SendMessageResponse><SendMessageResult><MD5OfMessageBody>098f6bcd4621d373cade4e832627b4f6</MD5OfMessageBody><MessageId>test-msg-id</MessageId></SendMessageResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></SendMessageResponse>""" | "test-request-id"
+    "Sqs"      | "SendMessage"  | "POST" | "/"                   | SqsClient.builder()      | { c -> c.sendMessage(SendMessageRequest.builder().queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/test-queue").messageBody("test").build()) }       | """<SendMessageResponse><SendMessageResult><MD5OfMessageBody>098f6bcd4621d373cade4e832627b4f6</MD5OfMessageBody><MessageId>test-msg-id</MessageId></SendMessageResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></SendMessageResponse>""" | "test-request-id"
     "Sns"      | "Publish"      | "POST" | "/"                   | SnsClient.builder()      | { c -> c.publish(PublishRequest.builder().topicArn("arn:aws:sns::123:test-topic").message("test").build()) }     | """<PublishResponse xmlns="https://sns.amazonaws.com/doc/2010-03-31/"><PublishResult><MessageId>test-msg-id</MessageId></PublishResult><ResponseMetadata><RequestId>test-request-id</RequestId></ResponseMetadata></PublishResponse>""" | "test-request-id"
     "DynamoDb" | "CreateTable"  | "POST" | "/"                   | DynamoDbClient.builder() | { c -> c.createTable(CreateTableRequest.builder().tableName("test-table").build()) }                              | ""                                                                                                                                 | "UNKNOWN"
     "Kinesis"  | "DeleteStream" | "POST" | "/"                   | KinesisClient.builder()  | { c -> c.deleteStream(DeleteStreamRequest.builder().streamName("test-stream").build()) }                          | ""                                                                                                                                 | "UNKNOWN"
