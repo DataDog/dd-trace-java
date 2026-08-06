@@ -33,6 +33,9 @@ dependencies {
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
+
+  // Old WeakMapContextStore baseline in WeakMapContextStoreBenchmark (#10479).
+  jmhImplementation group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
 }
 
 // Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
