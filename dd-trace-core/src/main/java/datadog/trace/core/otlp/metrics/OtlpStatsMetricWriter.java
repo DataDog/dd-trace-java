@@ -54,11 +54,11 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private static final String STATUS_CODE = "status.code";
   private static final String STATUS_CODE_OK = "STATUS_CODE_OK";
   private static final String STATUS_CODE_ERROR = "STATUS_CODE_ERROR";
-  private static final String DATADOG_ATTRIBUTE_PREFIX = "datadog.";
   private static final String DATADOG_OPERATION_NAME = "datadog.operation.name";
   private static final String DATADOG_SPAN_TYPE = "datadog.span.type";
   private static final String DATADOG_SPAN_TOP_LEVEL = "datadog.span.top_level";
   private static final String DATADOG_IS_TRACE_ROOT = "datadog.is_trace_root";
+  private static final String DATADOG_SERVICE_SOURCE = "datadog.svc_src";
   private static final String DATADOG_ORIGIN = "datadog.origin";
   private static final String DATADOG_PEER_TAGS = "datadog.peer_tags";
   private static final String SYNTHETICS_ORIGIN = "synthetics";
@@ -70,7 +70,6 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private static final String SPAN_KIND_INTERNAL = "SPAN_KIND_INTERNAL";
 
   @Nullable private final OtlpSender sender;
-  private final boolean otelSemanticsMode;
 
   // own single-thread collector; forced to DELTA since trace-stats buckets are per-interval deltas.
   private final OtlpMetricsCollector collector;
@@ -98,38 +97,26 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
 
   public OtlpStatsMetricWriter(Config config) {
     // shared protocol-based sender selection so both OTLP metrics export paths agree
-    this(
-        OtlpMetricsSenderFactory.create(config),
-        config.getOtlpMetricsProtocol(),
-        config.isTraceOtelSemanticsEnabled());
+    this(OtlpMetricsSenderFactory.create(config), config.getOtlpMetricsProtocol());
   }
 
-  // visible for testing: lets tests inject a capturing sender to decode the emitted payload and
-  // control the semantics mode
-  OtlpStatsMetricWriter(@Nullable OtlpSender sender, boolean otelSemanticsMode) {
-    this(sender, OtlpConfig.Protocol.HTTP_PROTOBUF, otelSemanticsMode);
+  // visible for testing: lets tests inject a capturing sender to decode the emitted payload
+  OtlpStatsMetricWriter(@Nullable OtlpSender sender) {
+    this(sender, OtlpConfig.Protocol.HTTP_PROTOBUF);
   }
 
-  private OtlpStatsMetricWriter(
-      @Nullable OtlpSender sender, OtlpConfig.Protocol protocol, boolean otelSemanticsMode) {
+  private OtlpStatsMetricWriter(@Nullable OtlpSender sender, OtlpConfig.Protocol protocol) {
     this.sender = sender;
-    this.otelSemanticsMode = otelSemanticsMode;
-    // Default mode carries datadog.runtime_id / process tags on the Resource; OTel-semantics mode
-    // uses the plain vendor-neutral resource (no datadog.*).
     this.collector =
         protocol == OtlpConfig.Protocol.HTTP_JSON
             ? new OtlpMetricsJsonCollector(
                 SystemTimeSource.INSTANCE,
                 true,
-                otelSemanticsMode
-                    ? OtlpResourceJson.RESOURCE_FRAGMENT
-                    : OtlpResourceJson.RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS)
+                OtlpResourceJson.RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS)
             : new OtlpMetricsProtoCollector(
                 SystemTimeSource.INSTANCE,
                 true,
-                otelSemanticsMode
-                    ? OtlpResourceProto.RESOURCE_MESSAGE
-                    : OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS);
+                OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS);
   }
 
   @Override
@@ -228,18 +215,19 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     }
     // additional_metric_tags support is still evolving/TBD across most tracer SDKs.
     for (UTF8BytesString additionalTag : entry.getAdditionalTags()) {
-      emitAdditionalTag(metric, additionalTag, otelSemanticsMode);
+      emitAdditionalTag(metric, additionalTag);
     }
-    if (!otelSemanticsMode) {
-      emitStringAttribute(metric, DATADOG_OPERATION_NAME, entry.getOperationName());
-      emitStringAttribute(metric, DATADOG_SPAN_TYPE, entry.getType());
-      emitBooleanAttribute(metric, DATADOG_SPAN_TOP_LEVEL, allTopLevel);
-      emitBooleanAttribute(metric, DATADOG_IS_TRACE_ROOT, entry.isTraceRoot());
-      if (entry.isSynthetics()) {
-        emitStringAttribute(metric, DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
-      }
-      emitPeerTags(metric, entry.getPeerTags());
+    emitStringAttribute(metric, DATADOG_OPERATION_NAME, entry.getOperationName());
+    emitStringAttribute(metric, DATADOG_SPAN_TYPE, entry.getType());
+    emitBooleanAttribute(metric, DATADOG_SPAN_TOP_LEVEL, allTopLevel);
+    emitBooleanAttribute(metric, DATADOG_IS_TRACE_ROOT, entry.isTraceRoot());
+    if (entry.hasServiceSource()) {
+      emitStringAttribute(metric, DATADOG_SERVICE_SOURCE, entry.getServiceSource());
     }
+    if (entry.isSynthetics()) {
+      emitStringAttribute(metric, DATADOG_ORIGIN, SYNTHETICS_ORIGIN);
+    }
+    emitPeerTags(metric, entry.getPeerTags());
   }
 
   private static void emitPeerTags(OtlpMetricVisitor metric, List<UTF8BytesString> peerTags) {
@@ -267,17 +255,13 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     }
   }
 
-  private static void emitAdditionalTag(
-      OtlpMetricVisitor metric, UTF8BytesString additionalTag, boolean suppressDatadogAttributes) {
+  private static void emitAdditionalTag(OtlpMetricVisitor metric, UTF8BytesString additionalTag) {
     String packed = additionalTag.toString();
     int separator = packed.indexOf(':');
     if (separator <= 0) {
       return;
     }
     String key = packed.substring(0, separator);
-    if (suppressDatadogAttributes && key.startsWith(DATADOG_ATTRIBUTE_PREFIX)) {
-      return;
-    }
     metric.visitAttribute(STRING_ATTRIBUTE, key, packed.substring(separator + 1));
   }
 

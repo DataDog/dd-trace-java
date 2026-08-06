@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -336,10 +335,9 @@ class OtlpStatsMetricWriterTest {
    * entry} over the fixed {@link #BUCKET_START}/{@link #BUCKET_DURATION} window, asserts that
    * exactly one payload was sent, and returns the decoded metric.
    */
-  private static DecodedMetric writeAndDecode(boolean otelSemanticsMode, AggregateEntry entry)
-      throws IOException {
+  private static DecodedMetric writeAndDecode(AggregateEntry entry) throws IOException {
     CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, otelSemanticsMode);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender);
     writer.startBucket(1, BUCKET_START, BUCKET_DURATION);
     writer.add(entry);
     writer.finishBucket();
@@ -351,7 +349,7 @@ class OtlpStatsMetricWriterTest {
 
   @Test
   void okOnlyEntryProducesExactlyOneDataPoint() throws IOException {
-    DecodedMetric metric = writeAndDecode(false, okEntry(SECONDS.toNanos(1), 3));
+    DecodedMetric metric = writeAndDecode(okEntry(SECONDS.toNanos(1), 3));
 
     assertEquals("traces.span.sdk.metrics.duration", metric.name);
     assertEquals("s", metric.unit);
@@ -372,7 +370,7 @@ class OtlpStatsMetricWriterTest {
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(2)); // ok
     AggregateEntryTestUtils.recordError(e, SECONDS.toNanos(3)); // error
 
-    DecodedMetric metric = writeAndDecode(false, e);
+    DecodedMetric metric = writeAndDecode(e);
     assertEquals(2, metric.dataPoints.size(), "ok+error → two data points");
 
     long okCount = 0;
@@ -398,7 +396,7 @@ class OtlpStatsMetricWriterTest {
   @Test
   void errorSeriesDoesNotLingerAfterClearWhenBucketHasOnlyOkHits() throws IOException {
     CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender);
 
     // Bucket 1: the entry sees an error, so its error histogram is allocated and emits a point.
     AggregateEntry e = entry("GET /users", false, 0, null, null, null);
@@ -436,7 +434,7 @@ class OtlpStatsMetricWriterTest {
     AggregateEntry e = entry("GET /users/{id}", false, 200, "GET", "/users/{id}", "0");
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
-    DecodedMetric metric = writeAndDecode(false, e);
+    DecodedMetric metric = writeAndDecode(e);
     assertEquals(1, metric.dataPoints.size());
     Map<String, Object> attrs = metric.dataPoints.get(0).attributes;
 
@@ -447,7 +445,7 @@ class OtlpStatsMetricWriterTest {
 
     // a bare entry has none of these
     Map<String, Object> bareAttrs =
-        writeAndDecode(false, okEntry(SECONDS.toNanos(1), 1)).dataPoints.get(0).attributes;
+        writeAndDecode(okEntry(SECONDS.toNanos(1), 1)).dataPoints.get(0).attributes;
     assertFalse(bareAttrs.containsKey("http.request.method"));
     assertFalse(bareAttrs.containsKey("http.response.status_code"));
     assertFalse(bareAttrs.containsKey("http.route"));
@@ -458,7 +456,7 @@ class OtlpStatsMetricWriterTest {
   void additionalMetricTagsEmittedAsStringAttributes() throws IOException {
     // Additional tags arrive on the entry pre-packed as "key:value" UTF8 strings in schema order;
     // the writer splits each at the first ':' and emits it as a plain OTLP string attribute keyed
-    // by the tag name, in both semantics modes.
+    // by the tag name.
     AggregateEntry e =
         AggregateEntryTestUtils.of(
             "GET /users",
@@ -481,63 +479,11 @@ class OtlpStatsMetricWriterTest {
             });
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
-    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
     assertEquals("us-east-1", attrs.get("region"));
     // value may itself contain ':' — only the first ':' separates key from value
     assertEquals("acme:corp", attrs.get("tenant_id"));
     assertEquals("visible", attrs.get("datadog.custom"));
-  }
-
-  @Test
-  void otelSemanticsModeEmitsAllNonDatadogAttributes() throws IOException {
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            200,
-            true,
-            true,
-            "server",
-            Arrays.asList(UTF8BytesString.create("peer.service:downstream")),
-            "GET",
-            "/users/{id}",
-            "0",
-            new UTF8BytesString[] {
-              UTF8BytesString.create("region:us-east-1"),
-              UTF8BytesString.create("custom.tag:custom-value"),
-              UTF8BytesString.create("datadog.custom:hidden")
-            });
-    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
-
-    Map<String, Object> attrs = writeAndDecode(true, e).dataPoints.get(0).attributes;
-    assertEquals(
-        new HashSet<>(
-            Arrays.asList(
-                "service.name",
-                "span.name",
-                "span.kind",
-                "status.code",
-                "http.request.method",
-                "http.response.status_code",
-                "http.route",
-                "rpc.response.status_code",
-                "region",
-                "custom.tag")),
-        attrs.keySet());
-    assertEquals("web", attrs.get("service.name"));
-    assertEquals("GET /users", attrs.get("span.name"));
-    assertEquals("SPAN_KIND_SERVER", attrs.get("span.kind"));
-    assertEquals("STATUS_CODE_OK", attrs.get("status.code"));
-    assertEquals("GET", attrs.get("http.request.method"));
-    assertEquals(200L, attrs.get("http.response.status_code"));
-    assertEquals("/users/{id}", attrs.get("http.route"));
-    assertEquals("0", attrs.get("rpc.response.status_code"));
-    assertEquals("us-east-1", attrs.get("region"));
-    assertEquals("custom-value", attrs.get("custom.tag"));
-    assertFalse(attrs.keySet().stream().anyMatch(key -> key.startsWith("datadog.")));
   }
 
   @Test
@@ -569,7 +515,7 @@ class OtlpStatsMetricWriterTest {
             });
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
-    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
     assertEquals("us-east-1", attrs.get("region"), "well-formed tag still emitted");
     assertFalse(attrs.containsKey("noseparator"), "no-separator slot skipped");
     assertFalse(attrs.containsKey(""), "empty-key slot skipped");
@@ -580,7 +526,7 @@ class OtlpStatsMetricWriterTest {
   @Test
   void serviceNameAlwaysEmittedOnDataPoint() throws IOException {
     CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender);
 
     long start = SECONDS.toNanos(1_700_000_000L);
     writer.startBucket(2, start, SECONDS.toNanos(10));
@@ -633,7 +579,7 @@ class OtlpStatsMetricWriterTest {
   @Test
   void emptyBucketSendsNothing() {
     CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender);
 
     writer.startBucket(0, BUCKET_START, BUCKET_DURATION);
     writer.finishBucket(); // no add()
@@ -645,7 +591,7 @@ class OtlpStatsMetricWriterTest {
   @Test
   void nullSenderDoesNotThrowOnNonEmptyBucket() {
     // mirrors the HTTP_JSON path where createSender(config) returns null.
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(null, false);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter((OtlpSender) null);
     writer.startBucket(1, BUCKET_START, BUCKET_DURATION);
     writer.add(okEntry(SECONDS.toNanos(1), 2));
     try {
@@ -657,7 +603,7 @@ class OtlpStatsMetricWriterTest {
 
   @ParameterizedTest
   @CsvSource({"true", "false"})
-  void defaultModeCarriesDatadogAttributes(boolean topLevel) throws IOException {
+  void carriesDatadogAttributes(boolean topLevel) throws IOException {
     AggregateEntry e = entry("servlet.request", false, 0, null, null, null);
     if (topLevel) {
       AggregateEntryTestUtils.recordTopLevel(e, SECONDS.toNanos(1));
@@ -665,22 +611,18 @@ class OtlpStatsMetricWriterTest {
       AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
     }
 
-    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
-    assertTrue(
-        attrs.containsKey("datadog.operation.name"), "operation name present in default mode");
-    assertTrue(attrs.containsKey("datadog.span.type"), "span type present in default mode");
-    assertTrue(
-        attrs.containsKey("datadog.span.top_level"), "span top-level present in default mode");
+    Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
+    assertTrue(attrs.containsKey("datadog.operation.name"));
+    assertTrue(attrs.containsKey("datadog.span.type"));
+    assertTrue(attrs.containsKey("datadog.span.top_level"));
     assertTrue(attrs.get("datadog.span.top_level") instanceof Boolean);
     assertEquals(topLevel, attrs.get("datadog.span.top_level"));
-    // OTel-semconv attrs are present in both modes
-    assertTrue(attrs.containsKey("span.name"), "span.name present in both modes");
-    // datadog.origin presence/absence is covered by defaultModeEmitsSyntheticOrigin
+    assertTrue(attrs.containsKey("span.name"));
   }
 
   @ParameterizedTest
   @CsvSource({"true", "false"})
-  void defaultModeEmitsIsTraceRoot(boolean traceRoot) throws IOException {
+  void emitsIsTraceRoot(boolean traceRoot) throws IOException {
     AggregateEntry e =
         AggregateEntryTestUtils.of(
             "GET /users",
@@ -698,22 +640,41 @@ class OtlpStatsMetricWriterTest {
             null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
-    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
     assertTrue(attrs.get("datadog.is_trace_root") instanceof Boolean);
     assertEquals(traceRoot, attrs.get("datadog.is_trace_root"));
   }
 
   @Test
-  void otelSemanticsModeOmitsIsTraceRoot() throws IOException {
-    AggregateEntry e = entry("GET /users", false, 0, null, null, null);
+  void serviceSourceEmittedOnlyWhenSet() throws IOException {
+    AggregateEntry e =
+        AggregateEntryTestUtils.of(
+            "GET /users",
+            "web",
+            "servlet.request",
+            "component",
+            "web",
+            0,
+            false,
+            true,
+            "server",
+            null,
+            null,
+            null,
+            null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
-    Map<String, Object> attrs = writeAndDecode(true, e).dataPoints.get(0).attributes;
-    assertFalse(attrs.containsKey("datadog.is_trace_root"));
+    Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
+    assertEquals("component", attrs.get("datadog.svc_src"));
+    assertTrue(attrs.get("datadog.svc_src") instanceof String);
+
+    Map<String, Object> absentAttrs =
+        writeAndDecode(okEntry(SECONDS.toNanos(1), 1)).dataPoints.get(0).attributes;
+    assertFalse(absentAttrs.containsKey("datadog.svc_src"));
   }
 
   @Test
-  void defaultModeEmitsPeerTags() throws IOException {
+  void emitsPeerTags() throws IOException {
     AggregateEntry e =
         AggregateEntryTestUtils.of(
             "GET /users",
@@ -733,18 +694,18 @@ class OtlpStatsMetricWriterTest {
             null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
-    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
     assertEquals(
         Arrays.asList("peer.service:downstream", "net.peer.name:downstream.example.com"),
         attrs.get("datadog.peer_tags"));
   }
 
   @Test
-  void defaultModeOmitsPeerTagsWhenEmpty() throws IOException {
+  void omitsPeerTagsWhenEmpty() throws IOException {
     AggregateEntry e = entry("GET /users", false, 0, null, null, null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
-    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
     assertFalse(attrs.containsKey("datadog.peer_tags"));
   }
 
@@ -776,47 +737,29 @@ class OtlpStatsMetricWriterTest {
             null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
-    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
     assertEquals(expected, attrs.get("span.kind"));
   }
 
   /**
-   * In default mode a synthetic entry emits {@code datadog.origin = "synthetics"}; a non-synthetic
-   * entry omits the attribute. Origin has collapsed to a boolean {@code synthetic} flag upstream,
-   * so {@code "synthetics"} is the only origin value that can reach the writer.
+   * A synthetic entry emits {@code datadog.origin = "synthetics"}; a non-synthetic entry omits the
+   * attribute. Origin has collapsed to a boolean {@code synthetic} flag upstream, so {@code
+   * "synthetics"} is the only origin value that can reach the writer.
    */
   @ParameterizedTest(name = "synthetic={0} → datadog.origin={1}")
   @CsvSource(
       nullValues = "NULL",
       value = {"false, NULL", "true, synthetics"})
-  void defaultModeEmitsSyntheticOrigin(boolean synthetic, String expectedOrigin)
-      throws IOException {
+  void emitsSyntheticOrigin(boolean synthetic, String expectedOrigin) throws IOException {
     AggregateEntry e = entry("servlet.request", synthetic, 0, null, null, null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
-    Map<String, Object> attrs = writeAndDecode(false, e).dataPoints.get(0).attributes;
+    Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
     if (expectedOrigin == null) {
       assertFalse(attrs.containsKey("datadog.origin"), "non-synthetic → datadog.origin absent");
     } else {
       assertEquals(expectedOrigin, attrs.get("datadog.origin"), "synthetic → datadog.origin");
     }
-  }
-
-  @Test
-  void otelSemanticsModeOmitsDatadogAttributes() throws IOException {
-    // otelSemanticsMode = true → datadog.* must be absent
-    Map<String, Object> attrs =
-        writeAndDecode(true, okEntry(SECONDS.toNanos(1), 1)).dataPoints.get(0).attributes;
-    assertFalse(
-        attrs.containsKey("datadog.operation.name"),
-        "operation name absent in otel-semantics mode");
-    assertFalse(attrs.containsKey("datadog.span.type"), "span type absent in otel-semantics mode");
-    assertFalse(
-        attrs.containsKey("datadog.span.top_level"),
-        "span top-level absent in otel-semantics mode");
-    assertFalse(attrs.containsKey("datadog.origin"), "origin absent in otel-semantics mode");
-    // OTel-semconv attrs must still be present
-    assertTrue(attrs.containsKey("span.name"), "span.name present even in otel-semantics mode");
   }
 
   @Test
@@ -826,7 +769,7 @@ class OtlpStatsMetricWriterTest {
     // (and the top-level count) at add() time; if it deferred reading to finishBucket() it would
     // encode the already-cleared (empty, zero-count) entry.
     CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender);
 
     AggregateEntry e = entry("servlet.request", false, 0, null, null, null);
     AggregateEntryTestUtils.recordTopLevel(e, SECONDS.toNanos(1));
@@ -852,40 +795,18 @@ class OtlpStatsMetricWriterTest {
   // ── resource attributes (datadog.runtime_id / process tags) ────────────────
 
   @Test
-  void defaultModeResourceCarriesRuntimeId() throws IOException {
-    // runtime-id is enabled by default, so default-mode payloads carry datadog.runtime_id on the
-    // Resource.
+  void resourceCarriesRuntimeId() throws IOException {
     CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, false);
+    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender);
     writer.startBucket(1, SECONDS.toNanos(1_700_000_000L), SECONDS.toNanos(10));
     writer.add(okEntry(SECONDS.toNanos(1), 1));
     writer.finishBucket();
 
     Map<String, Object> resourceAttrs = decodeResourceAttributes(sender.lastPayload);
     assertTrue(
-        resourceAttrs.containsKey("datadog.runtime_id"),
-        "default mode resource carries datadog.runtime_id");
+        resourceAttrs.containsKey("datadog.runtime_id"), "resource carries datadog.runtime_id");
     Object runtimeId = resourceAttrs.get("datadog.runtime_id");
     assertNotNull(runtimeId, "runtime id value present");
     assertFalse(runtimeId.toString().isEmpty(), "runtime id value non-empty");
-  }
-
-  @Test
-  void otelSemanticsModeResourceOmitsDatadogAttributes() throws IOException {
-    CapturingSender sender = new CapturingSender();
-    OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender, true);
-    writer.startBucket(1, SECONDS.toNanos(1_700_000_000L), SECONDS.toNanos(10));
-    writer.add(okEntry(SECONDS.toNanos(1), 1));
-    writer.finishBucket();
-
-    Map<String, Object> resourceAttrs = decodeResourceAttributes(sender.lastPayload);
-    assertFalse(
-        resourceAttrs.containsKey("datadog.runtime_id"),
-        "otel-semantics mode resource omits datadog.runtime_id");
-    for (String key : resourceAttrs.keySet()) {
-      assertFalse(
-          key.startsWith("datadog."),
-          "otel-semantics mode resource has no datadog.* attrs: " + key);
-    }
   }
 }
