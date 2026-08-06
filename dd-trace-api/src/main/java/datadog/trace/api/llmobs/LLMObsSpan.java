@@ -24,6 +24,15 @@ public interface LLMObsSpan {
   void annotateIO(String inputData, String outputData);
 
   /**
+   * Annotate an LLM span with the prompt used for the LLM call.
+   *
+   * <p>This annotation is ignored for non-LLM spans.
+   *
+   * @param prompt The prompt used for the LLM call
+   */
+  default void annotatePrompt(LLMObs.Prompt prompt) {}
+
+  /**
    * Annotate the span with the definitions of tools available to the LLM.
    *
    * @param toolDefinitions The tool definitions supplied to the LLM
