@@ -14,7 +14,6 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.DDSpanContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +39,7 @@ class HaystackHttpCodec {
 
   static final String HAYSTACK_TRACE_ID_BAGGAGE_KEY = "Haystack-Trace-ID";
   static final String HAYSTACK_SPAN_ID_BAGGAGE_KEY = "Haystack-Span-ID";
-  private static final String HAYSTACK_PARENT_ID_BAGGAGE_KEY = "Haystack-Parent-ID";
+  static final String HAYSTACK_PARENT_ID_BAGGAGE_KEY = "Haystack-Parent-ID";
 
   // public static final long DATADOG = new BigInteger("Datadog!".getBytes()).longValue();
   public static final String DATADOG = "44617461-646f-6721";
@@ -202,15 +201,20 @@ class HaystackHttpCodec {
           String firstValue = firstHeaderValue(value);
           if (null != firstValue) {
             switch (classification) {
+              // the trace and span ids are recorded by the tracer itself, not supplied as caller
+              // baggage: the injector reads them back to reproduce the original 128-bit ids, so
+              // they must not be evicted by caller-supplied Baggage-* headers
               case TRACE_ID:
                 traceId = DD64bTraceId.fromHex(convertUUIDToHexString(value));
-                addBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, value);
+                addReservedBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, value);
                 break;
               case SPAN_ID:
                 spanId = DDSpanId.fromHex(convertUUIDToHexString(value));
-                addBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, value);
+                addReservedBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, value);
                 break;
               case PARENT_ID:
+                // Nothing reads this back when injecting, so it is ordinary caller-supplied
+                // baggage rather than propagation bookkeeping, and is subject to the limits.
                 addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, value);
                 break;
               case BAGGAGE:
@@ -236,13 +240,6 @@ class HaystackHttpCodec {
         handleMappedBaggage(key, value);
       }
       return true;
-    }
-
-    private void addBaggageItem(String key, String value) {
-      if (baggage.isEmpty()) {
-        baggage = new TreeMap<>();
-      }
-      baggage.put(key, HttpCodec.decode(value));
     }
 
     @Override

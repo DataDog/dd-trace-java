@@ -1,6 +1,8 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS_COMMA_ALLOWED;
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.DatadogHttpCodec.DATADOG_TAGS_KEY;
@@ -31,6 +33,7 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
@@ -323,6 +326,102 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
     } else {
       assertNull(context);
     }
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "3")
+  void extractOtBaggageStopsAtItemLimit() {
+    Map<String, String> headers = otBaggageHeaders(50);
+    headers.put(SOME_CUSTOM_BAGGAGE_HEADER, "mappedBaggageValue");
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(3, context.getBaggage().size());
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "1")
+  void extractMappedBaggageStopsAtItemLimit() {
+    Map<String, String> headers = otBaggageHeaders(50);
+    headers.put(SOME_CUSTOM_BAGGAGE_HEADER, "mappedBaggageValue");
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(1, context.getBaggage().size());
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "24")
+  void extractOtBaggageStopsAtByteLimit() {
+    // with single digit indices each stored item is "keyN" + "valueN" = 10 bytes, so 2 fit in 24
+    // bytes and a third would take the total to 30
+    TagContext context = this.extractor.extract(otBaggageHeaders(10), stringValuesMap());
+
+    assertEquals(2, context.getBaggage().size());
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "24")
+  void extractOtBaggageDoesNotChargeRepeatedKeyTwice() {
+    // headers are visited in insertion order, so the duplicate key is seen before the last item
+    Map<String, String> headers = new LinkedHashMap<>();
+    // "key0" + "val0" is 8 bytes and is charged once, however many headers carry that same key
+    headers.put(OT_BAGGAGE_PREFIX + "key0", "val0");
+    headers.put(OT_BAGGAGE_PREFIX + "KEY0", "val0");
+    // charging the duplicate would take the total to 16 and leave no room for these 11 bytes
+    headers.put(OT_BAGGAGE_PREFIX + "a", "0123456789");
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    Map<String, String> expectedBaggage = new HashMap<>();
+    expectedBaggage.put("key0", "val0");
+    expectedBaggage.put("a", "0123456789");
+    assertEquals(expectedBaggage, context.getBaggage());
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "1")
+  void extractOtBaggageAllowsReplacementAtItemLimit() {
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put(OT_BAGGAGE_PREFIX + "key0", "old");
+    headers.put(OT_BAGGAGE_PREFIX + "KEY0", "replacement");
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(singletonMap("key0", "replacement"), context.getBaggage());
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "24")
+  void extractOtBaggageUpdatesByteChargeOnReplacement() {
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put(OT_BAGGAGE_PREFIX + "key0", "val0"); // 8 bytes
+    headers.put(OT_BAGGAGE_PREFIX + "KEY0", "012345678901"); // replaces it with 16 bytes
+    headers.put(OT_BAGGAGE_PREFIX + "a", "0123456789"); // 11 bytes, no longer fits
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(singletonMap("key0", "012345678901"), context.getBaggage());
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "8")
+  void extractOtBaggageCountsEncodedUtf8Bytes() {
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put(OT_BAGGAGE_PREFIX + "a", "b"); // 2 bytes
+    headers.put(OT_BAGGAGE_PREFIX + "c", "%E2%99%A5"); // 10 encoded wire bytes
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(singletonMap("a", "b"), context.getBaggage());
+  }
+
+  private static Map<String, String> otBaggageHeaders(int count) {
+    Map<String, String> headers = new HashMap<>();
+    for (int i = 0; i < count; i++) {
+      headers.put(OT_BAGGAGE_PREFIX + "key" + i, "value" + i);
+    }
+    return headers;
   }
 
   private static String asString(CharSequence cs) {
