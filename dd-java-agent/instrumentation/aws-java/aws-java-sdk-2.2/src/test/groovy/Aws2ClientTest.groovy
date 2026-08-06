@@ -178,7 +178,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               checkPeerService = true
             }
             urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
-            if (operation == "SendMessage") {
+            if (operation == "SendMessage" || operation == "SendMessageBatch") {
               // this is a corner case. The issues is that the aws integration should not set the service name
               // but it's doing it.
               serviceNameSource "java-aws-sdk"
@@ -216,13 +216,33 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
         """
-    "Sqs"      | "SendMessageBatch"  | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a1" | SqsClient.builder()      | { c -> c.sendMessageBatch(SendMessageBatchRequest.builder().queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/somequeue").entries(SendMessageBatchRequestEntry.builder().id("1").messageBody("body1").build()).build()) } | """
+    "Sqs"      | "SendMessageBatch"  | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a1" | SqsClient.builder()      | { c -> c.sendMessageBatch(SendMessageBatchRequest.builder().queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/somequeue").entries(SendMessageBatchRequestEntry.builder().id("1").messageBody("body1").build(), SendMessageBatchRequestEntry.builder().id("2").messageBody("body2").build(), SendMessageBatchRequestEntry.builder().id("3").messageBody("body3").build(), SendMessageBatchRequestEntry.builder().id("4").messageBody("body4").build(), SendMessageBatchRequestEntry.builder().id("5").messageBody("body5").build()).build()) } | """
         <SendMessageBatchResponse>
             <SendMessageBatchResult>
                 <SendMessageBatchResultEntry>
                     <Id>1</Id>
-                    <MD5OfMessageBody>d41d8cd98f00b204e9800998ecf8427e</MD5OfMessageBody>
+                    <MD5OfMessageBody>d6ed8ba2adae5a938c5a3757bcccf4dd</MD5OfMessageBody>
                     <MessageId>5fea7756-0ea4-451a-a703-a558b933e274</MessageId>
+                </SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry>
+                    <Id>2</Id>
+                    <MD5OfMessageBody>76af63c5bd77b2a3a2cfcbd52645fa38</MD5OfMessageBody>
+                    <MessageId>5fea7756-0ea4-451a-a703-a558b933e275</MessageId>
+                </SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry>
+                    <Id>3</Id>
+                    <MD5OfMessageBody>5525786dab1a6e4b36a0b49fe1090875</MD5OfMessageBody>
+                    <MessageId>5fea7756-0ea4-451a-a703-a558b933e276</MessageId>
+                </SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry>
+                    <Id>4</Id>
+                    <MD5OfMessageBody>0039fc0a2fa335c82bfd08f6a068ee1c</MD5OfMessageBody>
+                    <MessageId>5fea7756-0ea4-451a-a703-a558b933e277</MessageId>
+                </SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry>
+                    <Id>5</Id>
+                    <MD5OfMessageBody>6cc1cbeba9aa648e1c2f668712b72ddf</MD5OfMessageBody>
+                    <MessageId>5fea7756-0ea4-451a-a703-a558b933e278</MessageId>
                 </SendMessageBatchResultEntry>
             </SendMessageBatchResult>
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a1</RequestId></ResponseMetadata>
@@ -332,7 +352,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
               checkPeerService = true
             }
             urlTags("${server.address}${path}", ExpectedQueryParams.getExpectedQueryParams(operation))
-            if (operation == "SendMessage") {
+            if (operation == "SendMessage" || operation == "SendMessageBatch") {
               // this is a corner case. The issues is that the aws integration should not set the service name
               // but it's doing it.
               serviceNameSource "java-aws-sdk"
@@ -370,13 +390,33 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a0</RequestId></ResponseMetadata>
         </SendMessageResponse>
         """
-    "Sqs"      | "SendMessageBatch"  | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a1" | SqsAsyncClient.builder()      | { c -> c.sendMessageBatch(SendMessageBatchRequest.builder().queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/somequeue").entries(SendMessageBatchRequestEntry.builder().id("1").messageBody("body1").build()).build()) } | """
+    "Sqs"      | "SendMessageBatch"  | "POST" | "/"                   | "27daac76-34dd-47df-bd01-1f6e873584a1" | SqsAsyncClient.builder()      | { c -> c.sendMessageBatch(SendMessageBatchRequest.builder().queueUrl("https://sqs.us-east-1.amazonaws.com/123456789012/somequeue").entries(SendMessageBatchRequestEntry.builder().id("1").messageBody("body1").build(), SendMessageBatchRequestEntry.builder().id("2").messageBody("body2").build(), SendMessageBatchRequestEntry.builder().id("3").messageBody("body3").build(), SendMessageBatchRequestEntry.builder().id("4").messageBody("body4").build(), SendMessageBatchRequestEntry.builder().id("5").messageBody("body5").build()).build()) } | """
         <SendMessageBatchResponse>
             <SendMessageBatchResult>
                 <SendMessageBatchResultEntry>
                     <Id>1</Id>
-                    <MD5OfMessageBody>d41d8cd98f00b204e9800998ecf8427e</MD5OfMessageBody>
+                    <MD5OfMessageBody>d6ed8ba2adae5a938c5a3757bcccf4dd</MD5OfMessageBody>
                     <MessageId>5fea7756-0ea4-451a-a703-a558b933e274</MessageId>
+                </SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry>
+                    <Id>2</Id>
+                    <MD5OfMessageBody>76af63c5bd77b2a3a2cfcbd52645fa38</MD5OfMessageBody>
+                    <MessageId>5fea7756-0ea4-451a-a703-a558b933e275</MessageId>
+                </SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry>
+                    <Id>3</Id>
+                    <MD5OfMessageBody>5525786dab1a6e4b36a0b49fe1090875</MD5OfMessageBody>
+                    <MessageId>5fea7756-0ea4-451a-a703-a558b933e276</MessageId>
+                </SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry>
+                    <Id>4</Id>
+                    <MD5OfMessageBody>0039fc0a2fa335c82bfd08f6a068ee1c</MD5OfMessageBody>
+                    <MessageId>5fea7756-0ea4-451a-a703-a558b933e277</MessageId>
+                </SendMessageBatchResultEntry>
+                <SendMessageBatchResultEntry>
+                    <Id>5</Id>
+                    <MD5OfMessageBody>6cc1cbeba9aa648e1c2f668712b72ddf</MD5OfMessageBody>
+                    <MessageId>5fea7756-0ea4-451a-a703-a558b933e278</MessageId>
                 </SendMessageBatchResultEntry>
             </SendMessageBatchResult>
             <ResponseMetadata><RequestId>27daac76-34dd-47df-bd01-1f6e873584a1</RequestId></ResponseMetadata>
@@ -508,7 +548,7 @@ abstract class Aws2ClientTest extends VersionedNamingTestBase {
           measured true
           parent()
           tags {
-            if (operation == "SendMessage") {
+            if (operation == "SendMessage" || operation == "SendMessageBatch") {
               // this is a corner case. The issues is that the aws integration should not set the service name
               // but it's doing it.
               serviceNameSource "java-aws-sdk"
@@ -588,7 +628,7 @@ class Aws2ClientV0ForkedTest extends Aws2ClientTest {
     if ("Sns" == awsService && "Publish" == awsOperation) {
       return "sns"
     }
-    if ("Sqs" == awsService && "SendMessage" == awsOperation) {
+    if ("Sqs" == awsService && ("SendMessage" == awsOperation || "SendMessageBatch" == awsOperation)) {
       return "sqs"
     }
     return "java-aws-sdk"
@@ -604,7 +644,7 @@ class Aws2ClientV1ForkedTest extends Aws2ClientTest {
 
   @Override
   String expectedOperation(String awsService, String awsOperation) {
-    if (awsService == "Sqs" && awsOperation == "SendMessage") {
+    if (awsService == "Sqs" && (awsOperation == "SendMessage" || awsOperation == "SendMessageBatch")) {
       return "aws.sqs.send"
     }
     if (awsService == "Sns" && awsOperation == "Publish") {
