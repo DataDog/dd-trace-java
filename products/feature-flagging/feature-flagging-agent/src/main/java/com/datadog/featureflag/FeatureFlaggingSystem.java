@@ -6,6 +6,8 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGU
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
+import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +17,7 @@ public class FeatureFlaggingSystem {
 
   private static volatile ConfigurationSourceService CONFIG_SERVICE;
   private static volatile ExposureWriter EXPOSURE_WRITER;
+  private static volatile FlagEvaluationWriter FLAG_EVAL_WRITER;
   private static volatile SpanEnrichmentWriter SPAN_ENRICHMENT_WRITER;
   private static volatile FeatureFlaggingGateway.ActivationListener ACTIVATION_LISTENER;
   private static volatile boolean STARTED;
@@ -77,6 +80,23 @@ public class FeatureFlaggingSystem {
     final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
     initialize(configService, exposureWriter);
 
+    final boolean evalCountsEnabled =
+        config
+            .configProvider()
+            .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(evalCountsEnabled);
+    if (evalCountsEnabled) {
+      final FlagEvaluationWriterImpl evalWriter = new FlagEvaluationWriterImpl(sco, config);
+      evalWriter.start();
+      FLAG_EVAL_WRITER = evalWriter;
+      LOGGER.debug("Flag evaluation EVP writer started");
+    } else {
+      FeatureFlaggingGateway.setFlagEvalWriter(null);
+      LOGGER.debug(
+          "Flag evaluation EVP writer disabled ({}=false)",
+          FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED);
+    }
+
     // APM span enrichment: agent-side listener for flag-evaluation seam events. Uses the process-
     // wide singleton so a subsystem restart reuses the one already-registered trace interceptor
     // (which the tracer cannot remove) instead of registering a second, rejected one. Cheap: it
@@ -125,12 +145,16 @@ public class FeatureFlaggingSystem {
   }
 
   public static synchronized void stop() {
+    FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
+    FeatureFlaggingGateway.setFlagEvalWriter(null);
     final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
+    final FlagEvaluationWriter flagEvalWriter = FLAG_EVAL_WRITER;
     final SpanEnrichmentWriter spanEnrichmentWriter = SPAN_ENRICHMENT_WRITER;
     final ExposureWriter exposureWriter = EXPOSURE_WRITER;
     final ConfigurationSourceService configService = CONFIG_SERVICE;
     STARTED = false;
     ACTIVATION_LISTENER = null;
+    FLAG_EVAL_WRITER = null;
     SPAN_ENRICHMENT_WRITER = null;
     EXPOSURE_WRITER = null;
     CONFIG_SERVICE = null;
@@ -138,17 +162,23 @@ public class FeatureFlaggingSystem {
       FeatureFlaggingGateway.removeActivationListener(activationListener);
     }
     try {
-      if (spanEnrichmentWriter != null) {
-        spanEnrichmentWriter.close();
+      if (flagEvalWriter != null) {
+        flagEvalWriter.close();
       }
     } finally {
       try {
-        if (exposureWriter != null) {
-          exposureWriter.close();
+        if (spanEnrichmentWriter != null) {
+          spanEnrichmentWriter.close();
         }
       } finally {
-        if (configService != null) {
-          configService.close();
+        try {
+          if (exposureWriter != null) {
+            exposureWriter.close();
+          }
+        } finally {
+          if (configService != null) {
+            configService.close();
+          }
         }
       }
     }
