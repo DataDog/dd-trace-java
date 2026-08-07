@@ -332,17 +332,40 @@ public class LLMObs {
 
   public static class Document {
     private String text;
+    private String name;
+    private String id;
+    private Double score;
 
     public static Document from(String text) {
-      return new Document(text);
+      return new Document(text, null, null, null);
     }
 
-    private Document(String text) {
+    public static Document from(
+        String text, @Nullable String name, @Nullable String id, @Nullable Double score) {
+      return new Document(text, name, id, score);
+    }
+
+    private Document(String text, String name, String id, Double score) {
       this.text = text;
+      this.name = name;
+      this.id = id;
+      this.score = score;
     }
 
     public String getText() {
       return text;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    public Double getScore() {
+      return score;
     }
   }
 }
