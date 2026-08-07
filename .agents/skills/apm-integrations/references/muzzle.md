@@ -120,6 +120,8 @@ Add `assertInverse = true` only when you've empirically verified the min via loc
 
 This is common whenever any instrumentation class in the module is compatible with versions below the declared min — `assertInverse` then contradicts that class's compatibility.
 
+**Especially avoid defaulting `assertInverse = true` when hooking a concrete driver class** (as opposed to a JDK SPI — but note you usually should NOT be hooking a concrete driver at all; see instrumenter-module.md). Concrete driver classes tend to be structurally stable across a much wider version range than the `compileOnly`/`testImplementation` coordinate you happened to pin. Example: a PostgreSQL module declared `versions = "[42.0.0,)"` + `assertInverse = true`, but `org.postgresql.jdbc.PgStatement` is unchanged back through 9.2 (2013), so muzzle passed on 9.2/9.3/9.4 and the inverse-assertion failed for six old releases. The declared floor matched the pinned dependency, not any real API-shape boundary. Do not set `assertInverse` unless you can point to a specific API change at the declared minimum; otherwise omit it.
+
 ## Muzzle range must exclude incompatible major versions
 
 If the library you are instrumenting has a major version break where a newer major version
