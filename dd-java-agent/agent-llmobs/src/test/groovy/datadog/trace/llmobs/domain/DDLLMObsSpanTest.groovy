@@ -444,6 +444,28 @@ class DDLLMObsSpanTest  extends DDSpecification{
     prompt.tags == [team: "weather"]
   }
 
+  def "later prompt template replaces the prior template representation"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    test.annotatePrompt(LLMObs.Prompt.builder().template("Weather in {{city}}").build())
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().template([LLMObs.LLMMessage.from("user", "Weather in {{city}}")]).build())
+
+    then:
+    def chatPrompt = ((AgentSpan)test.span).getTag(INPUT_PROMPT)
+    chatPrompt.template == null
+    chatPrompt.chat_template == [[role: "user", content: "Weather in {{city}}"]]
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().template("Forecast for {{city}}").build())
+
+    then:
+    def textPrompt = ((AgentSpan)test.span).getTag(INPUT_PROMPT)
+    textPrompt.template == "Forecast for {{city}}"
+    textPrompt.chat_template == null
+  }
+
   def "prompt without an id uses the ml app default"() {
     setup:
     def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
@@ -453,6 +475,26 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     then:
     ((AgentSpan)test.span).getTag(INPUT_PROMPT).id == "test-ml-app_unnamed-prompt"
+  }
+
+  def "empty prompt id is treated as missing"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().id("").build())
+
+    then:
+    ((AgentSpan)test.span).getTag(INPUT_PROMPT).id == "test-ml-app_unnamed-prompt"
+
+    when:
+    test.annotatePrompt(LLMObs.Prompt.builder().id("weather-prompt").build())
+    test.annotatePrompt(LLMObs.Prompt.builder().id("").version("2.0.0").build())
+
+    then:
+    def prompt = ((AgentSpan)test.span).getTag(INPUT_PROMPT)
+    prompt.id == "weather-prompt"
+    prompt.version == "2.0.0"
   }
 
   def "prompts are ignored on non-LLM spans"() {

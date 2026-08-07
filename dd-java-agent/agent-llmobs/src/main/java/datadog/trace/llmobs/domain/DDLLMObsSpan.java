@@ -214,14 +214,19 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (currentPrompt instanceof Map) {
       annotatedPrompt.putAll(copyStringKeyedMap((Map<?, ?>) currentPrompt));
     }
-    putIfPresent(annotatedPrompt, "id", prompt.getId());
+    if (prompt.getId() != null && !prompt.getId().isEmpty()) {
+      annotatedPrompt.put("id", prompt.getId());
+    }
     if (!annotatedPrompt.containsKey("id")) {
       annotatedPrompt.put("id", mlApp + "_" + DEFAULT_PROMPT_NAME);
     }
     putIfPresent(annotatedPrompt, "version", prompt.getVersion());
     putIfPresent(annotatedPrompt, "variables", prompt.getVariables());
-    putIfPresent(annotatedPrompt, "template", prompt.getTemplate());
-    if (prompt.getChatTemplate() != null && !prompt.getChatTemplate().isEmpty()) {
+    if (prompt.getTemplate() != null) {
+      annotatedPrompt.remove("chat_template");
+      annotatedPrompt.put("template", prompt.getTemplate());
+    } else if (prompt.getChatTemplate() != null && !prompt.getChatTemplate().isEmpty()) {
+      annotatedPrompt.remove("template");
       annotatedPrompt.put("chat_template", toChatTemplate(prompt.getChatTemplate()));
     }
     putIfPresent(annotatedPrompt, "tags", prompt.getTags());
