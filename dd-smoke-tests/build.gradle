@@ -6,13 +6,16 @@ description = 'dd-smoke-tests'
 
 dependencies {
   api libs.okhttp
+  api libs.testcontainers
   api project(':dd-java-agent:testing')
   api project(':utils:test-agent-utils:decoder')
 
   compileOnly(libs.junit.jupiter)
-
   compileOnly(libs.bundles.groovy)
   compileOnly(libs.bundles.spock)
+
+  // Checks the mock backend's remote-config payload with the tracer's own response parser.
+  testImplementation project(':remote-config:remote-config-core')
 }
 
 tasks.withType(GroovyCompile).configureEach {
