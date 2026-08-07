@@ -7,6 +7,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getContextAttri
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getCpuInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getLiveHeapSamplePercent;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getLogLevel;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getNativeMemoryInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSafeMode;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEvent;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getSchedulingEventInterval;
@@ -18,6 +19,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationPro
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isNativeMemoryProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isResourceNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isTrackingGenerations;
@@ -26,6 +28,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.omitLineNumbers
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
 import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
+import static com.datadog.profiling.utils.ProfilingMode.NATIVEMEM;
 import static com.datadog.profiling.utils.ProfilingMode.WALL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DETAILED_DEBUG_LOGGING;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT;
@@ -236,6 +239,9 @@ public final class DatadogProfiler {
     }
     if (isWallClockProfilerEnabled(configProvider)) {
       profilingModes.add(WALL);
+    }
+    if (isNativeMemoryProfilingEnabled(configProvider)) {
+      profilingModes.add(NATIVEMEM);
     }
     Set<String> contextAttributes = getContextAttributes(configProvider);
     this.orderedContextAttributes = getOrderedContextAttributes(contextAttributes, configProvider);
@@ -458,6 +464,10 @@ public final class DatadogProfiler {
         cmd.append(':')
             .append(String.format("%.2f", getLiveHeapSamplePercent(configProvider) / 100.0d));
       }
+    }
+    if (profilingModes.contains(NATIVEMEM)) {
+      // native memory (malloc) profiling is enabled
+      cmd.append(",nativemem=").append(getNativeMemoryInterval(configProvider));
     }
     String cmdString = cmd.toString();
     log.debug("Datadog profiler command line: {}", cmdString);
