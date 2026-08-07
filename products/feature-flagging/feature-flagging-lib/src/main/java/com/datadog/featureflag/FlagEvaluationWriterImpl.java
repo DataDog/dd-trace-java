@@ -73,15 +73,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
    */
   static final int SHUTDOWN_DRAIN_PASSES = 3;
 
-  static final int EVAL_SCALE_FULL_BUCKET_TARGET =
-      FlagEvaluationAggregator.EVAL_SCALE_FULL_BUCKET_TARGET;
-  static final int EVAL_SCALE_PER_FLAG_BUCKET_TARGET =
-      FlagEvaluationAggregator.EVAL_SCALE_PER_FLAG_BUCKET_TARGET;
-  static final int EVAL_SCALE_DEGRADED_BUCKET_TARGET =
-      FlagEvaluationAggregator.EVAL_SCALE_DEGRADED_BUCKET_TARGET;
-  static final int GLOBAL_CAP = FlagEvaluationAggregator.GLOBAL_CAP;
-  static final int PER_FLAG_CAP = FlagEvaluationAggregator.PER_FLAG_CAP;
-  static final int DEGRADED_CAP = FlagEvaluationAggregator.DEGRADED_CAP;
   static final int FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES = EvpProxy.PAYLOAD_SIZE_LIMIT_BYTES;
   static final String FLAG_EVALUATION_DROPPED_METRIC = "flagevaluation.rows.dropped";
   static final String FLAG_EVALUATION_DEGRADED_METRIC = "flagevaluation.rows.degraded";

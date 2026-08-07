@@ -9,9 +9,8 @@ import java.util.Map;
  * <p>This is the currency passed from the {@code FlagEvalLoggingHook} (feature-flagging-api) to the
  * {@code FlagEvaluationWriter} (feature-flagging-lib) via a non-blocking bounded queue.
  *
- * <p>Scalar fields are captured at hook-fire time on the evaluation thread. Context attributes can
- * be supplied lazily so recursive flattening happens on the writer thread, not on the evaluation
- * path. No aggregation happens here.
+ * <p>Scalar fields and context attributes are captured at hook-fire time on the evaluation thread.
+ * No aggregation happens here.
  */
 public final class FlagEvalEvent {
 
