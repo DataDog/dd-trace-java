@@ -16,6 +16,26 @@ public interface LLMObsSpan {
   void annotateIO(List<LLMObs.LLMMessage> inputMessages, List<LLMObs.LLMMessage> outputMessages);
 
   /**
+   * Annotate an embedding span with document inputs and a string output.
+   *
+   * @param inputDocuments The input documents of the span
+   * @param outputData The output data of the span in the form of a string
+   */
+  default void annotateEmbeddingIO(List<LLMObs.Document> inputDocuments, String outputData) {
+    annotateIO((String) null, outputData);
+  }
+
+  /**
+   * Annotate a retrieval span with a string input and document outputs.
+   *
+   * @param inputData The input data of the span in the form of a string
+   * @param outputDocuments The output documents of the span
+   */
+  default void annotateRetrievalIO(String inputData, List<LLMObs.Document> outputDocuments) {
+    annotateIO(inputData, (String) null);
+  }
+
+  /**
    * Annotate the span with inputs and outputs
    *
    * @param inputData The input data of the span in the form of a string
