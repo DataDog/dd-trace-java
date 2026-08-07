@@ -121,11 +121,14 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
 
       final AgentSpan span = scope.span();
       try {
-        if (throwable == null) {
-          AgentTracer.get().notifyAppSecEnd(span, result);
-        } else {
+        if (throwable != null) {
           span.addThrowable(throwable);
         }
+        // Finalize AppSec on both the success and error paths, mirroring how normal HTTP
+        // instrumentation always runs request finalization on span finish. On error the result is
+        // passed as null so response processing is skipped (there is no valid handler response),
+        // while HTTP span tags and the requestEnded gateway event are still applied.
+        AgentTracer.get().notifyAppSecEnd(span, throwable == null ? result : null);
         // Force the resource name back to the literal placeholder marker right
         // before finish so that the Datadog Lambda Extension's filter
         // (filter_span_from_lambda_library_or_runtime in
