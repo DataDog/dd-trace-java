@@ -120,7 +120,7 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
       }
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(@Advice.Thrown Throwable throwable) {
       if (AbstractDatadogSparkListener.listener != null) {
         AbstractDatadogSparkListener.listener.finishApplication(
@@ -142,7 +142,7 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
   }
 
   public static class SparkSqlFailureAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(@Advice.Thrown Throwable throwable) {
       if (throwable != null && AbstractDatadogSparkListener.listener != null) {
         AbstractDatadogSparkListener.listener.onSqlFailure(throwable);
@@ -151,7 +151,7 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
   }
 
   public static class QueryExecutionFailureAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(@Advice.Thrown Throwable throwable) {
       if (throwable != null && AbstractDatadogSparkListener.listener != null) {
         AbstractDatadogSparkListener.listener.onSqlFailure(throwable);

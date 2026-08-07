@@ -61,7 +61,7 @@ public class SocketConnectInstrumentation extends InstrumenterModule.Profiling
       return false;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Enter boolean wasEnabled) {
       if (wasEnabled) {
         AgentTracer.get().getProfilingContext().onAttach();

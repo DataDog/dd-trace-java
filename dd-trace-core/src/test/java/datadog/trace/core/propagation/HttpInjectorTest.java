@@ -18,7 +18,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
+import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;

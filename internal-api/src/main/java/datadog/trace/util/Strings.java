@@ -340,4 +340,17 @@ public final class Strings {
       return subSeq;
     }
   }
+
+  /**
+   * True if {@code needle} occurs fully within {@code s[beginIndex, endIndex)} -- a range-limited,
+   * allocation-free alternative to {@code s.substring(beginIndex, endIndex).contains(needle)}.
+   *
+   * <p>{@code indexOf} returns the earliest occurrence at or after {@code beginIndex}; if that one
+   * overshoots {@code endIndex} there is no earlier full occurrence in range, so the bound check is
+   * exact.
+   */
+  public static boolean regionContains(String s, int beginIndex, int endIndex, String needle) {
+    int idx = s.indexOf(needle, beginIndex);
+    return idx >= 0 && idx + needle.length() <= endIndex;
+  }
 }

@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
+import javax.annotation.Nonnull;
 
 public class SofaRpcServerDecorator extends ServerDecorator {
 
@@ -35,15 +36,15 @@ public class SofaRpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(AgentSpan span) {
+  protected void doAfterStart(@Nonnull AgentSpan span) {
     span.setMeasured(true);
-    return super.afterStart(span);
+    super.doAfterStart(span);
   }
 
-  public AgentSpan onRequest(AgentSpan span, SofaRequest request) {
+  public void onRequest(AgentSpan span, SofaRequest request) {
     span.setTag("rpc.system", "sofarpc");
     if (request == null) {
-      return span;
+      return;
     }
     String serviceName = request.getTargetServiceUniqueName();
     String methodName = request.getMethodName();
@@ -54,12 +55,11 @@ public class SofaRpcServerDecorator extends ServerDecorator {
     } else if (methodName != null) {
       span.setResourceName(methodName);
     }
-    return span;
   }
 
-  public AgentSpan onResponse(AgentSpan span, SofaResponse response) {
+  public void onResponse(AgentSpan span, SofaResponse response) {
     if (response == null) {
-      return span;
+      return;
     }
     if (response.isError()) {
       // RPC-layer error (timeout, serialization failure, etc.)
@@ -71,6 +71,5 @@ public class SofaRpcServerDecorator extends ServerDecorator {
       span.setError(true);
       span.setTag("error.message", t.getMessage());
     }
-    return span;
   }
 }

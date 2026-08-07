@@ -100,12 +100,13 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
 
       if (throwable == null) {
         responseFuture.onComplete(new OnCompleteHandler(span), thiz.system().dispatcher());
+        scope.close();
       } else {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
+        scope.close();
         span.finish();
       }
-      scope.close();
     }
   }
 

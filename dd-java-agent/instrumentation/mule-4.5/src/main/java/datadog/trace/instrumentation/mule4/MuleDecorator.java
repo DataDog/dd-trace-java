@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 import org.mule.runtime.api.component.Component;
 import org.mule.runtime.core.api.event.CoreEvent;
 import org.mule.runtime.tracer.api.span.info.InitialSpanInfo;
@@ -51,13 +52,13 @@ public class MuleDecorator extends BaseDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(final AgentSpan span) {
+  protected void doAfterStart(final @Nonnull AgentSpan span) {
     span.setMeasured(true);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-    return super.afterStart(span);
+    super.doAfterStart(span);
   }
 
-  public AgentSpan onMuleSpan(
+  public AgentSpan startMuleSpan(
       AgentSpan parentSpan, InitialSpanInfo spanInfo, CoreEvent event, Component component) {
     // we stick with the same level of detail of OTEL exporter.
     // if not exportable we're not going to create a real span but we still need to track those
@@ -89,6 +90,7 @@ public class MuleDecorator extends BaseDecorator {
     } else {
       span.setResourceName(spanInfo.getName());
     }
-    return afterStart(span);
+    afterStart(span);
+    return span;
   }
 }

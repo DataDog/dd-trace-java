@@ -10,11 +10,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import akka.dispatch.Envelope;
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
@@ -59,7 +59,7 @@ public class AkkaActorCellInstrumentation extends InstrumenterModule.ContextTrac
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static Context enter(
         @Advice.Argument(value = 0) Envelope envelope,
-        @Advice.Local("taskScope") AgentScope taskScope) {
+        @Advice.Local("taskScope") ContextScope taskScope) {
 
       // do this before checkpointing, as the envelope's task scope may already be active
       taskScope =
@@ -77,7 +77,8 @@ public class AkkaActorCellInstrumentation extends InstrumenterModule.ContextTrac
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
-        @Advice.Local("taskScope") AgentScope taskScope, @Advice.Enter Context checkpointContext) {
+        @Advice.Local("taskScope") ContextScope taskScope,
+        @Advice.Enter Context checkpointContext) {
 
       if (checkpointContext == null) {
         // Clean up any leaking scopes from akka-streams/akka-http etc.

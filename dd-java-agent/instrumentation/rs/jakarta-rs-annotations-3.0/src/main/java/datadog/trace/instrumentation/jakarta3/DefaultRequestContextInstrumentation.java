@@ -73,8 +73,8 @@ public class DefaultRequestContextInstrumentation extends AbstractRequestContext
       }
 
       DECORATE.beforeFinish(span);
-      span.finish();
       scope.close();
+      span.finish();
     }
   }
 }

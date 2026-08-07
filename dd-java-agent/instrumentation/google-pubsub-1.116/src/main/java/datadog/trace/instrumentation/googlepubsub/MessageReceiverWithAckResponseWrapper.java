@@ -21,7 +21,7 @@ public class MessageReceiverWithAckResponseWrapper implements MessageReceiverWit
 
   @Override
   public void receiveMessage(PubsubMessage message, AckReplyConsumerWithResponse consumer) {
-    final AgentSpan span = CONSUMER_DECORATE.onConsume(message, subscription);
+    final AgentSpan span = CONSUMER_DECORATE.startConsumeSpan(message, subscription);
     try (final ContextScope scope = activateSpan(span)) {
       this.delegate.receiveMessage(message, consumer);
     } finally {

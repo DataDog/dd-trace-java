@@ -119,7 +119,7 @@ public class MethodHandleWrappers {
           new HandlerContext.Receiver(handlerContext.getHandshakeSpan(), session.getId());
       try (ContextScope ignored =
           activateSpan(
-              DECORATE.onSessionCloseReceived(
+              DECORATE.startInboundCloseSpan(
                   closeContext,
                   closeReason.getReasonPhrase(),
                   closeReason.getCloseCode().getCode()))) {
@@ -157,7 +157,7 @@ public class MethodHandleWrappers {
         if (partialDelivery) {
           finishSpan = (boolean) args[1];
         }
-        wsSpan = DECORATE.onReceiveFrameStart(handlerContext, args[0], partialDelivery);
+        wsSpan = DECORATE.startInboundFrameSpan(handlerContext, args[0], partialDelivery);
       }
     } catch (Throwable t) {
       ExceptionLogger.LOGGER.debug("Unforeseen error instrumenting jetty websocket POJO", t);

@@ -348,8 +348,11 @@ def generateAgentJarIndex = tasks.register('generateAgentJarIndex', JavaExec) {
   it.mainClass = 'datadog.trace.bootstrap.AgentJarIndex$IndexGenerator'
 
   it.inputs.files(includedJarFileTree)
-  it.inputs.files(it.classpath)
+    .withPropertyName("includedAgentFiles")
+    .withPathSensitivity(PathSensitivity.RELATIVE)
   it.outputs.dir(destinationDir)
+    .withPropertyName("agentJarIndex")
+  it.outputs.cacheIf { true }
   it.classpath = objects.fileCollection().tap {
     it.from(project.configurations.named("shadowInclude"))
     it.from(project.configurations.named('slf4j-simple'))
@@ -618,6 +621,10 @@ tasks.register('verifyAgentJarIntegrations', JavaExec) {
   mainClass = 'datadog.trace.bootstrap.AgentBootstrap'
   classpath = objects.fileCollection().from(jarProvider)
   args = ['--list-integrations']
+
+  // Listing integrations only inspects classes and metadata in the assembled agent jar, so it does
+  // not need inherited JAVA_TOOL_OPTIONS.
+  environment.remove('JAVA_TOOL_OPTIONS')
 
   // Capture both stdout and stderr: InstrumenterIndex.buildModule() logs ERROR and returns null when a module
   // fails to load, while the process exits with status 0.

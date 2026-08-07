@@ -1,6 +1,8 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
+import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_TAG_KEYS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -18,6 +20,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
@@ -28,13 +31,18 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_4;
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5;
 import datadog.trace.common.writer.ddagent.TraceMapperV1;
 import datadog.trace.common.writer.ddagent.V1PayloadReader;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.core.propagation.ExtractedContext;
+import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -394,6 +402,112 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void serializeTraceWithJsonSpanEventsV1() throws Exception {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true, 1);
+    context.setTag(
+        SPAN_EVENTS,
+        "[{\"time_unix_nano\":1234567890,\"name\":\"event.one\","
+            + "\"attributes\":{\"str\":\"value\",\"int\":42,\"double\":12.5,"
+            + "\"bool\":true,\"arr\":[\"x\",7,2.5,false]}},"
+            + "{\"time_unix_nano\":1234567891,\"name\":\"event.two\"}]");
+    DDSpan span = DDSpan.create("test", 0, context, null);
+
+    V1PayloadReader.V1Span payload = V1PayloadReader.readFirstSpan(serializeV1Payload(span));
+
+    assertFalse(payload.getAttributes().containsKey(SPAN_EVENTS));
+    assertEquals(2, payload.getEvents().size());
+    V1PayloadReader.V1SpanEvent firstEvent = payload.getEvents().get(0);
+    assertEquals(1234567890L, firstEvent.getTimeUnixNano());
+    assertEquals("event.one", firstEvent.getName());
+    assertEquals("value", firstEvent.getAttributes().get("str"));
+    assertEquals(42L, firstEvent.getAttributes().get("int"));
+    assertEquals(12.5d, firstEvent.getAttributes().get("double"));
+    assertEquals(true, firstEvent.getAttributes().get("bool"));
+    assertEquals(Arrays.asList("x", 7L, 2.5d, false), firstEvent.getAttributes().get("arr"));
+
+    V1PayloadReader.V1SpanEvent secondEvent = payload.getEvents().get(1);
+    assertEquals(1234567891L, secondEvent.getTimeUnixNano());
+    assertEquals("event.two", secondEvent.getName());
+    assertEquals(Collections.emptyMap(), secondEvent.getAttributes());
+    tracer.close();
+  }
+
+  @Test
+  void serializeTraceWithMalformedJsonSpanEventsAsEmptyV1() throws Exception {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    DDSpanContext context = createSpanContext(tracer, Collections.emptyMap(), null, true, true, 1);
+    context.setTag(SPAN_EVENTS, "[{");
+    DDSpan span = DDSpan.create("test", 0, context, null);
+
+    V1PayloadReader.V1Span payload = V1PayloadReader.readFirstSpan(serializeV1Payload(span));
+
+    assertFalse(payload.getAttributes().containsKey(SPAN_EVENTS));
+    assertEquals(Collections.emptyList(), payload.getEvents());
+    tracer.close();
+  }
+
+  @TableTest({
+    "protocol | rootFirst",
+    "v0.4     | true     ",
+    "v0.4     | false    ",
+    "v0.5     | true     ",
+    "v0.5     | false    ",
+    "v1       | true     ",
+    "v1       | false    "
+  })
+  void serializePropagationTagsOnFirstSpanOfChunk(String protocol, boolean rootFirst)
+      throws Exception {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    PropagationTags propagationTags =
+        tracer
+            .getPropagationTagsFactory()
+            .fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-3,_dd.p.any=value");
+    ExtractedContext extracted =
+        new ExtractedContext(
+            DDTraceId.ONE, 42, PrioritySampling.SAMPLER_KEEP, null, propagationTags, DATADOG);
+    DDSpan root = (DDSpan) tracer.buildSpan("test", "root").asChildOf(extracted).start();
+    DDSpan child = (DDSpan) tracer.buildSpan("test", "child").asChildOf(root).start();
+    DDSpan grandchild = (DDSpan) tracer.buildSpan("test", "grandchild").asChildOf(child).start();
+    root.setTag("root.only", "root-value");
+
+    List<DDSpan> chunk = rootFirst ? Arrays.asList(root, child) : Arrays.asList(child, grandchild);
+    List<Map<String, ?>> metadata;
+    int samplingMechanism = SamplingMechanism.DEFAULT;
+    switch (protocol) {
+      case "v0.4":
+        metadata = serializeV04Metadata(chunk);
+        break;
+      case "v0.5":
+        metadata = serializeV05Metadata(chunk);
+        break;
+      case "v1":
+        V1PayloadReader.V1Chunk v1Chunk = V1PayloadReader.readFirstChunk(serializeV1Payload(chunk));
+        metadata = new ArrayList<>(v1Chunk.getSpans().size());
+        for (V1PayloadReader.V1Span span : v1Chunk.getSpans()) {
+          metadata.add(span.getAttributes());
+        }
+        samplingMechanism = v1Chunk.getSamplingMechanism();
+        break;
+      default:
+        throw new IllegalArgumentException("Unexpected protocol: " + protocol);
+    }
+
+    assertEquals("-3", metadata.get(0).get("_dd.p.dm"));
+    assertEquals("value", metadata.get(0).get("_dd.p.any"));
+    assertFalse(metadata.get(1).containsKey("_dd.p.dm"));
+    assertFalse(metadata.get(1).containsKey("_dd.p.any"));
+    assertEquals(1L, metadata.stream().filter(span -> span.containsKey("_dd.p.dm")).count());
+    assertEquals(1L, metadata.stream().filter(span -> span.containsKey("_dd.p.any")).count());
+    assertEquals(rootFirst, metadata.get(0).containsKey("root.only"));
+    assertFalse(metadata.get(1).containsKey("root.only"));
+    if ("v1".equals(protocol)) {
+      assertEquals(3, samplingMechanism);
+    }
+    tracer.close();
+  }
+
+  @Test
   void serializeTraceWithFlatMapTagV04() throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     DDSpanContext context =
@@ -538,6 +652,63 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     }
   }
 
+  private static List<Map<String, ?>> serializeV04Metadata(List<DDSpan> spans) throws Exception {
+    CaptureBuffer capture = new CaptureBuffer();
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, capture));
+    packer.format(spans, new TraceMapperV0_4());
+    packer.flush();
+
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes));
+    int spanCount = unpacker.unpackArrayHeader();
+    List<Map<String, ?>> metadata = new ArrayList<>(spanCount);
+    for (int i = 0; i < spanCount; i++) {
+      int fieldCount = unpacker.unpackMapHeader();
+      Map<String, String> spanMetadata = Collections.emptyMap();
+      for (int j = 0; j < fieldCount; j++) {
+        String field = unpacker.unpackString();
+        if (!"meta".equals(field)) {
+          unpacker.skipValue();
+          continue;
+        }
+        int metadataSize = unpacker.unpackMapHeader();
+        spanMetadata = new HashMap<>(metadataSize);
+        for (int k = 0; k < metadataSize; k++) {
+          spanMetadata.put(unpacker.unpackString(), unpacker.unpackString());
+        }
+      }
+      metadata.add(spanMetadata);
+    }
+    return metadata;
+  }
+
+  private static List<Map<String, ?>> serializeV05Metadata(List<DDSpan> spans) throws Exception {
+    CaptureBuffer capture = new CaptureBuffer();
+    TraceMapperV0_5 mapper = new TraceMapperV0_5();
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, capture));
+    packer.format(spans, mapper);
+    packer.flush();
+
+    String[] dictionary = buildDictionary(mapper);
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes));
+    int spanCount = unpacker.unpackArrayHeader();
+    List<Map<String, ?>> metadata = new ArrayList<>(spanCount);
+    for (int i = 0; i < spanCount; i++) {
+      assertEquals(12, unpacker.unpackArrayHeader());
+      for (int j = 0; j < 9; j++) {
+        unpacker.skipValue();
+      }
+      int metadataSize = unpacker.unpackMapHeader();
+      Map<String, String> spanMetadata = new HashMap<>(metadataSize);
+      for (int j = 0; j < metadataSize; j++) {
+        spanMetadata.put(dictionary[unpacker.unpackInt()], dictionary[unpacker.unpackInt()]);
+      }
+      metadata.add(spanMetadata);
+      unpacker.skipValue();
+      unpacker.skipValue();
+    }
+    return metadata;
+  }
+
   private DDSpanContext createSpanContext(
       String spanType, CoreTracer tracer, DDTraceId traceId, long spanId) {
     Map<String, String> baggage = new HashMap<>();
@@ -605,10 +776,14 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   }
 
   private static byte[] serializeV1Payload(DDSpan span) throws Exception {
+    return serializeV1Payload(Collections.singletonList(span));
+  }
+
+  private static byte[] serializeV1Payload(List<DDSpan> spans) throws Exception {
     TraceMapperV1 mapper = new TraceMapperV1();
     CapturePayloadBuffer capture = new CapturePayloadBuffer(mapper);
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, capture));
-    packer.format(Collections.singletonList(span), mapper);
+    packer.format(spans, mapper);
     packer.flush();
     assertNotNull(capture.bytes);
     return capture.bytes;

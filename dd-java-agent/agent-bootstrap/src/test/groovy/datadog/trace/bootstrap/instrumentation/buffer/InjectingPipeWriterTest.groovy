@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.buffer
 
 import datadog.trace.test.util.DDSpecification
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.LongConsumer
 
 class InjectingPipeWriterTest extends DDSpecification {
@@ -166,6 +167,48 @@ class InjectingPipeWriterTest extends DDSpecification {
     then:
     counter.value == testBytes.length()
     downstream.toString() == testBytes
+  }
+
+  def 'should honor non-zero offsets in bulk writes: #scenario'() {
+    setup:
+    def prefix = "ignored-prefix"
+    def source = (prefix + payload + "ignored-suffix").toCharArray()
+    def downstream = new StringWriter()
+    def counter = new Counter()
+    def injections = new AtomicInteger()
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS, injections.&incrementAndGet, { long bytes -> counter.incr(bytes) }, null)
+
+    when:
+    piped.write(source, prefix.length(), payload.length())
+    piped.close()
+
+    then:
+    downstream.toString() == expected
+    injections.get() == expectedInjections
+    counter.value == payload.length()
+
+    where:
+    scenario                  | payload                                                     | expected                                                                      | expectedInjections
+    "without a marker"        | "<html><body>safe</body></html>"                           | "<html><body>safe</body></html>"                                             | 0
+    "with a marker"           | "<html><head>dynamic</head><body>safe</body></html>"        | "<html><head>dynamic<script></script></head><body>safe</body></html>"          | 1
+    "with a marker at the end" | "<html><head>dynamic-content</head>"                        | "<html><head>dynamic-content<script></script></head>"                          | 1
+  }
+
+  def 'should prioritize a marker spanning a bulk write boundary'() {
+    setup:
+    def prefix = "ignored-prefix"
+    def payload = ">0123456789</head>"
+    def source = (prefix + payload + "ignored-suffix").toCharArray()
+    def downstream = new StringWriter()
+    def piped = new InjectingPipeWriter(downstream, MARKER_CHARS, CONTEXT_CHARS)
+
+    when:
+    piped.write("abc</head".toCharArray())
+    piped.write(source, prefix.length(), payload.length())
+    piped.close()
+
+    then:
+    downstream.toString() == "abc<script></script></head>0123456789</head>"
   }
 
   def 'should be resilient to exceptions when onBytesWritten callback is null'() {

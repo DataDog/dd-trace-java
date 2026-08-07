@@ -60,7 +60,7 @@ public class PublisherInstrumentation
           InstrumentationContext.get(Subscriber.class, Context.class));
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterSubscribe(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();

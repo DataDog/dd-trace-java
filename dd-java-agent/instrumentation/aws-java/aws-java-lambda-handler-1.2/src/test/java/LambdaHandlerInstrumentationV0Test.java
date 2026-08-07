@@ -1,4 +1,4 @@
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 
 @WithConfig(key = "trace.span.attribute.schema", value = "v0")
 class LambdaHandlerInstrumentationV0Test extends LambdaHandlerInstrumentationTest {

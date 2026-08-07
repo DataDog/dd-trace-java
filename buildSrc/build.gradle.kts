@@ -73,6 +73,11 @@ gradlePlugin {
       id = "dd-trace-java.sca-enrichments"
       implementationClass = "datadog.gradle.plugin.sca.ScaEnrichmentsPlugin"
     }
+
+    create("jardiff-plugin") {
+      id = "dd-trace-java.jardiff"
+      implementationClass = "datadog.gradle.plugin.jardiff.JardiffPlugin"
+    }
   }
 }
 
@@ -104,6 +109,8 @@ dependencies {
   implementation("com.fasterxml.jackson.core:jackson-core")
 
   compileOnly(libs.develocity)
+
+  testImplementation("me.champeau.jmh:jmh-gradle-plugin:0.7.3")
 }
 
 tasks.compileKotlin {

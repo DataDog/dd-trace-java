@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.Limits;
 import java.lang.management.ManagementFactory;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -26,11 +27,13 @@ import org.junit.jupiter.api.condition.JRE;
 
 class StringTemplateBuilderTest {
   private static final Limits LIMITS = new Limits(1, 3, 255, 5);
+  private static final Duration TIMEOUT = Duration.ofSeconds(1);
 
   @Test
   public void emptyProbe() {
     LogProbe probe = LogProbe.builder().build();
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertNull(message);
   }
@@ -38,7 +41,8 @@ class StringTemplateBuilderTest {
   @Test
   public void emptyTemplate() {
     LogProbe probe = createLogProbe("");
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertEquals("", message);
   }
@@ -46,7 +50,8 @@ class StringTemplateBuilderTest {
   @Test
   public void onlyStringTemplate() {
     LogProbe probe = createLogProbe("this is a simple string");
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertEquals("this is a simple string", message);
   }
@@ -54,7 +59,8 @@ class StringTemplateBuilderTest {
   @Test
   public void undefinedArgTemplate() {
     LogProbe probe = createLogProbe("{arg}");
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     String message = summaryBuilder.evaluate(new CapturedContext(), new LogProbe.LogStatus(probe));
     assertEquals("{Cannot find symbol: arg}", message);
   }
@@ -62,7 +68,8 @@ class StringTemplateBuilderTest {
   @Test
   public void argTemplate() {
     LogProbe probe = createLogProbe("{arg}");
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -80,7 +87,8 @@ class StringTemplateBuilderTest {
             new ValueScript(
                 DSL.bool(DSL.contains(DSL.ref("arg"), new StringValue("o"))), "{arg}")));
     LogProbe probe = LogProbe.builder().template("{contains(arg, 'o')}", segments).build();
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -93,14 +101,16 @@ class StringTemplateBuilderTest {
   @Test
   public void argMultipleInFlightTemplate() {
     LogProbe probe = createLogProbe("{arg}");
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
           CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "foo")
         });
     String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
-    StringTemplateBuilder summaryBuilder2 = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder2 =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     CapturedContext capturedContext2 = new CapturedContext();
     capturedContext2.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -114,7 +124,8 @@ class StringTemplateBuilderTest {
   @Test
   public void argNullTemplate() {
     LogProbe probe = createLogProbe("{nullObject}");
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -127,7 +138,8 @@ class StringTemplateBuilderTest {
   @Test
   public void argArrayTemplate() {
     LogProbe probe = createLogProbe("{primArray} {strArray}");
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -147,7 +159,8 @@ class StringTemplateBuilderTest {
   @Test
   public void argCollectionTemplate() {
     LogProbe probe = createLogProbe("{strList} {strSet}");
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -173,7 +186,8 @@ class StringTemplateBuilderTest {
   @Test
   public void argMapTemplate() {
     LogProbe probe = createLogProbe("{strMap}");
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     CapturedContext capturedContext = new CapturedContext();
     Map<String, String> map = new LinkedHashMap<>();
     for (int i = 0; i < 10; i++) {
@@ -201,7 +215,8 @@ class StringTemplateBuilderTest {
   @Test
   public void argComplexObjectTemplate() {
     LogProbe probe = createLogProbe("{obj}");
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -214,7 +229,8 @@ class StringTemplateBuilderTest {
   @Test
   public void argComplexObjectArrayTemplate() {
     LogProbe probe = createLogProbe("{array}");
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
@@ -230,7 +246,8 @@ class StringTemplateBuilderTest {
   @DisabledIf("datadog.environment.JavaVirtualMachine#isJ9")
   public void argInaccessibleFieldTemplate() {
     LogProbe probe = createLogProbe("{obj}");
-    StringTemplateBuilder summaryBuilder = new StringTemplateBuilder(probe.getSegments(), LIMITS);
+    StringTemplateBuilder summaryBuilder =
+        new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
