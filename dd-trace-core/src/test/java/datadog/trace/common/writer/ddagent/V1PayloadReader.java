@@ -37,7 +37,7 @@ import org.msgpack.value.ValueType;
 public final class V1PayloadReader {
 
   /** msgpack field ids of the top-level payload (header) map, mirroring {@code buildHeader}. */
-  private static final class PayloadField {
+  static final class PayloadField {
     static final int CONTAINER_ID = 2;
     static final int LANGUAGE_NAME = 3;
     static final int LANGUAGE_VERSION = 4;
@@ -53,7 +53,7 @@ public final class V1PayloadReader {
   }
 
   /** msgpack field ids of a trace chunk map, mirroring {@code TraceMapperV1.map} (no field 5). */
-  private static final class ChunkField {
+  static final class ChunkField {
     static final int PRIORITY = 1;
     static final int ORIGIN = 2;
     static final int ATTRIBUTES = 3;
@@ -65,7 +65,7 @@ public final class V1PayloadReader {
   }
 
   /** msgpack field ids of a span map, mirroring {@code encodeSpans} (16 fields). */
-  private static final class SpanField {
+  static final class SpanField {
     static final int SERVICE = 1;
     static final int NAME = 2;
     static final int RESOURCE = 3;
