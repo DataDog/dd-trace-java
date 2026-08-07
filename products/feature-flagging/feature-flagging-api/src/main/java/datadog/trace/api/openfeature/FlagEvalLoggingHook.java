@@ -129,14 +129,18 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // Bounded copy of the caller's mutable context (see DDEvaluator#copyPrunedContext for
       // every retained-size cap). Runs inline because the event is consumed asynchronously and
       // the source context is caller-owned; work is proportional to what is retained.
-      final Map<String, Object> attrs =
+      final DDEvaluator.CopyResult copy =
           ctx != null && ctx.getCtx() != null
               ? DDEvaluator.copyPrunedContext(ctx.getCtx())
-              : Collections.emptyMap();
+              : new DDEvaluator.CopyResult(Collections.emptyMap(), null);
+
+      if (copy.truncatedReason != null) {
+        w.countContextTruncated(copy.truncatedReason);
+      }
 
       w.enqueue(
           new FlagEvalEvent(
-              flagKey, variant, allocationKey, targetingKey, errorMessage, evalTimeMs, attrs));
+              flagKey, variant, allocationKey, targetingKey, errorMessage, evalTimeMs, copy.attrs));
     } catch (LinkageError | Exception e) {
       // Never let EVP recording break flag evaluation
     }

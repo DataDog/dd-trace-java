@@ -31,6 +31,16 @@ public interface FlagEvaluationWriter extends AutoCloseable {
   /** Counts one queue-overflow drop without offering an event. */
   void countPreQueueOverflow();
 
+  /**
+   * Counts one evaluation whose context was truncated by {@code copyPrunedContext}. The {@code
+   * reason} string is the sorted, comma-separated set of cap names that fired (e.g. {@code
+   * "max_key_length,max_value_length"}). Each unique reason string is counted separately so
+   * telemetry can distinguish which caps are hot.
+   *
+   * @param reason non-null, non-empty sorted comma-separated reason tag value
+   */
+  void countContextTruncated(String reason);
+
   /** Starts the background serializing thread. Must be called once after construction. */
   void start();
 

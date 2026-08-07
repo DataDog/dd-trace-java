@@ -339,6 +339,7 @@ class FlagEvaluationWriterImplTest {
             TimeUnit.NANOSECONDS,
             context(),
             queueDrops,
+            new java.util.concurrent.ConcurrentHashMap<>(),
             () -> {});
 
     handler.flushIfNecessary();
@@ -368,6 +369,7 @@ class FlagEvaluationWriterImplTest {
             TimeUnit.NANOSECONDS,
             context(),
             new AtomicLong(0),
+            new java.util.concurrent.ConcurrentHashMap<>(),
             () -> {});
 
     handler.run();

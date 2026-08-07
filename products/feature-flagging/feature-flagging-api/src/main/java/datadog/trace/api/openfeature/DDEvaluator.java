@@ -680,6 +680,64 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     throw new IllegalArgumentException("Unsupported OpenFeature value type: " + value);
   }
 
+  // Reason-code bitmask constants used by copyPrunedContext to track which caps fired.
+  static final int REASON_MAX_CONTEXT_FIELDS = 1;
+  static final int REASON_MAX_KEY_LENGTH = 1 << 1;
+  static final int REASON_MAX_VALUE_LENGTH = 1 << 2;
+  static final int REASON_MAX_LIST_ELEMENTS = 1 << 3;
+  static final int REASON_MAX_STRUCTURE_PROPERTIES = 1 << 4;
+  static final int REASON_MAX_SNAPSHOT_DEPTH = 1 << 5;
+  static final int REASON_CYCLE = 1 << 6;
+
+  /** Sorted reason-code strings, indexed by their bit position in the bitmask. */
+  private static final String[] REASON_NAMES = {
+    "max_context_fields",
+    "max_key_length",
+    "max_value_length",
+    "max_list_elements",
+    "max_structure_properties",
+    "max_snapshot_depth",
+    "cycle",
+  };
+
+  /**
+   * Builds the sorted, comma-separated reason tag string from a bitmask of fired reason codes.
+   * Returns {@code null} when no reason bit is set (no truncation occurred). The returned string is
+   * ready to use directly as the {@code "reason:..."} tag value.
+   */
+  static String truncationReasonTag(final int reasonMask) {
+    if (reasonMask == 0) {
+      return null;
+    }
+    final StringBuilder sb = new StringBuilder();
+    for (int bit = 0; bit < REASON_NAMES.length; bit++) {
+      if ((reasonMask & (1 << bit)) != 0) {
+        if (sb.length() > 0) {
+          sb.append(',');
+        }
+        sb.append(REASON_NAMES[bit]);
+      }
+    }
+    return sb.toString();
+  }
+
+  /**
+   * Result of {@link #copyPrunedContext}: the pruned attribute map plus an optional reason tag
+   * describing which caps fired during the walk. {@link #truncatedReason} is {@code null} when no
+   * truncation occurred, so callers can skip the telemetry path with a single null check.
+   */
+  static final class CopyResult {
+    final Map<String, Object> attrs;
+
+    /** Non-null when at least one cap fired; ready to use as the {@code reason:...} tag value. */
+    final String truncatedReason;
+
+    CopyResult(final Map<String, Object> attrs, final String truncatedReason) {
+      this.attrs = attrs;
+      this.truncatedReason = truncatedReason;
+    }
+  }
+
   /**
    * Single-pass bounded copy of a caller-owned {@link EvaluationContext} into the flattened, pruned
    * map stored on a {@link FlagEvalEvent} and later canonicalized by the aggregator.
@@ -702,29 +760,33 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
    *
    * <p>All numeric limits are named constants so they can be tuned independently.
    *
-   * <p>Returns an empty map for null/empty input. The returned map is a plain {@link HashMap};
-   * canonical-key sorting happens once in the aggregator, off the hot path.
+   * <p>Returns a {@link CopyResult} whose {@code attrs} is an empty map for null/empty input and
+   * whose {@code truncatedReason} is non-null when at least one cap fired. The returned map is a
+   * plain {@link HashMap}; canonical-key sorting happens once in the aggregator, off the hot path.
    */
-  static Map<String, Object> copyPrunedContext(final EvaluationContext context) {
+  static CopyResult copyPrunedContext(final EvaluationContext context) {
     if (context == null) {
-      return Collections.emptyMap();
+      return new CopyResult(Collections.emptyMap(), null);
     }
     final Set<String> keys = context.keySet();
     if (keys.isEmpty()) {
-      return Collections.emptyMap();
+      return new CopyResult(Collections.emptyMap(), null);
     }
     final HashMap<String, Object> out = new HashMap<>();
     final Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+    final int[] reasonMask = {0};
     for (final String key : keys) {
       if (out.size() >= MAX_CONTEXT_FIELDS) {
+        reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
         break;
       }
       if (EvaluationContext.TARGETING_KEY.equals(key)) {
         continue;
       }
-      copyPrunedValue(out, key, context.getValue(key), seen, 0);
+      copyPrunedValue(out, key, context.getValue(key), seen, 0, reasonMask);
     }
-    return out.isEmpty() ? Collections.emptyMap() : out;
+    final Map<String, Object> attrs = out.isEmpty() ? Collections.emptyMap() : out;
+    return new CopyResult(attrs, truncationReasonTag(reasonMask[0]));
   }
 
   private static void copyPrunedValue(
@@ -732,11 +794,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final String key,
       final Value value,
       final Set<Object> seen,
-      final int depth) {
+      final int depth,
+      final int[] reasonMask) {
     if (out.size() >= MAX_CONTEXT_FIELDS) {
+      reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
       return;
     }
     if (key.length() > MAX_KEY_LENGTH) {
+      reasonMask[0] |= REASON_MAX_KEY_LENGTH;
       return;
     }
     if (value == null || value.isNull()) {
@@ -746,6 +811,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     if (value.isString()) {
       final String s = value.asString();
       if (s.length() > MAX_VALUE_LENGTH) {
+        reasonMask[0] |= REASON_MAX_VALUE_LENGTH;
         return;
       }
       out.put(key, s);
@@ -757,31 +823,51 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     }
     if (value.isList()) {
       final List<Value> list = value.asList();
-      if (depth >= MAX_SNAPSHOT_DEPTH || !seen.add(list)) {
+      if (depth >= MAX_SNAPSHOT_DEPTH) {
+        reasonMask[0] |= REASON_MAX_SNAPSHOT_DEPTH;
         return;
+      }
+      if (!seen.add(list)) {
+        reasonMask[0] |= REASON_CYCLE;
+        return;
+      }
+      if (list.size() > MAX_LIST_ELEMENTS) {
+        reasonMask[0] |= REASON_MAX_LIST_ELEMENTS;
       }
       final int limit = Math.min(list.size(), MAX_LIST_ELEMENTS);
       for (int i = 0; i < limit; i++) {
         if (out.size() >= MAX_CONTEXT_FIELDS) {
+          reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
           break;
         }
-        copyPrunedValue(out, key + "[" + i + "]", list.get(i), seen, depth + 1);
+        copyPrunedValue(out, key + "[" + i + "]", list.get(i), seen, depth + 1, reasonMask);
       }
       seen.remove(list);
       return;
     }
     if (value.isStructure()) {
       final Structure structure = value.asStructure();
-      if (depth >= MAX_SNAPSHOT_DEPTH || !seen.add(structure)) {
+      if (depth >= MAX_SNAPSHOT_DEPTH) {
+        reasonMask[0] |= REASON_MAX_SNAPSHOT_DEPTH;
+        return;
+      }
+      if (!seen.add(structure)) {
+        reasonMask[0] |= REASON_CYCLE;
         return;
       }
       int walked = 0;
       for (final String property : structure.keySet()) {
-        if (walked >= MAX_STRUCTURE_PROPERTIES || out.size() >= MAX_CONTEXT_FIELDS) {
+        if (walked >= MAX_STRUCTURE_PROPERTIES) {
+          reasonMask[0] |= REASON_MAX_STRUCTURE_PROPERTIES;
+          break;
+        }
+        if (out.size() >= MAX_CONTEXT_FIELDS) {
+          reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
           break;
         }
         walked++;
-        copyPrunedValue(out, key + "." + property, structure.getValue(property), seen, depth + 1);
+        copyPrunedValue(
+            out, key + "." + property, structure.getValue(property), seen, depth + 1, reasonMask);
       }
       seen.remove(structure);
     }

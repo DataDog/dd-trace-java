@@ -18,6 +18,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -85,6 +86,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   static final String FLAG_EVALUATION_DROPPED_METRIC = "flagevaluation.rows.dropped";
   static final String FLAG_EVALUATION_DEGRADED_METRIC = "flagevaluation.rows.degraded";
   static final String FLAG_EVALUATION_SPLITS_METRIC = "flagevaluation.payload.splits";
+  static final String FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC = "flagevaluation.context.truncated";
   static final String DROP_REASON_QUEUE_OVERFLOW = "queue_overflow";
   static final String DROP_REASON_CLOSED = "closed";
   static final String DROP_REASON_CONTEXT_ERROR = "context_error";
@@ -118,6 +120,15 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
    */
   private final AtomicLong droppedQueueOverflow = new AtomicLong(0);
 
+  /**
+   * Per-reason-tag counters for evaluations whose context was truncated by {@code
+   * copyPrunedContext}. Keyed by the sorted comma-separated reason string (e.g. {@code
+   * "max_key_length,max_value_length"}). Incremented on the hook thread, drained and emitted on
+   * flush.
+   */
+  private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts =
+      new ConcurrentHashMap<>();
+
   public FlagEvaluationWriterImpl(final SharedCommunicationObjects sco, final Config config) {
     this(DEFAULT_CAPACITY, FLUSH_INTERVAL_SECONDS, SECONDS, sco, config);
   }
@@ -147,6 +158,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
             timeUnit,
             FeatureFlagEvpContext.from(config),
             droppedQueueOverflow,
+            contextTruncatedCounts,
             this::close);
     this.serializerThread = newAgentThread(FEATURE_FLAG_EVALUATION_PROCESSOR, serializer);
   }
@@ -271,6 +283,11 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     droppedQueueOverflow.incrementAndGet();
   }
 
+  @Override
+  public void countContextTruncated(final String reason) {
+    contextTruncatedCounts.computeIfAbsent(reason, k -> new AtomicLong(0)).incrementAndGet();
+  }
+
   private boolean isClosedOrEnqueueDisabled() {
     return closed.get() || !FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled();
   }
@@ -341,6 +358,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         evpPublisher;
     final Map<String, String> context;
     private final AtomicLong droppedQueueOverflow;
+    private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts;
     private final Runnable errorCallback;
     private final int payloadSizeLimitBytes;
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
@@ -356,6 +374,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         final TimeUnit timeUnit,
         final Map<String, String> context,
         final AtomicLong droppedQueueOverflow,
+        final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
         final Runnable errorCallback) {
       this(
           backendApiFactory,
@@ -364,6 +383,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
           timeUnit,
           context,
           droppedQueueOverflow,
+          contextTruncatedCounts,
           errorCallback,
           FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
     }
@@ -375,6 +395,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         final TimeUnit timeUnit,
         final Map<String, String> context,
         final AtomicLong droppedQueueOverflow,
+        final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
         final Runnable errorCallback,
         final int payloadSizeLimitBytes) {
       this.queue = queue;
@@ -383,6 +404,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
               backendApiFactory, FlagEvaluationPayloads.FlagEvaluationsRequest.class, false);
       this.context = context;
       this.droppedQueueOverflow = droppedQueueOverflow;
+      this.contextTruncatedCounts = contextTruncatedCounts;
       this.payloadSizeLimitBytes = payloadSizeLimitBytes;
       this.lastTicks = System.nanoTime();
       this.ticksRequiredToFlush = timeUnit.toNanos(flushInterval);
@@ -492,6 +514,14 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
             dgDrops);
       }
 
+      // Drain per-reason context-truncation counters and emit one metric per unique reason tag.
+      for (final Map.Entry<String, AtomicLong> entry : contextTruncatedCounts.entrySet()) {
+        final long count = entry.getValue().getAndSet(0);
+        if (count > 0) {
+          countMetric(FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC, count, entry.getKey());
+        }
+      }
+
       if (aggregator.isEmpty()) {
         return;
       }
@@ -586,6 +616,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
           TimeUnit.NANOSECONDS,
           context,
           new AtomicLong(0),
+          new ConcurrentHashMap<>(),
           () -> {},
           payloadSizeLimitBytes);
     }

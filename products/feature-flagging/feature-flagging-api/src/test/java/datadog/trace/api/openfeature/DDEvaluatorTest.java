@@ -275,9 +275,10 @@ public class DDEvaluatorTest {
       context.add(String.format("k%04d", i), "v");
     }
 
-    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
 
-    assertThat(result.size(), equalTo(DDEvaluator.MAX_CONTEXT_FIELDS));
+    assertThat(result.attrs.size(), equalTo(DDEvaluator.MAX_CONTEXT_FIELDS));
+    assertThat(result.truncatedReason, equalTo("max_context_fields"));
   }
 
   @Test
@@ -288,10 +289,11 @@ public class DDEvaluatorTest {
     context.add("keep", "ok");
     context.add("drop", new String(longChars));
 
-    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
 
-    assertThat(result, hasEntry("keep", "ok"));
-    assertThat(result.containsKey("drop"), equalTo(false));
+    assertThat(result.attrs, hasEntry("keep", "ok"));
+    assertThat(result.attrs.containsKey("drop"), equalTo(false));
+    assertThat(result.truncatedReason, equalTo("max_value_length"));
   }
 
   @Test
@@ -302,10 +304,11 @@ public class DDEvaluatorTest {
     context.add("keep", "ok");
     context.add(new String(longKeyChars), "drop");
 
-    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
 
-    assertThat(result, hasEntry("keep", "ok"));
-    assertThat(result.size(), equalTo(1));
+    assertThat(result.attrs, hasEntry("keep", "ok"));
+    assertThat(result.attrs.size(), equalTo(1));
+    assertThat(result.truncatedReason, equalTo("max_key_length"));
   }
 
   @Test
@@ -316,12 +319,15 @@ public class DDEvaluatorTest {
     }
     final EvaluationContext context = new MutableContext().add("list", wide);
 
-    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
 
-    assertThat(result.containsKey("list[0]"), equalTo(true));
+    assertThat(result.attrs.containsKey("list[0]"), equalTo(true));
     assertThat(
-        result.containsKey("list[" + (DDEvaluator.MAX_LIST_ELEMENTS - 1) + "]"), equalTo(true));
-    assertThat(result.containsKey("list[" + DDEvaluator.MAX_LIST_ELEMENTS + "]"), equalTo(false));
+        result.attrs.containsKey("list[" + (DDEvaluator.MAX_LIST_ELEMENTS - 1) + "]"),
+        equalTo(true));
+    assertThat(
+        result.attrs.containsKey("list[" + DDEvaluator.MAX_LIST_ELEMENTS + "]"), equalTo(false));
+    assertThat(result.truncatedReason, equalTo("max_list_elements"));
   }
 
   @Test
@@ -332,10 +338,11 @@ public class DDEvaluatorTest {
     }
     final EvaluationContext context = new MutableContext().add("struct", wide);
 
-    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
 
-    long structKeys = result.keySet().stream().filter(k -> k.startsWith("struct.")).count();
+    long structKeys = result.attrs.keySet().stream().filter(k -> k.startsWith("struct.")).count();
     assertThat(structKeys, equalTo((long) DDEvaluator.MAX_STRUCTURE_PROPERTIES));
+    assertThat(result.truncatedReason, equalTo("max_structure_properties"));
   }
 
   @Test
@@ -346,7 +353,7 @@ public class DDEvaluatorTest {
     }
     final EvaluationContext context = new MutableContext().add("deep", singletonList(nested));
 
-    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
 
     final StringBuilder truncatedKey = new StringBuilder("deep");
     for (int i = 0; i < DDEvaluator.MAX_SNAPSHOT_DEPTH; i++) {
@@ -354,18 +361,49 @@ public class DDEvaluatorTest {
     }
     // The recursion stops on the first list element at MAX_SNAPSHOT_DEPTH; deeper elements are
     // never walked and no entry is emitted for them.
-    assertThat(result.containsKey(truncatedKey.toString()), equalTo(false));
-    assertThat(result.size(), equalTo(0));
+    assertThat(result.attrs.containsKey(truncatedKey.toString()), equalTo(false));
+    assertThat(result.attrs.size(), equalTo(0));
+    assertThat(result.truncatedReason, equalTo("max_snapshot_depth"));
   }
 
   @Test
   public void testCopyPrunedContextExcludesTargetingKey() {
     final MutableContext context = new MutableContext("user-42").add("region", "us-east-1");
 
-    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
 
-    assertThat(result, hasEntry("region", "us-east-1"));
-    assertThat(result.containsKey("targetingKey"), equalTo(false));
+    assertThat(result.attrs, hasEntry("region", "us-east-1"));
+    assertThat(result.attrs.containsKey("targetingKey"), equalTo(false));
+    assertThat(result.truncatedReason, equalTo(null));
+  }
+
+  @Test
+  public void testCopyPrunedContextNoTruncationReturnsNullReason() {
+    final MutableContext context = new MutableContext("user-1");
+    context.add("region", "us-east-1");
+    context.add("tier", "gold");
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.attrs, hasEntry("region", "us-east-1"));
+    assertThat(result.truncatedReason, equalTo(null));
+  }
+
+  @Test
+  public void testCopyPrunedContextMultipleReasonsAreSortedAndDeduplicated() {
+    final char[] longChars = new char[DDEvaluator.MAX_VALUE_LENGTH + 1];
+    java.util.Arrays.fill(longChars, 'x');
+    final char[] longKeyChars = new char[DDEvaluator.MAX_KEY_LENGTH + 1];
+    java.util.Arrays.fill(longKeyChars, 'k');
+    final MutableContext context = new MutableContext();
+    context.add("keep", "ok");
+    context.add("dropValue", new String(longChars));
+    context.add(new String(longKeyChars), "dropKey");
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    // Both max_key_length and max_value_length fired; sorted alphabetically, no duplicates.
+    assertThat(result.truncatedReason, equalTo("max_key_length,max_value_length"));
   }
 
   @Test

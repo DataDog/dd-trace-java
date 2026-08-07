@@ -472,6 +472,9 @@ public class ProviderTest {
       public void countPreQueueOverflow() {}
 
       @Override
+      public void countContextTruncated(final String reason) {}
+
+      @Override
       public void start() {}
 
       @Override

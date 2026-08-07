@@ -74,6 +74,9 @@ class FlagEvalLoggingHookTest {
       public void countPreQueueOverflow() {}
 
       @Override
+      public void countContextTruncated(final String reason) {}
+
+      @Override
       public void start() {}
 
       @Override
@@ -310,6 +313,7 @@ class FlagEvalLoggingHookTest {
     verify(writer, times(1)).hasCapacityForEnqueue();
     verify(writer, times(1)).enqueue(any(FlagEvalEvent.class));
     verify(writer, never()).countPreQueueOverflow();
+    verify(writer, never()).countContextTruncated(any());
     verify(writer, never()).close();
     verify(writer, never()).start();
   }
@@ -329,6 +333,57 @@ class FlagEvalLoggingHookTest {
     verify(writer, times(1)).hasCapacityForEnqueue();
     verify(writer, times(1)).countPreQueueOverflow();
     verify(writer, never()).enqueue(any(FlagEvalEvent.class));
+  }
+
+  @Test
+  void countContextTruncatedCalledWhenContextIsTruncated() {
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    when(writer.hasCapacityForEnqueue()).thenReturn(true);
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
+
+    // Context with one oversized string value — triggers max_value_length.
+    final char[] longChars = new char[DDEvaluator.MAX_VALUE_LENGTH + 1];
+    java.util.Arrays.fill(longChars, 'x');
+    final MutableContext ctx = new MutableContext("user-1");
+    ctx.add("oversized", new String(longChars));
+    final HookContext<Object> hookCtx =
+        HookContext.<Object>builder()
+            .flagKey("flag")
+            .type(dev.openfeature.sdk.FlagValueType.STRING)
+            .defaultValue("default")
+            .ctx(ctx)
+            .build();
+    final FlagEvaluationDetails<Object> det =
+        details("flag", "v", "v", dev.openfeature.sdk.Reason.TARGETING_MATCH.name(), null);
+
+    hook.finallyAfter(hookCtx, det, Collections.emptyMap());
+
+    verify(writer, times(1)).countContextTruncated("max_value_length");
+    verify(writer, times(1)).enqueue(any(FlagEvalEvent.class));
+  }
+
+  @Test
+  void countContextTruncatedNotCalledWhenNoTruncation() {
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    when(writer.hasCapacityForEnqueue()).thenReturn(true);
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
+
+    final MutableContext ctx = new MutableContext("user-1");
+    ctx.add("region", "us-east-1");
+    final HookContext<Object> hookCtx =
+        HookContext.<Object>builder()
+            .flagKey("flag")
+            .type(dev.openfeature.sdk.FlagValueType.STRING)
+            .defaultValue("default")
+            .ctx(ctx)
+            .build();
+    final FlagEvaluationDetails<Object> det =
+        details("flag", "v", "v", dev.openfeature.sdk.Reason.TARGETING_MATCH.name(), null);
+
+    hook.finallyAfter(hookCtx, det, Collections.emptyMap());
+
+    verify(writer, never()).countContextTruncated(any());
+    verify(writer, times(1)).enqueue(any(FlagEvalEvent.class));
   }
 
   @Test
