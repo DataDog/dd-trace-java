@@ -3,7 +3,6 @@ package datadog.trace.api.openfeature;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
-import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
@@ -13,26 +12,22 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * OpenFeature {@code Hook<T>} that captures flag evaluation events for EVP {@code flagevaluation}
- * emission.
+ * OpenFeature Hook that captures flag evaluation events for EVP flagevaluation emission.
  *
- * <p>Contract: {@code finallyAfter} does scalar metadata extraction, a single bounded copy of the
+ * <p>Contract: finallyAfter does scalar metadata extraction, a single bounded copy of the
  * evaluation context, and a non-blocking offer to the writer's bounded queue. Aggregation and
  * posting are deferred to the writer's worker thread.
  *
- * <p><strong>Hot-path cost:</strong> {@link DDEvaluator#copyPrunedContext} performs one bounded
- * walk of the caller-owned {@link EvaluationContext}, applying every retained-size cap inline so
- * work is proportional to what is <em>kept</em>, never to what the caller supplied. Some copy is
- * required because {@link EvaluationContext} is caller-owned and mutable, but the returned map is
- * capped by field count, key length, value length, list width, structure width, and depth. See
- * {@link DDEvaluator#copyPrunedContext} for the exact limits.
+ * <p>Hot-path cost: DDEvaluator.copyPrunedContext performs one bounded walk of the caller-owned
+ * EvaluationContext, applying every retained-size cap inline so work is proportional to what is
+ * kept, never to what the caller supplied. The returned map is capped by field count, key length,
+ * value length, list width, structure width, and depth.
  *
- * <p>This hook is registered alongside the existing OTel {@link FlagEvalMetricsHook} - it does NOT
- * replace it (the existing OTel metrics hook is left unchanged).
+ * <p>This hook is registered alongside the existing OTel FlagEvalMetricsHook - it does NOT replace
+ * it.
  *
- * <p>The writer is resolved lazily from {@link FeatureFlaggingGateway#getFlagEvalWriter()} on each
- * call, so the hook is always safe to register - if the writer is absent (killswitch off or not yet
- * started) it is a no-op.
+ * <p>The writer is resolved lazily on each call, so the hook is always safe to register - if the
+ * writer is absent (killswitch off or not yet started) it is a no-op.
  */
 class FlagEvalLoggingHook<T> implements Hook<T> {
 
@@ -43,8 +38,8 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
   static final FlagEvalLoggingHook<Object> INSTANCE = new FlagEvalLoggingHook<>();
 
   /**
-   * Writer resolver. Production instances resolve through {@link FeatureFlaggingGateway}; tests can
-   * inject a direct writer or a resolver that simulates old-bootstrap linkage failures.
+   * Writer resolver. Production instances resolve through FeatureFlaggingGateway; tests can inject
+   * a direct writer or a resolver that simulates old-bootstrap linkage failures.
    */
   private final Supplier<FlagEvaluationWriter> writerSupplier;
 
@@ -64,8 +59,8 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
   }
 
   /**
-   * Capture + non-blocking enqueue only; no flattening, aggregation, or I/O. Runs at the {@code
-   * finally} stage so it covers success, error, and default-value paths.
+   * Capture + non-blocking enqueue only; no flattening, aggregation, or I/O. Runs at the finally
+   * stage so it covers success, error, and default-value paths.
    *
    * <p>The context snapshot taken here scales with context size/nesting - see the class javadoc for
    * why it cannot be deferred.

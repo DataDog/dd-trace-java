@@ -27,39 +27,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * EVP {@code flagevaluation} writer for Java.
+ * EVP flagevaluation writer for Java.
  *
- * <p>Uses the same EVP publisher path as {@link ExposureWriterImpl}, with two-tier aggregation
- * replacing the single-exposure buffer. Routes to the Agent-advertised EVP proxy endpoint for
- * {@code /api/v2/flagevaluation}.
+ * <p>Uses the same EVP publisher path as ExposureWriterImpl, with two-tier aggregation replacing
+ * the single-exposure buffer. Routes to the Agent-advertised EVP proxy endpoint for
+ * /api/v2/flagevaluation.
  *
- * <p>Two-tier aggregation contract:
- *
- * <ul>
- *   <li>Two-tier aggregation: full -> degraded -> drop-counted.
- *   <li>Full key: (flagKey, variant, allocationKey, runtimeDefault, errorMessage, targetingKey,
- *       canonical-context-key).
- *   <li>Degraded key: (flagKey, variant, allocationKey, runtimeDefault, errorMessage) - no
- *       targetingKey/context.
- *   <li>Canonical context key: sorted entries, type-tagged length-delimited encoding - NOT a hash
- *       (collision-safe, comparable string identity).
- *   <li>Context pruning: deterministic (sort before cut), <=256 fields, string values <=256 chars;
- *       the pruned attributes are what gets aggregated and serialized.
- *   <li>Caps: globalCap=131072, perFlagCap=10000, degradedCap=32768.
- *   <li>Eval-time: min/max of firstEvalMs/lastEvalMs across events in the same bucket.
- *   <li>Runtime default: absent variant means {@code runtimeDefaultUsed=true}.
- *   <li>Flush interval: 10 seconds.
- *   <li>Queue: bounded MessagePassingBlockingQueue (capacity 2^16), non-blocking offer; on overflow
- *       the event is dropped and the {@code droppedQueueOverflow} counter is incremented and
- *       surfaced on flush.
- *   <li>Enqueue: lock-free. Producers contend only on the MPSC queue, never on a monitor, so
- *       evaluation threads do not serialize against each other.
- *   <li>Shutdown: {@link #close()} drains the queue and performs a final flush before the worker
- *       thread exits. Because enqueue is lock-free, a producer can still offer during shutdown; the
- *       worker makes {@link #SHUTDOWN_DRAIN_PASSES} drain passes and {@code close()} sweeps once
- *       the worker has been joined, counting any remainder as a {@code closed} drop so shutdown
- *       loss is observable rather than silent.
- * </ul>
+ * <p>Two-tier aggregation contract: Full key: (flagKey, variant, allocationKey, runtimeDefault,
+ * errorMessage, targetingKey, canonical-context-key). Degraded key: (flagKey, variant,
+ * allocationKey, runtimeDefault, errorMessage) - no targetingKey/context. Canonical context key:
+ * sorted entries, type-tagged length-delimited encoding - NOT a hash (collision-safe, comparable
+ * string identity). Context pruning: deterministic (sort before cut), <=256 fields, string values
+ * <=256 chars; the pruned attributes are what gets aggregated and serialized. Caps:
+ * globalCap=131072, perFlagCap=10000, degradedCap=32768. Eval-time: min/max of
+ * firstEvalMs/lastEvalMs across events in the same bucket. Runtime default: absent variant means
+ * runtimeDefaultUsed=true. Flush interval: 10 seconds. Queue: bounded MessagePassingBlockingQueue
+ * (capacity 2^16), non-blocking offer; on overflow the event is dropped and the
+ * droppedQueueOverflow counter is incremented and surfaced on flush. Enqueue: lock-free. Producers
+ * contend only on the MPSC queue, never on a monitor, so evaluation threads do not serialize
+ * against each other. Shutdown: close() drains the queue and performs a final flush before the
+ * worker thread exits. Because enqueue is lock-free, a producer can still offer during shutdown;
+ * the worker makes SHUTDOWN_DRAIN_PASSES drain passes and close() sweeps once the worker has been
+ * joined, counting any remainder as a closed drop so shutdown loss is observable rather than
+ * silent.
  */
 public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
@@ -107,10 +97,9 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   private final AtomicLong droppedQueueOverflow = new AtomicLong(0);
 
   /**
-   * Per-reason-tag counters for evaluations whose context was truncated by {@code
-   * copyPrunedContext}. Keyed by the sorted comma-separated reason string (e.g. {@code
-   * "max_key_length,max_value_length"}). Incremented on the hook thread, drained and emitted on
-   * flush.
+   * Per-reason-tag counters for evaluations whose context was truncated by copyPrunedContext. Keyed
+   * by the sorted comma-separated reason string (e.g. "max_key_length,max_value_length").
+   * Incremented on the hook thread, drained and emitted on flush.
    */
   private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts =
       new ConcurrentHashMap<>();
@@ -128,7 +117,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     this(capacity, flushInterval, timeUnit, new BackendApiFactory(config, sco), config);
   }
 
-  /** Package-private constructor allowing a {@link BackendApiFactory} to be injected for tests. */
+  /** Package-private constructor allowing a BackendApiFactory to be injected for tests. */
   FlagEvaluationWriterImpl(
       final int capacity,
       final long flushInterval,
@@ -257,8 +246,8 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
    * Reports whether the async hand-off queue currently has room for another event. Producers
    * consult this before performing any expensive context-copy work so a saturated queue is observed
    * as an O(1) read rather than a full snapshot followed by a discarded offer. Best-effort only:
-   * the worker can drain (or a peer producer can fill) between this check and the subsequent {@link
-   * #enqueue}, so callers must still tolerate offer failure.
+   * the worker can drain (or a peer producer can fill) between this check and the subsequent
+   * enqueue, so callers must still tolerate offer failure.
    */
   public boolean hasCapacityForEnqueue() {
     return queue.size() < queue.capacity();
@@ -409,12 +398,11 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     /**
      * Drains all remaining queued events and performs a final flush. Used on shutdown.
      *
-     * <p>{@code enqueue()} is lock-free, so a producer that had already passed the closed check
-     * when {@code close()} ran can still offer after the first pass empties the queue. A bounded
-     * number of extra passes, with a yield between them, catches those in-flight offers. On the
-     * normal shutdown path {@code close()} also sweeps after joining this thread, but when the
-     * worker closes itself through the error callback nobody joins it, so these passes are the only
-     * sweep.
+     * <p>enqueue() is lock-free, so a producer that had already passed the closed check when
+     * close() ran can still offer after the first pass empties the queue. A bounded number of extra
+     * passes, with a yield between them, catches those in-flight offers. On the normal shutdown
+     * path close() also sweeps after joining this thread, but when the worker closes itself through
+     * the error callback nobody joins it, so these passes are the only sweep.
      */
     void drainAndFlush() {
       for (int pass = 0; pass < SHUTDOWN_DRAIN_PASSES; pass++) {

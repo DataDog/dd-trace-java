@@ -53,46 +53,45 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   /**
    * Maximum evaluation-context nesting depth captured on the hot path. Recursion runs on the
-   * caller's evaluation thread over a caller-owned {@link Value} tree, so an arbitrarily deep
-   * list/structure would overflow that thread's stack - and a {@code StackOverflowError} is not
-   * caught by the {@code LinkageError | Exception} guards that keep telemetry from breaking an
-   * evaluation. Values below the limit are truncated to null, the same way the cycle guard
-   * truncates. Kept aligned with the cross-SDK RFC target (4).
+   * caller's evaluation thread over a caller-owned Value tree, so an arbitrarily deep
+   * list/structure would overflow that thread's stack - and a StackOverflowError is not caught by
+   * the LinkageError | Exception guards that keep telemetry from breaking an evaluation. Values
+   * below the limit are truncated to null, the same way the cycle guard truncates. Kept aligned
+   * with the cross-SDK RFC target (4).
    */
   static final int MAX_SNAPSHOT_DEPTH = 4;
 
   /**
-   * Maximum number of top-level context fields retained by {@link #copyPrunedContext}. Bounds the
-   * width of the caller-supplied context and, transitively, the size of every {@link FlagEvalEvent}
-   * sitting in the async hand-off queue. Kept aligned with the cross-SDK RFC.
+   * Maximum number of top-level context fields retained by copyPrunedContext. Bounds the width of
+   * the caller-supplied context and, transitively, the size of every FlagEvalEvent sitting in the
+   * async hand-off queue. Kept aligned with the cross-SDK RFC.
    */
   static final int MAX_CONTEXT_FIELDS = 256;
 
   /**
-   * Maximum character length for a single context KEY retained by {@link #copyPrunedContext}. Keys
-   * are stored verbatim in every full-tier bucket, so an unbounded key size would let a single
-   * caller inflate steady-state heap use. Longer keys cause the field to be skipped.
+   * Maximum character length for a single context KEY retained by copyPrunedContext. Keys are
+   * stored verbatim in every full-tier bucket, so an unbounded key size would let a single caller
+   * inflate steady-state heap use. Longer keys cause the field to be skipped.
    */
   static final int MAX_KEY_LENGTH = 256;
 
   /**
-   * Maximum character length for a single context string VALUE retained by {@link
-   * #copyPrunedContext}. Longer values cause the field to be skipped (matches previous {@code
-   * pruneContext} behavior). Non-string scalars are not length-bounded.
+   * Maximum character length for a single context string VALUE retained by copyPrunedContext.
+   * Longer values cause the field to be skipped (matches previous pruneContext behavior).
+   * Non-string scalars are not length-bounded.
    */
   static final int MAX_VALUE_LENGTH = 256;
 
   /**
-   * Maximum number of elements walked per list encountered during {@link #copyPrunedContext}.
-   * Bounds the fan-out of a single wide list at capture time so one caller cannot inflate the hot
-   * path with a huge but shallow structure. Elements past the limit are skipped.
+   * Maximum number of elements walked per list encountered during copyPrunedContext. Bounds the
+   * fan-out of a single wide list at capture time so one caller cannot inflate the hot path with a
+   * huge but shallow structure. Elements past the limit are skipped.
    */
   static final int MAX_LIST_ELEMENTS = 256;
 
   /**
-   * Maximum number of properties walked per structure encountered during {@link
-   * #copyPrunedContext}. Same intent as {@link #MAX_LIST_ELEMENTS} for structures. Properties past
-   * the limit are skipped.
+   * Maximum number of properties walked per structure encountered during copyPrunedContext. Same
+   * intent as MAX_LIST_ELEMENTS for structures. Properties past the limit are skipped.
    */
   static final int MAX_STRUCTURE_PROPERTIES = 256;
 
@@ -702,8 +701,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   /**
    * Builds the sorted, comma-separated reason tag string from a bitmask of fired reason codes.
-   * Returns {@code null} when no reason bit is set (no truncation occurred). The returned string is
-   * ready to use directly as the {@code "reason:..."} tag value.
+   * Returns null when no reason bit is set (no truncation occurred). The returned string is ready
+   * to use directly as the "reason:..." tag value.
    */
   static String truncationReasonTag(final int reasonMask) {
     if (reasonMask == 0) {
@@ -722,14 +721,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   /**
-   * Result of {@link #copyPrunedContext}: the pruned attribute map plus an optional reason tag
-   * describing which caps fired during the walk. {@link #truncatedReason} is {@code null} when no
-   * truncation occurred, so callers can skip the telemetry path with a single null check.
+   * Result of copyPrunedContext: the pruned attribute map plus an optional reason tag describing
+   * which caps fired during the walk. truncatedReason is null when no truncation occurred, so
+   * callers can skip the telemetry path with a single null check.
    */
   static final class CopyResult {
     final Map<String, Object> attrs;
 
-    /** Non-null when at least one cap fired; ready to use as the {@code reason:...} tag value. */
+    /** Non-null when at least one cap fired; ready to use as the "reason:..." tag value. */
     final String truncatedReason;
 
     CopyResult(final Map<String, Object> attrs, final String truncatedReason) {
@@ -739,30 +738,24 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   /**
-   * Single-pass bounded copy of a caller-owned {@link EvaluationContext} into the flattened, pruned
-   * map stored on a {@link FlagEvalEvent} and later canonicalized by the aggregator.
+   * Single-pass bounded copy of a caller-owned EvaluationContext into the flattened, pruned map
+   * stored on a FlagEvalEvent and later canonicalized by the aggregator.
    *
    * <p>Every retained-size dimension is capped inline so the hot path performs work proportional to
-   * what is <em>kept</em>, never to what the caller supplied:
-   *
-   * <ul>
-   *   <li>{@link #MAX_CONTEXT_FIELDS} - stop iterating the top-level context past this many
-   *       retained fields
-   *   <li>{@link #MAX_KEY_LENGTH} - skip fields whose flattened key exceeds this length (also
-   *       enforced on every path segment produced by descending into lists/structures)
-   *   <li>{@link #MAX_VALUE_LENGTH} - skip string values exceeding this length
-   *   <li>{@link #MAX_LIST_ELEMENTS} - stop iterating a list past this many elements
-   *   <li>{@link #MAX_STRUCTURE_PROPERTIES} - stop iterating a structure past this many properties
-   *   <li>{@link #MAX_SNAPSHOT_DEPTH} - stop descending into lists/structures past this depth
-   *   <li>Cycle guard - identity-tracked containers currently on the recursion stack are treated as
-   *       leaves
-   * </ul>
+   * what is kept, never to what the caller supplied: MAX_CONTEXT_FIELDS - stop iterating the
+   * top-level context past this many retained fields MAX_KEY_LENGTH - skip fields whose flattened
+   * key exceeds this length (also enforced on every path segment produced by descending into
+   * lists/structures) MAX_VALUE_LENGTH - skip string values exceeding this length MAX_LIST_ELEMENTS
+   * - stop iterating a list past this many elements MAX_STRUCTURE_PROPERTIES - stop iterating a
+   * structure past this many properties MAX_SNAPSHOT_DEPTH - stop descending into lists/structures
+   * past this depth Cycle guard - identity-tracked containers currently on the recursion stack are
+   * treated as leaves
    *
    * <p>All numeric limits are named constants so they can be tuned independently.
    *
-   * <p>Returns a {@link CopyResult} whose {@code attrs} is an empty map for null/empty input and
-   * whose {@code truncatedReason} is non-null when at least one cap fired. The returned map is a
-   * plain {@link HashMap}; canonical-key sorting happens once in the aggregator, off the hot path.
+   * <p>Returns a CopyResult whose attrs is an empty map for null/empty input and whose
+   * truncatedReason is non-null when at least one cap fired. The returned map is a plain HashMap;
+   * canonical-key sorting happens once in the aggregator, off the hot path.
    */
   static CopyResult copyPrunedContext(final EvaluationContext context) {
     if (context == null) {
