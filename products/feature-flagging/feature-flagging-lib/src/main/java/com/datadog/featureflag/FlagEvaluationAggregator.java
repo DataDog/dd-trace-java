@@ -25,9 +25,6 @@ final class FlagEvaluationAggregator {
   static final int PER_FLAG_CAP = EVAL_SCALE_PER_FLAG_BUCKET_TARGET;
   static final int DEGRADED_CAP = 32_768;
 
-  static final int MAX_CONTEXT_FIELDS = 256;
-  static final int MAX_FIELD_LENGTH = 256;
-
   private static final byte CTX_TAG_STRING = 's';
   private static final byte CTX_TAG_BOOL = 'b';
   private static final byte CTX_TAG_INT = 'i';
@@ -44,7 +41,7 @@ final class FlagEvaluationAggregator {
 
   void aggregate(final FlagEvalEvent event) {
     final boolean isDefault = event.variant == null;
-    final Map<String, Object> prunedAttrs = pruneContext(event.contextAttributes());
+    final Map<String, Object> prunedAttrs = event.attrs;
     final String ctxKey = canonicalContextKey(prunedAttrs);
     final FullKey fullKey = buildFullKey(event, ctxKey);
 
@@ -194,18 +191,6 @@ final class FlagEvaluationAggregator {
         event.allocationKey,
         event.variant == null,
         event.errorMessage);
-  }
-
-  /**
-   * Returns the caller-provided context map unchanged. The hot-path hook now emits an
-   * already-pruned map (see {@code DDEvaluator#copyPrunedContext}); the aggregator no longer needs
-   * to re-prune. Kept as a passthrough so tests and older call sites continue to compile.
-   */
-  static Map<String, Object> pruneContext(final Map<String, Object> attrs) {
-    if (attrs == null || attrs.isEmpty()) {
-      return java.util.Collections.emptyMap();
-    }
-    return attrs;
   }
 
   static String canonicalContextKey(final Map<String, Object> prunedAttrs) {

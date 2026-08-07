@@ -29,7 +29,6 @@ import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
-import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.intake.Intake;
@@ -79,26 +78,6 @@ class FlagEvaluationWriterImplTest {
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
             "reason:" + FlagEvaluationWriterImpl.DROP_REASON_DEGRADED_CAP));
-  }
-
-  @Test
-  void publicConstructorAndContextHelpersDelegateToSharedImplementations() {
-    final datadog.trace.api.Config config = cfg();
-    when(config.getEnv()).thenReturn("prod");
-    when(config.getVersion()).thenReturn("1.2.3");
-    final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(new SharedCommunicationObjects(true), config);
-    final Map<String, Object> attrs = new HashMap<>();
-    attrs.put("b", "2");
-    attrs.put("a", "1");
-
-    final Map<String, Object> pruned = FlagEvaluationWriterImpl.pruneContext(attrs);
-
-    assertEquals(2, pruned.size());
-    assertEquals(
-        FlagEvaluationAggregator.canonicalContextKey(pruned),
-        FlagEvaluationWriterImpl.canonicalContextKey(pruned));
-    writer.close();
   }
 
   @Test
@@ -243,67 +222,6 @@ class FlagEvaluationWriterImplTest {
 
     assertEquals(0, writer.aggregatorFullTierSizeForTest());
     assertEquals(0, writer.droppedQueueOverflow());
-  }
-
-  @Test
-  void enqueueDoesNotResolveContextBeforeBuffering() {
-    final BackendApi mockEvp = mock(BackendApi.class);
-    final BackendApiFactory factory = mock(BackendApiFactory.class);
-    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg());
-    final AtomicInteger resolutions = new AtomicInteger();
-    final Map<String, Object> attrs = new HashMap<>();
-    attrs.put("tier", "gold");
-
-    writer.enqueue(
-        new FlagEvalEvent(
-            "lazy-flag",
-            "on",
-            "alloc1",
-            "user-1",
-            null,
-            1000L,
-            () -> {
-              resolutions.incrementAndGet();
-              return attrs;
-            }));
-
-    final FlagEvalEvent queued = writer.pollQueuedEventForTest();
-    assertNotNull(queued);
-    assertTrue(queued.attrs.isEmpty());
-    assertEquals(0, resolutions.get());
-    assertEquals("gold", queued.contextAttributes().get("tier"));
-    assertEquals(1, resolutions.get());
-  }
-
-  @Test
-  void contextMaterializationFailureDropsSingleEvent() {
-    final BackendApi mockEvp = mock(BackendApi.class);
-    final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
-    setup.handler.add(
-        new FlagEvalEvent(
-            "bad-context",
-            "on",
-            "alloc1",
-            "user-1",
-            null,
-            1000L,
-            () -> {
-              throw new IllegalArgumentException("bad context");
-            }));
-
-    setup.handler.drainAndAggregate();
-
-    final Collection<? extends MetricCollector.Metric> metrics =
-        CoreMetricCollector.getInstance().drain();
-    assertEquals(
-        1,
-        metricSum(
-            metrics,
-            FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CONTEXT_ERROR));
-    assertEquals(0, setup.handler.fullTierSizeForTest());
   }
 
   @Test

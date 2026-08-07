@@ -2,7 +2,6 @@ package datadog.trace.api.featureflag.flagevaluation;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.function.Supplier;
 
 /**
  * Lightweight data record capturing a single flag evaluation for EVP flagevaluation emission.
@@ -50,8 +49,6 @@ public final class FlagEvalEvent {
    */
   public final Map<String, Object> attrs;
 
-  private final Supplier<Map<String, Object>> attrsSupplier;
-
   public FlagEvalEvent(
       final String flagKey,
       final String variant,
@@ -77,32 +74,5 @@ public final class FlagEvalEvent {
     this.errorMessage = errorMessage;
     this.evalTimeMs = evalTimeMs;
     this.attrs = attrs != null ? attrs : Collections.emptyMap();
-    this.attrsSupplier = null;
-  }
-
-  public FlagEvalEvent(
-      final String flagKey,
-      final String variant,
-      final String allocationKey,
-      final String targetingKey,
-      final String errorMessage,
-      final long evalTimeMs,
-      final Supplier<Map<String, Object>> attrsSupplier) {
-    this.flagKey = flagKey;
-    this.variant = variant;
-    this.allocationKey = allocationKey;
-    this.targetingKey = targetingKey;
-    this.errorMessage = errorMessage;
-    this.evalTimeMs = evalTimeMs;
-    this.attrs = Collections.emptyMap();
-    this.attrsSupplier = attrsSupplier;
-  }
-
-  public Map<String, Object> contextAttributes() {
-    if (attrsSupplier == null) {
-      return attrs;
-    }
-    final Map<String, Object> supplied = attrsSupplier.get();
-    return supplied != null ? supplied : Collections.emptyMap();
   }
 }

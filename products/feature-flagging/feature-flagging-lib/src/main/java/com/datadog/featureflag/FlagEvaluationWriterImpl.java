@@ -89,17 +89,12 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   static final String FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC = "flagevaluation.context.truncated";
   static final String DROP_REASON_QUEUE_OVERFLOW = "queue_overflow";
   static final String DROP_REASON_CLOSED = "closed";
-  static final String DROP_REASON_CONTEXT_ERROR = "context_error";
   static final String DROP_REASON_DEGRADED_CAP = "degraded_cap";
   static final String DROP_REASON_PAYLOAD_LIMIT = "payload_limit";
   static final String DEGRADED_REASON_CARDINALITY_CAP = "cardinality_cap";
   static final String DEGRADED_REASON_PAYLOAD_LIMIT = "payload_limit";
   private static final String FLAG_EVALUATION_ROUTE = "flagevaluation";
   private static final CoreMetricCollector CORE_METRICS = CoreMetricCollector.getInstance();
-
-  // Context pruning limits: max fields and max string value length
-  static final int MAX_CONTEXT_FIELDS = FlagEvaluationAggregator.MAX_CONTEXT_FIELDS;
-  static final int MAX_FIELD_LENGTH = FlagEvaluationAggregator.MAX_FIELD_LENGTH;
 
   private final MessagePassingBlockingQueue<FlagEvalEvent> queue;
   private final FlagEvaluationSerializingHandler serializer;
@@ -315,34 +310,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     serializer.flush();
   }
 
-  // ---- Deterministic context pruning ----
-
-  /**
-   * Produces the deterministically-pruned context map used for both the canonical key and the
-   * serialized payload. Keys are sorted FIRST, then the first {@link #MAX_CONTEXT_FIELDS}
-   * non-oversized values are kept, so two logically-identical contexts always prune to the same
-   * subset (and therefore the same canonical key). Oversized string values (>{@link
-   * #MAX_FIELD_LENGTH} chars) are skipped. Returns an empty map for null/empty input.
-   */
-  static Map<String, Object> pruneContext(final Map<String, Object> attrs) {
-    return FlagEvaluationAggregator.pruneContext(attrs);
-  }
-
-  // ---- Canonical context key ----
-  // Sorted entries, type-tagged length-delimited encoding. NOT a hash (collision-safe string key).
-  // Implementation mirrors dd-trace-go/openfeature/flagevaluation.go canonicalContextKey().
-
-  /**
-   * Builds the canonical context key from the already-pruned context map for the full-tier bucket
-   * identity. Expects a pruned, sorted map (e.g. produced by {@link #pruneContext(Map)}); iterating
-   * a {@link TreeMap} yields keys in sorted order, so the encoding is deterministic.
-   *
-   * <p>Returns an empty string for null/empty context.
-   */
-  static String canonicalContextKey(final Map<String, Object> prunedAttrs) {
-    return FlagEvaluationAggregator.canonicalContextKey(prunedAttrs);
-  }
-
   // ---- Serializing handler (background thread logic) ----
 
   static class FlagEvaluationSerializingHandler implements Runnable {
@@ -478,7 +445,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       try {
         aggregator.aggregate(event);
       } catch (LinkageError | RuntimeException e) {
-        countMetric(FLAG_EVALUATION_DROPPED_METRIC, 1, DROP_REASON_CONTEXT_ERROR);
         LOGGER.debug("Could not aggregate flag evaluation event", e);
       }
     }

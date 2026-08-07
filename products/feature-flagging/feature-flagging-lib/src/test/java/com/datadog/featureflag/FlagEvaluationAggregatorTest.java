@@ -129,20 +129,7 @@ class FlagEvaluationAggregatorTest {
   }
 
   @Test
-  void aggregatorPruneContextIsPassthrough() {
-    // Prune moved to DDEvaluator#copyPrunedContext (hot path); the aggregator method is now a
-    // passthrough kept for source compatibility.
-    final Map<String, Object> attrs = new HashMap<>();
-    attrs.put("k1", "v1");
-    attrs.put("k2", "v2");
-
-    assertEquals(attrs, FlagEvaluationAggregator.pruneContext(attrs));
-  }
-
-  @Test
-  void emptyContextInputsProduceEmptyPrunedMapAndCanonicalKey() {
-    assertEquals(emptyMap(), FlagEvaluationAggregator.pruneContext(null));
-    assertEquals(emptyMap(), FlagEvaluationAggregator.pruneContext(emptyMap()));
+  void emptyContextInputsProduceEmptyCanonicalKey() {
     assertEquals("", FlagEvaluationAggregator.canonicalContextKey(null));
     assertEquals("", FlagEvaluationAggregator.canonicalContextKey(emptyMap()));
   }

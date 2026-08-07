@@ -393,7 +393,7 @@ public class ProviderTest {
     assertThat(event.allocationKey, equalTo("allocation-1"));
     assertThat(event.targetingKey, equalTo("user-1"));
     assertThat(event.evalTimeMs, equalTo(1_700_000_000_000L));
-    assertThat(event.contextAttributes().get("region"), equalTo("us-east-1"));
+    assertThat(event.attrs.get("region"), equalTo("us-east-1"));
   }
 
   @Test

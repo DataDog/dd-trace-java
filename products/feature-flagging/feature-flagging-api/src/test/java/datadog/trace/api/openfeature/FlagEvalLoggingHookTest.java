@@ -535,7 +535,7 @@ class FlagEvalLoggingHookTest {
     cohorts.add(Value.objectToValue("late"));
 
     assertNotNull(captured.get());
-    final Map<String, Object> attrs = captured.get().contextAttributes();
+    final Map<String, Object> attrs = captured.get().attrs;
     assertEquals("us-east-1", attrs.get("region"));
     assertEquals("gold", attrs.get("profile.tier"));
     assertEquals("beta", attrs.get("cohorts[0]"));
