@@ -39,8 +39,8 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
   java {
     removeUnusedImports()
 
-    googleJavaFormat("1.35.0")
-    tableTestFormatter("1.1.1")
+    googleJavaFormat(libs.versions.google.java.format.get())
+    tableTestFormatter(libs.versions.tabletest.formatter.get())
   }
   groovyGradle {
     greclipse()
@@ -49,14 +49,13 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     greclipse()
   }
   kotlinGradle {
-    ktlint("1.8.0")
+    ktlint(libs.versions.ktlint.get())
   }
   kotlin {
-    ktlint("1.8.0")
+    ktlint(libs.versions.ktlint.get())
   }
   scala {
-    // TODO: For some reason Scala format is working correctly with this version only.
-    scalafmt("3.8.6")
+    scalafmt(libs.versions.scalafmt.get())
   }
 }
 apply(from = rootDir.resolve("gradle/spotless.gradle"))

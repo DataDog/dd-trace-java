@@ -9,6 +9,12 @@ jsr305 = "3.0.2"
 shadow = "9.4.2"
 spotbugs_annotations = "4.10.3"
 
+# Source code formatters
+google-java-format = "1.36.1"
+ktlint = "1.8.0"
+scalafmt = "3.11.5"
+tabletest-formatter = "1.1.2"
+
 # DataDog libs and forks
 ddprof = "1.48.1"
 dogstatsd = "4.4.5"
