@@ -8,6 +8,7 @@ import static datadog.trace.util.Strings.isBlank;
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.logging.RatelimitedLogger;
+import datadog.openfeature.internal.core.UfcParser;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
@@ -38,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 final class AgentlessConfigurationSource implements ConfigurationSourceService {
   private static final Logger LOGGER = LoggerFactory.getLogger(AgentlessConfigurationSource.class);
+  private static final UfcParser UFC_PARSER = new UfcParser();
 
   private static final String DATADOG_UFC_RULES_BASED_SERVER_PATH =
       "/api/v2/feature-flagging/config/rules-based/server";
@@ -227,7 +229,7 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
     }
     final ServerConfiguration configuration;
     try {
-      configuration = JsonApiUfcResponseParser.INSTANCE.parse(response.body);
+      configuration = UFC_PARSER.parseJsonApi(response.body);
     } catch (final IOException | RuntimeException e) {
       LOGGER.debug("Feature Flagging HTTP configuration source returned malformed UFC payload", e);
       return false;

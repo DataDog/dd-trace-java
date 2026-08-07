@@ -29,6 +29,8 @@ public class Provider extends EventProvider implements Metadata {
   private static final Logger log = LoggerFactory.getLogger(Provider.class);
   static final String METADATA = "datadog-openfeature-provider";
   private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
+  private static final String AGENT_GATEWAY =
+      "datadog.trace.api.featureflag.FeatureFlaggingGateway";
 
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
@@ -129,7 +131,7 @@ public class Provider extends EventProvider implements Metadata {
       throw e;
     } catch (final Throwable e) {
       markInitializationError();
-      throw new FatalError("Failed to initialize provider, is the tracer configured?", e);
+      throw new FatalError("Failed to initialize provider: " + e.getMessage(), e);
     }
   }
 
@@ -206,6 +208,9 @@ public class Provider extends EventProvider implements Metadata {
     if (evaluator != null) {
       return evaluator;
     }
+    if (!isAgentGatewayAvailable()) {
+      return new StandaloneDDEvaluator(this::onConfigurationChange);
+    }
     final Class<?> evaluatorClass = loadEvaluatorClass();
     final Constructor<?> ctor = evaluatorClass.getConstructor(Runnable.class);
     return (Evaluator) ctor.newInstance((Runnable) this::onConfigurationChange);
@@ -277,6 +282,16 @@ public class Provider extends EventProvider implements Metadata {
   @SuppressForbidden // Class#forName(String) used to lazy-load the evaluator implementation
   protected Class<?> loadEvaluatorClass() throws ClassNotFoundException {
     return Class.forName(EVALUATOR_IMPL);
+  }
+
+  @SuppressForbidden // Class#forName is required because the agent classes are optional
+  protected boolean isAgentGatewayAvailable() {
+    try {
+      Class.forName(AGENT_GATEWAY, false, Provider.class.getClassLoader());
+      return true;
+    } catch (final ClassNotFoundException | LinkageError ignored) {
+      return false;
+    }
   }
 
   private enum InitializationState {
