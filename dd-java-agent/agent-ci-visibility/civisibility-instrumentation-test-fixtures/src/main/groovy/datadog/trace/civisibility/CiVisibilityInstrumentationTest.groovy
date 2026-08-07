@@ -31,7 +31,6 @@ import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.diff.Diff
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.civisibility.domain.BuildSystemSession
-import datadog.trace.civisibility.domain.TestFrameworkModule
 import datadog.trace.civisibility.domain.TestFrameworkSession
 import datadog.trace.civisibility.domain.buildsystem.BuildSystemSessionImpl
 import datadog.trace.civisibility.domain.buildsystem.ModuleSignalRouter
@@ -266,9 +265,10 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
 
     @Override
     <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore, Collection<LibraryCapability> capabilities) {
-      TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(moduleName, component, null, capabilities)
-      TestFrameworkModule testModule = testSession.testModuleStart(moduleName, null)
-      new TestEventsHandlerImpl(metricCollector, testSession, testModule,
+      new TestEventsHandlerImpl(metricCollector,
+      { testFrameworkSessionFactory.startSession(moduleName, component, null, capabilities) },
+      moduleName,
+      false,
       suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
       testStore != null ? testStore : new ConcurrentHashMapContextStore<>())
     }
