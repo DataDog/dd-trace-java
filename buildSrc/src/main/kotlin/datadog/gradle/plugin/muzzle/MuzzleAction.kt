@@ -18,8 +18,11 @@ abstract class MuzzleAction : WorkAction<MuzzleWorkParameters> {
         @Volatile
         private var lastBuildPathCount: Int = 0
 
-        // Keep Gradle's bundled libraries out of muzzle's synthetic application classpath.
-        fun createClassLoader(cp: FileCollection, parent: ClassLoader? = null): ClassLoader {
+        // Keep Gradle's bundled libraries out while retaining platform JDK classes.
+        fun createClassLoader(
+          cp: FileCollection,
+          parent: ClassLoader? = ClassLoader.getSystemClassLoader().parent
+        ): ClassLoader {
             val urls = cp.map { it.toURI().toURL() }.toTypedArray()
             return URLClassLoader(urls, parent)
         }
