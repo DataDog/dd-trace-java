@@ -3,38 +3,32 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   id 'application'
   id 'com.gradleup.shadow'
+  id 'idea'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
-  // This smoke test should be limited to Java 25 and above
-  // But the groovy testing framework cannot run on Java 25
-  // Using Java 8 for now and runs a JVM 25 when forking tests process.
-  // Relying on forked JVM 25 is hardcoded in the test suites (see createProcessBuilder()).
-  minJavaVersion = JavaVersion.VERSION_1_8
-  maxJavaVersion = JavaVersion.VERSION_1_8
-  // Only runs on Temurin build as it spawns a Temurin 25 for test process.
-  excludeJdk = ['IBM8', 'SEMERU8']
+  minJavaVersion = JavaVersion.VERSION_25
 }
 
 description = 'JDK 25 Concurrent Integration Tests'
 
-javaToolchains {
-  java {
-    toolchain {
-      languageVersion = JavaLanguageVersion.of(25)
-    }
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(25)
   }
 }
 
-tasks.named('compileJava', JavaCompile) {
-  configureCompiler(it, 25, JavaVersion.VERSION_25)
-  options.compilerArgs.add("--enable-preview")
+idea {
+  module {
+    jdkName = '25'
+  }
 }
 
-tasks.named('compileTestGroovy') {
-  configureCompiler(it, 8, JavaVersion.VERSION_1_8)
+tasks.withType(JavaCompile).configureEach {
+  configureCompiler(it, 25, JavaVersion.VERSION_25)
+  options.compilerArgs.add("--enable-preview")
 }
 
 application {
@@ -44,6 +38,7 @@ application {
 dependencies {
   implementation group: 'io.opentelemetry.instrumentation', name: 'opentelemetry-instrumentation-annotations', version: '2.19.0'
   testImplementation project(':dd-smoke-tests')
+  testImplementation libs.bundles.junit5
 }
 
 tasks.withType(Test).configureEach {

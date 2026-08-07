@@ -1,0 +1,15 @@
+{
+  "version": "7.54.1",
+  "git_commit": "44d1992",
+  "endpoints": [
+    "/v0.4/traces",
+    "/v0.5/traces",
+    "/v1.0/traces",
+    "/telemetry/proxy/",
+    "/evp_proxy/v2/"
+  ],
+  "client_drop_p0s": true,
+  "span_meta_structs": true,
+  "long_running_spans": true,
+  "config": {}
+}
