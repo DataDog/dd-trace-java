@@ -269,6 +269,106 @@ public class DDEvaluatorTest {
   }
 
   @Test
+  public void testCopyPrunedContextCapsTopLevelFieldCount() {
+    final MutableContext context = new MutableContext();
+    for (int i = 0; i < DDEvaluator.MAX_CONTEXT_FIELDS + 100; i++) {
+      context.add(String.format("k%04d", i), "v");
+    }
+
+    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.size(), equalTo(DDEvaluator.MAX_CONTEXT_FIELDS));
+  }
+
+  @Test
+  public void testCopyPrunedContextSkipsOversizedStringValues() {
+    final char[] longChars = new char[DDEvaluator.MAX_VALUE_LENGTH + 1];
+    java.util.Arrays.fill(longChars, 'x');
+    final MutableContext context = new MutableContext();
+    context.add("keep", "ok");
+    context.add("drop", new String(longChars));
+
+    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result, hasEntry("keep", "ok"));
+    assertThat(result.containsKey("drop"), equalTo(false));
+  }
+
+  @Test
+  public void testCopyPrunedContextSkipsOversizedKeys() {
+    final char[] longKeyChars = new char[DDEvaluator.MAX_KEY_LENGTH + 1];
+    java.util.Arrays.fill(longKeyChars, 'k');
+    final MutableContext context = new MutableContext();
+    context.add("keep", "ok");
+    context.add(new String(longKeyChars), "drop");
+
+    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result, hasEntry("keep", "ok"));
+    assertThat(result.size(), equalTo(1));
+  }
+
+  @Test
+  public void testCopyPrunedContextCapsListWidth() {
+    final List<Value> wide = new java.util.ArrayList<>();
+    for (int i = 0; i < DDEvaluator.MAX_LIST_ELEMENTS + 50; i++) {
+      wide.add(Value.objectToValue("v" + i));
+    }
+    final EvaluationContext context = new MutableContext().add("list", wide);
+
+    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.containsKey("list[0]"), equalTo(true));
+    assertThat(
+        result.containsKey("list[" + (DDEvaluator.MAX_LIST_ELEMENTS - 1) + "]"), equalTo(true));
+    assertThat(result.containsKey("list[" + DDEvaluator.MAX_LIST_ELEMENTS + "]"), equalTo(false));
+  }
+
+  @Test
+  public void testCopyPrunedContextCapsStructureWidth() {
+    final dev.openfeature.sdk.MutableStructure wide = new dev.openfeature.sdk.MutableStructure();
+    for (int i = 0; i < DDEvaluator.MAX_STRUCTURE_PROPERTIES + 50; i++) {
+      wide.add(String.format("p%04d", i), "v");
+    }
+    final EvaluationContext context = new MutableContext().add("struct", wide);
+
+    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+
+    long structKeys = result.keySet().stream().filter(k -> k.startsWith("struct.")).count();
+    assertThat(structKeys, equalTo((long) DDEvaluator.MAX_STRUCTURE_PROPERTIES));
+  }
+
+  @Test
+  public void testCopyPrunedContextTruncatesDeepNesting() {
+    Value nested = new Value("leaf");
+    for (int i = 0; i < 10_000; i++) {
+      nested = new Value(singletonList(nested));
+    }
+    final EvaluationContext context = new MutableContext().add("deep", singletonList(nested));
+
+    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+
+    final StringBuilder truncatedKey = new StringBuilder("deep");
+    for (int i = 0; i < DDEvaluator.MAX_SNAPSHOT_DEPTH; i++) {
+      truncatedKey.append("[0]");
+    }
+    // The recursion stops on the first list element at MAX_SNAPSHOT_DEPTH; deeper elements are
+    // never walked and no entry is emitted for them.
+    assertThat(result.containsKey(truncatedKey.toString()), equalTo(false));
+    assertThat(result.size(), equalTo(0));
+  }
+
+  @Test
+  public void testCopyPrunedContextExcludesTargetingKey() {
+    final MutableContext context = new MutableContext("user-42").add("region", "us-east-1");
+
+    final Map<String, Object> result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result, hasEntry("region", "us-east-1"));
+    assertThat(result.containsKey("targetingKey"), equalTo(false));
+  }
+
+  @Test
   public void testCanonicalFixturesArePresent() throws IOException {
     assertThat(canonicalTestCases().size(), greaterThan(0));
   }

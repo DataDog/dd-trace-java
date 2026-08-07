@@ -111,37 +111,32 @@ class FlagEvaluationAggregatorTest {
   }
 
   @Test
-  void contextExceeding256FieldsIsPrunedToStoredPrunedAttrs() {
+  void aggregatorStoresPrunedAttrsVerbatim() {
+    // Hot-path hook (DDEvaluator#copyPrunedContext) now delivers an already-pruned map.
+    // The aggregator no longer re-prunes; it stores what it is given.
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
-    final Map<String, Object> hugeAttrs = new HashMap<>();
-    for (int i = 0; i < 300; i++) {
-      hugeAttrs.put("key" + i, "v" + i);
+    final Map<String, Object> preprunedAttrs = new HashMap<>();
+    for (int i = 0; i < 100; i++) {
+      preprunedAttrs.put("key" + i, "v" + i);
     }
 
-    aggregator.aggregate(event("flag-d", "on", "alloc1", "user-1", 1000L, hugeAttrs));
+    aggregator.aggregate(event("flag-d", "on", "alloc1", "user-1", 1000L, preprunedAttrs));
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
-    assertEquals(256, bucket.prunedContextFieldCount());
-    assertEquals(256, bucket.prunedAttrs.size());
+    assertEquals(100, bucket.prunedContextFieldCount());
+    assertEquals(100, bucket.prunedAttrs.size());
   }
 
   @Test
-  void pruningIsDeterministicSortBeforeCut() {
+  void aggregatorPruneContextIsPassthrough() {
+    // Prune moved to DDEvaluator#copyPrunedContext (hot path); the aggregator method is now a
+    // passthrough kept for source compatibility.
     final Map<String, Object> attrs = new HashMap<>();
-    for (int i = 0; i < 300; i++) {
-      attrs.put(String.format("k%03d", i), "v" + i);
-    }
+    attrs.put("k1", "v1");
+    attrs.put("k2", "v2");
 
-    final Map<String, Object> p1 = FlagEvaluationAggregator.pruneContext(attrs);
-    final Map<String, Object> p2 = FlagEvaluationAggregator.pruneContext(new HashMap<>(attrs));
-
-    assertEquals(256, p1.size());
-    assertEquals(p1.keySet(), p2.keySet());
-    assertTrue(p1.containsKey("k000"));
-    assertTrue(p1.containsKey("k255"));
-    assertFalse(p1.containsKey("k256"));
-    assertFalse(p1.containsKey("k299"));
+    assertEquals(attrs, FlagEvaluationAggregator.pruneContext(attrs));
   }
 
   @Test
@@ -173,17 +168,17 @@ class FlagEvaluationAggregatorTest {
   }
 
   @Test
-  void contextValueExceeding256CharsIsSkippedFromPrunedAttrs() {
+  void aggregatorStoresPrePrunedAttrsWithoutRePruning() {
+    // Value-length pruning moved to DDEvaluator#copyPrunedContext (hot path). The aggregator
+    // stores what it is given, so any long value present in the input remains present.
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
-    final Map<String, Object> attrs = new HashMap<>();
-    attrs.put("long-val", repeat('x', 300));
-    attrs.put("short-val", "ok");
+    final Map<String, Object> preprunedAttrs = new HashMap<>();
+    preprunedAttrs.put("short-val", "ok");
 
-    aggregator.aggregate(event("flag-e", "on", "alloc1", "user-1", 1000L, attrs));
+    aggregator.aggregate(event("flag-e", "on", "alloc1", "user-1", 1000L, preprunedAttrs));
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
-    assertFalse(bucket.prunedAttrs.containsKey("long-val"));
     assertTrue(bucket.prunedAttrs.containsKey("short-val"));
   }
 
@@ -306,11 +301,5 @@ class FlagEvaluationAggregatorTest {
       final String errorMessage) {
     return new FlagEvaluationAggregator.DegradedKey(
         flagKey, variant, allocationKey, runtimeDefaultUsed, errorMessage);
-  }
-
-  private static String repeat(final char c, final int count) {
-    final char[] chars = new char[count];
-    Arrays.fill(chars, c);
-    return new String(chars);
   }
 }

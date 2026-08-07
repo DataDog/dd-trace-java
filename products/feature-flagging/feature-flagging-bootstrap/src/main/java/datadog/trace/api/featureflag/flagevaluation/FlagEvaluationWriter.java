@@ -18,6 +18,19 @@ public interface FlagEvaluationWriter extends AutoCloseable {
    */
   void enqueue(FlagEvalEvent event);
 
+  /**
+   * Reports whether the internal queue currently has room for another event. Producers should
+   * consult this <em>before</em> performing expensive context-copy work so a saturated queue is
+   * observed as an O(1) read rather than a full snapshot followed by a discarded offer.
+   *
+   * <p>Best-effort: the worker can drain (or a peer producer can fill) between this check and the
+   * next {@link #enqueue}, so callers must still tolerate offer failure.
+   */
+  boolean hasCapacityForEnqueue();
+
+  /** Counts one queue-overflow drop without offering an event. */
+  void countPreQueueOverflow();
+
   /** Starts the background serializing thread. Must be called once after construction. */
   void start();
 

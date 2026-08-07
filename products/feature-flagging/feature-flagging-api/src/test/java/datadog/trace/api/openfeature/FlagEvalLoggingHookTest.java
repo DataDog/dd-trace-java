@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
@@ -63,6 +64,14 @@ class FlagEvalLoggingHookTest {
       public void enqueue(final FlagEvalEvent event) {
         ref.set(event);
       }
+
+      @Override
+      public boolean hasCapacityForEnqueue() {
+        return true;
+      }
+
+      @Override
+      public void countPreQueueOverflow() {}
 
       @Override
       public void start() {}
@@ -287,8 +296,9 @@ class FlagEvalLoggingHookTest {
   // ---- test: hook does NO aggregation on the hook thread ----
 
   @Test
-  void finallyAfterOnlyCallsEnqueueNoOtherWriterMethods() {
+  void finallyAfterOnlyCallsEnqueueAndCapacityCheckOnWriter() {
     final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    when(writer.hasCapacityForEnqueue()).thenReturn(true);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
     final FlagEvaluationDetails<Object> det =
@@ -296,10 +306,29 @@ class FlagEvalLoggingHookTest {
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
-    // Exactly one enqueue call, no start/close.
+    // Capacity check gates the enqueue; exactly one enqueue call; no start/close.
+    verify(writer, times(1)).hasCapacityForEnqueue();
     verify(writer, times(1)).enqueue(any(FlagEvalEvent.class));
+    verify(writer, never()).countPreQueueOverflow();
     verify(writer, never()).close();
     verify(writer, never()).start();
+  }
+
+  @Test
+  void finallyAfterSkipsEnqueueAndCountsDropWhenQueueSaturated() {
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    when(writer.hasCapacityForEnqueue()).thenReturn(false);
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
+
+    final FlagEvaluationDetails<Object> det =
+        details("flag", "v", "v", Reason.TARGETING_MATCH.name(), null);
+
+    hook.finallyAfter(null, det, Collections.emptyMap());
+
+    // Pre-queue guard fires: one capacity check, one drop count, and no enqueue at all.
+    verify(writer, times(1)).hasCapacityForEnqueue();
+    verify(writer, times(1)).countPreQueueOverflow();
+    verify(writer, never()).enqueue(any(FlagEvalEvent.class));
   }
 
   @Test
@@ -380,7 +409,7 @@ class FlagEvalLoggingHookTest {
   }
 
   @Test
-  void contextAttributesAreFlattenedAndConvertedAfterEnqueue() {
+  void contextAttributesAreFlattenedAndConvertedInline() {
     final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
@@ -406,8 +435,10 @@ class FlagEvalLoggingHookTest {
     hook.finallyAfter(hookCtx, det, Collections.emptyMap());
 
     assertNotNull(captured.get());
-    assertTrue(captured.get().attrs.isEmpty(), "hook must not flatten context before enqueue");
-    final Map<String, Object> attrs = captured.get().contextAttributes();
+    // Flatten now happens inline in DDEvaluator#copyPrunedContext on the hot path, so the event
+    // arrives with attrs already populated (no deferred supplier).
+    final Map<String, Object> attrs = captured.get().attrs;
+    assertFalse(attrs.isEmpty(), "hook must flatten context inline");
     assertEquals(42, attrs.get("score"));
     assertEquals("gold", attrs.get("profile.tier"));
     assertFalse(attrs.containsKey("targetingKey"));

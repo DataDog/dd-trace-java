@@ -196,25 +196,16 @@ final class FlagEvaluationAggregator {
         event.errorMessage);
   }
 
+  /**
+   * Returns the caller-provided context map unchanged. The hot-path hook now emits an
+   * already-pruned map (see {@code DDEvaluator#copyPrunedContext}); the aggregator no longer needs
+   * to re-prune. Kept as a passthrough so tests and older call sites continue to compile.
+   */
   static Map<String, Object> pruneContext(final Map<String, Object> attrs) {
     if (attrs == null || attrs.isEmpty()) {
       return java.util.Collections.emptyMap();
     }
-    final TreeMap<String, Object> out = new TreeMap<>();
-    final TreeMap<String, Object> sorted = new TreeMap<>(attrs);
-    int count = 0;
-    for (final Map.Entry<String, Object> entry : sorted.entrySet()) {
-      if (count >= MAX_CONTEXT_FIELDS) {
-        break;
-      }
-      final Object v = entry.getValue();
-      if (v instanceof String && ((String) v).length() > MAX_FIELD_LENGTH) {
-        continue;
-      }
-      out.put(entry.getKey(), v);
-      count++;
-    }
-    return out;
+    return attrs;
   }
 
   static String canonicalContextKey(final Map<String, Object> prunedAttrs) {

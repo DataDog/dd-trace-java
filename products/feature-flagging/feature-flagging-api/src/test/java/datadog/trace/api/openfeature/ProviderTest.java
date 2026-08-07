@@ -464,6 +464,14 @@ public class ProviderTest {
       }
 
       @Override
+      public boolean hasCapacityForEnqueue() {
+        return true;
+      }
+
+      @Override
+      public void countPreQueueOverflow() {}
+
+      @Override
       public void start() {}
 
       @Override

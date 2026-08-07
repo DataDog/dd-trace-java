@@ -52,14 +52,49 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
 
   /**
-   * Maximum evaluation-context nesting depth captured by {@link #snapshotValues}. The snapshot
-   * recurses on the caller's evaluation thread over a caller-owned {@link Value} tree, so an
-   * arbitrarily deep list/structure would overflow that thread's stack - and a {@code
-   * StackOverflowError} is not caught by the {@code LinkageError | Exception} guards that keep
-   * telemetry from breaking an evaluation. Values below the limit are truncated to null, the same
-   * way the cycle guard truncates. No realistic evaluation context nests this deeply.
+   * Maximum evaluation-context nesting depth captured on the hot path. Recursion runs on the
+   * caller's evaluation thread over a caller-owned {@link Value} tree, so an arbitrarily deep
+   * list/structure would overflow that thread's stack - and a {@code StackOverflowError} is not
+   * caught by the {@code LinkageError | Exception} guards that keep telemetry from breaking an
+   * evaluation. Values below the limit are truncated to null, the same way the cycle guard
+   * truncates. Kept aligned with the cross-SDK RFC target (4).
    */
   static final int MAX_SNAPSHOT_DEPTH = 4;
+
+  /**
+   * Maximum number of top-level context fields retained by {@link #copyPrunedContext}. Bounds the
+   * width of the caller-supplied context and, transitively, the size of every {@link FlagEvalEvent}
+   * sitting in the async hand-off queue. Kept aligned with the cross-SDK RFC.
+   */
+  static final int MAX_CONTEXT_FIELDS = 256;
+
+  /**
+   * Maximum character length for a single context KEY retained by {@link #copyPrunedContext}. Keys
+   * are stored verbatim in every full-tier bucket, so an unbounded key size would let a single
+   * caller inflate steady-state heap use. Longer keys cause the field to be skipped.
+   */
+  static final int MAX_KEY_LENGTH = 256;
+
+  /**
+   * Maximum character length for a single context string VALUE retained by {@link
+   * #copyPrunedContext}. Longer values cause the field to be skipped (matches previous {@code
+   * pruneContext} behavior). Non-string scalars are not length-bounded.
+   */
+  static final int MAX_VALUE_LENGTH = 256;
+
+  /**
+   * Maximum number of elements walked per list encountered during {@link #copyPrunedContext}.
+   * Bounds the fan-out of a single wide list at capture time so one caller cannot inflate the hot
+   * path with a huge but shallow structure. Elements past the limit are skipped.
+   */
+  static final int MAX_LIST_ELEMENTS = 256;
+
+  /**
+   * Maximum number of properties walked per structure encountered during {@link
+   * #copyPrunedContext}. Same intent as {@link #MAX_LIST_ELEMENTS} for structures. Properties past
+   * the limit are skipped.
+   */
+  static final int MAX_STRUCTURE_PROPERTIES = 256;
 
   // Evaluation-metadata keys consumed by the span-enrichment capture hook (see
   // SpanEnrichmentHook). Emitted only when the span-enrichment gate is on.
@@ -643,6 +678,113 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       return value.asInstant().toString();
     }
     throw new IllegalArgumentException("Unsupported OpenFeature value type: " + value);
+  }
+
+  /**
+   * Single-pass bounded copy of a caller-owned {@link EvaluationContext} into the flattened, pruned
+   * map stored on a {@link FlagEvalEvent} and later canonicalized by the aggregator.
+   *
+   * <p>Every retained-size dimension is capped inline so the hot path performs work proportional to
+   * what is <em>kept</em>, never to what the caller supplied:
+   *
+   * <ul>
+   *   <li>{@link #MAX_CONTEXT_FIELDS} - stop iterating the top-level context past this many
+   *       retained fields
+   *   <li>{@link #MAX_KEY_LENGTH} - skip fields whose flattened key exceeds this length (also
+   *       enforced on every path segment produced by descending into lists/structures)
+   *   <li>{@link #MAX_VALUE_LENGTH} - skip string values exceeding this length
+   *   <li>{@link #MAX_LIST_ELEMENTS} - stop iterating a list past this many elements
+   *   <li>{@link #MAX_STRUCTURE_PROPERTIES} - stop iterating a structure past this many properties
+   *   <li>{@link #MAX_SNAPSHOT_DEPTH} - stop descending into lists/structures past this depth
+   *   <li>Cycle guard - identity-tracked containers currently on the recursion stack are treated as
+   *       leaves
+   * </ul>
+   *
+   * <p>All numeric limits are named constants so they can be tuned independently.
+   *
+   * <p>Returns an empty map for null/empty input. The returned map is a plain {@link HashMap};
+   * canonical-key sorting happens once in the aggregator, off the hot path.
+   */
+  static Map<String, Object> copyPrunedContext(final EvaluationContext context) {
+    if (context == null) {
+      return Collections.emptyMap();
+    }
+    final Set<String> keys = context.keySet();
+    if (keys.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    final HashMap<String, Object> out = new HashMap<>();
+    final Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+    for (final String key : keys) {
+      if (out.size() >= MAX_CONTEXT_FIELDS) {
+        break;
+      }
+      if (EvaluationContext.TARGETING_KEY.equals(key)) {
+        continue;
+      }
+      copyPrunedValue(out, key, context.getValue(key), seen, 0);
+    }
+    return out.isEmpty() ? Collections.emptyMap() : out;
+  }
+
+  private static void copyPrunedValue(
+      final Map<String, Object> out,
+      final String key,
+      final Value value,
+      final Set<Object> seen,
+      final int depth) {
+    if (out.size() >= MAX_CONTEXT_FIELDS) {
+      return;
+    }
+    if (key.length() > MAX_KEY_LENGTH) {
+      return;
+    }
+    if (value == null || value.isNull()) {
+      out.put(key, null);
+      return;
+    }
+    if (value.isString()) {
+      final String s = value.asString();
+      if (s.length() > MAX_VALUE_LENGTH) {
+        return;
+      }
+      out.put(key, s);
+      return;
+    }
+    if (value.isBoolean() || value.isNumber() || value.isInstant()) {
+      out.put(key, convertValue(value));
+      return;
+    }
+    if (value.isList()) {
+      final List<Value> list = value.asList();
+      if (depth >= MAX_SNAPSHOT_DEPTH || !seen.add(list)) {
+        return;
+      }
+      final int limit = Math.min(list.size(), MAX_LIST_ELEMENTS);
+      for (int i = 0; i < limit; i++) {
+        if (out.size() >= MAX_CONTEXT_FIELDS) {
+          break;
+        }
+        copyPrunedValue(out, key + "[" + i + "]", list.get(i), seen, depth + 1);
+      }
+      seen.remove(list);
+      return;
+    }
+    if (value.isStructure()) {
+      final Structure structure = value.asStructure();
+      if (depth >= MAX_SNAPSHOT_DEPTH || !seen.add(structure)) {
+        return;
+      }
+      int walked = 0;
+      for (final String property : structure.keySet()) {
+        if (walked >= MAX_STRUCTURE_PROPERTIES || out.size() >= MAX_CONTEXT_FIELDS) {
+          break;
+        }
+        walked++;
+        copyPrunedValue(out, key + "." + property, structure.getValue(property), seen, depth + 1);
+      }
+      seen.remove(structure);
+    }
   }
 
   @FunctionalInterface

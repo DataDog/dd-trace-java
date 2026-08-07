@@ -247,10 +247,28 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     // the queue's own offer/poll ordering, not from any monitor held here.
     //
     // Non-blocking offer. Count overflow so loss is observable rather than silent; the count is
-    // surfaced on the next flush.
+    // surfaced on the next flush. The hook's pre-queue guard (see FlagEvalLoggingHook) samples the
+    // queue depth before doing any context-copy work, so a saturated queue costs an
+    // AtomicInteger.get(); the offer here still races with the worker and can legitimately fail.
     if (!queue.offer(event)) {
       droppedQueueOverflow.incrementAndGet();
     }
+  }
+
+  /**
+   * Reports whether the async hand-off queue currently has room for another event. Producers
+   * consult this before performing any expensive context-copy work so a saturated queue is observed
+   * as an O(1) read rather than a full snapshot followed by a discarded offer. Best-effort only:
+   * the worker can drain (or a peer producer can fill) between this check and the subsequent {@link
+   * #enqueue}, so callers must still tolerate offer failure.
+   */
+  public boolean hasCapacityForEnqueue() {
+    return queue.size() < queue.capacity();
+  }
+
+  /** Counts one queue-overflow drop without offering an event. */
+  public void countPreQueueOverflow() {
+    droppedQueueOverflow.incrementAndGet();
   }
 
   private boolean isClosedOrEnqueueDisabled() {
