@@ -4,6 +4,7 @@ import datadog.trace.api.llmobs.noop.NoOpLLMObsEvalProcessor;
 import datadog.trace.api.llmobs.noop.NoOpLLMObsSpanFactory;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.Nullable;
 
 public class LLMObs {
@@ -11,6 +12,7 @@ public class LLMObs {
 
   protected static LLMObsSpanFactory SPAN_FACTORY = NoOpLLMObsSpanFactory.INSTANCE;
   protected static LLMObsEvalProcessor EVAL_PROCESSOR = NoOpLLMObsEvalProcessor.INSTANCE;
+  @Nullable protected static volatile LLMObsSpanProcessor SPAN_PROCESSOR;
 
   public static LLMObsSpan startLLMSpan(
       String spanName,
@@ -58,6 +60,31 @@ public class LLMObs {
   public static LLMObsSpan startRetrievalSpan(
       String spanName, @Nullable String mlApp, @Nullable String sessionId) {
     return SPAN_FACTORY.startRetrievalSpan(spanName, mlApp, sessionId);
+  }
+
+  /**
+   * Registers a processor to be called for each LLM Observability span before it is sent.
+   *
+   * <p>The processor can modify the span input and output, or return {@code null} to omit the span
+   * from LLM Observability. Only one processor can be registered at a time.
+   *
+   * @param processor the processor to register
+   * @throws NullPointerException if {@code processor} is {@code null}
+   * @throws IllegalStateException if a processor is already registered
+   */
+  public static synchronized void registerProcessor(LLMObsSpanProcessor processor) {
+    Objects.requireNonNull(processor, "processor");
+    if (SPAN_PROCESSOR != null) {
+      throw new IllegalStateException(
+          "An LLM Observability span processor is already registered. "
+              + "Deregister it before registering another.");
+    }
+    SPAN_PROCESSOR = processor;
+  }
+
+  /** Deregisters the current LLM Observability span processor, if one is registered. */
+  public static synchronized void deregisterProcessor() {
+    SPAN_PROCESSOR = null;
   }
 
   public static void SubmitEvaluation(

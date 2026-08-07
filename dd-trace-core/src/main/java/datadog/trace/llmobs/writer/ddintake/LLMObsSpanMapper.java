@@ -8,7 +8,11 @@ import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.api.llmobs.LLMObs;
+import datadog.trace.api.llmobs.LLMObsInternal;
+import datadog.trace.api.llmobs.LLMObsSpanData;
+import datadog.trace.api.llmobs.LLMObsSpanProcessor;
 import datadog.trace.api.llmobs.LLMObsTags;
+import datadog.trace.api.telemetry.LLMObsMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.Payload;
@@ -20,6 +24,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,6 +38,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LLMObsSpanMapper implements RemoteMapper {
+
+  private static final boolean[] NO_DROPPED_SPANS = new boolean[0];
 
   // Well known tags for LLM obs will be prefixed with _ml_obs_(tags|metrics).
   // Prefix for tags
@@ -96,6 +103,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private final int size;
 
   private final ByteBuffer header;
+  private boolean[] pendingDroppedSpans;
   private int spansWritten;
 
   public LLMObsSpanMapper() {
@@ -120,6 +128,15 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
   @Override
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
+    this.map(trace, writable, false);
+  }
+
+  @Override
+  public void map(List<? extends CoreSpan<?>> trace, Writable writable, boolean retry) {
+    if (!retry) {
+      pendingDroppedSpans = null;
+    }
+
     List<? extends CoreSpan<?>> llmobsSpans =
         trace.stream().filter(LLMObsSpanMapper::isLLMObsSpan).collect(Collectors.toList());
 
@@ -127,6 +144,8 @@ public class LLMObsSpanMapper implements RemoteMapper {
       // do nothing if no llmobs spans in the trace
       return;
     }
+
+    llmobsSpans = processSpans(llmobsSpans, retry);
 
     for (CoreSpan<?> span : llmobsSpans) {
       // Read session_id off the span before opening the map so we can size it correctly.
@@ -193,6 +212,62 @@ public class LLMObsSpanMapper implements RemoteMapper {
     // Increase only after all spans have been written. This way, if it rolls back because of a
     // buffer overflow, the counter won't be skewed.
     spansWritten += llmobsSpans.size();
+    pendingDroppedSpans = null;
+  }
+
+  private List<? extends CoreSpan<?>> processSpans(
+      List<? extends CoreSpan<?>> spans, boolean retry) {
+    if (retry && pendingDroppedSpans != null) {
+      boolean[] droppedSpans = pendingDroppedSpans;
+      pendingDroppedSpans = null;
+      if (droppedSpans.length == 0) {
+        return spans;
+      }
+
+      List<CoreSpan<?>> processedSpans = new ArrayList<>(spans.size());
+      for (int i = 0; i < spans.size(); i++) {
+        if (!droppedSpans[i]) {
+          processedSpans.add(spans.get(i));
+        }
+      }
+      return processedSpans;
+    }
+
+    LLMObsSpanProcessor processor = LLMObsInternal.getSpanProcessor();
+    if (processor == null) {
+      return spans;
+    }
+
+    pendingDroppedSpans = NO_DROPPED_SPANS;
+    List<CoreSpan<?>> processedSpans = new ArrayList<>(spans.size());
+    for (int i = 0; i < spans.size(); i++) {
+      CoreSpan<?> span = spans.get(i);
+      boolean processorError = false;
+      try {
+        LLMObsSpanDataAdapter adapter = new LLMObsSpanDataAdapter(span);
+        LLMObsSpanData result = processor.process(adapter);
+        if (result != null) {
+          adapter.apply(result);
+          processedSpans.add(span);
+        } else {
+          markDroppedSpan(i, spans.size());
+        }
+      } catch (RuntimeException error) {
+        processorError = true;
+        markDroppedSpan(i, spans.size());
+        LOGGER.warn("Error in LLM Observability span processor, dropping span", error);
+      } finally {
+        LLMObsMetricCollector.get().recordUserProcessorCalled(processorError);
+      }
+    }
+    return processedSpans;
+  }
+
+  private void markDroppedSpan(int index, int spanCount) {
+    if (pendingDroppedSpans.length == 0) {
+      pendingDroppedSpans = new boolean[spanCount];
+    }
+    pendingDroppedSpans[index] = true;
   }
 
   private CharSequence llmObsSpanName(CoreSpan<?> span) {

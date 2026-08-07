@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -28,23 +29,48 @@ class LLMObsTest {
 
   private static Object originalSpanFactory;
   private static Object originalEvalProcessor;
+  private static Object originalSpanProcessor;
 
   @BeforeAll
   static void setupSpec() throws Exception {
     originalSpanFactory = getStaticField("SPAN_FACTORY");
     originalEvalProcessor = getStaticField("EVAL_PROCESSOR");
+    originalSpanProcessor = getStaticField("SPAN_PROCESSOR");
   }
 
   @AfterAll
   static void cleanupSpec() throws Exception {
     setStaticField("SPAN_FACTORY", originalSpanFactory);
     setStaticField("EVAL_PROCESSOR", originalEvalProcessor);
+    setStaticField("SPAN_PROCESSOR", originalSpanProcessor);
   }
 
   @AfterEach
   void cleanup() throws Exception {
     setStaticField("SPAN_FACTORY", NoOpLLMObsSpanFactory.INSTANCE);
     setStaticField("EVAL_PROCESSOR", NoOpLLMObsEvalProcessor.INSTANCE);
+    LLMObs.deregisterProcessor();
+  }
+
+  @Test
+  void testRegisterAndDeregisterProcessor() throws Exception {
+    LLMObsSpanData span = mock(LLMObsSpanData.class);
+    LLMObsSpanProcessor processor = registeredSpan -> registeredSpan;
+
+    LLMObs.registerProcessor(processor);
+
+    assertSame(processor, getStaticField("SPAN_PROCESSOR"));
+    assertSame(span, processor.process(span));
+    assertThrows(IllegalStateException.class, () -> LLMObs.registerProcessor(processor));
+
+    LLMObs.deregisterProcessor();
+
+    assertNull(getStaticField("SPAN_PROCESSOR"));
+  }
+
+  @Test
+  void testRegisterNullProcessor() {
+    assertThrows(NullPointerException.class, () -> LLMObs.registerProcessor(null));
   }
 
   @Test
