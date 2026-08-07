@@ -1918,7 +1918,8 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.closeWafContext()
     1 * ctx.reportDerivatives(['_dd.appsec.trace.agent':'RulesCompat/v1', '_dd.appsec.trace.integer': 123456789])
     1 * ctx.isThrottled(null)
-    1 * ctx.reportEvents([])
+    // libddwaf 2.0.1: ResultWithData.events now reflects the real "events" array, so attributes-only matches don't call reportEvents().
+    0 * ctx.reportEvents(_)
     0 * ctx._(*_)
     !flow1.blocking
 
@@ -1937,7 +1938,8 @@ class WAFModuleSpecification extends DDSpecification {
     1 * ctx.reportDerivatives(['_dd.appsec.trace.agent':'RulesCompat/v2', '_dd.appsec.trace.integer': 987654321])
     1 * ctx.isThrottled(null)
     1 * ctx.setManuallyKept(true)
-    1 * ctx.reportEvents([])
+    // See comment on the previous scenario: event:false means no entry in the "events" array.
+    0 * ctx.reportEvents(_)
     0 * ctx._(*_)
     !flow2.blocking
 
