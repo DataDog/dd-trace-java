@@ -59,7 +59,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
    * telemetry from breaking an evaluation. Values below the limit are truncated to null, the same
    * way the cycle guard truncates. No realistic evaluation context nests this deeply.
    */
-  static final int MAX_SNAPSHOT_DEPTH = 32;
+  static final int MAX_SNAPSHOT_DEPTH = 4;
 
   // Evaluation-metadata keys consumed by the span-enrichment capture hook (see
   // SpanEnrichmentHook). Emitted only when the span-enrichment gate is on.

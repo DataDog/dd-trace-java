@@ -64,7 +64,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluationWriterImpl.class);
 
-  static final int DEFAULT_CAPACITY = 1 << 16; // 65536 elements
+  static final int DEFAULT_CAPACITY = 1 << 12; // 4096 elements, per cross-SDK RFC
   static final int FLUSH_INTERVAL_SECONDS = 10;
 
   /**
