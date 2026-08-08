@@ -174,7 +174,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         return error(defaultValue, ErrorCode.GENERAL, "Missing allocations for flag " + key);
       }
 
-      final Date now = new Date();
+      final long evalTimestampMs = System.currentTimeMillis();
+      final Date now = new Date(evalTimestampMs);
       final String targetingKey = context.getTargetingKey();
 
       for (final Allocation allocation : flag.allocations) {
@@ -192,7 +193,15 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           for (final Split split : allocation.splits) {
             if (isEmpty(split.shards)) {
               return resolveVariant(
-                  target, key, defaultValue, flag, split.variationKey, allocation, split, context);
+                  target,
+                  key,
+                  defaultValue,
+                  flag,
+                  split.variationKey,
+                  allocation,
+                  split,
+                  context,
+                  evalTimestampMs);
             } else {
               if (targetingKey == null) {
                 return error(defaultValue, ErrorCode.TARGETING_KEY_MISSING);
@@ -214,7 +223,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
                     split.variationKey,
                     allocation,
                     split,
-                    context);
+                    context,
+                    evalTimestampMs);
               }
             }
           }
@@ -411,7 +421,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final String variationKey,
       final Allocation allocation,
       final Split split,
-      final EvaluationContext context) {
+      final EvaluationContext context,
+      final long evalTimestampMs) {
     final Variant variant = flag.variations.get(variationKey);
     if (variant == null) {
       return ProviderEvaluation.<T>builder()
@@ -448,14 +459,13 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     }
 
     // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
-    // not hook-fire time. Passed to the hook via provider metadata "dd.eval.timestamp_ms".
-    final long evalTimestampMs = System.currentTimeMillis();
+    // not hook-fire time. Passed to the hook via provider metadata "__dd_eval_timestamp_ms".
     final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder =
         ImmutableMetadata.builder()
             .addString("flagKey", flag.key)
             .addString("variationType", flag.variationType.name())
             .addString("allocationKey", allocation.key)
-            .addLong("dd.eval.timestamp_ms", evalTimestampMs);
+            .addLong("__dd_eval_timestamp_ms", evalTimestampMs);
     // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment —
     // only when span enrichment is on, so a provider without enrichment pays nothing extra.
     // __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log is always

@@ -375,7 +375,7 @@ public class ProviderTest {
                 .flagMetadata(
                     ImmutableMetadata.builder()
                         .addString("allocationKey", "allocation-1")
-                        .addLong("dd.eval.timestamp_ms", 1_700_000_000_000L)
+                        .addLong("__dd_eval_timestamp_ms", 1_700_000_000_000L)
                         .build())
                 .build());
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();

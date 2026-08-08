@@ -98,9 +98,9 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // allocationKey: "allocationKey" (camelCase) - consistent with FlagEvalMetricsHook.java
       final String allocationKey = metadata != null ? metadata.getString("allocationKey") : null;
 
-      // eval-time: from flag metadata "dd.eval.timestamp_ms" (Long), fallback to hook-fire time.
+      // eval-time: from flag metadata "__dd_eval_timestamp_ms" (Long), fallback to hook-fire time.
       // ImmutableMetadata.getLong available since sdk 1.4+.
-      final Long evalTimeObj = metadata != null ? metadata.getLong("dd.eval.timestamp_ms") : null;
+      final Long evalTimeObj = metadata != null ? metadata.getLong("__dd_eval_timestamp_ms") : null;
       final long evalTimeMs = evalTimeObj != null ? evalTimeObj : System.currentTimeMillis();
 
       // variant: the OpenFeature variant key (same source as the OTel FlagEvalMetricsHook), NOT the

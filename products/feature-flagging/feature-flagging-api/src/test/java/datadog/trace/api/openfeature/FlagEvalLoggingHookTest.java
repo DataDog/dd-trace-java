@@ -165,7 +165,7 @@ class FlagEvalLoggingHookTest {
         "variant must be sourced from details.getVariant(), not details.getValue()");
   }
 
-  // ---- test: evalTimeMs from metadata "dd.eval.timestamp_ms" ----
+  // ---- test: evalTimeMs from metadata "__dd_eval_timestamp_ms" ----
 
   @Test
   void evalTimeMsComesFromMetadataWhenPresent() {
@@ -181,7 +181,7 @@ class FlagEvalLoggingHookTest {
             Reason.SPLIT.name(),
             ImmutableMetadata.builder()
                 .addString("allocationKey", "a")
-                .addLong("dd.eval.timestamp_ms", expectedTimestamp)
+                .addLong("__dd_eval_timestamp_ms", expectedTimestamp)
                 .build());
 
     hook.finallyAfter(null, det, Collections.emptyMap());
@@ -190,7 +190,7 @@ class FlagEvalLoggingHookTest {
     assertEquals(
         expectedTimestamp,
         captured.get().evalTimeMs,
-        "evalTimeMs must come from dd.eval.timestamp_ms metadata when present");
+        "evalTimeMs must come from __dd_eval_timestamp_ms metadata when present");
   }
 
   // ---- test: evalTimeMs falls back to System.currentTimeMillis() when absent ----

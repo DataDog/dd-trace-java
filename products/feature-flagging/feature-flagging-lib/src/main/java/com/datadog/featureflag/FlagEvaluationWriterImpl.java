@@ -431,9 +431,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     // ---- Flush logic ----
 
     void flushIfNecessary() {
-      if (aggregator.isEmpty() && droppedQueueOverflow.get() == 0) {
-        return;
-      }
       if (shouldFlush()) {
         flush();
       }
@@ -528,6 +525,9 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     }
 
     private boolean shouldFlush() {
+      if (aggregator.isEmpty() && droppedQueueOverflow.get() == 0) {
+        return false;
+      }
       final long nanoTime = System.nanoTime();
       final long ticks = nanoTime - lastTicks;
       if (ticks > ticksRequiredToFlush) {
