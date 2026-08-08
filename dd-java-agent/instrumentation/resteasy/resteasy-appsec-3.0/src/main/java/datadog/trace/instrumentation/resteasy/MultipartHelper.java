@@ -6,17 +6,21 @@ import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.http.MultipartContentDecoder;
-import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class MultipartHelper {
+
+  private static final Logger log = LoggerFactory.getLogger(MultipartHelper.class);
 
   public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
   public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
@@ -33,6 +37,142 @@ public final class MultipartHelper {
     } catch (NoSuchMethodException ignored) {
     }
     GET_HEADERS = m;
+  }
+
+  /**
+   * Builds the {@code server.request.body} map out of the multipart parts.
+   *
+   * <p>Only text/plain parts with no {@code filename} attribute are collected, matching the intent
+   * of the Jersey reference: file parts (including a file declared with a {@code text/plain}
+   * content-type) are reported separately via {@link #collectFilenames} / {@link
+   * #collectFilesContent} and must not also consume the body-map budget, or a request could pad out
+   * the cap with disposable text-file parts and push a real form field out of the map. The number
+   * of collected values is capped by {@link #MAX_FILES_TO_INSPECT}. The cap counts the total
+   * accumulated values across all field names, not the distinct keys: {@code getFormDataMap()}
+   * already groups parts by field name, so a per-key cap would be trivially bypassed by repeating
+   * the same field name on every part.
+   */
+  public static Map<String, List<String>> collectBodyMap(MultipartFormDataInput ret) {
+    Map<String, List<String>> bodyMap = new HashMap<>();
+    int total = 0;
+    for (Map.Entry<String, List<InputPart>> e : ret.getFormDataMap().entrySet()) {
+      for (InputPart inputPart : e.getValue()) {
+        Map<String, List<String>> headers = headersOf(inputPart);
+        String contentType = contentTypeOf(headers);
+        if (!isTextPlain(contentType) || hasFilename(headers)) {
+          continue;
+        }
+        if (total >= MAX_FILES_TO_INSPECT) {
+          return bodyMap;
+        }
+        bodyMap
+            .computeIfAbsent(e.getKey(), k -> new ArrayList<>())
+            .add(readContent(inputPart, contentTypeWithDefaultUtf8(contentType)));
+        total++;
+      }
+    }
+    return bodyMap;
+  }
+
+  // No Content-Type header means RESTEasy defaults the part to text/plain (see InputPart's own
+  // javadoc), so a null contentType is treated as text/plain here as well.
+  private static boolean isTextPlain(String contentType) {
+    if (contentType == null) {
+      return true;
+    }
+    int semi = contentType.indexOf(';');
+    String mediaType = (semi >= 0 ? contentType.substring(0, semi) : contentType).trim();
+    return mediaType.equalsIgnoreCase("text/plain");
+  }
+
+  // Used for the body-map/text-field path only: matches Jersey's own getValue(), which decodes
+  // undeclared-charset text parts as UTF-8 instead of falling back to the JVM platform charset
+  // (MultipartContentDecoder's default for the filesContent path, kept as-is for parity with the
+  // other multipart integrations).
+  private static String contentTypeWithDefaultUtf8(String contentType) {
+    return MultipartContentDecoder.extractCharset(contentType) == null
+        ? (contentType == null ? "text/plain; charset=UTF-8" : contentType + "; charset=UTF-8")
+        : contentType;
+  }
+
+  // Used by collectBodyMap only: collectFilenames/collectFilesContent do their own reflective
+  // getHeaders() call and are intentionally left untouched (out of scope, already correct).
+  private static Map<String, List<String>> headersOf(InputPart inputPart) {
+    if (GET_HEADERS == null) {
+      return null;
+    }
+    try {
+      @SuppressWarnings("unchecked")
+      Map<String, List<String>> headers = (Map<String, List<String>>) GET_HEADERS.invoke(inputPart);
+      return headers;
+    } catch (Exception e) {
+      // Reflective getHeaders() call failed (unexpected InputPart implementation): fall back to
+      // resolving no headers rather than aborting the whole request's body-map collection.
+      log.debug("Failed to read multipart part headers via reflection", e);
+      return null;
+    }
+  }
+
+  private static String contentTypeOf(Map<String, List<String>> headers) {
+    if (headers == null) {
+      return null;
+    }
+    List<String> ctHeaders = getHeaderCaseInsensitive(headers, "Content-Type");
+    return (ctHeaders != null && !ctHeaders.isEmpty()) ? ctHeaders.get(0) : null;
+  }
+
+  // A part with a filename attribute (present, even if empty) is a file upload, not a form field,
+  // regardless of its declared content-type: a file can be declared text/plain and would otherwise
+  // pass isTextPlain() and consume the body-map budget meant for genuine form fields. Uses
+  // hasFilenameParam() rather than rawFilenameFromContentDisposition(), which deliberately ignores
+  // the RFC 5987 "filename*" form: a part carrying only "filename*" must still be excluded here.
+  // collectFilesContent() uses the same hasFilenameParam() gate, so such a part is still inspected
+  // there even though this file never decodes its filename* value.
+  private static boolean hasFilename(Map<String, List<String>> headers) {
+    if (headers == null) {
+      return false;
+    }
+    List<String> cdHeaders = getHeaderCaseInsensitive(headers, "Content-Disposition");
+    if (cdHeaders == null || cdHeaders.isEmpty()) {
+      return false;
+    }
+    return hasFilenameParam(cdHeaders.get(0));
+  }
+
+  // Presence-only counterpart of rawFilenameFromContentDisposition(): recognizes both the plain
+  // "filename" parameter and the RFC 5987 extended "filename*" form (e.g. filename*=UTF-8''a.txt),
+  // since either form marks the part as a file upload. Unlike rawFilenameFromContentDisposition(),
+  // this never needs to decode the value, so the RFC 5987 charset/percent-encoding is irrelevant
+  // here. Shares the same quote-aware semicolon scanning; see rawFilenameFromContentDisposition()
+  // for the rationale.
+  private static boolean hasFilenameParam(String cd) {
+    if (cd == null) return false;
+    int i = 0;
+    int len = cd.length();
+    while (i < len) {
+      while (i < len && cd.charAt(i) != ';') {
+        if (cd.charAt(i) == '"') {
+          i++;
+          while (i < len && cd.charAt(i) != '"') {
+            if (cd.charAt(i) == '\\') i++;
+            i++;
+          }
+        }
+        i++;
+      }
+      if (i >= len) break;
+      i++;
+      while (i < len && (cd.charAt(i) == ' ' || cd.charAt(i) == '\t')) i++;
+      if (cd.regionMatches(true, i, "filename", 0, 8)) {
+        int j = i + 8;
+        if (j < len && cd.charAt(j) == '*') j++;
+        while (j < len && (cd.charAt(j) == ' ' || cd.charAt(j) == '\t')) j++;
+        if (j < len && cd.charAt(j) == '=') {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   public static List<String> collectFilenames(MultipartFormDataInput ret) {
@@ -89,9 +229,9 @@ public final class MultipartHelper {
         if (cdHeaders == null || cdHeaders.isEmpty()) {
           continue;
         }
-        // rawFilenameFromContentDisposition returns null if filename attr absent,
-        // otherwise returns the value (possibly empty) — both cases warrant content inspection
-        if (rawFilenameFromContentDisposition(cdHeaders.get(0)) == null) {
+        // hasFilenameParam recognizes both filename and filename* (see its javadoc): a part with
+        // neither is a plain form field, already covered by collectBodyMap, and skipped here.
+        if (!hasFilenameParam(cdHeaders.get(0))) {
           continue;
         }
         List<String> ctHeaders = getHeaderCaseInsensitive(headers, "Content-Type");
@@ -121,7 +261,10 @@ public final class MultipartHelper {
     try (InputStream is = inputPart.getBody(InputStream.class, null)) {
       if (is == null) return "";
       return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
-    } catch (IOException ignored) {
+    } catch (Exception e) {
+      // getBody()/readInputStream() can throw unchecked exceptions too (e.g. a MessageBodyReader
+      // lookup failure); one bad part must not abort the whole request's body/content collection.
+      log.debug("Failed to read multipart part content, returning empty string", e);
       return "";
     }
   }
