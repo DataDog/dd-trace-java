@@ -130,6 +130,59 @@ class LLMObsTest {
   }
 
   @Test
+  void testAnnotatePromptIsCompatibilityPreservingDefaultMethod() throws Exception {
+    assertTrue(LLMObsSpan.class.getMethod("annotatePrompt", LLMObs.Prompt.class).isDefault());
+  }
+
+  @Test
+  void testPromptBuilderWithTextTemplate() {
+    Map<String, String> variables = new HashMap<>();
+    variables.put("city", "Paris");
+    Map<String, String> tags = new HashMap<>();
+    tags.put("team", "weather");
+    List<String> contextVariables = Arrays.asList("forecast", "history");
+    List<String> queryVariables = Collections.singletonList("city");
+
+    LLMObs.Prompt prompt =
+        LLMObs.Prompt.builder()
+            .id("weather-prompt")
+            .version("1.0.0")
+            .template("What is the weather in {{city}}?")
+            .variables(variables)
+            .tags(tags)
+            .contextVariables(contextVariables)
+            .queryVariables(queryVariables)
+            .build();
+
+    assertEquals("weather-prompt", prompt.getId());
+    assertEquals("1.0.0", prompt.getVersion());
+    assertEquals("What is the weather in {{city}}?", prompt.getTemplate());
+    assertNull(prompt.getChatTemplate());
+    assertEquals(variables, prompt.getVariables());
+    assertEquals(tags, prompt.getTags());
+    assertEquals(contextVariables, prompt.getContextVariables());
+    assertEquals(queryVariables, prompt.getQueryVariables());
+    assertNotSame(variables, prompt.getVariables());
+    assertNotSame(tags, prompt.getTags());
+    assertNotSame(contextVariables, prompt.getContextVariables());
+    assertNotSame(queryVariables, prompt.getQueryVariables());
+  }
+
+  @Test
+  void testPromptBuilderWithChatTemplate() {
+    List<LLMObs.LLMMessage> chatTemplate =
+        Arrays.asList(
+            LLMObs.LLMMessage.from("system", "You are a weather assistant."),
+            LLMObs.LLMMessage.from("user", "What is the weather in {{city}}?"));
+
+    LLMObs.Prompt prompt = LLMObs.Prompt.builder().template(chatTemplate).build();
+
+    assertNull(prompt.getTemplate());
+    assertEquals(chatTemplate, prompt.getChatTemplate());
+    assertNotSame(chatTemplate, prompt.getChatTemplate());
+  }
+
+  @Test
   void testLLMMessageCreationWithToolCalls() {
     Map<String, Object> args = new HashMap<>();
     args.put("location", "Paris");
