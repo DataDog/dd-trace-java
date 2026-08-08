@@ -59,7 +59,8 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
           configMap["type"] as? String,
           configMap["default"] as? String,
           (configMap["aliases"] as? List<String>) ?: emptyList(),
-          (configMap["propertyKeys"] as? List<String>) ?: emptyList()
+          (configMap["propertyKeys"] as? List<String>) ?: emptyList(),
+          configMap["sensitive"] as? Boolean ?: false
         )
       }
     }
@@ -81,6 +82,10 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       }
     }.toMap()
 
+    val sensitiveKeys: Set<String> = supported.flatMap { (canonical, configList) ->
+      configList.filter { it.sensitive }.flatMap { listOf(canonical) + it.aliases }
+    }.toSet()
+
     // Build the output .java path from the fully-qualified class name
     val pkgName = finalClassName.substringBeforeLast('.', "")
     val pkgPath = pkgName.replace('.', File.separatorChar)
@@ -97,7 +102,8 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       aliases,
       aliasMapping,
       deprecated,
-      reversePropertyKeysMap
+      reversePropertyKeysMap,
+      sensitiveKeys
     )
   }
 
@@ -109,7 +115,8 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     aliases: Map<String, List<String>>,
     aliasMapping: Map<String, String>,
     deprecated: Map<String, String>,
-    reversePropertyKeysMap: Map<String, String>
+    reversePropertyKeysMap: Map<String, String>,
+    sensitiveKeys: Set<String>
   ) {
     val outFile = File(outputPath)
     outFile.parentFile?.mkdirs()
@@ -118,13 +125,16 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       out.println("package $packageName;")
       out.println()
       out.println("import java.util.HashMap;")
+      out.println("import java.util.HashSet;")
       out.println("import java.util.List;")
       out.println("import java.util.Map;")
+      out.println("import java.util.Set;")
       out.println("import static java.util.Arrays.asList;")
       out.println("import static java.util.Collections.emptyList;")
       out.println("import static java.util.Collections.singletonList;")
       out.println("import static java.util.Collections.unmodifiableList;")
       out.println("import static java.util.Collections.unmodifiableMap;")
+      out.println("import static java.util.Collections.unmodifiableSet;")
       out.println()
       out.println("public final class $className {")
       out.println()
@@ -138,12 +148,15 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       out.println()
       out.println("  public static final Map<String, String> REVERSE_PROPERTY_KEYS_MAP;")
       out.println()
+      out.println("  public static final Set<String> SENSITIVE_KEYS;")
+      out.println()
       out.println("  static {")
       out.println("    SUPPORTED = initSupported();")
       out.println("    ALIASES = initAliases();")
       out.println("    ALIAS_MAPPING = initAliasMapping();")
       out.println("    DEPRECATED = initDeprecated();")
       out.println("    REVERSE_PROPERTY_KEYS_MAP = initReversePropertyKeysMap();")
+      out.println("    SENSITIVE_KEYS = initSensitiveKeys();")
       out.println("  }")
       out.println()
 
@@ -218,6 +231,16 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       }
       out.println("    return unmodifiableMap(reversePropertyKeysMapping);")
       out.println("  }")
+      out.println()
+
+      // initSensitiveKeys()
+      out.println("  private static Set<String> initSensitiveKeys() {")
+      out.println("    Set<String> sensitiveKeys = new HashSet<>();")
+      for (key in sensitiveKeys.toSortedSet()) {
+        out.printf("    sensitiveKeys.add(\"%s\");\n", esc(key))
+      }
+      out.println("    return unmodifiableSet(sensitiveKeys);")
+      out.println("  }")
       out.println("}")
     }
   }
@@ -258,5 +281,6 @@ private data class SupportedConfigurationItem(
   val type: String?,
   val default: String?,
   val aliases: List<String>,
-  val propertyKeys: List<String>
+  val propertyKeys: List<String>,
+  val sensitive: Boolean
 )
