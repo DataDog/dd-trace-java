@@ -7,14 +7,13 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 import redis.clients.jedis.Connection;
 
 public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Connection> {
-  public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
-
   private static final String REDIS = "redis";
+  public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation(REDIS));
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().cache().service(REDIS);
-  private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
+  public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
 
   @Override
   protected String[] instrumentationNames() {
