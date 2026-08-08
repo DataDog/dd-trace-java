@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.testing-support'
+}
 
 excludedClassesCoverage += [// These classes are using only for testing
   'com.datadog.profiling.testing.*',]
@@ -10,4 +12,3 @@ dependencies {
   api group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
   api group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
 }
-

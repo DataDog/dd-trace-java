@@ -7,6 +7,35 @@ boolean groovySkipJavaExclude = project.hasProperty('groovySkipJavaExclude') ? g
 
 def buildDirectoryFiles = project.layout.buildDirectory.asFileTree
 
+// Temporary exclusions as conventions are properly setup for these projects.
+def javaGradleApplyExceptions = [
+  ':dd-java-agent',
+  ':dd-java-agent:benchmark',
+  ':dd-java-agent:benchmark-integration',
+  ':dd-java-agent:load-generator',
+] as Set
+boolean forbidJavaGradleApply = project.rootProject.name == 'dd-trace-java' && !javaGradleApplyExceptions.contains(project.path)
+def javaGradleApplyLinePattern = ~/^\s*(?:\w+\.)?apply(?:\s+from\s*:|\s*\(\s*from\s*=).*/
+// Script plugins that must be applied through a 'dd-trace-java.module.*' convention plugin instead.
+def forbiddenScriptApplies = [
+  'gradle/java.gradle'   : 'Apply a \'dd-trace-java.module.*\' convention plugin instead of applying the script plugin \'gradle/java.gradle\' directly.',
+  'gradle/publish.gradle': 'Apply the \'dd-trace-java.module.distributable.*\' convention plugin instead of applying the script plugin \'gradle/publish.gradle\' directly.',
+]
+def forbidJavaGradleApplyStep = { String text ->
+  if (forbidJavaGradleApply) {
+    text.readLines().each { line ->
+      if (javaGradleApplyLinePattern.matcher(line).matches()) {
+        forbiddenScriptApplies.each { script, message ->
+          if (line.contains(script)) {
+            throw new AssertionError(message)
+          }
+        }
+      }
+    }
+  }
+  text
+}
+
 spotless {
   if (rootProject.hasProperty('skipSpotless')) {
     project.logger.quiet("Retiring 'skipSpotless' property, prefer '-x spotlessCheck' or '-x spotlessApply' to exclude spotless tasks.")
@@ -39,6 +68,7 @@ spotless {
       target '*.gradle'
     }
     greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
+    custom 'forbidGradleJavaScriptPlugin', forbidJavaGradleApplyStep
   }
 
   kotlinGradle {
@@ -50,6 +80,7 @@ spotless {
       'ktlint_standard_trailing-comma-on-call-site': 'disabled',
       'ktlint_standard_trailing-comma-on-declaration-site': 'disabled'
     ])
+    custom 'forbidGradleJavaScriptPlugin', forbidJavaGradleApplyStep
   }
 
   project.pluginManager.withPlugin('groovy') {
