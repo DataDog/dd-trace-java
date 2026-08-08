@@ -161,34 +161,23 @@ public class FeatureFlaggingSystem {
     if (activationListener != null) {
       FeatureFlaggingGateway.removeActivationListener(activationListener);
     }
-    try {
-      if (flagEvalWriter != null) {
-        flagEvalWriter.close();
-      }
-    } catch (Exception ignored) {
-    }
-    try {
-      if (spanEnrichmentWriter != null) {
-        spanEnrichmentWriter.close();
-      }
-    } catch (Exception ignored) {
-    }
-    try {
-      if (exposureWriter != null) {
-        exposureWriter.close();
-      }
-    } catch (Exception ignored) {
-    }
-    try {
-      if (configService != null) {
-        configService.close();
-      }
-    } catch (Exception ignored) {
-    }
+    closeQuietly(flagEvalWriter);
+    closeQuietly(spanEnrichmentWriter);
+    closeQuietly(exposureWriter);
+    closeQuietly(configService);
     LOGGER.debug("Feature Flagging system stopped");
   }
 
   static boolean isAwaitingApplicationActivation() {
     return ACTIVATION_LISTENER != null;
+  }
+
+  private static void closeQuietly(final AutoCloseable resource) {
+    if (resource != null) {
+      try {
+        resource.close();
+      } catch (Exception ignored) {
+      }
+    }
   }
 }
