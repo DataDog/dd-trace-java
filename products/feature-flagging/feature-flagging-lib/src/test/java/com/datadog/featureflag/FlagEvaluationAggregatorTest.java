@@ -171,9 +171,9 @@ class FlagEvaluationAggregatorTest {
 
   @Test
   void capSizingUsesNamedScaleConstants() {
-    assertEquals(125_000, FlagEvaluationAggregator.EVAL_SCALE_FULL_BUCKET_TARGET);
-    assertEquals(10_000, FlagEvaluationAggregator.EVAL_SCALE_PER_FLAG_BUCKET_TARGET);
-    assertEquals(25_000, FlagEvaluationAggregator.EVAL_SCALE_DEGRADED_BUCKET_TARGET);
+    assertEquals(125_000, FlagEvaluationAggregator.FULL_BUCKET_SIZING_BASIS);
+    assertEquals(10_000, FlagEvaluationAggregator.PER_FLAG_BUCKET_SIZING_BASIS);
+    assertEquals(25_000, FlagEvaluationAggregator.DEGRADED_BUCKET_SIZING_BASIS);
     assertEquals(131_072, FlagEvaluationAggregator.GLOBAL_CAP);
     assertEquals(10_000, FlagEvaluationAggregator.PER_FLAG_CAP);
     assertEquals(32_768, FlagEvaluationAggregator.DEGRADED_CAP);

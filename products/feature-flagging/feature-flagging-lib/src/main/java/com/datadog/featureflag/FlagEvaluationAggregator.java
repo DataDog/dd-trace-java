@@ -10,20 +10,25 @@ import java.util.concurrent.atomic.AtomicLong;
 
 final class FlagEvaluationAggregator {
 
-  static final int EVAL_SCALE_TARGET_FLAGS = 2_500;
-  static final int EVAL_SCALE_FULL_BUCKETS_PER_FLAG = 50;
-  static final int EVAL_SCALE_USERS_PER_FLAG = 1_000;
-  static final int EVAL_SCALE_PER_FLAG_HEADROOM_MULTIPLIER = 10;
-  static final int EVAL_SCALE_DEGRADED_BUCKETS_PER_FLAG = 10;
-  static final int EVAL_SCALE_FULL_BUCKET_TARGET =
-      EVAL_SCALE_TARGET_FLAGS * EVAL_SCALE_FULL_BUCKETS_PER_FLAG;
-  static final int EVAL_SCALE_PER_FLAG_BUCKET_TARGET =
-      EVAL_SCALE_PER_FLAG_HEADROOM_MULTIPLIER * EVAL_SCALE_USERS_PER_FLAG;
-  static final int EVAL_SCALE_DEGRADED_BUCKET_TARGET =
-      EVAL_SCALE_TARGET_FLAGS * EVAL_SCALE_DEGRADED_BUCKETS_PER_FLAG;
-  static final int GLOBAL_CAP = 131_072;
-  static final int PER_FLAG_CAP = EVAL_SCALE_PER_FLAG_BUCKET_TARGET;
-  static final int DEGRADED_CAP = 32_768;
+  // Design assumptions — document the scale we sized for
+  static final int EXPECTED_FLAG_COUNT = 2_500;
+  static final int EXPECTED_FULL_BUCKETS_PER_FLAG = 50;
+  static final int EXPECTED_USERS_PER_FLAG = 1_000;
+  static final int PER_FLAG_HEADROOM_MULTIPLIER = 10;
+  static final int EXPECTED_DEGRADED_BUCKETS_PER_FLAG = 10;
+
+  // Derived sizing — show the math behind the bucket caps below
+  static final int FULL_BUCKET_SIZING_BASIS =
+      EXPECTED_FLAG_COUNT * EXPECTED_FULL_BUCKETS_PER_FLAG; // 125_000
+  static final int PER_FLAG_BUCKET_SIZING_BASIS =
+      PER_FLAG_HEADROOM_MULTIPLIER * EXPECTED_USERS_PER_FLAG; // 10_000
+  static final int DEGRADED_BUCKET_SIZING_BASIS =
+      EXPECTED_FLAG_COUNT * EXPECTED_DEGRADED_BUCKETS_PER_FLAG; // 25_000
+
+  // Enforced bucket caps
+  static final int GLOBAL_CAP = 131_072; // nearest power of two above FULL_BUCKET_SIZING_BASIS
+  static final int PER_FLAG_CAP = PER_FLAG_BUCKET_SIZING_BASIS;
+  static final int DEGRADED_CAP = 32_768; // nearest power of two above DEGRADED_BUCKET_SIZING_BASIS
 
   private static final byte CTX_TAG_STRING = 's';
   private static final byte CTX_TAG_BOOL = 'b';
