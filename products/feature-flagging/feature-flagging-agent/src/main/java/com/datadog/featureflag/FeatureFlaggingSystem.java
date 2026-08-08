@@ -165,29 +165,25 @@ public class FeatureFlaggingSystem {
       if (flagEvalWriter != null) {
         flagEvalWriter.close();
       }
-    } catch (Exception e) {
-      LOGGER.debug("Error closing flag eval writer", e);
+    } catch (Exception ignored) {
     }
     try {
       if (spanEnrichmentWriter != null) {
         spanEnrichmentWriter.close();
       }
-    } catch (Exception e) {
-      LOGGER.debug("Error closing span enrichment writer", e);
+    } catch (Exception ignored) {
     }
     try {
       if (exposureWriter != null) {
         exposureWriter.close();
       }
-    } catch (Exception e) {
-      LOGGER.debug("Error closing exposure writer", e);
+    } catch (Exception ignored) {
     }
     try {
       if (configService != null) {
         configService.close();
       }
-    } catch (Exception e) {
-      LOGGER.debug("Error closing config service", e);
+    } catch (Exception ignored) {
     }
     LOGGER.debug("Feature Flagging system stopped");
   }
