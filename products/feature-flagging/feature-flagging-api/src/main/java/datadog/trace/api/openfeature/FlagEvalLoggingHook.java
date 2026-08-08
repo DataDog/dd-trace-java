@@ -136,7 +136,7 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       w.enqueue(
           new FlagEvalEvent(
               flagKey, variant, allocationKey, targetingKey, errorMessage, evalTimeMs, copy.attrs));
-    } catch (LinkageError | Exception e) {
+    } catch (LinkageError e) {
       // Never let EVP recording break flag evaluation
     }
   }
