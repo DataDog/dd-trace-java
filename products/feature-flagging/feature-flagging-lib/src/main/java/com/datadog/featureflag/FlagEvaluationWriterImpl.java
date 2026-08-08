@@ -47,9 +47,8 @@ import org.slf4j.LoggerFactory;
  * contend only on the MPSC queue, never on a monitor, so evaluation threads do not serialize
  * against each other. Shutdown: close() drains the queue and performs a final flush before the
  * worker thread exits. Because enqueue is lock-free, a producer can still offer during shutdown;
- * the worker makes SHUTDOWN_DRAIN_PASSES drain passes and close() sweeps once the worker has been
- * joined, counting any remainder as a closed drop so shutdown loss is observable rather than
- * silent.
+ * close() sweeps the queue once the worker has been joined, counting any remainder as a closed drop
+ * so shutdown loss is observable rather than silent.
  */
 public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
@@ -57,11 +56,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
   static final int DEFAULT_CAPACITY = 1 << 12; // 4096 elements, per cross-SDK RFC
   static final int FLUSH_INTERVAL_SECONDS = 10;
-
-  /**
-   * Drain passes the worker makes on shutdown, to catch offers from lock-free producers in flight.
-   */
-  static final int SHUTDOWN_DRAIN_PASSES = 3;
 
   static final int FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES = EvpProxy.PAYLOAD_SIZE_LIMIT_BYTES;
   static final String FLAG_EVALUATION_DROPPED_METRIC = "flagevaluation.rows.dropped";
@@ -395,24 +389,10 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       }
     }
 
-    /**
-     * Drains all remaining queued events and performs a final flush. Used on shutdown.
-     *
-     * <p>enqueue() is lock-free, so a producer that had already passed the closed check when
-     * close() ran can still offer after the first pass empties the queue. A bounded number of extra
-     * passes, with a yield between them, catches those in-flight offers. On the normal shutdown
-     * path close() also sweeps after joining this thread, but when the worker closes itself through
-     * the error callback nobody joins it, so these passes are the only sweep.
-     */
     void drainAndFlush() {
-      for (int pass = 0; pass < SHUTDOWN_DRAIN_PASSES; pass++) {
-        FlagEvalEvent event;
-        while ((event = queue.poll()) != null) {
-          aggregateEvent(event);
-        }
-        if (pass < SHUTDOWN_DRAIN_PASSES - 1) {
-          Thread.yield();
-        }
+      FlagEvalEvent event;
+      while ((event = queue.poll()) != null) {
+        aggregateEvent(event);
       }
       flush();
     }
