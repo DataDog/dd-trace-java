@@ -1,13 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
 
+import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.profiling.Timing;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import javax.annotation.Nullable;
 
 public final class State {
 
@@ -26,7 +26,7 @@ public final class State {
 
   private State() {}
 
-  public boolean captureAndSetContinuation(final AgentSpan span) {
+  public boolean captureAndSetContinuation(final Context context) {
     if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {
       // it's a real pain to do this twice, and this can actually
       // happen systematically - WITHOUT RACES - because of broken
@@ -34,7 +34,7 @@ public final class State {
       // "double instruments" calls to ScheduledExecutorService.submit/schedule
       //
       // lazy write is guaranteed to be seen by getAndSet
-      CONTINUATION.lazySet(this, captureSpan(span));
+      CONTINUATION.lazySet(this, context.capture());
       return true;
     }
     return false;
@@ -58,14 +58,15 @@ public final class State {
     }
   }
 
-  public AgentSpan getSpan() {
+  public Context getContext() {
     ContextContinuation continuation = CONTINUATION.get(this);
     if (null == continuation || CLAIMED == continuation) {
-      return null;
+      return Context.root();
     }
-    return AgentSpan.fromContext(continuation.context());
+    return continuation.context();
   }
 
+  @Nullable
   public ContextContinuation getAndResetContinuation() {
     ContextContinuation continuation = CONTINUATION.get(this);
     if (null == continuation || CLAIMED == continuation) {

@@ -3,7 +3,10 @@ package datadog.trace.core.otlp.metrics;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.config.OtlpConfig;
+import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.util.AgentTaskScheduler;
@@ -26,18 +29,28 @@ public final class OtlpMetricsService {
 
   private AgentTaskScheduler.Scheduled<?> scheduledTask = null;
 
-  private OtlpMetricsService(Config config) {
+  OtlpMetricsService(Config config) {
     this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
-
     this.sender = OtlpMetricsSenderFactory.create(config);
     if (this.sender == null) {
       LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
       this.collector = null;
     } else {
-      this.collector = new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
+      this.collector =
+          config.getOtlpMetricsProtocol() == OtlpConfig.Protocol.HTTP_JSON
+              ? new OtlpMetricsJsonCollector(SystemTimeSource.INSTANCE)
+              : new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
     }
 
     this.intervalMillis = config.getMetricsOtelInterval();
+  }
+
+  OtlpSender getSender() {
+    return sender;
+  }
+
+  OtlpMetricsCollector getCollector() {
+    return collector;
   }
 
   public void start() {
@@ -79,7 +92,9 @@ public final class OtlpMetricsService {
   private void export() {
     OtlpPayload payload = collector.collectMetrics();
     if (payload != OtlpPayload.EMPTY) {
-      sender.send(payload);
+      OtlpTelemetry.getInstance().onMetricsExportAttempt();
+      RemoteApi.Response response = sender.send(payload);
+      OtlpTelemetry.getInstance().onMetricsExportComplete(response.success());
     }
   }
 }

@@ -84,6 +84,10 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final TimeUnit reportingIntervalTimeUnit;
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
+  // Aggregates per-cycle cardinality-block counts by tag name into a single rate-limited warn,
+  // instead of warning per field on every reporting cycle. Aggregator-thread confined.
+  private final CardinalityLimitReporter cardinalityLimitReporter = new CardinalityLimitReporter();
+  private final AdditionalTagsSchema additionalTagsSchema;
   private final boolean includeEndpointInMetrics;
   private final boolean otlpStatsExportEnabled;
 
@@ -105,6 +109,21 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    */
   private volatile PeerTagSchema cachedPeerTagSchema;
 
+  /**
+   * Previous peer-tag schema, kept until the next reporting cycle.
+   *
+   * <p>A producer may read the current schema just before the aggregator replaces it. If that
+   * producer queues its {@link SpanSnapshot} after the current {@code REPORT} signal, the snapshot
+   * will be processed during the next cycle and will still update the old schema's blocked-value
+   * counters.
+   *
+   * <p>Keeping the old schema here allows the next reset to report those late counter updates
+   * before the schema is discarded.
+   *
+   * <p>This field is accessed only by the aggregator thread, so it does not need to be volatile.
+   */
+  private PeerTagSchema previousPeerTagSchema;
+
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
   public ClientStatsAggregator(
@@ -114,6 +133,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
+        additionalTagsSchemaFrom(config),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(
@@ -141,6 +161,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       OtlpStatsMetricWriter metricWriter) {
     this(
         config.getMetricsIgnoredResources(),
+        additionalTagsSchemaFrom(config),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         NoOpSink.INSTANCE,
@@ -152,9 +173,18 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         true);
   }
 
+  private static AdditionalTagsSchema additionalTagsSchemaFrom(Config config) {
+    return AdditionalTagsSchema.from(
+        config.getTraceStatsAdditionalTags(),
+        config.getTraceStatsCardinalityLimit(
+            "additional_tags", MetricCardinalityLimits.ADDITIONAL_TAG_VALUE),
+        MetricCardinalityLimits.USE_BLOCKED_SENTINEL);
+  }
+
   ClientStatsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
+      AdditionalTagsSchema additionalTagsSchema,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -164,6 +194,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this(
         wellKnownTags,
         ignoredResources,
+        additionalTagsSchema,
         features,
         healthMetric,
         sink,
@@ -177,6 +208,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   ClientStatsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
+      AdditionalTagsSchema additionalTagsSchema,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -187,10 +219,11 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       boolean includeEndpointInMetrics) {
     this(
         ignoredResources,
+        additionalTagsSchema,
         features,
         healthMetric,
         sink,
-        new SerializingMetricWriter(wellKnownTags, sink),
+        new SerializingMetricWriter(wellKnownTags, sink, additionalTagsSchema.size() > 0),
         maxAggregates,
         queueSize,
         reportingInterval,
@@ -198,6 +231,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         includeEndpointInMetrics);
   }
 
+  /** Test-only: defaults to no additional tags schema. */
   ClientStatsAggregator(
       Set<String> ignoredResources,
       DDAgentFeaturesDiscovery features,
@@ -209,7 +243,34 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       long reportingInterval,
       TimeUnit timeUnit,
       boolean includeEndpointInMetrics) {
+    this(
+        ignoredResources,
+        AdditionalTagsSchema.EMPTY,
+        features,
+        healthMetric,
+        sink,
+        metricWriter,
+        maxAggregates,
+        queueSize,
+        reportingInterval,
+        timeUnit,
+        includeEndpointInMetrics);
+  }
+
+  ClientStatsAggregator(
+      Set<String> ignoredResources,
+      AdditionalTagsSchema additionalTagsSchema,
+      DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
+      Sink sink,
+      MetricWriter metricWriter,
+      int maxAggregates,
+      int queueSize,
+      long reportingInterval,
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
+    this.additionalTagsSchema = additionalTagsSchema;
     this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.otlpStatsExportEnabled = metricWriter instanceof OtlpStatsMetricWriter;
     this.inbox = Queues.mpscArrayQueue(queueSize);
@@ -225,6 +286,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             reportingInterval,
             timeUnit,
             healthMetric,
+            additionalTagsSchema,
             this::resetCardinalityHandlers);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
@@ -336,15 +398,18 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       if (peerTagSchema == null) {
         peerTagSchema = bootstrapPeerTagSchema();
       }
+      // ignoredResources is fixed for the lifetime of the aggregator and typically empty; hoist the
+      // check so the common case skips both the lookup and the getResourceName() call per span.
+      final boolean hasIgnoredResources = !ignoredResources.isEmpty();
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span, isTopLevel)) {
-          final CharSequence resourceName = span.getResourceName();
-          if (resourceName != null
-              && !ignoredResources.isEmpty()
-              && ignoredResources.contains(resourceName.toString())) {
-            // skip publishing all children
-            break;
+          if (hasIgnoredResources) {
+            final CharSequence resourceName = span.getResourceName();
+            if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
+              // skip publishing all children
+              break;
+            }
           }
           counted++;
           forceKeep |= publish(span, isTopLevel, peerTagSchema);
@@ -413,6 +478,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       spanPeerTagSchema = null;
     }
 
+    String[] additionalTagValues = captureAdditionalTagValues(span);
+
     SpanSnapshot snapshot =
         new SpanSnapshot(
             span.getResourceName(),
@@ -429,6 +496,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             httpMethod,
             httpEndpoint,
             grpcStatusCode,
+            additionalTagValues,
             tagAndDuration);
     if (!inbox.offer(snapshot)) {
       healthMetrics.onStatsInboxFull();
@@ -446,6 +514,16 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       }
     }
     return null;
+  }
+
+  /**
+   * Captures the span's additional-metric-tag values into a {@code String[]} parallel to {@code
+   * additionalTagsSchema.names}. Returns {@code null} when no additional tags are configured or
+   * none of the configured keys are set on the span. Raw values only -- length cap and
+   * canonicalization run on the aggregator thread.
+   */
+  private String[] captureAdditionalTagValues(CoreSpan<?> span) {
+    return captureTagValues(span, additionalTagsSchema.names);
   }
 
   /**
@@ -485,38 +563,19 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   /**
    * Single reset hook invoked on the aggregator thread at the end of each report cycle. Reconciles
    * the cached peer-tag schema against the latest feature discovery, then resets all cardinality
-   * state in lockstep: the static property handlers, {@code PeerTagSchema.INTERNAL}, and the cached
-   * peer-tag schema. New handlers added anywhere in this pipeline should be reset from here.
+   * state together: the property handlers, both peer-tag schemas, and the additional tags schema.
+   * New handlers added anywhere in this pipeline should be reset from here.
    */
   private void resetCardinalityHandlers() {
     reconcilePeerTagSchema();
-    for (PropertyCardinalityHandler handler : AggregateEntry.FIELD_HANDLERS) {
-      long blocked = handler.reset();
-      if (blocked > 0) {
-        log.warn(
-            "Cardinality limit reached for stats field '{}'; further values will be reported as tracer_blocked_value",
-            handler.name);
-        healthMetrics.onTagCardinalityBlocked(handler.statsDTag(), blocked);
-      }
-    }
-    resetPeerTagSchema(PeerTagSchema.INTERNAL);
+    aggregator.resetCoreHandlers(healthMetrics, cardinalityLimitReporter);
+    PeerTagSchema.INTERNAL.resetHandlers(healthMetrics, cardinalityLimitReporter);
     PeerTagSchema schema = cachedPeerTagSchema;
     if (schema != null) {
-      resetPeerTagSchema(schema);
+      schema.resetHandlers(healthMetrics, cardinalityLimitReporter);
     }
-  }
-
-  private void resetPeerTagSchema(PeerTagSchema schema) {
-    for (int i = 0; i < schema.handlers.length; i++) {
-      long blocked = schema.handlers[i].reset();
-      if (blocked > 0) {
-        log.warn(
-            "Cardinality limit reached for peer tag '{}'; further values are reported as"
-                + " 'tracer_blocked_value' until the next reporting cycle",
-            schema.names[i]);
-        healthMetrics.onTagCardinalityBlocked(schema.handlers[i].statsDTag(), blocked);
-      }
-    }
+    additionalTagsSchema.resetHandlers(healthMetrics, cardinalityLimitReporter);
+    cardinalityLimitReporter.reportIfDue();
   }
 
   /**
@@ -530,6 +589,15 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * reference).
    */
   private void reconcilePeerTagSchema() {
+    // Report and discard the schema retired during the previous cycle. Snapshots queued after the
+    // previous REPORT may still reference that schema and may have updated its blocked-value
+    // counters during this cycle. Do this before the swap below, which may retire the current
+    // schema
+    // and keep it here until the next cycle.
+    if (previousPeerTagSchema != null) {
+      previousPeerTagSchema.resetHandlers(healthMetrics, cardinalityLimitReporter);
+      previousPeerTagSchema = null;
+    }
     PeerTagSchema cached = cachedPeerTagSchema;
     if (cached == null) {
       // First reset before the first publish -- producer-side bootstrap hasn't run yet.
@@ -545,8 +613,14 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       cached.state = latestState;
     } else {
       // Tags actually changed: flush the outgoing schema's accumulated block telemetry before
-      // discarding it, otherwise the partial-cycle blockedCounts would silently disappear.
-      resetPeerTagSchema(cached);
+      // discarding it, otherwise the partial-cycle blockedCounts would silently disappear. Flushing
+      // into the reporter by tag name is also what carries block counts across the rebuild -- a
+      // surviving tag's new handler resumes adding to the same reporter entry, so no per-tag
+      // transfer or handler reuse is needed.
+      cached.resetHandlers(healthMetrics, cardinalityLimitReporter);
+      // Retain the outgoing schema for one more reset cycle so snapshots that captured it just
+      // before this swap still have their post-swap block counts flushed (see the field doc).
+      previousPeerTagSchema = cached;
       cachedPeerTagSchema = PeerTagSchema.of(normalized, latestState);
     }
   }
@@ -573,7 +647,10 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * Returns {@code null} when none of the configured peer tags are set on the span.
    */
   private static String[] capturePeerTagValues(CoreSpan<?> span, PeerTagSchema schema) {
-    String[] names = schema.names;
+    return captureTagValues(span, schema.names);
+  }
+
+  private static String[] captureTagValues(CoreSpan<?> span, String[] names) {
     int n = names.length;
     String[] values = null;
     for (int i = 0; i < n; i++) {

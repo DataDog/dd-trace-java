@@ -357,6 +357,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
         String key = tag.getKey().substring(LLMOBS_TAG_PREFIX.length());
         Object val = tag.getValue();
         if (key.equals(INPUT) || key.equals(OUTPUT)) {
+          boolean isDocumentIO =
+              (spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT))
+                  || (spanKind.equals(Tags.LLMOBS_RETRIEVAL_SPAN_KIND) && key.equals(OUTPUT));
           if (spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
             writable.writeString(key, null);
             if (val instanceof List) {
@@ -371,29 +374,48 @@ public class LLMObsSpanMapper implements RemoteMapper {
                   val.getClass().getName());
               continue;
             }
-          } else if (spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT)) {
-            if (!(val instanceof List)) {
-              LOGGER.warn(
-                  "unexpectedly found incorrect type for embedding span input {}, expecting list",
-                  val.getClass().getName());
-              continue;
-            }
+          } else if (isDocumentIO && isDocumentList(val)) {
             writable.writeString(key, null);
             writable.startMap(1);
             List<LLMObs.Document> documents = (List<LLMObs.Document>) val;
             writable.writeString("documents", null);
             writable.startArray(documents.size());
             for (LLMObs.Document document : documents) {
-              writable.startMap(1);
+              int documentSize = 1;
+              if (document.getName() != null) documentSize++;
+              if (document.getId() != null) documentSize++;
+              if (document.getScore() != null) documentSize++;
+              writable.startMap(documentSize);
               writable.writeString("text", null);
               writable.writeString(document.getText(), null);
+              if (document.getName() != null) {
+                writable.writeString("name", null);
+                writable.writeString(document.getName(), null);
+              }
+              if (document.getId() != null) {
+                writable.writeString("id", null);
+                writable.writeString(document.getId(), null);
+              }
+              if (document.getScore() != null) {
+                writable.writeString("score", null);
+                writable.writeObject(document.getScore(), null);
+              }
             }
           } else {
+            if (isDocumentIO) {
+              LOGGER.warn(
+                  "unexpectedly found invalid document data for {} span {}, serializing as value",
+                  spanKind,
+                  key);
+            }
             writable.writeString(key, null);
             writable.startMap(1);
             writable.writeString("value", null);
             writable.writeObject(val, null);
           }
+        } else if (key.equals(LLMObsTags.TOOL_DEFINITIONS) && val instanceof List) {
+          writable.writeString(key, null);
+          writeToolDefinitions((List<?>) val);
         } else if (key.equals(LLMObsTags.METADATA) && val instanceof Map) {
           Map<String, Object> metadataMap = (Map) val;
           writable.writeUTF8(METADATA);
@@ -407,6 +429,50 @@ public class LLMObsSpanMapper implements RemoteMapper {
           writable.writeObject(val, null);
         }
       }
+    }
+
+    private void writeToolDefinitions(List<?> toolDefinitions) {
+      writable.startArray(toolDefinitions.size());
+      for (Object toolDefinitionObject : toolDefinitions) {
+        if (!(toolDefinitionObject instanceof LLMObs.ToolDefinition)) {
+          writable.writeObject(toolDefinitionObject, null);
+          continue;
+        }
+
+        LLMObs.ToolDefinition toolDefinition = (LLMObs.ToolDefinition) toolDefinitionObject;
+        int mapSize = 1;
+        if (toolDefinition.getDescription() != null) mapSize++;
+        if (toolDefinition.getSchema() != null) mapSize++;
+        if (toolDefinition.getVersion() != null) mapSize++;
+
+        writable.startMap(mapSize);
+        writable.writeString("name", null);
+        writable.writeString(toolDefinition.getName(), null);
+        if (toolDefinition.getDescription() != null) {
+          writable.writeString("description", null);
+          writable.writeString(toolDefinition.getDescription(), null);
+        }
+        if (toolDefinition.getSchema() != null) {
+          writable.writeString("schema", null);
+          writable.writeObject(toolDefinition.getSchema(), null);
+        }
+        if (toolDefinition.getVersion() != null) {
+          writable.writeString("version", null);
+          writable.writeString(toolDefinition.getVersion(), null);
+        }
+      }
+    }
+
+    private static boolean isDocumentList(Object value) {
+      if (!(value instanceof List)) {
+        return false;
+      }
+      for (Object item : (List<?>) value) {
+        if (!(item instanceof LLMObs.Document)) {
+          return false;
+        }
+      }
+      return true;
     }
 
     private void writeLlmInputMap(Map<?, ?> inputMap) {

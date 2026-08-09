@@ -173,6 +173,54 @@ public class LLMObs {
     }
   }
 
+  public static class ToolDefinition {
+    private String name;
+    private String description;
+    private Map<String, Object> schema;
+    private String version;
+
+    public static ToolDefinition from(String name) {
+      return new ToolDefinition(name, null, null, null);
+    }
+
+    public static ToolDefinition from(String name, String description) {
+      return new ToolDefinition(name, description, null, null);
+    }
+
+    public static ToolDefinition from(String name, String description, Map<String, Object> schema) {
+      return new ToolDefinition(name, description, schema, null);
+    }
+
+    public static ToolDefinition from(
+        String name, String description, Map<String, Object> schema, String version) {
+      return new ToolDefinition(name, description, schema, version);
+    }
+
+    private ToolDefinition(
+        String name, String description, Map<String, Object> schema, String version) {
+      this.name = name;
+      this.description = description;
+      this.schema = schema;
+      this.version = version;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public String getDescription() {
+      return description;
+    }
+
+    public Map<String, Object> getSchema() {
+      return schema;
+    }
+
+    public String getVersion() {
+      return version;
+    }
+  }
+
   public static class ToolResult {
     private String name;
     private String type;
@@ -257,17 +305,40 @@ public class LLMObs {
 
   public static class Document {
     private String text;
+    private String name;
+    private String id;
+    private Double score;
 
     public static Document from(String text) {
-      return new Document(text);
+      return new Document(text, null, null, null);
     }
 
-    private Document(String text) {
+    public static Document from(
+        String text, @Nullable String name, @Nullable String id, @Nullable Double score) {
+      return new Document(text, name, id, score);
+    }
+
+    private Document(String text, String name, String id, Double score) {
       this.text = text;
+      this.name = name;
+      this.id = id;
+      this.score = score;
     }
 
     public String getText() {
       return text;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    public Double getScore() {
+      return score;
     }
   }
 }

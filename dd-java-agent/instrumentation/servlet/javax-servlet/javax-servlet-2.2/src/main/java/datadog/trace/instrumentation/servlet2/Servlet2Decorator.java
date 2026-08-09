@@ -80,7 +80,7 @@ public class Servlet2Decorator
   }
 
   @Override
-  public void onRequest(
+  protected void doOnRequest(
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
@@ -90,6 +90,6 @@ public class Servlet2Decorator
       span.setTag("servlet.context", request.getContextPath());
       span.setTag("servlet.path", request.getServletPath());
     }
-    super.onRequest(span, connection, request, parentContext);
+    super.doOnRequest(span, connection, request, parentContext);
   }
 }

@@ -180,6 +180,13 @@ public final class ProfilingConfig {
   public static final int PROFILING_DATADOG_PROFILER_LIVEHEAP_SAMPLE_PERCENT_DEFAULT =
       50; // default to 10% of allocation samples
 
+  public static final String PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED =
+      "profiling.experimental.ddprof.nativemem.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED_DEFAULT = false;
+  public static final String PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL =
+      "profiling.experimental.ddprof.nativemem.interval";
+  public static final int PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL_DEFAULT = 512 * 1024;
+
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;
