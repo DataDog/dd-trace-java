@@ -13,6 +13,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import java.io.IOException;
+import java.nio.channels.Selector;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
@@ -141,6 +143,41 @@ class TaskBlockHelperTest {
     TaskBlockHelper.sleep(profiling, TimeUnit.NANOSECONDS, 1L);
 
     verify(profiling, times(2)).endTaskBlock(TOKEN, 0L, 0L);
+  }
+
+  @Test
+  void selectBalancesAcceptedTokenAndReturnsSelectorResult() throws IOException {
+    ProfilingContextIntegration profiling = acceptedIntegration();
+    Selector selector = mock(Selector.class);
+    when(selector.select()).thenReturn(3);
+
+    int ready = TaskBlockHelper.select(profiling, selector);
+
+    assertEquals(3, ready);
+    verify(profiling).endTaskBlock(TOKEN, 0L, 0L);
+  }
+
+  @Test
+  void selectWithTimeoutBalancesAcceptedTokenAndReturnsSelectorResult() throws IOException {
+    ProfilingContextIntegration profiling = acceptedIntegration();
+    Selector selector = mock(Selector.class);
+    when(selector.select(5L)).thenReturn(2);
+
+    int ready = TaskBlockHelper.select(profiling, selector, 5L);
+
+    assertEquals(2, ready);
+    verify(profiling).endTaskBlock(TOKEN, 0L, 0L);
+  }
+
+  @Test
+  void selectIOExceptionBalancesAcceptedTokenBeforeRethrowing() throws IOException {
+    ProfilingContextIntegration profiling = acceptedIntegration();
+    Selector selector = mock(Selector.class);
+    when(selector.select()).thenThrow(new IOException("closed"));
+
+    assertThrows(IOException.class, () -> TaskBlockHelper.select(profiling, selector));
+
+    verify(profiling).endTaskBlock(TOKEN, 0L, 0L);
   }
 
   private static ProfilingContextIntegration acceptedIntegration() {

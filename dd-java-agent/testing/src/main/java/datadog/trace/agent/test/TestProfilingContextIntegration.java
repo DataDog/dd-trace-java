@@ -42,6 +42,16 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
   private final Logger logger = LoggerFactory.getLogger(TestProfilingContextIntegration.class);
   private volatile boolean acceptParkEntries = true;
   private volatile boolean unparkAttributionEnabled = true;
+  private final AtomicInteger taskBlockBeginCalls = new AtomicInteger();
+  private final AtomicInteger taskBlockEndCalls = new AtomicInteger();
+  private final ConcurrentMap<Thread, AtomicInteger> taskBlockBeginCallsByThread =
+      new ConcurrentHashMap<>();
+  private final ConcurrentMap<Thread, AtomicInteger> taskBlockEndCallsByThread =
+      new ConcurrentHashMap<>();
+  private final AtomicLong nextTaskBlockToken = new AtomicLong();
+  private final AtomicLong lastTaskBlockBlocker = new AtomicLong();
+  private final AtomicLong lastTaskBlockUnblockingSpanId = new AtomicLong();
+  private volatile boolean acceptTaskBlockEntries = true;
 
   @Override
   public void onAttach() {
@@ -68,6 +78,14 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
     parkExitThreads.clear();
     acceptParkEntries = true;
     unparkAttributionEnabled = true;
+    taskBlockBeginCalls.set(0);
+    taskBlockEndCalls.set(0);
+    taskBlockBeginCallsByThread.clear();
+    taskBlockEndCallsByThread.clear();
+    nextTaskBlockToken.set(0);
+    lastTaskBlockBlocker.set(0);
+    lastTaskBlockUnblockingSpanId.set(0);
+    acceptTaskBlockEntries = true;
   }
 
   @Override
@@ -106,6 +124,29 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
   @Override
   public boolean isUnparkAttributionEnabled() {
     return unparkAttributionEnabled;
+  }
+
+  @Override
+  public long beginTaskBlock() {
+    taskBlockBeginCalls.incrementAndGet();
+    taskBlockBeginCallsByThread
+        .computeIfAbsent(Thread.currentThread(), ignored -> new AtomicInteger())
+        .incrementAndGet();
+    return acceptTaskBlockEntries ? nextTaskBlockToken.incrementAndGet() : 0L;
+  }
+
+  @Override
+  public boolean endTaskBlock(long token, long blocker, long unblockingSpanId) {
+    if (token == 0L) {
+      return false;
+    }
+    taskBlockEndCalls.incrementAndGet();
+    taskBlockEndCallsByThread
+        .computeIfAbsent(Thread.currentThread(), ignored -> new AtomicInteger())
+        .incrementAndGet();
+    lastTaskBlockBlocker.set(blocker);
+    lastTaskBlockUnblockingSpanId.set(unblockingSpanId);
+    return true;
   }
 
   @Override
@@ -206,6 +247,36 @@ public class TestProfilingContextIntegration implements ProfilingContextIntegrat
 
   public void setUnparkAttributionEnabled(boolean unparkAttributionEnabled) {
     this.unparkAttributionEnabled = unparkAttributionEnabled;
+  }
+
+  public AtomicInteger getTaskBlockBeginCalls() {
+    return taskBlockBeginCalls;
+  }
+
+  public AtomicInteger getTaskBlockEndCalls() {
+    return taskBlockEndCalls;
+  }
+
+  public int getTaskBlockBeginCalls(Thread thread) {
+    AtomicInteger calls = taskBlockBeginCallsByThread.get(thread);
+    return calls == null ? 0 : calls.get();
+  }
+
+  public int getTaskBlockEndCalls(Thread thread) {
+    AtomicInteger calls = taskBlockEndCallsByThread.get(thread);
+    return calls == null ? 0 : calls.get();
+  }
+
+  public AtomicLong getLastTaskBlockBlocker() {
+    return lastTaskBlockBlocker;
+  }
+
+  public AtomicLong getLastTaskBlockUnblockingSpanId() {
+    return lastTaskBlockUnblockingSpanId;
+  }
+
+  public void setAcceptTaskBlockEntries(boolean acceptTaskBlockEntries) {
+    this.acceptTaskBlockEntries = acceptTaskBlockEntries;
   }
 
   public boolean isBalanced() {
