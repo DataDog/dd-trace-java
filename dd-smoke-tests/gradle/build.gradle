@@ -16,6 +16,7 @@ dependencies {
 }
 
 tasks.named("test", Test) {
+  // TODO: remove before merging. Adding change here to trigger tests.
   testLogging {
     events "passed", "skipped", "failed", "standardOut", "standardError"
   }
