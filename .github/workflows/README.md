@@ -163,6 +163,14 @@ _Action:_ Create a PR updating the Grade dependencies and their locking files.
 
 _Recovery:_ Manually trigger the action again.
 
+### update-apm-sdks-benchmarks-reference [🔗](update-apm-sdks-benchmarks-reference.yaml)
+
+_Trigger:_ Every week or manually.
+
+_Action:_ Create a PR pinning our `apm-sdks-benchmarks` CI includes and runtime clones to the latest commit on the `apm-sdks-benchmarks` GitHub `main` branch.
+
+_Recovery:_ Manually trigger the action again.
+
 ### update-smoke-test-latest-versions [🔗](update-smoke-test-latest-versions.yaml)
 
 _Trigger:_ Every week or manually.

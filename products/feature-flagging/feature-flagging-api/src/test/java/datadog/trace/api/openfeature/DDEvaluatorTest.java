@@ -24,6 +24,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import dev.openfeature.sdk.ErrorCode;
@@ -38,7 +39,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -124,7 +125,7 @@ public class DDEvaluatorTest {
       Arguments.of(Value.class, null, null),
 
       // Unsupported
-      Arguments.of(Date.class, "21-12-2023", IllegalArgumentException.class),
+      Arguments.of(Long.class, 42L, IllegalArgumentException.class),
     };
   }
 
@@ -211,6 +212,33 @@ public class DDEvaluatorTest {
     assertThat(details.getValue(), equalTo(23));
     assertThat(details.getReason(), equalTo("DEFAULT"));
     assertThat(details.getErrorCode(), nullValue());
+  }
+
+  @Test
+  public void testAllocationDateAbiAndInstantAccessors() throws Exception {
+    final Date startAt = Date.from(Instant.parse("2024-01-01T00:00:00Z"));
+    final Date endAt = Date.from(Instant.parse("2024-12-31T23:59:59Z"));
+    final Allocation allocation =
+        new Allocation("allocation", emptyList(), startAt, endAt, emptyList(), true);
+
+    assertThat(Allocation.class.getField("startAt").getType(), equalTo(Date.class));
+    assertThat(Allocation.class.getField("endAt").getType(), equalTo(Date.class));
+    assertThat(allocation.startAtInstant(), equalTo(startAt.toInstant()));
+    assertThat(allocation.endAtInstant(), equalTo(endAt.toInstant()));
+  }
+
+  @Test
+  public void testAllocationWindowHonorsMicrosecondPrecision() {
+    final Instant startAt = Instant.parse("2024-01-01T00:00:00.123456Z");
+    final Instant endAt = Instant.parse("2024-01-01T00:00:00.987654Z");
+    final Allocation allocation =
+        Allocation.fromInstants("allocation", emptyList(), startAt, endAt, emptyList(), true);
+
+    assertThat(
+        DDEvaluator.isAllocationActive(allocation, startAt.minusNanos(1_000)), equalTo(false));
+    assertThat(DDEvaluator.isAllocationActive(allocation, startAt), equalTo(true));
+    assertThat(DDEvaluator.isAllocationActive(allocation, endAt), equalTo(true));
+    assertThat(DDEvaluator.isAllocationActive(allocation, endAt.plusNanos(1_000)), equalTo(false));
   }
 
   private static Arguments[] flatteningTestCases() {
@@ -572,7 +600,8 @@ public class DDEvaluatorTest {
         return reader.nextNull();
       }
       try {
-        return Date.from(OffsetDateTime.parse(reader.nextString()).toInstant());
+        return Date.from(
+            DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(reader.nextString(), Instant::from));
       } catch (final Exception ignored) {
         return null;
       }
