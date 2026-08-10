@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 class FlagEvalEventTest {
 
   @Test
-  void storesFieldsWithEagerContextAttributes() {
+  void storesFieldsWithContextAttributes() {
     final Map<String, Object> attrs = Collections.singletonMap("tier", "gold");
 
     final FlagEvalEvent event =
@@ -29,7 +29,7 @@ class FlagEvalEventTest {
   }
 
   @Test
-  void storesErrorMessageAndDefaultsNullEagerContextAttributes() {
+  void storesErrorMessageAndDefaultsNullContextAttributes() {
     final Map<String, Object> attrs = null;
     final FlagEvalEvent event =
         new FlagEvalEvent("my-flag", null, null, null, "type mismatch", 456L, attrs);
