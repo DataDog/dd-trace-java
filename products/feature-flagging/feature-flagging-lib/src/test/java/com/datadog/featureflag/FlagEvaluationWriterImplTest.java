@@ -12,6 +12,7 @@ import static com.datadog.featureflag.FlagEvaluationTestSupport.repeat;
 import static com.datadog.featureflag.FlagEvaluationTestSupport.simpleEvent;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -502,6 +503,40 @@ class FlagEvaluationWriterImplTest {
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC,
             "reason:field_length"));
+  }
+
+  @Test
+  void hasCapacityForEnqueueReflectsQueueSaturationAndCountsPreQueueOverflow() {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final BackendApiFactory factory = mock(BackendApiFactory.class);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
+    final int capacity = 2;
+    final FlagEvaluationWriterImpl writer =
+        new FlagEvaluationWriterImpl(
+            capacity, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg());
+
+    assertTrue(writer.hasCapacityForEnqueue());
+
+    // Saturate the hand-off queue without starting the worker so no drain can free slots.
+    for (int i = 0; i < capacity; i++) {
+      writer.enqueue(simpleEvent("cap-flag-" + i, "on"));
+    }
+    assertFalse(writer.hasCapacityForEnqueue());
+
+    // Simulate a pre-queue overflow account by the hook and surface it on flush.
+    writer.countPreQueueOverflow();
+    writer.flushForTest();
+
+    final Collection<? extends MetricCollector.Metric> metrics =
+        CoreMetricCollector.getInstance().drain();
+    assertEquals(
+        1,
+        metricSum(
+            metrics,
+            FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
+            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_QUEUE_OVERFLOW));
+
+    writer.close();
   }
 
   private static Map<String, String> context() {
