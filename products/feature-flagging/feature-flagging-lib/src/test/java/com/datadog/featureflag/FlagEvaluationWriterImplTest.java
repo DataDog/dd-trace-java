@@ -29,6 +29,7 @@ import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
+import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.intake.Intake;
@@ -463,6 +464,44 @@ class FlagEvaluationWriterImplTest {
     setup.handler.drainAndAggregate();
     setup.handler.flush();
     verify(mockEvp).post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
+  }
+
+  @Test
+  void scoConstructorCreatesUsableWriter() {
+    final FlagEvaluationWriterImpl writer =
+        new FlagEvaluationWriterImpl(new SharedCommunicationObjects(), cfg());
+    writer.enqueue(simpleEvent("sco-flag", "on"));
+    assertNotNull(writer.pollQueuedEventForTest());
+    writer.close();
+  }
+
+  @Test
+  void countContextTruncatedAccumulatesPerReason() {
+    final BackendApi mockEvp = mock(BackendApi.class);
+    final BackendApiFactory factory = mock(BackendApiFactory.class);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
+    final FlagEvaluationWriterImpl writer =
+        new FlagEvaluationWriterImpl(16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, factory, cfg());
+
+    writer.countContextTruncated("field_count");
+    writer.countContextTruncated("field_count");
+    writer.countContextTruncated("field_length");
+    writer.flushForTest();
+
+    final Collection<? extends MetricCollector.Metric> metrics =
+        CoreMetricCollector.getInstance().drain();
+    assertEquals(
+        2,
+        metricSum(
+            metrics,
+            FlagEvaluationWriterImpl.FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC,
+            "reason:field_count"));
+    assertEquals(
+        1,
+        metricSum(
+            metrics,
+            FlagEvaluationWriterImpl.FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC,
+            "reason:field_length"));
   }
 
   private static Map<String, String> context() {
