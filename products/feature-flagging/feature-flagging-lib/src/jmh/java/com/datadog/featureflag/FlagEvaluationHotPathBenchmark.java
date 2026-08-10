@@ -88,7 +88,7 @@ public class FlagEvaluationHotPathBenchmark {
    */
   @Benchmark
   public void writerEnqueue(final Blackhole blackhole) {
-    final FlagEvalEvent event = nextLazyEvent();
+    final FlagEvalEvent event = nextEvent();
     writer.enqueue(event);
     blackhole.consume(writer.pollQueuedEventForTest());
     blackhole.consume(event);
@@ -97,7 +97,7 @@ public class FlagEvaluationHotPathBenchmark {
   /** Worker-thread cost: materialize context, prune, canonicalize, and aggregate. */
   @Benchmark
   public void workerAggregate(final Blackhole blackhole) {
-    final FlagEvalEvent event = nextLazyEvent();
+    final FlagEvalEvent event = nextEvent();
     handler.aggregateEvent(event);
     if ((cursor % 10_000) == 0) {
       handler.clearAggregationForTest();
@@ -105,7 +105,7 @@ public class FlagEvaluationHotPathBenchmark {
     blackhole.consume(handler.fullTierSizeForTest());
   }
 
-  private FlagEvalEvent nextLazyEvent() {
+  private FlagEvalEvent nextEvent() {
     final int i = cursor++;
     return new FlagEvalEvent(
         flagKeys[Math.floorMod(i, flagKeys.length)],
@@ -114,7 +114,7 @@ public class FlagEvaluationHotPathBenchmark {
         targetingKeys[Math.floorMod(i, targetingKeys.length)],
         null,
         1_700_000_000_000L + i,
-        () -> attrs);
+        attrs);
   }
 
   private static String[] keys(final String prefix, final int count) {
