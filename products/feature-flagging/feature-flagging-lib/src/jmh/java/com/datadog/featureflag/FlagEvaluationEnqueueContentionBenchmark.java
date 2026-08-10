@@ -177,7 +177,7 @@ public class FlagEvaluationEnqueueContentionBenchmark {
         targetingKeys[Math.floorMod(i, targetingKeys.length)],
         null,
         1_700_000_000_000L + i,
-        () -> attrs);
+        attrs);
   }
 
   private static String[] keys(final String prefix, final int count) {
