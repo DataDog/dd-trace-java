@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -66,6 +67,8 @@ public class DDEvaluatorTest {
       Types.newParameterizedType(List.class, FixtureCase.class);
   private static final JsonAdapter<List<FixtureCase>> FIXTURE_LIST_ADAPTER =
       MOSHI.adapter(FIXTURE_LIST_TYPE);
+  private static final JsonAdapter<RegexConformanceFixture> REGEX_CONFORMANCE_ADAPTER =
+      MOSHI.adapter(RegexConformanceFixture.class);
 
   @Test
   public void testInitializeSignalsApplicationProviderActivation() throws Exception {
@@ -308,6 +311,26 @@ public class DDEvaluatorTest {
     }
   }
 
+  @MethodSource("regexConformanceCases")
+  @ParameterizedTest(name = "{0}")
+  public void testRegexConformance(final RegexConformanceCase testCase) {
+    boolean compiled = true;
+    boolean matched = false;
+    try {
+      // The Java evaluator consumes the raw pattern from UFC without a normalization step.
+      matched = DDEvaluator.matchesRegex(testCase.input, testCase.rawPattern);
+    } catch (final PatternSyntaxException ignored) {
+      compiled = false;
+    }
+
+    if (testCase.expectedCompile != null) {
+      assertThat(testCase.id + " compile", compiled, equalTo(testCase.expectedCompile));
+    }
+    if (testCase.expectedMatch != null) {
+      assertThat(testCase.id + " match", matched, equalTo(testCase.expectedMatch));
+    }
+  }
+
   @SuppressWarnings({"rawtypes", "unchecked"})
   private static ProviderEvaluation<?> evaluate(
       final DDEvaluator evaluator,
@@ -346,6 +369,24 @@ public class DDEvaluatorTest {
       }
     }
 
+    assertThat(result.size(), greaterThan(0));
+    return result;
+  }
+
+  private static List<RegexConformanceCase> regexConformanceCases() throws IOException {
+    final Path fixtureFile =
+        fixtureRoot().resolve("regex-conformance/targeting-regex-conformance.json");
+    final RegexConformanceFixture fixture = REGEX_CONFORMANCE_ADAPTER.fromJson(read(fixtureFile));
+    if (fixture == null || fixture.cases == null) {
+      throw new JsonDataException(
+          "Regex conformance fixture did not contain cases: " + fixtureFile);
+    }
+
+    final List<RegexConformanceCase> result =
+        fixture.cases.stream()
+            // Null common expectations are represented by per-engine results in the fixture.
+            .filter(testCase -> testCase.expectedCompile != null || testCase.expectedMatch != null)
+            .collect(Collectors.toList());
     assertThat(result.size(), greaterThan(0));
     return result;
   }
@@ -432,6 +473,23 @@ public class DDEvaluatorTest {
     String errorCode;
     String variant;
     Map<String, Object> flagMetadata = emptyMap();
+  }
+
+  private static final class RegexConformanceFixture {
+    List<RegexConformanceCase> cases;
+  }
+
+  private static final class RegexConformanceCase {
+    Boolean expectedCompile;
+    Boolean expectedMatch;
+    String id;
+    String input;
+    String rawPattern;
+
+    @Override
+    public String toString() {
+      return id;
+    }
   }
 
   private static final class DateAdapter extends JsonAdapter<Date> {

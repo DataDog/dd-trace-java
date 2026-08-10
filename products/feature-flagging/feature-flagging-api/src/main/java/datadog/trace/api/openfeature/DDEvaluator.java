@@ -280,7 +280,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     }
   }
 
-  private static boolean matchesRegex(final Object attributeValue, final Object conditionValue) {
+  static boolean matchesRegex(final Object attributeValue, final Object conditionValue) {
     // PatternSyntaxException is intentionally not caught here so it propagates to evaluate(),
     // which maps it to ErrorCode.PARSE_ERROR.
     final Pattern pattern = Pattern.compile(String.valueOf(conditionValue));
