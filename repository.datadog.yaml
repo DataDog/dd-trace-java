@@ -14,3 +14,4 @@ branches:
   master:
     allow_skip_checks: true
     require_reason_for_skip_checks: true
+    allow_custom_commit_message: true

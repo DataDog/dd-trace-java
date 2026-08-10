@@ -42,12 +42,26 @@ tasks.named("compileMain_java25Java", JavaCompile) {
 }
 
 dependencies {
+  // Wire the Java-version-specific source sets into this project without publishing
+  // their raw output:
+  //
+  // - each additional source set compiles against the main output and only the
+  //   dependencies it needs
+  // - their compiled outputs stay visible to tests through `testImplementation`
+  // - their compiled outputs are folded into this project's jar by the jar task below
+  //
+  // Main code loads these classes reflectively at agent runtime, so downstream
+  // consumers should get them from the agent-installer jar. Do not add these
+  // outputs to `runtimeOnly`: `runtimeElements` publishes both the jar artifact
+  // and runtime dependencies. Publishing the raw outputs there would expose the
+  // same classes twice, once from the jar and once from the class directories.
   main_java11CompileOnly project(':dd-java-agent:agent-tooling')
   main_java11CompileOnly sourceSets.main.output
+  testImplementation sourceSets.main_java11.output
+
   main_java25CompileOnly project(':dd-trace-core')
   main_java25CompileOnly sourceSets.main.output
-  runtimeOnly sourceSets.main_java11.output
-  runtimeOnly sourceSets.main_java25.output
+  testImplementation sourceSets.main_java25.output
 }
 
 tasks.named("jar", Jar) {

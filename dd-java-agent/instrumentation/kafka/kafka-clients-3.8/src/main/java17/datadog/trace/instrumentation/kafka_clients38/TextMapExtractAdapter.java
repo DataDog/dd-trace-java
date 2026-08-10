@@ -1,12 +1,15 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static datadog.trace.api.Functions.BASE64_DECODE;
+import static datadog.trace.api.Functions.UTF8_BYTES_TO_STRING;
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor;
 import java.nio.ByteBuffer;
 import java.util.Base64;
+import java.util.function.Function;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 import org.slf4j.Logger;
@@ -18,10 +21,17 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
   public static final TextMapExtractAdapter GETTER =
       new TextMapExtractAdapter(Config.get().isKafkaClientBase64DecodingEnabled());
 
-  private final Base64.Decoder base64;
+  private final Function<byte[], String> headerValueTransformer;
+  private final Base64.Decoder decoder;
 
-  public TextMapExtractAdapter(boolean base64DecodeHeaders) {
-    this.base64 = base64DecodeHeaders ? Base64.getDecoder() : null;
+  public TextMapExtractAdapter(boolean decodeBase64Headers) {
+    if (decodeBase64Headers) {
+      this.headerValueTransformer = BASE64_DECODE;
+      this.decoder = Base64.getDecoder();
+    } else {
+      this.headerValueTransformer = UTF8_BYTES_TO_STRING;
+      this.decoder = null;
+    }
   }
 
   @Override
@@ -32,10 +42,12 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
       if (null == value) {
         continue;
       }
-      if (base64 != null) {
-        value = base64.decode(value);
+      String decoded = headerValueTransformer.apply(value);
+      if (decoded == null) {
+        log.debug(EXCLUDE_TELEMETRY, "Failed to Base64-decode Kafka header '{}', skipping", key);
+        continue;
       }
-      if (!classifier.accept(key, new String(value, UTF_8))) {
+      if (!classifier.accept(key, decoded)) {
         return;
       }
     }
@@ -46,11 +58,11 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
     if (null != header) {
       try {
         ByteBuffer buf = ByteBuffer.allocate(8);
-        buf.put(base64 != null ? base64.decode(header.value()) : header.value());
+        buf.put(decoder != null ? decoder.decode(header.value()) : header.value());
         buf.flip();
         return buf.getLong();
       } catch (Exception e) {
-        log.debug("Unable to get kafka produced time", e);
+        log.debug(EXCLUDE_TELEMETRY, "Unable to get kafka produced time", e);
       }
     }
     return 0;

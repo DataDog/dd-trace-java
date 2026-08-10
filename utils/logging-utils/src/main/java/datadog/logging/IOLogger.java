@@ -2,6 +2,7 @@ package datadog.logging;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 
@@ -15,7 +16,7 @@ public class IOLogger {
     this(log, new RatelimitedLogger(log, 5, TimeUnit.MINUTES));
   }
 
-  // Visible for testing
+  @VisibleForTesting
   IOLogger(final Logger log, final RatelimitedLogger ratelimitedLogger) {
     this.log = log;
     this.ratelimitedLogger = ratelimitedLogger;

@@ -12,11 +12,18 @@ import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.Platform;
 import datadog.trace.util.TempLocationManager;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.UserPrincipal;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.StringTokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -154,7 +161,8 @@ public final class Initializer {
         return false;
       }
     } catch (Throwable t) {
-      logInitializationError(
+      LOG.warn(
+          SEND_TELEMETRY,
           "Unexpected exception while initializing J9 crash tracking. Crash tracking will not work.",
           t);
     }
@@ -361,18 +369,19 @@ public final class Initializer {
         }
       }
 
-      // set the JVM flag
-      boolean rslt = flags.setValue("OnError", onErrorVal);
-      if (!rslt && LOG.isDebugEnabled()) {
-        LOG.debug(
-            SEND_TELEMETRY,
-            "Unable to set OnError flag to {}. Crash-tracking may not work.",
-            onErrorVal);
+      if (CrashUploaderScriptInitializer.initialize(uploadScript, onErrorFile)) {
+        // set the JVM flag only if the script was successfully initialized
+        boolean rslt = flags.setValue("OnError", onErrorVal);
+        if (!rslt && LOG.isDebugEnabled()) {
+          LOG.debug(
+              SEND_TELEMETRY,
+              "Unable to set OnError flag to {}. Crash-tracking may not work.",
+              onErrorVal);
+        }
       }
-
-      CrashUploaderScriptInitializer.initialize(uploadScript, onErrorFile);
     } catch (Throwable t) {
-      logInitializationError(
+      LOG.warn(
+          SEND_TELEMETRY,
           "Unexpected exception while creating custom crash upload script. Crash tracking will not work properly.",
           t);
     }
@@ -401,19 +410,21 @@ public final class Initializer {
         }
       }
 
-      // set the JVM flag
-      boolean rslt = flags.setValue("OnOutOfMemoryError", onOutOfMemoryVal);
-      if (!rslt && LOG.isDebugEnabled()) {
-        LOG.debug(
-            SEND_TELEMETRY,
-            "Unable to set OnOutOfMemoryError flag to {}. OOME tracking may not work.",
-            onOutOfMemoryVal);
+      if (OOMENotifierScriptInitializer.initialize(notifierScript)) {
+        // set the JVM flag only if the script was successfully initialized
+        boolean rslt = flags.setValue("OnOutOfMemoryError", onOutOfMemoryVal);
+        if (!rslt && LOG.isDebugEnabled()) {
+          LOG.debug(
+              SEND_TELEMETRY,
+              "Unable to set OnOutOfMemoryError flag to {}. OOME tracking may not work.",
+              onOutOfMemoryVal);
+        }
       }
-
-      OOMENotifierScriptInitializer.initialize(notifierScript);
     } catch (Throwable t) {
-      logInitializationError(
-          "Unexpected exception while initializing OOME notifier. OOMEs will not be tracked.", t);
+      LOG.warn(
+          SEND_TELEMETRY,
+          "Unexpected exception while initializing OOME notifier. OOMEs will not be tracked.",
+          t);
     }
   }
 
@@ -428,15 +439,37 @@ public final class Initializer {
     return scriptName + "." + (OperatingSystem.isWindows() ? "bat" : "sh");
   }
 
-  private static void logInitializationError(String msg, Throwable t) {
-    if (LOG.isDebugEnabled()) {
-      LOG.warn(SEND_TELEMETRY, msg, t);
-    } else {
-      LOG.warn(
-          SEND_TELEMETRY,
-          "{} [{}] (Change the logging level to debug to see the full stacktrace)",
-          msg,
-          t.getMessage());
+  private static final Set<PosixFilePermission> GROUP_WORLD_BITS =
+      EnumSet.of(
+          PosixFilePermission.GROUP_READ,
+          PosixFilePermission.GROUP_WRITE,
+          PosixFilePermission.GROUP_EXECUTE,
+          PosixFilePermission.OTHERS_READ,
+          PosixFilePermission.OTHERS_WRITE,
+          PosixFilePermission.OTHERS_EXECUTE);
+
+  /**
+   * Returns {@code true} when {@code f} is safe to trust: on non-POSIX file systems always returns
+   * {@code true}; on POSIX returns {@code true} only when the path is owned by the current JVM user
+   * and has no group or world permission bits set (effective {@code 0700} for dirs, {@code 0600} or
+   * stricter for files).
+   */
+  static boolean isOwnedAndPrivate(File f) {
+    if (OperatingSystem.isWindows()) {
+      return true;
+    }
+    try {
+      Path path = f.toPath();
+      UserPrincipal owner = Files.getOwner(path);
+      UserPrincipal jvmUser = Files.getOwner(TempLocationManager.getInstance().getTempDir());
+      if (!jvmUser.equals(owner)) {
+        return false;
+      }
+      Set<PosixFilePermission> perms = Files.getPosixFilePermissions(path);
+      return perms.stream().noneMatch(GROUP_WORLD_BITS::contains);
+    } catch (IOException | IllegalStateException e) {
+      LOG.debug("Unable to check ownership/permissions for {}: {}", f, e.getMessage());
+      return false;
     }
   }
 }

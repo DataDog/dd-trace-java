@@ -9,6 +9,7 @@ import reactor.netty.http.server.HttpServer
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 
+import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -25,13 +26,47 @@ class ReactorNettyHttp2ClientTest extends InstrumentationSpecification {
   .bindNow()
 
   @Override
-  boolean useStrictTraceWrites() {
-    false
-  }
-
-  @Override
   def cleanupSpec() {
     server?.disposeNow()
+  }
+
+  def "test http2 prior knowledge failed connect creates connect error span"() {
+    setup:
+    HttpClient httpClient = HttpClient.create()
+      .disableRetry(true)
+      .protocol(HttpProtocol.H2C)
+
+    when:
+    runUnderTrace("parent", {
+      httpClient.baseUrl("http://127.0.0.1:${UNUSABLE_PORT}")
+        .get()
+        .uri("/")
+        .response()
+        .block()
+    })
+
+    then:
+    def ex = thrown(Exception)
+    (ex instanceof ConnectException) || (ex.cause instanceof ConnectException)
+
+    and:
+    assertTraces(1) {
+      trace(2) {
+        basicSpan(it, "parent", null, ex)
+
+        span {
+          operationName "netty.connect"
+          resourceName "netty.connect"
+          childOf span(0)
+          errored true
+          tags {
+            "$Tags.COMPONENT" "netty"
+            errorTags Throwable, ~"Connection refused"
+            defaultTags()
+          }
+        }
+      }
+    }
   }
 
   def "test http2 client/server propagation"() {

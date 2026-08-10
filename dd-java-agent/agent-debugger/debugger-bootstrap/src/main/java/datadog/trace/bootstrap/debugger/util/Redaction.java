@@ -104,7 +104,7 @@ public class Redaction {
           "xsrf",
           "xsrftoken");
   private static final Set<String> KEYWORDS = ConcurrentHashMap.newKeySet();
-  private static ClassNameTrie typeTrie = ClassNameTrie.Builder.EMPTY_TRIE;
+  private static ClassNameTrie typeTrie = ClassNameTrie.EMPTY_TRIE;
   private static List<String> redactedClasses;
   private static List<String> redactedPackages;
 
@@ -190,7 +190,7 @@ public class Redaction {
   }
 
   public static void clearUserDefinedTypes() {
-    typeTrie = ClassNameTrie.Builder.EMPTY_TRIE;
+    typeTrie = ClassNameTrie.EMPTY_TRIE;
   }
 
   public static void resetUserDefinedKeywords() {

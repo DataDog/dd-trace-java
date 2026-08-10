@@ -153,12 +153,13 @@ public class Servlet3Advice {
       return;
     }
 
+    final AgentSpan span = spanFromContext(scope.context());
+    boolean finishSpanManually = false;
+
     if (request instanceof HttpServletRequest && response instanceof HttpServletResponse) {
       final HttpServletResponse resp = (HttpServletResponse) response;
 
-      final AgentSpan span = spanFromContext(scope.context());
-
-      if (request.isAsyncStarted()) {
+      if (DECORATE.safeIsAsyncStarted(request)) {
         AtomicBoolean activated = new AtomicBoolean();
         FinishAsyncDispatchListener asyncListener =
             new FinishAsyncDispatchListener(scope, activated, !isDispatch);
@@ -166,17 +167,17 @@ public class Servlet3Advice {
         request.setAttribute(DD_FIN_DISP_LIST_SPAN_ATTRIBUTE, asyncListener);
         try {
           request.getAsyncContext().addListener(asyncListener);
-        } catch (final IllegalStateException e) {
+        } catch (final IllegalStateException | AbstractMethodError ignored) {
           // org.eclipse.jetty.server.Request may throw an exception here if request became
           // finished after check above. We just ignore that exception and move on.
         }
-        if (!request.isAsyncStarted() && activated.compareAndSet(false, true)) {
+        if (!DECORATE.safeIsAsyncStarted(request) && activated.compareAndSet(false, true)) {
           if (!isDispatch) {
             DECORATE.onResponse(span, resp);
           }
           if (finishSpan) {
             DECORATE.beforeFinish(scope.context());
-            span.finish(); // Finish the span manually since finishSpanOnClose was false
+            finishSpanManually = true;
           }
         }
       } else { // not async
@@ -199,10 +200,13 @@ public class Servlet3Advice {
         }
         if (finishSpan) {
           DECORATE.beforeFinish(scope.context());
-          span.finish(); // Finish the span manually since finishSpanOnClose was false
+          finishSpanManually = true;
         }
       }
     }
     scope.close();
+    if (finishSpanManually) {
+      span.finish(); // Finish the span manually since finishSpanOnClose was false
+    }
   }
 }

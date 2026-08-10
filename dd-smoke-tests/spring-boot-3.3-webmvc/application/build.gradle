@@ -16,8 +16,15 @@ if (hasProperty('appBuildDir')) {
 
 version = ""
 
+// Pin bytecode target: the nested daemon now runs on JDK 21, but the smoke test launches
+// the produced jar on Java 17 (per testJvmConstraints).
+java {
+  sourceCompatibility = JavaVersion.VERSION_17
+}
+
 dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-web'
+  implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
   implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
   implementation group: 'com.h2database', name: 'h2', version: '2.1.214'
   compileOnly group:"com.google.code.findbugs", name:"jsr305", version:"3.0.2"

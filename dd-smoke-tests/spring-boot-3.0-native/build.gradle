@@ -1,4 +1,9 @@
+import java.util.concurrent.Callable
 import java.util.regex.Pattern
+
+plugins {
+  id 'dd-trace-java.smoke-test-app'
+}
 
 apply from: "$rootDir/gradle/java.gradle"
 
@@ -9,75 +14,61 @@ dependencies {
   testImplementation libs.bundles.jmc
 }
 
-// Check 'testJvm' gradle command parameter is GraalVM (e.g., -PtestJvm=graalvm21),
-// if not nothing is done
+// The nested build compiles the application with `--release 17`, so Spring Boot 3.0's
+// build-time classpath scanners don't see class files from the selected GraalVM release.
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+  nativeImageCapable = true
+}
+
+// The following makes `springNativeBuild` only run when Gradle is passed `-PtestJvm=graalvm17` or later.
 def testJvm = gradle.startParameter.projectProperties.getOrDefault('testJvm', '')
 def graalvmMatcher = Pattern.compile("graalvm([0-9]+)").matcher(testJvm?.toLowerCase(Locale.ROOT) ?: '')
 def testGraalvmVersion = graalvmMatcher.find() ? Integer.parseInt(graalvmMatcher.group(1)) : -1
-
-if (testGraalvmVersion >= 17) {
-  // GraalVM with native-image capability for native compilation
-  def graalvmHome = getLazyJavaHomeFor(testGraalvmVersion, true)
-  // For GraalVM 21+ we need Java 17+ to run Gradle, for earlier versions use GraalVM itself
-  def gradleJavaHome = testGraalvmVersion >= 21 ? getLazyJavaHomeFor(17) : graalvmHome
-  // Configure build directory for application
-  def appDir = "$projectDir/application"
-  def appBuildDir = "$buildDir/application"
-  def isWindows = System.getProperty('os.name').toLowerCase().contains('win')
-  def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
-
-  // Define the task that builds the project
-  tasks.register('springNativeBuild', Exec) {
-    workingDir "$appDir"
-    environment += [
-      'GRADLE_OPTS': "-Dorg.gradle.jvmargs='-Xmx1024M'",
-      'JAVA_HOME': gradleJavaHome,
-      'GRAALVM_HOME': graalvmHome,
-      'DD_TRACE_METHODS' : 'datadog.smoketest.springboot.controller.WebController[sayHello]',
-      'NATIVE_IMAGE_DEPRECATED_BUILDER_SANITATION' : 'true'
-    ]
-    commandLine(
-      "$rootDir/${gradlewCommand}",
-      'nativeCompile',
-      '--no-daemon',
-      '--max-workers=4',
-      "-PappBuildDir=$appBuildDir",
-      "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}",
-      "-PagentPath=${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}",
-      "-Pprofiler=true"
-      )
-    outputs.cacheIf { true }
-    outputs.dir(appBuildDir)
-      .withPropertyName('nativeApplication')
-    inputs.files(fileTree(appDir) {
-      include '**/*'
-      exclude '.gradle/**'
-    }).withPropertyName('application')
-    .withPathSensitivity(PathSensitivity.RELATIVE)
-    inputs.file(project(':dd-trace-api').tasks.jar.archiveFile.get()).withPropertyName('apiJar')
-    inputs.file(project(':dd-java-agent').tasks.shadowJar.archiveFile.get()).withPropertyName('agentJar')
+def isSupportedGraalvm = testGraalvmVersion >= 17
+Provider<String> graalvmHome = providers.provider({
+  if (!isSupportedGraalvm) {
+    throw new GradleException("Set -PtestJvm=graalvm<N> (N >= 17) to build the native image for this smoke test.")
   }
+  getLazyJavaHomeFor(testGraalvmVersion, true).toString()
+} as Callable<String>)
 
-  springNativeBuild {
-    dependsOn project(':dd-trace-api').tasks.named("jar") // Use dev @Trace annotation
-    dependsOn project(':dd-java-agent').tasks.named('shadowJar') // Use dev agent
+smokeTestApp {
+  gradleApp {
+    taskName = 'springNativeBuild'
+    nestedTasks = ['nativeCompile']
+    artifactPath = 'native/nativeCompile/native-3.0-smoketest'
+    sysProperty = 'datadog.smoketest.spring.native.executable'
+    buildArguments.addAll('--max-workers=4', '-Pprofiler=true')
+    environment.put('GRAALVM_HOME', graalvmHome)
+    environment.put('DD_TRACE_METHODS', 'datadog.smoketest.springboot.controller.WebController[sayHello]')
+    environment.put('NATIVE_IMAGE_DEPRECATED_BUILDER_SANITATION', 'true')
   }
+  projectJar('apiJar', project(':dd-trace-api'))
+  projectJar('agentPath', project(':dd-java-agent'), 'shadow')
+}
 
-  tasks.named('compileTestGroovy') {
-    dependsOn 'springNativeBuild'
-    outputs.upToDateWhen {
-      !springNativeBuild.didWork
-    }
-  }
+tasks.named('springNativeBuild') {
+  onlyIf("Requires -PtestJvm=graalvm<N> (N >= 17)") { isSupportedGraalvm }
+}
 
-  tasks.withType(Test).configureEach {
-    jvmArgs "-Ddatadog.smoketest.spring.native.executable=$appBuildDir/native/nativeCompile/native-3.0-smoketest"
-    jvmArgs "-Ddd.profiling.enabled=true"
+tasks.named('compileTestGroovy', GroovyCompile) {
+  dependsOn 'springNativeBuild'
+  onlyIf { isSupportedGraalvm }
+  outputs.upToDateWhen {
+    !tasks.named('springNativeBuild').get().didWork
   }
-} else {
-  tasks.withType(Test).configureEach {
-    enabled = false
-  }
+}
+
+tasks.withType(Test).configureEach {
+  // Keep the tests tied to the explicit GraalVM selection used to build the native
+  // executable. Without this, `testJvmConstraints` may allow the Test task when the
+  // daemon itself is native-image capable, even though `springNativeBuild` was skipped.
+  onlyIf("Requires -PtestJvm=graalvm<N> (N >= 17)") { isSupportedGraalvm }
+  // The test JVM is only a harness that starts the native executable, so run it with
+  // the default project toolchain instead of the selected GraalVM.
+  javaLauncher = javaToolchains.launcherFor(java.toolchain)
+  jvmArgs "-Ddd.profiling.enabled=true"
 }
 
 spotless {

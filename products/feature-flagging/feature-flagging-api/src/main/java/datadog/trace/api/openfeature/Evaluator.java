@@ -8,6 +8,8 @@ interface Evaluator {
 
   boolean initialize(long timeout, TimeUnit timeUnit, EvaluationContext context) throws Exception;
 
+  boolean hasConfiguration();
+
   void shutdown();
 
   <T> ProviderEvaluation<T> evaluate(

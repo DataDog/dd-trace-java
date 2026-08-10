@@ -15,6 +15,7 @@ public final class TraceInstrumentationConfig {
   public static final String CODE_ORIGIN_MAX_USER_FRAMES = "code.origin.max.user.frames";
   public static final String TRACE_ENABLED = "trace.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
+  public static final String DETAILED_INSTRUMENTATION_ERRORS = "detailed.instrumentation.errors";
 
   public static final String TRACE_EXTENSIONS_PATH = "trace.extensions.path";
 
@@ -155,6 +156,9 @@ public final class TraceInstrumentationConfig {
 
   public static final String SPRING_DATA_REPOSITORY_INTERFACE_RESOURCE_NAME =
       "spring-data.repository.interface.resource-name";
+
+  public static final String SPRING_SCHEDULING_MEASURED_ENABLED =
+      "spring-scheduling.measured.enabled";
 
   public static final String INSTRUMENTATION_CONFIG_ID = "instrumentation_config_id";
 

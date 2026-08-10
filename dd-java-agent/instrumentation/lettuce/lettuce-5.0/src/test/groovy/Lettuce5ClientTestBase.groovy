@@ -42,13 +42,6 @@ abstract class Lettuce5ClientTestBase extends VersionedNamingTestBase {
   RedisAsyncCommands<String, ?> asyncCommands
   RedisCommands<String, ?> syncCommands
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // latest seems leaking continuations that terminates later hence the strict trace will discard our spans.
-    !isLatestDepTest
-  }
-
-
   def setup() {
     redisServer.start()
     println "Using redis: $redisServer.redisURI"

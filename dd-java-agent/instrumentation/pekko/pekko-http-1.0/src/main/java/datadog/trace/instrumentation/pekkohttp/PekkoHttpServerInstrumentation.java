@@ -98,7 +98,7 @@ public final class PekkoHttpServerInstrumentation extends InstrumenterModule.Tra
       }
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit() {
       CallDepthThreadLocalMap.decrementCallDepth(HttpExt.class);
     }

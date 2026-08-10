@@ -59,7 +59,7 @@ public class OpensearchTransportClientDecorator extends DBTypeProcessingDatabase
     return null;
   }
 
-  public AgentSpan onRequest(final AgentSpan span, final Class action, final Class request) {
+  public void onRequest(final AgentSpan span, final Class action, final Class request) {
     if (action != null) {
       String actionName = action.getSimpleName();
       if ("AutoPutMappingAction".equals(actionName)) {
@@ -71,6 +71,5 @@ public class OpensearchTransportClientDecorator extends DBTypeProcessingDatabase
     if (request != null) {
       span.setTag("opensearch.request", request.getSimpleName());
     }
-    return span;
   }
 }

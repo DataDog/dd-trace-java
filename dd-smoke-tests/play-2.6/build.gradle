@@ -4,6 +4,7 @@ plugins {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-routes.gradle"
+apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-linux-arm64.gradle"
 
 testJvmConstraints {
   // TODO Java 17: This version of play doesn't support Java 17

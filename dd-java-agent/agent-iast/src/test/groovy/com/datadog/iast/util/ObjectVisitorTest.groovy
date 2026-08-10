@@ -1,6 +1,5 @@
 package com.datadog.iast.util
 
-import com.google.common.collect.Iterables
 import foo.bar.VisitableClass
 import spock.lang.Specification
 
@@ -40,7 +39,7 @@ class ObjectVisitorTest extends Specification {
     given:
     final visitor = Mock(ObjectVisitor.Visitor)
     final wrapped = ['1', '2', '3']
-    final target = Iterables.unmodifiableIterable(wrapped)
+    final Iterable target = wrapped.&iterator as Iterable
 
     when:
     ObjectVisitor.visit(target, visitor) { Iterable.isAssignableFrom(it) }

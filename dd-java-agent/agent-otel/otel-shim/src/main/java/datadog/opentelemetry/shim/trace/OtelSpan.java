@@ -47,7 +47,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
     }
     this.statusCode = UNSET;
     this.recording = true;
-    delegate.context().setIntegrationName("otel");
+    delegate.spanContext().setIntegrationName("otel");
   }
 
   public static Span invalid() {
@@ -168,7 +168,7 @@ public class OtelSpan implements Span, WithAgentSpan, SpanWrapper {
   }
 
   public AgentSpanContext getAgentSpanContext() {
-    return this.delegate.context();
+    return this.delegate.spanContext();
   }
 
   @Override

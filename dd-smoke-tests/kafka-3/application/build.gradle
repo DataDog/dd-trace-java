@@ -4,10 +4,11 @@ plugins {
   id 'io.spring.dependency-management' version '1.1.4'
 }
 
+// Pin bytecode target: the nested daemon runs on JDK 21, but the smoke test launches the
+// produced jar on Java 17. Using sourceCompatibility (vs. toolchain.languageVersion) lets
+// Gradle cross-compile via `--release 17` without pulling a separate JDK 17 toolchain.
 java {
-  toolchain {
-    languageVersion.set(JavaLanguageVersion.of(17))
-  }
+  sourceCompatibility = JavaVersion.VERSION_17
 }
 
 def sharedRootDir = "$rootDir/../../../"

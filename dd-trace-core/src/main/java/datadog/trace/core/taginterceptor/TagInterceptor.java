@@ -5,7 +5,6 @@ import static datadog.trace.api.DDTags.MEASURED;
 import static datadog.trace.api.DDTags.ORIGIN_KEY;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
-import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_SERVLET_CONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.SPLIT_BY_TAGS;
@@ -298,8 +297,7 @@ public class TagInterceptor {
     return true;
   }
 
-  private boolean interceptServiceName(
-      RuleFlags.Feature feature, DDSpanContext span, Object value) {
+  boolean interceptServiceName(RuleFlags.Feature feature, DDSpanContext span, Object value) {
     if (ruleFlags.isEnabled(feature)) {
       String serviceName = String.valueOf(value);
       span.setServiceName(serviceName);
@@ -328,15 +326,18 @@ public class TagInterceptor {
     if (ruleFlags.isEnabled(FORCE_SAMPLING_PRIORITY)) {
       Number samplingPriority = getOrTryParse(value);
       if (null != samplingPriority) {
-        span.setSamplingPriority(
-            samplingPriority.intValue() > 0 ? USER_KEEP : USER_DROP, SamplingMechanism.MANUAL);
+        if (samplingPriority.intValue() > 0) {
+          span.forceKeep(SamplingMechanism.MANUAL);
+        } else {
+          span.setSamplingPriority(USER_DROP, SamplingMechanism.MANUAL);
+        }
       }
       return true;
     }
     return false;
   }
 
-  private boolean interceptServletContext(DDSpanContext span, Object value) {
+  boolean interceptServletContext(DDSpanContext span, Object value) {
     // even though this tag is sometimes used to set the service name
     // (which has the side effect of marking the span as eligible for metrics
     // in the trace agent) we also want to store it in the tags no matter what,

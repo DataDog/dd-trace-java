@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.vertx_redis_client;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -9,13 +10,13 @@ import io.vertx.redis.client.Response;
 public class ResponseHandlerWrapper implements Handler<AsyncResult<Response>> {
   private final Handler<AsyncResult<Response>> handler;
   public final AgentSpan clientSpan;
-  private final AgentScope.Continuation parentContinuation;
+  private final ContextContinuation parentContinuation;
   private boolean handled = false;
 
   public ResponseHandlerWrapper(
       final Handler<AsyncResult<Response>> handler,
       final AgentSpan clientSpan,
-      final AgentScope.Continuation parentContinuation) {
+      final ContextContinuation parentContinuation) {
     this.handler = handler;
     this.clientSpan = clientSpan;
     this.parentContinuation = parentContinuation;
@@ -32,13 +33,13 @@ public class ResponseHandlerWrapper implements Handler<AsyncResult<Response>> {
     */
     if (!handled) {
       handled = true;
-      AgentScope scope = null;
+      ContextScope scope = null;
       try {
         if (null != clientSpan) {
           clientSpan.finish();
         }
         if (null != parentContinuation) {
-          scope = parentContinuation.activate();
+          scope = parentContinuation.resume();
         }
         handler.handle(event);
       } finally {

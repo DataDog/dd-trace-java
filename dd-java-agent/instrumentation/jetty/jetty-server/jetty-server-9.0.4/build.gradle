@@ -12,6 +12,10 @@ apply from: "$rootDir/gradle/java.gradle"
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 
+tasks.named('latestDepForkedTest', Test) {
+  systemProperty 'test.dd.jetty92', 'true'
+}
+
 // Exclude servlet 3.x API (coming from dd-java-agent:testing) to ensure servlet 2.x instrumentation applies.
 // Using testRuntimeClasspath instead of testImplementation because exclusions on testImplementation
 // propagate to latestDep* configurations, which need servlet 3.1 API for Jetty 9.2.x.

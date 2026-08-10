@@ -61,6 +61,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
   private static final String INPUT = LLMOBS_TAG_PREFIX + "input"
   private static final String OUTPUT = LLMOBS_TAG_PREFIX + "output"
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA
+  private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS
 
 
   def "test span simple"() {
@@ -337,6 +338,88 @@ class DDLLMObsSpanTest  extends DDSpecification{
     DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
   }
 
+  def "test llm span with tool definitions"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    def schema = Maps.of(
+      "type", "object",
+      "properties", Maps.of("location", Maps.of("type", "string")))
+    def toolDefinition =
+      LLMObs.ToolDefinition.from("get_weather", "Get the weather by location", schema, "1.2.3")
+
+    when:
+    test.setToolDefinitions(Arrays.asList(
+      toolDefinition,
+      LLMObs.ToolDefinition.from("get_time"),
+      LLMObs.ToolDefinition.from(""),
+      LLMObs.ToolDefinition.from(null),
+      null))
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    def toolDefinitions = innerSpan.getTag(TOOL_DEFINITIONS)
+    toolDefinitions instanceof List
+    toolDefinitions.size() == 2
+    toolDefinitions.get(0).is(toolDefinition)
+    toolDefinitions.get(1).name == "get_time"
+    toolDefinitions.get(1).description == null
+    toolDefinitions.get(1).schema == null
+    toolDefinitions.get(1).version == null
+  }
+
+  def "tool definitions overwrite prior annotations and ignore invalid definitions"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    test.setToolDefinitions(Arrays.asList(LLMObs.ToolDefinition.from("first")))
+
+    when:
+    test.setToolDefinitions(Arrays.asList(
+      LLMObs.ToolDefinition.from("second")))
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(TOOL_DEFINITIONS)*.name == ["second"]
+
+    when:
+    test.setToolDefinitions(Arrays.asList(
+      LLMObs.ToolDefinition.from(""),
+      LLMObs.ToolDefinition.from(null),
+      null))
+
+    then:
+    innerSpan.getTag(TOOL_DEFINITIONS)*.name == ["second"]
+  }
+
+  def "null and empty tool definition lists do not overwrite prior annotations"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    test.setToolDefinitions(Arrays.asList(LLMObs.ToolDefinition.from("first")))
+
+    when:
+    test.setToolDefinitions(toolDefinitions)
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(TOOL_DEFINITIONS)*.name == ["first"]
+
+    where:
+    toolDefinitions << [null, Collections.emptyList()]
+  }
+
+  def "tool definitions cannot be annotated after the span finishes"() {
+    setup:
+    def test = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "test-span")
+    test.setToolDefinitions(Arrays.asList(LLMObs.ToolDefinition.from("first")))
+    test.finish()
+
+    when:
+    test.setToolDefinitions(Arrays.asList(LLMObs.ToolDefinition.from("second")))
+
+    then:
+    def innerSpan = (AgentSpan)test.span
+    innerSpan.getTag(TOOL_DEFINITIONS)*.name == ["first"]
+  }
+
   def "finish records span.finished telemetry when LLMObs enabled"() {
     setup:
     LLMObsMetricCollector collector = LLMObsMetricCollector.get()
@@ -409,6 +492,96 @@ class DDLLMObsSpanTest  extends DDSpecification{
     sessionId     | expectedHasSessionIdTag
     "session-123" | "has_session_id:1"
     null          | "has_session_id:0"
+  }
+
+  def "child LLMObs span inherits session_id from parent context when none is passed"() {
+    setup:
+    def expectedSessionId = "session-abc-123"
+    def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", expectedSessionId)
+    // Activate the parent's AgentScope so the child span is created in the same trace.
+    // Without this, the child gets a fresh trace_id and the trace-consistency gate in
+    // DDLLMObsSpan would (correctly) skip session_id inheritance.
+    def parentScope = AgentTracer.activateSpan((AgentSpan) parent.span)
+
+    when:
+    // Child created with null sessionId — should inherit from the parent's LLMObsContext.
+    def child = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "child-llm", null)
+
+    then:
+    def innerChild = (AgentSpan) child.span
+    expectedSessionId == innerChild.getTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID)
+
+    cleanup:
+    child.finish()
+    parentScope.close()
+    parent.finish()
+  }
+
+  def "child LLMObs span has no session_id when neither parent nor child passes one"() {
+    setup:
+    def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", null)
+
+    when:
+    def child = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "child-llm", null)
+
+    then:
+    def innerChild = (AgentSpan) child.span
+    null == innerChild.getTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID)
+
+    cleanup:
+    child.finish()
+    parent.finish()
+  }
+
+  def "grandchild LLMObs span transitively inherits session_id through intermediate span"() {
+    setup:
+    def expectedSessionId = "session-grandparent-xyz"
+    def grandparent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "grandparent-workflow", expectedSessionId)
+    // Activate each ancestor's AgentScope so descendants stay in the same trace —
+    // session_id inheritance is gated on trace-id consistency in DDLLMObsSpan.
+    def grandparentScope = AgentTracer.activateSpan((AgentSpan) grandparent.span)
+    def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", null)
+    def parentScope = AgentTracer.activateSpan((AgentSpan) parent.span)
+
+    when:
+    // Grandchild created with null sessionId — should inherit transitively
+    // through parent's re-attached LLMObsContext (which itself inherited from grandparent).
+    def grandchild = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "grandchild-llm", null)
+
+    then:
+    def innerGrandchild = (AgentSpan) grandchild.span
+    expectedSessionId == innerGrandchild.getTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID)
+
+    cleanup:
+    grandchild.finish()
+    parentScope.close()
+    parent.finish()
+    grandparentScope.close()
+    grandparent.finish()
+  }
+
+  def "child does NOT inherit session_id when stale LLMObsContext is from a different trace (e.g. async boundary leak)"() {
+    setup:
+    // Simulates a stale LLMObsContext (e.g. leaked across an async boundary). The parent's
+    // LLMObsContext is attached, but its AgentScope is deliberately NOT activated — so the
+    // next span we create starts a fresh trace and the trace-consistency gate must skip
+    // session_id inheritance.
+    def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "stale-workflow", "stale-session-id")
+
+    when:
+    def child = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "child-llm", null)
+
+    then:
+    def innerParent = (AgentSpan) parent.span
+    def innerChild = (AgentSpan) child.span
+    // Sanity: traces differ — confirms the scenario is set up correctly.
+    innerParent.getTraceId() != innerChild.getTraceId()
+    // Session_id from the stale-trace context must NOT leak into the new span.
+    null == innerChild.getTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID)
+
+    cleanup:
+    child.finish()
+    parent.finish()
   }
 
   def "global dd_tags are included in LLMObs span tags"() {

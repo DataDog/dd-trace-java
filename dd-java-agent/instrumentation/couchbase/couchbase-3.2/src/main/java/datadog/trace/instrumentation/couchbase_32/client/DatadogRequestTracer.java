@@ -56,7 +56,7 @@ public class DatadogRequestTracer implements RequestTracer {
     if (requestSpan == null) {
       AgentTracer.SpanBuilder builder = tracer.singleSpanBuilder("couchbase", spanName);
       if (null != parent) {
-        builder.asChildOf(parent.context());
+        builder.asChildOf(parent.spanContext());
       }
       AgentSpan span = builder.start();
       CouchbaseClientDecorator.DECORATE.afterStart(span);

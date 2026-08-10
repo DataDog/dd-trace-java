@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.smoke-test-app'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Open Liberty Smoke Tests'
 
@@ -5,50 +9,30 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
-def appDir = "$projectDir/application"
 def jarName = "demo-open-liberty-app.jar"
-def jarPath = "$buildDir/application/target/${jarName}"
-def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
-def mvnwCommand = isWindows ? 'mvnw.cmd' : 'mvnw'
 
-// compile the Open liberty spring boot server
-tasks.register('mvnStage', Exec) {
-  workingDir("$appDir")
-  environment += [
-    "MAVEN_OPTS": "-Xmx512M",
-    "JAVA_HOME": getLazyJavaHomeFor(8)
-  ]
-
-  List<String> mvnArgs = ["$rootDir/${mvnwCommand}", "-Dtarget.dir=${buildDir}/application/target", "package"]
-
-  // Specify caches folder on CI.
-  if (providers.environmentVariable("CI").isPresent()) {
-    mvnArgs.add(1, "-Dmaven.repo.local=$rootDir/.mvn/caches")
+smokeTestApp {
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(8)
   }
-
-  commandLine(mvnArgs)
-
-  inputs.dir "$appDir/src"
-  inputs.file "$appDir/pom.xml"
-  outputs.file jarPath
+  mavenApp {
+    taskName = 'mvnStage'
+    artifactPath = "target/${jarName}"
+    sysProperty = 'datadog.smoketest.openliberty.jar.path'
+    mavenOpts = '-Xmx512M'
+  }
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
   dependsOn 'mvnStage'
   outputs.upToDateWhen {
-    !mvnStage.didWork
+    !tasks.named('mvnStage').get().didWork
   }
 }
 
-// compiled dir of the packaged spring boot app with embedded openliberty
-tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.openliberty.jar.path=${jarPath}"
-}
-
-
 spotless {
   java {
-    target fileTree("$appDir") {
+    target fileTree("$projectDir/application") {
       include "**/*.java"
     }
   }

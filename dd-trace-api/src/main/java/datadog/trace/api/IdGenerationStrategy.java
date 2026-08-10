@@ -13,6 +13,15 @@ import java.util.concurrent.atomic.AtomicLong;
  * configuration based, for example 128 bit trace ids et.c., without changing the public API.
  */
 public abstract class IdGenerationStrategy {
+  static {
+    // Eagerly load DDTraceId.ZERO _before_ calling any public DD64bTraceId methods below.
+    // This avoids a potential 'clinit' deadlock between DDTraceId and DD64bTraceId caused
+    // by one thread touching DD64bTraceId before the static initializer in DDTraceId has
+    // finished setting up the ZERO constant (which in turn uses DD64bTraceId)
+    @SuppressWarnings("unused")
+    DDTraceId init = DDTraceId.ZERO;
+  }
+
   protected final boolean traceId128BitGenerationEnabled;
 
   private IdGenerationStrategy(boolean traceId128BitGenerationEnabled) {

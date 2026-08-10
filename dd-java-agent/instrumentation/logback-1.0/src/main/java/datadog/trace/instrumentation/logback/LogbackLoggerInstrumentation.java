@@ -74,11 +74,14 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
   public static class CallAppendersAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
+      if (event == null) {
+        return;
+      }
       AgentSpan span = activeSpan();
 
       if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
         InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class)
-            .put(event, span.context());
+            .put(event, span.spanContext());
       }
     }
   }
@@ -86,6 +89,9 @@ public class LogbackLoggerInstrumentation extends InstrumenterModule.ContextTrac
   public static class CallAppendersAdvice2 {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) ILoggingEvent event) {
+      if (event == null) {
+        return;
+      }
       LogsIntakeHelper.log(event);
     }
   }

@@ -1,6 +1,10 @@
 package datadog.trace.instrumentation.httpclient;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
+
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodySubscriber;
 import java.net.http.HttpResponse.ResponseInfo;
@@ -11,27 +15,28 @@ import java.util.concurrent.Flow;
 
 public class BodyHandlerWrapper<T> implements BodyHandler<T> {
   private final BodyHandler<T> delegate;
-  private final AgentScope.Continuation continuation;
+  private final AgentSpan span;
 
-  public BodyHandlerWrapper(BodyHandler<T> delegate, AgentScope.Continuation context) {
+  public BodyHandlerWrapper(BodyHandler<T> delegate, AgentSpan span) {
     this.delegate = delegate;
-    this.continuation = context;
+    this.span = span;
   }
 
   @Override
   public BodySubscriber<T> apply(ResponseInfo responseInfo) {
+    // Capture the continuation lazily here rather than at sendAsync() call time.
     BodySubscriber<T> subscriber = delegate.apply(responseInfo);
     if (subscriber instanceof BodySubscriberWrapper) {
       return subscriber;
     }
-    return new BodySubscriberWrapper<>(subscriber, continuation);
+    return new BodySubscriberWrapper<>(subscriber, captureSpan(span));
   }
 
   static class BodySubscriberWrapper<T> implements BodySubscriber<T> {
     private final BodySubscriber<T> delegate;
-    private final AgentScope.Continuation continuation;
+    private final ContextContinuation continuation;
 
-    public BodySubscriberWrapper(BodySubscriber<T> delegate, AgentScope.Continuation continuation) {
+    public BodySubscriberWrapper(BodySubscriber<T> delegate, ContextContinuation continuation) {
       this.delegate = delegate;
       this.continuation = continuation;
     }
@@ -52,21 +57,21 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
 
     @Override
     public void onNext(List<ByteBuffer> item) {
-      try (AgentScope ignore = continuation.activate()) {
+      try (ContextScope ignore = continuation.resume()) {
         delegate.onNext(item);
       }
     }
 
     @Override
     public void onError(Throwable throwable) {
-      try (AgentScope ignore = continuation.activate()) {
+      try (ContextScope ignore = continuation.resume()) {
         delegate.onError(throwable);
       }
     }
 
     @Override
     public void onComplete() {
-      try (AgentScope ignore = continuation.activate()) {
+      try (ContextScope ignore = continuation.resume()) {
         delegate.onComplete();
       }
     }

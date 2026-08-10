@@ -124,7 +124,7 @@ _Actions:_
 
 * Fail the PR if it introduces any new `.groovy` file, including added, copied, or renamed files whose previous name was not already `.groovy`.
 
-_Recovery:_ Re-write the new Groovy files in Java / JUnit. To override this check entirely, add the `tag: override-groovy-enforcement` label to the PR. Remove the label to re-enable enforcement.
+_Recovery:_ Re-write the new Groovy files in Java / JUnit. To override this check entirely, add the `tag: override groovy enforcement` label to the PR. Remove the label to re-enable enforcement.
 
 _Notes:_ The override label skips the workflow entirely.
 
@@ -160,6 +160,14 @@ _Recovery:_ Manually trigger the action on the desired branch.
 _Trigger:_ Every week or manually.
 
 _Action:_ Create a PR updating the Grade dependencies and their locking files.
+
+_Recovery:_ Manually trigger the action again.
+
+### update-apm-sdks-benchmarks-reference [🔗](update-apm-sdks-benchmarks-reference.yaml)
+
+_Trigger:_ Every week or manually.
+
+_Action:_ Create a PR pinning our `apm-sdks-benchmarks` CI includes and runtime clones to the latest commit on the `apm-sdks-benchmarks` GitHub `main` branch.
 
 _Recovery:_ Manually trigger the action again.
 

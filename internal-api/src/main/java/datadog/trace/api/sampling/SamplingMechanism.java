@@ -74,9 +74,9 @@ public class SamplingMechanism {
   /**
    * Returns true if sampling priority lock can be avoided for the given mechanism and priority
    *
-   * @param mechanism
-   * @param priority
-   * @return
+   * @param priority the sampling priority
+   * @param mechanism the sampling mechanism
+   * @return {@code true} if the sampling priority lock can be avoided, {@code false} otherwise
    */
   public static boolean canAvoidSamplingPriorityLock(int priority, int mechanism) {
     return (!Config.get().isApmTracingEnabled() && mechanism == SamplingMechanism.APPSEC)

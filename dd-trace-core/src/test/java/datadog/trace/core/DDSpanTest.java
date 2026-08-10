@@ -10,6 +10,7 @@ import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -33,6 +34,7 @@ import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.util.TestThrowables;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -88,7 +90,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
     assertEquals(PrioritySampling.SAMPLER_KEEP, (int) span.getSamplingPriority());
 
-    span.context().lockSamplingPriority();
+    span.spanContext().lockSamplingPriority();
     span.setSamplingPriority(PrioritySampling.USER_KEEP);
     assertEquals(PrioritySampling.SAMPLER_KEEP, (int) span.getSamplingPriority());
   }
@@ -251,18 +253,18 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   void prioritySamplingMetricSetOnlyOnRootSpan() {
     DDSpan parent = (DDSpan) tracer.buildSpan("datadog", "testParent").start();
     DDSpan child1 =
-        (DDSpan) tracer.buildSpan("datadog", "testChild1").asChildOf(parent.context()).start();
+        (DDSpan) tracer.buildSpan("datadog", "testChild1").asChildOf(parent.spanContext()).start();
 
     child1.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
-    child1.context().lockSamplingPriority();
+    child1.spanContext().lockSamplingPriority();
     parent.setSamplingPriority(PrioritySampling.SAMPLER_DROP);
     child1.finish();
     DDSpan child2 =
-        (DDSpan) tracer.buildSpan("datadog", "testChild2").asChildOf(parent.context()).start();
+        (DDSpan) tracer.buildSpan("datadog", "testChild2").asChildOf(parent.spanContext()).start();
     child2.finish();
     parent.finish();
 
-    assertEquals(PrioritySampling.SAMPLER_KEEP, parent.context().getSamplingPriority());
+    assertEquals(PrioritySampling.SAMPLER_KEEP, parent.spanContext().getSamplingPriority());
     assertEquals(PrioritySampling.SAMPLER_KEEP, (int) parent.getSamplingPriority());
     assertTrue(parent.hasSamplingPriority());
     assertEquals(parent.getSamplingPriority(), child1.getSamplingPriority());
@@ -291,10 +293,14 @@ public class DDSpanTest extends DDCoreJavaSpecification {
       throws Exception {
     DDSpanContext parent =
         (DDSpanContext)
-            tracer.buildSpan("datadog", "testParent").asChildOf(extractedContext).start().context();
+            tracer
+                .buildSpan("datadog", "testParent")
+                .asChildOf(extractedContext)
+                .start()
+                .spanContext();
     DDSpanContext child =
         (DDSpanContext)
-            tracer.buildSpan("datadog", "testChild1").asChildOf(parent).start().context();
+            tracer.buildSpan("datadog", "testChild1").asChildOf(parent).start().spanContext();
 
     assertEquals("some-origin", parent.getOrigin().toString());
     // Access field directly instead of getter.
@@ -326,7 +332,8 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   void isRootSpanInAndNotInContextOfDistributedTracing(
       String scenario, AgentSpanContext extractedContext, boolean isTraceRootSpan) {
     DDSpan root = (DDSpan) tracer.buildSpan("datadog", "root").asChildOf(extractedContext).start();
-    DDSpan child = (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(root.context()).start();
+    DDSpan child =
+        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(root.spanContext()).start();
 
     assertEquals(isTraceRootSpan, root.isRootSpan());
     assertFalse(child.isRootSpan());
@@ -354,7 +361,8 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   void getApplicationRootSpanInAndNotInContextOfDistributedTracing(
       String scenario, AgentSpanContext extractedContext) {
     DDSpan root = (DDSpan) tracer.buildSpan("datadog", "root").asChildOf(extractedContext).start();
-    DDSpan child = (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(root.context()).start();
+    DDSpan child =
+        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(root.spanContext()).start();
 
     assertEquals(root, root.getLocalRootSpan());
     assertEquals(root, child.getLocalRootSpan());
@@ -371,7 +379,8 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     Closeable reqContextData = mock(Closeable.class);
     TagContext context = new TagContext().withRequestContextDataAppSec(reqContextData);
     DDSpan root = (DDSpan) tracer.buildSpan("datadog", "root").asChildOf(context).start();
-    DDSpan child = (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(root.context()).start();
+    DDSpan child =
+        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(root.spanContext()).start();
 
     assertEquals(reqContextData, root.getRequestContext().getData(RequestContextSlot.APPSEC));
     assertEquals(reqContextData, child.getRequestContext().getData(RequestContextSlot.APPSEC));
@@ -447,6 +456,39 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     assertNull(span.getTag(DDTags.ERROR_STACK));
   }
 
+  @Test
+  void addThrowableDoesNotFailWhenGetMessageThrows() {
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
+
+    span.addThrowable(TestThrowables.throwingGetMessage());
+
+    assertTrue(span.isError());
+    assertNotNull(span.getTag(DDTags.ERROR_TYPE));
+    assertNotNull(
+        span.getTag(DDTags.ERROR_STACK),
+        "stack trace must be captured even when getMessage() throws");
+    assertTrue(((String) span.getTag(DDTags.ERROR_MSG)).contains("Exception message unavailable"));
+  }
+
+  @Test
+  void addThrowableDoesNotFailWhenGetCauseMessageThrows() {
+    // Outer exception has a normal message, so the broken-pipe check reaches
+    // getCause().getMessage()
+    RuntimeException error =
+        new RuntimeException("outer message", TestThrowables.throwingGetMessage());
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
+
+    span.addThrowable(error);
+
+    assertTrue(span.isError());
+    assertNotNull(span.getTag(DDTags.ERROR_TYPE));
+    assertNotNull(
+        span.getTag(DDTags.ERROR_STACK),
+        "stack trace must be captured even when cause's getMessage() throws");
+    // Outer getMessage() works normally — message must be recorded
+    assertEquals("outer message", span.getTag(DDTags.ERROR_MSG));
+  }
+
   @TableTest({
     "scenario         | rate | limit     ",
     "rate=1.0 lim=10  | 1.0  | 10        ",
@@ -490,12 +532,12 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   }
 
   private static int pendingReferenceCount(DDSpan span) {
-    PendingTrace trace = (PendingTrace) span.context().getTraceCollector();
+    PendingTrace trace = (PendingTrace) span.spanContext().getTraceCollector();
     return PendingTraceTestBridge.getPendingReferenceCount(trace);
   }
 
   private static Collection<DDSpan> spans(DDSpan span) {
-    PendingTrace trace = (PendingTrace) span.context().getTraceCollector();
+    PendingTrace trace = (PendingTrace) span.spanContext().getTraceCollector();
     return trace.getSpans();
   }
 }

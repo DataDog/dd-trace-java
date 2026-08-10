@@ -1,26 +1,39 @@
 package datadog.trace.instrumentation.springweb6;
 
-import java.util.List;
+import static datadog.context.Context.root;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
+import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DECORATE;
+
+import datadog.context.Context;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import jakarta.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
-import org.springframework.context.ApplicationContext;
-import org.springframework.web.servlet.HandlerMapping;
+import org.springframework.web.servlet.HandlerExecutionChain;
 
 /**
- * This advice creates a filter that has reference to the handlerMappings from DispatcherServlet
- * which allows the mappings to be evaluated at the beginning of the filter chain. This evaluation
- * is done inside the Servlet3Decorator.onContext method.
+ * Names the server span route as soon as {@code DispatcherServlet} has resolved the handler.
+ *
+ * <p>For {@code RequestMappingInfoHandlerMapping}, {@code handleMatch} sets {@link
+ * org.springframework.web.servlet.HandlerMapping#BEST_MATCHING_PATTERN_ATTRIBUTE} synchronously
+ * inside {@code getHandler}, before interceptors run. Naming the route here means it survives a
+ * {@code HandlerInterceptor.preHandle} that aborts the request before the controller executes.
  */
 public class HandlerMappingAdvice {
 
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void afterRefresh(
-      @Advice.Argument(0) final ApplicationContext springCtx,
-      @Advice.FieldValue("handlerMappings") final List<HandlerMapping> handlerMappings) {
-    if (springCtx.containsBean("ddDispatcherFilter")) {
-      final datadog.trace.instrumentation.springweb6.HandlerMappingResourceNameFilter filter =
-          (HandlerMappingResourceNameFilter) springCtx.getBean("ddDispatcherFilter");
-      if (handlerMappings != null && filter != null) {
-        filter.setHandlerMappings(handlerMappings);
+  @Advice.OnMethodExit(suppress = Throwable.class)
+  public static void onExit(
+      @Advice.Argument(0) final HttpServletRequest request,
+      @Advice.Return final HandlerExecutionChain chain) {
+    if (chain == null) {
+      // No handler matched (e.g. 404): leave the resource name untouched.
+      return;
+    }
+    final Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
+    if (contextObj instanceof Context) {
+      final AgentSpan parentSpan = spanFromContext((Context) contextObj);
+      if (parentSpan != null) {
+        DECORATE.onRequest(parentSpan, request, request, root());
       }
     }
   }

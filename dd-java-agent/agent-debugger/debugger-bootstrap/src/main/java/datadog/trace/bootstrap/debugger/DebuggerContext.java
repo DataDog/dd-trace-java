@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -324,8 +323,8 @@ public class DebuggerContext {
       // snapshot
       if (needFreeze) {
         Duration timeout =
-            Duration.of(Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
-        context.freeze(new TimeoutChecker(timeout));
+            Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+        context.freeze(TimeoutChecker.create(Config.get(), timeout));
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContext: ", ex);
@@ -359,8 +358,8 @@ public class DebuggerContext {
       // snapshot
       if (needFreeze) {
         Duration timeout =
-            Duration.of(Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
-        context.freeze(new TimeoutChecker(timeout));
+            Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+        context.freeze(TimeoutChecker.create(Config.get(), timeout));
       }
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContext: ", ex);

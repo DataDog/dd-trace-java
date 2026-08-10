@@ -3,8 +3,10 @@ package datadog.trace.api;
 import datadog.environment.EnvironmentVariables;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.env.CapturedEnvironment;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.TraceUtils;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -30,8 +32,7 @@ public class ProcessTags {
   public static final String ENTRYPOINT_BASEDIR = "entrypoint.basedir";
   public static final String ENTRYPOINT_WORKDIR = "entrypoint.workdir";
 
-  // visible for testing
-  static Function<String, String> envGetter = EnvironmentVariables::get;
+  @VisibleForTesting static Function<String, String> envGetter = EnvironmentVariables::get;
 
   private static class Lazy {
     // the tags are used to compute a hash for dsm hence that map must be sorted.
@@ -191,6 +192,10 @@ public class ProcessTags {
       return false;
     }
 
+    @SuppressFBWarnings(
+        value = "USO_UNSAFE_OBJECT_SYNCHRONIZATION",
+        justification =
+            "TAGS is private to this holder and never escapes; the same monitor guards every traversal and mutation.")
     static void calculate() {
       if (serializedForm != null || TAGS.isEmpty()) {
         return;
@@ -269,7 +274,7 @@ public class ProcessTags {
     return Lazy.serializedForm;
   }
 
-  /** Visible for testing. */
+  @VisibleForTesting
   static void empty() {
     synchronized (Lazy.TAGS) {
       Lazy.TAGS.clear();
@@ -279,12 +284,12 @@ public class ProcessTags {
     }
   }
 
-  /** Visible for testing. */
+  @VisibleForTesting
   static void reset() {
     reset(Config.get());
   }
 
-  /** Visible for testing. */
+  @VisibleForTesting
   public static void reset(Config config) {
     synchronized (Lazy.TAGS) {
       empty();

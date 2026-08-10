@@ -16,8 +16,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.springweb6.SetupSpecHelper
 import datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator
-import jakarta.servlet.http.HttpServletRequest
-import jakarta.servlet.http.HttpServletResponse
 import okhttp3.Credentials
 import okhttp3.FormBody
 import okhttp3.Request
@@ -28,7 +26,6 @@ import org.springframework.boot.SpringApplication
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.MediaType
-import org.springframework.web.servlet.HandlerInterceptor
 import org.springframework.web.socket.BinaryMessage
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
@@ -59,7 +56,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   Map<String, String> extraServerTags = [:]
 
   SpringApplication application() {
-    return new SpringApplication(SecurityConfig, TestController, AppConfig, WebsocketConfig)
+    return new SpringApplication(SecurityConfig, TestController, AppConfig, WebsocketConfig, FailOnHeaderConfig)
   }
 
   class SpringBootServer implements WebsocketServer {
@@ -451,26 +448,20 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     InstrumentationBridge.clearIastModules()
   }
 
-  def 'path is extract when preHandle fails'() {
+  def 'path is extracted when preHandle fails'() {
     setup:
     def request = request(PATH_PARAM, 'GET', null).header("fail", "true").build()
-    context.getBeanFactory().registerSingleton("testHandler", new HandlerInterceptor() {
-        @Override
-        boolean preHandle(HttpServletRequest req, HttpServletResponse response, Object handler) throws Exception {
-          if ("true".equalsIgnoreCase(req.getHeader("fail"))) {
-            throw new RuntimeException("Stop here")
-          }
-          return true
-        }
-      })
 
     when:
-    client.newCall(request).execute()
+    def response = client.newCall(request).execute()
+    response.close()
     TEST_WRITER.waitForTraces(1)
     DDSpan span = TEST_WRITER.flatten().find { "servlet.request".contentEquals(it.operationName) }
 
     then:
+    response.code() == 500
     span.getResourceName().toString() == "GET " + testPathParam()
+    span.isError()
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {
@@ -524,5 +515,18 @@ class SpringBootRumInjectionForkedTest extends SpringBootBasedTest {
   @Override
   boolean testRumInjection() {
     true
+  }
+}
+
+/**
+ * Runs the full suite with the opt-in legacy route-naming filter enabled, to verify that path still
+ * produces the same traces (including APMS-8174). The default path (getHandler + ControllerAdvice)
+ * stays active; the DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED guard prevents double naming.
+ */
+class SpringBootResourceNameFilterForkedTest extends SpringBootBasedTest {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.integration.spring-path-filter.enabled", "true")
   }
 }

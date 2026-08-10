@@ -84,7 +84,7 @@ public final class PekkoHttp2ServerInstrumentation extends InstrumenterModule.Tr
       }
     }
 
-    @OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit() {
       CallDepthThreadLocalMap.decrementCallDepth(HttpExt.class);
     }
@@ -101,7 +101,7 @@ public final class PekkoHttp2ServerInstrumentation extends InstrumenterModule.Tr
       }
     }
 
-    @OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit() {
       CallDepthThreadLocalMap.decrementCallDepth(HttpExt.class);
     }
@@ -118,7 +118,7 @@ public final class PekkoHttp2ServerInstrumentation extends InstrumenterModule.Tr
       }
     }
 
-    @OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit() {
       CallDepthThreadLocalMap.decrementCallDepth(HttpExt.class);
     }

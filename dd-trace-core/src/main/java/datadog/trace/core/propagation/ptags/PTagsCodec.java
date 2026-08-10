@@ -19,11 +19,16 @@ abstract class PTagsCodec {
   protected static final TagKey TRACE_SOURCE_TAG = TagKey.from("ts");
   protected static final TagKey DEBUG_TAG = TagKey.from("debug");
   protected static final TagKey KNUTH_SAMPLING_RATE_TAG = TagKey.from("ksr");
+  protected static final TagKey ORG_PROPAGATION_MARKER_TAG = TagKey.from("opm");
   protected static final String PROPAGATION_ERROR_MALFORMED_TID = "malformed_tid ";
   protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
 
   static String headerValue(PTagsCodec codec, PTags ptags) {
+    return headerValue(codec, ptags, null);
+  }
+
+  static String headerValue(PTagsCodec codec, PTags ptags, CharSequence lastParentIdOverride) {
     int estimate = codec.estimateHeaderSize(ptags);
     if (estimate == 0) {
       return "";
@@ -31,7 +36,7 @@ abstract class PTagsCodec {
 
     // No encoding validation here because we don't allow arbitrary tag change
     StringBuilder sb = new StringBuilder(estimate);
-    int size = codec.appendPrefix(sb, ptags);
+    int size = codec.appendPrefix(sb, ptags, lastParentIdOverride);
     if (!ptags.isPropagationTagsDisabled()) {
       if (ptags.getDecisionMakerTagValue() != null) {
         size = codec.appendTag(sb, DECISION_MAKER_TAG, ptags.getDecisionMakerTagValue(), size);
@@ -54,6 +59,11 @@ abstract class PTagsCodec {
         size =
             codec.appendTag(
                 sb, KNUTH_SAMPLING_RATE_TAG, ptags.getKnuthSamplingRateTagValue(), size);
+      }
+      if (ptags.getOrgPropagationMarkerTagValue() != null) {
+        size =
+            codec.appendTag(
+                sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -114,6 +124,11 @@ abstract class PTagsCodec {
           KNUTH_SAMPLING_RATE_TAG.forType(Encoding.DATADOG).toString(),
           propagationTags.getKnuthSamplingRateTagValue().forType(Encoding.DATADOG).toString());
     }
+    if (propagationTags.getOrgPropagationMarkerTagValue() != null) {
+      tagMap.put(
+          ORG_PROPAGATION_MARKER_TAG.forType(Encoding.DATADOG).toString(),
+          propagationTags.getOrgPropagationMarkerTagValue().forType(Encoding.DATADOG).toString());
+    }
     if (propagationTags.getTraceIdHighOrderBitsHexTagValue() != null) {
       tagMap.put(
           TRACE_ID_TAG.forType(Encoding.DATADOG).toString(),
@@ -162,6 +177,14 @@ abstract class PTagsCodec {
   protected abstract int estimateHeaderSize(PTags pTags);
 
   protected abstract int appendPrefix(StringBuilder sb, PTags ptags);
+
+  /**
+   * Encode the prefix, using {@code lastParentIdOverride} for the W3C {@code p:} when non-null
+   * (inject-time). Codecs without a last-parent-id (e.g. Datadog) ignore the override.
+   */
+  protected int appendPrefix(StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride) {
+    return appendPrefix(sb, ptags);
+  }
 
   protected abstract int appendTag(StringBuilder sb, TagElement key, TagElement value, int size);
 

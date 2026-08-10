@@ -105,7 +105,7 @@ public class OTTracer implements Tracer {
     @Override
     public Tracer.SpanBuilder asChildOf(final Span parent) {
       if (parent != null) {
-        delegate.asChildOf(converter.toAgentSpan(parent).context());
+        delegate.asChildOf(converter.toAgentSpan(parent).spanContext());
       }
       return this;
     }
@@ -173,14 +173,14 @@ public class OTTracer implements Tracer {
     @Override
     public Span start() {
       final AgentSpan agentSpan = delegate.start();
-      agentSpan.context().setIntegrationName("opentracing");
+      agentSpan.spanContext().setIntegrationName("opentracing");
       return converter.toSpan(agentSpan);
     }
 
     @Override
     public Scope startActive(final boolean finishSpanOnClose) {
       final AgentSpan agentSpan = delegate.start();
-      agentSpan.context().setIntegrationName("opentracing");
+      agentSpan.spanContext().setIntegrationName("opentracing");
       return converter.toScope(tracer.activateManualSpan(agentSpan), finishSpanOnClose);
     }
   }

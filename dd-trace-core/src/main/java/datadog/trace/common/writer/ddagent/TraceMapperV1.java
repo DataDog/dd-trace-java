@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 
@@ -11,6 +12,7 @@ import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.environment.JavaVirtualMachine;
+import datadog.json.JsonReader;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -89,7 +91,7 @@ public final class TraceMapperV1 implements TraceMapper {
     }
 
     CoreSpan<?> firstSpan = trace.get(0);
-    firstSpan.processTagsAndBaggage(spanMetadata, false, false);
+    firstSpan.processTagsAndBaggageWithStructuredLinks(spanMetadata, true);
     Metadata firstSpanMeta = spanMetadata.metadata;
 
     // encoded fields: 1..7, but skipping #5, as not required by tracers and set by the agent.
@@ -106,7 +108,7 @@ public final class TraceMapperV1 implements TraceMapper {
     // traceID = 6, the ID of the trace to which all spans in this chunk belong
     encodeTraceId(writable, 6, firstSpan.getTraceId());
     // samplingMechanism = 7, uint32
-    encodeInt(writable, 7, parseSamplingMechanism(firstSpanMeta.getTags()));
+    encodeInt(writable, 7, parseSamplingMechanism(firstSpanMeta.getBaggage()));
   }
 
   private Map<String, Object> buildChunkAttributes(List<? extends CoreSpan<?>> trace) {
@@ -126,9 +128,10 @@ public final class TraceMapperV1 implements TraceMapper {
 
     // spanMetadata will already have data from first span.
     Metadata meta = spanMetadata.metadata;
-    for (CoreSpan<?> span : spans) {
+    for (int i = 0; i < spans.size(); i++) {
+      CoreSpan<?> span = spans.get(i);
       if (meta == null) {
-        span.processTagsAndBaggage(spanMetadata, false, false);
+        span.processTagsAndBaggageWithStructuredLinks(spanMetadata, i == 0);
         meta = spanMetadata.metadata;
       }
       TagMap tags = meta.getTags();
@@ -202,12 +205,12 @@ public final class TraceMapperV1 implements TraceMapper {
 
   private void encodeSpanEvents(Writable writable, int fieldId, Object eventsObject) {
     writable.writeInt(fieldId);
-    if (!(eventsObject instanceof List) || ((List<?>) eventsObject).isEmpty()) {
+    List<?> events = parseSpanEvents(eventsObject);
+    if (events.isEmpty()) {
       writable.startArray(0);
       return;
     }
 
-    List<?> events = (List<?>) eventsObject;
     int encodableCount = 0;
     for (Object event : events) {
       if (isEncodableSpanEvent(event)) {
@@ -234,6 +237,23 @@ public final class TraceMapperV1 implements TraceMapper {
       encodeString(writable, 2, String.valueOf(nameObject));
       encodeEventAttributes(writable, 3, attributes);
     }
+  }
+
+  private List<?> parseSpanEvents(Object eventsObject) {
+    if (eventsObject instanceof List) {
+      return (List<?>) eventsObject;
+    }
+    if (eventsObject instanceof CharSequence) {
+      try (JsonReader reader = new JsonReader(eventsObject.toString())) {
+        Object events = reader.nextValue();
+        if (events instanceof List) {
+          return (List<?>) events;
+        }
+      } catch (IOException e) {
+        log.debug("Failed to parse span events from JSON", e);
+      }
+    }
+    return emptyList();
   }
 
   private boolean isEncodableSpanEvent(Object event) {
@@ -586,8 +606,8 @@ public final class TraceMapperV1 implements TraceMapper {
    * <p>V1 payload expects only the numeric mechanism, so we normalize both forms to a positive
    * integer and fall back to {@link SamplingMechanism#DEFAULT} when absent or malformed.
    */
-  private int parseSamplingMechanism(TagMap tags) {
-    String decisionMaker = tags.getString(KEY_DECISION_MAKER);
+  private int parseSamplingMechanism(Map<String, String> propagationMetadata) {
+    String decisionMaker = propagationMetadata.get(KEY_DECISION_MAKER);
     if (decisionMaker == null || decisionMaker.isEmpty()) {
       return SamplingMechanism.DEFAULT;
     }

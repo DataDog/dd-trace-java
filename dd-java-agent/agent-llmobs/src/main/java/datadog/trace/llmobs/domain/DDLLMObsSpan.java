@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -37,6 +38,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String OUTPUT = LLMOBS_TAG_PREFIX + "output";
   private static final String SPAN_KIND = LLMOBS_TAG_PREFIX + Tags.SPAN_KIND;
   private static final String METADATA = LLMOBS_TAG_PREFIX + LLMObsTags.METADATA;
+  private static final String TOOL_DEFINITIONS = LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS;
   private static final String PARENT_ID_TAG_INTERNAL = "parent_id";
 
   private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
@@ -89,11 +91,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
     span.setTag(SPAN_KIND, kind);
     spanKind = kind;
     span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
-    this.hasSessionId = sessionId != null && !sessionId.isEmpty();
-    if (this.hasSessionId) {
-      span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
-    }
-
+    // Resolve effective parent_id and session_id from the LLMObs context, both gated on
+    // trace-id consistency. A stale context from a different trace (e.g. async boundary
+    // leakage) must not contribute either tag.
     AgentSpanContext parent = LLMObsContext.current();
     String parentSpanID = LLMObsContext.ROOT_SPAN_ID;
     if (null != parent) {
@@ -106,19 +106,34 @@ public class DDLLMObsSpan implements LLMObsSpan {
             span.getSpanId());
       } else {
         parentSpanID = String.valueOf(parent.getSpanId());
+        // Inherit session_id from parent context only when it belongs to the same trace.
+        // Matches dd-trace-py and dd-trace-js: session_id need only be set on the root
+        // span; descendants inherit transitively via context propagation.
+        if (sessionId == null || sessionId.isEmpty()) {
+          String inherited = LLMObsContext.currentSessionId();
+          if (inherited != null && !inherited.isEmpty()) {
+            sessionId = inherited;
+          }
+        }
       }
     }
+
+    this.hasSessionId = sessionId != null && !sessionId.isEmpty();
+    if (this.hasSessionId) {
+      span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
+    }
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
-    scope = LLMObsContext.attach(span.context());
+    // Propagate the effective sessionId to descendant LLMObs spans via the context.
+    scope = LLMObsContext.attach(span.spanContext(), sessionId);
   }
 
   @Override
   public String toString() {
     return super.toString()
         + ", trace_id="
-        + span.context().getTraceId()
+        + span.spanContext().getTraceId()
         + ", span_id="
-        + span.context().getSpanId()
+        + span.spanContext().getSpanId()
         + ", ml_app="
         + span.getTag(LLMObsTags.ML_APP)
         + ", service="
@@ -141,35 +156,104 @@ public class DDLLMObsSpan implements LLMObsSpan {
   }
 
   @Override
+  public void annotateEmbeddingIO(List<LLMObs.Document> inputDocuments, String outputData) {
+    if (finished) {
+      return;
+    }
+    if (inputDocuments != null && !inputDocuments.isEmpty()) {
+      span.setTag(INPUT, inputDocuments);
+    }
+    if (outputData != null && !outputData.isEmpty()) {
+      span.setTag(OUTPUT, outputData);
+    }
+  }
+
+  @Override
+  public void annotateRetrievalIO(String inputData, List<LLMObs.Document> outputDocuments) {
+    if (finished) {
+      return;
+    }
+    if (inputData != null && !inputData.isEmpty()) {
+      span.setTag(INPUT, inputData);
+    }
+    if (outputDocuments != null && !outputDocuments.isEmpty()) {
+      span.setTag(OUTPUT, outputDocuments);
+    }
+  }
+
+  @Override
   public void annotateIO(String inputData, String outputData) {
     if (finished) {
       return;
     }
-    boolean wrongSpanKind = false;
-    if (inputData != null && !inputData.isEmpty()) {
-      if (Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)) {
-        wrongSpanKind = true;
-        annotateIO(
-            Collections.singletonList(LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, inputData)),
-            null);
-      } else {
-        span.setTag(INPUT, inputData);
+    boolean hasInput = inputData != null && !inputData.isEmpty();
+    boolean hasOutput = outputData != null && !outputData.isEmpty();
+    if (Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)) {
+      List<LLMObs.LLMMessage> inputMessages =
+          hasInput
+              ? Collections.singletonList(
+                  LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, inputData))
+              : null;
+      List<LLMObs.LLMMessage> outputMessages =
+          hasOutput
+              ? Collections.singletonList(
+                  LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, outputData))
+              : null;
+      annotateIO(inputMessages, outputMessages);
+      if (hasInput || hasOutput) {
+        LOGGER.warn(
+            "the span being annotated is an LLM span, it is recommended to use the overload with List<LLMObs.LLMMessage> as arguments");
       }
+      return;
     }
-    if (outputData != null && !outputData.isEmpty()) {
-      if (Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)) {
-        wrongSpanKind = true;
-        annotateIO(
-            null,
-            Collections.singletonList(
-                LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, outputData)));
-      } else {
-        span.setTag(OUTPUT, outputData);
+    if (Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(spanKind)) {
+      List<LLMObs.Document> inputDocuments =
+          hasInput ? Collections.singletonList(LLMObs.Document.from(inputData)) : null;
+      annotateEmbeddingIO(inputDocuments, outputData);
+      if (hasInput) {
+        LOGGER.warn(
+            "the span being annotated is an embedding span, it is recommended to use annotateEmbeddingIO");
       }
+      return;
     }
-    if (wrongSpanKind) {
-      LOGGER.warn(
-          "the span being annotated is an LLM span, it is recommended to use the overload with List<LLMObs.LLMMessage> as arguments");
+    if (Tags.LLMOBS_RETRIEVAL_SPAN_KIND.equals(spanKind)) {
+      List<LLMObs.Document> outputDocuments =
+          hasOutput ? Collections.singletonList(LLMObs.Document.from(outputData)) : null;
+      annotateRetrievalIO(inputData, outputDocuments);
+      if (hasOutput) {
+        LOGGER.warn(
+            "the span being annotated is a retrieval span, it is recommended to use annotateRetrievalIO");
+      }
+      return;
+    }
+    if (hasInput) {
+      span.setTag(INPUT, inputData);
+    }
+    if (hasOutput) {
+      span.setTag(OUTPUT, outputData);
+    }
+  }
+
+  @Override
+  public void setToolDefinitions(List<LLMObs.ToolDefinition> toolDefinitions) {
+    if (finished || toolDefinitions == null || toolDefinitions.isEmpty()) {
+      return;
+    }
+    List<LLMObs.ToolDefinition> validToolDefinitions = new ArrayList<>(toolDefinitions.size());
+    for (int i = 0; i < toolDefinitions.size(); i++) {
+      LLMObs.ToolDefinition toolDefinition = toolDefinitions.get(i);
+      if (toolDefinition == null) {
+        LOGGER.warn("tool definition at index {} is null; skipping", i);
+        continue;
+      }
+      if (toolDefinition.getName() == null || toolDefinition.getName().isEmpty()) {
+        LOGGER.warn("tool definition at index {} must have a non-empty name; skipping", i);
+        continue;
+      }
+      validToolDefinitions.add(toolDefinition);
+    }
+    if (!validToolDefinitions.isEmpty()) {
+      span.setTag(TOOL_DEFINITIONS, validToolDefinitions);
     }
   }
 

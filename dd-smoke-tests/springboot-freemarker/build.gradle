@@ -1,35 +1,52 @@
-import org.springframework.boot.gradle.tasks.bundling.BootJar
-
 plugins {
-  id 'java'
-  id 'org.springframework.boot' version '2.7.15'
-  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+  id 'dd-trace-java.smoke-test-app'
   id 'java-test-fixtures'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
+
 description = 'SpringBoot Freemarker Smoke Tests.'
 
-java {
-  sourceCompatibility = '1.8'
+smokeTestApp {
+  gradleApp {
+    taskName = 'bootJar'
+    artifactPath = 'libs/springboot-freemarker-smoketest.jar'
+    sysProperty = 'datadog.smoketest.springboot.shadowJar.path'
+  }
 }
 
 dependencies {
-  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
-  implementation group: 'org.freemarker', name: 'freemarker', version: '2.3.24-incubating'
-
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 
+// XssController loads templates from the filesystem at "resources/main/templates" relative to
+// the test JVM's working directory (this module's build dir). Mirror the nested app's
+// processed resources so that path resolves at runtime.
+def applicationResourcesProvider = layout.buildDirectory.dir("application/resources/main")
+tasks.register('copyAppResources', Copy) {
+  dependsOn 'bootJar'
+  from applicationResourcesProvider
+  into layout.buildDirectory.dir("resources/main")
+}
+
+// `java.gradle` applies the `java` plugin so an empty `jar` task is created with
+// `build/resources/main` as one of its inputs. Wire the dependency so Gradle knows
+// `copyAppResources` writes there.
+tasks.named('jar') {
+  dependsOn 'copyAppResources'
+}
+
 tasks.withType(Test).configureEach {
-  dependsOn "bootJar"
-  def bootJarTask = tasks.named('bootJar', BootJar)
-  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-      @Override
-      Iterable<String> asArguments() {
-        return bootJarTask.map { ["-Ddatadog.smoketest.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
-      }
-    })
+  dependsOn 'copyAppResources'
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
 }

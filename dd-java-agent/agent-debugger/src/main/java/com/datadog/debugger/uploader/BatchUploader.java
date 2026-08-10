@@ -7,6 +7,7 @@ import datadog.common.container.ContainerInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.IOException;
 import java.time.Duration;
@@ -124,7 +125,7 @@ public class BatchUploader {
         ContainerInfo.getEntityId());
   }
 
-  // Visible for testing
+  @VisibleForTesting
   BatchUploader(
       String name,
       Config config,
@@ -220,10 +221,7 @@ public class BatchUploader {
     }
   }
 
-  /**
-   * Note that this method is only visible for testing and should not be used from outside this
-   * class.
-   */
+  @VisibleForTesting
   OkHttpClient getClient() {
     return client;
   }

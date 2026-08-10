@@ -6,7 +6,9 @@ import static datadog.smoketest.debugger.TestApplicationHelper.waitForUpload;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -51,6 +53,7 @@ class Main {
     methodsByName.put("multiProbesFullMethod", Main::runFullMethod);
     methodsByName.put("loopingFullMethod", Main::runLoopingFullMethod);
     methodsByName.put("exceptionMethod", Main::runExceptionMethod);
+    methodsByName.put("processLargeCollection", Main::runProcessLargeCollection);
   }
 
   private static void emptyMethod(String arg) {}
@@ -82,6 +85,10 @@ class Main {
     exceptionMethod(s);
   }
 
+  private static void runProcessLargeCollection(String arg) {
+    processLargeCollection(1_000_000);
+  }
+
   private static String fullMethod(
       int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
     try {
@@ -111,6 +118,16 @@ class Main {
       } catch (IllegalArgumentException ex) {
         ex.printStackTrace();
       }
+    }
+  }
+
+  private static void processLargeCollection(int largeListSize) {
+    List<String> largeList = new ArrayList<>();
+    for (int i = 0; i < largeListSize; i++) {
+      largeList.add("foobar" + i);
+    }
+    for (int i = 0; i < largeListSize; i++) {
+      largeList.get(i);
     }
   }
 }

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jetty9421;
 
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_IGNORE_COMMIT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DECORATE;
@@ -59,7 +58,7 @@ public class JettyCommitResponseHelper {
     RequestContext requestContext;
     if (req.getAttribute(DD_IGNORE_COMMIT_ATTRIBUTE) != null
         || !((contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE)) instanceof Context)
-        || (span = spanFromContext(context = (Context) contextObj)) == null
+        || (span = AgentSpan.fromContext(context = (Context) contextObj)) == null
         || (requestContext = span.getRequestContext()) == null) {
       state.partialResponse();
       return false;

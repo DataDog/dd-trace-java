@@ -79,7 +79,7 @@ public final class HashingUtils {
   }
 
   public static final int hash(Object obj0, Object obj1, Object obj2, Object obj3, Object obj4) {
-    return hash(hashCode(obj0), hashCode(obj1), hashCode(obj2), hashCode(obj3));
+    return hash(hashCode(obj0), hashCode(obj1), hashCode(obj2), hashCode(obj3), hashCode(obj4));
   }
 
   public static final int hash(int hash0, int hash1, int hash2, int hash3, int hash4) {

@@ -92,7 +92,17 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
             }
           };
 
-  public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
+  public final void onRequest(final AgentSpan span, final REQUEST request) {
+    try {
+      doOnRequest(span, request);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on request", t);
+    }
+  }
+
+  protected void doOnRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {
       AgentTracer.get()
           .getDataStreamsMonitoring()
@@ -143,10 +153,19 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         ssrfIastCheck(request);
       }
     }
-    return span;
   }
 
-  public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
+  public final void onResponse(final AgentSpan span, final RESPONSE response) {
+    try {
+      doOnResponse(span, response);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on response", t);
+    }
+  }
+
+  protected void doOnResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);
       if (status > UNSET_STATUS) {
@@ -166,7 +185,6 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         }
       }
     }
-    return span;
   }
 
   public String operationName() {

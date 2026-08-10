@@ -86,7 +86,7 @@ public class GlobalTracer {
   }
 
   /**
-   * @deprecated use static methods in {@link EventTrackerV2} directly
+   * @deprecated use static methods in {@link datadog.appsec.api.login.EventTrackerV2} directly
    */
   @Deprecated
   public static EventTracker getEventTracker() {

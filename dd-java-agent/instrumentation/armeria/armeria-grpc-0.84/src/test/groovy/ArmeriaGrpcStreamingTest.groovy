@@ -42,11 +42,6 @@ abstract class ArmeriaGrpcStreamingTest extends VersionedNamingTestBase {
   }
 
   @Override
-  boolean useStrictTraceWrites() {
-    false
-  }
-
-  @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.trace.grpc.ignored.inbound.methods", "example.Greeter/IgnoreInbound")

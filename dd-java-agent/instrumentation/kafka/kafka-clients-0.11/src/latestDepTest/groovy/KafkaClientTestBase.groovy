@@ -14,12 +14,10 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.StringSerializer
-import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.listener.KafkaMessageListenerContainer
 import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.EmbeddedKafkaBroker
-import org.springframework.kafka.test.rule.EmbeddedKafkaRule
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import spock.lang.Shared
@@ -34,9 +32,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPro
 abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
 
-  @Rule
-  EmbeddedKafkaRule kafkaRule = new EmbeddedKafkaRule(1, true, SHARED_TOPIC)
-  EmbeddedKafkaBroker embeddedKafka = kafkaRule.embeddedKafka
+  protected EmbeddedKafkaBroker embeddedKafka
 
   @Override
   void configurePreAgent() {
@@ -96,7 +92,13 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   }
 
   def setup() {
+    embeddedKafka = new EmbeddedKafkaBroker(1, true, SHARED_TOPIC)
+    embeddedKafka.afterPropertiesSet()
     TEST_WRITER.setFilter(DROP_KAFKA_POLL)
+  }
+
+  def cleanup() {
+    embeddedKafka?.destroy()
   }
 
   @Override
@@ -163,7 +165,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records.add(record)
         }
       })
@@ -281,8 +282,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     Map<String, ?> config,
     DDSpan parentSpan = null,
     boolean partitioned = true,
-    boolean tombstone = false,
-    String schema = null
+    boolean tombstone = false
   ) {
     trace.span {
       serviceName service()
@@ -310,13 +310,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
-          if (schema != null) {
-            "$DDTags.SCHEMA_DEFINITION" schema
-            "$DDTags.SCHEMA_WEIGHT" 1
-            "$DDTags.SCHEMA_TYPE" "avro"
-            "$DDTags.SCHEMA_OPERATION" "serialization"
-            "$DDTags.SCHEMA_ID" "10810872322569724838"
-          }
         }
         peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
         if (isV0) {

@@ -1,9 +1,9 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.datadog.debugger.el.RefResolverHelper;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -14,7 +14,7 @@ class NotExpressionTest {
   @MethodSource("expressions")
   void testNullPredicate(BooleanExpression expression, boolean expected, String prettyPrint) {
     NotExpression expr = new NotExpression(expression);
-    assertEquals(expected, expr.evaluate(RefResolverHelper.createResolver(this)));
+    assertEquals(expected, expr.evaluate(createEvalContext(this)));
     assertEquals(prettyPrint, print(expr));
   }
 

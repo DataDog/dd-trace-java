@@ -17,9 +17,11 @@ import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_QUEUE_SIZE;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPERIMENTAL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_HEADERS;
@@ -160,6 +162,10 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(REQUEST_HEADER_TAGS, mapHeaderTags("http.request.header.", requestHeaders));
     capture(RESPONSE_HEADER_TAGS, mapHeaderTags("http.response.header.", responseHeaders));
     capture(TRACE_EXTENSIONS_PATH, extensions);
+    capture(
+        OTEL_TRACES_SPAN_METRICS_ENABLED,
+        getOtelProperty(
+            "otel.traces.span.metrics.enabled", "dd." + OTEL_TRACES_SPAN_METRICS_ENABLED));
 
     String exporter = getOtelProperty("otel.traces.exporter");
     if ("otlp".equalsIgnoreCase(exporter)) { // traces defaults to non-OTLP (i.e. datadog)
@@ -195,6 +201,11 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
         METRICS_OTEL_CARDINALITY_LIMIT,
         getOtelProperty(
             "otel.java.metrics.cardinality.limit", "dd." + METRICS_OTEL_CARDINALITY_LIMIT));
+    capture(
+        METRICS_OTEL_EXPERIMENTAL_ENABLED,
+        getOtelProperty(
+            "otel.instrumentation.runtime-telemetry.emit-experimental-metrics",
+            "dd." + METRICS_OTEL_EXPERIMENTAL_ENABLED));
 
     String exporter = getOtelProperty("otel.metrics.exporter");
     if (exporter == null || "otlp".equalsIgnoreCase(exporter)) { // metrics defaults to OTLP

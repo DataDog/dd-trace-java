@@ -17,6 +17,12 @@ if (hasProperty('appBuildDir')) {
 
 version = ""
 
+// Pin bytecode target: the nested daemon now runs on JDK 21, but the smoke test launches
+// the produced jar on Java 17 (per testJvmConstraints).
+java {
+  sourceCompatibility = JavaVersion.VERSION_17
+}
+
 protobuf {
   // Configure the protoc executable.
   protoc {

@@ -3,6 +3,7 @@ package datadog.trace.api.openfeature;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.EventProvider;
 import dev.openfeature.sdk.Hook;
@@ -15,10 +16,11 @@ import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.OpenFeatureError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,12 +29,19 @@ public class Provider extends EventProvider implements Metadata {
   private static final Logger log = LoggerFactory.getLogger(Provider.class);
   static final String METADATA = "datadog-openfeature-provider";
   private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
+
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
-  private final AtomicBoolean initialized = new AtomicBoolean(false);
+  private final AtomicReference<InitializationState> initializationState =
+      new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
   private final FlagEvalHook flagEvalHook;
+  // Span enrichment: null unless the gate is on, so the feature has no idle overhead when off.
+  private final SpanEnrichmentHook spanEnrichmentHook;
+  // Precomputed hook list returned by getProviderHooks() on every evaluation. Immutable and built
+  // once so gate-off evaluation allocates nothing on this hot path.
+  private final List<Hook> providerHooks;
 
   public Provider() {
     this(DEFAULT_OPTIONS, null);
@@ -43,6 +52,17 @@ public class Provider extends EventProvider implements Metadata {
   }
 
   Provider(final Options options, final Evaluator evaluator) {
+    this(options, evaluator, null);
+  }
+
+  /**
+   * @param spanEnrichmentEnabledOverride when non-null, forces the span-enrichment gate (test
+   *     seam); when null, the gate is read via {@link SpanEnrichmentGate}.
+   */
+  Provider(
+      final Options options,
+      final Evaluator evaluator,
+      final Boolean spanEnrichmentEnabledOverride) {
     this.options = options;
     this.evaluator = evaluator;
     FlagEvalMetrics metrics = null;
@@ -51,40 +71,134 @@ public class Provider extends EventProvider implements Metadata {
       metrics = new FlagEvalMetrics();
       hook = new FlagEvalHook(metrics);
     } catch (LinkageError | Exception e) {
-      // FlagEvalMetrics logs the detailed error when it can load but OTel SDK init fails.
-      // This outer catch fires when the class itself can't load (OTel API absent entirely).
-      log.warn("Evaluation metrics unavailable — OTel classes not on classpath", e);
+      // This outer catch fires when the metrics helper itself can't load (OTel API absent).
+      log.warn("Evaluation metrics unavailable — OTel API classes not on classpath", e);
     }
     this.flagEvalMetrics = metrics;
     this.flagEvalHook = hook;
+
+    // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
+    // per-evaluation overhead.
+    final boolean spanEnrichmentEnabled =
+        spanEnrichmentEnabledOverride != null
+            ? spanEnrichmentEnabledOverride
+            : SpanEnrichmentGate.isEnabled();
+    this.spanEnrichmentHook = spanEnrichmentEnabled ? new SpanEnrichmentHook() : null;
+
+    // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
+    // allocates nothing, including when the gate is off.
+    final List<Hook> hooks = new ArrayList<>(2);
+    if (flagEvalHook != null) {
+      hooks.add(flagEvalHook);
+    }
+    if (spanEnrichmentHook != null) {
+      hooks.add(spanEnrichmentHook);
+    }
+    this.providerHooks =
+        hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
+
+    // Announce the span-enrichment state at startup (matches the reference implementation).
+    // "enabled" only when the gate is on (the capture hook was constructed), otherwise "disabled".
+    if (spanEnrichmentHook != null) {
+      log.info("{} span enrichment enabled", METADATA);
+    } else {
+      log.info("{} span enrichment disabled", METADATA);
+    }
   }
 
   @Override
   public void initialize(final EvaluationContext context) throws Exception {
+    initializationState.set(InitializationState.INITIALIZING);
     try {
       evaluator = buildEvaluator();
-      final boolean init = evaluator.initialize(options.getTimeout(), options.getUnit(), context);
-      initialized.set(init);
-      if (!init) {
+      if (!evaluator.initialize(options.getTimeout(), options.getUnit(), context)) {
+        if (markInitialConfigReceivedReady()) {
+          return;
+        }
+        markInitializationError();
+        throw new ProviderNotReadyError(
+            "Provider timed-out while waiting for initial configuration");
+      }
+      if (!evaluator.hasConfiguration() || !markSuccessfulInitializationReady()) {
+        markInitializationError();
         throw new ProviderNotReadyError(
             "Provider timed-out while waiting for initial configuration");
       }
     } catch (final OpenFeatureError e) {
+      markInitializationError();
       throw e;
     } catch (final Throwable e) {
+      markInitializationError();
       throw new FatalError("Failed to initialize provider, is the tracer configured?", e);
     }
   }
 
-  private void onConfigurationChange() {
-    if (initialized.getAndSet(true)) {
-      emit(
-          ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
-          ProviderEventDetails.builder().message("New configuration received").build());
-    } else {
+  void onConfigurationChange() {
+    if (evaluator == null || !evaluator.hasConfiguration()) {
+      onConfigurationUnavailable();
+      return;
+    }
+
+    final InitializationState state = initializationState.get();
+    if (state == InitializationState.INITIALIZING) {
+      initializationState.compareAndSet(
+          InitializationState.INITIALIZING, InitializationState.INITIAL_CONFIG_RECEIVED);
+      return;
+    }
+    if (state == InitializationState.INITIAL_CONFIG_RECEIVED) {
+      return;
+    }
+    if (state == InitializationState.ERROR
+        && initializationState.compareAndSet(
+            InitializationState.ERROR, InitializationState.READY)) {
       emit(
           ProviderEvent.PROVIDER_READY,
           ProviderEventDetails.builder().message("Provider ready").build());
+      return;
+    }
+    if (initializationState.get() != InitializationState.READY) {
+      return;
+    }
+    emit(
+        ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
+        ProviderEventDetails.builder().message("New configuration received").build());
+  }
+
+  private void onConfigurationUnavailable() {
+    if (initializationState.compareAndSet(
+        InitializationState.INITIAL_CONFIG_RECEIVED, InitializationState.ERROR)) {
+      return;
+    }
+    if (!initializationState.compareAndSet(InitializationState.READY, InitializationState.ERROR)) {
+      return;
+    }
+    emit(
+        ProviderEvent.PROVIDER_ERROR,
+        ProviderEventDetails.builder()
+            .message("Configuration unavailable")
+            .errorCode(ErrorCode.PROVIDER_NOT_READY)
+            .build());
+  }
+
+  private boolean markInitialConfigReceivedReady() {
+    return initializationState.get() == InitializationState.READY
+        || initializationState.compareAndSet(
+            InitializationState.INITIAL_CONFIG_RECEIVED, InitializationState.READY);
+  }
+
+  private boolean markSuccessfulInitializationReady() {
+    return markInitialConfigReceivedReady()
+        || initializationState.compareAndSet(
+            InitializationState.INITIALIZING, InitializationState.READY);
+  }
+
+  private void markInitializationError() {
+    InitializationState state = initializationState.get();
+    while (state != InitializationState.READY && state != InitializationState.ERROR) {
+      if (initializationState.compareAndSet(state, InitializationState.ERROR)) {
+        return;
+      }
+      state = initializationState.get();
     }
   }
 
@@ -99,10 +213,7 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public List<Hook> getProviderHooks() {
-    if (flagEvalHook == null) {
-      return Collections.emptyList();
-    }
-    return Collections.singletonList(flagEvalHook);
+    return providerHooks;
   }
 
   @Override
@@ -110,9 +221,17 @@ public class Provider extends EventProvider implements Metadata {
     if (flagEvalMetrics != null) {
       flagEvalMetrics.shutdown();
     }
+    // Span enrichment needs no provider-close cleanup here: the capture hook holds no tracer state.
+    // The agent-side write tier owns the interceptor and per-trace state and is torn down with the
+    // feature-flagging subsystem, not per provider.
     if (evaluator != null) {
       evaluator.shutdown();
     }
+  }
+
+  // Visible for tests: expose whether span enrichment is wired (gate-on) without leaking the impl.
+  SpanEnrichmentHook spanEnrichmentHook() {
+    return spanEnrichmentHook;
   }
 
   @Override
@@ -155,9 +274,17 @@ public class Provider extends EventProvider implements Metadata {
     return evaluator.evaluate(Value.class, key, defaultValue, ctx);
   }
 
-  @SuppressForbidden // Class#forName(String) used to lazy load internal-api dependencies
+  @SuppressForbidden // Class#forName(String) used to lazy-load the evaluator implementation
   protected Class<?> loadEvaluatorClass() throws ClassNotFoundException {
     return Class.forName(EVALUATOR_IMPL);
+  }
+
+  private enum InitializationState {
+    NOT_STARTED,
+    INITIALIZING,
+    INITIAL_CONFIG_RECEIVED,
+    READY,
+    ERROR
   }
 
   public static class Options {

@@ -8,7 +8,6 @@ import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers
 import datadog.trace.bootstrap.ExceptionLogger
 import datadog.trace.bootstrap.InstrumentationErrors
-import datadog.trace.bootstrap.blocking.BlockingExceptionHandler
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
@@ -51,21 +50,21 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
       .transform(
       new AgentBuilder.Transformer.ForAdvice()
       .with(new AgentBuilder.LocationStrategy.Simple(ClassFileLocator.ForClassLoader.of(BadAdvice.getClassLoader())))
-      .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
+      .withExceptionHandler(ExceptionHandlers.exceptionHandlerFor(BadAdvice.getName()))
       .advice(
       isMethod().and(named("isInstrumented")),
       BadAdvice.getName()))
       .transform(
       new AgentBuilder.Transformer.ForAdvice()
       .with(new AgentBuilder.LocationStrategy.Simple(ClassFileLocator.ForClassLoader.of(BadAdvice.getClassLoader())))
-      .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
+      .withExceptionHandler(ExceptionHandlers.exceptionHandlerFor(BadAdvice.NoOpAdvice.getName()))
       .advice(
       isMethod().and(namedOneOf("smallStack", "largeStack")),
       BadAdvice.NoOpAdvice.getName()))
       .transform(
       new AgentBuilder.Transformer.ForAdvice()
       .with(new AgentBuilder.LocationStrategy.Simple(ClassFileLocator.ForClassLoader.of(BadAdvice.getClassLoader())))
-      .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
+      .withExceptionHandler(ExceptionHandlers.exceptionHandlerFor(BlockingExceptionAdvice.getName()))
       .advice(
       isMethod().and(named("blockingException")),
       BlockingExceptionAdvice.getName()))
@@ -117,7 +116,7 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
     // Make sure the log event came from our error handler.
     // If the log message changes in the future, it's fine to just
     // update the test's hardcoded message
-    testAppender.list.get(testAppender.list.size() - 1).getMessage().startsWith("Failed to handle exception in instrumentation for")
+    testAppender.list.get(testAppender.list.size() - 1).getMessage() == "Failed to handle exception in instrumentation for ${SomeClass.getName()} - ${BadAdvice.getName()}"
     exitStatus.get() == expectedFailureExitStatus()
   }
 
@@ -128,18 +127,7 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
       SomeClass.getProtectionDomain().getCodeSource().getLocation(),
       GroovyObject.getProtectionDomain().getCodeSource().getLocation(),
     ]
-    URLClassLoader loader = new URLClassLoader(classpath, null, null) {
-        @Override
-        Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-          if (name == BlockingExceptionHandler.name) {
-            return BlockingExceptionHandler
-          }
-          if (name == BlockingException.name) {
-            return BlockingException
-          }
-          return super.loadClass(name, resolve)
-        }
-      }
+    URLClassLoader loader = new BlockingTestClassLoader(classpath)
 
     when:
     loader.loadClass(InstrumentationErrors.getName())

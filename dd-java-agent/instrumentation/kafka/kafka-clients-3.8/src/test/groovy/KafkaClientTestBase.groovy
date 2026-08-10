@@ -1,7 +1,9 @@
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.DDTags
 import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -188,7 +190,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records.add(record)
         }
       })
@@ -347,7 +348,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records.add(record)
         }
       })
@@ -402,10 +402,13 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       }
     }
 
+    // sort a snapshot so the producer trace is deterministically first, regardless of write order
+    def sortedTraces = new ArrayList<>(TEST_WRITER)
+    sortedTraces.sort(SORT_TRACES_BY_ID)
     def headers = received.headers()
     headers.iterator().hasNext()
-    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
-    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
+    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${sortedTraces[0][2].traceId}"
+    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${sortedTraces[0][2].spanId}"
 
     if (isDataStreamsEnabled()) {
       StatsGroup first = TEST_DATA_STREAMS_WRITER.groups.find { it.parentHash == 0 }
@@ -478,7 +481,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records.add(record)
         }
       })
@@ -822,7 +824,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records.add(record)
           if (isDataStreamsEnabled()) {
             // even if header propagation is disabled, we want data streams to work.
@@ -893,8 +894,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     Map<String, ?> config,
     DDSpan parentSpan = null,
     boolean partitioned = true,
-    boolean tombstone = false,
-    String schema = null
+    boolean tombstone = false
   ) {
     trace.span {
       serviceName service()
@@ -922,13 +922,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
-          if (schema != null) {
-            "$DDTags.SCHEMA_DEFINITION" schema
-            "$DDTags.SCHEMA_WEIGHT" 1
-            "$DDTags.SCHEMA_TYPE" "avro"
-            "$DDTags.SCHEMA_OPERATION" "serialization"
-            "$DDTags.SCHEMA_ID" "10810872322569724838"
-          }
         }
         peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
         if (isV0) {
@@ -1210,9 +1203,48 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
 }
 
 class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
-  @Override
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
+  }
+}
+
+class KafkaClientBadBase64HeaderForkedTest extends InstrumentationSpecification {
+  EmbeddedKafkaBroker embeddedKafka
+
+  def setup() {
+    embeddedKafka = new EmbeddedKafkaKraftBroker(1, 2, KafkaClientTestBase.SHARED_TOPIC)
+    embeddedKafka.afterPropertiesSet()
+  }
+
+  def cleanup() {
+    embeddedKafka.destroy()
+  }
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED, "true")
+    injectSysConfig(TracerConfig.HEADER_TAGS, "x-custom-header:my.custom.tag")
+  }
+
+  def "producer span is created when message carries non-Base64 headers and base64 decoding is enabled"() {
+    setup:
+    def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer<String, String>(producerProps, new StringSerializer(), new StringSerializer())
+
+    when:
+    def headers = new RecordHeaders([
+      new RecordHeader("x-custom-header", "not-valid-base64!@#".getBytes(StandardCharsets.UTF_8)),
+      new RecordHeader("x-another-header", "also-not-base64!!".getBytes(StandardCharsets.UTF_8))
+    ])
+    producer.send(new ProducerRecord<>(KafkaClientTestBase.SHARED_TOPIC, 0, null, "hello", headers)).get()
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    !TEST_WRITER.isEmpty()
+
+    cleanup:
+    producer?.close()
   }
 }

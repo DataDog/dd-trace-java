@@ -1,20 +1,23 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.datadog.debugger.el.RefResolverHelper;
+import com.datadog.debugger.el.EvalContext;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class BinaryExpressionTest {
+  EvalContext evalContext = createEvalContext(this);
+
   @Test
   void testLeftNull() {
     BinaryExpression expression =
         new BinaryExpression(null, BooleanExpression.TRUE, BinaryOperator.AND);
-    assertFalse(expression.evaluate(RefResolverHelper.createResolver(this)));
+    assertFalse(expression.evaluate(evalContext));
     assertEquals("false && true", print(expression));
   }
 
@@ -22,7 +25,7 @@ class BinaryExpressionTest {
   void testRightNull() {
     BinaryExpression expression =
         new BinaryExpression(BooleanExpression.TRUE, null, BinaryOperator.AND);
-    assertFalse(expression.evaluate(RefResolverHelper.createResolver(this)));
+    assertFalse(expression.evaluate(evalContext));
     assertEquals("true && false", print(expression));
   }
 
@@ -33,7 +36,7 @@ class BinaryExpressionTest {
             BooleanExpression.FALSE,
             valueRefResolver -> Assertions.fail("should not reach"),
             BinaryOperator.AND);
-    assertFalse(expression.evaluate(RefResolverHelper.createResolver(this)));
+    assertFalse(expression.evaluate(evalContext));
     assertEquals("false && null", print(expression));
   }
 
@@ -44,7 +47,7 @@ class BinaryExpressionTest {
             BooleanExpression.TRUE,
             valueRefResolver -> Assertions.fail("should not reach"),
             BinaryOperator.OR);
-    assertTrue(expression.evaluate(RefResolverHelper.createResolver(this)));
+    assertTrue(expression.evaluate(evalContext));
     assertEquals("true || null", print(expression));
   }
 }

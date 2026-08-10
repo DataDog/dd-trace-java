@@ -34,4 +34,3 @@ tasks.named("shadowJar", ShadowJar) {
 tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }
-

@@ -5,6 +5,7 @@ import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -13,10 +14,66 @@ import java.util.stream.Collectors;
 public final class StackTraces {
   private StackTraces() {}
 
+  /**
+   * Safely retrieves the message from a throwable.
+   *
+   * <p>Third-party exception classes occasionally use formatting utilities (e.g. {@code
+   * java.text.MessageFormat}) inside {@code getMessage()}, which can throw when the pattern
+   * contains non-integer placeholders.
+   *
+   * @param t the throwable to retrieve the message from
+   * @return {@code null} if {@code t} is {@code null}; the result of {@link Throwable#getMessage()}
+   *     on success; or a diagnostic string of the form {@code "(Exception message unavailable for
+   *     ClassName: getMessage() threw ExceptionType)"} if {@code getMessage()} throws
+   */
+  public static String safeGetMessage(Throwable t) {
+    if (t == null) {
+      return null;
+    }
+    try {
+      return t.getMessage();
+    } catch (Exception e) {
+      return "(Exception message unavailable for "
+          + t.getClass().getSimpleName()
+          + ": getMessage() threw "
+          + e.getClass().getSimpleName()
+          + ")";
+    }
+  }
+
+  /**
+   * Returns the stack trace of {@code t} as a string, truncated to {@code maxChars} characters.
+   *
+   * <p>Uses {@link Throwable#printStackTrace(java.io.PrintWriter)} to produce the full trace
+   * including {@code Caused by} and {@code Suppressed} chains. If {@code printStackTrace} itself
+   * throws (e.g. because {@link Throwable#getMessage()} throws inside {@code toString()}), falls
+   * back to reconstructing the trace from {@link Throwable#getStackTrace()} so the call site
+   * remains locatable.
+   *
+   * @param t the throwable to format
+   * @param maxChars maximum length of the returned string
+   * @return the stack trace string, truncated if necessary
+   */
   public static String getStackTrace(Throwable t, int maxChars) {
-    StringWriter sw = new StringWriter();
-    t.printStackTrace(new PrintWriter(sw));
-    String trace = sw.toString();
+    String trace;
+    try {
+      StringWriter sw = new StringWriter();
+      t.printStackTrace(new PrintWriter(sw));
+      trace = sw.toString();
+    } catch (Exception ignored) {
+      // printStackTrace() failed (e.g. getMessage() throws inside toString()).
+      // Reconstruct from getStackTrace() so the call site is still locatable.
+      try {
+        trace =
+            t.getClass().getName()
+                + System.lineSeparator()
+                + Arrays.stream(t.getStackTrace())
+                    .map(f -> "\tat " + f)
+                    .collect(Collectors.joining(System.lineSeparator()));
+      } catch (Exception ignored2) {
+        trace = t.getClass().getName();
+      }
+    }
     try {
       return truncate(trace, maxChars);
     } catch (Exception e) {
@@ -43,6 +100,9 @@ public final class StackTraces {
     /* last-ditch centre cut to guarantee the limit */
     String cutMessage = "\t... trace centre-cut to " + maxChars + " chars ...";
     int retainedLength = maxChars - cutMessage.length() - 2; // 2 for the newlines
+    if (retainedLength <= 0) {
+      return cutMessage + System.lineSeparator();
+    }
     int half = retainedLength / 2;
     return trace.substring(0, half)
         + System.lineSeparator()

@@ -1,6 +1,7 @@
 package datadog.trace.core.datastreams;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT;
+import static datadog.trace.api.DDTags.PATHWAY_HASH;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTags;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
@@ -32,8 +33,6 @@ import datadog.trace.api.datastreams.TransactionInfo;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Schema;
-import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.OkHttpSink;
@@ -49,7 +48,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.jctools.queues.MessagePassingQueue;
@@ -81,7 +79,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean supportsDataStreams = false;
   private volatile boolean agentSupportsDataStreams = false;
   private volatile boolean configSupportsDataStreams = false;
-  private final ConcurrentHashMap<String, SchemaSampler> schemaSamplers;
   private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
 
   // contains a list of active extractors by type. Thread-safe via volatile with immutable
@@ -139,7 +136,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     thread = newAgentThread(DATA_STREAMS_MONITORING, new InboxProcessor());
     sink.register(this);
-    schemaSamplers = new ConcurrentHashMap<>();
 
     this.propagator = new DataStreamsPropagator(this, this.timeSource, serviceNameOverride);
     DataStreamsTags.setServiceNameOverride(serviceNameOverride);
@@ -164,23 +160,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     if (thread.isAlive()) {
       inbox.offer(statsPoint);
     }
-  }
-
-  @Override
-  public int trySampleSchema(String topic) {
-    SchemaSampler sampler = schemaSamplers.computeIfAbsent(topic, t -> new SchemaSampler());
-    return sampler.trySample(timeSource.getCurrentTimeMillis());
-  }
-
-  @Override
-  public boolean canSampleSchema(String topic) {
-    SchemaSampler sampler = schemaSamplers.computeIfAbsent(topic, t -> new SchemaSampler());
-    return sampler.canSample(timeSource.getCurrentTimeMillis());
-  }
-
-  @Override
-  public Schema getSchema(String schemaName, SchemaIterator iterator) {
-    return SchemaBuilder.getSchema(schemaName, iterator);
   }
 
   @Override
@@ -262,7 +241,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               DataStreamsContextCarrierAdapter.INSTANCE,
               this.timeSource,
               getThreadServiceName());
-      ((DDSpan) span).context().mergePathwayContext(pathwayContext);
+      ((DDSpan) span).spanContext().mergePathwayContext(pathwayContext);
     }
   }
 
@@ -305,10 +284,34 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   @Override
+  public void reportKafkaConsumerGroupMember(
+      String kafkaClusterId,
+      String consumerGroup,
+      String memberId,
+      int generationId,
+      String memberProtocol) {
+    inbox.offer(
+        new KafkaConfigReport(
+            "kafka_consumer",
+            kafkaClusterId,
+            consumerGroup,
+            memberId,
+            generationId,
+            memberProtocol,
+            Collections.<String, String>emptyMap(),
+            timeSource.getCurrentTimeNanos(),
+            getThreadServiceName()));
+  }
+
+  @Override
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {
-    PathwayContext pathwayContext = span.context().getPathwayContext();
+    PathwayContext pathwayContext = span.spanContext().getPathwayContext();
     if (pathwayContext != null) {
       pathwayContext.setCheckpoint(context, this::add);
+      long pathwayHash = pathwayContext.getHash();
+      if (pathwayHash != 0) {
+        span.setTag(PATHWAY_HASH, Long.toUnsignedString(pathwayHash));
+      }
     }
   }
 
@@ -517,7 +520,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void clear() {
     timeToBucket.clear();
-    schemaSamplers.clear();
   }
 
   void report() {

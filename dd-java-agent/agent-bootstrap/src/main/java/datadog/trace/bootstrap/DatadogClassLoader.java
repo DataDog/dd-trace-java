@@ -41,7 +41,11 @@ public final class DatadogClassLoader extends SecureClassLoader {
 
     agentJarFile = new JarFile(new File(agentJarURL.toURI()), false);
     agentCodeSource = new CodeSource(agentJarURL, (Certificate[]) null);
-    agentResourcePrefix = "jar:file:" + agentJarFile.getName() + "!/";
+    // Build the resource prefix from the agent jar URL rather than JarFile.getName().
+    // JarFile.getName() returns the OS-native path, which on Windows looks like
+    // "C:\Datadog\dd-java-agent.jar" — producing a malformed URL ("jar:file:C:\..."), so
+    // findResource() returns URLs that openStream() cannot read. See APMS-19624 / #6398.
+    agentResourcePrefix = "jar:" + agentJarURL + "!/";
     agentJarIndex = AgentJarIndex.readIndex(agentJarFile);
   }
 

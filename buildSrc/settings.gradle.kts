@@ -1,4 +1,5 @@
 include(":call-site-instrumentation-plugin")
+include(":modifiable-config-agent")
 
 dependencyResolutionManagement {
   versionCatalogs {

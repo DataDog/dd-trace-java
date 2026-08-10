@@ -53,10 +53,6 @@ class SpringWebfluxTest extends InstrumentationSpecification {
 
   WebClient client = WebClient.builder().clientConnector(new ReactorClientHttpConnector()).build()
 
-  @Override
-  boolean useStrictTraceWrites() {
-    false
-  }
 
   def "Basic GET test #testName"() {
     setup:

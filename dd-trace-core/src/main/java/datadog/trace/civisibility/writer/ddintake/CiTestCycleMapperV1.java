@@ -3,6 +3,8 @@ package datadog.trace.civisibility.writer.ddintake;
 import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.json.JsonMapper.toJson;
+import static datadog.trace.api.civisibility.CIConstants.MAX_META_STRING_VALUE_LENGTH;
+import static datadog.trace.util.Strings.truncate;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
@@ -350,21 +352,22 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       // we just need to be sure that the size is the same as the number of elements
       for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
         writable.writeString(entry.getKey(), null);
-        writable.writeString(entry.getValue(), null);
+        writable.writeString(truncate(entry.getValue(), MAX_META_STRING_VALUE_LENGTH), null);
       }
       if (null != metadata.getHttpStatusCode()) {
         writable.writeUTF8(HTTP_STATUS);
-        writable.writeUTF8(metadata.getHttpStatusCode());
+        writable.writeUTF8(truncate(metadata.getHttpStatusCode(), MAX_META_STRING_VALUE_LENGTH));
       }
       for (Map.Entry<String, Object> entry : tags.entrySet()) {
         Object value = entry.getValue();
         if (!(value instanceof Number)) {
           writable.writeString(entry.getKey(), null);
           if (!(value instanceof Iterable)) {
-            writable.writeObjectString(value, null);
+            writable.writeString(
+                truncate(String.valueOf(value), MAX_META_STRING_VALUE_LENGTH), null);
           } else {
             String serializedValue = toJson((Collection<String>) value);
-            writable.writeString(serializedValue, null);
+            writable.writeString(truncate(serializedValue, MAX_META_STRING_VALUE_LENGTH), null);
           }
         }
       }

@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 
 import datadog.trace.api.TagMap;
 import datadog.trace.api.endpoint.EndpointResolver;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.core.DDSpanContext;
 import org.slf4j.Logger;
@@ -45,10 +46,9 @@ public class HttpEndpointPostProcessor extends TagsPostProcessor {
   /**
    * Creates a new HttpEndpointPostProcessor with the given endpoint resolver.
    *
-   * <p>Visible for testing.
-   *
    * @param endpointResolver the resolver to use for endpoint inference
    */
+  @VisibleForTesting
   HttpEndpointPostProcessor(EndpointResolver endpointResolver) {
     this.endpointResolver = endpointResolver;
   }

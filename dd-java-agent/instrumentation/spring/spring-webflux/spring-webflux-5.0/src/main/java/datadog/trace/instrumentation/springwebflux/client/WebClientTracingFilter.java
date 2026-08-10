@@ -6,7 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator.HTTP_REQUEST;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.List;
 import org.springframework.web.reactive.function.client.ClientRequest;
@@ -54,7 +54,7 @@ public class WebClientTracingFilter implements ExchangeFilterFunction {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       AgentSpan parent = activeSpan();
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final ContextScope scope = activateSpan(span)) {
         TraceWebClientSubscriber tracingSubscriber =
             new TraceWebClientSubscriber(subscriber, span, parent);
         next.exchange(request).doOnCancel(tracingSubscriber::onCancel).subscribe(tracingSubscriber);

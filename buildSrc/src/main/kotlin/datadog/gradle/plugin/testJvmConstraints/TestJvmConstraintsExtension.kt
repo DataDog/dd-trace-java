@@ -37,6 +37,15 @@ interface TestJvmConstraintsExtension {
    */
   val allowReflectiveAccessToJdk: Property<Boolean>
 
+  /**
+   * Require the JDK running the test (or the daemon JVM, when no `testJvm` is selected) to
+   * be `native-image` capable — i.e. a GraalVM-flavoured distribution that ships
+   * `lib/svm/bin/native-image`. Tasks running on JDKs that don't satisfy this requirement
+   * are skipped via `onlyIf`, matching the gating model used by [minJavaVersion] and
+   * [includeJdk]. Defaults to `false` (no native-image requirement).
+   */
+  val nativeImageCapable: Property<Boolean>
+
   companion object {
     const val TEST_JVM_CONSTRAINTS = "testJvmConstraints"
   }

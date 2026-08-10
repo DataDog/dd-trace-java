@@ -5,7 +5,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.Headers
 import org.apache.kafka.common.header.internals.RecordHeaders
-import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
@@ -44,8 +43,16 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     return false
   }
 
-  @Rule
-  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, SHARED_TOPIC[0], SHARED_TOPIC[1], SHARED_TOPIC[2], SHARED_TOPIC[3])
+  KafkaEmbedded embeddedKafka
+
+  def setup() {
+    embeddedKafka = new KafkaEmbedded(1, true, SHARED_TOPIC[0], SHARED_TOPIC[1], SHARED_TOPIC[2], SHARED_TOPIC[3])
+    embeddedKafka.before()
+  }
+
+  def cleanup() {
+    embeddedKafka?.after()
+  }
 
   @Override
   void configurePreAgent() {
@@ -90,7 +97,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container1.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records1.add(record)
         }
       })
@@ -98,7 +104,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container2.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records2.add(record)
         }
       })
@@ -106,7 +111,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container3.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records3.add(record)
         }
       })
@@ -114,7 +118,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container4.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records4.add(record)
         }
       })
@@ -195,7 +198,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container1.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records1.add(activeSpan())
         }
       })
@@ -203,7 +205,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container2.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records2.add(activeSpan())
         }
       })
@@ -211,7 +212,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container3.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records3.add(activeSpan())
         }
       })
@@ -219,7 +219,6 @@ class KafkaClientCustomPropagationConfigTest extends InstrumentationSpecificatio
     container4.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records4.add(activeSpan())
         }
       })

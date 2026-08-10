@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.spymemcached;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.spymemcached.MemcacheClientDecorator.DECORATE;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -19,14 +19,14 @@ public abstract class CompletionListener<T> {
 
   public CompletionListener(final AgentSpan span, final String methodName) {
     this.span = span;
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onOperation(span, methodName);
     }
   }
 
   protected void closeAsyncSpan(final T future) {
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       try {
         processResult(span, future);
       } catch (final CancellationException e) {
@@ -54,7 +54,7 @@ public abstract class CompletionListener<T> {
   }
 
   protected void closeSyncSpan(final Throwable thrown) {
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       DECORATE.onError(span, thrown);
       DECORATE.beforeFinish(span);
       span.finish();

@@ -1,3 +1,9 @@
 <configuration>
   <logger name="org.eclipse.jetty" level="INFO"/>
+  <!--
+    MavenSmokeTest.StreamConsumer logs subprocess stdout/stderr at DEBUG.
+    Capped at INFO so Maven's verbose output — which may include CI secrets
+    (env vars, agent args) — never reaches JUnit XML reports.
+  -->
+  <logger name="datadog.smoketest.MavenSmokeTest" level="INFO"/>
 </configuration>

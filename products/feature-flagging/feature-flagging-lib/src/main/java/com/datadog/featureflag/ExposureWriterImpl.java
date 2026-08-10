@@ -1,5 +1,6 @@
 package com.datadog.featureflag;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_EXPOSURE_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -16,6 +17,7 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.ExposuresRequest;
 import datadog.trace.api.intake.Intake;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -82,6 +84,16 @@ public class ExposureWriterImpl implements ExposureWriter {
   @Override
   public void accept(final ExposureEvent event) {
     queue.offer(event);
+  }
+
+  @VisibleForTesting
+  boolean isSerializerThreadAlive() {
+    return serializerThread.isAlive();
+  }
+
+  @VisibleForTesting
+  int queueSize() {
+    return queue.size();
   }
 
   private static class ExposureSerializingHandler implements Runnable {
@@ -167,15 +179,22 @@ public class ExposureWriterImpl implements ExposureWriter {
         return;
       }
       if (shouldFlush()) {
+        final String requestBodyJson;
         try {
           final ExposuresRequest exposures = new ExposuresRequest(this.context, this.buffer);
-          final String reqBod = jsonAdapter.toJson(exposures);
+          requestBodyJson = jsonAdapter.toJson(exposures);
+        } catch (RuntimeException e) {
+          LOGGER.error(EXCLUDE_TELEMETRY, "Could not serialize exposures; dropping batch", e);
+          this.buffer.clear();
+          return;
+        }
+        try {
           final RequestBody requestBody =
-              RequestBody.create(okhttp3.MediaType.parse("application/json"), reqBod);
+              RequestBody.create(okhttp3.MediaType.parse("application/json"), requestBodyJson);
           evp.post("exposures", requestBody, stream -> null, null, false);
           this.buffer.clear();
         } catch (Exception e) {
-          LOGGER.error("Could not submit exposures", e);
+          LOGGER.debug("Could not submit exposures", e);
         }
       }
     }

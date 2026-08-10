@@ -66,16 +66,43 @@ final class JUnitReport {
     return changed;
   }
 
+  /// Tags framework-emitted synthetic testcases so Test Optimization does not treat them as
+  /// real failures.
+  ///
+  /// **Criteria for new entries:**
+  /// - Must be a name the framework/runner emits itself — never use a name that a user-authored test
+  ///   could legitimately have.
+  /// - Must link to the source that emits the literal, pinned to a release tag (not a commit
+  ///   hash).
+  ///
+  /// **Frameworks/libraries to audit before adding a name:** JUnit 4, JUnit Platform engines
+  /// (Vintage / Jupiter), Gradle's JUnit and JUnit Platform adapters, TestNG, Spock, Kotest,
+  /// Maven Surefire/Failsafe. JUnit 5's main sources do not define these literals — Vintage
+  /// forwards `"initializationError"` from JUnit 4 as-is, and `"executionError"` is
+  /// Gradle-specific.
+  ///
+  /// **Do not add** generic English names such as `"test exception"`. Spock feature methods
+  /// (`def "..."()`), JUnit 5 `@DisplayName`, and Kotest specs can all produce them, so the
+  /// tagger would silently mask real pass/fail outcomes.
   void tagSyntheticFailures() {
     Map<String, List<Element>> initializationErrorsByClassname = new LinkedHashMap<>();
     for (var testcase : testcases()) {
-      var name = testcase.getAttribute("name");
-      if ("initializationError".equals(name)) {
-        initializationErrorsByClassname
-            .computeIfAbsent(testcase.getAttribute("classname"), ignored -> new ArrayList<>())
-            .add(testcase);
-      } else if ("executionError".equals(name) || "test exception".equals(name)) {
-        addFinalStatusProperty(testcase, "skip", MissingPropertiesPlacement.APPEND_TO_TESTCASE);
+      switch (testcase.getAttribute("name")) {
+        // JUnit 4 ErrorReportingRunner — initializationError
+        // https://github.com/junit-team/junit4/blob/r4.13.2/src/main/java/org/junit/internal/runners/ErrorReportingRunner.java#L83
+        // Gradle JUnit Platform listener — reuses the same name for synthetic container failures
+        // https://github.com/gradle/gradle/blob/v8.14.5/platforms/jvm/testing-junit-platform/src/main/java/org/gradle/api/internal/tasks/testing/junitplatform/JUnitPlatformTestExecutionListener.java#L248
+        // https://github.com/gradle/gradle/blob/v9.5.0/platforms/jvm/testing-jvm-infrastructure/src/main/java/org/gradle/api/internal/tasks/testing/junitplatform/JUnitPlatformTestExecutionListener.java#L426
+        case "initializationError" ->
+            initializationErrorsByClassname
+                .computeIfAbsent(testcase.getAttribute("classname"), ignored -> new ArrayList<>())
+                .add(testcase);
+        // Gradle JUnit Platform listener — executionError, used when descendants already started
+        // https://github.com/gradle/gradle/blob/v8.14.5/platforms/jvm/testing-junit-platform/src/main/java/org/gradle/api/internal/tasks/testing/junitplatform/JUnitPlatformTestExecutionListener.java#L248
+        // https://github.com/gradle/gradle/blob/v9.5.0/platforms/jvm/testing-jvm-infrastructure/src/main/java/org/gradle/api/internal/tasks/testing/junitplatform/JUnitPlatformTestExecutionListener.java#L426
+        case "executionError" ->
+            addFinalStatusProperty(testcase, "skip", MissingPropertiesPlacement.APPEND_TO_TESTCASE);
+        default -> {}
       }
     }
 
@@ -87,6 +114,35 @@ final class JUnitReport {
     }
   }
 
+  /// Tags every attempt of a retried test except the final one with `skip`, so Test Optimization
+  /// counts only the decisive (last) attempt and ignores intermediate retries.
+  ///
+  /// Gradle's Develocity test-retry plugin re-runs a failing test and appends each attempt to the
+  /// same per-class JUnit report as another `<testcase>` with an identical `classname#name`. The
+  /// plugin stops retrying once a test passes or retries are exhausted, so the last such element in
+  /// document order is the decisive attempt and every earlier duplicate is tagged `skip`.
+  ///
+  /// **Must run before {@link #normalizeStableTestNames()}.** Keys are matched on raw names so two
+  /// genuinely distinct tests whose names differ only in an unstable token (e.g. `localhost:12345`
+  /// vs `localhost:23456`, which normalization collapses to `localhost:PORT`) are not mistaken for
+  /// retries of each other.
+  ///
+  /// Tagging uses the same `addFinalStatusProperty` path as {@link #tagFinalStatuses()}, which then
+  /// leaves the already-tagged earlier attempts untouched and assigns the natural pass/fail status
+  /// only to the final attempt.
+  void tagRetriedAttempts() {
+    var attemptsByKey = new LinkedHashMap<String, List<Element>>();
+    for (var testcase : testcases()) {
+      var key = testcase.getAttribute("classname") + "#" + testcase.getAttribute("name");
+      attemptsByKey.computeIfAbsent(key, ignored -> new ArrayList<>()).add(testcase);
+    }
+    for (var attempts : attemptsByKey.values()) {
+      for (var i = 0; i < attempts.size() - 1; i++) {
+        addFinalStatusProperty(attempts.get(i), "skip", MissingPropertiesPlacement.FIRST_CHILD);
+      }
+    }
+  }
+
   void tagFinalStatuses() {
     for (var testcase : testcases()) {
       if (hasFinalStatusProperty(testcase)) {
@@ -94,6 +150,29 @@ final class JUnitReport {
       }
       addFinalStatusProperty(
           testcase, finalStatus(testcase), MissingPropertiesPlacement.FIRST_CHILD);
+    }
+  }
+
+  /// Marks every testcase as `test.final_status=skip` for jobs that tolerate failures.
+  ///
+  /// The flaky test jobs (`test_flaky`, `test_flaky_inst`) run with `CONTINUE_ON_FAILURE=true`, so
+  /// their result never gates the pipeline: it runs to completion regardless of pass or fail.
+  /// `test.final_status` records that CI impact rather than the raw outcome, so every test in these
+  /// jobs is `skip` — a failure is a non-blocking failure and a pass is a non-blocking pass. This
+  /// keeps flaky failures from creating false-positive notifications and skewing SLIs, while the
+  /// real per-test outcome stays available in `test.status` (derived from the `<failure>`,
+  /// `<error>`, and `<skipped>` children, which are left in place). Always-green tests that could
+  /// leave the flaky pipeline are then found with `@test.status:pass @test.final_status:skip`.
+  ///
+  /// **Must run before {@link #tagFinalStatuses()}** so the natural pass/fail status is never
+  /// assigned. Testcases already tagged by {@link #tagRetriedAttempts()} or
+  /// {@link #tagSyntheticFailures()} are left untouched (already `skip`).
+  void tagAllAsSkipped() {
+    for (var testcase : testcases()) {
+      if (hasFinalStatusProperty(testcase)) {
+        continue;
+      }
+      addFinalStatusProperty(testcase, "skip", MissingPropertiesPlacement.FIRST_CHILD);
     }
   }
 

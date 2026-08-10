@@ -68,3 +68,16 @@ class JDBCDecoratorNoPropagationForkedTest extends JDBCDecoratorTest {
     return false
   }
 }
+
+class JDBCDecoratorDynamicServicePropagationForkedTest extends JDBCDecoratorTest {
+  @Override
+  protected void setupPropagationMode() {
+    injectSysConfig(DB_DBM_PROPAGATION_MODE_MODE, "dynamic_service")
+  }
+
+  @Override
+  protected boolean expectedFromConfig() {
+    // dynamic_service behaves like service mode: no trace context injection
+    return false
+  }
+}

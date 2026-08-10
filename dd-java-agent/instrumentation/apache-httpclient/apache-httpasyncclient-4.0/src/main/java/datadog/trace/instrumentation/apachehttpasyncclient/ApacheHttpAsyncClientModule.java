@@ -22,7 +22,8 @@ public class ApacheHttpAsyncClientModule extends InstrumenterModule.Tracing {
       packageName + ".DelegatingRequestProducer",
       packageName + ".TraceContinuedFutureCallback",
       packageName + ".ApacheHttpAsyncClientDecorator",
-      packageName + ".HostAndRequestAsHttpUriRequest"
+      packageName + ".HostAndRequestAsHttpUriRequest",
+      packageName + ".RedirectHelper"
     };
   }
 

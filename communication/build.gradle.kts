@@ -36,48 +36,48 @@ dependencies {
   )
 }
 
-val minimumBranchCoverage by extra(0.5)
-val minimumInstructionCoverage by extra(0.8)
-val excludedClassesCoverage by extra(
-  listOf(
-    "datadog.communication.ddagent.ExternalAgentLauncher",
-    "datadog.communication.ddagent.ExternalAgentLauncher.NamedPipeHealthCheck",
-    "datadog.communication.ddagent.SharedCommunicationObjects.FixedConfigUrlSupplier",
-    "datadog.communication.ddagent.SharedCommunicationObjects.RetryConfigUrlSupplier",
-    "datadog.communication.http.OkHttpUtils",
-    "datadog.communication.http.OkHttpUtils.1",
-    "datadog.communication.http.OkHttpUtils.ByteBufferRequestBody",
-    "datadog.communication.http.OkHttpUtils.CustomListener",
-    "datadog.communication.http.OkHttpUtils.GZipByteBufferRequestBody",
-    "datadog.communication.http.OkHttpUtils.GZipRequestBodyDecorator",
-    "datadog.communication.http.OkHttpUtils.JsonRequestBody",
-    "datadog.communication.BackendApiFactory",
-    "datadog.communication.BackendApiFactory.Intake",
-    "datadog.communication.EvpProxyApi",
-    "datadog.communication.IntakeApi",
-    "datadog.communication.util.IOUtils",
-    "datadog.communication.util.IOUtils.1",
-  )
+extra["minimumBranchCoverage"] = 0.5
+extra["minimumInstructionCoverage"] = 0.8
+extra["excludedClassesCoverage"] = listOf(
+  "okhttp3.internal.PatchUtil",
+  "okhttp3.internal.PatchUtil.1",
+  "okhttp3.internal.PatchUtil.2",
+  "okhttp3.internal.platform.PatchPlatform",
+  "datadog.communication.ddagent.ExternalAgentLauncher",
+  "datadog.communication.ddagent.NoopFeaturesDiscovery",
+  "datadog.communication.ddagent.ExternalAgentLauncher.NamedPipeHealthCheck",
+  "datadog.communication.ddagent.SharedCommunicationObjects.FixedConfigUrlSupplier",
+  "datadog.communication.ddagent.SharedCommunicationObjects.RetryConfigUrlSupplier",
+  "datadog.communication.http.OkHttpUtils",
+  "datadog.communication.http.OkHttpUtils.1",
+  "datadog.communication.http.OkHttpUtils.ByteBufferRequestBody",
+  "datadog.communication.http.OkHttpUtils.CustomListener",
+  "datadog.communication.http.OkHttpUtils.GZipByteBufferRequestBody",
+  "datadog.communication.http.OkHttpUtils.GZipRequestBodyDecorator",
+  "datadog.communication.http.OkHttpUtils.JsonRequestBody",
+  "datadog.communication.BackendApiFactory",
+  "datadog.communication.BackendApiFactory.Intake",
+  "datadog.communication.EvpProxyApi",
+  "datadog.communication.IntakeApi",
+  "datadog.communication.util.IOUtils",
+  "datadog.communication.util.IOUtils.1",
+  "datadog.communication.http.SocketUtils",
 )
-val excludedClassesBranchCoverage by extra(
-  listOf(
-    "datadog.communication.ddagent.TracerVersion",
-    "datadog.communication.BackendApiFactory",
-    "datadog.communication.EvpProxyApi",
-    "datadog.communication.IntakeApi",
-  )
+extra["excludedClassesBranchCoverage"] = listOf(
+  "datadog.communication.ddagent.TracerVersion",
+  "datadog.communication.BackendApiFactory",
+  "datadog.communication.EvpProxyApi",
+  "datadog.communication.IntakeApi",
 )
-val excludedClassesInstructionCoverage by extra(
-  listOf(
-    // can't reach the error condition now
-    "datadog.communication.fleet.FleetServiceImpl",
-    "datadog.communication.ddagent.SharedCommunicationObjects",
-    "datadog.communication.ddagent.TracerVersion",
-    "datadog.communication.BackendApiFactory",
-    "datadog.communication.BackendApiFactory.Intake",
-    "datadog.communication.EvpProxyApi",
-    "datadog.communication.IntakeApi",
-    "datadog.communication.util.IOUtils",
-    "datadog.communication.util.IOUtils.1",
-  )
+extra["excludedClassesInstructionCoverage"] = listOf(
+  // can't reach the error condition now
+  "datadog.communication.fleet.FleetServiceImpl",
+  "datadog.communication.ddagent.SharedCommunicationObjects",
+  "datadog.communication.ddagent.TracerVersion",
+  "datadog.communication.BackendApiFactory",
+  "datadog.communication.BackendApiFactory.Intake",
+  "datadog.communication.EvpProxyApi",
+  "datadog.communication.IntakeApi",
+  "datadog.communication.util.IOUtils",
+  "datadog.communication.util.IOUtils.1",
 )

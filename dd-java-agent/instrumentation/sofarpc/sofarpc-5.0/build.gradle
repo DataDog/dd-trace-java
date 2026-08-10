@@ -11,10 +11,6 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
-configurations.testRuntimeClasspath {
-  resolutionStrategy.force "com.google.guava:guava:32.1.3-jre"
-}
-
 dependencies {
   compileOnly group: "com.alipay.sofa", name: "sofa-rpc-all", version: "5.6.0"
 
@@ -29,7 +25,25 @@ dependencies {
   testImplementation group: "io.grpc", name: "grpc-stub", version: "1.53.0"
   testImplementation group: "com.google.protobuf", name: "protobuf-java", version: "3.25.3"
   testImplementation group: "com.alibaba", name: "fastjson", version: "1.2.83"
-  testImplementation group: "com.google.guava", name: "guava", version: "32.1.3-jre"
 
   latestDepTestImplementation group: "com.alipay.sofa", name: "sofa-rpc-all", version: "+"
+
+  constraints {
+    // Regression fix for Gradle 9.6.0 (should be fixed in 9.7.0)
+    //
+    // The `sofa-rpc-all:5.14.2` brings `netty-all:4.1.44.Final`, which is a fat jar,
+    // while `grpc-netty:1.53.0` brings individual `netty-*:4.1.79.Final` modules.
+    // Gradle 9.6.0 introduced a regression in the classpath ordering, as they are
+    // working on revamping the dependency traversal. The result is that the `4.1.44`
+    // fat jar classes appear earlier and its classes are loaded from it ; this
+    // produces a `NoSuchMethodError` at runtime in netty's `AbstractReferenceCountedByteBuf`.
+    //
+    // The workaround is to force `netty-all` to `4.1.79` so the fat jar and the individual
+    // modules are aligned on the same version. This should be fixed in 9.7.0 and consequently
+    // removed from the constraints.
+    // See https://github.com/gradle/gradle/issues/38057 for more details.
+    testImplementation("io.netty:netty-all:4.1.79.Final") {
+      because "sofa-rpc-all brings netty-all:4.1.44.Final (fat jar) while grpc-netty brings individual netty-*:4.1.79.Final modules; Gradle 9.6.0 classpath ordering regression causes 4.1.44 classes to shadow 4.1.79, producing NoSuchMethodError"
+    }
+  }
 }

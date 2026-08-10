@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
+import groovy.transform.CompileStatic
 import org.eclipse.jetty.http.HttpMethod
 import org.eclipse.jetty.http.HttpVersion
 import org.eclipse.jetty.server.Handler
@@ -298,6 +299,7 @@ class TestHttpServer implements AutoCloseable {
     }
 
     @Override
+    @CompileStatic
     void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
       if (request.method.equalsIgnoreCase(method)) {
         super.handle(target, baseRequest, request, response)
@@ -315,6 +317,7 @@ class TestHttpServer implements AutoCloseable {
     }
 
     @Override
+    @CompileStatic
     void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
       if (target == path) {
         super.handle(target, baseRequest, request, response)
@@ -332,6 +335,7 @@ class TestHttpServer implements AutoCloseable {
     }
 
     @Override
+    @CompileStatic
     void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
       if (target.startsWith(prefix)) {
         super.handle(target, baseRequest, request, response)

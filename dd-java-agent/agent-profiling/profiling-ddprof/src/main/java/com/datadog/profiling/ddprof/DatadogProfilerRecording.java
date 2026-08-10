@@ -1,6 +1,7 @@
 package com.datadog.profiling.ddprof;
 
 import com.datadog.profiling.controller.OngoingRecording;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import java.io.IOException;
@@ -37,7 +38,7 @@ final class DatadogProfilerRecording implements OngoingRecording {
         recordingFile, started, Instant.now(), ProfilingSnapshot.Kind.ON_SHUTDOWN);
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   final RecordingData snapshot(@Nonnull Instant start) {
     return snapshot(start, ProfilingSnapshot.Kind.PERIODIC);
   }
@@ -62,7 +63,7 @@ final class DatadogProfilerRecording implements OngoingRecording {
     }
   }
 
-  // used for tests only
+  @VisibleForTesting
   Path getRecordingFile() {
     return recordingFile;
   }

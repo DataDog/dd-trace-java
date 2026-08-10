@@ -10,6 +10,7 @@ testJvmConstraints {
 }
 
 apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-routes.gradle"
+apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-linux-arm64.gradle"
 
 def playVer = "2.4.11"
 def scalaVer = System.getProperty("scala.binary.version", /* default = */ "2.11")

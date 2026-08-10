@@ -1,6 +1,8 @@
 package server
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -10,6 +12,10 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.api.Config
+import okhttp3.MediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator
@@ -75,6 +81,47 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
   @Override
   boolean testBodyMultipart() {
     true
+  }
+
+  @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
+  boolean testBodyFilesContent() {
+    true
+  }
+
+  @Override
+  boolean testBodyFilesContentOrdering() {
+    false
+  }
+
+  // fileUploads() returns a HashSet in Vert.x: check count instead of which specific file is excluded
+  def 'test instrumentation gateway file upload content max files limit count'() {
+    setup:
+    assumeTrue(testBodyFilesContent())
+    def maxFilesToInspect = Config.get().getAppSecMaxFileContentCount()
+    def bodyBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM)
+    (1..maxFilesToInspect + 1).each { i ->
+      bodyBuilder.addFormDataPart("file${i}", "file${i}.bin",
+        RequestBody.create(MediaType.parse('application/octet-stream'), "content_of_file_${i}"))
+    }
+    def httpRequest = request(BODY_MULTIPART, 'POST', bodyBuilder.build()).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any { span ->
+      def tag = span.getTag('request.body.files_content') as String
+      tag != null && tag.count('content_of_file_') == maxFilesToInspect
+    }
+
+    cleanup:
+    response.close()
   }
 
   @Override

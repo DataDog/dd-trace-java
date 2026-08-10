@@ -1,5 +1,6 @@
 package datadog.logging;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import java.util.Locale;
@@ -25,7 +26,7 @@ public class RatelimitedLogger {
     this(log, delay, timeUnit, SystemTimeSource.INSTANCE);
   }
 
-  // Visible for testing
+  @VisibleForTesting
   RatelimitedLogger(
       final Logger log, final int delay, final TimeUnit timeUnit, final TimeSource timeSource) {
     this.log = log;

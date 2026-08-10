@@ -13,8 +13,19 @@ apply from: "$sharedConfigDirectory/repositories.gradle"
 
 ext.withProfiler = hasProperty('profiler')
 
+// Avoid unlimited CPU usage on CI.
+def isCI = providers.environmentVariable("CI").isPresent()
+def ciBuildCpuCount = providers.environmentVariable("KUBERNETES_CPU_REQUEST").getOrElse("4")
+
 if (hasProperty('appBuildDir')) {
   buildDir = property('appBuildDir')
+}
+
+// Spring Boot 3.0's bundled ASM 9.4 only parses class files up to major 64 (Java 20), so
+// target release 17 here regardless of the daemon JDK — keeps the inner app's class files
+// at major 61 and avoids needing a separate Java 17 toolchain for the nested build.
+tasks.withType(JavaCompile).configureEach {
+  options.release = 17
 }
 
 dependencies {
@@ -39,6 +50,10 @@ if (hasProperty('agentPath')) {
           buildArgs.add("-J-Ddd.profiling.enabled=true")
           buildArgs.add("-J-Ddd.profiling.scrub.enabled=true")
           buildArgs.add("-J-Ddd.profiling.start-force-first=true")
+        }
+        if (isCI) {
+          buildArgs.add("-H:NumberOfThreads=$ciBuildCpuCount")
+          buildArgs.add("-J-XX:ActiveProcessorCount=$ciBuildCpuCount")
         }
         jvmArgs.add("-Xmx4096M")
       }

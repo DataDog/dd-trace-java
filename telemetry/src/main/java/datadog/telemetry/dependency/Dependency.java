@@ -1,5 +1,6 @@
 package datadog.telemetry.dependency;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
@@ -46,11 +47,32 @@ public final class Dependency {
   public final String source;
   public final String hash;
 
+  /**
+   * Optional SCA reachability metadata. Each entry is a stringified JSON object conforming to the
+   * RFC reachability payload: {@code
+   * {"id":"GHSA-xxx","reached":[{"path":"...","symbol":"<clinit>","line":1}]}}. Null for regular
+   * dependencies; non-null only when injected by {@code ScaReachabilityPeriodicAction}. Not
+   * serialized by the telemetry pipeline unless explicitly written by {@link
+   * datadog.telemetry.TelemetryRequestBody#writeDependency}.
+   */
+  @Nullable public final List<String> reachabilityMetadata;
+
   public Dependency(String name, String version, String source, @Nullable String hash) {
+    this(name, version, source, hash, null);
+  }
+
+  public Dependency(
+      String name,
+      String version,
+      String source,
+      @Nullable String hash,
+      @Nullable List<String> reachabilityMetadata) {
     this.name = name;
     this.version = version;
     this.source = source;
     this.hash = hash;
+    this.reachabilityMetadata =
+        reachabilityMetadata != null ? Collections.unmodifiableList(reachabilityMetadata) : null;
   }
 
   @Override
@@ -108,6 +130,11 @@ public final class Dependency {
     return dependencies;
   }
 
+  @SuppressFBWarnings(
+      value = {"USO_UNSAFE_METHOD_SYNCHRONIZATION", "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION"},
+      justification =
+          "Static synchronized method guards the shared static MessageDigest and byte[] buffer; the"
+              + " Dependency.class lock is internal and not exposed to application code.")
   public static synchronized Dependency guessFallbackNoPom(
       Attributes manifest, String source, InputStream is) throws IOException {
     final int slashIndex = source.lastIndexOf('/');

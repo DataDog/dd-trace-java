@@ -10,7 +10,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FO
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 
-
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.util.ContextInitializer
 import com.datadog.debugger.agent.ClassesToRetransformFinder
@@ -47,6 +46,7 @@ import datadog.trace.api.Pair
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor
@@ -79,7 +79,6 @@ import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicInteger
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
@@ -125,7 +124,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     StringBuilder ddEnvVars = new StringBuilder()
     for (Map.Entry<Object, Object> entry : System.getProperties().entrySet()) {
       if (entry.getKey().toString().startsWith("dd.")) {
-        ddEnvVars.append(ConfigStrings.systemPropertyNameToEnvironmentVariableName(entry.getKey().toString()))
+        ddEnvVars.append(ConfigStrings.toEnvVar(entry.getKey().toString()))
         .append("=").append(entry.getValue()).append(",")
       }
     }
@@ -168,10 +167,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   @SuppressWarnings('PropertyName')
   @Shared
   Set<TypeDescription> TRANSFORMED_CLASSES_TYPES = Sets.newConcurrentHashSet()
-
-  @SuppressWarnings('PropertyName')
-  @Shared
-  AtomicInteger INSTRUMENTATION_ERROR_COUNT = new AtomicInteger(0)
 
   // don't use mocks because it will break too many exhaustive interaction-verifying tests
   @SuppressWarnings('PropertyName')
@@ -353,17 +348,21 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   @SuppressForbidden
   void setupSpec() {
-    AgentMeter.registerIfAbsent(
-    STATS_D_CLIENT,
-    new MonitoringImpl(STATS_D_CLIENT, 10, TimeUnit.SECONDS),
-    DDSketchHistograms.FACTORY
-    )
+    InstrumentationErrors.resetErrors()
 
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath. If one test extends AgentTestRunner in a module, all tests must extend
     assert Config.getClassLoader() == null: "Config must load on the bootstrap classpath."
 
     configurePreAgent()
+
+    AgentTracer.maybeInstallLegacyContextManager()
+
+    AgentMeter.registerIfAbsent(
+    STATS_D_CLIENT,
+    new MonitoringImpl(STATS_D_CLIENT, 10, TimeUnit.SECONDS),
+    DDSketchHistograms.FACTORY
+    )
 
     TEST_DATA_STREAMS_WRITER = new RecordingDatastreamsPayloadWriter()
     DDAgentFeaturesDiscovery features = new MockFeaturesDiscovery(true)
@@ -423,6 +422,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(
     INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
+
+    // check for instrumentation issues during installation
+    assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
   }
 
   protected String idGenerationStrategyName() {
@@ -431,12 +433,15 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   /** Override to set config before the agent is installed */
   protected void configurePreAgent() {
+    injectSysConfig(TraceInstrumentationConfig.DETAILED_INSTRUMENTATION_ERRORS, "true")
     injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, String.valueOf(isDataStreamsEnabled()))
     injectSysConfig(GeneralConfig.DATA_JOBS_ENABLED, String.valueOf(isDataJobsEnabled()))
   }
 
   void setup() {
+    InstrumentationErrors.resetErrors() // reset for each test
+
     configureLoggingLevels()
 
     assertThreadsEachCleanup = false
@@ -472,7 +477,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     if (forceAppSecActive) {
       ActiveSubsystems.APPSEC_ACTIVE = true
     }
-    InstrumentationErrors.resetErrorCount()
     ProcessTags.reset()
   }
 
@@ -514,7 +518,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       spanFinishLocations.clear()
       originalToTrackingSpan.clear()
     }
-    assert InstrumentationErrors.errorCount == 0
+
+    // check for instrumentation issues while running each test
+    assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
   }
 
   private void doCheckRepeatedFinish() {
@@ -556,8 +562,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     cleanupAfterAgent()
 
     // All cleanup should happen before these assertion.  If not, a failing assertion may prevent cleanup
-    assert INSTRUMENTATION_ERROR_COUNT.get() == 0: INSTRUMENTATION_ERROR_COUNT.get() + " Instrumentation errors during test"
-
     assert TRANSFORMED_CLASSES_TYPES.findAll {
       GlobalIgnores.isAdditionallyIgnored(it.getActualName())
     }.isEmpty(): "Transformed classes match global libraries ignore matcher"
@@ -621,7 +625,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
     if (span instanceof DDSpan) {
-      def traceCollector = ((DDSpan) span).context().getTraceCollector()
+      def traceCollector = ((DDSpan) span).spanContext().getTraceCollector()
       if (!(traceCollector instanceof PendingTrace)) {
         throw new IllegalStateException("Expected $PendingTrace.name trace collector, got $traceCollector.class.name")
       }
@@ -658,9 +662,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       return
     }
 
+    InstrumentationErrors.recordError(throwable)
     println "Unexpected instrumentation error when instrumenting ${typeName} on ${classLoader}"
     throwable.printStackTrace()
-    INSTRUMENTATION_ERROR_COUNT.incrementAndGet()
   }
 
   @Override

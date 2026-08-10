@@ -1,32 +1,32 @@
 package datadog.trace.instrumentation.mongo;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 
 import com.mongodb.internal.async.SingleResultCallback;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.Context;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 public class CallbackWrapper<T> implements SingleResultCallback<Object> {
-  private static final AtomicReferenceFieldUpdater<CallbackWrapper, AgentScope.Continuation>
+  private static final AtomicReferenceFieldUpdater<CallbackWrapper, ContextContinuation>
       CONTINUATION =
           AtomicReferenceFieldUpdater.newUpdater(
-              CallbackWrapper.class, AgentScope.Continuation.class, "continuation");
+              CallbackWrapper.class, ContextContinuation.class, "continuation");
 
-  private volatile AgentScope.Continuation continuation = null;
+  private volatile ContextContinuation continuation = null;
   private final SingleResultCallback<Object> wrapped;
 
-  public CallbackWrapper(
-      AgentScope.Continuation continuation, SingleResultCallback<Object> wrapped) {
+  public CallbackWrapper(ContextContinuation continuation, SingleResultCallback<Object> wrapped) {
     CONTINUATION.set(this, continuation);
     this.wrapped = wrapped;
   }
 
   @Override
   public void onResult(Object result, Throwable t) {
-    AgentScope.Continuation continuation = getAndResetContinuation();
+    ContextContinuation continuation = getAndResetContinuation();
     if (null != continuation) {
-      AgentScope scope = continuation.activate();
+      ContextScope scope = continuation.resume();
       try {
         wrapped.onResult(result, t);
       } finally {
@@ -38,14 +38,14 @@ public class CallbackWrapper<T> implements SingleResultCallback<Object> {
   }
 
   private void cancel() {
-    AgentScope.Continuation continuation = getAndResetContinuation();
+    ContextContinuation continuation = getAndResetContinuation();
     if (null != continuation) {
-      continuation.cancel();
+      continuation.release();
     }
   }
 
-  private AgentScope.Continuation getAndResetContinuation() {
-    AgentScope.Continuation continuation = this.continuation;
+  private ContextContinuation getAndResetContinuation() {
+    ContextContinuation continuation = this.continuation;
     if (continuation != null) {
       if (CONTINUATION.compareAndSet(this, continuation, null)) {
         return continuation;
@@ -55,8 +55,8 @@ public class CallbackWrapper<T> implements SingleResultCallback<Object> {
   }
 
   public static SingleResultCallback<Object> wrapIfRequired(SingleResultCallback<Object> callback) {
-    AgentScope.Continuation continuation = captureActiveSpan();
-    if (continuation != noopContinuation()) {
+    ContextContinuation continuation = captureActiveSpan();
+    if (continuation.context() != Context.root()) {
       return new CallbackWrapper<>(continuation, callback);
     }
     return callback;

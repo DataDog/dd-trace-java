@@ -1,5 +1,6 @@
 package datadog.gradle.plugin.instrument
 
+import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin.Companion.BUILD_TIME_INSTRUMENTATION_PLUGIN_CONFIGURATION
 import org.gradle.api.Action
 import org.gradle.api.Project
@@ -73,6 +74,10 @@ abstract class InstrumentPostProcessingAction @Inject constructor(
     return workerExecutor.processIsolation {
       forkOptions {
         setExecutable(javaLauncher.executablePath.asFile.absolutePath)
+        if (HostPlatform.isLinuxArm64()) {
+          // Disable CDS to avoid SIGSEGVs on Linux arm64.
+          jvmArgs("-Xshare:off")
+        }
       }
     }
   }

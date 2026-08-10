@@ -1,6 +1,5 @@
 package datadog.communication.util;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -16,6 +15,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nonnull;
 
 public abstract class IOUtils {
 
@@ -23,11 +23,11 @@ public abstract class IOUtils {
 
   private IOUtils() {}
 
-  public static @NonNull String readFully(InputStream input) throws IOException {
+  public static @Nonnull String readFully(InputStream input) throws IOException {
     return readFully(input, Charset.defaultCharset());
   }
 
-  public static @NonNull String readFully(InputStream input, Charset charset) throws IOException {
+  public static @Nonnull String readFully(InputStream input, Charset charset) throws IOException {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     readFully(input, output);
     return new String(output.toByteArray(), charset);
@@ -41,17 +41,17 @@ public abstract class IOUtils {
     }
   }
 
-  public static @NonNull List<String> readLines(final InputStream input) throws IOException {
+  public static @Nonnull List<String> readLines(final InputStream input) throws IOException {
     return readLines(input, Charset.defaultCharset());
   }
 
-  public static @NonNull List<String> readLines(final InputStream input, final Charset charset)
+  public static @Nonnull List<String> readLines(final InputStream input, final Charset charset)
       throws IOException {
     final InputStreamReader reader = new InputStreamReader(input, charset);
     return readLines(reader);
   }
 
-  public static @NonNull List<String> readLines(final Reader input) throws IOException {
+  public static @Nonnull List<String> readLines(final Reader input) throws IOException {
     final BufferedReader reader = new BufferedReader(input, DEFAULT_BUFFER_SIZE);
     final List<String> list = new ArrayList<>();
     String line = reader.readLine();

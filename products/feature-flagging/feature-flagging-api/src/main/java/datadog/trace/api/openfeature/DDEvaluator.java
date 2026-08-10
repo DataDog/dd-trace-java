@@ -26,8 +26,8 @@ import dev.openfeature.sdk.Value;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.AbstractMap;
-import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,6 +46,16 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
 
+  // Evaluation-metadata keys consumed by the span-enrichment capture hook (see
+  // SpanEnrichmentHook). Emitted only when the span-enrichment gate is on.
+  static final String METADATA_SPLIT_SERIAL_ID = "__dd_split_serial_id";
+  static final String METADATA_DO_LOG = "__dd_do_log";
+
+  // Read once: when off, the __dd_* span-enrichment metadata is not attached to evaluations, so an
+  // enabled provider pays nothing extra unless span enrichment is also enabled. The gate does not
+  // change at runtime, and this class is loaded lazily (well after startup) so config is ready.
+  private static final boolean SPAN_ENRICHMENT_ENABLED = SpanEnrichmentGate.isEnabled();
+
   private final Runnable configCallback;
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
@@ -57,8 +67,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   @Override
   public boolean initialize(
       final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
+    FeatureFlaggingGateway.activate();
     FeatureFlaggingGateway.addConfigListener(this);
-    return initializationLatch.await(timeout, unit); // await for initialization
+    return initializationLatch.await(timeout, unit) || hasConfiguration();
+  }
+
+  @Override
+  public boolean hasConfiguration() {
+    return configuration.get() != null;
   }
 
   @Override
@@ -69,8 +85,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   @Override
   public void accept(final ServerConfiguration config) {
     configuration.set(config);
-    initializationLatch.countDown();
-    configCallback.run();
+    if (config != null) {
+      initializationLatch.countDown();
+      configCallback.run();
+    } else if (initializationLatch.getCount() == 0) {
+      configCallback.run();
+    }
   }
 
   @Override
@@ -105,7 +125,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         return error(defaultValue, ErrorCode.GENERAL, "Missing allocations for flag " + key);
       }
 
-      final Date now = new Date();
+      final Instant now = Instant.now();
       final String targetingKey = context.getTargetingKey();
 
       for (final Allocation allocation : flag.allocations) {
@@ -188,14 +208,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     return list == null || list.isEmpty();
   }
 
-  private static boolean isAllocationActive(final Allocation allocation, final Date now) {
-    final Date startDate = allocation.startAt;
-    if (startDate != null && now.before(startDate)) {
+  static boolean isAllocationActive(final Allocation allocation, final Instant now) {
+    final Instant startDate = allocation.startAtInstant();
+    if (startDate != null && now.isBefore(startDate)) {
       return false;
     }
 
-    final Date endDate = allocation.endAt;
-    if (endDate != null && now.after(endDate)) {
+    final Instant endDate = allocation.endAtInstant();
+    if (endDate != null && now.isAfter(endDate)) {
       return false;
     }
 
@@ -383,6 +403,17 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .addString("flagKey", flag.key)
             .addString("variationType", flag.variationType.name())
             .addString("allocationKey", allocation.key);
+    // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment —
+    // only when span enrichment is on, so a provider without enrichment pays nothing extra.
+    // __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log is always
+    // present (when enrichment is on) so the span-enrichment hook can decide whether to record the
+    // subject.
+    if (SPAN_ENRICHMENT_ENABLED) {
+      if (split.serialId != null) {
+        metadataBuilder.addInteger(METADATA_SPLIT_SERIAL_ID, split.serialId);
+      }
+      metadataBuilder.addBoolean(METADATA_DO_LOG, allocation.doLog != null && allocation.doLog);
+    }
     final ProviderEvaluation<T> result =
         ProviderEvaluation.<T>builder()
             .value(mappedValue)
@@ -515,7 +546,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
                   new FlattenEntry(entry.key + "." + property, structure.getValue(property)));
             }
           } else {
-            result.put(entry.key, context.convertValue(value));
+            result.put(
+                entry.key,
+                value.isInstant() ? value.asInstant().toString() : context.convertValue(value));
           }
         }
       }

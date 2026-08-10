@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * <pre>
  *   case REQUEST_DISPATCH:
  *   // ...
- *   if (JettyBlockingHelper.block(this.getRequest(), this.getResponse(), Java8BytecodeBridge.getCurrentContext())) {
+ *   if (JettyBlockingHelper.block(this.getRequest(), this.getResponse(), Java8BytecodeBridge.currentContext())) {
  *     // nothing
  *   } else {
  *     getServer().handle(this);
@@ -65,10 +65,10 @@ import org.slf4j.LoggerFactory;
  *   case DISPATCH:
  *   {
  *     // ...
- *     if (JettyBlockingHelper.hasBlockingRequest(Java8BytecodeBridge.getCurrentContext()) {
+ *     if (JettyBlockingHelper.hasBlockingRequest(Java8BytecodeBridge.currentContext()) {
  *       Request req = getRequest(); // actually on the stack only
  *       Response resp = getResponse(); // idem
- *       Context context = Java8BytecodeBridge.getCurrentContext() // idem
+ *       Context context = Java8BytecodeBridge.currentContext() // idem
  *       dispatch(DispatcherType.REQUEST, () -> {
  *         JettyBlockingHelper.blockAndThrowOnFailure(request, response, context);
  *       });
@@ -95,10 +95,10 @@ import org.slf4j.LoggerFactory;
  *   case DISPATCH:
  *   {
  *     // ...
- *     if (JettyBlockingHelper.hasBlockingRequest(Java8BytecodeBridge.getCurrentContext()) {
+ *     if (JettyBlockingHelper.hasBlockingRequest(Java8BytecodeBridge.currentContext()) {
  *       Request req = getRequest(); // actually on the stack only
  *       Response resp = getResponse(); // idem
- *       Context context = Java8BytecodeBridge.getCurrentContext() // idem
+ *       Context context = Java8BytecodeBridge.currentContext() // idem
  *       dispatch(DispatcherType.REQUEST, () -> {
  *         JettyBlockingHelper.blockAndThrowOnFailure(request, response, context);
  *       });
@@ -170,7 +170,7 @@ public class HandleVisitor extends MethodVisitor {
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(Java8BytecodeBridge.class),
-          "getCurrentContext",
+          "currentContext",
           "()Ldatadog/context/Context;",
           false);
       super.visitMethodInsn(
@@ -216,7 +216,7 @@ public class HandleVisitor extends MethodVisitor {
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(Java8BytecodeBridge.class),
-          "getCurrentContext",
+          "currentContext",
           "()Ldatadog/context/Context;",
           false);
       // Call JettyBlockingHelper.hasRequestBlockingAction(context)
@@ -251,7 +251,7 @@ public class HandleVisitor extends MethodVisitor {
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(Java8BytecodeBridge.class),
-          "getCurrentContext",
+          "currentContext",
           "()Ldatadog/context/Context;",
           false);
 

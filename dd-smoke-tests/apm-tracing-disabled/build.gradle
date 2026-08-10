@@ -1,36 +1,32 @@
-import org.springframework.boot.gradle.tasks.bundling.BootJar
-
 plugins {
-  id 'java'
-  id 'org.springframework.boot' version '2.7.15'
-  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+  id 'dd-trace-java.smoke-test-app'
   id 'java-test-fixtures'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
+
 description = 'ASM Standalone Billing Tests.'
 
-java {
-  sourceCompatibility = '1.8'
+smokeTestApp {
+  gradleApp {
+    taskName = 'bootJar'
+    artifactPath = 'libs/apm-tracing-disabled-smoketest.jar'
+    sysProperty = 'datadog.smoketest.springboot.shadowJar.path'
+  }
+  projectJar('apiJar', project(':dd-trace-api'))
 }
 
 dependencies {
-  implementation 'org.springframework.boot:spring-boot-starter-web'
-  implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
-  implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
-  implementation project(':dd-trace-api')
   testImplementation project(':dd-smoke-tests')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 
-tasks.withType(Test).configureEach {
-  def bootJarTask = tasks.named('bootJar', BootJar)
-  dependsOn bootJarTask
-  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-      @Override
-      Iterable<String> asArguments() {
-        return bootJarTask.map { ["-Ddatadog.smoketest.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
-      }
-    })
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
 }

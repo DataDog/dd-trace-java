@@ -55,6 +55,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] DD = "_dd".getBytes(StandardCharsets.UTF_8);
   private static final byte[] APM_TRACE_ID = "apm_trace_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] PARENT_ID = "parent_id".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] SESSION_ID = "session_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] NAME = "name".getBytes(StandardCharsets.UTF_8);
   private static final byte[] DURATION = "duration".getBytes(StandardCharsets.UTF_8);
   private static final byte[] START_NS = "start_ns".getBytes(StandardCharsets.UTF_8);
@@ -88,6 +89,8 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] LLM_TOOL_RESULT_RESULT = "result".getBytes(StandardCharsets.UTF_8);
 
   private static final String PARENT_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "parent_id";
+  private static final String SESSION_ID_TAG_INTERNAL_FULL =
+      LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID;
 
   private final MetaWriter metaWriter = new MetaWriter();
   private final int size;
@@ -126,7 +129,17 @@ public class LLMObsSpanMapper implements RemoteMapper {
     }
 
     for (CoreSpan<?> span : llmobsSpans) {
-      writable.startMap(11);
+      // Read session_id off the span before opening the map so we can size it correctly.
+      // We deliberately do NOT remove the tag (unlike parent_id) — the session_id:<value>
+      // entry must remain in the tags[] array to match dd-trace-py and dd-trace-js behavior.
+      // span.getTag returns Object — guard against generic tag APIs setting a non-string
+      // session_id value, which would otherwise throw ClassCastException here and drop
+      // the entire LLMObs payload for the trace.
+      Object rawSessionId = span.getTag(SESSION_ID_TAG_INTERNAL_FULL);
+      String sessionId = rawSessionId instanceof String ? (String) rawSessionId : null;
+      boolean hasSessionId = sessionId != null && !sessionId.isEmpty();
+
+      writable.startMap(hasSessionId ? 12 : 11);
       // 1
       writable.writeUTF8(SPAN_ID);
       writable.writeString(String.valueOf(span.getSpanId()), null);
@@ -166,7 +179,14 @@ public class LLMObsSpanMapper implements RemoteMapper {
       writable.writeUTF8(APM_TRACE_ID);
       writable.writeString(span.getTraceId().toHexString(), null);
 
-      /* 9 (metrics), 10 (tags), 11 meta */
+      // 9 — optional top-level session_id field. Required by the LLMObs HTTP intake schema
+      // and by the LLM Trace Explorer's Sessions filter, which keys off this field.
+      if (hasSessionId) {
+        writable.writeUTF8(SESSION_ID);
+        writable.writeString(sessionId, null);
+      }
+
+      /* 10 (metrics), 11 (tags), 12 meta — shift down 1 if session_id absent */
       span.processTagsAndBaggage(metaWriter.withWritable(writable, getErrorsMap(span)));
     }
 
@@ -337,6 +357,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
         String key = tag.getKey().substring(LLMOBS_TAG_PREFIX.length());
         Object val = tag.getValue();
         if (key.equals(INPUT) || key.equals(OUTPUT)) {
+          boolean isDocumentIO =
+              (spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT))
+                  || (spanKind.equals(Tags.LLMOBS_RETRIEVAL_SPAN_KIND) && key.equals(OUTPUT));
           if (spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
             writable.writeString(key, null);
             if (val instanceof List) {
@@ -351,29 +374,48 @@ public class LLMObsSpanMapper implements RemoteMapper {
                   val.getClass().getName());
               continue;
             }
-          } else if (spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT)) {
-            if (!(val instanceof List)) {
-              LOGGER.warn(
-                  "unexpectedly found incorrect type for embedding span input {}, expecting list",
-                  val.getClass().getName());
-              continue;
-            }
+          } else if (isDocumentIO && isDocumentList(val)) {
             writable.writeString(key, null);
             writable.startMap(1);
             List<LLMObs.Document> documents = (List<LLMObs.Document>) val;
             writable.writeString("documents", null);
             writable.startArray(documents.size());
             for (LLMObs.Document document : documents) {
-              writable.startMap(1);
+              int documentSize = 1;
+              if (document.getName() != null) documentSize++;
+              if (document.getId() != null) documentSize++;
+              if (document.getScore() != null) documentSize++;
+              writable.startMap(documentSize);
               writable.writeString("text", null);
               writable.writeString(document.getText(), null);
+              if (document.getName() != null) {
+                writable.writeString("name", null);
+                writable.writeString(document.getName(), null);
+              }
+              if (document.getId() != null) {
+                writable.writeString("id", null);
+                writable.writeString(document.getId(), null);
+              }
+              if (document.getScore() != null) {
+                writable.writeString("score", null);
+                writable.writeObject(document.getScore(), null);
+              }
             }
           } else {
+            if (isDocumentIO) {
+              LOGGER.warn(
+                  "unexpectedly found invalid document data for {} span {}, serializing as value",
+                  spanKind,
+                  key);
+            }
             writable.writeString(key, null);
             writable.startMap(1);
             writable.writeString("value", null);
             writable.writeObject(val, null);
           }
+        } else if (key.equals(LLMObsTags.TOOL_DEFINITIONS) && val instanceof List) {
+          writable.writeString(key, null);
+          writeToolDefinitions((List<?>) val);
         } else if (key.equals(LLMObsTags.METADATA) && val instanceof Map) {
           Map<String, Object> metadataMap = (Map) val;
           writable.writeUTF8(METADATA);
@@ -387,6 +429,50 @@ public class LLMObsSpanMapper implements RemoteMapper {
           writable.writeObject(val, null);
         }
       }
+    }
+
+    private void writeToolDefinitions(List<?> toolDefinitions) {
+      writable.startArray(toolDefinitions.size());
+      for (Object toolDefinitionObject : toolDefinitions) {
+        if (!(toolDefinitionObject instanceof LLMObs.ToolDefinition)) {
+          writable.writeObject(toolDefinitionObject, null);
+          continue;
+        }
+
+        LLMObs.ToolDefinition toolDefinition = (LLMObs.ToolDefinition) toolDefinitionObject;
+        int mapSize = 1;
+        if (toolDefinition.getDescription() != null) mapSize++;
+        if (toolDefinition.getSchema() != null) mapSize++;
+        if (toolDefinition.getVersion() != null) mapSize++;
+
+        writable.startMap(mapSize);
+        writable.writeString("name", null);
+        writable.writeString(toolDefinition.getName(), null);
+        if (toolDefinition.getDescription() != null) {
+          writable.writeString("description", null);
+          writable.writeString(toolDefinition.getDescription(), null);
+        }
+        if (toolDefinition.getSchema() != null) {
+          writable.writeString("schema", null);
+          writable.writeObject(toolDefinition.getSchema(), null);
+        }
+        if (toolDefinition.getVersion() != null) {
+          writable.writeString("version", null);
+          writable.writeString(toolDefinition.getVersion(), null);
+        }
+      }
+    }
+
+    private static boolean isDocumentList(Object value) {
+      if (!(value instanceof List)) {
+        return false;
+      }
+      for (Object item : (List<?>) value) {
+        if (!(item instanceof LLMObs.Document)) {
+          return false;
+        }
+      }
+      return true;
     }
 
     private void writeLlmInputMap(Map<?, ?> inputMap) {

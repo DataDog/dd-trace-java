@@ -3,9 +3,9 @@ package datadog.trace.plugin.csi.impl;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.repeat;
 
+import com.github.javaparser.resolution.TypeSolver;
 import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
-import com.github.javaparser.symbolsolver.model.resolution.SymbolReference;
-import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
+import com.github.javaparser.resolution.model.SymbolReference;
 import com.github.javaparser.symbolsolver.reflectionmodel.ReflectionFactory;
 import datadog.trace.plugin.csi.HasErrors.Failure;
 import datadog.trace.plugin.csi.TypeResolver;
@@ -147,7 +147,13 @@ public class TypeResolverPool implements TypeResolver {
       final Class<?> clazz = resolveType(type);
       return SymbolReference.solved(ReflectionFactory.typeDeclarationFor(clazz, getRoot()));
     } catch (final Throwable e) {
-      return SymbolReference.unsolved(ResolvedReferenceTypeDeclaration.class);
+      return SymbolReference.unsolved();
     }
+  }
+
+  @Override
+  public SymbolReference<ResolvedReferenceTypeDeclaration> tryToSolveTypeInModule(
+      String qualifiedModuleName, String simpleTypeName) {
+    return tryToSolveType(simpleTypeName);
   }
 }

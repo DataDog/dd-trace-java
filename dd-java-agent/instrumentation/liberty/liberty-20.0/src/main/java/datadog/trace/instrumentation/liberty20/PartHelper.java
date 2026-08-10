@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.liberty20;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,6 +49,7 @@ public class PartHelper {
     }
   }
 
+  @SuppressForbidden // split on single-character uses a fast path
   private static String getFilenameFromContentDisposition(Method getHeader, Object part) {
     if (getHeader == null) {
       return null;

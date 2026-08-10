@@ -13,12 +13,15 @@ final class ResultCollector {
   private final Path resultsDir;
   private final Path workspaceDir;
   private final List<Path> searchDirs;
+  private final boolean continueOnFailure;
   private final SourceFileResolver sourceFileResolver;
 
-  ResultCollector(Path resultsDir, Path workspaceDir, List<Path> searchDirs) {
+  ResultCollector(
+      Path resultsDir, Path workspaceDir, List<Path> searchDirs, boolean continueOnFailure) {
     this.resultsDir = resultsDir;
     this.workspaceDir = workspaceDir;
     this.searchDirs = searchDirs;
+    this.continueOnFailure = continueOnFailure;
     this.sourceFileResolver = new SourceFileResolver(workspaceDir);
   }
 
@@ -30,6 +33,10 @@ final class ResultCollector {
     if (testResultDirs.isEmpty()) {
       System.out.println("No test results found");
       return;
+    }
+
+    if (continueOnFailure) {
+      System.out.println("CONTINUE_ON_FAILURE=true: reporting all tests as skip");
     }
 
     System.out.println("Saving test results:");
@@ -46,8 +53,16 @@ final class ResultCollector {
     var sourceFile = sourceFileResolver.resolve(sourceXml);
     var report = JUnitReport.parse(sourceXml);
     var reportChangedBeforeFinalStatus = report.addFileAttribute(sourceFile);
+    // Before normalization: retried attempts are matched on raw classname#name (see
+    // JUnitReport#tagRetriedAttempts) so distinct tests sharing a normalized name are not collapsed.
+    report.tagRetriedAttempts();
     reportChangedBeforeFinalStatus |= report.normalizeStableTestNames();
     report.tagSyntheticFailures();
+    // Flaky jobs (CONTINUE_ON_FAILURE=true) never gate CI, so record every test as skip before
+    // assigning natural statuses (APMLP-1267).
+    if (continueOnFailure) {
+      report.tagAllAsSkipped();
+    }
     report.tagFinalStatuses();
     report.write(targetXml);
 

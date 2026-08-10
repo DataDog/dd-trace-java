@@ -29,6 +29,10 @@ tasks.withType(ScalaCompile).configureEach {
 }
 
 dependencies {
+  // Scala plugin needs scala-library on the main compile classpath so IDEA
+  // can infer the Scala classpath, even though Scala sources only exist under test.
+  compileOnly libs.scala
+
   testImplementation project(':dd-java-agent:instrumentation:jdbc')
   testImplementation group: 'org.scalikejdbc', name: 'scalikejdbc_2.13', version: '3.5.0'
   testImplementation libs.scala

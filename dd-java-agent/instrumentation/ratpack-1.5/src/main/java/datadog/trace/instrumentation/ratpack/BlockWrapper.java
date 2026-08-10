@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.ratpack;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +23,7 @@ public class BlockWrapper implements Block {
 
   @Override
   public void execute() throws Exception {
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       delegate.execute();
     }
   }

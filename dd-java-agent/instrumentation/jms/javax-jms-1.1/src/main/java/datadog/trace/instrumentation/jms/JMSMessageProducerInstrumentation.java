@@ -90,10 +90,10 @@ public final class JMSMessageProducerInstrumentation
         // fall-back when producer wasn't created via standard Session.createProducer API
         if (null != producerState) {
           resourceName = producerState.getResourceName();
-          Destination destination = producer.getDestination();
+          Destination destination = PRODUCER_DECORATE.getDestination(producer);
           destinationName = PRODUCER_DECORATE.getDestinationName(destination);
         } else {
-          Destination destination = producer.getDestination();
+          Destination destination = PRODUCER_DECORATE.getDestination(producer);
           destinationName = PRODUCER_DECORATE.getDestinationName(destination);
           boolean isQueue = PRODUCER_DECORATE.isQueue(destination);
           resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);

@@ -7,6 +7,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithDataset;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
@@ -115,7 +116,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                     "aws", attributes.getAttribute(SdkExecutionAttribute.SERVICE_NAME), s));
   }
 
-  public Context onSdkRequest(
+  public void onSdkRequest(
       final Context context,
       final SdkRequest request,
       final SdkHttpRequest httpRequest,
@@ -153,6 +154,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
             url -> {
               span.setTag(InstrumentationTags.AWS_QUEUE_URL, url);
               setPeerService(span, InstrumentationTags.AWS_QUEUE_URL, url);
+              String queueName = urlFileName(url);
+              if (!queueName.isEmpty()) {
+                setQueueName(span, queueName);
+              }
             });
     request.getValueForField("QueueName", String.class).ifPresent(name -> setQueueName(span, name));
 
@@ -226,11 +231,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
       span.setTag(Tags.PEER_SERVICE, hostname);
       span.setTag(DDTags.PEER_SERVICE_SOURCE, "peer.service");
     }
-
-    return context;
   }
 
-  private static AgentSpan onOperation(
+  private static void onOperation(
       final AgentSpan span, final String awsServiceName, final String awsOperationName) {
     String awsRequestName = awsServiceName + "." + awsOperationName;
     span.setResourceName(awsRequestName, RESOURCE_NAME_PRIORITY);
@@ -261,8 +264,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     span.setTag(InstrumentationTags.AWS_SERVICE, awsServiceName);
     span.setTag(InstrumentationTags.TOP_LEVEL_AWS_SERVICE, awsServiceName);
     span.setTag(InstrumentationTags.AWS_OPERATION, awsOperationName);
-
-    return span;
   }
 
   private static void setPeerService(
@@ -307,7 +308,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     setPeerService(span, InstrumentationTags.AWS_TABLE_NAME, name);
   }
 
-  public Context onSdkResponse(
+  public void onSdkResponse(
       final Context context,
       final SdkResponse response,
       final SdkHttpResponse httpResponse,
@@ -365,8 +366,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
                         pathwayContext.setCheckpoint(
                             create(tags, arrivalTime.toEpochMilli(), 0),
                             dataStreamsMonitoring::add);
-                        if (!span.context().getPathwayContext().isStarted()) {
-                          span.context().mergePathwayContext(pathwayContext);
+                        if (!span.spanContext().getPathwayContext().isStarted()) {
+                          span.spanContext().mergePathwayContext(pathwayContext);
                         }
                       }
                     }
@@ -405,7 +406,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
         }
       }
     }
-    return span;
   }
 
   @Override

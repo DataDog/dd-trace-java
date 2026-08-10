@@ -20,12 +20,6 @@ class RxJava2Test extends InstrumentationSpecification {
 
   public static final String EXCEPTION_MESSAGE = "test exception"
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
   @Shared
   def addOne = { i ->
     addOneFunc(i)

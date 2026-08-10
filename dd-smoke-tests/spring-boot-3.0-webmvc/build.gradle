@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.smoke-test-app'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
@@ -6,47 +10,25 @@ testJvmConstraints {
 
 description = 'Spring Boot 3.0 WebMvc Smoke Tests.'
 
+smokeTestApp {
+  gradleApp {
+    taskName = 'webmvcBuild30'
+    nestedTasks = ['bootJar']
+    artifactPath = 'libs/webmvc-3.0-smoketest.jar'
+    sysProperty = 'datadog.smoketest.springboot.uberJar.path'
+  }
+  projectJar('apiJar', project(':dd-trace-api'))
+}
+
 dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
-def appDir = "$projectDir/application"
-def appBuildDir = "$buildDir/application"
-def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
-def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
-
-// define the task that builds the project
-tasks.register('webmvcBuild30', Exec) {
-  workingDir "$appDir"
-  environment += [
-    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
-    "JAVA_HOME": getLazyJavaHomeFor(17)
-  ]
-  commandLine "$rootDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
-
-  outputs.cacheIf { true }
-
-  outputs.dir(appBuildDir)
-    .withPropertyName("applicationJar")
-
-  inputs.files(fileTree(appDir) {
-    include '**/*'
-    exclude '.gradle/**'
-  })
-  .withPropertyName("application")
-  .withPathSensitivity(PathSensitivity.RELATIVE)
-}
-
 tasks.named("compileTestGroovy", GroovyCompile) {
-  dependsOn project(':dd-trace-api').tasks.named("jar")
   dependsOn 'webmvcBuild30'
   outputs.upToDateWhen {
-    !webmvcBuild30.didWork
+    !tasks.named('webmvcBuild30').get().didWork
   }
-}
-
-tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.springboot.uberJar.path=$appBuildDir/libs/webmvc-3.0-smoketest.jar"
 }
 
 spotless {

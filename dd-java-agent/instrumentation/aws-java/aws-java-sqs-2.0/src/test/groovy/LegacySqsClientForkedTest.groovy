@@ -97,6 +97,8 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
             "aws.operation" "SendMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.queue.name" "somequeue"
+            "queuename" "somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
             defaultTags()
@@ -143,6 +145,8 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
             "aws.operation" "ReceiveMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.queue.name" "somequeue"
+            "queuename" "somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams(("ReceiveMessage")))
             defaultTags()
@@ -225,6 +229,8 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
             "aws.operation" "SendMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.queue.name" "somequeue"
+            "queuename" "somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
             defaultTags()
@@ -288,6 +294,8 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
             "aws.operation" "DeleteMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.queue.name" "somequeue"
+            "queuename" "somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("DeleteMessage"))
             defaultTags()
@@ -333,6 +341,8 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
             "aws.operation" "ReceiveMessage"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.queue.name" "somequeue"
+            "queuename" "somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("ReceiveMessage"))
             defaultTags()

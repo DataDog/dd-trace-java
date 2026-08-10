@@ -7,6 +7,7 @@ import static datadog.trace.util.ProcessSupervisor.Health.HEALTHY;
 import static datadog.trace.util.ProcessSupervisor.Health.INTERRUPTED;
 import static datadog.trace.util.ProcessSupervisor.Health.READY_TO_START;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import java.io.Closeable;
@@ -146,7 +147,7 @@ public class ProcessSupervisor implements Closeable {
     }
   }
 
-  // Package reachable for testing
+  @VisibleForTesting
   Process getCurrentProcess() {
     return currentProcess;
   }

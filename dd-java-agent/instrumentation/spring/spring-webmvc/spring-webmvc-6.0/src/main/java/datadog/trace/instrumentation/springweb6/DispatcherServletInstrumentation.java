@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -27,10 +28,7 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SpringWebHttpServerDecorator",
-      packageName + ".ServletRequestURIAdapter",
-      packageName + ".HandlerMappingResourceNameFilter",
-      packageName + ".PathMatchingHttpServletRequestWrapper",
+      packageName + ".SpringWebHttpServerDecorator", packageName + ".ServletRequestURIAdapter",
     };
   }
 
@@ -39,9 +37,10 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
     transformer.applyAdvice(
         isMethod()
             .and(isProtected())
-            .and(named("onRefresh"))
-            .and(takesArgument(0, named("org.springframework.context.ApplicationContext")))
-            .and(takesArguments(1)),
+            .and(named("getHandler"))
+            .and(takesArgument(0, named("jakarta.servlet.http.HttpServletRequest")))
+            .and(takesArguments(1))
+            .and(returns(named("org.springframework.web.servlet.HandlerExecutionChain"))),
         packageName + ".HandlerMappingAdvice");
     transformer.applyAdvice(
         isMethod()

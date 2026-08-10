@@ -2,6 +2,7 @@ package datadog.trace.api.env;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.config.inversion.ConfigHelper;
 import java.io.File;
 import java.util.HashMap;
@@ -24,12 +25,7 @@ public class CapturedEnvironment {
       mainClass = JavaVirtualMachine.getMainClass();
     }
 
-    /**
-     * Visible for testing
-     *
-     * @param mainClass
-     * @param jarFile
-     */
+    @VisibleForTesting
     ProcessInfo(String mainClass, File jarFile) {
       this.mainClass = mainClass;
       this.jarFile = jarFile;
@@ -55,17 +51,13 @@ public class CapturedEnvironment {
     return processInfo;
   }
 
-  // Testing purposes
+  @VisibleForTesting
   static void useFixedEnv(final Map<String, String> props) {
     INSTANCE.properties.clear();
     INSTANCE.properties.putAll(props);
   }
 
-  /**
-   * For testing purposes.
-   *
-   * @param processInfo
-   */
+  @VisibleForTesting
   static void useFixedProcessInfo(final ProcessInfo processInfo) {
     INSTANCE.processInfo = processInfo;
   }

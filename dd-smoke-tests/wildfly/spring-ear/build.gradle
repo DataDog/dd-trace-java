@@ -15,6 +15,13 @@ if (hasProperty('appBuildDir')) {
 }
 
 version = ""
+
+// Pin bytecode target: the nested daemon now runs on JDK 21, but the deployed EAR runs in
+// WildFly on Java 8.
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+}
+
 dependencies {
   earlib 'org.springframework:spring-webmvc:5.3.0'
   deploy project(path: ':war', configuration: 'archives')

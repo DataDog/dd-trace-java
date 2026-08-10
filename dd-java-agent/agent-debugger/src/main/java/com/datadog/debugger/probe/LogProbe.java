@@ -44,7 +44,6 @@ import datadog.trace.core.DDSpanContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -326,6 +325,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       Collections.synchronizedMap(new WeakIdentityHashMap<>());
   protected transient Sampler sampler;
   protected transient Sampler errorSampler;
+  protected final transient Duration evalTimeout;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -342,7 +342,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         null,
         null,
         null,
-        null);
+        null,
+        Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout()));
   }
 
   public LogProbe(
@@ -357,7 +358,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       ProbeCondition probeCondition,
       Capture capture,
       Sampling sampling,
-      List<CaptureExpression> captureExpressions) {
+      List<CaptureExpression> captureExpressions,
+      Duration evalTimeout) {
     this(
         language,
         probeId,
@@ -370,7 +372,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         probeCondition,
         capture,
         sampling,
-        captureExpressions);
+        captureExpressions,
+        evalTimeout);
   }
 
   private LogProbe(
@@ -385,7 +388,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       ProbeCondition probeCondition,
       Capture capture,
       Sampling sampling,
-      List<CaptureExpression> captureExpressions) {
+      List<CaptureExpression> captureExpressions,
+      Duration evalTimeout) {
     super(language, probeId, tags, where, evaluateAt);
     this.template = template;
     this.segments = segments;
@@ -394,6 +398,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     this.capture = capture;
     this.sampling = sampling;
     this.captureExpressions = captureExpressions;
+    this.evalTimeout = evalTimeout;
   }
 
   public LogProbe(LogProbe.Builder builder) {
@@ -409,7 +414,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         builder.probeCondition,
         builder.capture,
         builder.sampling,
-        builder.captureExpressions);
+        builder.captureExpressions,
+        builder.evalTimeout);
     this.snapshotProcessor = builder.snapshotProcessor;
     initSamplers();
   }
@@ -427,7 +433,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         probeCondition,
         capture,
         sampling,
-        captureExpressions);
+        captureExpressions,
+        evalTimeout);
   }
 
   public String getTemplate() {
@@ -458,7 +465,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     double rate =
         sampling != null
             ? sampling.getEventsPerSecond()
-            : (isCaptureSnapshot()
+            : (isFullSnapshot()
                 ? ProbeRateLimiter.DEFAULT_SNAPSHOT_RATE
                 : ProbeRateLimiter.DEFAULT_LOG_RATE);
     sampler = ProbeRateLimiter.createSampler(rate);
@@ -502,7 +509,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   public boolean isReadyToCapture() {
     if (!hasCondition()) {
       // we are sampling here to avoid creating CapturedContext when the sampling result is negative
-      return ProbeRateLimiter.tryProbe(sampler, isCaptureSnapshot());
+      return ProbeRateLimiter.tryProbe(sampler, isFullSnapshot());
     }
     return true;
   }
@@ -548,7 +555,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (!logStatus.isSampled() || !logStatus.getCondition()) {
       return;
     }
-    StringTemplateBuilder logMessageBuilder = new StringTemplateBuilder(segments, LIMITS);
+    StringTemplateBuilder logMessageBuilder =
+        new StringTemplateBuilder(segments, LIMITS, evalTimeout);
     String msg = logMessageBuilder.evaluate(context, logStatus);
     if (msg != null && msg.length() > LOG_MSG_LIMIT) {
       StringBuilder sb = new StringBuilder(LOG_MSG_LIMIT + 3);
@@ -570,10 +578,10 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     // if condition has error and no capture Snapshot, the error is reported using errorSampler
     // at 1/s rate instead of the log template one
     Sampler localSampler =
-        logStatus.hasConditionErrors && !isCaptureSnapshot() ? errorSampler : sampler;
+        logStatus.hasConditionErrors && !isFullSnapshot() ? errorSampler : sampler;
     boolean sampled =
         !logStatus.getDebugSessionStatus().isDisabled()
-            && ProbeRateLimiter.tryProbe(localSampler, isCaptureSnapshot());
+            && ProbeRateLimiter.tryProbe(localSampler, isFullSnapshot());
     logStatus.setSampled(sampled);
     if (!sampled) {
       DebuggerAgent.getSink()
@@ -590,7 +598,9 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       return true;
     }
     try {
-      if (!probeCondition.execute(capture)) {
+      Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
+      TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
+      if (!probeCondition.execute(capture, timeoutChecker)) {
         return false;
       }
     } catch (EvaluationException ex) {
@@ -720,7 +730,9 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     }
     for (CaptureExpression captureExpression : captureExpressions) {
       try {
-        Value<?> result = captureExpression.expr.execute(context);
+        Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
+        TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
+        Value<?> result = captureExpression.expr.execute(context, timeoutChecker);
         if (result.isUndefined()) {
           throw new EvaluationException("UNDEFINED", captureExpression.getExpr().getDsl());
         }
@@ -822,6 +834,13 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     Snapshot snapshot = createSnapshot();
     boolean shouldCommit = false;
     if (status.shouldSend()) {
+      if (isFullSnapshot()) {
+        // freeze context just before commit because line probes have only one context
+        Duration timeout =
+            Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+        lineContext.freeze(TimeoutChecker.create(Config.get(), timeout));
+        snapshot.addLine(lineContext, line);
+      }
       snapshot.setTraceId(CorrelationIdentifier.getTraceId());
       snapshot.setSpanId(CorrelationIdentifier.getSpanId());
       snapshot.setMessage(status.getMessage());
@@ -834,14 +853,6 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (shouldCommit) {
       incrementBudget();
       if (inBudget()) {
-        if (isFullSnapshot()) {
-          // freeze context just before commit because line probes have only one context
-          Duration timeout =
-              Duration.of(
-                  Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
-          lineContext.freeze(new TimeoutChecker(timeout));
-          snapshot.addLine(lineContext, line);
-        }
         commitSnapshot(snapshot, sink);
         return;
       }
@@ -1121,6 +1132,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     private Sampling sampling;
     private List<CaptureExpression> captureExpressions;
     private Consumer<Snapshot> snapshotProcessor;
+    private Duration evalTimeout =
+        Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
 
     public Builder snapshotProcessor(Consumer<Snapshot> processor) {
       this.snapshotProcessor = processor;
@@ -1167,6 +1180,11 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       return this;
     }
 
+    public Builder evalTimeout(Duration evalTimeout) {
+      this.evalTimeout = evalTimeout;
+      return this;
+    }
+
     public LogProbe build() {
       return new LogProbe(this);
     }
@@ -1179,8 +1197,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (tracer != null) {
       AgentSpan span = tracer.activeSpan();
       if (span instanceof DDSpan) {
-        DDSpanContext context = (DDSpanContext) span.context();
-        String debug = context.getPropagationTags().getDebugPropagation();
+        DDSpanContext spanContext = (DDSpanContext) span.spanContext();
+        String debug = spanContext.getPropagationTags().getDebugPropagation();
         if (debug != null) {
           String[] entries = debug.split(",");
           for (String entry : entries) {

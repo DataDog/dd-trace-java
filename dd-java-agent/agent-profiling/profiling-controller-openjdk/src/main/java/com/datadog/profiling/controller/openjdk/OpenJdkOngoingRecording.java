@@ -3,6 +3,7 @@ package com.datadog.profiling.controller.openjdk;
 import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -135,7 +136,7 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     return new OpenJdkRecordingData(recording, ProfilingSnapshot.Kind.PERIODIC);
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   final RecordingData snapshot(@Nonnull final Instant start) {
     return snapshot(start, ProfilingSnapshot.Kind.PERIODIC);
   }

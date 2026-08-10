@@ -7,32 +7,32 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
-import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import org.apache.activemq.ActiveMQConnectionFactory
-import org.apache.activemq.command.ActiveMQTextMessage
-import org.apache.activemq.junit.EmbeddedActiveMQBroker
-import spock.lang.Shared
-
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicReference
 import javax.jms.Connection
+import javax.jms.ConnectionFactory
 import javax.jms.Destination
 import javax.jms.Message
 import javax.jms.MessageListener
+import javax.jms.Queue
 import javax.jms.QueueConnection
 import javax.jms.QueueSession
 import javax.jms.Session
 import javax.jms.TemporaryQueue
 import javax.jms.TemporaryTopic
-import javax.jms.Queue
-import javax.jms.Topic
 import javax.jms.TextMessage
+import javax.jms.Topic
 import javax.jms.TopicConnection
 import javax.jms.TopicSession
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.atomic.AtomicReference
+import jms10mock.Jms10ConnectionFactory
+import org.apache.activemq.command.ActiveMQTextMessage
+import org.apache.activemq.junit.EmbeddedActiveMQBroker
+import spock.lang.Shared
 
 abstract class JMS1Test extends VersionedNamingTestBase {
   @Shared
@@ -69,9 +69,13 @@ abstract class JMS1Test extends VersionedNamingTestBase {
     true
   }
 
+  def createConnectionFactory() {
+    broker.createConnectionFactory()
+  }
+
   def setupSpec() {
     broker.start()
-    final ActiveMQConnectionFactory connectionFactory = broker.createConnectionFactory()
+    final ConnectionFactory connectionFactory = createConnectionFactory()
 
     connection = connectionFactory.createConnection()
     connection.start()
@@ -1095,5 +1099,12 @@ class JMS1V1ForkedTest extends JMS1Test {
   @Override
   String operationForConsumer() {
     "jms.process"
+  }
+}
+
+class JMS10Test extends JMS1V0Test {
+  @Override
+  def createConnectionFactory() {
+    new Jms10ConnectionFactory(super.createConnectionFactory())
   }
 }

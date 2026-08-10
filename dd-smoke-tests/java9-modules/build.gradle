@@ -39,11 +39,11 @@ tasks.withType(Test).configureEach {
     delete generatedImageDir
 
     // Run the jlink command to create the image
-    exec {
+    providers.exec {
       commandLine jlinkExecutable, '--no-man-pages', '--no-header-files',
       '--add-modules', 'java.instrument,datadog.smoketest.moduleapp',
       "--module-path", "${jdkModulesPath}:" + jar.archiveFile.get().toString(), "--output", generatedImageDir
-    }
+    }.result.get().assertNormalExitValue()
 
     it.jvmArgs "-Ddatadog.smoketest.module.image=${generatedImageDir}"
   }

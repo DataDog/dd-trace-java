@@ -65,7 +65,7 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
       boolean parallelized) {
     TestSuiteImpl suite =
         new TestSuiteImpl(
-            span.context(),
+            span.spanContext(),
             moduleName,
             testSuiteName,
             null,

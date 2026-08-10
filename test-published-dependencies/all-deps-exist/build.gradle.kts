@@ -1,0 +1,18 @@
+plugins {
+  java
+  application
+}
+
+java {
+  disableAutoTargetJvm()
+}
+
+dependencies {
+  implementation("com.datadoghq:dd-java-agent:$version")
+  implementation("com.datadoghq:dd-trace-api:$version")
+  implementation("com.datadoghq:dd-trace-ot:$version")
+}
+
+application {
+  mainClass = "test.published.dependencies.App"
+}

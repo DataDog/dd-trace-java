@@ -1,0 +1,15 @@
+[
+  {
+    "targets": [],
+    "lang": "maven",
+    "dependency_name": "org.example:some-lib",
+    "package_versions": [
+      "< 1.0.0"
+    ],
+    "vulnerability": {
+      "id": "GHSA-empty-symbols",
+      "severity": "LOW",
+      "description": "Entry with empty targets — should produce no output"
+    }
+  }
+]

@@ -1,6 +1,6 @@
 [ {
   "files" : [ {
-    "bitmap" : "AAAAx+EN",
+    "bitmap" : "AAAA8LF/8wE=",
     "filename" : "src/test/java/datadog/smoke/HelloPluginFunctionalTest.java"
   } ],
   "span_id" : ${content_span_id_4},

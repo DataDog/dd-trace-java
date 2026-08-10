@@ -9,6 +9,7 @@ import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TagMap.EntryReader;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
@@ -81,7 +82,8 @@ public final class TraceMapperV0_5 implements TraceMapper {
       span.processTagsAndBaggage(
           metaWriter
               .withWritable(writable)
-              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten));
+              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten),
+          i == 0);
       /* 12 */
       writeDictionaryEncoded(writable, span.getType());
       firstSpanWritten = true;
@@ -125,12 +127,12 @@ public final class TraceMapperV0_5 implements TraceMapper {
     return "v0.5";
   }
 
-  // Visible for tests
+  @VisibleForTesting
   Map<Object, Integer> getEncoding() {
     return encoding;
   }
 
-  // Visible for tests
+  @VisibleForTesting
   GrowableBuffer getDictionary() {
     return dictionary;
   }
