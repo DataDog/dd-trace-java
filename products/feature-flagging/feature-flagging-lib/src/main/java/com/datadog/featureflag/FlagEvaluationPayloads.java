@@ -13,6 +13,15 @@ final class FlagEvaluationPayloads {
 
   private static final byte[] PAYLOAD_SUFFIX = FeatureFlagEvpPublisher.utf8Bytes("]}");
   private static final byte[] JSON_COMMA = FeatureFlagEvpPublisher.utf8Bytes(",");
+
+  /**
+   * Wire prefix identifying a privacy-preserving, hashed targeting key. Emitted for full-tier rows
+   * when {@code observeFullEvaluationData} is off. The suffix is the lower-case hex SHA-256 of the
+   * UTF-8 targeting key (see {@link ULeb128Encoder#hashTargetingKey}). This is a cross-SDK wire
+   * contract - keep it in sync with the other server SDKs and the UFC/EVP spec.
+   */
+  private static final String HASHED_TARGETING_KEY_PREFIX = "sha256_";
+
   private static final JsonAdapter<FlagEvaluationEvent> EVENT_JSON_ADAPTER;
   private static final JsonAdapter<Map<String, String>> CONTEXT_JSON_ADAPTER;
 
@@ -194,7 +203,9 @@ final class FlagEvaluationPayloads {
     static FlagEvaluationEvent fromBucket(
         final FlagEvaluationAggregator.EvalBucket bucket,
         final boolean isFullTier,
+        final boolean observeFullEvaluationData,
         final long flushTimeMs) {
+      final boolean includeRawContext = isFullTier && observeFullEvaluationData;
       return new FlagEvaluationEvent(
           flushTimeMs,
           bucket.flagKey,
@@ -203,10 +214,23 @@ final class FlagEvaluationPayloads {
           bucket.count,
           bucket.variant,
           bucket.allocationKey,
-          isFullTier ? bucket.targetingKey : null,
+          resolveTargetingKey(bucket.targetingKey, isFullTier, observeFullEvaluationData),
           bucket.runtimeDefaultUsed,
           bucket.errorMessage,
-          isFullTier ? bucket.prunedAttrs : null);
+          includeRawContext ? bucket.prunedAttrs : null);
+    }
+
+    private static String resolveTargetingKey(
+        final String rawTargetingKey,
+        final boolean isFullTier,
+        final boolean observeFullEvaluationData) {
+      if (!isFullTier || rawTargetingKey == null) {
+        return null;
+      }
+      if (observeFullEvaluationData) {
+        return rawTargetingKey;
+      }
+      return HASHED_TARGETING_KEY_PREFIX + ULeb128Encoder.hashTargetingKey(rawTargetingKey);
     }
 
     FlagEvaluationEvent withoutTargetingKeyAndContext() {

@@ -18,10 +18,12 @@ import java.util.function.Supplier;
  * evaluation context, and a non-blocking offer to the writer's bounded queue. Aggregation and
  * posting are deferred to the writer's worker thread.
  *
- * <p>Hot-path cost: DDEvaluator.copyPrunedContext performs one bounded walk of the caller-owned
- * EvaluationContext, applying every retained-size cap inline so work is proportional to what is
- * kept, never to what the caller supplied. The returned map is capped by field count, key length,
- * value length, list width, structure width, and depth.
+ * <p>Hot-path cost: under consent-on (observeFullEvaluationData=true) DDEvaluator.copyPrunedContext
+ * performs one bounded walk of the caller-owned EvaluationContext, applying every retained-size cap
+ * inline so work is proportional to what is kept, never to what the caller supplied. The returned
+ * map is capped by field count, key length, value length, list width, structure width, and depth.
+ * Under consent-off the context is dropped on emit, so the copy is skipped entirely and the hot
+ * path is scalar-only.
  *
  * <p>This hook is registered alongside the existing OTel FlagEvalMetricsHook - it does NOT replace
  * it.
@@ -107,9 +109,24 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
       // evaluated value. A null variant means no variant was selected (runtime default).
       final String variant = details.getVariant();
 
-      // error message: prefer the human-readable message; fall back to the error code name when
-      // the message is empty (some providers populate only the code). null on success.
-      String errorMessage = details.getErrorMessage();
+      // targetingKey from evaluation context
+      final String targetingKey =
+          ctx != null && ctx.getCtx() != null ? ctx.getCtx().getTargetingKey() : null;
+
+      // Consent is read from metadata stamped by DDEvaluator (pinned to its ServerConfiguration).
+      // Missing key = non-DD provider → false, the privacy-preserving default.
+      final Boolean consentFromMetadata =
+          metadata != null
+              ? metadata.getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA)
+              : null;
+      final boolean observeFullEvaluationData = consentFromMetadata != null && consentFromMetadata;
+
+      // Error message: prefer the human-readable message under consent-on; under consent-off the
+      // provider's raw message can echo evaluation-context values (e.g. NumberFormatException:
+      // "For input string: \"jane.doe@...\""), so replace it with the ErrorCode name — a stable,
+      // PII-free signal. Same substitution path is used when the message is absent regardless of
+      // consent (some providers populate only the code). Null on success.
+      String errorMessage = observeFullEvaluationData ? details.getErrorMessage() : null;
       if ((errorMessage == null || errorMessage.isEmpty()) && details.getErrorCode() != null) {
         errorMessage = details.getErrorCode().name();
       }
@@ -117,25 +134,33 @@ class FlagEvalLoggingHook<T> implements Hook<T> {
         errorMessage = null;
       }
 
-      // targetingKey from evaluation context
-      final String targetingKey =
-          ctx != null && ctx.getCtx() != null ? ctx.getCtx().getTargetingKey() : null;
-
-      // Bounded copy of the caller's mutable context (see DDEvaluator#copyPrunedContext for
-      // every retained-size cap). Runs inline because the event is consumed asynchronously and
-      // the source context is caller-owned; work is proportional to what is retained.
-      final DDEvaluator.CopyResult copy =
-          ctx != null && ctx.getCtx() != null
-              ? DDEvaluator.copyPrunedContext(ctx.getCtx())
-              : new DDEvaluator.CopyResult(Collections.emptyMap(), null);
-
-      if (copy.truncatedReason != null) {
-        w.countContextTruncated(copy.truncatedReason);
+      // On the protected path (consent-off) the evaluation context is dropped on emit and never
+      // consulted by the aggregator, so skip the bounded copy entirely — the copy cost only
+      // applies under consent-on.
+      final Map<String, Object> attrs;
+      if (observeFullEvaluationData && ctx != null && ctx.getCtx() != null) {
+        // Bounded copy of the caller's mutable context (see DDEvaluator.copyPrunedContext for
+        // every retained-size cap). Runs inline because the event is consumed asynchronously
+        // and the source context is caller-owned; work is proportional to what is retained.
+        final DDEvaluator.CopyResult copy = DDEvaluator.copyPrunedContext(ctx.getCtx());
+        if (copy.truncatedReason != null) {
+          w.countContextTruncated(copy.truncatedReason);
+        }
+        attrs = copy.attrs;
+      } else {
+        attrs = Collections.emptyMap();
       }
 
       w.enqueue(
           new FlagEvalEvent(
-              flagKey, variant, allocationKey, targetingKey, errorMessage, evalTimeMs, copy.attrs));
+              flagKey,
+              variant,
+              allocationKey,
+              targetingKey,
+              errorMessage,
+              evalTimeMs,
+              observeFullEvaluationData,
+              attrs));
     } catch (LinkageError e) {
       // Never let EVP recording break flag evaluation
     }

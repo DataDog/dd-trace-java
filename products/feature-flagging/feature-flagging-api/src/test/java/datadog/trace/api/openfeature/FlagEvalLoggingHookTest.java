@@ -17,6 +17,7 @@ import static org.mockito.Mockito.when;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
+import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.FlagValueType;
@@ -50,6 +51,9 @@ class FlagEvalLoggingHookTest {
   @AfterEach
   void resetFlagEvaluationEnqueue() {
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
+    // Clear any dispatched UFC so an observeFullEvaluationData value can't leak into other tests
+    // that share the static gateway.
+    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
   }
 
   // ---- helpers ----
@@ -234,7 +238,9 @@ class FlagEvalLoggingHookTest {
   // ---- test: error message captured from details (error object support) ----
 
   @Test
-  void errorMessageCapturedFromDetails() {
+  void errorMessageCapturedFromDetailsUnderConsentOn() {
+    // With observeFullEvaluationData=true the provider's raw message is preserved verbatim so
+    // operators keep the diagnostic detail they opted in to.
     final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
@@ -245,6 +251,7 @@ class FlagEvalLoggingHookTest {
             .reason(Reason.ERROR.name())
             .errorCode(ErrorCode.TYPE_MISMATCH)
             .errorMessage("value does not match declared type")
+            .flagMetadata(consentOnMetadata())
             .build();
 
     hook.finallyAfter(null, det, Collections.emptyMap());
@@ -253,7 +260,61 @@ class FlagEvalLoggingHookTest {
     assertEquals(
         "value does not match declared type",
         captured.get().errorMessage,
-        "errorMessage must be captured from the evaluation details");
+        "errorMessage must be captured from the evaluation details under consent-on");
+  }
+
+  @Test
+  void errorMessageReplacedByErrorCodeUnderConsentOff() {
+    // Defense-in-depth: even if a provider hands us a raw message under consent-off (a bug in the
+    // provider, or a third-party provider that doesn't distinguish consent tiers), the hook must
+    // substitute the ErrorCode name so raw PII from exception messages never reaches the wire.
+    // Uses a PII-looking marker exactly like the wire-level guards in FlagEvaluationWriterImplTest.
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+
+    final FlagEvaluationDetails<Object> det =
+        FlagEvaluationDetails.<Object>builder()
+            .flagKey("err-flag")
+            .value("default")
+            .reason(Reason.ERROR.name())
+            .errorCode(ErrorCode.TYPE_MISMATCH)
+            .errorMessage("For input string: \"jane.doe@datadoghq.com\"")
+            .flagMetadata(consentOffMetadata())
+            .build();
+
+    hook.finallyAfter(null, det, Collections.emptyMap());
+
+    assertNotNull(captured.get());
+    assertEquals(
+        "TYPE_MISMATCH",
+        captured.get().errorMessage,
+        "consent-off must replace the raw message with the ErrorCode name");
+    assertFalse(
+        captured.get().errorMessage.contains("jane.doe@datadoghq.com"),
+        "raw PII must never survive into the enqueued event under consent-off");
+  }
+
+  @Test
+  void errorMessageDroppedWhenConsentOffAndNoErrorCode() {
+    // Edge case: no ErrorCode available (unusual — providers should set one for ERROR reason).
+    // Consent-off drops the message and there's nothing to substitute, so the enqueued event has
+    // no error message at all. This is the strictest privacy-preserving outcome.
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+
+    final FlagEvaluationDetails<Object> det =
+        FlagEvaluationDetails.<Object>builder()
+            .flagKey("err-flag")
+            .value("default")
+            .reason(Reason.ERROR.name())
+            .errorMessage("For input string: \"jane.doe@datadoghq.com\"")
+            .flagMetadata(consentOffMetadata())
+            .build();
+
+    hook.finallyAfter(null, det, Collections.emptyMap());
+
+    assertNotNull(captured.get());
+    assertNull(captured.get().errorMessage);
   }
 
   // ---- test: error code used as fallback message when error message is empty ----
@@ -354,7 +415,12 @@ class FlagEvalLoggingHookTest {
             .ctx(ctx)
             .build();
     final FlagEvaluationDetails<Object> det =
-        details("flag", "v", "v", dev.openfeature.sdk.Reason.TARGETING_MATCH.name(), null);
+        details(
+            "flag",
+            "v",
+            "v",
+            dev.openfeature.sdk.Reason.TARGETING_MATCH.name(),
+            consentOnMetadata());
 
     hook.finallyAfter(hookCtx, det, Collections.emptyMap());
 
@@ -378,7 +444,12 @@ class FlagEvalLoggingHookTest {
             .ctx(ctx)
             .build();
     final FlagEvaluationDetails<Object> det =
-        details("flag", "v", "v", dev.openfeature.sdk.Reason.TARGETING_MATCH.name(), null);
+        details(
+            "flag",
+            "v",
+            "v",
+            dev.openfeature.sdk.Reason.TARGETING_MATCH.name(),
+            consentOnMetadata());
 
     hook.finallyAfter(hookCtx, det, Collections.emptyMap());
 
@@ -485,7 +556,7 @@ class FlagEvalLoggingHookTest {
             .ctx(context)
             .build();
     final FlagEvaluationDetails<Object> det =
-        details("ctx-flag", "v", "v", Reason.TARGETING_MATCH.name(), null);
+        details("ctx-flag", "v", "v", Reason.TARGETING_MATCH.name(), consentOnMetadata());
 
     hook.finallyAfter(hookCtx, det, Collections.emptyMap());
 
@@ -524,7 +595,7 @@ class FlagEvalLoggingHookTest {
             .ctx(context)
             .build();
     final FlagEvaluationDetails<Object> det =
-        details("ctx-flag", "v", "v", Reason.TARGETING_MATCH.name(), null);
+        details("ctx-flag", "v", "v", Reason.TARGETING_MATCH.name(), consentOnMetadata());
 
     hook.finallyAfter(hookCtx, det, Collections.emptyMap());
     context.add("region", "eu-west-1");
@@ -542,5 +613,108 @@ class FlagEvalLoggingHookTest {
     assertFalse(attrs.containsKey("late"));
     assertFalse(attrs.containsKey("profile.late"));
     assertFalse(attrs.containsKey("cohorts[1]"));
+  }
+
+  // ---- observeFullEvaluationData is read from evaluation metadata, never the gateway ----
+
+  @Test
+  void readsObserveFullEvaluationDataTrueFromEvaluationMetadata() {
+    assertTrue(enqueuedEventWithConsentMetadata(true).observeFullEvaluationData);
+  }
+
+  @Test
+  void readsObserveFullEvaluationDataFalseFromEvaluationMetadata() {
+    assertFalse(enqueuedEventWithConsentMetadata(false).observeFullEvaluationData);
+  }
+
+  @Test
+  void observeFullEvaluationDataDefaultsToFalseWhenMetadataAbsent() {
+    // No metadata at all: fail-closed toward privacy.
+    assertFalse(enqueuedEventWithConsentMetadata(null).observeFullEvaluationData);
+  }
+
+  @Test
+  void protectedPathSkipsEvaluationContextCapture() {
+    // Consent off → the hook must not snapshot the evaluation context at all. Verified by mutating
+    // the context after finallyAfter returns and asserting the enqueued event still sees nothing.
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+
+    final MutableContext context = new MutableContext("user-1");
+    context.add("region", "us-east-1");
+
+    final HookContext<Object> hookCtx =
+        HookContext.<Object>builder()
+            .flagKey("ctx-flag")
+            .type(FlagValueType.STRING)
+            .defaultValue("default")
+            .ctx(context)
+            .build();
+    final ImmutableMetadata consentOff =
+        ImmutableMetadata.builder()
+            .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, false)
+            .build();
+
+    hook.finallyAfter(
+        hookCtx,
+        details("ctx-flag", "v", "v", Reason.TARGETING_MATCH.name(), consentOff),
+        Collections.emptyMap());
+    context.add("region", "eu-west-1");
+
+    assertNotNull(captured.get());
+    assertTrue(captured.get().attrs.isEmpty());
+  }
+
+  @Test
+  void ignoresGatewayConsentEvenWhenItDisagreesWithMetadata() {
+    // Gateway says on, metadata says off; hook must trust metadata.
+    FeatureFlaggingGateway.dispatch(observeConfig(true));
+    try {
+      assertFalse(enqueuedEventWithConsentMetadata(false).observeFullEvaluationData);
+    } finally {
+      FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+    }
+  }
+
+  /**
+   * Fires the hook once for a simple targeted evaluation whose metadata carries the given consent
+   * value ({@code null} = key absent) and returns the enqueued event.
+   */
+  private FlagEvalEvent enqueuedEventWithConsentMetadata(final Boolean consent) {
+    final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
+    final ImmutableMetadata metadata =
+        consent == null
+            ? null
+            : ImmutableMetadata.builder()
+                .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, consent)
+                .build();
+    hook.finallyAfter(
+        hookCtxWithTargetingKey("obs-flag", "user-1"),
+        details("obs-flag", "on", "on", Reason.TARGETING_MATCH.name(), metadata),
+        Collections.emptyMap());
+    assertNotNull(captured.get(), "writer.enqueue must be called once");
+    return captured.get();
+  }
+
+  private static ImmutableMetadata consentOnMetadata() {
+    return ImmutableMetadata.builder()
+        .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, true)
+        .build();
+  }
+
+  private static ImmutableMetadata consentOffMetadata() {
+    return ImmutableMetadata.builder()
+        .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, false)
+        .build();
+  }
+
+  private static ServerConfiguration observeConfig(final boolean observeFullEvaluationData) {
+    return new ServerConfiguration(
+        "2024-04-17T19:40:53.716Z",
+        "SERVER",
+        observeFullEvaluationData,
+        null,
+        Collections.emptyMap());
   }
 }

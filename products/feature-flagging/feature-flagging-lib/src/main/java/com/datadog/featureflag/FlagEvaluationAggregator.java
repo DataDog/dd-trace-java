@@ -46,13 +46,18 @@ final class FlagEvaluationAggregator {
 
   void aggregate(final FlagEvalEvent event) {
     final boolean isDefault = event.variant == null;
-    final Map<String, Object> prunedAttrs = event.attrs;
-    final String ctxKey = canonicalContextKey(prunedAttrs);
+    final boolean observeFullEvaluationData = event.observeFullEvaluationData;
+    // On the protected path the context is dropped on emit, so it must not fragment buckets or be
+    // stored — otherwise a high-cardinality field (request_id, timestamp) blows out PER_FLAG_CAP
+    // and spills every subsequent evaluation into the degraded tier.
+    final Map<String, Object> prunedAttrs = observeFullEvaluationData ? event.attrs : null;
+    final String ctxKey = observeFullEvaluationData ? canonicalContextKey(prunedAttrs) : "";
     final FullKey fullKey = buildFullKey(event, ctxKey);
 
     EvalBucket bucket = fullTier.get(fullKey);
     if (bucket != null) {
       bucket.merge(event.evalTimeMs, isDefault);
+      bucket.observeFullEvaluationData &= observeFullEvaluationData;
       return;
     }
 
@@ -68,7 +73,8 @@ final class FlagEvaluationAggregator {
               event.errorMessage,
               event.evalTimeMs,
               isDefault,
-              prunedAttrs));
+              prunedAttrs,
+              observeFullEvaluationData));
       globalFullCount.incrementAndGet();
       perFlagCount.put(event.flagKey, flagCount + 1);
       return;
@@ -78,6 +84,7 @@ final class FlagEvaluationAggregator {
     bucket = degradedTier.get(degradedKey);
     if (bucket != null) {
       bucket.merge(event.evalTimeMs, isDefault);
+      bucket.observeFullEvaluationData &= observeFullEvaluationData;
       return;
     }
 
@@ -92,7 +99,8 @@ final class FlagEvaluationAggregator {
               event.errorMessage,
               event.evalTimeMs,
               isDefault,
-              null));
+              null,
+              observeFullEvaluationData));
       return;
     }
 
@@ -143,8 +151,8 @@ final class FlagEvaluationAggregator {
     for (int i = globalFullCount.get(); i < GLOBAL_CAP; i++) {
       final String key = "synthetic-full-" + i;
       fullTier.put(
-          new FullKey(key, "on", "alloc", false, null, null, ""),
-          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null));
+          new FullKey(key, "on", "alloc", false, null, null, "", false),
+          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null, false));
       globalFullCount.incrementAndGet();
       perFlagCount.merge(key, 1, Integer::sum);
     }
@@ -155,7 +163,7 @@ final class FlagEvaluationAggregator {
       final String key = "synthetic-dg-" + i;
       degradedTier.put(
           new DegradedKey(key, "on", "alloc", false, null),
-          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null));
+          new EvalBucket(key, "on", "alloc", null, null, 1L, false, null, false));
     }
   }
 
@@ -175,7 +183,8 @@ final class FlagEvaluationAggregator {
             errorMessage,
             evalTimeMs,
             variant == null,
-            null));
+            null,
+            false));
   }
 
   private static FullKey buildFullKey(final FlagEvalEvent event, final String ctxKey) {
@@ -186,7 +195,8 @@ final class FlagEvaluationAggregator {
         event.variant == null,
         event.errorMessage,
         event.targetingKey,
-        ctxKey);
+        ctxKey,
+        event.observeFullEvaluationData);
   }
 
   private static DegradedKey buildDegradedKey(final FlagEvalEvent event) {
@@ -253,6 +263,13 @@ final class FlagEvaluationAggregator {
     String targetingKey;
     String errorMessage;
     Map<String, Object> prunedAttrs;
+    // Consent to emit raw PII. For full-tier buckets this is uniform (consent is a FullKey
+    // dimension) and the AND-fold on merge is defensive. For degraded-tier buckets consent is NOT
+    // a key dimension — mixed-consent events merge here — so the AND-fold produces false whenever
+    // any consent-off event lands in the bucket. That's benign because the degraded wire path
+    // drops the targeting key and context regardless of consent, so this field has no downstream
+    // effect for degraded rows.
+    boolean observeFullEvaluationData;
 
     EvalBucket(
         final String flagKey,
@@ -262,7 +279,8 @@ final class FlagEvaluationAggregator {
         final String errorMessage,
         final long evalTimeMs,
         final boolean runtimeDefaultUsed,
-        final Map<String, Object> prunedAttrs) {
+        final Map<String, Object> prunedAttrs,
+        final boolean observeFullEvaluationData) {
       this.flagKey = flagKey;
       this.variant = variant;
       this.allocationKey = allocationKey;
@@ -273,6 +291,7 @@ final class FlagEvaluationAggregator {
       this.count = 1;
       this.runtimeDefaultUsed = runtimeDefaultUsed;
       this.prunedAttrs = prunedAttrs;
+      this.observeFullEvaluationData = observeFullEvaluationData;
     }
 
     int prunedContextFieldCount() {
@@ -301,6 +320,10 @@ final class FlagEvaluationAggregator {
     private final String errorMessage;
     private final String targetingKey;
     private final String contextKey;
+    // Part of the key so consent-on and consent-off evaluations never share a bucket. The
+    // serializer branches on this to hash the targeting key and drop the context, so events with
+    // different consent produce different wire rows and belong in different buckets.
+    private final boolean observeFullEvaluationData;
 
     FullKey(
         final String flagKey,
@@ -309,7 +332,8 @@ final class FlagEvaluationAggregator {
         final boolean runtimeDefaultUsed,
         final String errorMessage,
         final String targetingKey,
-        final String contextKey) {
+        final String contextKey,
+        final boolean observeFullEvaluationData) {
       this.flagKey = flagKey;
       this.variant = variant;
       this.allocationKey = allocationKey;
@@ -317,6 +341,7 @@ final class FlagEvaluationAggregator {
       this.errorMessage = errorMessage;
       this.targetingKey = targetingKey;
       this.contextKey = contextKey;
+      this.observeFullEvaluationData = observeFullEvaluationData;
     }
 
     @Override
@@ -329,6 +354,7 @@ final class FlagEvaluationAggregator {
       }
       final FullKey fullKey = (FullKey) o;
       return runtimeDefaultUsed == fullKey.runtimeDefaultUsed
+          && observeFullEvaluationData == fullKey.observeFullEvaluationData
           && Objects.equals(flagKey, fullKey.flagKey)
           && Objects.equals(variant, fullKey.variant)
           && Objects.equals(allocationKey, fullKey.allocationKey)
@@ -346,11 +372,19 @@ final class FlagEvaluationAggregator {
           runtimeDefaultUsed,
           errorMessage,
           targetingKey,
-          contextKey);
+          contextKey,
+          observeFullEvaluationData);
     }
   }
 
   static final class DegradedKey {
+    // Unlike FullKey, consent is NOT a bucket dimension here: the wire serializer for degraded rows
+    // (FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket with isFullTier=false) drops the
+    // targeting key and context unconditionally, so two degraded buckets differing only in consent
+    // would emit byte-identical JSON with evaluation_count split — halving effective DEGRADED_CAP
+    // for zero wire fidelity. Mixed-consent events merge into one bucket; the AND-fold on
+    // EvalBucket.observeFullEvaluationData still runs but has no downstream effect for degraded
+    // rows.
     private final String flagKey;
     private final String variant;
     private final String allocationKey;

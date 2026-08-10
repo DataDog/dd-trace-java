@@ -12,6 +12,8 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -25,8 +27,14 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
+import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Split;
+import datadog.trace.api.featureflag.ufc.v1.ValueType;
+import datadog.trace.api.featureflag.ufc.v1.Variant;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.MutableContext;
@@ -199,7 +207,7 @@ public class DDEvaluatorTest {
     flags.put("null-allocation", new Flag("target", true, null, null, null));
     flags.put("empty-allocation", new Flag("target", true, null, null, emptyList()));
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", null, flags));
+    evaluator.accept(new ServerConfiguration("", "", false, null, flags));
 
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("allocation");
 
@@ -212,6 +220,241 @@ public class DDEvaluatorTest {
     assertThat(details.getValue(), equalTo(23));
     assertThat(details.getReason(), equalTo("DEFAULT"));
     assertThat(details.getErrorCode(), nullValue());
+  }
+
+  // ---- observeFullEvaluationData metadata is stamped from the evaluator's ServerConfiguration
+  // ----
+  //
+  // Every code path that returns a ProviderEvaluation must stamp the consent boolean so downstream
+  // hooks can honour it. These tests exercise each stamp site with both consent values (on/off) so
+  // a mutation to any stamp — deleting the line, hardcoding the value — flips at least one
+  // assertion.
+
+  // -- success path: resolveVariant (variant metadata builder) --
+
+  @Test
+  public void observeFullEvaluationDataStampedTrueOnResolvedVariant() {
+    final ProviderEvaluation<?> details = evaluateMatchingFlag(true);
+
+    assertThat(details.getReason(), equalTo("STATIC"));
+    assertThat(details.getVariant(), equalTo("on"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(true));
+  }
+
+  @Test
+  public void observeFullEvaluationDataStampedFalseOnResolvedVariant() {
+    // Symmetric consent-off assertion. Paired with the consent-on test above this pins the
+    // resolveVariant metadata line (DDEvaluator.java: METADATA_OBSERVE_FULL_EVALUATION_DATA) so
+    // deleting it or hardcoding either value would fail at least one assertion.
+    final ProviderEvaluation<?> details = evaluateMatchingFlag(false);
+
+    assertThat(details.getReason(), equalTo("STATIC"));
+    assertThat(details.getVariant(), equalTo("on"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
+  // -- DISABLED path: flag.enabled=false --
+
+  @Test
+  public void observeFullEvaluationDataStampedTrueOnDisabledFlag() {
+    final ProviderEvaluation<?> details = evaluateDisabledFlag(true);
+
+    assertThat(details.getReason(), equalTo("DISABLED"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(true));
+  }
+
+  @Test
+  public void observeFullEvaluationDataStampedFalseOnDisabledFlag() {
+    final ProviderEvaluation<?> details = evaluateDisabledFlag(false);
+
+    assertThat(details.getReason(), equalTo("DISABLED"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
+  // -- DEFAULT path: no allocation matches --
+
+  @Test
+  public void observeFullEvaluationDataStampedTrueOnDefault() {
+    // Allocation exists but has empty splits, so the loop finishes without returning and we fall
+    // through to the DEFAULT branch.
+    final ProviderEvaluation<?> details = evaluateWithEmptySplits(true);
+
+    assertThat(details.getReason(), equalTo("DEFAULT"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(true));
+  }
+
+  @Test
+  public void observeFullEvaluationDataStampedFalseOnDefault() {
+    final ProviderEvaluation<?> details = evaluateWithEmptySplits(false);
+
+    assertThat(details.getReason(), equalTo("DEFAULT"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
+  // -- error paths: FLAG_NOT_FOUND / PROVIDER_NOT_READY (via consentMetadata in error()) --
+
+  @Test
+  public void observeFullEvaluationDataStampedOnFlagNotFoundError() {
+    // Was previously named "…OnSuccess" but actually exercises the error() helper's stamp via
+    // FLAG_NOT_FOUND — kept for that stamp site, correctly named.
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", true, null, new HashMap<>()));
+
+    final EvaluationContext ctx = new MutableContext("target").setTargetingKey("k");
+    final ProviderEvaluation<?> details =
+        evaluator.evaluate(Integer.class, "unknown-flag", 23, ctx);
+
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.FLAG_NOT_FOUND));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(true));
+  }
+
+  @Test
+  public void observeFullEvaluationDataDefaultsToFalseWhenEvaluatorHasNoConfig() {
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    final ProviderEvaluation<?> details =
+        evaluator.evaluate(Integer.class, "test", 23, mock(EvaluationContext.class));
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
+  @Test
+  public void observeFullEvaluationDataNullConfigFieldTreatedAsFalse() {
+    // The field is boxed so Moshi tolerates a malformed consent value in the UFC JSON without
+    // aborting the whole parse. The evaluator must then interpret null as the privacy-preserving
+    // default. An auto-unbox at the read site (config.observeFullEvaluationData) would NPE here.
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("target", new Flag("target", true, ValueType.INTEGER, emptyMap(), emptyList()));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", null, null, flags));
+
+    final EvaluationContext ctx = new MutableContext("target").setTargetingKey("k");
+    final ProviderEvaluation<?> details = evaluator.evaluate(Integer.class, "target", 23, ctx);
+
+    // Flags still evaluate — availability preserved despite the malformed consent field.
+    assertThat(details.getReason(), equalTo("DEFAULT"));
+    assertThat(
+        details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+        equalTo(false));
+  }
+
+  // Builds a flag that reaches resolveVariant: enabled, one allocation with no rules, one split
+  // with empty shards (so the shard-match branch is skipped and the split is picked immediately),
+  // and a single "on" variant whose value maps to the requested Integer type.
+  private static ProviderEvaluation<?> evaluateMatchingFlag(
+      final boolean observeFullEvaluationData) {
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", 1));
+    final Split split = new Split(emptyList(), "on", emptyMap(), null);
+    final Allocation allocation =
+        new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.FALSE);
+    return evaluateFlag(
+        new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)),
+        observeFullEvaluationData);
+  }
+
+  private static ProviderEvaluation<?> evaluateDisabledFlag(
+      final boolean observeFullEvaluationData) {
+    return evaluateFlag(
+        new Flag("target", false, ValueType.INTEGER, emptyMap(), null), observeFullEvaluationData);
+  }
+
+  private static ProviderEvaluation<?> evaluateWithEmptySplits(
+      final boolean observeFullEvaluationData) {
+    // Enabled, allocations present, allocation active, no rules, empty splits → falls through the
+    // for-loop to the DEFAULT return.
+    final Allocation allocation =
+        new Allocation("alloc-1", null, null, null, emptyList(), Boolean.FALSE);
+    return evaluateFlag(
+        new Flag("target", true, ValueType.INTEGER, emptyMap(), singletonList(allocation)),
+        observeFullEvaluationData);
+  }
+
+  private static ProviderEvaluation<?> evaluateFlag(
+      final Flag flag, final boolean observeFullEvaluationData) {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("target", flag);
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", observeFullEvaluationData, null, flags));
+
+    final EvaluationContext ctx = new MutableContext("target").setTargetingKey("user-1");
+    return evaluator.evaluate(Integer.class, "target", 23, ctx);
+  }
+
+  // ---- error message redaction respects observeFullEvaluationData ----
+
+  @Test
+  public void numericConditionOnTargetingKeyDropsExceptionMessageUnderConsentOff() {
+    // Rule {attribute:"id", operator:GT, value:0} + "id" not in context →
+    // DDEvaluator.resolveAttribute
+    // falls back to the targeting key, so Double.parseDouble("jane.doe@datadoghq.com") throws
+    // NumberFormatException. The exception message echoes the raw context value verbatim, so it
+    // must be dropped when observeFullEvaluationData=false.
+    final ProviderEvaluation<?> details =
+        evaluateWithNumericRuleOnId("jane.doe@datadoghq.com", false);
+
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.TYPE_MISMATCH));
+    assertNull(details.getErrorMessage(), "consent-off must not surface the raw exception message");
+  }
+
+  @Test
+  public void numericConditionOnTargetingKeyPreservesExceptionMessageUnderConsentOn() {
+    // Symmetric case: with consent on, the raw exception message flows through unchanged so
+    // operators keep the diagnostic detail they opted in to.
+    final ProviderEvaluation<?> details =
+        evaluateWithNumericRuleOnId("jane.doe@datadoghq.com", true);
+
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.TYPE_MISMATCH));
+    assertThat(details.getErrorMessage(), equalTo("For input string: \"jane.doe@datadoghq.com\""));
+  }
+
+  @Test
+  public void numericConditionOnTargetingKeyErrorMessageNeverContainsPiiUnderConsentOff() {
+    // Belt-and-suspenders: independent of the exact null/empty form, the raw PII value must never
+    // appear in the message under consent-off. Guards against future changes that might replace
+    // null with a redacted string or a code-name suffix.
+    final ProviderEvaluation<?> details =
+        evaluateWithNumericRuleOnId("jane.doe@datadoghq.com", false);
+
+    final String message = details.getErrorMessage();
+    assertFalse(
+        message != null && message.contains("jane.doe@datadoghq.com"),
+        "consent-off errorMessage must not contain raw context values");
+  }
+
+  private static ProviderEvaluation<?> evaluateWithNumericRuleOnId(
+      final String targetingKey, final boolean observeFullEvaluationData) {
+    final Map<String, Flag> flags = new HashMap<>();
+    final List<Rule> rules =
+        singletonList(
+            new Rule(singletonList(new ConditionConfiguration(ConditionOperator.GT, "id", 0))));
+    // Split must be non-empty so the allocation is considered a match target; its contents don't
+    // matter because the rule throws before a split is picked.
+    final Allocation allocation =
+        new Allocation("alloc", rules, null, null, emptyList(), Boolean.FALSE);
+    flags.put(
+        "num-rule",
+        new Flag("num-rule", true, ValueType.INTEGER, emptyMap(), singletonList(allocation)));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", observeFullEvaluationData, null, flags));
+
+    final EvaluationContext ctx = new MutableContext(targetingKey);
+    return evaluator.evaluate(Integer.class, "num-rule", 23, ctx);
   }
 
   @Test
