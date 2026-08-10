@@ -27,10 +27,10 @@ import dev.openfeature.sdk.Value;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,14 +52,48 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
 
   /**
-   * Maximum evaluation-context nesting depth captured by {@link #snapshotValues}. The snapshot
-   * recurses on the caller's evaluation thread over a caller-owned {@link Value} tree, so an
-   * arbitrarily deep list/structure would overflow that thread's stack - and a {@code
-   * StackOverflowError} is not caught by the {@code LinkageError | Exception} guards that keep
-   * telemetry from breaking an evaluation. Values below the limit are truncated to null, the same
-   * way the cycle guard truncates. No realistic evaluation context nests this deeply.
+   * Maximum evaluation-context nesting depth captured on the hot path. Recursion runs on the
+   * caller's evaluation thread over a caller-owned Value tree, so an arbitrarily deep
+   * list/structure would overflow that thread's stack - and a StackOverflowError is not caught by
+   * the LinkageError | Exception guards that keep telemetry from breaking an evaluation. Values
+   * below the limit are truncated to null, the same way the cycle guard truncates. Kept aligned
+   * with the cross-SDK RFC target (4).
    */
-  static final int MAX_SNAPSHOT_DEPTH = 32;
+  static final int MAX_SNAPSHOT_DEPTH = 4;
+
+  /**
+   * Maximum number of top-level context fields retained by copyPrunedContext. Bounds the width of
+   * the caller-supplied context and, transitively, the size of every FlagEvalEvent sitting in the
+   * async hand-off queue. Kept aligned with the cross-SDK RFC.
+   */
+  static final int MAX_CONTEXT_FIELDS = 256;
+
+  /**
+   * Maximum character length for a single context KEY retained by copyPrunedContext. Keys are
+   * stored verbatim in every full-tier bucket, so an unbounded key size would let a single caller
+   * inflate steady-state heap use. Longer keys cause the field to be skipped.
+   */
+  static final int MAX_KEY_LENGTH = 256;
+
+  /**
+   * Maximum character length for a single context string VALUE retained by copyPrunedContext.
+   * Longer values cause the field to be skipped (matches previous pruneContext behavior).
+   * Non-string scalars are not length-bounded.
+   */
+  static final int MAX_VALUE_LENGTH = 256;
+
+  /**
+   * Maximum number of elements walked per list encountered during copyPrunedContext. Bounds the
+   * fan-out of a single wide list at capture time so one caller cannot inflate the hot path with a
+   * huge but shallow structure. Elements past the limit are skipped.
+   */
+  static final int MAX_LIST_ELEMENTS = 256;
+
+  /**
+   * Maximum number of properties walked per structure encountered during copyPrunedContext. Same
+   * intent as MAX_LIST_ELEMENTS for structures. Properties past the limit are skipped.
+   */
+  static final int MAX_STRUCTURE_PROPERTIES = 256;
 
   // Evaluation-metadata keys consumed by the span-enrichment capture hook (see
   // SpanEnrichmentHook). Emitted only when the span-enrichment gate is on.
@@ -156,7 +190,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             observeFullEvaluationData);
       }
 
-      final Date now = new Date();
+      final Instant now = Instant.now();
+      final long evalTimestampMs = now.toEpochMilli();
       final String targetingKey = context.getTargetingKey();
 
       for (final Allocation allocation : flag.allocations) {
@@ -182,6 +217,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
                   allocation,
                   split,
                   context,
+                  evalTimestampMs,
                   observeFullEvaluationData);
             } else {
               if (targetingKey == null) {
@@ -206,6 +242,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
                     allocation,
                     split,
                     context,
+                    evalTimestampMs,
                     observeFullEvaluationData);
               }
             }
@@ -257,14 +294,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     return list == null || list.isEmpty();
   }
 
-  private static boolean isAllocationActive(final Allocation allocation, final Date now) {
-    final Date startDate = allocation.startAt;
-    if (startDate != null && now.before(startDate)) {
+  static boolean isAllocationActive(final Allocation allocation, final Instant now) {
+    final Instant startDate = allocation.startAtInstant();
+    if (startDate != null && now.isBefore(startDate)) {
       return false;
     }
 
-    final Date endDate = allocation.endAt;
-    if (endDate != null && now.after(endDate)) {
+    final Instant endDate = allocation.endAtInstant();
+    if (endDate != null && now.isAfter(endDate)) {
       return false;
     }
 
@@ -412,6 +449,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final Allocation allocation,
       final Split split,
       final EvaluationContext context,
+      final long evalTimestampMs,
       final boolean observeFullEvaluationData) {
     final Variant variant = flag.variations.get(variationKey);
     if (variant == null) {
@@ -450,14 +488,13 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     }
 
     // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
-    // not hook-fire time. Passed to the hook via provider metadata "dd.eval.timestamp_ms".
-    final long evalTimestampMs = System.currentTimeMillis();
+    // not hook-fire time. Passed to the hook via provider metadata "__dd_eval_timestamp_ms".
     final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder =
         ImmutableMetadata.builder()
             .addString("flagKey", flag.key)
             .addString("variationType", flag.variationType.name())
             .addString("allocationKey", allocation.key)
-            .addLong("dd.eval.timestamp_ms", evalTimestampMs)
+            .addLong("__dd_eval_timestamp_ms", evalTimestampMs)
             .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
     // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment —
     // only when span enrichment is on, so a provider without enrichment pays nothing extra.
@@ -680,6 +717,193 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       return value.asInstant().toString();
     }
     throw new IllegalArgumentException("Unsupported OpenFeature value type: " + value);
+  }
+
+  // Reason-code bitmask constants used by copyPrunedContext to track which caps fired.
+  static final int REASON_MAX_CONTEXT_FIELDS = 1;
+  static final int REASON_MAX_KEY_LENGTH = 1 << 1;
+  static final int REASON_MAX_VALUE_LENGTH = 1 << 2;
+  static final int REASON_MAX_LIST_ELEMENTS = 1 << 3;
+  static final int REASON_MAX_STRUCTURE_PROPERTIES = 1 << 4;
+  static final int REASON_MAX_SNAPSHOT_DEPTH = 1 << 5;
+  static final int REASON_CYCLE = 1 << 6;
+
+  /** Sorted reason-code strings, indexed by their bit position in the bitmask. */
+  private static final String[] REASON_NAMES = {
+    "max_context_fields",
+    "max_key_length",
+    "max_value_length",
+    "max_list_elements",
+    "max_structure_properties",
+    "max_snapshot_depth",
+    "cycle",
+  };
+
+  /**
+   * Builds the sorted, comma-separated reason tag string from a bitmask of fired reason codes.
+   * Returns null when no reason bit is set (no truncation occurred). The returned string is ready
+   * to use directly as the "reason:..." tag value.
+   */
+  static String truncationReasonTag(final int reasonMask) {
+    if (reasonMask == 0) {
+      return null;
+    }
+    final StringBuilder sb = new StringBuilder();
+    for (int bit = 0; bit < REASON_NAMES.length; bit++) {
+      if ((reasonMask & (1 << bit)) != 0) {
+        if (sb.length() > 0) {
+          sb.append(',');
+        }
+        sb.append(REASON_NAMES[bit]);
+      }
+    }
+    return sb.toString();
+  }
+
+  /**
+   * Result of copyPrunedContext: the pruned attribute map plus an optional reason tag describing
+   * which caps fired during the walk. truncatedReason is null when no truncation occurred, so
+   * callers can skip the telemetry path with a single null check.
+   */
+  static final class CopyResult {
+    final Map<String, Object> attrs;
+
+    /** Non-null when at least one cap fired; ready to use as the "reason:..." tag value. */
+    final String truncatedReason;
+
+    CopyResult(final Map<String, Object> attrs, final String truncatedReason) {
+      this.attrs = attrs;
+      this.truncatedReason = truncatedReason;
+    }
+  }
+
+  /**
+   * Single-pass bounded copy of a caller-owned EvaluationContext into the flattened, pruned map
+   * stored on a FlagEvalEvent and later canonicalized by the aggregator.
+   *
+   * <p>Every retained-size dimension is capped inline so the hot path performs work proportional to
+   * what is kept, never to what the caller supplied: MAX_CONTEXT_FIELDS - stop iterating the
+   * top-level context past this many retained fields MAX_KEY_LENGTH - skip fields whose flattened
+   * key exceeds this length (also enforced on every path segment produced by descending into
+   * lists/structures) MAX_VALUE_LENGTH - skip string values exceeding this length MAX_LIST_ELEMENTS
+   * - stop iterating a list past this many elements MAX_STRUCTURE_PROPERTIES - stop iterating a
+   * structure past this many properties MAX_SNAPSHOT_DEPTH - stop descending into lists/structures
+   * past this depth Cycle guard - identity-tracked containers currently on the recursion stack are
+   * treated as leaves
+   *
+   * <p>All numeric limits are named constants so they can be tuned independently.
+   *
+   * <p>Returns a CopyResult whose attrs is an empty map for null/empty input and whose
+   * truncatedReason is non-null when at least one cap fired. The returned map is a plain HashMap;
+   * canonical-key sorting happens once in the aggregator, off the hot path.
+   */
+  static CopyResult copyPrunedContext(final EvaluationContext context) {
+    if (context == null) {
+      return new CopyResult(Collections.emptyMap(), null);
+    }
+    final Set<String> keys = context.keySet();
+    if (keys.isEmpty()) {
+      return new CopyResult(Collections.emptyMap(), null);
+    }
+    final HashMap<String, Object> out = new HashMap<>();
+    final Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+    final int[] reasonMask = {0};
+    for (final String key : keys) {
+      if (out.size() >= MAX_CONTEXT_FIELDS) {
+        reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
+        break;
+      }
+      if (EvaluationContext.TARGETING_KEY.equals(key)) {
+        continue;
+      }
+      copyPrunedValue(out, key, context.getValue(key), seen, 0, reasonMask);
+    }
+    final Map<String, Object> attrs = out.isEmpty() ? Collections.emptyMap() : out;
+    return new CopyResult(attrs, truncationReasonTag(reasonMask[0]));
+  }
+
+  private static void copyPrunedValue(
+      final Map<String, Object> out,
+      final String key,
+      final Value value,
+      final Set<Object> seen,
+      final int depth,
+      final int[] reasonMask) {
+    if (out.size() >= MAX_CONTEXT_FIELDS) {
+      reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
+      return;
+    }
+    if (key.length() > MAX_KEY_LENGTH) {
+      reasonMask[0] |= REASON_MAX_KEY_LENGTH;
+      return;
+    }
+    if (value == null || value.isNull()) {
+      out.put(key, null);
+      return;
+    }
+    if (value.isString()) {
+      final String s = value.asString();
+      if (s.length() > MAX_VALUE_LENGTH) {
+        reasonMask[0] |= REASON_MAX_VALUE_LENGTH;
+        return;
+      }
+      out.put(key, s);
+      return;
+    }
+    if (value.isBoolean() || value.isNumber() || value.isInstant()) {
+      out.put(key, convertValue(value));
+      return;
+    }
+    if (value.isList()) {
+      final List<Value> list = value.asList();
+      if (depth >= MAX_SNAPSHOT_DEPTH) {
+        reasonMask[0] |= REASON_MAX_SNAPSHOT_DEPTH;
+        return;
+      }
+      if (!seen.add(list)) {
+        reasonMask[0] |= REASON_CYCLE;
+        return;
+      }
+      if (list.size() > MAX_LIST_ELEMENTS) {
+        reasonMask[0] |= REASON_MAX_LIST_ELEMENTS;
+      }
+      final int limit = Math.min(list.size(), MAX_LIST_ELEMENTS);
+      for (int i = 0; i < limit; i++) {
+        if (out.size() >= MAX_CONTEXT_FIELDS) {
+          reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
+          break;
+        }
+        copyPrunedValue(out, key + "[" + i + "]", list.get(i), seen, depth + 1, reasonMask);
+      }
+      seen.remove(list);
+      return;
+    }
+    if (value.isStructure()) {
+      final Structure structure = value.asStructure();
+      if (depth >= MAX_SNAPSHOT_DEPTH) {
+        reasonMask[0] |= REASON_MAX_SNAPSHOT_DEPTH;
+        return;
+      }
+      if (!seen.add(structure)) {
+        reasonMask[0] |= REASON_CYCLE;
+        return;
+      }
+      int walked = 0;
+      for (final String property : structure.keySet()) {
+        if (walked >= MAX_STRUCTURE_PROPERTIES) {
+          reasonMask[0] |= REASON_MAX_STRUCTURE_PROPERTIES;
+          break;
+        }
+        if (out.size() >= MAX_CONTEXT_FIELDS) {
+          reasonMask[0] |= REASON_MAX_CONTEXT_FIELDS;
+          break;
+        }
+        walked++;
+        copyPrunedValue(
+            out, key + "." + property, structure.getValue(property), seen, depth + 1, reasonMask);
+      }
+      seen.remove(structure);
+    }
   }
 
   @FunctionalInterface

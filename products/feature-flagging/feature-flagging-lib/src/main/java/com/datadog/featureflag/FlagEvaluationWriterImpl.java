@@ -18,6 +18,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -26,78 +27,49 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * EVP {@code flagevaluation} writer for Java.
+ * EVP flagevaluation writer for Java.
  *
- * <p>Uses the same EVP publisher path as {@link ExposureWriterImpl}, with two-tier aggregation
- * replacing the single-exposure buffer. Routes to the Agent-advertised EVP proxy endpoint for
- * {@code /api/v2/flagevaluation}.
+ * <p>Uses the same EVP publisher path as ExposureWriterImpl, with two-tier aggregation replacing
+ * the single-exposure buffer. Routes to the Agent-advertised EVP proxy endpoint for
+ * /api/v2/flagevaluation.
  *
- * <p>Two-tier aggregation contract:
- *
- * <ul>
- *   <li>Two-tier aggregation: full -> degraded -> drop-counted.
- *   <li>Full key: (flagKey, variant, allocationKey, runtimeDefault, errorMessage, targetingKey,
- *       canonical-context-key).
- *   <li>Degraded key: (flagKey, variant, allocationKey, runtimeDefault, errorMessage) - no
- *       targetingKey/context.
- *   <li>Canonical context key: sorted entries, type-tagged length-delimited encoding - NOT a hash
- *       (collision-safe, comparable string identity).
- *   <li>Context pruning: deterministic (sort before cut), <=256 fields, string values <=256 chars;
- *       the pruned attributes are what gets aggregated and serialized.
- *   <li>Caps: globalCap=131072, perFlagCap=10000, degradedCap=32768.
- *   <li>Eval-time: min/max of firstEvalMs/lastEvalMs across events in the same bucket.
- *   <li>Runtime default: absent variant means {@code runtimeDefaultUsed=true}.
- *   <li>Flush interval: 10 seconds.
- *   <li>Queue: bounded MessagePassingBlockingQueue (capacity 2^16), non-blocking offer; on overflow
- *       the event is dropped and the {@code droppedQueueOverflow} counter is incremented and
- *       surfaced on flush.
- *   <li>Enqueue: lock-free. Producers contend only on the MPSC queue, never on a monitor, so
- *       evaluation threads do not serialize against each other.
- *   <li>Shutdown: {@link #close()} drains the queue and performs a final flush before the worker
- *       thread exits. Because enqueue is lock-free, a producer can still offer during shutdown; the
- *       worker makes {@link #SHUTDOWN_DRAIN_PASSES} drain passes and {@code close()} sweeps once
- *       the worker has been joined, counting any remainder as a {@code closed} drop so shutdown
- *       loss is observable rather than silent.
- * </ul>
+ * <p>Two-tier aggregation contract: Full key: (flagKey, variant, allocationKey, runtimeDefault,
+ * errorMessage, targetingKey, canonical-context-key). Degraded key: (flagKey, variant,
+ * allocationKey, runtimeDefault, errorMessage) - no targetingKey/context. Canonical context key:
+ * sorted entries, type-tagged length-delimited encoding - NOT a hash (collision-safe, comparable
+ * string identity). Context pruning: deterministic (sort before cut), <=256 fields, string values
+ * <=256 chars; the pruned attributes are what gets aggregated and serialized. Caps:
+ * globalCap=131072, perFlagCap=10000, degradedCap=32768. Eval-time: min/max of
+ * firstEvalMs/lastEvalMs across events in the same bucket. Runtime default: absent variant means
+ * runtimeDefaultUsed=true. Flush interval: 10 seconds. Queue: bounded MessagePassingBlockingQueue
+ * (capacity 2^16), non-blocking offer; on overflow the event is dropped and the
+ * droppedQueueOverflow counter is incremented and surfaced on flush. Enqueue: lock-free. Producers
+ * contend only on the MPSC queue, never on a monitor, so evaluation threads do not serialize
+ * against each other. Shutdown: close() drains the queue and performs a final flush before the
+ * worker thread exits. Because enqueue is lock-free, a producer can still offer during shutdown;
+ * close() sweeps the queue once the worker has been joined, counting any remainder as a closed drop
+ * so shutdown loss is observable rather than silent.
  */
 public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluationWriterImpl.class);
 
-  static final int DEFAULT_CAPACITY = 1 << 16; // 65536 elements
+  static final int DEFAULT_CAPACITY = 1 << 12; // 4096 elements, per cross-SDK RFC
   static final int FLUSH_INTERVAL_SECONDS = 10;
 
-  /**
-   * Drain passes the worker makes on shutdown, to catch offers from lock-free producers in flight.
-   */
-  static final int SHUTDOWN_DRAIN_PASSES = 3;
-
-  static final int EVAL_SCALE_FULL_BUCKET_TARGET =
-      FlagEvaluationAggregator.EVAL_SCALE_FULL_BUCKET_TARGET;
-  static final int EVAL_SCALE_PER_FLAG_BUCKET_TARGET =
-      FlagEvaluationAggregator.EVAL_SCALE_PER_FLAG_BUCKET_TARGET;
-  static final int EVAL_SCALE_DEGRADED_BUCKET_TARGET =
-      FlagEvaluationAggregator.EVAL_SCALE_DEGRADED_BUCKET_TARGET;
-  static final int GLOBAL_CAP = FlagEvaluationAggregator.GLOBAL_CAP;
-  static final int PER_FLAG_CAP = FlagEvaluationAggregator.PER_FLAG_CAP;
-  static final int DEGRADED_CAP = FlagEvaluationAggregator.DEGRADED_CAP;
   static final int FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES = EvpProxy.PAYLOAD_SIZE_LIMIT_BYTES;
   static final String FLAG_EVALUATION_DROPPED_METRIC = "flagevaluation.rows.dropped";
   static final String FLAG_EVALUATION_DEGRADED_METRIC = "flagevaluation.rows.degraded";
   static final String FLAG_EVALUATION_SPLITS_METRIC = "flagevaluation.payload.splits";
+  static final String FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC = "flagevaluation.context.truncated";
   static final String DROP_REASON_QUEUE_OVERFLOW = "queue_overflow";
   static final String DROP_REASON_CLOSED = "closed";
-  static final String DROP_REASON_CONTEXT_ERROR = "context_error";
   static final String DROP_REASON_DEGRADED_CAP = "degraded_cap";
   static final String DROP_REASON_PAYLOAD_LIMIT = "payload_limit";
   static final String DEGRADED_REASON_CARDINALITY_CAP = "cardinality_cap";
   static final String DEGRADED_REASON_PAYLOAD_LIMIT = "payload_limit";
   private static final String FLAG_EVALUATION_ROUTE = "flagevaluation";
   private static final CoreMetricCollector CORE_METRICS = CoreMetricCollector.getInstance();
-
-  // Context pruning limits: max fields and max string value length
-  static final int MAX_CONTEXT_FIELDS = FlagEvaluationAggregator.MAX_CONTEXT_FIELDS;
-  static final int MAX_FIELD_LENGTH = FlagEvaluationAggregator.MAX_FIELD_LENGTH;
 
   private final MessagePassingBlockingQueue<FlagEvalEvent> queue;
   private final FlagEvaluationSerializingHandler serializer;
@@ -118,6 +90,14 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
    */
   private final AtomicLong droppedQueueOverflow = new AtomicLong(0);
 
+  /**
+   * Per-reason-tag counters for evaluations whose context was truncated by copyPrunedContext. Keyed
+   * by the sorted comma-separated reason string (e.g. "max_key_length,max_value_length").
+   * Incremented on the hook thread, drained and emitted on flush.
+   */
+  private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts =
+      new ConcurrentHashMap<>();
+
   public FlagEvaluationWriterImpl(final SharedCommunicationObjects sco, final Config config) {
     this(DEFAULT_CAPACITY, FLUSH_INTERVAL_SECONDS, SECONDS, sco, config);
   }
@@ -131,7 +111,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     this(capacity, flushInterval, timeUnit, new BackendApiFactory(config, sco), config);
   }
 
-  /** Package-private constructor allowing a {@link BackendApiFactory} to be injected for tests. */
+  /** Package-private constructor allowing a BackendApiFactory to be injected for tests. */
   FlagEvaluationWriterImpl(
       final int capacity,
       final long flushInterval,
@@ -147,6 +127,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
             timeUnit,
             FeatureFlagEvpContext.from(config),
             droppedQueueOverflow,
+            contextTruncatedCounts,
             this::close);
     this.serializerThread = newAgentThread(FEATURE_FLAG_EVALUATION_PROCESSOR, serializer);
   }
@@ -247,10 +228,33 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     // the queue's own offer/poll ordering, not from any monitor held here.
     //
     // Non-blocking offer. Count overflow so loss is observable rather than silent; the count is
-    // surfaced on the next flush.
+    // surfaced on the next flush. The hook's pre-queue guard (see FlagEvalLoggingHook) samples the
+    // queue depth before doing any context-copy work, so a saturated queue costs an
+    // AtomicInteger.get(); the offer here still races with the worker and can legitimately fail.
     if (!queue.offer(event)) {
       droppedQueueOverflow.incrementAndGet();
     }
+  }
+
+  /**
+   * Reports whether the async hand-off queue currently has room for another event. Producers
+   * consult this before performing any expensive context-copy work so a saturated queue is observed
+   * as an O(1) read rather than a full snapshot followed by a discarded offer. Best-effort only:
+   * the worker can drain (or a peer producer can fill) between this check and the subsequent
+   * enqueue, so callers must still tolerate offer failure.
+   */
+  public boolean hasCapacityForEnqueue() {
+    return queue.size() < queue.capacity();
+  }
+
+  /** Counts one queue-overflow drop without offering an event. */
+  public void countPreQueueOverflow() {
+    droppedQueueOverflow.incrementAndGet();
+  }
+
+  @Override
+  public void countContextTruncated(final String reason) {
+    contextTruncatedCounts.computeIfAbsent(reason, k -> new AtomicLong(0)).incrementAndGet();
   }
 
   private boolean isClosedOrEnqueueDisabled() {
@@ -280,34 +284,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     serializer.flush();
   }
 
-  // ---- Deterministic context pruning ----
-
-  /**
-   * Produces the deterministically-pruned context map used for both the canonical key and the
-   * serialized payload. Keys are sorted FIRST, then the first {@link #MAX_CONTEXT_FIELDS}
-   * non-oversized values are kept, so two logically-identical contexts always prune to the same
-   * subset (and therefore the same canonical key). Oversized string values (>{@link
-   * #MAX_FIELD_LENGTH} chars) are skipped. Returns an empty map for null/empty input.
-   */
-  static Map<String, Object> pruneContext(final Map<String, Object> attrs) {
-    return FlagEvaluationAggregator.pruneContext(attrs);
-  }
-
-  // ---- Canonical context key ----
-  // Sorted entries, type-tagged length-delimited encoding. NOT a hash (collision-safe string key).
-  // Implementation mirrors dd-trace-go/openfeature/flagevaluation.go canonicalContextKey().
-
-  /**
-   * Builds the canonical context key from the already-pruned context map for the full-tier bucket
-   * identity. Expects a pruned, sorted map (e.g. produced by {@link #pruneContext(Map)}); iterating
-   * a {@link TreeMap} yields keys in sorted order, so the encoding is deterministic.
-   *
-   * <p>Returns an empty string for null/empty context.
-   */
-  static String canonicalContextKey(final Map<String, Object> prunedAttrs) {
-    return FlagEvaluationAggregator.canonicalContextKey(prunedAttrs);
-  }
-
   // ---- Serializing handler (background thread logic) ----
 
   static class FlagEvaluationSerializingHandler implements Runnable {
@@ -323,6 +299,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         evpPublisher;
     final Map<String, String> context;
     private final AtomicLong droppedQueueOverflow;
+    private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts;
     private final Runnable errorCallback;
     private final int payloadSizeLimitBytes;
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
@@ -338,6 +315,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         final TimeUnit timeUnit,
         final Map<String, String> context,
         final AtomicLong droppedQueueOverflow,
+        final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
         final Runnable errorCallback) {
       this(
           backendApiFactory,
@@ -346,6 +324,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
           timeUnit,
           context,
           droppedQueueOverflow,
+          contextTruncatedCounts,
           errorCallback,
           FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
     }
@@ -357,6 +336,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         final TimeUnit timeUnit,
         final Map<String, String> context,
         final AtomicLong droppedQueueOverflow,
+        final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts,
         final Runnable errorCallback,
         final int payloadSizeLimitBytes) {
       this.queue = queue;
@@ -365,6 +345,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
               backendApiFactory, FlagEvaluationPayloads.FlagEvaluationsRequest.class, false);
       this.context = context;
       this.droppedQueueOverflow = droppedQueueOverflow;
+      this.contextTruncatedCounts = contextTruncatedCounts;
       this.payloadSizeLimitBytes = payloadSizeLimitBytes;
       this.lastTicks = System.nanoTime();
       this.ticksRequiredToFlush = timeUnit.toNanos(flushInterval);
@@ -408,25 +389,10 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       }
     }
 
-    /**
-     * Drains all remaining queued events and performs a final flush. Used on shutdown.
-     *
-     * <p>{@code enqueue()} is lock-free, so a producer that had already passed the closed check
-     * when {@code close()} ran can still offer after the first pass empties the queue. A bounded
-     * number of extra passes, with a yield between them, catches those in-flight offers. On the
-     * normal shutdown path {@code close()} also sweeps after joining this thread, but when the
-     * worker closes itself through the error callback nobody joins it, so these passes are the only
-     * sweep.
-     */
     void drainAndFlush() {
-      for (int pass = 0; pass < SHUTDOWN_DRAIN_PASSES; pass++) {
-        FlagEvalEvent event;
-        while ((event = queue.poll()) != null) {
-          aggregateEvent(event);
-        }
-        if (pass < SHUTDOWN_DRAIN_PASSES - 1) {
-          Thread.yield();
-        }
+      FlagEvalEvent event;
+      while ((event = queue.poll()) != null) {
+        aggregateEvent(event);
       }
       flush();
     }
@@ -438,7 +404,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       try {
         aggregator.aggregate(event);
       } catch (LinkageError | RuntimeException e) {
-        countMetric(FLAG_EVALUATION_DROPPED_METRIC, 1, DROP_REASON_CONTEXT_ERROR);
         LOGGER.debug("Could not aggregate flag evaluation event", e);
       }
     }
@@ -446,9 +411,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     // ---- Flush logic ----
 
     void flushIfNecessary() {
-      if (aggregator.isEmpty() && droppedQueueOverflow.get() == 0) {
-        return;
-      }
       if (shouldFlush()) {
         flush();
       }
@@ -472,6 +434,14 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
             "degraded aggregation tier full - dropped {} evaluation(s); raise degraded cap"
                 + " (best-effort telemetry)",
             dgDrops);
+      }
+
+      // Drain per-reason context-truncation counters and emit one metric per unique reason tag.
+      for (final Map.Entry<String, AtomicLong> entry : contextTruncatedCounts.entrySet()) {
+        final long count = entry.getValue().getAndSet(0);
+        if (count > 0) {
+          countMetric(FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC, count, entry.getKey());
+        }
       }
 
       if (aggregator.isEmpty()) {
@@ -540,6 +510,9 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     }
 
     private boolean shouldFlush() {
+      if (aggregator.isEmpty() && droppedQueueOverflow.get() == 0) {
+        return false;
+      }
       final long nanoTime = System.nanoTime();
       final long ticks = nanoTime - lastTicks;
       if (ticks > ticksRequiredToFlush) {
@@ -573,6 +546,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
           TimeUnit.NANOSECONDS,
           context,
           new AtomicLong(0),
+          new ConcurrentHashMap<>(),
           () -> {},
           payloadSizeLimitBytes);
     }

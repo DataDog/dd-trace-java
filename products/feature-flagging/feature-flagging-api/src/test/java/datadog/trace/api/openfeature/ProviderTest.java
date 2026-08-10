@@ -375,7 +375,7 @@ public class ProviderTest {
                 .flagMetadata(
                     ImmutableMetadata.builder()
                         .addString("allocationKey", "allocation-1")
-                        .addLong("dd.eval.timestamp_ms", 1_700_000_000_000L)
+                        .addLong("__dd_eval_timestamp_ms", 1_700_000_000_000L)
                         .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, true)
                         .build())
                 .build());
@@ -394,7 +394,7 @@ public class ProviderTest {
     assertThat(event.allocationKey, equalTo("allocation-1"));
     assertThat(event.targetingKey, equalTo("user-1"));
     assertThat(event.evalTimeMs, equalTo(1_700_000_000_000L));
-    assertThat(event.contextAttributes().get("region"), equalTo("us-east-1"));
+    assertThat(event.attrs.get("region"), equalTo("us-east-1"));
   }
 
   @Test
@@ -463,6 +463,17 @@ public class ProviderTest {
       public void enqueue(final FlagEvalEvent event) {
         ref.set(event);
       }
+
+      @Override
+      public boolean hasCapacityForEnqueue() {
+        return true;
+      }
+
+      @Override
+      public void countPreQueueOverflow() {}
+
+      @Override
+      public void countContextTruncated(final String reason) {}
 
       @Override
       public void start() {}

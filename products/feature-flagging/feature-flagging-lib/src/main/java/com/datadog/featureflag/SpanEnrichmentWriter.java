@@ -41,7 +41,8 @@ import org.slf4j.LoggerFactory;
             + "test-only seams for injecting the root-span resolver and interceptor registrar. The "
             + "singleton itself is required (PR #11658 review) so the single, unremovable trace "
             + "interceptor is registered exactly once and survives subsystem start/stop.")
-public final class SpanEnrichmentWriter implements FeatureFlaggingGateway.SpanEnrichmentListener {
+public final class SpanEnrichmentWriter
+    implements FeatureFlaggingGateway.SpanEnrichmentListener, AutoCloseable {
 
   private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentWriter.class);
 

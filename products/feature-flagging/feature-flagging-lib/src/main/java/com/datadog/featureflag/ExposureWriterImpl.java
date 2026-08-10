@@ -1,5 +1,6 @@
 package com.datadog.featureflag;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_EXPOSURE_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -160,12 +161,20 @@ public class ExposureWriterImpl implements ExposureWriter {
         return;
       }
       if (shouldFlush()) {
+        final byte[] payload;
         try {
           final ExposuresRequest exposures = new ExposuresRequest(this.context, this.buffer);
-          evpPublisher.post(EXPOSURES_ROUTE, exposures);
+          payload = evpPublisher.serialize(exposures);
+        } catch (RuntimeException e) {
+          LOGGER.error(EXCLUDE_TELEMETRY, "Could not serialize exposures; dropping batch", e);
+          this.buffer.clear();
+          return;
+        }
+        try {
+          evpPublisher.post(EXPOSURES_ROUTE, payload);
           this.buffer.clear();
         } catch (Exception e) {
-          LOGGER.error("Could not submit exposures", e);
+          LOGGER.debug("Could not submit exposures", e);
         }
       }
     }

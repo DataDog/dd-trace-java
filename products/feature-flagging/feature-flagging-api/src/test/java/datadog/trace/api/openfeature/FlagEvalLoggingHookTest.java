@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
@@ -67,6 +68,17 @@ class FlagEvalLoggingHookTest {
       public void enqueue(final FlagEvalEvent event) {
         ref.set(event);
       }
+
+      @Override
+      public boolean hasCapacityForEnqueue() {
+        return true;
+      }
+
+      @Override
+      public void countPreQueueOverflow() {}
+
+      @Override
+      public void countContextTruncated(final String reason) {}
 
       @Override
       public void start() {}
@@ -157,7 +169,7 @@ class FlagEvalLoggingHookTest {
         "variant must be sourced from details.getVariant(), not details.getValue()");
   }
 
-  // ---- test: evalTimeMs from metadata "dd.eval.timestamp_ms" ----
+  // ---- test: evalTimeMs from metadata "__dd_eval_timestamp_ms" ----
 
   @Test
   void evalTimeMsComesFromMetadataWhenPresent() {
@@ -173,7 +185,7 @@ class FlagEvalLoggingHookTest {
             Reason.SPLIT.name(),
             ImmutableMetadata.builder()
                 .addString("allocationKey", "a")
-                .addLong("dd.eval.timestamp_ms", expectedTimestamp)
+                .addLong("__dd_eval_timestamp_ms", expectedTimestamp)
                 .build());
 
     hook.finallyAfter(null, det, Collections.emptyMap());
@@ -182,7 +194,7 @@ class FlagEvalLoggingHookTest {
     assertEquals(
         expectedTimestamp,
         captured.get().evalTimeMs,
-        "evalTimeMs must come from dd.eval.timestamp_ms metadata when present");
+        "evalTimeMs must come from __dd_eval_timestamp_ms metadata when present");
   }
 
   // ---- test: evalTimeMs falls back to System.currentTimeMillis() when absent ----
@@ -348,8 +360,9 @@ class FlagEvalLoggingHookTest {
   // ---- test: hook does NO aggregation on the hook thread ----
 
   @Test
-  void finallyAfterOnlyCallsEnqueueNoOtherWriterMethods() {
+  void finallyAfterOnlyCallsEnqueueAndCapacityCheckOnWriter() {
     final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    when(writer.hasCapacityForEnqueue()).thenReturn(true);
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
 
     final FlagEvaluationDetails<Object> det =
@@ -357,10 +370,91 @@ class FlagEvalLoggingHookTest {
 
     hook.finallyAfter(null, det, Collections.emptyMap());
 
-    // Exactly one enqueue call, no start/close.
+    // Capacity check gates the enqueue; exactly one enqueue call; no start/close.
+    verify(writer, times(1)).hasCapacityForEnqueue();
     verify(writer, times(1)).enqueue(any(FlagEvalEvent.class));
+    verify(writer, never()).countPreQueueOverflow();
+    verify(writer, never()).countContextTruncated(any());
     verify(writer, never()).close();
     verify(writer, never()).start();
+  }
+
+  @Test
+  void finallyAfterSkipsEnqueueAndCountsDropWhenQueueSaturated() {
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    when(writer.hasCapacityForEnqueue()).thenReturn(false);
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
+
+    final FlagEvaluationDetails<Object> det =
+        details("flag", "v", "v", Reason.TARGETING_MATCH.name(), null);
+
+    hook.finallyAfter(null, det, Collections.emptyMap());
+
+    // Pre-queue guard fires: one capacity check, one drop count, and no enqueue at all.
+    verify(writer, times(1)).hasCapacityForEnqueue();
+    verify(writer, times(1)).countPreQueueOverflow();
+    verify(writer, never()).enqueue(any(FlagEvalEvent.class));
+  }
+
+  @Test
+  void countContextTruncatedCalledWhenContextIsTruncated() {
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    when(writer.hasCapacityForEnqueue()).thenReturn(true);
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
+
+    // Context with one oversized string value — triggers max_value_length.
+    final char[] longChars = new char[DDEvaluator.MAX_VALUE_LENGTH + 1];
+    java.util.Arrays.fill(longChars, 'x');
+    final MutableContext ctx = new MutableContext("user-1");
+    ctx.add("oversized", new String(longChars));
+    final HookContext<Object> hookCtx =
+        HookContext.<Object>builder()
+            .flagKey("flag")
+            .type(dev.openfeature.sdk.FlagValueType.STRING)
+            .defaultValue("default")
+            .ctx(ctx)
+            .build();
+    final FlagEvaluationDetails<Object> det =
+        details(
+            "flag",
+            "v",
+            "v",
+            dev.openfeature.sdk.Reason.TARGETING_MATCH.name(),
+            consentOnMetadata());
+
+    hook.finallyAfter(hookCtx, det, Collections.emptyMap());
+
+    verify(writer, times(1)).countContextTruncated("max_value_length");
+    verify(writer, times(1)).enqueue(any(FlagEvalEvent.class));
+  }
+
+  @Test
+  void countContextTruncatedNotCalledWhenNoTruncation() {
+    final FlagEvaluationWriter writer = mock(FlagEvaluationWriter.class);
+    when(writer.hasCapacityForEnqueue()).thenReturn(true);
+    final FlagEvalLoggingHook<Object> hook = hookWithWriter(writer);
+
+    final MutableContext ctx = new MutableContext("user-1");
+    ctx.add("region", "us-east-1");
+    final HookContext<Object> hookCtx =
+        HookContext.<Object>builder()
+            .flagKey("flag")
+            .type(dev.openfeature.sdk.FlagValueType.STRING)
+            .defaultValue("default")
+            .ctx(ctx)
+            .build();
+    final FlagEvaluationDetails<Object> det =
+        details(
+            "flag",
+            "v",
+            "v",
+            dev.openfeature.sdk.Reason.TARGETING_MATCH.name(),
+            consentOnMetadata());
+
+    hook.finallyAfter(hookCtx, det, Collections.emptyMap());
+
+    verify(writer, never()).countContextTruncated(any());
+    verify(writer, times(1)).enqueue(any(FlagEvalEvent.class));
   }
 
   @Test
@@ -441,7 +535,7 @@ class FlagEvalLoggingHookTest {
   }
 
   @Test
-  void contextAttributesAreFlattenedAndConvertedAfterEnqueue() {
+  void contextAttributesAreFlattenedAndConvertedInline() {
     final AtomicReference<FlagEvalEvent> captured = new AtomicReference<>();
     final FlagEvalLoggingHook<Object> hook = hookWithWriter(capturingWriter(captured));
 
@@ -467,8 +561,10 @@ class FlagEvalLoggingHookTest {
     hook.finallyAfter(hookCtx, det, Collections.emptyMap());
 
     assertNotNull(captured.get());
-    assertTrue(captured.get().attrs.isEmpty(), "hook must not flatten context before enqueue");
-    final Map<String, Object> attrs = captured.get().contextAttributes();
+    // Flatten now happens inline in DDEvaluator#copyPrunedContext on the hot path, so the event
+    // arrives with attrs already populated (no deferred supplier).
+    final Map<String, Object> attrs = captured.get().attrs;
+    assertFalse(attrs.isEmpty(), "hook must flatten context inline");
     assertEquals(42, attrs.get("score"));
     assertEquals("gold", attrs.get("profile.tier"));
     assertFalse(attrs.containsKey("targetingKey"));
@@ -510,7 +606,7 @@ class FlagEvalLoggingHookTest {
     cohorts.add(Value.objectToValue("late"));
 
     assertNotNull(captured.get());
-    final Map<String, Object> attrs = captured.get().contextAttributes();
+    final Map<String, Object> attrs = captured.get().attrs;
     assertEquals("us-east-1", attrs.get("region"));
     assertEquals("gold", attrs.get("profile.tier"));
     assertEquals("beta", attrs.get("cohorts[0]"));
@@ -567,7 +663,6 @@ class FlagEvalLoggingHookTest {
 
     assertNotNull(captured.get());
     assertTrue(captured.get().attrs.isEmpty());
-    assertTrue(captured.get().contextAttributes().isEmpty());
   }
 
   @Test

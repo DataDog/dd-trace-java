@@ -3241,6 +3241,22 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVEMEM_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVEMEM_INTERVAL": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "524288",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_EXPERIMENTAL_DDPROF_SCHEDULING_EVENT": [
       {
         "version": "A",
@@ -5047,6 +5063,14 @@
         "type": "array",
         "default": "[\"user.id\", \"session.id\", \"account.id\"]",
         "aliases": []
+      }
+    ],
+    "DD_TRACE_BEANSHELL_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_BEANSHELL_ENABLED", "DD_INTEGRATION_BEANSHELL_ENABLED"]
       }
     ],
     "DD_TRACE_CAFFEINE_ENABLED": [

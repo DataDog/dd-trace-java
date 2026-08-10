@@ -8,6 +8,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +25,10 @@ public class FeatureFlaggingSystem {
 
   private FeatureFlaggingSystem() {}
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
   public static synchronized void start(final SharedCommunicationObjects sco) {
     if (STARTED) {
       LOGGER.debug("Feature Flagging system already started");
@@ -144,6 +149,10 @@ public class FeatureFlaggingSystem {
     return null;
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
   public static synchronized void stop() {
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
     FeatureFlaggingGateway.setFlagEvalWriter(null);
@@ -161,31 +170,23 @@ public class FeatureFlaggingSystem {
     if (activationListener != null) {
       FeatureFlaggingGateway.removeActivationListener(activationListener);
     }
-    try {
-      if (flagEvalWriter != null) {
-        flagEvalWriter.close();
-      }
-    } finally {
-      try {
-        if (spanEnrichmentWriter != null) {
-          spanEnrichmentWriter.close();
-        }
-      } finally {
-        try {
-          if (exposureWriter != null) {
-            exposureWriter.close();
-          }
-        } finally {
-          if (configService != null) {
-            configService.close();
-          }
-        }
-      }
-    }
+    closeQuietly(flagEvalWriter);
+    closeQuietly(spanEnrichmentWriter);
+    closeQuietly(exposureWriter);
+    closeQuietly(configService);
     LOGGER.debug("Feature Flagging system stopped");
   }
 
   static boolean isAwaitingApplicationActivation() {
     return ACTIVATION_LISTENER != null;
+  }
+
+  private static void closeQuietly(final AutoCloseable resource) {
+    if (resource != null) {
+      try {
+        resource.close();
+      } catch (Exception ignored) {
+      }
+    }
   }
 }

@@ -10,23 +10,25 @@ import java.util.concurrent.atomic.AtomicLong;
 
 final class FlagEvaluationAggregator {
 
-  static final int EVAL_SCALE_TARGET_FLAGS = 2_500;
-  static final int EVAL_SCALE_FULL_BUCKETS_PER_FLAG = 50;
-  static final int EVAL_SCALE_USERS_PER_FLAG = 1_000;
-  static final int EVAL_SCALE_PER_FLAG_HEADROOM_MULTIPLIER = 10;
-  static final int EVAL_SCALE_DEGRADED_BUCKETS_PER_FLAG = 10;
-  static final int EVAL_SCALE_FULL_BUCKET_TARGET =
-      EVAL_SCALE_TARGET_FLAGS * EVAL_SCALE_FULL_BUCKETS_PER_FLAG;
-  static final int EVAL_SCALE_PER_FLAG_BUCKET_TARGET =
-      EVAL_SCALE_PER_FLAG_HEADROOM_MULTIPLIER * EVAL_SCALE_USERS_PER_FLAG;
-  static final int EVAL_SCALE_DEGRADED_BUCKET_TARGET =
-      EVAL_SCALE_TARGET_FLAGS * EVAL_SCALE_DEGRADED_BUCKETS_PER_FLAG;
-  static final int GLOBAL_CAP = 131_072;
-  static final int PER_FLAG_CAP = EVAL_SCALE_PER_FLAG_BUCKET_TARGET;
-  static final int DEGRADED_CAP = 32_768;
+  // Design assumptions — document the scale we sized for
+  static final int EXPECTED_FLAG_COUNT = 2_500;
+  static final int EXPECTED_FULL_BUCKETS_PER_FLAG = 50;
+  static final int EXPECTED_USERS_PER_FLAG = 1_000;
+  static final int PER_FLAG_HEADROOM_MULTIPLIER = 10;
+  static final int EXPECTED_DEGRADED_BUCKETS_PER_FLAG = 10;
 
-  static final int MAX_CONTEXT_FIELDS = 256;
-  static final int MAX_FIELD_LENGTH = 256;
+  // Derived sizing — show the math behind the bucket caps below
+  static final int FULL_BUCKET_SIZING_BASIS =
+      EXPECTED_FLAG_COUNT * EXPECTED_FULL_BUCKETS_PER_FLAG; // 125_000
+  static final int PER_FLAG_BUCKET_SIZING_BASIS =
+      PER_FLAG_HEADROOM_MULTIPLIER * EXPECTED_USERS_PER_FLAG; // 10_000
+  static final int DEGRADED_BUCKET_SIZING_BASIS =
+      EXPECTED_FLAG_COUNT * EXPECTED_DEGRADED_BUCKETS_PER_FLAG; // 25_000
+
+  // Enforced bucket caps
+  static final int GLOBAL_CAP = 131_072; // nearest power of two above FULL_BUCKET_SIZING_BASIS
+  static final int PER_FLAG_CAP = PER_FLAG_BUCKET_SIZING_BASIS;
+  static final int DEGRADED_CAP = 32_768; // nearest power of two above DEGRADED_BUCKET_SIZING_BASIS
 
   private static final byte CTX_TAG_STRING = 's';
   private static final byte CTX_TAG_BOOL = 'b';
@@ -48,8 +50,7 @@ final class FlagEvaluationAggregator {
     // On the protected path the context is dropped on emit, so it must not fragment buckets or be
     // stored — otherwise a high-cardinality field (request_id, timestamp) blows out PER_FLAG_CAP
     // and spills every subsequent evaluation into the degraded tier.
-    final Map<String, Object> prunedAttrs =
-        observeFullEvaluationData ? pruneContext(event.contextAttributes()) : null;
+    final Map<String, Object> prunedAttrs = observeFullEvaluationData ? event.attrs : null;
     final String ctxKey = observeFullEvaluationData ? canonicalContextKey(prunedAttrs) : "";
     final FullKey fullKey = buildFullKey(event, ctxKey);
 
@@ -205,27 +206,6 @@ final class FlagEvaluationAggregator {
         event.allocationKey,
         event.variant == null,
         event.errorMessage);
-  }
-
-  static Map<String, Object> pruneContext(final Map<String, Object> attrs) {
-    if (attrs == null || attrs.isEmpty()) {
-      return java.util.Collections.emptyMap();
-    }
-    final TreeMap<String, Object> out = new TreeMap<>();
-    final TreeMap<String, Object> sorted = new TreeMap<>(attrs);
-    int count = 0;
-    for (final Map.Entry<String, Object> entry : sorted.entrySet()) {
-      if (count >= MAX_CONTEXT_FIELDS) {
-        break;
-      }
-      final Object v = entry.getValue();
-      if (v instanceof String && ((String) v).length() > MAX_FIELD_LENGTH) {
-        continue;
-      }
-      out.put(entry.getKey(), v);
-      count++;
-    }
-    return out;
   }
 
   static String canonicalContextKey(final Map<String, Object> prunedAttrs) {

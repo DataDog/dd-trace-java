@@ -47,7 +47,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -133,7 +133,7 @@ public class DDEvaluatorTest {
       Arguments.of(Value.class, null, null),
 
       // Unsupported
-      Arguments.of(Date.class, "21-12-2023", IllegalArgumentException.class),
+      Arguments.of(Long.class, 42L, IllegalArgumentException.class),
     };
   }
 
@@ -457,6 +457,33 @@ public class DDEvaluatorTest {
     return evaluator.evaluate(Integer.class, "num-rule", 23, ctx);
   }
 
+  @Test
+  public void testAllocationDateAbiAndInstantAccessors() throws Exception {
+    final Date startAt = Date.from(Instant.parse("2024-01-01T00:00:00Z"));
+    final Date endAt = Date.from(Instant.parse("2024-12-31T23:59:59Z"));
+    final Allocation allocation =
+        new Allocation("allocation", emptyList(), startAt, endAt, emptyList(), true);
+
+    assertThat(Allocation.class.getField("startAt").getType(), equalTo(Date.class));
+    assertThat(Allocation.class.getField("endAt").getType(), equalTo(Date.class));
+    assertThat(allocation.startAtInstant(), equalTo(startAt.toInstant()));
+    assertThat(allocation.endAtInstant(), equalTo(endAt.toInstant()));
+  }
+
+  @Test
+  public void testAllocationWindowHonorsMicrosecondPrecision() {
+    final Instant startAt = Instant.parse("2024-01-01T00:00:00.123456Z");
+    final Instant endAt = Instant.parse("2024-01-01T00:00:00.987654Z");
+    final Allocation allocation =
+        Allocation.fromInstants("allocation", emptyList(), startAt, endAt, emptyList(), true);
+
+    assertThat(
+        DDEvaluator.isAllocationActive(allocation, startAt.minusNanos(1_000)), equalTo(false));
+    assertThat(DDEvaluator.isAllocationActive(allocation, startAt), equalTo(true));
+    assertThat(DDEvaluator.isAllocationActive(allocation, endAt), equalTo(true));
+    assertThat(DDEvaluator.isAllocationActive(allocation, endAt.plusNanos(1_000)), equalTo(false));
+  }
+
   private static Arguments[] flatteningTestCases() {
     final List<Arguments> arguments = new ArrayList<>();
     arguments.add(Arguments.of(emptyMap(), emptyMap()));
@@ -510,6 +537,144 @@ public class DDEvaluatorTest {
     }
     assertThat(result.size(), equalTo(1));
     assertThat(result, hasEntry(truncatedKey.toString(), null));
+  }
+
+  @Test
+  public void testCopyPrunedContextCapsTopLevelFieldCount() {
+    final MutableContext context = new MutableContext();
+    for (int i = 0; i < DDEvaluator.MAX_CONTEXT_FIELDS + 100; i++) {
+      context.add(String.format("k%04d", i), "v");
+    }
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.attrs.size(), equalTo(DDEvaluator.MAX_CONTEXT_FIELDS));
+    assertThat(result.truncatedReason, equalTo("max_context_fields"));
+  }
+
+  @Test
+  public void testCopyPrunedContextSkipsOversizedStringValues() {
+    final char[] longChars = new char[DDEvaluator.MAX_VALUE_LENGTH + 1];
+    java.util.Arrays.fill(longChars, 'x');
+    final MutableContext context = new MutableContext();
+    context.add("keep", "ok");
+    context.add("drop", new String(longChars));
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.attrs, hasEntry("keep", "ok"));
+    assertThat(result.attrs.containsKey("drop"), equalTo(false));
+    assertThat(result.truncatedReason, equalTo("max_value_length"));
+  }
+
+  @Test
+  public void testCopyPrunedContextSkipsOversizedKeys() {
+    final char[] longKeyChars = new char[DDEvaluator.MAX_KEY_LENGTH + 1];
+    java.util.Arrays.fill(longKeyChars, 'k');
+    final MutableContext context = new MutableContext();
+    context.add("keep", "ok");
+    context.add(new String(longKeyChars), "drop");
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.attrs, hasEntry("keep", "ok"));
+    assertThat(result.attrs.size(), equalTo(1));
+    assertThat(result.truncatedReason, equalTo("max_key_length"));
+  }
+
+  @Test
+  public void testCopyPrunedContextCapsListWidth() {
+    final List<Value> wide = new java.util.ArrayList<>();
+    for (int i = 0; i < DDEvaluator.MAX_LIST_ELEMENTS + 50; i++) {
+      wide.add(Value.objectToValue("v" + i));
+    }
+    final EvaluationContext context = new MutableContext().add("list", wide);
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.attrs.containsKey("list[0]"), equalTo(true));
+    assertThat(
+        result.attrs.containsKey("list[" + (DDEvaluator.MAX_LIST_ELEMENTS - 1) + "]"),
+        equalTo(true));
+    assertThat(
+        result.attrs.containsKey("list[" + DDEvaluator.MAX_LIST_ELEMENTS + "]"), equalTo(false));
+    assertThat(result.truncatedReason, equalTo("max_list_elements"));
+  }
+
+  @Test
+  public void testCopyPrunedContextCapsStructureWidth() {
+    final dev.openfeature.sdk.MutableStructure wide = new dev.openfeature.sdk.MutableStructure();
+    for (int i = 0; i < DDEvaluator.MAX_STRUCTURE_PROPERTIES + 50; i++) {
+      wide.add(String.format("p%04d", i), "v");
+    }
+    final EvaluationContext context = new MutableContext().add("struct", wide);
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    long structKeys = result.attrs.keySet().stream().filter(k -> k.startsWith("struct.")).count();
+    assertThat(structKeys, equalTo((long) DDEvaluator.MAX_STRUCTURE_PROPERTIES));
+    assertThat(result.truncatedReason, equalTo("max_structure_properties"));
+  }
+
+  @Test
+  public void testCopyPrunedContextTruncatesDeepNesting() {
+    Value nested = new Value("leaf");
+    for (int i = 0; i < 10_000; i++) {
+      nested = new Value(singletonList(nested));
+    }
+    final EvaluationContext context = new MutableContext().add("deep", singletonList(nested));
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    final StringBuilder truncatedKey = new StringBuilder("deep");
+    for (int i = 0; i < DDEvaluator.MAX_SNAPSHOT_DEPTH; i++) {
+      truncatedKey.append("[0]");
+    }
+    // The recursion stops on the first list element at MAX_SNAPSHOT_DEPTH; deeper elements are
+    // never walked and no entry is emitted for them.
+    assertThat(result.attrs.containsKey(truncatedKey.toString()), equalTo(false));
+    assertThat(result.attrs.size(), equalTo(0));
+    assertThat(result.truncatedReason, equalTo("max_snapshot_depth"));
+  }
+
+  @Test
+  public void testCopyPrunedContextExcludesTargetingKey() {
+    final MutableContext context = new MutableContext("user-42").add("region", "us-east-1");
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.attrs, hasEntry("region", "us-east-1"));
+    assertThat(result.attrs.containsKey("targetingKey"), equalTo(false));
+    assertThat(result.truncatedReason, equalTo(null));
+  }
+
+  @Test
+  public void testCopyPrunedContextNoTruncationReturnsNullReason() {
+    final MutableContext context = new MutableContext("user-1");
+    context.add("region", "us-east-1");
+    context.add("tier", "gold");
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    assertThat(result.attrs, hasEntry("region", "us-east-1"));
+    assertThat(result.truncatedReason, equalTo(null));
+  }
+
+  @Test
+  public void testCopyPrunedContextMultipleReasonsAreSortedAndDeduplicated() {
+    final char[] longChars = new char[DDEvaluator.MAX_VALUE_LENGTH + 1];
+    java.util.Arrays.fill(longChars, 'x');
+    final char[] longKeyChars = new char[DDEvaluator.MAX_KEY_LENGTH + 1];
+    java.util.Arrays.fill(longKeyChars, 'k');
+    final MutableContext context = new MutableContext();
+    context.add("keep", "ok");
+    context.add("dropValue", new String(longChars));
+    context.add(new String(longKeyChars), "dropKey");
+
+    final DDEvaluator.CopyResult result = DDEvaluator.copyPrunedContext(context);
+
+    // Both max_key_length and max_value_length fired; sorted alphabetically, no duplicates.
+    assertThat(result.truncatedReason, equalTo("max_key_length,max_value_length"));
   }
 
   @Test
@@ -678,7 +843,8 @@ public class DDEvaluatorTest {
         return reader.nextNull();
       }
       try {
-        return Date.from(OffsetDateTime.parse(reader.nextString()).toInstant());
+        return Date.from(
+            DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(reader.nextString(), Instant::from));
       } catch (final Exception ignored) {
         return null;
       }

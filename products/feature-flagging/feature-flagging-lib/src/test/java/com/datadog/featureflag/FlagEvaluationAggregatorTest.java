@@ -135,43 +135,25 @@ class FlagEvaluationAggregatorTest {
   }
 
   @Test
-  void contextExceeding256FieldsIsPrunedToStoredPrunedAttrs() {
+  void aggregatorStoresPrunedAttrsVerbatim() {
+    // Hot-path hook (DDEvaluator#copyPrunedContext) now delivers an already-pruned map.
+    // The aggregator no longer re-prunes; it stores what it is given.
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
-    final Map<String, Object> hugeAttrs = new HashMap<>();
-    for (int i = 0; i < 300; i++) {
-      hugeAttrs.put("key" + i, "v" + i);
+    final Map<String, Object> preprunedAttrs = new HashMap<>();
+    for (int i = 0; i < 100; i++) {
+      preprunedAttrs.put("key" + i, "v" + i);
     }
 
-    aggregator.aggregate(event("flag-d", "on", "alloc1", "user-1", 1000L, true, hugeAttrs));
+    aggregator.aggregate(event("flag-d", "on", "alloc1", "user-1", 1000L, true, preprunedAttrs));
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
-    assertEquals(256, bucket.prunedContextFieldCount());
-    assertEquals(256, bucket.prunedAttrs.size());
+    assertEquals(100, bucket.prunedContextFieldCount());
+    assertEquals(100, bucket.prunedAttrs.size());
   }
 
   @Test
-  void pruningIsDeterministicSortBeforeCut() {
-    final Map<String, Object> attrs = new HashMap<>();
-    for (int i = 0; i < 300; i++) {
-      attrs.put(String.format("k%03d", i), "v" + i);
-    }
-
-    final Map<String, Object> p1 = FlagEvaluationAggregator.pruneContext(attrs);
-    final Map<String, Object> p2 = FlagEvaluationAggregator.pruneContext(new HashMap<>(attrs));
-
-    assertEquals(256, p1.size());
-    assertEquals(p1.keySet(), p2.keySet());
-    assertTrue(p1.containsKey("k000"));
-    assertTrue(p1.containsKey("k255"));
-    assertFalse(p1.containsKey("k256"));
-    assertFalse(p1.containsKey("k299"));
-  }
-
-  @Test
-  void emptyContextInputsProduceEmptyPrunedMapAndCanonicalKey() {
-    assertEquals(emptyMap(), FlagEvaluationAggregator.pruneContext(null));
-    assertEquals(emptyMap(), FlagEvaluationAggregator.pruneContext(emptyMap()));
+  void emptyContextInputsProduceEmptyCanonicalKey() {
     assertEquals("", FlagEvaluationAggregator.canonicalContextKey(null));
     assertEquals("", FlagEvaluationAggregator.canonicalContextKey(emptyMap()));
   }
@@ -197,25 +179,25 @@ class FlagEvaluationAggregatorTest {
   }
 
   @Test
-  void contextValueExceeding256CharsIsSkippedFromPrunedAttrs() {
+  void aggregatorStoresPrePrunedAttrsWithoutRePruning() {
+    // Value-length pruning moved to DDEvaluator#copyPrunedContext (hot path). The aggregator
+    // stores what it is given, so any long value present in the input remains present.
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
-    final Map<String, Object> attrs = new HashMap<>();
-    attrs.put("long-val", repeat('x', 300));
-    attrs.put("short-val", "ok");
+    final Map<String, Object> preprunedAttrs = new HashMap<>();
+    preprunedAttrs.put("short-val", "ok");
 
-    aggregator.aggregate(event("flag-e", "on", "alloc1", "user-1", 1000L, true, attrs));
+    aggregator.aggregate(event("flag-e", "on", "alloc1", "user-1", 1000L, true, preprunedAttrs));
 
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     final FlagEvaluationAggregator.EvalBucket bucket = state.fullTier.values().iterator().next();
-    assertFalse(bucket.prunedAttrs.containsKey("long-val"));
     assertTrue(bucket.prunedAttrs.containsKey("short-val"));
   }
 
   @Test
   void capSizingUsesNamedScaleConstants() {
-    assertEquals(125_000, FlagEvaluationAggregator.EVAL_SCALE_FULL_BUCKET_TARGET);
-    assertEquals(10_000, FlagEvaluationAggregator.EVAL_SCALE_PER_FLAG_BUCKET_TARGET);
-    assertEquals(25_000, FlagEvaluationAggregator.EVAL_SCALE_DEGRADED_BUCKET_TARGET);
+    assertEquals(125_000, FlagEvaluationAggregator.FULL_BUCKET_SIZING_BASIS);
+    assertEquals(10_000, FlagEvaluationAggregator.PER_FLAG_BUCKET_SIZING_BASIS);
+    assertEquals(25_000, FlagEvaluationAggregator.DEGRADED_BUCKET_SIZING_BASIS);
     assertEquals(131_072, FlagEvaluationAggregator.GLOBAL_CAP);
     assertEquals(10_000, FlagEvaluationAggregator.PER_FLAG_CAP);
     assertEquals(32_768, FlagEvaluationAggregator.DEGRADED_CAP);
@@ -439,11 +421,5 @@ class FlagEvaluationAggregatorTest {
       final String errorMessage) {
     return new FlagEvaluationAggregator.DegradedKey(
         flagKey, variant, allocationKey, runtimeDefaultUsed, errorMessage);
-  }
-
-  private static String repeat(final char c, final int count) {
-    final char[] chars = new char[count];
-    Arrays.fill(chars, c);
-    return new String(chars);
   }
 }
