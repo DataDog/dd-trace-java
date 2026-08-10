@@ -7,13 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class FlagEvalEventTest {
 
   @Test
-  void storesFieldsWithEagerContextAttributes() {
+  void storesFieldsWithContextAttributes() {
     final Map<String, Object> attrs = Collections.singletonMap("tier", "gold");
 
     final FlagEvalEvent event =
@@ -26,48 +25,15 @@ class FlagEvalEventTest {
     assertNull(event.errorMessage);
     assertEquals(123L, event.evalTimeMs);
     assertSame(attrs, event.attrs);
-    assertSame(attrs, event.contextAttributes());
   }
 
   @Test
-  void storesErrorMessageAndDefaultsNullEagerContextAttributes() {
+  void storesErrorMessageAndDefaultsNullContextAttributes() {
     final Map<String, Object> attrs = null;
     final FlagEvalEvent event =
         new FlagEvalEvent("my-flag", null, null, null, "type mismatch", 456L, attrs);
 
     assertEquals("type mismatch", event.errorMessage);
     assertTrue(event.attrs.isEmpty());
-    assertTrue(event.contextAttributes().isEmpty());
-  }
-
-  @Test
-  void resolvesLazyContextAttributesOnDemand() {
-    final AtomicInteger resolutions = new AtomicInteger();
-    final Map<String, Object> attrs = Collections.singletonMap("region", "us-east-1");
-    final FlagEvalEvent event =
-        new FlagEvalEvent(
-            "my-flag",
-            "on",
-            "allocation-1",
-            "target-1",
-            null,
-            789L,
-            () -> {
-              resolutions.incrementAndGet();
-              return attrs;
-            });
-
-    assertTrue(event.attrs.isEmpty());
-    assertEquals(0, resolutions.get());
-    assertSame(attrs, event.contextAttributes());
-    assertEquals(1, resolutions.get());
-  }
-
-  @Test
-  void defaultsNullLazyContextAttributes() {
-    final FlagEvalEvent event =
-        new FlagEvalEvent("my-flag", "on", null, null, null, 789L, () -> null);
-
-    assertTrue(event.contextAttributes().isEmpty());
   }
 }
