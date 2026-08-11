@@ -1,5 +1,6 @@
 package com.datadog.featureflag;
 
+import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -223,6 +224,23 @@ class ExposureWriterTests {
   }
 
   @Test
+  void testSerializationFailureDoesNotPoisonFollowingExposures() throws Exception {
+    Config config = mockConfig("test-service");
+    ExposureEvent validExposure = buildExposure();
+
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
+      writer.init();
+      writer.accept(buildExposure(singletonMap("invalid", (Object) Double.NaN)));
+
+      MILLISECONDS.sleep(300); // wait for the invalid batch to be dropped
+      writer.accept(validExposure);
+
+      poll.eventually(() -> assertExposures(allExposures(), singletonList(validExposure)));
+    }
+  }
+
+  @Test
   void testWriterStopsReceivingExposuresIfEvpProxyIsNotAvailable() throws Exception {
     SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects(false);
 
@@ -398,11 +416,19 @@ class ExposureWriterTests {
 
   private static ExposureEvent buildExposure() {
     String id = UUID.randomUUID().toString();
+    return buildExposure(id, singletonMap("key_" + id, (Object) ("value_" + id)));
+  }
+
+  private static ExposureEvent buildExposure(Map<String, Object> attributes) {
+    return buildExposure(UUID.randomUUID().toString(), attributes);
+  }
+
+  private static ExposureEvent buildExposure(String id, Map<String, Object> attributes) {
     return new ExposureEvent(
         System.currentTimeMillis(),
         new Allocation("Allocation_" + id),
         new Flag("Flag_" + id),
         new Variant("Variant_" + id),
-        new Subject("Subject_" + id, singletonMap("key_" + id, (Object) ("value_" + id))));
+        new Subject("Subject_" + id, attributes));
   }
 }

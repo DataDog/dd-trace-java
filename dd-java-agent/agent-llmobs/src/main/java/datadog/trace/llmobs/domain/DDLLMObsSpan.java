@@ -156,35 +156,81 @@ public class DDLLMObsSpan implements LLMObsSpan {
   }
 
   @Override
+  public void annotateEmbeddingIO(List<LLMObs.Document> inputDocuments, String outputData) {
+    if (finished) {
+      return;
+    }
+    if (inputDocuments != null && !inputDocuments.isEmpty()) {
+      span.setTag(INPUT, inputDocuments);
+    }
+    if (outputData != null && !outputData.isEmpty()) {
+      span.setTag(OUTPUT, outputData);
+    }
+  }
+
+  @Override
+  public void annotateRetrievalIO(String inputData, List<LLMObs.Document> outputDocuments) {
+    if (finished) {
+      return;
+    }
+    if (inputData != null && !inputData.isEmpty()) {
+      span.setTag(INPUT, inputData);
+    }
+    if (outputDocuments != null && !outputDocuments.isEmpty()) {
+      span.setTag(OUTPUT, outputDocuments);
+    }
+  }
+
+  @Override
   public void annotateIO(String inputData, String outputData) {
     if (finished) {
       return;
     }
-    boolean wrongSpanKind = false;
-    if (inputData != null && !inputData.isEmpty()) {
-      if (Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)) {
-        wrongSpanKind = true;
-        annotateIO(
-            Collections.singletonList(LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, inputData)),
-            null);
-      } else {
-        span.setTag(INPUT, inputData);
+    boolean hasInput = inputData != null && !inputData.isEmpty();
+    boolean hasOutput = outputData != null && !outputData.isEmpty();
+    if (Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)) {
+      List<LLMObs.LLMMessage> inputMessages =
+          hasInput
+              ? Collections.singletonList(
+                  LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, inputData))
+              : null;
+      List<LLMObs.LLMMessage> outputMessages =
+          hasOutput
+              ? Collections.singletonList(
+                  LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, outputData))
+              : null;
+      annotateIO(inputMessages, outputMessages);
+      if (hasInput || hasOutput) {
+        LOGGER.warn(
+            "the span being annotated is an LLM span, it is recommended to use the overload with List<LLMObs.LLMMessage> as arguments");
       }
+      return;
     }
-    if (outputData != null && !outputData.isEmpty()) {
-      if (Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)) {
-        wrongSpanKind = true;
-        annotateIO(
-            null,
-            Collections.singletonList(
-                LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, outputData)));
-      } else {
-        span.setTag(OUTPUT, outputData);
+    if (Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(spanKind)) {
+      List<LLMObs.Document> inputDocuments =
+          hasInput ? Collections.singletonList(LLMObs.Document.from(inputData)) : null;
+      annotateEmbeddingIO(inputDocuments, outputData);
+      if (hasInput) {
+        LOGGER.warn(
+            "the span being annotated is an embedding span, it is recommended to use annotateEmbeddingIO");
       }
+      return;
     }
-    if (wrongSpanKind) {
-      LOGGER.warn(
-          "the span being annotated is an LLM span, it is recommended to use the overload with List<LLMObs.LLMMessage> as arguments");
+    if (Tags.LLMOBS_RETRIEVAL_SPAN_KIND.equals(spanKind)) {
+      List<LLMObs.Document> outputDocuments =
+          hasOutput ? Collections.singletonList(LLMObs.Document.from(outputData)) : null;
+      annotateRetrievalIO(inputData, outputDocuments);
+      if (hasOutput) {
+        LOGGER.warn(
+            "the span being annotated is a retrieval span, it is recommended to use annotateRetrievalIO");
+      }
+      return;
+    }
+    if (hasInput) {
+      span.setTag(INPUT, inputData);
+    }
+    if (hasOutput) {
+      span.setTag(OUTPUT, outputData);
     }
   }
 
