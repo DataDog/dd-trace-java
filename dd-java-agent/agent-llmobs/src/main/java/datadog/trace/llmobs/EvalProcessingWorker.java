@@ -64,7 +64,13 @@ public class EvalProcessingWorker implements AutoCloseable {
                   + "/"
                   + EVAL_METRIC_API_PATH);
       headers = Headers.of(DD_API_KEY_HEADER_NAME, config.getApiKey());
-      httpClient = sco.getIntakeHttpClient();
+      // The shared intake client is cleartext-only once the flag is enabled for another backend
+      // intake, and OkHttp then rejects our HTTPS submissions, so keep a client of our own rather
+      // than share one that cannot reach the eval intake.
+      httpClient =
+          config.isForceClearTextHttpForIntakeClient()
+              ? OkHttpUtils.buildHttpClient(submissionUrl, sco.httpClientTimeout)
+              : sco.getIntakeHttpClient();
     } else {
       submissionUrl =
           HttpUrl.get(
