@@ -113,9 +113,9 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /**
-   * Optional manual additions to the injected helper set. At build time {@code MuzzleGenerator}
-   * overwrites this with the fully resolved list (inferred + manual), so at runtime it returns
-   * every helper the module injects.
+   * The helper classes to inject. Override this to declare them manually; otherwise {@code
+   * MuzzleGenerator} generates it at build time from the helpers inferred from the advice, so at
+   * runtime it returns every helper the module injects.
    */
   public String[] helperClassNames() {
     return NO_HELPERS;

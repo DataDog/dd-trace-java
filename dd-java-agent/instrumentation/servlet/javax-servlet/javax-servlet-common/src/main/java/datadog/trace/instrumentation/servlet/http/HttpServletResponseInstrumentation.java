@@ -42,6 +42,7 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.instrumentation.servlet.ServletRequestSetter",
+      "datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator",
     };
   }
 
