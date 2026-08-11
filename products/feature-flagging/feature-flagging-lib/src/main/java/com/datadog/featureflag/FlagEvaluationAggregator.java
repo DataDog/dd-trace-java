@@ -1,5 +1,8 @@
 package com.datadog.featureflag;
 
+import static datadog.trace.util.HashingUtils.addToHash;
+import static datadog.trace.util.HashingUtils.hash;
+
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import java.util.HashMap;
 import java.util.Map;
@@ -222,8 +225,13 @@ final class FlagEvaluationAggregator {
     return sb.toString();
   }
 
+  private static final String HEX_ZEROS = "00000000";
+
   private static void appendLengthDelimited(final StringBuilder sb, final String s) {
-    sb.append(String.format("%08x", (long) s.length()));
+    // 8-char zero-padded hex length prefix, allocation-lean (no String.format on the hot path).
+    final String hexLength = Integer.toHexString(s.length());
+    sb.append(HEX_ZEROS, 0, 8 - hexLength.length());
+    sb.append(hexLength);
     sb.append(s);
   }
 
@@ -365,15 +373,14 @@ final class FlagEvaluationAggregator {
 
     @Override
     public int hashCode() {
-      return Objects.hash(
-          flagKey,
-          variant,
-          allocationKey,
-          runtimeDefaultUsed,
-          errorMessage,
-          targetingKey,
-          contextKey,
-          observeFullEvaluationData);
+      // HashingUtils avoids the Object[] allocation and boolean boxing that Objects.hash performs
+      // on this hot bucket-lookup path.
+      int result = hash(flagKey, variant, allocationKey);
+      result = addToHash(result, runtimeDefaultUsed);
+      result = addToHash(result, errorMessage);
+      result = addToHash(result, targetingKey);
+      result = addToHash(result, contextKey);
+      return addToHash(result, observeFullEvaluationData);
     }
   }
 
@@ -422,7 +429,11 @@ final class FlagEvaluationAggregator {
 
     @Override
     public int hashCode() {
-      return Objects.hash(flagKey, variant, allocationKey, runtimeDefaultUsed, errorMessage);
+      // HashingUtils avoids the Object[] allocation and boolean boxing that Objects.hash performs
+      // on this hot bucket-lookup path.
+      int result = hash(flagKey, variant, allocationKey);
+      result = addToHash(result, runtimeDefaultUsed);
+      return addToHash(result, errorMessage);
     }
   }
 
