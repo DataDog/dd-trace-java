@@ -52,12 +52,7 @@ public class FeatureFlaggingSystem {
       return;
     }
 
-    try {
-      initializeSystem(sco, config);
-    } catch (final RuntimeException | Error e) {
-      STARTED = false;
-      throw e;
-    }
+    initializeOrRollBack(sco, config);
   }
 
   private static synchronized void activateAgentless(
@@ -68,10 +63,17 @@ public class FeatureFlaggingSystem {
     }
     ACTIVATION_LISTENER = null;
     FeatureFlaggingGateway.removeActivationListener(activationListener);
+    initializeOrRollBack(sco, config);
+  }
+
+  // Any failure leaves the subsystem fully stopped: stop() releases whatever initializeSystem
+  // managed to publish before it threw, so a later start() begins from a clean state.
+  private static void initializeOrRollBack(
+      final SharedCommunicationObjects sco, final Config config) {
     try {
       initializeSystem(sco, config);
     } catch (final RuntimeException | Error e) {
-      STARTED = false;
+      stop();
       throw e;
     }
   }
@@ -92,8 +94,9 @@ public class FeatureFlaggingSystem {
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(evalCountsEnabled);
     if (evalCountsEnabled) {
       final FlagEvaluationWriterImpl evalWriter = new FlagEvaluationWriterImpl(sco, config);
-      evalWriter.start();
+      // Publish before start() so a failed start is still reachable by the rollback in stop().
       FLAG_EVAL_WRITER = evalWriter;
+      evalWriter.start();
       LOGGER.debug("Flag evaluation EVP writer started");
     } else {
       FeatureFlaggingGateway.setFlagEvalWriter(null);

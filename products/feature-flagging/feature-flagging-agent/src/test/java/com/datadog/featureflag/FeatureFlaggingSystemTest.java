@@ -165,6 +165,24 @@ class FeatureFlaggingSystemTest {
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
+  void failedStartRollsBackPartiallyInitializedState() {
+    SharedCommunicationObjects sharedCommunicationObjects = mock(SharedCommunicationObjects.class);
+
+    assertThrows(
+        IllegalStateException.class, () -> FeatureFlaggingSystem.start(sharedCommunicationObjects));
+
+    // A failed start must leave nothing behind: no listener awaiting activation, no gateway
+    // writer, and STARTED cleared so a later start() is not swallowed as "already started".
+    assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+    assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
+    assertFalse(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
+    assertThrows(
+        IllegalStateException.class, () -> FeatureFlaggingSystem.start(sharedCommunicationObjects));
+  }
+
+  @Test
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "remote_config")
+  @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
   void testThatRemoteConfigIsRequired() {
     SharedCommunicationObjects sharedCommunicationObjects = mock(SharedCommunicationObjects.class);
 
