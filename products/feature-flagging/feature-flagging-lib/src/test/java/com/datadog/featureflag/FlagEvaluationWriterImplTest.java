@@ -349,6 +349,38 @@ class FlagEvaluationWriterImplTest {
   }
 
   @Test
+  void finalFlushRunsWithoutTheInterruptFlagSet() throws Exception {
+    // close() interrupts the worker to break it out of poll(). The final flush does socket I/O,
+    // and OkHttp fails fast on an interrupted thread, so the flag must be clear by the time the
+    // publisher is called. A mock publisher ignores the flag, so assert on it directly.
+    final java.util.concurrent.CountDownLatch posted = new java.util.concurrent.CountDownLatch(1);
+    final boolean[] interruptedDuringPost = {true};
+    final BackendApi mockEvp = mock(BackendApi.class);
+    when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
+        .thenAnswer(
+            inv -> {
+              interruptedDuringPost[0] = Thread.currentThread().isInterrupted();
+              posted.countDown();
+              return null;
+            });
+    final BackendApiFactory factory = mock(BackendApiFactory.class);
+    when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
+    final FlagEvaluationWriterImpl writer =
+        new FlagEvaluationWriterImpl(
+            64, TimeUnit.DAYS.toSeconds(1), TimeUnit.SECONDS, factory, cfg());
+
+    writer.startForTest();
+    writer.enqueue(simpleEvent("interrupt-flag", "on"));
+    writer.close();
+
+    assertTrue(posted.await(5, TimeUnit.SECONDS));
+    assertFalse(
+        interruptedDuringPost[0],
+        "final flush must not run on an interrupted thread; OkHttp fails fast and the drained"
+            + " rows are lost without being counted");
+  }
+
+  @Test
   void closeDrainsAndFinalFlushesQueuedEvents() throws Exception {
     final java.util.concurrent.CountDownLatch posted = new java.util.concurrent.CountDownLatch(1);
     final RequestBody[] captured = {null};

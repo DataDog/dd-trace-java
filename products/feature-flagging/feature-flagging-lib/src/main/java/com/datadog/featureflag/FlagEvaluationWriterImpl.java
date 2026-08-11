@@ -372,8 +372,22 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       } finally {
         // On exit (interrupt or shutdown request), drain everything still buffered and flush it so
         // queued events are not lost on shutdown.
-        drainAndFlush();
-        finalFlushDone.countDown();
+        //
+        // close() interrupts this thread to break it out of poll(). The final flush does socket
+        // I/O, and OkHttp fails fast on a thread whose interrupt flag is set, so clear the flag
+        // for the duration of the drain and restore it afterwards. Without this the flush that
+        // close() exists to guarantee throws IOException, the aggregated rows are discarded by
+        // the clear() in flush(), and the loss is invisible to the drop counters because those
+        // rows already left the queue.
+        final boolean wasInterrupted = Thread.interrupted();
+        try {
+          drainAndFlush();
+        } finally {
+          finalFlushDone.countDown();
+          if (wasInterrupted) {
+            Thread.currentThread().interrupt();
+          }
+        }
       }
       LOGGER.debug("flag evaluation processor worker exited.");
     }
