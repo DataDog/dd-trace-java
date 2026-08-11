@@ -206,7 +206,10 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
   private static Map<String, Boolean> buildLoggedAllocations(final Map<String, Object> config) {
     final logged = [:]
     (config.flags as Map<String, Object>).each { flag, definition ->
-      (definition.allocations ?: []).each { allocation ->
+      if (!(definition instanceof Map) || !(definition.allocations instanceof List)) {
+        return
+      }
+      definition.allocations.findAll { it instanceof Map }.each { allocation ->
         logged["${flag}\u0000${allocation.key}"] = allocation.doLog == true
       }
     }
