@@ -8,6 +8,7 @@ import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -398,16 +399,37 @@ public class ProviderTest {
   }
 
   @Test
-  public void testShutdownCleansUpMetrics() throws Exception {
-    Evaluator evaluator = mock(Evaluator.class);
+  public void testGetProviderHooksReturnsFlagEvalMetricsHookWithAndWithoutSpanEnrichment() {
+    final Evaluator evaluator = mock(Evaluator.class);
+    final Provider providerWithoutSpanEnrichment =
+        new Provider(new Options(), evaluator, Boolean.FALSE);
+    final Provider providerWithSpanEnrichment =
+        new Provider(new Options(), evaluator, Boolean.TRUE);
+
+    assertHasFlagEvalMetricsHook(providerWithoutSpanEnrichment);
+    assertHasFlagEvalMetricsHook(providerWithSpanEnrichment);
+  }
+
+  @Test
+  public void testShutdownCleansUpEvaluator() throws Exception {
+    final Evaluator evaluator = mock(Evaluator.class);
     when(evaluator.initialize(eq(10L), eq(MILLISECONDS), any())).thenReturn(true);
     when(evaluator.hasConfiguration()).thenReturn(true);
-    Provider provider = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
+    final Provider provider =
+        new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator, Boolean.FALSE);
+
     provider.initialize(null);
     provider.shutdown();
+
     verify(evaluator).shutdown();
     // After shutdown, getProviderHooks still returns a list with both OTel + logging hooks
     assertThat(provider.getProviderHooks().size(), equalTo(2));
+  }
+
+  private static void assertHasFlagEvalMetricsHook(final Provider provider) {
+    assertTrue(
+        provider.getProviderHooks().stream().anyMatch(FlagEvalMetricsHook.class::isInstance),
+        "flag evaluation metrics hook should be registered");
   }
 
   public interface EvaluateMethod<E> {
