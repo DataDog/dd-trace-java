@@ -17,12 +17,12 @@ dependencies {
 
 tasks.named("test", Test) {
   // Gradle 4.10.3's native-platform crashes on Linux when restoring non-ASCII environment values, so remove all non-ASCII chars.
-  ["CI_COMMIT_TITLE", "CI_COMMIT_MESSAGE", "CI_COMMIT_DESCRIPTION"].each { name ->
-    String value = environment[name]
-    if (value != null) {
-      environment[name] = value.replaceAll("[^\\p{ASCII}]", "")
-    }
-  }
+  // ["CI_COMMIT_TITLE", "CI_COMMIT_MESSAGE", "CI_COMMIT_DESCRIPTION"].each { name ->
+  //   String value = environment[name]
+  //   if (value != null) {
+  //     environment[name] = value.replaceAll("[^\\p{ASCII}]", "")
+  //   }
+  // }
 
   testLogging {
     events "passed", "skipped", "failed", "standardOut", "standardError"
