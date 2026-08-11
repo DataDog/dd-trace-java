@@ -261,32 +261,37 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       }
     }
 
-    // Add manually defined helpers.
+    // A module with a manually declared list uses it directly; otherwise the helpers
+    // inferred from its advice are used (with their nested classes, dependency-ordered, and any
+    // build-time-only muzzle providers dropped).
     Set<String> manualHelpers = new LinkedHashSet<>(asList(module.helperClassNames()));
-    Set<String> initialHelpers = new LinkedHashSet<>(inferredHelpers);
-    initialHelpers.addAll(manualHelpers);
-    for (String helper : new ArrayList<>(initialHelpers)) {
-      if (isOwnOutput(helper)) {
-        addNestedClasses(helper, initialHelpers);
+    String[] injectedHelpers;
+    if (!manualHelpers.isEmpty()) {
+      injectedHelpers = manualHelpers.toArray(new String[0]);
+    } else {
+      Set<String> initialHelpers = new LinkedHashSet<>(inferredHelpers);
+      for (String helper : new ArrayList<>(initialHelpers)) {
+        if (isOwnOutput(helper)) {
+          addNestedClasses(helper, initialHelpers);
+        }
       }
+      ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+      String[] orderedHelpers =
+          discoverAndOrderHelpers(
+              initialHelpers, manualHelpers, helperPredicate, contextClassLoader);
+      // Drop build-time-only muzzle providers.
+      ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(contextClassLoader);
+      List<String> injectableHelpers = new ArrayList<>(orderedHelpers.length);
+      for (String helper : orderedHelpers) {
+        if (!isBuildTimeOnly(helper, locator)) {
+          injectableHelpers.add(helper);
+        }
+      }
+      injectedHelpers = injectableHelpers.toArray(new String[0]);
     }
 
-    ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-    String[] orderedHelpers =
-        discoverAndOrderHelpers(initialHelpers, manualHelpers, helperPredicate, contextClassLoader);
-
-    // Drop build-time-only muzzle providers.
-    ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(contextClassLoader);
-    List<String> injectableHelpers = new ArrayList<>(orderedHelpers.length);
-    for (String helper : orderedHelpers) {
-      if (!isBuildTimeOnly(helper, locator)) {
-        injectableHelpers.add(helper);
-      }
-    }
-    orderedHelpers = injectableHelpers.toArray(new String[0]);
-
-    writeInferenceReport(module, adviceClasses.isEmpty(), inferredHelpers, orderedHelpers);
-    return orderedHelpers;
+    writeInferenceReport(module, adviceClasses.isEmpty(), inferredHelpers, injectedHelpers);
+    return injectedHelpers;
   }
 
   /** {@code true} if the class was compiled from this instrumentation subproject's own output. */
