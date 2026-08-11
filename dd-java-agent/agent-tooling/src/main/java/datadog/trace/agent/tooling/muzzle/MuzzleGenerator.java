@@ -251,47 +251,36 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   /** Resolves the ordered set of helper classes to inject for a module. */
   String[] computeInjectedHelpers(
       InstrumenterModule module, List<Reference> allReferences, Set<String> adviceClasses) {
+    // A module that declares its own helper list uses it directly.
+    Set<String> manualHelpers = new LinkedHashSet<>(asList(module.helperClassNames()));
+    if (!manualHelpers.isEmpty()) {
+      return manualHelpers.toArray(new String[0]);
+    }
+
+    // Otherwise infer them
     HelperClassPredicate helperPredicate = new HelperClassPredicate(this::isOwnOutput);
-    // Inferred helpers = our classes referenced from the advice minus the advice roots.
-    Set<String> inferredHelpers = new LinkedHashSet<>();
+    Set<String> helpers = new LinkedHashSet<>();
     for (Reference reference : allReferences) {
       if (!adviceClasses.contains(reference.className)
           && helperPredicate.isHelperClass(reference.className)) {
-        inferredHelpers.add(reference.className);
+        helpers.add(reference.className);
       }
     }
-
-    // A module with a manually declared list uses it directly; otherwise the helpers
-    // inferred from its advice are used (with their nested classes, dependency-ordered, and any
-    // build-time-only muzzle providers dropped).
-    Set<String> manualHelpers = new LinkedHashSet<>(asList(module.helperClassNames()));
-    String[] injectedHelpers;
-    if (!manualHelpers.isEmpty()) {
-      injectedHelpers = manualHelpers.toArray(new String[0]);
-    } else {
-      Set<String> initialHelpers = new LinkedHashSet<>(inferredHelpers);
-      for (String helper : new ArrayList<>(initialHelpers)) {
-        if (isOwnOutput(helper)) {
-          addNestedClasses(helper, initialHelpers);
-        }
+    for (String helper : new ArrayList<>(helpers)) {
+      if (isOwnOutput(helper)) {
+        addNestedClasses(helper, helpers);
       }
-      ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-      String[] orderedHelpers =
-          discoverAndOrderHelpers(
-              initialHelpers, manualHelpers, helperPredicate, contextClassLoader);
-      // Drop build-time-only muzzle providers.
-      ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(contextClassLoader);
-      List<String> injectableHelpers = new ArrayList<>(orderedHelpers.length);
-      for (String helper : orderedHelpers) {
-        if (!isBuildTimeOnly(helper, locator)) {
-          injectableHelpers.add(helper);
-        }
-      }
-      injectedHelpers = injectableHelpers.toArray(new String[0]);
     }
-
-    writeInferenceReport(module, adviceClasses.isEmpty(), inferredHelpers, injectedHelpers);
-    return injectedHelpers;
+    ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+    String[] orderedHelpers = discoverAndOrderHelpers(helpers, helperPredicate, contextClassLoader);
+    ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(contextClassLoader);
+    List<String> injectableHelpers = new ArrayList<>(orderedHelpers.length);
+    for (String helper : orderedHelpers) {
+      if (!isBuildTimeOnly(helper, locator)) {
+        injectableHelpers.add(helper);
+      }
+    }
+    return injectableHelpers.toArray(new String[0]);
   }
 
   /** {@code true} if the class was compiled from this instrumentation subproject's own output. */
@@ -349,10 +338,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
    * could not be located are kept (appended, unordered).
    */
   private static String[] discoverAndOrderHelpers(
-      Set<String> initialHelpers,
-      Set<String> manualHelpers,
-      HelperClassPredicate helperPredicate,
-      ClassLoader loader) {
+      Set<String> initialHelpers, HelperClassPredicate helperPredicate, ClassLoader loader) {
     if (initialHelpers.isEmpty()) {
       return new String[0];
     }
@@ -361,8 +347,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       for (String name :
           HelperScanner.withClassDependencies(
               ClassFileLocator.ForClassLoader.of(loader), initialHelpers.toArray(new String[0]))) {
-        if ((helperPredicate.isHelperClass(name) || manualHelpers.contains(name))
-            && !ordered.contains(name)) {
+        if (helperPredicate.isHelperClass(name) && !ordered.contains(name)) {
           ordered.add(name);
         }
       }
@@ -375,55 +360,6 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       }
     }
     return ordered.toArray(new String[0]);
-  }
-
-  /**
-   * TODO: Remove this method after all instrumentations are migrated! Writes an advisory report
-   * classifying each declared helper as inferred vs. manual-only. Used to help with migration from
-   * manually listed helpers to auto-inferred ones.
-   */
-  private void writeInferenceReport(
-      InstrumenterModule module,
-      boolean adviceLess,
-      Set<String> inferredHelpers,
-      String[] injectedHelpers) {
-    try {
-      Set<String> declared = new LinkedHashSet<>(asList(module.helperClassNames()));
-      if (declared.isEmpty() && inferredHelpers.isEmpty()) {
-        return;
-      }
-      File buildDir = targetDir;
-      while (buildDir != null && !"build".equals(buildDir.getName())) {
-        buildDir = buildDir.getParentFile();
-      }
-      if (buildDir == null) {
-        return;
-      }
-      File reportDir = new File(buildDir, "reports/helper-inference");
-      reportDir.mkdirs();
-      StringBuilder sb = new StringBuilder();
-      sb.append("module: ").append(module.getClass().getName()).append('\n');
-      sb.append("has-advice: ").append(!adviceLess).append('\n');
-      sb.append("injected-helpers: ").append(injectedHelpers.length).append('\n');
-      if (adviceLess && !declared.isEmpty()) {
-        sb.append("crawl-cannot-cover: advice-less module; declared helpers are all manual-only\n");
-      }
-      for (String name : declared) {
-        sb.append(inferredHelpers.contains(name) ? "  inferred     " : "  manual-only  ")
-            .append(name)
-            .append('\n');
-      }
-      for (String name : inferredHelpers) {
-        if (!declared.contains(name)) {
-          sb.append("  inferred-only ").append(name).append('\n');
-        }
-      }
-      Files.write(
-          new File(reportDir, module.getClass().getName() + ".txt").toPath(),
-          sb.toString().getBytes(StandardCharsets.UTF_8));
-    } catch (Throwable ignore) {
-      // report is advisory; never fail the build over it
-    }
   }
 
   private static void writeReference(MethodVisitor mv, Reference reference) {

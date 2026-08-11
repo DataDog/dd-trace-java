@@ -113,9 +113,14 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /**
-   * The helper classes to inject. Override this to declare them manually; otherwise {@code
-   * MuzzleGenerator} generates it at build time from the helpers inferred from the advice, so at
-   * runtime it returns every helper the module injects.
+   * @return Class names of helpers to inject into the user's classloader. Override this to declare
+   *     them manually; otherwise {@code MuzzleGenerator} generates it at build time from the
+   *     helpers inferred from the advice.
+   *     <p><b>NOTE:</b> The order of the returned helper classes matters. If a muzzle check fails
+   *     with a NoClassDefFoundError, as logged in build/reports/muzzle-*.txt, it is likely that one
+   *     helper class depends on another that appears later in the list. In this case, the returned
+   *     list must be reordered so that the referred helper class appears before the one that refers
+   *     to it.
    */
   public String[] helperClassNames() {
     return NO_HELPERS;
