@@ -17,15 +17,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.datadog.featureflag.UniversalFlagConfigParser;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonDataException;
-import com.squareup.moshi.JsonReader;
-import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.FlagMap;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -39,7 +39,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -59,9 +58,7 @@ public class DDEvaluatorTest {
 
   private static final String CANONICAL_FIXTURE_PATH =
       "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data";
-  private static final Moshi MOSHI = new Moshi.Builder().add(Date.class, new DateAdapter()).build();
-  private static final JsonAdapter<ServerConfiguration> CONFIG_ADAPTER =
-      MOSHI.adapter(ServerConfiguration.class);
+  private static final Moshi MOSHI = new Moshi.Builder().build();
   private static final Type FIXTURE_LIST_TYPE =
       Types.newParameterizedType(List.class, FixtureCase.class);
   private static final JsonAdapter<List<FixtureCase>> FIXTURE_LIST_ADAPTER =
@@ -215,6 +212,24 @@ public class DDEvaluatorTest {
   }
 
   @Test
+  public void testRejectedFlagsAreScopedToCurrentConfiguration() {
+    final FlagMap rejectedFlags = new FlagMap();
+    rejectedFlags.reject("target");
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    final EvaluationContext context = new MutableContext("target");
+
+    evaluator.accept(new ServerConfiguration("", "", null, rejectedFlags));
+    ProviderEvaluation<?> details = evaluator.evaluate(String.class, "target", "default", context);
+    assertThat(details.getReason(), equalTo(ERROR.name()));
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.PARSE_ERROR));
+
+    evaluator.accept(new ServerConfiguration("", "", null, new FlagMap()));
+    details = evaluator.evaluate(String.class, "target", "default", context);
+    assertThat(details.getReason(), equalTo(ERROR.name()));
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.FLAG_NOT_FOUND));
+  }
+
+  @Test
   public void testAllocationDateAbiAndInstantAccessors() throws Exception {
     final Date startAt = Date.from(Instant.parse("2024-01-01T00:00:00Z"));
     final Date endAt = Date.from(Instant.parse("2024-12-31T23:59:59Z"));
@@ -319,7 +334,8 @@ public class DDEvaluatorTest {
   }
 
   private static ServerConfiguration loadCanonicalConfiguration() throws IOException {
-    return CONFIG_ADAPTER.fromJson(read(fixtureRoot().resolve("ufc-config.json")));
+    return UniversalFlagConfigParser.INSTANCE.deserialize(
+        read(fixtureRoot().resolve("ufc-config.json")).getBytes(StandardCharsets.UTF_8));
   }
 
   private static List<FixtureCase> canonicalTestCases() throws IOException {
@@ -432,29 +448,5 @@ public class DDEvaluatorTest {
     String errorCode;
     String variant;
     Map<String, Object> flagMetadata = emptyMap();
-  }
-
-  private static final class DateAdapter extends JsonAdapter<Date> {
-    @Override
-    public Date fromJson(final JsonReader reader) throws IOException {
-      if (reader.peek() == JsonReader.Token.NULL) {
-        return reader.nextNull();
-      }
-      try {
-        return Date.from(
-            DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(reader.nextString(), Instant::from));
-      } catch (final Exception ignored) {
-        return null;
-      }
-    }
-
-    @Override
-    public void toJson(final JsonWriter writer, final Date value) throws IOException {
-      if (value == null) {
-        writer.nullValue();
-        return;
-      }
-      writer.value(value.toInstant().toString());
-    }
   }
 }

@@ -31,6 +31,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.FlagMap;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -115,6 +116,7 @@ class RemoteConfigServiceImplTest {
 
     assertNotNull(config);
     assertFalse(config.flags.containsKey("malformed-flag"));
+    assertTrue(((FlagMap) config.flags).isRejected("malformed-flag"));
     assertTrue(config.flags.containsKey("valid-flag"));
     assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
   }
@@ -221,6 +223,7 @@ class RemoteConfigServiceImplTest {
 
     assertNotNull(config);
     assertFalse(config.flags.containsKey("operator-grease-flag"));
+    assertTrue(((FlagMap) config.flags).isRejected("operator-grease-flag"));
     assertTrue(config.flags.containsKey("valid-flag"));
     assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
   }
@@ -284,6 +287,7 @@ class RemoteConfigServiceImplTest {
 
     assertNotNull(config);
     assertFalse(config.flags.containsKey("null-flag"));
+    assertTrue(((FlagMap) config.flags).isRejected("null-flag"));
     assertTrue(config.flags.containsKey("valid-flag"));
     assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
   }
