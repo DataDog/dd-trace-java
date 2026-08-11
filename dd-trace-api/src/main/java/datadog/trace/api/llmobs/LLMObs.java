@@ -250,11 +250,6 @@ public class LLMObs {
         this.wireKey = wireKey;
       }
 
-      /**
-       * Returns the payload field name carrying this target.
-       *
-       * @return the wire key, e.g. {@code "span_id"}
-       */
       public String getWireKey() {
         return wireKey;
       }
@@ -276,21 +271,11 @@ public class LLMObs {
         this.type = type;
       }
 
-      /**
-       * Returns the submitter identifier.
-       *
-       * @return the identifier, never null nor empty once {@link Feedback#validate()} returned null
-       */
       @Nullable
       public String getId() {
         return id;
       }
 
-      /**
-       * Returns the submitter qualifier.
-       *
-       * @return the qualifier, or null if none was provided
-       */
       @Nullable
       public String getType() {
         return type;
@@ -310,21 +295,11 @@ public class LLMObs {
         this.message = message;
       }
 
-      /**
-       * Returns the telemetry code of this error, e.g. {@code "invalid_submitter"}.
-       *
-       * @return the error code, never null
-       */
       @Nonnull
       public String getCode() {
         return code;
       }
 
-      /**
-       * Returns the human readable description of this error.
-       *
-       * @return the error message, never null
-       */
       @Nonnull
       public String getMessage() {
         return message;
@@ -360,11 +335,6 @@ public class LLMObs {
           builder.tags == null ? null : Collections.unmodifiableMap(new HashMap<>(builder.tags));
     }
 
-    /**
-     * Creates a builder for a feedback.
-     *
-     * @return a new builder
-     */
     public static Builder builder() {
       return new Builder();
     }
@@ -381,111 +351,62 @@ public class LLMObs {
       return validationError;
     }
 
-    /**
-     * Returns which kind of entity this feedback targets.
-     *
-     * @return the target type, never null once {@link #validate()} returned null
-     */
     @Nullable
     public TargetType getTargetType() {
       return targetType;
     }
 
-    /**
-     * Returns the identifier of the targeted entity.
-     *
-     * @return the target value, never null nor empty once {@link #validate()} returned null
-     */
     @Nullable
     public String getTargetValue() {
       return targetValue;
     }
 
-    /**
-     * Returns the name of the feedback metric.
-     *
-     * @return the label, never null nor empty once {@link #validate()} returned null
-     */
     @Nullable
     public String getLabel() {
       return label;
     }
 
-    /**
-     * Returns the kind of value this feedback carries.
-     *
-     * @return the metric type, never null once {@link #validate()} returned null
-     */
     @Nullable
     public MetricType getMetricType() {
       return metricType;
     }
 
-    /**
-     * Returns the feedback value. Its runtime type matches {@link #getMetricType()}.
-     *
-     * @return the value, never null once {@link #validate()} returned null
-     */
+    /** Returns the feedback value, whose runtime type matches {@link #getMetricType()}. */
     @Nullable
     public Object getValue() {
       return value;
     }
 
-    /**
-     * Returns who submitted this feedback.
-     *
-     * @return the submitter, never null once {@link #validate()} returned null
-     */
     @Nullable
     public Submitter getSubmitter() {
       return submitter;
     }
 
-    /**
-     * Returns the ML application this feedback belongs to.
-     *
-     * @return the ML app, or null to fall back on the tracer configured one
-     */
+    /** Returns the ML app, or null to fall back on the tracer configured one. */
     @Nullable
     public String getMlApp() {
       return mlApp;
     }
 
-    /**
-     * Returns whether the submitter considered the targeted operation a success.
-     *
-     * @return the assessment, or null if none was provided
-     */
     @Nullable
     public Assessment getAssessment() {
       return assessment;
     }
 
-    /**
-     * Returns the free-form justification of this feedback.
-     *
-     * @return the reasoning, or null if none was provided
-     */
     @Nullable
     public String getReasoning() {
       return reasoning;
     }
 
     /**
-     * Returns when this feedback was submitted. This is the only ordering signal available to the
-     * backend when the same feedback is re-submitted with a new value.
-     *
-     * @return the submission time, in milliseconds since the epoch
+     * Returns the submission time in milliseconds since the epoch. This is the only ordering signal
+     * available to the backend when the same feedback is re-submitted with a new value.
      */
     public long getTimestampMs() {
       return timestampMs;
     }
 
-    /**
-     * Returns the tags attached to this feedback.
-     *
-     * @return an unmodifiable view of the tags, or null if none were provided
-     */
+    /** Returns an unmodifiable view of the tags, or null if none were provided. */
     @Nullable
     public Map<String, Object> getTags() {
       return tags;
