@@ -26,14 +26,17 @@ import org.openjdk.jmh.infra.Blackhole;
  * Writer-side benchmark for EVP {@code flagevaluation} recording: the bounded-queue enqueue and the
  * worker-thread aggregation of already-captured events.
  *
- * <p><strong>Scope limitation:</strong> this benchmark starts from a pre-built {@link
- * FlagEvalEvent} whose attribute supplier returns a ready-made flat map. It therefore does NOT
- * cover the OpenFeature hook's own inline capture cost - in particular the recursive
- * evaluation-context deep copy that {@code FlagEvalLoggingHook.finallyAfter} performs synchronously
- * on the evaluation thread. That cost scales with context size and nesting depth and is not
- * measured here or anywhere else; the hook and the OpenFeature context types live in {@code
- * feature-flagging-api}, which has no benchmark source set. Do not read {@link #writerEnqueue} as
- * the total per-evaluation cost paid by the caller.
+ * <p><strong>Scope limitation:</strong> this benchmark starts from a pre-built FlagEvalEvent
+ * holding a ready-made flat attribute map. It therefore does NOT cover the OpenFeature hook's own
+ * inline capture cost - in particular the bounded evaluation-context copy that
+ * FlagEvalLoggingHook.finallyAfter performs synchronously on the evaluation thread under
+ * consent-on. That cost is measured separately by FlagEvalHookHotPathBenchmark in
+ * feature-flagging-api, where the hook and the OpenFeature context types live. Do not read
+ * writerEnqueue as the total per-evaluation cost paid by the caller.
+ *
+ * <p>Events are built with observeFullEvaluationData=true so the aggregator actually canonicalizes
+ * the context. Under the consent-off default it drops attrs and skips canonicalization, which makes
+ * every field-count profile measure the same scalar-only work.
  *
  * <p>Run: {@code ./gradlew :products:feature-flagging:feature-flagging-lib:jmh
  * -PjmhIncludes=FlagEvaluationHotPathBenchmark}.
@@ -107,6 +110,9 @@ public class FlagEvaluationHotPathBenchmark {
 
   private FlagEvalEvent nextEvent() {
     final int i = cursor++;
+    // observeFullEvaluationData=true is required for this benchmark to mean anything: under the
+    // consent-off default the aggregator drops attrs and skips canonicalContextKey entirely, so
+    // every field-count profile would collapse to the same scalar-only cost.
     return new FlagEvalEvent(
         flagKeys[Math.floorMod(i, flagKeys.length)],
         "variant-" + Math.floorMod(i, 4),
@@ -114,6 +120,7 @@ public class FlagEvaluationHotPathBenchmark {
         targetingKeys[Math.floorMod(i, targetingKeys.length)],
         null,
         1_700_000_000_000L + i,
+        true,
         attrs);
   }
 
