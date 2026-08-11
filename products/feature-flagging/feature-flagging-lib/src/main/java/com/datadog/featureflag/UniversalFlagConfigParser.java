@@ -8,7 +8,9 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
+import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.ParsedSemver;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.Split;
@@ -32,6 +34,16 @@ import org.slf4j.LoggerFactory;
 final class UniversalFlagConfigParser implements ConfigurationDeserializer<ServerConfiguration> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(UniversalFlagConfigParser.class);
+
+  static final String INVALID_SEMVER_COMPARAND = "invalid_semver_comparand";
+
+  /**
+   * Side-channel for tracking flags that failed semver comparand validation during parsing. Cleared
+   * and populated by {@link #parse(JsonReader)} so that {@link ServerConfiguration#invalidFlags}
+   * can be set after the Moshi adapter returns.
+   */
+  static final ThreadLocal<Map<String, String>> INVALID_FLAGS_HOLDER =
+      ThreadLocal.withInitial(HashMap::new);
 
   static final UniversalFlagConfigParser INSTANCE = new UniversalFlagConfigParser();
 
@@ -59,12 +71,90 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
 
   @Nullable
   ServerConfiguration parse(final JsonReader reader) throws IOException {
-    return V1_ADAPTER.fromJson(reader);
+    INVALID_FLAGS_HOLDER.get().clear();
+    final ServerConfiguration configuration = V1_ADAPTER.fromJson(reader);
+    if (configuration != null) {
+      final Map<String, String> invalid = new HashMap<>(INVALID_FLAGS_HOLDER.get());
+      if (!invalid.isEmpty()) {
+        configuration.invalidFlags = invalid;
+      }
+    }
+    INVALID_FLAGS_HOLDER.get().clear();
+    return configuration;
   }
 
   private static void requireEndOfDocument(final JsonReader reader) throws IOException {
     // A strict JsonReader throws if another top-level value follows the parsed document.
     reader.peek();
+  }
+
+  /**
+   * Validates and caches SemVer comparands for all SEMVER_* conditions in a flag. Throws {@link
+   * InvalidSemverComparandException} if any condition has an invalid or non-string comparand value.
+   */
+  private static void validateAndCacheSemverComparands(final String flagKey, final Flag flag) {
+    if (flag.allocations == null) {
+      return;
+    }
+    for (int allocIdx = 0; allocIdx < flag.allocations.size(); allocIdx++) {
+      final Allocation allocation = flag.allocations.get(allocIdx);
+      if (allocation.rules == null) {
+        continue;
+      }
+      for (final Rule rule : allocation.rules) {
+        if (rule.conditions == null) {
+          continue;
+        }
+        for (final ConditionConfiguration condition : rule.conditions) {
+          if (condition.operator == null) {
+            continue;
+          }
+          switch (condition.operator) {
+            case SEMVER_EQ:
+            case SEMVER_NEQ:
+            case SEMVER_LT:
+            case SEMVER_LTE:
+            case SEMVER_GT:
+            case SEMVER_GTE:
+              if (!(condition.value instanceof String)) {
+                throw new InvalidSemverComparandException(
+                    "flag \""
+                        + flagKey
+                        + "\" allocation "
+                        + allocIdx
+                        + " rule has condition with operator \""
+                        + condition.operator
+                        + "\" that requires string value");
+              }
+              final ParsedSemver parsed = ParsedSemver.parse((String) condition.value);
+              if (parsed == null) {
+                throw new InvalidSemverComparandException(
+                    "flag \""
+                        + flagKey
+                        + "\" allocation "
+                        + allocIdx
+                        + " rule has condition with operator \""
+                        + condition.operator
+                        + "\" and invalid semantic version \""
+                        + condition.value
+                        + "\"");
+              }
+              condition.semverComparand = parsed;
+              break;
+            default:
+              // Non-semver operators are not validated here
+              break;
+          }
+        }
+      }
+    }
+  }
+
+  /** Thrown when a SEMVER_* condition has an invalid or non-string comparand value. */
+  static final class InvalidSemverComparandException extends IllegalArgumentException {
+    InvalidSemverComparandException(final String message) {
+      super(message);
+    }
   }
 
   static final class FlagMapAdapter extends JsonAdapter<Map<String, Flag>> {
@@ -107,9 +197,13 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         try {
           final Flag flag = flagAdapter.fromJsonValue(rawFlag);
           if (flag != null) {
+            validateAndCacheSemverComparands(flagKey, flag);
             flags.put(flagKey, flag);
           }
         } catch (JsonDataException | IllegalArgumentException error) {
+          if (error instanceof InvalidSemverComparandException) {
+            INVALID_FLAGS_HOLDER.get().put(flagKey, INVALID_SEMVER_COMPARAND);
+          }
           LOGGER.warn(
               "Dropping malformed FFE flag {} during remote config deserialization: {}",
               flagKey,

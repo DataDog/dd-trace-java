@@ -30,6 +30,7 @@ import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.ParsedSemver;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.Split;
@@ -484,6 +485,134 @@ public class DDEvaluatorTest {
     assertThat(DDEvaluator.isAllocationActive(allocation, endAt.plusNanos(1_000)), equalTo(false));
   }
 
+  // --- SemVer condition evaluation tests (ported from Go evaluator_test.go) ---
+
+  private static Flag semverFlag(final ConditionOperator operator, final String comparand) {
+    final ParsedSemver parsed = ParsedSemver.parse(comparand);
+    final ConditionConfiguration condition =
+        new ConditionConfiguration(operator, "version", comparand);
+    condition.semverComparand = parsed;
+    final Rule rule = new Rule(singletonList(condition));
+    final Split split = new Split(emptyList(), "on", null, null);
+    final Allocation allocation =
+        Allocation.fromInstants(
+            "targeted", singletonList(rule), null, null, singletonList(split), false);
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", true));
+    return new Flag("test-flag", true, ValueType.BOOLEAN, variations, singletonList(allocation));
+  }
+
+  private static EvaluationContext semverContext(final Object version) {
+    final Map<String, Object> attributes = new HashMap<>();
+    if (version != null) {
+      attributes.put("version", version);
+    }
+    final MutableContext context =
+        new MutableContext(Value.objectToValue(attributes).asStructure().asMap());
+    context.setTargetingKey("subject");
+    return context;
+  }
+
+  static Arguments[] semverConditionTestCases() {
+    return new Arguments[] {
+      // Equal
+      Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.3", "1.2.3", true),
+      Arguments.of(ConditionOperator.SEMVER_EQ, "1.2.4", "1.2.3", false),
+      // Not equal
+      Arguments.of(ConditionOperator.SEMVER_NEQ, "1.2.4", "1.2.3", true),
+      Arguments.of(ConditionOperator.SEMVER_NEQ, "1.2.3", "1.2.3", false),
+      // Less than
+      Arguments.of(ConditionOperator.SEMVER_LT, "1.9.9", "2.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_LT, "2.0.0", "2.0.0", false),
+      // Less than or equal
+      Arguments.of(ConditionOperator.SEMVER_LTE, "2.0.0", "2.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_LTE, "2.0.1", "2.0.0", false),
+      // Greater than
+      Arguments.of(ConditionOperator.SEMVER_GT, "1.0.1", "1.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_GT, "1.0.0", "1.0.0", false),
+      // Greater than or equal
+      Arguments.of(ConditionOperator.SEMVER_GTE, "1.0.0", "1.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_GTE, "0.9.9", "1.0.0", false),
+      // Prerelease ordering
+      Arguments.of(ConditionOperator.SEMVER_LT, "1.0.0-beta.1", "1.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_LT, "1.0.0-beta.2", "1.0.0-beta.11", true),
+      // Build metadata is ignored
+      Arguments.of(ConditionOperator.SEMVER_EQ, "4.0.0+build.42", "4.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_EQ, "4.0.0+exp.sha.5114f85", "4.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_NEQ, "4.0.0+build.42", "4.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_LT, "4.0.0+build.42", "4.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_LTE, "4.0.0+build.42", "4.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_GT, "4.0.0+build.42", "4.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_GTE, "4.0.0+build.42", "4.0.0", true),
+      Arguments.of(ConditionOperator.SEMVER_EQ, "1.0.0+linux", "1.0.0+darwin", true),
+      // Invalid attribute does not match
+      Arguments.of(ConditionOperator.SEMVER_NEQ, "not-a-version", "1.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_GTE, "1.2", "1.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_GTE, "v1.2.3", "1.0.0", false),
+      Arguments.of(ConditionOperator.SEMVER_GTE, "18446744073709551616.0.0", "1.0.0", false),
+      // Non-string attribute does not match
+      Arguments.of(ConditionOperator.SEMVER_EQ, 1.2, "1.2.0", false),
+    };
+  }
+
+  @ParameterizedTest(name = "{0} attr={1} comparand={2} -> {3}")
+  @MethodSource("semverConditionTestCases")
+  public void testEvaluateSemverCondition(
+      final ConditionOperator operator,
+      final Object attribute,
+      final String comparand,
+      final boolean wantMatch) {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("test-flag", semverFlag(operator, comparand));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", null, flags));
+
+    final ProviderEvaluation<Boolean> details =
+        evaluator.evaluate(Boolean.class, "test-flag", false, semverContext(attribute));
+
+    if (wantMatch) {
+      assertThat(details.getValue(), equalTo(true));
+      assertThat(details.getReason(), equalTo("TARGETING_MATCH"));
+    } else {
+      assertThat(details.getValue(), equalTo(false));
+      assertThat(details.getReason(), equalTo("DEFAULT"));
+    }
+  }
+
+  @Test
+  public void testEvaluateSemverConditionMissingAttribute() {
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put("test-flag", semverFlag(ConditionOperator.SEMVER_EQ, "1.2.3"));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(new ServerConfiguration("", "", null, flags));
+
+    final ProviderEvaluation<Boolean> details =
+        evaluator.evaluate(Boolean.class, "test-flag", false, semverContext(null));
+
+    assertThat(details.getValue(), equalTo(false));
+    assertThat(details.getReason(), equalTo("DEFAULT"));
+  }
+
+  @Test
+  public void testEvaluateSemverConditionInvalidComparandReturnsParseError() {
+    // A flag with an invalid semver comparand is dropped during parsing.
+    // The evaluator should return PARSE_ERROR when the flag is queried.
+    final Map<String, Flag> flags = new HashMap<>();
+    final Map<String, String> invalidFlags = new HashMap<>();
+    invalidFlags.put("invalid-semver", "invalid_semver_comparand");
+    final ServerConfiguration config = new ServerConfiguration("", "", null, flags);
+    config.invalidFlags = invalidFlags;
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    evaluator.accept(config);
+
+    final ProviderEvaluation<Boolean> details =
+        evaluator.evaluate(Boolean.class, "invalid-semver", false, semverContext("1.2.3"));
+
+    assertThat(details.getValue(), equalTo(false));
+    assertThat(details.getReason(), equalTo(ERROR.name()));
+    assertThat(details.getErrorCode(), equalTo(ErrorCode.PARSE_ERROR));
+  }
+
   private static Arguments[] flatteningTestCases() {
     final List<Arguments> arguments = new ArrayList<>();
     arguments.add(Arguments.of(emptyMap(), emptyMap()));
@@ -721,7 +850,77 @@ public class DDEvaluatorTest {
   }
 
   private static ServerConfiguration loadCanonicalConfiguration() throws IOException {
-    return CONFIG_ADAPTER.fromJson(read(fixtureRoot().resolve("ufc-config.json")));
+    final ServerConfiguration config =
+        CONFIG_ADAPTER.fromJson(read(fixtureRoot().resolve("ufc-config.json")));
+    validateAndCacheSemverComparands(config);
+    return config;
+  }
+
+  /**
+   * Validates and caches SemVer comparands for all SEMVER_* conditions in the configuration. Flags
+   * with invalid comparands are removed from the flags map and tracked in invalidFlags, matching
+   * the behavior of {@link com.datadog.featureflag.UniversalFlagConfigParser}.
+   */
+  private static void validateAndCacheSemverComparands(final ServerConfiguration config) {
+    if (config.flags == null) {
+      return;
+    }
+    final Map<String, String> invalidFlags = new HashMap<>();
+    final Map<String, Flag> flagsToRemove = new HashMap<>();
+    for (final Map.Entry<String, Flag> entry : config.flags.entrySet()) {
+      final String flagKey = entry.getKey();
+      final Flag flag = entry.getValue();
+      if (flag.allocations == null) {
+        continue;
+      }
+      boolean invalid = false;
+      for (final Allocation allocation : flag.allocations) {
+        if (allocation.rules == null) {
+          continue;
+        }
+        for (final Rule rule : allocation.rules) {
+          if (rule.conditions == null) {
+            continue;
+          }
+          for (final ConditionConfiguration condition : rule.conditions) {
+            if (condition.operator == null) {
+              continue;
+            }
+            switch (condition.operator) {
+              case SEMVER_EQ:
+              case SEMVER_NEQ:
+              case SEMVER_LT:
+              case SEMVER_LTE:
+              case SEMVER_GT:
+              case SEMVER_GTE:
+                if (!(condition.value instanceof String)) {
+                  invalid = true;
+                  break;
+                }
+                final ParsedSemver parsed = ParsedSemver.parse((String) condition.value);
+                if (parsed == null) {
+                  invalid = true;
+                  break;
+                }
+                condition.semverComparand = parsed;
+                break;
+              default:
+                break;
+            }
+          }
+        }
+      }
+      if (invalid) {
+        flagsToRemove.put(flagKey, flag);
+        invalidFlags.put(flagKey, "invalid_semver_comparand");
+      }
+    }
+    for (final String flagKey : flagsToRemove.keySet()) {
+      config.flags.remove(flagKey);
+    }
+    if (!invalidFlags.isEmpty()) {
+      config.invalidFlags = invalidFlags;
+    }
   }
 
   private static List<FixtureCase> canonicalTestCases() throws IOException {

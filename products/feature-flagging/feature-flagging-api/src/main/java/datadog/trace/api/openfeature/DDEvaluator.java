@@ -9,6 +9,7 @@ import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.ParsedSemver;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.Shard;
@@ -171,6 +172,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
       final Flag flag = config.flags.get(key);
       if (flag == null) {
+        if (config.invalidFlags != null
+            && "invalid_semver_comparand".equals(config.invalidFlags.get(key))) {
+          return error(
+              defaultValue,
+              ErrorCode.PARSE_ERROR,
+              "invalid configuration for flag " + key,
+              observeFullEvaluationData);
+        }
         return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, null, observeFullEvaluationData);
       }
 
@@ -361,6 +370,18 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         return compareNumber(attributeValue, condition.value, (a, b) -> a <= b);
       case LT:
         return compareNumber(attributeValue, condition.value, (a, b) -> a < b);
+      case SEMVER_EQ:
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o == 0);
+      case SEMVER_NEQ:
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o != 0);
+      case SEMVER_LT:
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o < 0);
+      case SEMVER_LTE:
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o <= 0);
+      case SEMVER_GT:
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o > 0);
+      case SEMVER_GTE:
+        return evaluateSemverCondition(attributeValue, condition.semverComparand, (o) -> o >= 0);
       default:
         return false;
     }
@@ -402,6 +423,25 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     final double a = mapValue(Double.class, attributeValue);
     final double b = mapValue(Double.class, conditionValue);
     return comparator.compare(a, b);
+  }
+
+  /**
+   * Evaluates a semantic version comparison operator. The attribute value must be a string that is
+   * a valid semantic version, and the comparand must have been pre-parsed during configuration
+   * validation. If either is missing or invalid, the condition does not match.
+   */
+  private static boolean evaluateSemverCondition(
+      final Object attributeValue,
+      final ParsedSemver comparand,
+      final SemverComparator comparator) {
+    if (!(attributeValue instanceof String) || comparand == null) {
+      return false;
+    }
+    final ParsedSemver parsedAttribute = ParsedSemver.parse((String) attributeValue);
+    if (parsedAttribute == null) {
+      return false;
+    }
+    return comparator.compare(ParsedSemver.compare(parsedAttribute, comparand));
   }
 
   private static boolean matchesShard(final Shard shard, final String targetingKey) {
@@ -909,6 +949,11 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   @FunctionalInterface
   private interface NumberComparator {
     boolean compare(double a, double b);
+  }
+
+  @FunctionalInterface
+  private interface SemverComparator {
+    boolean compare(int ordering);
   }
 
   private static class FlattenEntry {
