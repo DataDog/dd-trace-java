@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.trace.api.DDTraceApiInfo;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -21,8 +22,9 @@ import org.junit.jupiter.api.Test;
  * an adapter held by the worker. These tests exist to prove that indirection changed nothing on the
  * wire: the same key set as before, no {@code submitter}, no feedback-only target.
  *
- * <p>The single intentional addition is {@code event_kind:"evaluation"}, which discriminates
- * evaluations from feedback the way dd-trace-py and dd-trace-js do.
+ * <p>The intentional additions are {@code event_kind:"evaluation"}, which discriminates evaluations
+ * from feedback, and the {@code ddtrace.version} and {@code ml_app} tags every submission carries.
+ * Both align the payload with dd-trace-py and dd-trace-js.
  */
 class LLMObsEvalTest {
 
@@ -67,9 +69,12 @@ class LLMObsEvalTest {
     assertEquals("score", metric.get("metric_type"));
     assertEquals("sentiment", metric.get("label"));
     assertEquals(0.75, metric.get("score_value"));
-    assertEquals(Collections.singletonList("source:web-ui"), metric.get("tags"));
+    assertEquals(
+        Arrays.asList(
+            "ddtrace.version:" + DDTraceApiInfo.VERSION, "ml_app:my-app", "source:web-ui"),
+        metric.get("tags"));
 
-    // The only addition to the v1 payload.
+    // The additions to the v1 payload.
     assertEquals("evaluation", metric.get("event_kind"));
 
     // Feedback-only keys must never leak into the v1 payload.
@@ -92,8 +97,10 @@ class LLMObsEvalTest {
     assertEquals("categorical", metric.get("metric_type"));
     assertEquals("positive", metric.get("categorical_value"));
     assertFalse(metric.containsKey("score_value"), metric.toString());
-    // A null tag map is omitted rather than serialized as an empty list.
-    assertFalse(metric.containsKey("tags"), metric.toString());
+    // A null user tag map still yields the tags every submission carries.
+    assertEquals(
+        Arrays.asList("ddtrace.version:" + DDTraceApiInfo.VERSION, "ml_app:my-app"),
+        metric.get("tags"));
     assertEquals("evaluation", metric.get("event_kind"));
   }
 

@@ -5,6 +5,7 @@ import com.squareup.moshi.JsonDataException;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
+import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.llmobs.LLMObsIntakeWorker;
 import java.io.IOException;
 import java.util.List;
@@ -45,7 +46,10 @@ public abstract class LLMObsEval {
     this.ml_app = mlApp;
     this.metric_type = metricType;
     this.label = label;
-    this.tags = tags == null ? null : IntakeTags.flatten(tags);
+    // Every submission carries the tracer version and the ML app, as dd-trace-py and dd-trace-js
+    // do, so that evals can be filtered by tag and not only by the top level ml_app field.
+    this.tags =
+        IntakeTags.flatten(tags, "ddtrace.version:" + DDTraceApiInfo.VERSION, "ml_app:" + mlApp);
   }
 
   /**
