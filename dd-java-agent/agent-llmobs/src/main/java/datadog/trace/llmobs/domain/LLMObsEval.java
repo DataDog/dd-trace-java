@@ -7,7 +7,6 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import datadog.trace.llmobs.LLMObsIntakeWorker;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -46,15 +45,7 @@ public abstract class LLMObsEval {
     this.ml_app = mlApp;
     this.metric_type = metricType;
     this.label = label;
-    if (tags != null) {
-      List<String> tagsList = new ArrayList<>(tags.size());
-      for (Map.Entry<String, Object> entry : tags.entrySet()) {
-        tagsList.add(entry.getKey() + ":" + entry.getValue());
-      }
-      this.tags = tagsList;
-    } else {
-      this.tags = null;
-    }
+    this.tags = tags == null ? null : IntakeTags.flatten(tags);
   }
 
   /**

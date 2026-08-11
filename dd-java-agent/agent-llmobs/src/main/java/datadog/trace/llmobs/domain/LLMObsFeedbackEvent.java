@@ -9,7 +9,6 @@ import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.llmobs.LLMObsIntakeWorker;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -47,15 +46,8 @@ public final class LLMObsFeedbackEvent {
   }
 
   private static List<String> buildTags(@Nullable Map<String, Object> userTags, String mlApp) {
-    List<String> tagList = new ArrayList<>((userTags == null ? 0 : userTags.size()) + 2);
-    tagList.add("ddtrace.version:" + DDTraceApiInfo.VERSION);
-    tagList.add("ml_app:" + mlApp);
-    if (userTags != null) {
-      for (Map.Entry<String, Object> entry : userTags.entrySet()) {
-        tagList.add(entry.getKey() + ":" + entry.getValue());
-      }
-    }
-    return tagList;
+    return IntakeTags.flatten(
+        userTags, "ddtrace.version:" + DDTraceApiInfo.VERSION, "ml_app:" + mlApp);
   }
 
   /**
