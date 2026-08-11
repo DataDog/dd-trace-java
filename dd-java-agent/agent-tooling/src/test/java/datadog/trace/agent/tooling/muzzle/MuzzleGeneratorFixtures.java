@@ -42,11 +42,14 @@ final class MuzzleGeneratorFixtures {
     }
   }
 
-  /** Module declaring a manual helper the advice crawl cannot see. */
-  static class CombineModule extends TestInstrumentationClasses.BaseInst {
+  /** Module declaring a manual helper list. */
+  static class ManualModule extends TestInstrumentationClasses.BaseInst {
     @Override
     public String[] helperClassNames() {
       return new String[] {ManualHelperFixture.class.getName()};
     }
   }
+
+  /** Module with no declared helper list, so its helpers come from auto-detection. */
+  static class InferredModule extends TestInstrumentationClasses.BaseInst {}
 }
