@@ -101,8 +101,7 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
       throw new RuntimeException(e);
     }
 
-    // Set resolved helpers directly in the module's helperClassNames() so agent reads
-    // them directly without loading the $Muzzle class.
+    // Write the resolved helpers into the module's helperClassNames() so agent reads them directly.
     return new HelperClassNamesWriter(classVisitor, orderedHelpers);
   }
 
@@ -209,13 +208,15 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
   }
 
   /**
-   * Rewrite a module's {@code helperClassNames()} to return the build-time-resolved helper list.
+   * Adds a {@code helperClassNames()} returning the build-time-resolved helper list to modules that
+   * don't declare one; a module that declares its own keeps it.
    */
   private static final class HelperClassNamesWriter extends ClassVisitor {
     private static final String HELPER_METHOD = "helperClassNames";
     private static final String HELPER_DESCRIPTOR = "()[Ljava/lang/String;";
 
     private final String[] helpers;
+    private boolean declared;
 
     HelperClassNamesWriter(ClassVisitor classVisitor, String[] helpers) {
       super(Opcodes.ASM7, classVisitor);
@@ -225,16 +226,16 @@ public class MuzzleGenerator implements AsmVisitorWrapper {
     @Override
     public MethodVisitor visitMethod(
         int access, String name, String descriptor, String signature, String[] exceptions) {
-      // Drop any existing helperClassNames() - resolved version will be re-added in visitEnd.
       if (HELPER_METHOD.equals(name) && HELPER_DESCRIPTOR.equals(descriptor)) {
-        return null;
+        declared = true;
       }
       return super.visitMethod(access, name, descriptor, signature, exceptions);
     }
 
     @Override
     public void visitEnd() {
-      if (helpers.length > 0) {
+      // Only generate when the module does not declare its own manually listed helpers.
+      if (!declared && helpers.length > 0) {
         MethodVisitor mv =
             super.visitMethod(Opcodes.ACC_PUBLIC, HELPER_METHOD, HELPER_DESCRIPTOR, null, null);
         mv.visitCode();
