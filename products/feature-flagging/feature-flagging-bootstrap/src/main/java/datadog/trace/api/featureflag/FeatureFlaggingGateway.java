@@ -27,6 +27,7 @@ public abstract class FeatureFlaggingGateway {
 
   private static final AtomicReference<ServerConfiguration> CURRENT_CONFIG =
       new AtomicReference<>();
+  private static volatile boolean providerInjectionEnabled;
 
   private FeatureFlaggingGateway() {}
 
@@ -58,6 +59,16 @@ public abstract class FeatureFlaggingGateway {
   /** Signals that application code initialized the Datadog OpenFeature provider. */
   public static void activate() {
     ACTIVATION_LISTENERS.forEach(ActivationListener::activate);
+  }
+
+  /** Enables agent instrumentation to install the Datadog provider into OpenFeature. */
+  public static void setProviderInjectionEnabled(final boolean enabled) {
+    providerInjectionEnabled = enabled;
+  }
+
+  /** Returns whether agent instrumentation can install the Datadog OpenFeature provider. */
+  public static boolean isProviderInjectionEnabled() {
+    return providerInjectionEnabled;
   }
 
   public static void addExposureListener(final ExposureListener listener) {

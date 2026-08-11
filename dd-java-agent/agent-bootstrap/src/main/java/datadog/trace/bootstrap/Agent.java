@@ -44,6 +44,7 @@ import datadog.trace.api.config.RemoteConfigConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.config.UsmConfig;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.config.FeatureFlaggingConfig;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
@@ -285,6 +286,7 @@ public class Agent {
     appLogsCollectionEnabled = isFeatureEnabled(AgentFeature.APP_LOGS_COLLECTION);
     llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
     featureFlaggingEnabled = isFeatureFlaggingEnabled();
+    FeatureFlaggingGateway.setProviderInjectionEnabled(featureFlaggingEnabled);
 
     // setup writers when llmobs is enabled to accomodate apm and llmobs
     if (llmObsEnabled) {
@@ -531,6 +533,7 @@ public class Agent {
       stopFlarePoller();
     }
     if (featureFlaggingEnabled) {
+      FeatureFlaggingGateway.setProviderInjectionEnabled(false);
       shutdownFeatureFlagging(AGENT_CLASSLOADER);
     }
 

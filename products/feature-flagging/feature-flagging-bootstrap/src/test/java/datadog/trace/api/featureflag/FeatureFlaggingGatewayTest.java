@@ -1,5 +1,7 @@
 package datadog.trace.api.featureflag;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -35,10 +37,20 @@ class FeatureFlaggingGatewayTest {
 
   @AfterEach
   void tearDown() {
+    FeatureFlaggingGateway.setProviderInjectionEnabled(false);
     FeatureFlaggingGateway.removeConfigListener(configListener);
     FeatureFlaggingGateway.removeActivationListener(activationListener);
     FeatureFlaggingGateway.removeExposureListener(exposureListener);
     FeatureFlaggingGateway.removeSpanEnrichmentListener(spanEnrichmentListener);
+  }
+
+  @Test
+  void testProviderInjectionGate() {
+    assertFalse(FeatureFlaggingGateway.isProviderInjectionEnabled());
+
+    FeatureFlaggingGateway.setProviderInjectionEnabled(true);
+
+    assertTrue(FeatureFlaggingGateway.isProviderInjectionEnabled());
   }
 
   @Test

@@ -123,9 +123,9 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       started = true;
     }
 
-    // Complete the first poll cycle on the activation thread. This lets OpenFeature provider
-    // initialization observe a successful retry before it checks whether configuration is ready.
-    // No request occurs before application code activates the provider.
+    // Complete the first poll cycle during subsystem startup. This lets an injected OpenFeature
+    // provider observe configuration as soon as it initializes. Explicit configuration-source
+    // selection is the request and billing gate.
     pollOnceSafely();
 
     synchronized (lifecycleLock) {

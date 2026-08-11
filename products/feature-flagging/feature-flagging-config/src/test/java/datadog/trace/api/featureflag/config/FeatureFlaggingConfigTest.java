@@ -15,8 +15,9 @@ class FeatureFlaggingConfigTest {
 
   @Test
   void appliesConfigurationPrecedence() {
-    assertResolution(true, CONFIGURATION_SOURCE_AGENTLESS, null, null, null);
-    assertResolution(true, CONFIGURATION_SOURCE_AGENTLESS, null, " ", null);
+    assertResolution(false, null, null, null, null);
+    assertResolution(false, null, null, " ", null);
+    assertResolution(false, null, true, null, null);
     assertResolution(true, CONFIGURATION_SOURCE_REMOTE_CONFIG, null, null, true);
     assertResolution(false, null, null, null, false);
     assertResolution(true, CONFIGURATION_SOURCE_AGENTLESS, null, "agentless", true);

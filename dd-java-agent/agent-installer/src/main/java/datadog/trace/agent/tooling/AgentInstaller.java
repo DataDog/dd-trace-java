@@ -16,6 +16,7 @@ import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.telemetry.IntegrationsCollector;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -327,6 +328,9 @@ public class AgentInstaller {
     }
     if (cfg.isCiVisibilityEnabled()) {
       enabledSystems.add(InstrumenterModule.TargetSystem.CIVISIBILITY);
+    }
+    if (FeatureFlaggingGateway.isProviderInjectionEnabled()) {
+      enabledSystems.add(InstrumenterModule.TargetSystem.FEATURE_FLAGS);
     }
     if (cfg.isUsmEnabled()) {
       enabledSystems.add(InstrumenterModule.TargetSystem.USM);

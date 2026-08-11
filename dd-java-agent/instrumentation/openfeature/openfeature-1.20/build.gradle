@@ -1,0 +1,20 @@
+muzzle {
+  pass {
+    group = 'dev.openfeature'
+    module = 'sdk'
+    versions = '[1.20.1,1.21)'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'dev.openfeature', name: 'sdk', version: '1.20.1'
+
+  implementation(project(':products:feature-flagging:feature-flagging-api')) {
+    transitive = false
+  }
+
+  testImplementation project(':products:feature-flagging:feature-flagging-bootstrap')
+  testImplementation group: 'dev.openfeature', name: 'sdk', version: '1.20.1'
+}
