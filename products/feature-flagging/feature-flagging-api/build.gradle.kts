@@ -49,6 +49,7 @@ dependencies {
   compileOnly("io.opentelemetry:opentelemetry-api:1.47.0")
 
   testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
+  testImplementation(project(":products:feature-flagging:feature-flagging-lib"))
   testImplementation(project(":utils:config-utils"))
   testImplementation("io.opentelemetry:opentelemetry-api:1.47.0")
   testImplementation(libs.bundles.junit5)

@@ -9,6 +9,8 @@ import com.squareup.moshi.Types;
 import datadog.remoteconfig.ConfigurationDeserializer;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.FlagMap;
+import datadog.trace.api.featureflag.ufc.v1.FlagValidator;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.Split;
@@ -18,7 +20,6 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,11 +30,12 @@ import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class UniversalFlagConfigParser implements ConfigurationDeserializer<ServerConfiguration> {
+public final class UniversalFlagConfigParser
+    implements ConfigurationDeserializer<ServerConfiguration> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(UniversalFlagConfigParser.class);
 
-  static final UniversalFlagConfigParser INSTANCE = new UniversalFlagConfigParser();
+  public static final UniversalFlagConfigParser INSTANCE = new UniversalFlagConfigParser();
 
   private static final Moshi MOSHI =
       new Moshi.Builder()
@@ -98,17 +100,22 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
       if (reader.peek() == JsonReader.Token.NULL) {
         return reader.nextNull();
       }
-      final Map<String, Flag> flags = new HashMap<>();
+      final FlagMap flags = new FlagMap();
       reader.beginObject();
       while (reader.hasNext()) {
         final String flagKey = reader.nextName();
         final Object rawFlag = reader.readJsonValue();
         try {
+          FlagValidator.validateJson(rawFlag);
           final Flag flag = flagAdapter.fromJsonValue(rawFlag);
           if (flag != null) {
+            FlagValidator.validate(flag);
             flags.put(flagKey, flag);
+          } else {
+            flags.reject(flagKey);
           }
         } catch (JsonDataException | IllegalArgumentException error) {
+          flags.reject(flagKey);
           LOGGER.warn(
               "Dropping malformed FFE flag {} during remote config deserialization: {}",
               flagKey,

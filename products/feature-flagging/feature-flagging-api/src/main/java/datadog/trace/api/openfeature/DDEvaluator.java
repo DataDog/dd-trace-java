@@ -9,7 +9,10 @@ import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
 import datadog.trace.api.featureflag.ufc.v1.Flag;
+import datadog.trace.api.featureflag.ufc.v1.FlagMap;
+import datadog.trace.api.featureflag.ufc.v1.FlagValidator;
 import datadog.trace.api.featureflag.ufc.v1.Rule;
+import datadog.trace.api.featureflag.ufc.v1.SemanticVersion;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.Shard;
 import datadog.trace.api.featureflag.ufc.v1.ShardRange;
@@ -111,6 +114,10 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
       final Flag flag = config.flags.get(key);
       if (flag == null) {
+        if (config.flags instanceof FlagMap && ((FlagMap) config.flags).isRejected(key)) {
+          return error(
+              defaultValue, ErrorCode.PARSE_ERROR, "Invalid configuration for flag " + key);
+        }
         return error(defaultValue, ErrorCode.FLAG_NOT_FOUND);
       }
 
@@ -275,6 +282,13 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         return compareNumber(attributeValue, condition.value, (a, b) -> a <= b);
       case LT:
         return compareNumber(attributeValue, condition.value, (a, b) -> a < b);
+      case SEMVER_EQ:
+      case SEMVER_NEQ:
+      case SEMVER_LT:
+      case SEMVER_LTE:
+      case SEMVER_GT:
+      case SEMVER_GTE:
+        return matchesSemanticVersion(condition.operator, attributeValue, condition.value);
       default:
         return false;
     }
@@ -283,7 +297,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static boolean matchesRegex(final Object attributeValue, final Object conditionValue) {
     // PatternSyntaxException is intentionally not caught here so it propagates to evaluate(),
     // which maps it to ErrorCode.PARSE_ERROR.
-    final Pattern pattern = Pattern.compile(String.valueOf(conditionValue));
+    final Pattern pattern = FlagValidator.compileRegex(String.valueOf(conditionValue));
     return pattern.matcher(String.valueOf(attributeValue)).find();
   }
 
@@ -316,6 +330,33 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     final double a = mapValue(Double.class, attributeValue);
     final double b = mapValue(Double.class, conditionValue);
     return comparator.compare(a, b);
+  }
+
+  private static boolean matchesSemanticVersion(
+      final ConditionOperator operator, final Object attributeValue, final Object conditionValue) {
+    final int comparison;
+    try {
+      comparison =
+          SemanticVersion.parse(attributeValue).compareTo(SemanticVersion.parse(conditionValue));
+    } catch (IllegalArgumentException ignored) {
+      return false;
+    }
+    switch (operator) {
+      case SEMVER_EQ:
+        return comparison == 0;
+      case SEMVER_NEQ:
+        return comparison != 0;
+      case SEMVER_LT:
+        return comparison < 0;
+      case SEMVER_LTE:
+        return comparison <= 0;
+      case SEMVER_GT:
+        return comparison > 0;
+      case SEMVER_GTE:
+        return comparison >= 0;
+      default:
+        return false;
+    }
   }
 
   private static boolean matchesShard(final Shard shard, final String targetingKey) {
@@ -417,10 +458,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     final ProviderEvaluation<T> result =
         ProviderEvaluation.<T>builder()
             .value(mappedValue)
-            .reason(
-                !isEmpty(allocation.rules)
-                    ? Reason.TARGETING_MATCH.name()
-                    : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
+            .reason(assignmentReason(allocation, split))
             .variant(variant.key)
             .flagMetadata(metadataBuilder.build())
             .build();
@@ -429,6 +467,20 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       dispatchExposure(key, result, context);
     }
     return result;
+  }
+
+  private static String assignmentReason(final Allocation allocation, final Split split) {
+    if (!isEmpty(allocation.rules)) {
+      return Reason.TARGETING_MATCH.name();
+    }
+    if ((allocation.startAtInstant() != null || allocation.endAtInstant() != null)
+        && allocation.splits.size() == 1
+        && isEmpty(split.shards)) {
+      return Reason.DEFAULT.name();
+    }
+    return allocation.splits.size() == 1 && isEmpty(split.shards)
+        ? Reason.STATIC.name()
+        : Reason.SPLIT.name();
   }
 
   private static Object resolveAttribute(final String name, final EvaluationContext context) {
