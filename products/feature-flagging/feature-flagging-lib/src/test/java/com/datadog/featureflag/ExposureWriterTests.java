@@ -288,7 +288,7 @@ class ExposureWriterTests {
     assertEquals(service == null ? "unknown" : service, context.get("service"));
     assertOptionalContextValue(context, "env", env);
     assertOptionalContextValue(context, "version", version);
-    // SDK identity populated by FeatureFlagEvpContext (FFL-2995).
+    // SDK identity populated by FeatureFlagEvpContext.
     assertEquals("dd-trace-java", context.get("source.name"));
     assertEquals(TracerVersion.TRACER_VERSION, context.get("source.version"));
   }
