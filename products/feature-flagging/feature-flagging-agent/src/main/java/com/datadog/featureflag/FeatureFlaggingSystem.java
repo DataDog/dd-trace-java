@@ -41,6 +41,12 @@ public class FeatureFlaggingSystem {
     }
 
     if (CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())) {
+      try {
+        initializeExposureWriter(sco, config);
+      } catch (final RuntimeException | Error e) {
+        STARTED = false;
+        throw e;
+      }
       final FeatureFlaggingGateway.ActivationListener activationListener =
           () -> activateAgentless(sco, config);
       ACTIVATION_LISTENER = activationListener;
@@ -79,8 +85,13 @@ public class FeatureFlaggingSystem {
       LOGGER.debug("Feature Flagging system disabled by unsupported configuration source");
       return;
     }
-    final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
-    initialize(configService, exposureWriter);
+    final ExposureWriter exposureWriter = EXPOSURE_WRITER;
+    if (exposureWriter == null) {
+      final ExposureWriter newExposureWriter = new ExposureWriterImpl(sco, config);
+      initialize(configService, newExposureWriter);
+    } else {
+      initializeConfigurationSource(configService, exposureWriter);
+    }
 
     // APM span enrichment: agent-side listener for flag-evaluation seam events. Uses the process-
     // wide singleton so a subsystem restart reuses the one already-registered trace interceptor
@@ -91,6 +102,34 @@ public class FeatureFlaggingSystem {
     SPAN_ENRICHMENT_WRITER.init();
 
     LOGGER.debug("Feature Flagging system started");
+  }
+
+  private static void initializeExposureWriter(
+      final SharedCommunicationObjects sco, final Config config) {
+    final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
+    try {
+      exposureWriter.init();
+      EXPOSURE_WRITER = exposureWriter;
+    } catch (final RuntimeException | Error e) {
+      exposureWriter.close();
+      throw e;
+    }
+  }
+
+  private static void initializeConfigurationSource(
+      final ConfigurationSourceService configService, final ExposureWriter exposureWriter) {
+    try {
+      configService.init();
+      CONFIG_SERVICE = configService;
+    } catch (final RuntimeException | Error e) {
+      EXPOSURE_WRITER = null;
+      try {
+        exposureWriter.close();
+      } finally {
+        configService.close();
+      }
+      throw e;
+    }
   }
 
   static void initialize(
@@ -166,5 +205,9 @@ public class FeatureFlaggingSystem {
 
   static boolean isAwaitingApplicationActivation() {
     return ACTIVATION_LISTENER != null;
+  }
+
+  static boolean isExposureWriterStarted() {
+    return EXPOSURE_WRITER != null;
   }
 }

@@ -38,7 +38,7 @@ class FeatureFlaggingSystemTest {
   @WithConfig(
       key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
       value = "http://127.0.0.1:1")
-  void agentlessStartWaitsForApplicationProviderActivation() {
+  void agentlessStartPreparesExposureDeliveryAndWaitsForApplicationProviderActivation() {
     SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
     clearInvocations(sharedCommunicationObjects);
 
@@ -46,7 +46,7 @@ class FeatureFlaggingSystemTest {
       FeatureFlaggingSystem.start(sharedCommunicationObjects);
 
       assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
-      verifyNoInteractions(sharedCommunicationObjects);
+      assertTrue(FeatureFlaggingSystem.isExposureWriterStarted());
 
       FeatureFlaggingGateway.activate();
 
@@ -56,6 +56,7 @@ class FeatureFlaggingSystemTest {
     }
 
     assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+    assertFalse(FeatureFlaggingSystem.isExposureWriterStarted());
   }
 
   @Test
@@ -72,6 +73,7 @@ class FeatureFlaggingSystemTest {
       assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
 
       FeatureFlaggingSystem.stop();
+      clearInvocations(sharedCommunicationObjects);
       FeatureFlaggingGateway.activate();
 
       assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
