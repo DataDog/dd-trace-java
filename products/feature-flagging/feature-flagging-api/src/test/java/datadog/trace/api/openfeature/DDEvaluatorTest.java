@@ -565,7 +565,7 @@ public class DDEvaluatorTest {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("test-flag", semverFlag(operator, comparand));
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", null, flags));
+    evaluator.accept(new ServerConfiguration("", "", null, null, flags));
 
     final ProviderEvaluation<Boolean> details =
         evaluator.evaluate(Boolean.class, "test-flag", false, semverContext(attribute));
@@ -584,7 +584,7 @@ public class DDEvaluatorTest {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("test-flag", semverFlag(ConditionOperator.SEMVER_EQ, "1.2.3"));
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", null, flags));
+    evaluator.accept(new ServerConfiguration("", "", null, null, flags));
 
     final ProviderEvaluation<Boolean> details =
         evaluator.evaluate(Boolean.class, "test-flag", false, semverContext(null));
@@ -600,7 +600,7 @@ public class DDEvaluatorTest {
     final Map<String, Flag> flags = new HashMap<>();
     final Map<String, String> invalidFlags = new HashMap<>();
     invalidFlags.put("invalid-semver", "invalid_semver_comparand");
-    final ServerConfiguration config = new ServerConfiguration("", "", null, flags);
+    final ServerConfiguration config = new ServerConfiguration("", "", null, null, flags);
     config.invalidFlags = invalidFlags;
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
     evaluator.accept(config);
