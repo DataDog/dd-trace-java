@@ -35,6 +35,7 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
 
   private static final Logger LOGGER = LoggerFactory.getLogger(UniversalFlagConfigParser.class);
 
+  static final String INVALID_FLAG = "invalid_flag";
   static final String INVALID_SEMVER_COMPARAND = "invalid_semver_comparand";
 
   /**
@@ -86,6 +87,25 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
   private static void requireEndOfDocument(final JsonReader reader) throws IOException {
     // A strict JsonReader throws if another top-level value follows the parsed document.
     reader.peek();
+  }
+
+  /** Validates the required nested UFC fields and SemVer comparands for a flag. */
+  private static void validateFlag(final String flagKey, final Flag flag) {
+    if (flag.allocations == null) {
+      return;
+    }
+    for (final Allocation allocation : flag.allocations) {
+      if (allocation == null || allocation.splits == null) {
+        continue;
+      }
+      for (final Split split : allocation.splits) {
+        if (split != null && split.shards == null) {
+          throw new InvalidFlagException(
+              "flag \"" + flagKey + "\" contains a split with missing shards");
+        }
+      }
+    }
+    validateAndCacheSemverComparands(flagKey, flag);
   }
 
   /**
@@ -150,6 +170,13 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
     }
   }
 
+  /** Thrown when a flag has an invalid UFC shape. */
+  static final class InvalidFlagException extends IllegalArgumentException {
+    InvalidFlagException(final String message) {
+      super(message);
+    }
+  }
+
   /** Thrown when a SEMVER_* condition has an invalid or non-string comparand value. */
   static final class InvalidSemverComparandException extends IllegalArgumentException {
     InvalidSemverComparandException(final String message) {
@@ -197,10 +224,11 @@ final class UniversalFlagConfigParser implements ConfigurationDeserializer<Serve
         try {
           final Flag flag = flagAdapter.fromJsonValue(rawFlag);
           if (flag != null) {
-            validateAndCacheSemverComparands(flagKey, flag);
+            validateFlag(flagKey, flag);
             flags.put(flagKey, flag);
           }
         } catch (JsonDataException | IllegalArgumentException error) {
+          INVALID_FLAGS_HOLDER.get().put(flagKey, INVALID_FLAG);
           if (error instanceof InvalidSemverComparandException) {
             INVALID_FLAGS_HOLDER.get().put(flagKey, INVALID_SEMVER_COMPARAND);
           }

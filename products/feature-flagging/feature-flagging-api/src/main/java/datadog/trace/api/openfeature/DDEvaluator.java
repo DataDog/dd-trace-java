@@ -172,13 +172,19 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
       final Flag flag = config.flags.get(key);
       if (flag == null) {
-        if (config.invalidFlags != null
-            && "invalid_semver_comparand".equals(config.invalidFlags.get(key))) {
-          return error(
-              defaultValue,
-              ErrorCode.PARSE_ERROR,
-              "invalid configuration for flag " + key,
-              observeFullEvaluationData);
+        if (config.invalidFlags != null && config.invalidFlags.containsKey(key)) {
+          if ("invalid_semver_comparand".equals(config.invalidFlags.get(key))) {
+            return error(
+                defaultValue,
+                ErrorCode.PARSE_ERROR,
+                "invalid configuration for flag " + key,
+                observeFullEvaluationData);
+          }
+          return ProviderEvaluation.<T>builder()
+              .value(defaultValue)
+              .reason(Reason.DEFAULT.name())
+              .flagMetadata(consentMetadata(observeFullEvaluationData))
+              .build();
         }
         return error(defaultValue, ErrorCode.FLAG_NOT_FOUND, null, observeFullEvaluationData);
       }
@@ -390,8 +396,18 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static boolean matchesRegex(final Object attributeValue, final Object conditionValue) {
     // PatternSyntaxException is intentionally not caught here so it propagates to evaluate(),
     // which maps it to ErrorCode.PARSE_ERROR.
-    final Pattern pattern = Pattern.compile(String.valueOf(conditionValue));
+    final Pattern pattern = Pattern.compile(normalizeRegex(String.valueOf(conditionValue)));
     return pattern.matcher(String.valueOf(attributeValue)).find();
+  }
+
+  private static String normalizeRegex(final String regex) {
+    return regex
+        .replace("[:alnum:]", "\\p{Alnum}")
+        .replace("[:alpha:]", "\\p{Alpha}")
+        .replace("[:digit:]", "\\p{Digit}")
+        .replace("[:lower:]", "\\p{Lower}")
+        .replace("[:upper:]", "\\p{Upper}")
+        .replace("[:space:]", "\\p{Space}");
   }
 
   private static boolean isOneOf(final Object attributeValue, final Object conditionValue) {
@@ -553,7 +569,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .reason(
                 !isEmpty(allocation.rules)
                     ? Reason.TARGETING_MATCH.name()
-                    : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
+                    : allocation.startAt != null || allocation.endAt != null
+                        ? Reason.DEFAULT.name()
+                        : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
             .variant(variant.key)
             .flagMetadata(metadataBuilder.build())
             .build();

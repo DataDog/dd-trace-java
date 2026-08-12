@@ -68,13 +68,16 @@ public class DDEvaluatorTest {
 
   private static final String CANONICAL_FIXTURE_PATH =
       "dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data";
-  private static final Moshi MOSHI = new Moshi.Builder().add(Date.class, new DateAdapter()).build();
+  private static final Moshi MOSHI =
+      new Moshi.Builder().add(Date.class, new DateAdapter()).add(FlagMapAdapter.FACTORY).build();
   private static final JsonAdapter<ServerConfiguration> CONFIG_ADAPTER =
       MOSHI.adapter(ServerConfiguration.class);
   private static final Type FIXTURE_LIST_TYPE =
       Types.newParameterizedType(List.class, FixtureCase.class);
   private static final JsonAdapter<List<FixtureCase>> FIXTURE_LIST_ADAPTER =
       MOSHI.adapter(FIXTURE_LIST_TYPE);
+  private static final ThreadLocal<Map<String, String>> INVALID_FLAGS_HOLDER =
+      ThreadLocal.withInitial(HashMap::new);
 
   @Test
   public void testInitializeSignalsApplicationProviderActivation() throws Exception {
@@ -850,10 +853,19 @@ public class DDEvaluatorTest {
   }
 
   private static ServerConfiguration loadCanonicalConfiguration() throws IOException {
-    final ServerConfiguration config =
-        CONFIG_ADAPTER.fromJson(read(fixtureRoot().resolve("ufc-config.json")));
-    validateAndCacheSemverComparands(config);
-    return config;
+    INVALID_FLAGS_HOLDER.get().clear();
+    try {
+      final ServerConfiguration config =
+          CONFIG_ADAPTER.fromJson(read(fixtureRoot().resolve("ufc-config.json")));
+      final Map<String, String> invalidFlags = new HashMap<>(INVALID_FLAGS_HOLDER.get());
+      if (!invalidFlags.isEmpty()) {
+        config.invalidFlags = invalidFlags;
+      }
+      validateAndCacheSemverComparands(config);
+      return config;
+    } finally {
+      INVALID_FLAGS_HOLDER.get().clear();
+    }
   }
 
   /**
@@ -865,7 +877,8 @@ public class DDEvaluatorTest {
     if (config.flags == null) {
       return;
     }
-    final Map<String, String> invalidFlags = new HashMap<>();
+    final Map<String, String> invalidFlags =
+        config.invalidFlags == null ? new HashMap<>() : new HashMap<>(config.invalidFlags);
     final Map<String, Flag> flagsToRemove = new HashMap<>();
     for (final Map.Entry<String, Flag> entry : config.flags.entrySet()) {
       final String flagKey = entry.getKey();
@@ -1033,6 +1046,73 @@ public class DDEvaluatorTest {
     String errorCode;
     String variant;
     Map<String, Object> flagMetadata = emptyMap();
+  }
+
+  /** Reads the flags map with per-flag failure isolation, matching the production parser. */
+  private static final class FlagMapAdapter extends JsonAdapter<Map<String, Flag>> {
+    private static final Type FLAGS_TYPE =
+        Types.newParameterizedType(Map.class, String.class, Flag.class);
+
+    private static final JsonAdapter.Factory FACTORY =
+        (type, annotations, moshi) -> {
+          if (!annotations.isEmpty() || !Types.equals(type, FLAGS_TYPE)) {
+            return null;
+          }
+          return new FlagMapAdapter(moshi.adapter(Flag.class));
+        };
+
+    private final JsonAdapter<Flag> flagAdapter;
+
+    private FlagMapAdapter(final JsonAdapter<Flag> flagAdapter) {
+      this.flagAdapter = flagAdapter;
+    }
+
+    @Override
+    public Map<String, Flag> fromJson(final JsonReader reader) throws IOException {
+      if (reader.peek() == JsonReader.Token.NULL) {
+        return reader.nextNull();
+      }
+      final Map<String, Flag> flags = new HashMap<>();
+      reader.beginObject();
+      while (reader.hasNext()) {
+        final String flagKey = reader.nextName();
+        final Object rawFlag = reader.readJsonValue();
+        try {
+          final Flag flag = flagAdapter.fromJsonValue(rawFlag);
+          if (flag != null) {
+            validateFlag(flagKey, flag);
+            flags.put(flagKey, flag);
+          }
+        } catch (JsonDataException | IllegalArgumentException ignored) {
+          INVALID_FLAGS_HOLDER.get().put(flagKey, "invalid_flag");
+          // A malformed flag must not prevent valid flags in the same configuration from loading.
+        }
+      }
+      reader.endObject();
+      return flags;
+    }
+
+    private static void validateFlag(final String flagKey, final Flag flag) {
+      if (flag.allocations == null) {
+        return;
+      }
+      for (final Allocation allocation : flag.allocations) {
+        if (allocation == null || allocation.splits == null) {
+          continue;
+        }
+        for (final Split split : allocation.splits) {
+          if (split != null && split.shards == null) {
+            throw new IllegalArgumentException(
+                "flag \"" + flagKey + "\" contains a split with missing shards");
+          }
+        }
+      }
+    }
+
+    @Override
+    public void toJson(final JsonWriter writer, final Map<String, Flag> value) {
+      throw new UnsupportedOperationException("Reading only adapter");
+    }
   }
 
   private static final class DateAdapter extends JsonAdapter<Date> {
