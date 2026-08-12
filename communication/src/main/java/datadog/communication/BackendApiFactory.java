@@ -43,7 +43,7 @@ public class BackendApiFactory {
     String apiKey = config.getApiKey();
     if (apiKey == null || apiKey.isEmpty()) {
       throw new FatalAgentMisconfigurationError(
-          "Agentless mode is enabled and api key is not set. Please set application key");
+          "Agentless mode is enabled and API key is not set. Please set DD_API_KEY");
     }
     String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
     return new IntakeApi(
