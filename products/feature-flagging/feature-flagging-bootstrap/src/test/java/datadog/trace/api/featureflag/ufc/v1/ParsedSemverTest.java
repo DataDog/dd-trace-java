@@ -1,6 +1,7 @@
 package datadog.trace.api.featureflag.ufc.v1;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -48,6 +49,7 @@ class ParsedSemverTest {
   static Stream<String> invalidVersions() {
     return Stream.of(
         "",
+        "x",
         "1",
         "1.2",
         "1.2.3.4",
@@ -118,6 +120,32 @@ class ParsedSemverTest {
     final ParsedSemver left = ParsedSemver.parse("1.0.0-99999999999999999999");
     assertTrue(left != null);
     final ParsedSemver right = ParsedSemver.parse("1.0.0-100000000000000000000");
+    assertTrue(right != null);
+    assertTrue(ParsedSemver.compare(left, right) < 0);
+  }
+
+  @Test
+  void testValueObjectMethods() {
+    final ParsedSemver value = ParsedSemver.parse("1.2.3-alpha");
+    final ParsedSemver equalValue = ParsedSemver.parse("1.2.3-alpha");
+    final ParsedSemver release = ParsedSemver.parse("1.2.3");
+    assertTrue(value != null);
+    assertTrue(equalValue != null);
+    assertTrue(release != null);
+    assertTrue(value.equals(value));
+    assertTrue(value.equals(equalValue));
+    assertFalse(value.equals(null));
+    assertFalse(value.equals("1.2.3-alpha"));
+    assertEquals(value.hashCode(), equalValue.hashCode());
+    assertEquals("1.2.3-alpha", value.toString());
+    assertEquals("1.2.3", release.toString());
+  }
+
+  @Test
+  void testCompareSemverNumericPrereleaseIdentifiersLexicographically() {
+    final ParsedSemver left = ParsedSemver.parse("1.0.0-10");
+    assertTrue(left != null);
+    final ParsedSemver right = ParsedSemver.parse("1.0.0-11");
     assertTrue(right != null);
     assertTrue(ParsedSemver.compare(left, right) < 0);
   }
