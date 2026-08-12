@@ -1,9 +1,9 @@
 package datadog.trace.api.featureflag.ufc.v1;
 
 /**
- * ParsedSemver is the language-neutral representation of the Rust/Eppo SemVer subset used by FFE.
- * Owning this parser and comparator keeps behavior consistent across SDKs and lets configuration
- * preprocessing cache comparands instead of reparsing them during every evaluation.
+ * ParsedSemver is the language-neutral representation of the SemVer subset used by FFE. Owning this
+ * parser and comparator keeps behavior consistent across SDKs and lets configuration preprocessing
+ * cache comparands instead of reparsing them during every evaluation.
  *
  * <p>Core identifiers (major, minor, patch) are limited to unsigned 64-bit integers, stored in
  * {@code long} fields and compared with unsigned semantics. Numeric prerelease identifiers may be
@@ -28,8 +28,7 @@ public final class ParsedSemver {
   }
 
   /**
-   * Parses a semantic version string. Accepts the same version syntax as Rust's {@code
-   * semver::Version::parse}.
+   * Parses a semantic version string using the syntax supported by FFE.
    *
    * @param version the version string to parse
    * @return a {@link ParsedSemver} instance, or {@code null} if the input is not a valid semantic
@@ -128,8 +127,8 @@ public final class ParsedSemver {
   }
 
   /**
-   * Parses a core version identifier (major, minor, or patch). Enforces Rust's uint64 bound without
-   * accepting leading zeros (except for the value zero itself).
+   * Parses a core version identifier (major, minor, or patch). Enforces the unsigned 64-bit bound
+   * without accepting leading zeros (except for the value zero itself).
    *
    * @return a two-element array {@code {value, nextIndex}}, or {@code null} on failure
    */
