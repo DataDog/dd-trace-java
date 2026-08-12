@@ -210,4 +210,8 @@ public class FeatureFlaggingSystem {
   static boolean isExposureWriterStarted() {
     return EXPOSURE_WRITER != null;
   }
+
+  static boolean isConfigurationSourceStarted() {
+    return CONFIG_SERVICE != null;
+  }
 }

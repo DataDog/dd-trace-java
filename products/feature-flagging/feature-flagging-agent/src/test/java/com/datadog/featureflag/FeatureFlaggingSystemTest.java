@@ -47,16 +47,19 @@ class FeatureFlaggingSystemTest {
 
       assertTrue(FeatureFlaggingSystem.isAwaitingApplicationActivation());
       assertTrue(FeatureFlaggingSystem.isExposureWriterStarted());
+      assertFalse(FeatureFlaggingSystem.isConfigurationSourceStarted());
 
       FeatureFlaggingGateway.activate();
 
       assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
+      assertTrue(FeatureFlaggingSystem.isConfigurationSourceStarted());
     } finally {
       FeatureFlaggingSystem.stop();
     }
 
     assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
     assertFalse(FeatureFlaggingSystem.isExposureWriterStarted());
+    assertFalse(FeatureFlaggingSystem.isConfigurationSourceStarted());
   }
 
   @Test
