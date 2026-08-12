@@ -5,7 +5,6 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGU
 
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
-import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +16,6 @@ public class FeatureFlaggingSystem {
   private static volatile ConfigurationSourceService CONFIG_SERVICE;
   private static volatile ExposureWriter EXPOSURE_WRITER;
   private static volatile SpanEnrichmentWriter SPAN_ENRICHMENT_WRITER;
-  private static volatile FeatureFlaggingGateway.ActivationListener ACTIVATION_LISTENER;
   private static volatile boolean STARTED;
 
   private FeatureFlaggingSystem() {}
@@ -40,31 +38,6 @@ public class FeatureFlaggingSystem {
       return;
     }
 
-    if (CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource())) {
-      final FeatureFlaggingGateway.ActivationListener activationListener =
-          () -> activateAgentless(sco, config);
-      ACTIVATION_LISTENER = activationListener;
-      FeatureFlaggingGateway.addActivationListener(activationListener);
-      LOGGER.debug("Feature Flagging system awaiting application provider activation");
-      return;
-    }
-
-    try {
-      initializeSystem(sco, config);
-    } catch (final RuntimeException | Error e) {
-      STARTED = false;
-      throw e;
-    }
-  }
-
-  private static synchronized void activateAgentless(
-      final SharedCommunicationObjects sco, final Config config) {
-    final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
-    if (!STARTED || activationListener == null) {
-      return;
-    }
-    ACTIVATION_LISTENER = null;
-    FeatureFlaggingGateway.removeActivationListener(activationListener);
     try {
       initializeSystem(sco, config);
     } catch (final RuntimeException | Error e) {
@@ -134,18 +107,13 @@ public class FeatureFlaggingSystem {
       justification =
           "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
   public static synchronized void stop() {
-    final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
     final SpanEnrichmentWriter spanEnrichmentWriter = SPAN_ENRICHMENT_WRITER;
     final ExposureWriter exposureWriter = EXPOSURE_WRITER;
     final ConfigurationSourceService configService = CONFIG_SERVICE;
     STARTED = false;
-    ACTIVATION_LISTENER = null;
     SPAN_ENRICHMENT_WRITER = null;
     EXPOSURE_WRITER = null;
     CONFIG_SERVICE = null;
-    if (activationListener != null) {
-      FeatureFlaggingGateway.removeActivationListener(activationListener);
-    }
     try {
       if (spanEnrichmentWriter != null) {
         spanEnrichmentWriter.close();
@@ -165,6 +133,6 @@ public class FeatureFlaggingSystem {
   }
 
   static boolean isAwaitingApplicationActivation() {
-    return ACTIVATION_LISTENER != null;
+    return false;
   }
 }

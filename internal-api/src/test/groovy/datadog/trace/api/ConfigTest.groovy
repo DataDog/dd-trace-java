@@ -3520,9 +3520,9 @@ class ConfigTest extends DDSpecification {
 
     where:
     value               | expected
-    null                | "agentless"
-    ""                  | "agentless"
-    "   "               | "agentless"
+    null                | null
+    ""                  | null
+    "   "               | null
     " ReMoTe_ConFiG "   | "remote_config"
     "not-a-real-source" | "not-a-real-source"
     " OFFLINE "         | "offline"
@@ -3550,8 +3550,8 @@ class ConfigTest extends DDSpecification {
 
     where:
     providerEnabled | source          | legacyProviderEnabled | expectedEnabled | expectedSource
-    null            | null            | null                  | true            | "agentless"
-    true            | null            | null                  | true            | "agentless"
+    null            | null            | null                  | false           | null
+    true            | null            | null                  | false           | null
     null            | null            | true                  | true            | "remote_config"
     null            | null            | false                 | false           | null
     null            | "agentless"     | true                  | true            | "agentless"

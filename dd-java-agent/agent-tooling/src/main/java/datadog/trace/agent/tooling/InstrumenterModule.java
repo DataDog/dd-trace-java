@@ -40,6 +40,7 @@ public abstract class InstrumenterModule implements Instrumenter {
    *   <li>{@link TargetSystem#APPSEC appsec}
    *   <li>{@link TargetSystem#IAST iast}
    *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
+   *   <li>{@link TargetSystem#FEATURE_FLAGS feature-flags}
    *   <li>{@link TargetSystem#USM usm}
    *   <li>{@link TargetSystem#CONTEXT_TRACKING context-tracking}
    *   <li>{@link TargetSystem#RASP rasp}
@@ -51,6 +52,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     APPSEC,
     IAST,
     CIVISIBILITY,
+    FEATURE_FLAGS,
     USM,
     LLMOBS,
     CONTEXT_TRACKING,
@@ -246,6 +248,18 @@ public abstract class InstrumenterModule implements Instrumenter {
     @Override
     public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.TRACING);
+    }
+  }
+
+  /** Parent class for all Feature Flags related instrumentations. */
+  public abstract static class FeatureFlags extends InstrumenterModule {
+    public FeatureFlags(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.FEATURE_FLAGS);
     }
   }
 

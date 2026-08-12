@@ -52,7 +52,7 @@ public class FeatureFlaggingConfig {
     if (legacyProviderEnabled != null) {
       return legacyProviderEnabled ? REMOTE_CONFIG_CONFIGURATION : DISABLED_RESOLUTION;
     }
-    return AGENTLESS_CONFIGURATION;
+    return DISABLED_RESOLUTION;
   }
 
   public static boolean isSupportedConfigurationSource(final String source) {
